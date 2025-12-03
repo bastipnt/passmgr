@@ -4,6 +4,7 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "lint": "oxlint --type-aware",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
@@ -13,5 +14,10 @@
   "dependencies": {
     "@trpc/client": "^11.7.2",
     "@trpc/server": "^11.7.2"
+  },
+  "devDependencies": {
+    "oxlint": "^1.31.0",
+    "oxlint-tsgolint": "^0.8.3",
+    "@repo/typescript-config": "workspace:*"
   }
 }
