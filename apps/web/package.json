@@ -6,10 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "eslint .",
+    "lint": "oxlint --type-aware",
     "preview": "vite preview"
   },
   "dependencies": {
+    "server": "workspace:*",
+    "@repo/ui": "workspace:*",
+    "@tanstack/react-query": "^5.90.11",
+    "@trpc/client": "^11.7.2",
+    "@trpc/tanstack-react-query": "^11.7.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"
   },

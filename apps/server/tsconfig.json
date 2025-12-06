@@ -1,8 +1,21 @@
 {
-  "extends": "@repo/typescript-config/react-library.json",
+  "extends": "fastify-tsconfig",
   "compilerOptions": {
-    "outDir": "dist"
+    "outDir": "dist",
+    "sourceMap": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUncheckedSideEffectImports": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts", "index.ts"]
 }
