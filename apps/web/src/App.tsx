@@ -1,10 +1,13 @@
 import Index from "./pages/Index";
 import ClientProvider from "./providers/ClientProvider";
+import SelectedElementProvider from "./providers/SelectedElementProvider";
 
 function App() {
   return (
     <ClientProvider>
-      <Index />
+      <SelectedElementProvider>
+        <Index />
+      </SelectedElementProvider>
     </ClientProvider>
   );
 }
