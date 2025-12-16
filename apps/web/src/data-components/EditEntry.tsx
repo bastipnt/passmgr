@@ -1,31 +1,71 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useTRPC } from "../utils/trpc";
-import { Suspense, useContext } from "react";
-import { SelectedElementContext } from "../providers/SelectedElementProvider";
+import { Suspense, useState } from "react";
+import { Toast } from "../components/Toast";
+import { TiUpload } from "react-icons/ti";
+import { Button } from "../components/Button";
+import EntryList from "../components/EntryList";
+import { useLocation, useParams } from "wouter";
+import { entrySlug } from "../data/routes";
 
-function DisplayEntryList() {
-  const trpc = useTRPC();
-  const { entryId } = useContext(SelectedElementContext);
-
-  const { data } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
-
+function Fallback() {
   return (
-    <ul>
-      <li>{data.id}</li>
-      <li>{data.name}</li>
-      <li>{data.email}</li>
-      <li>{data.password}</li>
-    </ul>
+    <div className="space-y-4 p-2">
+      <h1>Loading...</h1>
+      <EntryList>
+        <EntryList.Item label="Loading..." value="••••••••••••" setToastMessage={() => {}} />
+      </EntryList>
+    </div>
   );
 }
 
-export default function EditEntry() {
+function DisplayEntryList() {
+  const trpc = useTRPC();
+  const { entryId } = useParams();
+  const [_, navigate] = useLocation();
+
+  if (!entryId) return <Fallback />;
+
+  const { data } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
+  const [toastMessage, setToastMessage] = useState("");
+
+  const handleSave = () => {
+    navigate(`/${entrySlug}/${entryId}`);
+  };
+
   return (
-    <section>
-      <p>edit</p>
-      <Suspense fallback={<p>No Data</p>}>
-        <DisplayEntryList />
-      </Suspense>
-    </section>
+    <>
+      <div className="space-y-4 p-2">
+        <div className="grid grid-cols-[1fr_auto] items-center">
+          <h1>{data.name}</h1>
+          <div className="flex flex-row gap-2">
+            <Button onClick={handleSave}>
+              <TiUpload className="text-lg" />
+              Save
+            </Button>
+          </div>
+        </div>
+
+        <EntryList>
+          <EntryList.Item label="Email" value={data.email} setToastMessage={setToastMessage} />
+
+          <EntryList.Item
+            label="Password"
+            value={data.password}
+            setToastMessage={setToastMessage}
+            valueHidden
+          />
+        </EntryList>
+      </div>
+      <Toast message={toastMessage} isOpen={!!toastMessage} onClose={() => setToastMessage("")} />
+    </>
+  );
+}
+
+export default function DisplayEntry() {
+  return (
+    <Suspense fallback={<Fallback />}>
+      <DisplayEntryList />
+    </Suspense>
   );
 }

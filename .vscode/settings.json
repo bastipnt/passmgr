@@ -3,5 +3,11 @@
     {
       "mode": "auto"
     }
-  ]
+  ],
+  "prettier.prettierPath": "./node_modules/prettier",
+  "prettier.requireConfig": true,
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "typescript.tsdk": "node_modules/typescript/lib"
 }
