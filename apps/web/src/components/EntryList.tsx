@@ -1,11 +1,8 @@
-import { useCallback, type ReactNode, useState, useEffect, type ReactElement } from "react";
-import { TiEyeOutline, TiMail, TiDocument, TiTick } from "react-icons/ti";
+import { useCallback, type ReactNode, useState, useEffect } from "react";
+import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { Button } from "./Button";
 import { cn } from "../utils/tailwind";
-
-const labelMap: Record<string, { Icon: ReactElement }> = {
-  Email: { Icon: <TiMail /> },
-};
+import { getAttrsForName } from "../utils/label-mapping";
 
 type EntryListProps = {
   children: ReactNode;
@@ -16,27 +13,24 @@ function EntryList({ children }: EntryListProps) {
 }
 
 type EntryListItemProps = {
-  label: string;
+  name: string;
   value: string;
   setToastMessage: (message: string) => void;
   valueHidden?: boolean;
 };
 
-function EntryListItem({ label, value, setToastMessage, valueHidden }: EntryListItemProps) {
+function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListItemProps) {
   const [showValue, setShowValue] = useState(!valueHidden);
+  const { Icon, label } = getAttrsForName(name);
 
   const copyValue = useCallback(async () => {
     await navigator.clipboard.writeText(value);
     setToastMessage(`${label} copied to clipboard`);
-  }, [value, label]);
+  }, [value, label, setToastMessage]);
 
   useEffect(() => {
     setShowValue(!valueHidden);
-  }, [value]);
-
-  const Icon = (
-    <span className="row-span-2">{label in labelMap ? labelMap[label].Icon : <TiDocument />} </span>
-  );
+  }, [valueHidden, setShowValue]);
 
   const isPassword = label === "Password";
   const showActions = !showValue || isPassword;
@@ -58,7 +52,7 @@ function EntryListItem({ label, value, setToastMessage, valueHidden }: EntryList
         )}
         onClick={copyValue}
       >
-        {Icon}
+        <span className="row-span-2">{Icon}</span>
         <small>{label}</small>
         {showValue ? value : "••••••••••••"}
       </button>

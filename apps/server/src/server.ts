@@ -1,4 +1,5 @@
 import { fastifyTRPCPlugin, FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
+import { fastifyRedis } from "@fastify/redis";
 import fastify from "fastify";
 import { createContext } from "./user/context";
 import { appRouter, type AppRouter } from "./router";
@@ -8,6 +9,11 @@ export const server = fastify({
   routerOptions: {
     maxParamLength: 5000,
   },
+});
+
+await server.register(fastifyRedis, {
+  host: process.env.REDIS_HOST,
+  port: Number(process.env.REDIS_PORT),
 });
 
 await server.register(cors, {

@@ -10,6 +10,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@repo/client": "workspace:*",
+    "@hookform/resolvers": "^5.2.2",
     "@tailwindcss/vite": "^4.1.17",
     "@tanstack/react-query": "^5.90.12",
     "@trpc/client": "^11.7.2",
@@ -17,11 +19,13 @@
     "clsx": "^2.1.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
+    "react-hook-form": "^7.68.0",
     "react-icons": "^5.5.0",
     "server": "workspace:*",
     "tailwind-merge": "^3.4.0",
     "tailwindcss": "^4.1.17",
-    "wouter": "^3.8.1"
+    "wouter": "^3.8.1",
+    "zod": "^4.1.13"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

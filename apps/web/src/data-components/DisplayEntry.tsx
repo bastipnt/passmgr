@@ -14,17 +14,18 @@ function Fallback() {
     <div className="space-y-4 p-2">
       <h1>Loading...</h1>
       <EntryList>
-        <EntryList.Item label="Loading..." value="••••••••••••" setToastMessage={() => {}} />
+        <EntryList.Item name="Loading..." value="••••••••••••" setToastMessage={() => {}} />
       </EntryList>
     </div>
   );
 }
 
-function DisplayEntryList() {
-  const trpc = useTRPC();
-  const { entryId } = useParams();
+type DisplayEntryListProps = {
+  entryId: string;
+};
 
-  if (!entryId) return <Fallback />;
+function DisplayEntryList({ entryId }: DisplayEntryListProps) {
+  const trpc = useTRPC();
 
   const { data } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
   const [toastMessage, setToastMessage] = useState("");
@@ -47,10 +48,10 @@ function DisplayEntryList() {
         </div>
 
         <EntryList>
-          <EntryList.Item label="Email" value={data.email} setToastMessage={setToastMessage} />
+          <EntryList.Item name="email" value={data.email} setToastMessage={setToastMessage} />
 
           <EntryList.Item
-            label="Password"
+            name="password"
             value={data.password}
             setToastMessage={setToastMessage}
             valueHidden
@@ -63,9 +64,12 @@ function DisplayEntryList() {
 }
 
 export default function DisplayEntry() {
+  const { entryId } = useParams();
+  if (!entryId) return <Fallback />;
+
   return (
     <Suspense fallback={<Fallback />}>
-      <DisplayEntryList />
+      <DisplayEntryList entryId={entryId} />
     </Suspense>
   );
 }

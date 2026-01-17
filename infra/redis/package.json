@@ -1,0 +1,9 @@
+{
+  "name": "@infra/redis",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "infra": "docker compose up",
+    "infra:down": "docker compose down"
+  }
+}
