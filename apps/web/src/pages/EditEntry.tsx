@@ -11,9 +11,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { entrySchema } from "@repo/client";
 import { z } from "zod";
-import EditEntryList from "../components/EditEntryList";
-import { getInputsFromData } from "../utils/label-mapping";
-import { cn } from "../utils/tailwind";
+import LayoutOverlay from "../layout/LayoutOverlay";
+import Input from "../components/Input";
 
 function Fallback() {
   return (
@@ -57,43 +56,53 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
   };
 
   return (
-    <>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 p-2">
-        <div className="grid grid-cols-[1fr_auto] items-center gap-2">
-          <label htmlFor="name" className="sr-only">
-            Name
-          </label>
-          <input
-            {...register("name")}
-            id="name"
-            className={cn(
-              "w-full rounded border bg-transparent text-3xl",
-              "focus:ring-primary-900 focus:ring-2 focus:outline-none",
-            )}
-          />
-          <div className="flex flex-row gap-2">
-            <Button type="submit">
-              <TiUpload className="text-lg" />
-              Save
-            </Button>
-            <ButtonLink variant="secondary" href={entryUrl}>
-              <TiCancel className="text-lg" />
-              Cancel
-            </ButtonLink>
-          </div>
-        </div>
-        {errors.name && <p className="text-red-500">{errors.name.message}</p>}
+    <LayoutOverlay title={`Edit ${initialData.title}`}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <Input label="Title" {...register("title")} error={errors.title?.message} />
 
-        <EditEntryList register={register} items={getInputsFromData(initialData)} errors={errors} />
+        <Input
+          label="Username / Email"
+          {...register("username")}
+          error={errors.username?.message}
+        />
+
+        <Input label="Password" {...register("password")} error={errors.password?.message} />
+
+        <Input label="2FA secret key (TOTP)" {...register("totp")} error={errors.totp?.message} />
+
+        <Input
+          label="Websites (TODO: array)"
+          {...register("websites")}
+          error={errors.websites?.message}
+        />
+
+        <Input label="Note (TODO: textarea)" {...register("note")} error={errors.note?.message} />
+
+        <Input
+          label="Extra fields (TODO: array)"
+          {...register("extraFields")}
+          error={errors.extraFields?.message}
+        />
 
         {mutationError && <p className="text-red-500">{mutationError.message}</p>}
+
+        <div className="flex flex-row justify-end gap-4">
+          <ButtonLink variant="secondary" href={entryUrl}>
+            <TiCancel className="text-lg" />
+            Cancel
+          </ButtonLink>
+          <Button type="submit">
+            <TiUpload className="text-lg" />
+            Save
+          </Button>
+        </div>
       </form>
       <Toast
         message={mutationError ? "Error saving" : ""}
         isOpen={!!mutationError}
         onClose={() => {}}
       />
-    </>
+    </LayoutOverlay>
   );
 }
 

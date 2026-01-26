@@ -32,7 +32,7 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
 
   return (
     <>
-      <div className="space-y-4 p-2">
+      <div className="space-y-8 p-4">
         <div className="grid grid-cols-[1fr_auto] items-center">
           <h1>{data.name}</h1>
           <div className="flex flex-row gap-2">

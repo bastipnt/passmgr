@@ -33,8 +33,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function 
         /* ---------- Variant styles ---------- */
         {
           primary: [
-            "bg-primary-500 text-content-inverted",
-            "hover:bg-primary-700",
+            "bg-gradient",
             "focus-visible:ring-content-primary",
             "[&_svg]:text-content-inverted",
           ],

@@ -6,20 +6,23 @@
 
   /* Palette */
 
-  --base: #121226;
-  --brand: #345fff;
-  --text: color-mix(in oklch shorter hue, var(--base) 60%, var(--brand) 70%);
+  /* --base: #121226; */
+  --base: #2c2c2c;
+  --brand: #a797ff;
+  --secondary: #76f6ff;
+
+  --text: color-mix(in oklch shorter hue, var(--base) 60%, white 50%);
 
   /* --- Background / Surface colors --- */
 
   /* App background */
   --color-surface-1: oklch(from var(--base) l c h / 1);
 
-  /* Prinary surface (cards) */
+  /* Primary surface (cards) */
   --color-surface-2: oklch(from var(--base) calc(l - 0.05) c h / 0.5);
 
   /* Secondary surface */
-  --color-surface-3: oklch(from var(--base) calc(l + 0.05) c h / 1);
+  --color-surface-3: oklch(from var(--base) calc(l + 0.1) c h / 1);
 
   /* Elevated surface / hover */
   --color-surface-4: oklch(from var(--base) calc(l + 0.4) c h / 0.1);
@@ -34,9 +37,9 @@
   ); /* Text on bright elements */
 
   /* Borders / Lines */
-  --color-line-subtle: oklch(from var(--text) calc(l - 0.1) c h / 1);
-  --color-line-default: oklch(from var(--text) calc(l + 0.1) c h / 1);
-  --color-line-strong: oklch(from var(--text) calc(l + 0.3) c h / 1);
+  --color-line-subtle: oklch(from var(--base) calc(l - 0.1) c h / 1);
+  --color-line-default: oklch(from var(--base) calc(l + 0.1) c h / 1);
+  --color-line-strong: oklch(from var(--base) calc(l + 0.3) c h / 1);
 
   /* Primary / Accent */
   --color-primary-100: oklch(from var(--brand) l c h / 1);
@@ -45,6 +48,9 @@
   --color-primary-700: oklch(from var(--brand) calc(l + 0.07) c h / 1);
   --color-primary-900: oklch(from var(--brand) calc(l + 0.09) c h / 1);
 
+  /* Secondary */
+  --color-secondary-100: oklch(from var(--secondary) l c h / 1);
+
   /* Semantic / Feedback */
   --color-success-surface: oklch(from green calc(l + 0.1) c h / 1);
   --color-success-content: oklch(from green calc(l + 1) c h / 1);
@@ -52,7 +58,7 @@
 
   --color-error-surface: #2a1216;
   --color-error-content: #ff6b6b;
-  --color-error-line: #80333a;
+  --color-error-line: var(--color-error-content);
 
   /* State overlays */
   --color-hover-overlay: oklch(from var(--base) calc(l + 0.4) c h / 0.5);
@@ -85,5 +91,11 @@
 
   svg {
     @apply text-primary-100;
+  }
+}
+
+@layer utilities {
+  .bg-gradient {
+    @apply from-primary-500 to-secondary-100 text-content-inverted bg-linear-to-r;
   }
 }

@@ -27,14 +27,13 @@ export default function ButtonLink({
         {
           sm: "h-8 px-3 text-sm [&_svg]:text-xl",
           md: "h-10 px-4 text-sm [&_svg]:text-xl",
-          lg: "h-12 px-6 text-base [&_svg]:text-2xl",
+          lg: "h-12 px-4 text-base [&_svg]:text-3xl",
         }[size],
 
         /* ---------- Variant styles ---------- */
         {
           primary: [
-            "bg-primary-500 text-content-inverted",
-            "hover:bg-primary-700",
+            "bg-gradient",
             "focus-visible:ring-content-primary",
             "[&_svg]:text-content-inverted",
           ],
