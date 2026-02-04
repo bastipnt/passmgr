@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import styles from "./Toast.module.css";
 
 type ToastProps = {
   message: string;
@@ -18,12 +19,7 @@ export function Toast({ message, isOpen, onClose, duration = 3000 }: ToastProps)
   if (!isOpen) return null;
 
   return (
-    <div
-      role="status"
-      aria-live="polite"
-      aria-atomic="true"
-      className="bg-surface-4 fixed right-4 bottom-4 z-50 rounded-lg px-4 py-2 text-sm shadow-lg"
-    >
+    <div role="status" aria-live="polite" aria-atomic="true" className={styles.toast}>
       {message}
     </div>
   );

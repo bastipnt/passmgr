@@ -1,57 +1,45 @@
-@import "tailwindcss";
+/**
+ * Global CSS with design tokens and base styles
+ * Replaces Tailwind CSS
+ */
 
-@theme {
-  /* unset Tailwind colors */
-  --color-*: initial;
-
-  /* Palette */
-
-  /* --base: #121226; */
+:root {
+  /* Base colors */
   --base: #2c2c2c;
   --brand: #a797ff;
   --secondary: #76f6ff;
 
   --text: color-mix(in oklch shorter hue, var(--base) 60%, white 50%);
 
-  /* --- Background / Surface colors --- */
-
-  /* App background */
+  /* Surface colors */
   --color-surface-1: oklch(from var(--base) l c h / 1);
-
-  /* Primary surface (cards) */
   --color-surface-2: oklch(from var(--base) calc(l - 0.05) c h / 0.5);
-
-  /* Secondary surface */
   --color-surface-3: oklch(from var(--base) calc(l + 0.1) c h / 1);
-
-  /* Elevated surface / hover */
   --color-surface-4: oklch(from var(--base) calc(l + 0.4) c h / 0.1);
 
-  /* Text / Content colors */
-  --color-content-primary: oklch(from var(--text) calc(l + 0.4) c h / 1); /* Main content */
-  --color-content-secondary: oklch(from var(--text) calc(l + 0.2) c h / 1); /* Descriptions */
-  --color-content-muted: oklch(from var(--text) calc(l + 0.1) c h / 1); /* Hints, placeholders */
-  --color-content-disabled: oklch(from var(--text) calc(l + 0) c h / 1); /* Disabled elements */
-  --color-content-inverted: oklch(
-    from var(--text) calc(l - 0.6) c h / 1
-  ); /* Text on bright elements */
+  /* Content/ Text colors */
+  --color-content-primary: oklch(from var(--text) calc(l + 0.4) c h / 1);
+  --color-content-secondary: oklch(from var(--text) calc(l + 0.2) c h / 1);
+  --color-content-muted: oklch(from var(--text) calc(l + 0.1) c h / 1);
+  --color-content-disabled: oklch(from var(--text) calc(l + 0) c h / 1);
+  --color-content-inverted: oklch(from var(--text) calc(l - 0.6) c h / 1);
 
-  /* Borders / Lines */
+  /* Border colors */
   --color-line-subtle: oklch(from var(--base) calc(l - 0.1) c h / 1);
   --color-line-default: oklch(from var(--base) calc(l + 0.1) c h / 1);
   --color-line-strong: oklch(from var(--base) calc(l + 0.3) c h / 1);
 
-  /* Primary / Accent */
+  /* Primary accent colors */
   --color-primary-100: oklch(from var(--brand) l c h / 1);
   --color-primary-300: oklch(from var(--brand) calc(l + 0.03) c h / 1);
   --color-primary-500: oklch(from var(--brand) calc(l + 0.05) c h / 1);
   --color-primary-700: oklch(from var(--brand) calc(l + 0.07) c h / 1);
   --color-primary-900: oklch(from var(--brand) calc(l + 0.09) c h / 1);
 
-  /* Secondary */
+  /* Secondary colors */
   --color-secondary-100: oklch(from var(--secondary) l c h / 1);
 
-  /* Semantic / Feedback */
+  /* Semantic colors */
   --color-success-surface: oklch(from green calc(l + 0.1) c h / 1);
   --color-success-content: oklch(from green calc(l + 1) c h / 1);
   --color-success-line: oklch(from green calc(l + 0.5) c h / 1);
@@ -62,40 +50,138 @@
 
   /* State overlays */
   --color-hover-overlay: oklch(from var(--base) calc(l + 0.4) c h / 0.5);
+
+  /* Spacing */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+
+  /* Font sizes */
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.25rem;
+  --text-2xl: 1.5rem;
+  --text-3xl: 1.875rem;
+
+  /* Border radius */
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.75rem;
+  --radius-3xl: 1.5rem;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
 }
 
-@layer base {
-  html {
-    color-scheme: dark;
-  }
-
-  html,
-  body {
-    @apply bg-surface-1 text-content-primary;
-  }
-
-  *,
-  ::before,
-  ::after {
-    border-color: theme(--color-line-default);
-    border-style: solid;
-  }
-
-  small {
-    @apply text-content-secondary text-xs;
-  }
-
-  h1 {
-    @apply text-3xl;
-  }
-
-  svg {
-    @apply text-primary-100;
-  }
+/* Reset and base styles */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
-@layer utilities {
-  .bg-gradient {
-    @apply from-primary-500 to-secondary-100 text-content-inverted bg-linear-to-r;
-  }
+html {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background-color: var(--color-surface-1);
+  color: var(--color-content-primary);
+  font-family:
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  line-height: 1.5;
+}
+
+body {
+  min-height: 100vh;
+}
+
+/* Typography */
+h1 {
+  font-size: var(--text-3xl);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+h2 {
+  font-size: var(--text-2xl);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+h3 {
+  font-size: var(--text-xl);
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+small {
+  font-size: var(--text-xs);
+  color: var(--color-content-secondary);
+}
+
+/* Form elements */
+input,
+button,
+textarea {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+/* SVG defaults */
+svg {
+  color: var(--color-primary-100);
+}
+
+/* Focus styles */
+:focus-visible {
+  outline: 2px solid var(--color-primary-900);
+  outline-offset: 2px;
+}
+
+/* Utility classes */
+.bgGradient {
+  background: linear-gradient(to right, var(--color-primary-500), var(--color-secondary-100));
+  color: var(--color-content-inverted);
+}
+
+/* Link styles */
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* List reset */
+ul,
+ol {
+  list-style: none;
+}
+
+/* Button reset */
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }

@@ -13,10 +13,11 @@ import { entrySchema } from "@repo/client";
 import { z } from "zod";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import Input from "../components/Input";
+import styles from "./EditEntry.module.css";
 
 function Fallback() {
   return (
-    <div className="space-y-4 p-2">
+    <div className={styles.fallback}>
       <h1>Loading...</h1>
     </div>
   );
@@ -57,7 +58,7 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
 
   return (
     <LayoutOverlay title={`Edit ${initialData.title}`}>
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+      <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
         <Input label="Title" {...register("title")} error={errors.title?.message} />
 
         <Input
@@ -84,15 +85,15 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
           error={errors.extraFields?.message}
         />
 
-        {mutationError && <p className="text-red-500">{mutationError.message}</p>}
+        {mutationError && <p className={styles.error}>{mutationError.message}</p>}
 
-        <div className="flex flex-row justify-end gap-4">
+        <div className={styles.actions}>
           <ButtonLink variant="secondary" href={entryUrl}>
-            <TiCancel className="text-lg" />
+            <TiCancel />
             Cancel
           </ButtonLink>
           <Button type="submit">
-            <TiUpload className="text-lg" />
+            <TiUpload />
             Save
           </Button>
         </div>

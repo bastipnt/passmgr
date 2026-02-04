@@ -1,6 +1,7 @@
-import { cn } from "../utils/tailwind";
+import { cn } from "../utils/cn";
 import type { ButtonSize, ButtonVariant } from "./Button";
 import { Link, type LinkProps } from "wouter";
+import styles from "./Button.module.css";
 
 type ButtonLinkProps = {
   href: string;
@@ -16,40 +17,6 @@ export default function ButtonLink({
   ...props
 }: ButtonLinkProps) {
   return (
-    <Link
-      className={cn(
-        /* ---------- Base styles ---------- */
-        "inline-flex cursor-pointer items-center justify-center gap-2 rounded-3xl font-medium",
-        "transition-colors focus-visible:ring-2 focus-visible:outline-none",
-        "disabled:pointer-events-none disabled:opacity-50",
-
-        /* ---------- Size styles ---------- */
-        {
-          sm: "h-8 px-3 text-sm [&_svg]:text-xl",
-          md: "h-10 px-4 text-sm [&_svg]:text-xl",
-          lg: "h-12 px-4 text-base [&_svg]:text-3xl",
-        }[size],
-
-        /* ---------- Variant styles ---------- */
-        {
-          primary: [
-            "bg-gradient",
-            "focus-visible:ring-content-primary",
-            "[&_svg]:text-content-inverted",
-          ],
-          secondary: ["bg-bg-2 border", "hover:bg-surface-4", "focus-visible:ring-primary-900"],
-          ghost: ["bg-transparent", "hover:bg-surface-4", "focus-visible:ring-primary-900"],
-          destructive: [
-            "bg-error-surface text-error-content border-error-line border",
-            "hover:bg-error-line",
-            "focus-visible:ring-error-line",
-            "[&_svg]:text-error-content",
-          ],
-        }[variant],
-
-        className,
-      )}
-      {...props}
-    />
+    <Link className={cn(styles.button, styles[size], styles[variant], className)} {...props} />
   );
 }

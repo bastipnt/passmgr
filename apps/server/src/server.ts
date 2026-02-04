@@ -1,4 +1,4 @@
-import { fastifyTRPCPlugin, FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
+import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
 import { fastifyRedis } from "@fastify/redis";
 import fastify from "fastify";
 import { createContext } from "./user/context";

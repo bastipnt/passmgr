@@ -8,10 +8,11 @@ import EntryList from "../components/EntryList";
 import { useParams } from "wouter";
 import ButtonLink from "../components/ButtonLink";
 import { editSlug } from "../data/routes";
+import styles from "./DisplayEntry.module.css";
 
 function Fallback() {
   return (
-    <div className="space-y-4 p-2">
+    <div className={styles.fallback}>
       <h1>Loading...</h1>
       <EntryList>
         <EntryList.Item name="Loading..." value="••••••••••••" setToastMessage={() => {}} />
@@ -32,12 +33,12 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
 
   return (
     <>
-      <div className="space-y-8 p-4">
-        <div className="grid grid-cols-[1fr_auto] items-center">
+      <div className={styles.container}>
+        <div className={styles.header}>
           <h1>{data.title}</h1>
-          <div className="flex flex-row gap-2">
+          <div className={styles.actions}>
             <ButtonLink href={`/${editSlug}/${entryId}`}>
-              <TiPencil className="text-lg" />
+              <TiPencil />
               Edit
             </ButtonLink>
             <Button variant="secondary">

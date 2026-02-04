@@ -4,7 +4,8 @@ import { Suspense } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
 import { TiUserOutline } from "react-icons/ti";
-import { cn } from "../utils/tailwind";
+import { cn } from "../utils/cn";
+import styles from "./Entries.module.css";
 
 type EntriesListProps = {
   entryId?: string;
@@ -15,24 +16,20 @@ function EntriesList({ entryId }: EntriesListProps) {
   const { data } = useSuspenseQuery(trpc.entry.all.queryOptions());
 
   return (
-    <ul className="">
+    <ul className={styles.entryList}>
       {data.entries.map(({ id, title, username }) => {
         const active = id === entryId;
 
         return (
-          <li key={id} className="border-b">
+          <li key={id} className={styles.entryItem}>
             <Link
-              className={cn(
-                "grid w-full cursor-pointer grid-cols-[auto_1fr] grid-rows-2 items-center gap-x-4 p-2 text-left",
-                "hover:bg-surface-2",
-                active && "bg-surface-2",
-              )}
+              className={cn(styles.entryLink, active && styles.entryLinkActive)}
               to={`../${entrySlug}/${id}`}
             >
-              <TiUserOutline className="bg-gradient row-span-2 h-12 w-12 rounded-lg p-2" />
+              <TiUserOutline className={styles.avatar} />
 
-              <span>{title}</span>
-              <small>{username}</small>
+              <span className={styles.title}>{title}</span>
+              <small className={styles.username}>{username}</small>
             </Link>
           </li>
         );

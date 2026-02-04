@@ -1,5 +1,6 @@
 import React, { useId } from "react";
-import { cn } from "../utils/tailwind";
+import styles from "./Input.module.css";
+import { cn } from "../utils/cn";
 
 export interface InputProps extends Omit<React.ButtonHTMLAttributes<HTMLInputElement>, "id"> {
   label: string;
@@ -14,8 +15,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   const errorId = useId();
 
   return (
-    <div className="space-y-1">
-      <label htmlFor={id} className="text-content-secondary block">
+    <div className={styles.container}>
+      <label htmlFor={id} className={styles.label}>
         {label}
       </label>
       <input
@@ -23,15 +24,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
         id={id}
         name={name}
         aria-errormessage={errorId}
-        className={cn(
-          "w-full rounded border bg-transparent p-2",
-          "focus:ring-primary-900 focus:ring-2 focus:outline-none",
-          error && "ring-error-line focus:ring-error-line border-error-line ring-1 focus:ring-2",
-        )}
+        className={cn(styles.input, error && styles.inputError, className)}
         {...props}
       />
       {error && (
-        <p id={errorId} className="text-error-content text-sm">
+        <p id={errorId} className={styles.error}>
           {error}
         </p>
       )}
