@@ -28,6 +28,7 @@ const entries: Entry[] = [
 export const entryRouter = router({
   all: loggedProcedure.output(z.object({ entries: z.array(entrySchema) })).query(async () => {
     const { redis } = server;
+    // await redis.set("entries", JSON.stringify(entries));
     const loadedEntries = await redis.get("entries");
 
     if (!loadedEntries) {

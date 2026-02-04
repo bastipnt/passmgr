@@ -14,7 +14,7 @@ function EntryList({ children }: EntryListProps) {
 
 type EntryListItemProps = {
   name: string;
-  value: string;
+  value?: string;
   setToastMessage: (message: string) => void;
   valueHidden?: boolean;
 };
@@ -24,7 +24,7 @@ function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListI
   const { Icon, label } = getAttrsForName(name);
 
   const copyValue = useCallback(async () => {
-    await navigator.clipboard.writeText(value);
+    await navigator.clipboard.writeText(value ?? "");
     setToastMessage(`${label} copied to clipboard`);
   }, [value, label, setToastMessage]);
 

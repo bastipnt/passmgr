@@ -16,7 +16,7 @@ function EntriesList({ entryId }: EntriesListProps) {
 
   return (
     <ul className="">
-      {data.entries.map(({ name, id, email }) => {
+      {data.entries.map(({ id, title, username }) => {
         const active = id === entryId;
 
         return (
@@ -31,8 +31,8 @@ function EntriesList({ entryId }: EntriesListProps) {
             >
               <TiUserOutline className="bg-gradient row-span-2 h-12 w-12 rounded-lg p-2" />
 
-              <span>{name}</span>
-              <small>{email}</small>
+              <span>{title}</span>
+              <small>{username}</small>
             </Link>
           </li>
         );

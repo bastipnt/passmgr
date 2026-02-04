@@ -34,7 +34,7 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
     <>
       <div className="space-y-8 p-4">
         <div className="grid grid-cols-[1fr_auto] items-center">
-          <h1>{data.name}</h1>
+          <h1>{data.title}</h1>
           <div className="flex flex-row gap-2">
             <ButtonLink href={`/${editSlug}/${entryId}`}>
               <TiPencil className="text-lg" />
@@ -48,7 +48,7 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
         </div>
 
         <EntryList>
-          <EntryList.Item name="email" value={data.email} setToastMessage={setToastMessage} />
+          <EntryList.Item name="username" value={data.username} setToastMessage={setToastMessage} />
 
           <EntryList.Item
             name="password"
