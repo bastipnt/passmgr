@@ -3,13 +3,14 @@ import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { Button } from "./Button";
 import { getAttrsForName } from "../utils/label-mapping";
 import styles from "./EntryList.module.css";
+import { cn } from "../utils/cn";
 
 type EntryListProps = {
   children: ReactNode;
 };
 
 function EntryList({ children }: EntryListProps) {
-  return <ul className={styles.entryList}>{children}</ul>;
+  return <ul className={cn("gradientBorder", styles.entryList)}>{children}</ul>;
 }
 
 type EntryListItemProps = {
@@ -36,7 +37,7 @@ function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListI
   const showActions = !showValue || isPassword;
 
   return (
-    <li className={styles.item}>
+    <li className={cn("gradientBorder", styles.item)}>
       <button title="Click to copy" className={styles.contentButton} onClick={copyValue}>
         <span className={styles.iconWrapper}>{Icon}</span>
         <small>{label}</small>

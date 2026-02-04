@@ -161,6 +161,37 @@ svg {
   color: var(--color-content-inverted);
 }
 
+/* Gradient border using pseudo-element */
+.gradientBorder {
+  position: relative;
+  border: none;
+  background: var(--color-surface-2);
+  border-radius: var(--gradient-border-radius, inherit);
+
+  &::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    padding: var(--gradient-border-p, 1px); /* Border width */
+    border-radius: var(--gradient-border-radius, inherit);
+    background: var(
+      --gradient-border-bg,
+      linear-gradient(
+        90deg,
+        var(--color-line-default),
+        var(--color-primary-500),
+        var(--color-line-default)
+      )
+    );
+    -webkit-mask:
+      linear-gradient(#fff 0 0) content-box,
+      linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+}
+
 /* Link styles */
 a {
   color: inherit;

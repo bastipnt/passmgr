@@ -1,17 +1,28 @@
 .entryList {
   background-color: var(--color-surface-2);
   border-radius: var(--radius-lg);
-  border: 1px solid var(--color-line-default);
+  --gradient-border-p: 1px;
 }
 
 .item {
   display: grid;
   grid-template-columns: 1fr auto;
   align-items: center;
+
+  --gradient-border-p: 0;
+  --gradient-border-radius: 0;
+}
+
+.item:first-child {
+  --gradient-border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+}
+
+.item:last-child {
+  --gradient-border-radius: 0 0 var(--radius-lg) var(--radius-lg);
 }
 
 .item:not(:last-child) {
-  border-bottom: 1px solid var(--color-line-default);
+  --gradient-border-p: 0 0 1px;
 }
 
 .item:hover {
