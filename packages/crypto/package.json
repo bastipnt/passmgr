@@ -3,6 +3,6 @@
   "version": "0.0.0",
   "main": "index.ts",
   "dependencies": {
-    "@noble/post-quantum": "^0.5.2"
+    "@noble/post-quantum": "^0.5.4"
   }
 }
