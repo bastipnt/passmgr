@@ -1,0 +1,6 @@
+fileignoreconfig:
+
+allowed_patterns:
+
+scopeconfig:
+  - scope: node

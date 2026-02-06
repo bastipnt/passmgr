@@ -1,0 +1,33 @@
+commit-msg:
+  commands:
+    lint-commit-msg:
+      run: pnpm dlx commitlint --edit
+pre-commit:
+  parallel: true
+  commands:
+    talisman:
+      tags: security audit
+      run: talisman --githook pre-commit
+    gitleaks:
+      tags: security audit
+      run: |
+        for file in {staged_files}; do
+          gitleaks dir -v --no-banner "$file"
+        done
+pre-push:
+  parallel: true
+  commands:
+    lint:
+      tags: style
+      run: pnpm lint
+      glob: "*.{js,cjs,mjs,ts,jsx,tsx,json,css,md,yml,yaml,html}"
+      stage_fixed: true
+    check-format:
+      tags: style
+      run: pnpm format:fix-selected {staged_files}
+      glob: "*.{js,cjs,mjs,ts,jsx,tsx,json,css,md,yml,yaml,html}"
+      stage_fixed: true
+    typecheck:
+      tags: style
+      run: pnpm check-types
+      glob: "*.{ts,tsx}"
