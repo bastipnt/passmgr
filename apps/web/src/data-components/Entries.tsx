@@ -21,7 +21,7 @@ function EntriesList({ entryId }: EntriesListProps) {
         const active = id === entryId;
 
         return (
-          <li key={id} className={styles.entryItem}>
+          <li key={id} className={cn("gradientBorder", styles.entryItem)}>
             <Link
               className={cn(styles.entryLink, active && styles.entryLinkActive)}
               to={`../${entrySlug}/${id}`}

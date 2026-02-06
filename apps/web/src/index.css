@@ -165,7 +165,7 @@ svg {
 .gradientBorder {
   position: relative;
   border: none;
-  background: var(--color-surface-2);
+  background: var(--gradient-border-bg, var(--color-surface-2));
   border-radius: var(--gradient-border-radius, inherit);
 
   &::before {
@@ -175,7 +175,7 @@ svg {
     padding: var(--gradient-border-p, 1px); /* Border width */
     border-radius: var(--gradient-border-radius, inherit);
     background: var(
-      --gradient-border-bg,
+      --gradient-border-line,
       linear-gradient(
         90deg,
         var(--color-line-default),

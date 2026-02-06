@@ -8,8 +8,16 @@
 
 .header {
   grid-column: span 2;
-  border-bottom: 1px solid var(--color-line-default);
   padding: var(--space-8);
+
+  --gradient-border-bg: var(--color-surface-1);
+  --gradient-border-p: 0 0 1px;
+  --gradient-border-line: linear-gradient(
+    90deg,
+    var(--color-surface-1),
+    var(--color-line-strong),
+    var(--color-surface-1)
+  );
 }
 
 .main {

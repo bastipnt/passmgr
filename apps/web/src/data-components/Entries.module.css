@@ -3,7 +3,10 @@
 }
 
 .entryItem {
-  border-bottom: 1px solid var(--color-line-default);
+  /* border-bottom: 1px solid var(--color-line-default); */
+  --gradient-border-p: 0 0 1px 0;
+  --gradient-border-line: linear-gradient(90deg, transparent, var(--color-line-default));
+  --gradient-border-bg: var(--color-surface-1);
 }
 
 .entryLink {
