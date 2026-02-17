@@ -1,0 +1,33 @@
+{
+  "name": "@repo/db",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.ts",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "lint": "oxlint --type-aware",
+    "db:up": "docker compose up",
+    "db:down": "docker compose down",
+    "db:push": "npx drizzle-kit push",
+    "db:generate": "bunx drizzle-kit generate --config drizzle.config.ts",
+    "db:migrate": "bunx drizzle-kit migrate",
+    "db:reset": "bun ./devResetDB.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "packageManager": "pnpm@10.28.2",
+  "dependencies": {
+    "dotenv": "^17.3.1",
+    "drizzle-orm": "1.0.0-beta.15-859cf75",
+    "pg": "^8.18.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/pg": "^8.16.0",
+    "drizzle-kit": "1.0.0-beta.15-859cf75",
+    "drizzle-seed": "1.0.0-beta.15-859cf75",
+    "oxlint": "^1.48.0",
+    "tsx": "^4.21.0"
+  }
+}

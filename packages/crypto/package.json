@@ -1,8 +1,24 @@
 {
   "name": "@repo/crypto",
-  "version": "0.0.0",
+  "version": "1.0.0",
+  "description": "End-to-end encryption for pass-mgr",
   "main": "index.ts",
+  "types": "index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "oxlint --type-aware"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "oxlint": "^1.48.0"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.29.2",
   "dependencies": {
-    "@noble/post-quantum": "^0.5.4"
+    "@better-auth/utils": "^0.3.1",
+    "@noble/ciphers": "^2.1.1",
+    "@noble/hashes": "^2.0.1"
   }
 }

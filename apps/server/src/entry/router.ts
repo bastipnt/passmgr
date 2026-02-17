@@ -1,8 +1,7 @@
 import { router } from "../trpc";
-import { loggedProcedure } from "../logger";
 import { entrySchema, type Entry } from "@repo/client";
 import z from "zod";
-import { server } from "../server";
+import { protectedProcedure } from "../auth/authMiddleware";
 
 const entries: Entry[] = [
   {
@@ -26,52 +25,30 @@ const entries: Entry[] = [
 ];
 
 export const entryRouter = router({
-  all: loggedProcedure.output(z.object({ entries: z.array(entrySchema) })).query(async () => {
-    const { redis } = server;
-    // await redis.set("entries", JSON.stringify(entries));
-    const loadedEntries = await redis.get("entries");
-
-    if (!loadedEntries) {
-      await redis.set("entries", JSON.stringify(entries));
-      return { entries };
-    }
-
+  all: protectedProcedure.output(z.object({ entries: z.array(entrySchema) })).query(async () => {
     return {
-      entries: JSON.parse(loadedEntries) as Entry[],
+      entries,
     };
   }),
-  getById: loggedProcedure
+
+  getById: protectedProcedure
     .input(z.string())
     .output(entrySchema)
     .query(async (opts) => {
-      const { redis } = server;
-      const baseEntry = {
-        id: opts.input,
-        title: "",
-        email: "",
-        password: "",
-      };
-
-      const loadedEntries = await redis.get("entries");
-      if (!loadedEntries) return baseEntry;
-
-      return {
-        ...baseEntry,
-        ...(JSON.parse(loadedEntries) as Entry[]).find(({ id }) => id === opts.input),
-      };
+      return entries.find(({ id }) => id === opts.input) || entries[0];
     }),
-  update: loggedProcedure.input(entrySchema).mutation(async (opts) => {
+
+  update: protectedProcedure.input(entrySchema).mutation(async (opts) => {
     const { id, ...data } = opts.input;
-    const { redis } = server;
 
-    const newEntries = entries.reduce<Entry[]>((prevEntries, currentEntry) => {
-      if (currentEntry.id === id) {
-        return [...prevEntries, { ...currentEntry, ...data }];
-      }
+    // const newEntries = entries.reduce<Entry[]>((prevEntries, currentEntry) => {
+    //   if (currentEntry.id === id) {
+    //     return [...prevEntries, { ...currentEntry, ...data }];
+    //   }
 
-      return [...prevEntries, currentEntry];
-    }, []);
+    //   return [...prevEntries, currentEntry];
+    // }, []);
 
-    redis.set("entries", JSON.stringify(newEntries));
+    // void redis.set("entries", JSON.stringify(newEntries));
   }),
 });

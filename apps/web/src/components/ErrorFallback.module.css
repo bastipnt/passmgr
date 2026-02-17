@@ -1,0 +1,7 @@
+.section {
+  border-radius: var(--radius-sm);
+  background-color: var(--color-surface-2);
+  padding: 2rem;
+  width: 400px;
+  max-width: 100%;
+}

@@ -1,6 +1,105 @@
 fileignoreconfig:
+  # Core crypto files (legitimate security code)
+  - filename: packages/crypto/src/hash.ts
+    checksum: c24c4777c651f30cc01006e2d077391908a05eed35a7a2344c9767cd5ce801fa
+  - filename: packages/crypto/src/encryption.ts
+    checksum: c739e0ac935c9847126c8f344e7da7f6ee08341b1684c86045c910e3c0536642
+  - filename: packages/crypto/src/util/constants.ts
+    allowed_patterns:
+      - "emailEncryptionKey"
+      - "emailHashKey"
+  - filename: packages/client/src/secrets-store.ts
+    checksum: a7bab1c4a09bad8d54079379b9880bb926dcf87a5a5f886550254c2e362cb9d7
+  - filename: packages/client/src/entry-schema.ts
+    allowed_patterns:
+      - "password"
+
+  # Server files with password/crypto code
+  - filename: apps/server/src/entry/router.ts
+    allowed_patterns:
+      - "password"
+  - filename: apps/server/src/util/redisUtils.ts
+    allowed_patterns:
+      - "Key"
+  - filename: apps/server/src/auth/registrationRouter.ts
+    allowed_patterns:
+      - "emailEncryptionKeySalt"
+  - filename: apps/server/.env.example
+    allowed_patterns:
+      - ".env"
+
+  # Database schema and migrations
+  - filename: packages/db/src/schema/users.ts
+    allowed_patterns:
+      - "emailEncryptionKeySalt"
+  - filename: packages/db/docker-compose.yml
+    checksum: 5c331004f72d32b487ad946f5f82aceb4bb67df6e6c8ec45004d56bfb1b28ba1
+  - filename: packages/db/drizzle/**/migration.sql
+    ignore_detectors: [filename, filecontent]
+
+  # Web auth pages with password forms
+  - filename: apps/web/src/pages/auth/*.tsx
+    allowed_patterns:
+      - "password"
+      - "Password"
+
+  # Web components with React key props (false positives)
+  - filename: apps/web/src/components/EntryList.tsx
+    allowed_patterns:
+      - "Password"
+  - filename: apps/web/src/components/EditEntryList.tsx
+    allowed_patterns:
+      - "key={"
+  - filename: apps/web/src/data-components/Entries.tsx
+    allowed_patterns:
+      - "key={"
+
+  # Web pages with password fields
+  - filename: apps/web/src/pages/EditEntry.tsx
+    allowed_patterns:
+      - "Password"
+      - "secret"
+
+  # Utilities with key patterns (false positives)
+  - filename: apps/web/src/utils/label-mapping.tsx
+    allowed_patterns:
+      - "key="
+  - filename: apps/web/src/types/css-modules.d.ts
+    allowed_patterns:
+      - "key="
+
+  # Web assets and config
+  - filename: apps/web/vite-env.d.ts
+    checksum: a16335fca9844dc1ed4cfea544d771709d292593cfc96b3cb9ccc0473e33f4e9
+  - filename: apps/web/public/vite.svg
+    checksum: 4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb
+
+  # Mobile assets
+  - filename: apps/mobile/assets/images/icon.png
+    checksum: 119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f
+
+  # Documentation
+  - filename: doc/structure.md
+    checksum: c2241983b0dd6fcd4cae6753719a176bd6888d084c380c231a5bd7b25beec702
+  - filename: AGENTS.md
+    allowed_patterns:
+      - "password"
+
+  # Build config
+  - filename: turbo.json
+    allowed_patterns:
+      - '"env":'
+      - "POSTGRES_PASSWORD"
 
 allowed_patterns:
+  - "packages/db/drizzle/*"
+  - "serverKey"
+  - "authKey"
+  - "rawAuthKey"
+  - "sessionAuth"
+  - "sessionSecret"
+  - "sessionKey"
+  - "encryptEmail"
 
 scopeconfig:
   - scope: node

@@ -1,9 +1,13 @@
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
-import { fastifyRedis } from "@fastify/redis";
+// import { fastifyRedis } from "@fastify/redis";
 import fastify from "fastify";
-import { createContext } from "./user/context";
 import { appRouter, type AppRouter } from "./router";
 import cors from "@fastify/cors";
+import { opaque } from "./opaque";
+import { createContext } from "./context";
+import fastifyRedis from "@fastify/redis";
+
+await opaque.ready;
 
 export const server = fastify({
   routerOptions: {

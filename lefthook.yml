@@ -29,5 +29,5 @@ pre-push:
       stage_fixed: true
     typecheck:
       tags: style
-      run: pnpm check-types
+      run: pnpm typecheck
       glob: "*.{ts,tsx}"

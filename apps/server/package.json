@@ -16,19 +16,22 @@
   "dependencies": {
     "@fastify/redis": "^7.2.0",
     "@repo/client": "workspace:*",
-    "@trpc/client": "^11.9.0",
+    "@repo/crypto": "workspace:*",
+    "@repo/db": "workspace:*",
+    "@serenity-kit/opaque": "^1.1.0",
+    "@trpc/client": "^11.10.0",
     "add": "^2.0.6"
   },
   "devDependencies": {
     "@fastify/cors": "^11.2.0",
     "@infra/redis": "workspace:*",
     "@repo/typescript-config": "workspace:*",
-    "@trpc/server": "^11.9.0",
+    "@trpc/server": "^11.10.0",
     "fastify": "^5.7.4",
     "fastify-cli": "^7.4.1",
     "fastify-tsconfig": "^3.0.0",
-    "oxlint": "^1.43.0",
-    "oxlint-tsgolint": "^0.11.4",
+    "oxlint": "^1.48.0",
+    "oxlint-tsgolint": "^0.14.0",
     "zod": "^4.3.6"
   }
 }

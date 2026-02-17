@@ -1,7 +1,4 @@
-/**
- * Global CSS with design tokens and base styles
- * Replaces Tailwind CSS
- */
+@import url("./styles/utilities.css");
 
 :root {
   /* Base colors */
@@ -98,6 +95,7 @@ html,
 body {
   background-color: var(--color-surface-1);
   color: var(--color-content-primary);
+  line-height: 1.5;
   font-family:
     system-ui,
     -apple-system,
@@ -105,43 +103,46 @@ body {
     "Segoe UI",
     Roboto,
     sans-serif;
-  line-height: 1.5;
 }
 
 body {
   min-height: 100vh;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 /* Typography */
 h1 {
-  font-size: var(--text-3xl);
   font-weight: 700;
+  font-size: var(--text-3xl);
   line-height: 1.2;
 }
 
 h2 {
-  font-size: var(--text-2xl);
   font-weight: 600;
+  font-size: var(--text-2xl);
   line-height: 1.3;
 }
 
 h3 {
-  font-size: var(--text-xl);
   font-weight: 600;
+  font-size: var(--text-xl);
   line-height: 1.4;
 }
 
 small {
-  font-size: var(--text-xs);
   color: var(--color-content-secondary);
+  font-size: var(--text-xs);
 }
 
 /* Form elements */
 input,
 button,
 textarea {
-  font-family: inherit;
   font-size: inherit;
+  font-family: inherit;
 }
 
 /* SVG defaults */
@@ -153,43 +154,6 @@ svg {
 :focus-visible {
   outline: 2px solid var(--color-primary-900);
   outline-offset: 2px;
-}
-
-/* Utility classes */
-.bgGradient {
-  background: linear-gradient(to right, var(--color-primary-500), var(--color-secondary-100));
-  color: var(--color-content-inverted);
-}
-
-/* Gradient border using pseudo-element */
-.gradientBorder {
-  position: relative;
-  border: none;
-  background: var(--gradient-border-bg, var(--color-surface-2));
-  border-radius: var(--gradient-border-radius, inherit);
-
-  &::before {
-    content: "";
-    position: absolute;
-    inset: 0;
-    padding: var(--gradient-border-p, 1px); /* Border width */
-    border-radius: var(--gradient-border-radius, inherit);
-    background: var(
-      --gradient-border-line,
-      linear-gradient(
-        90deg,
-        var(--color-line-default),
-        var(--color-primary-500),
-        var(--color-line-default)
-      )
-    );
-    -webkit-mask:
-      linear-gradient(#fff 0 0) content-box,
-      linear-gradient(#fff 0 0);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
-    pointer-events: none;
-  }
 }
 
 /* Link styles */
@@ -213,6 +177,6 @@ button {
 }
 
 button:disabled {
-  cursor: not-allowed;
   opacity: 0.5;
+  cursor: not-allowed;
 }

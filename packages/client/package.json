@@ -6,6 +6,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@repo/crypto": "workspace:*",
     "zod": "^4.3.6"
   }
 }

@@ -4,11 +4,29 @@
       "mode": "auto"
     }
   ],
+  // "eslint.format.enable": true,
+  // "eslint.lintTask.enable": true,
   "prettier.prettierPath": "./node_modules/prettier",
   "prettier.requireConfig": true,
-  // "files.associations": {
-  //   "*.css": "tailwindcss"
-  // },
   "typescript.tsdk": "node_modules/typescript/lib",
-  "cSpell.words": ["fastify", "trpc"]
+  "cSpell.words": ["fastify", "oxlint", "oxlintrc", "trpc"],
+  "editor.codeActionsOnSave": {
+    "source.fixAll.oxc": "explicit"
+  },
+  "editor.formatOnSave": true,
+  "oxc.typeAware": true,
+  "[typescript]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+  },
+  "[javascript]": {
+    "editor.defaultFormatter": "oxc.oxc-vscode"
+  },
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/*.css.d.ts": true
+  }
 }

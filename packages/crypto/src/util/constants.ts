@@ -1,0 +1,13 @@
+import { fromString } from "./format";
+
+export const hkdfInfo = {
+  sessionSecret: fromString("session-secret"),
+  sessionAuth: fromString("session-auth"),
+  emailHashKey: fromString("email-hash-key"),
+  emailEncryptionKey: fromString("email-encryption-key"),
+};
+
+export const SESSION_ID_HEADER = "x-session-id";
+export const SESSION_TIMESTAMP_HEADER = "x-timestamp";
+export const SESSION_SIGNATURE_HEADER = "x-signature";
+export const SESSION_SALT_HEADER = "x-salt";

@@ -7,9 +7,9 @@ const config = {
   printWidth: 100,
   endOfLine: "lf",
   plugins: [
+    "prettier-plugin-css-order",
     "@prettier/plugin-oxc",
     "prettier-plugin-organize-imports",
-    "prettier-plugin-tailwindcss",
   ],
 };
 

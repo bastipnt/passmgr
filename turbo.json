@@ -3,25 +3,36 @@
   "ui": "tui",
   "tasks": {
     "build": {
-      "dependsOn": ["^build"],
+      "dependsOn": ["^build", "^db:generate"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".next/**", "!.next/cache/**"]
+      "outputs": ["dist/**"],
+      "env": ["DATABASE_URL"]
     },
     "lint": {
       "dependsOn": ["^lint"]
     },
-    "check-types": {
-      "dependsOn": ["^check-types"]
-    },
-    "infra": {
-      "cache": false,
-      "persistent": true
+    "typecheck": {
+      "dependsOn": ["^typecheck"]
     },
     "dev": {
       "cache": false,
       "persistent": true,
-      "env": ["REDIS_HOST", "REDIS_PORT"],
-      "with": ["@infra/redis#infra"]
+      "dependsOn": ["^db:migrate"],
+      "env": ["DATABASE_URL", "REDIS_HOST", "REDIS_PORT", "SERVER_URL"]
+    },
+    "db:generate": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
+    },
+    "db:migrate": {
+      "cache": false,
+      "dependsOn": ["^db:generate"],
+      "env": ["DATABASE_URL"]
+    },
+    "db:up": {
+      "cache": false,
+      "persistent": true,
+      "env": ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
     }
   }
 }

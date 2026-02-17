@@ -4,7 +4,7 @@ export type { AppRouter } from "./src/router";
 const host = "http://localhost";
 const port = 3000;
 
-(async () => {
+void (async () => {
   try {
     await server.listen({ port });
     console.log(`🦊 Server is running at ${host}:${port}`);
