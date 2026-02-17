@@ -1,7 +1,6 @@
+export { fromString, fromBase64, toBase64 } from "@repo/util";
 export { normalize } from "./src/util/string-utils";
 export { getMessage } from "./src/util/general";
-
-export { fromString } from "./src/util/format";
 export { wipe, genSalt } from "./src/util/secrets-utils";
 export {
   hkdfInfo,

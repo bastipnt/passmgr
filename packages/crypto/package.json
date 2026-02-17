@@ -10,6 +10,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@repo/util": "workspace:*",
     "oxlint": "^1.48.0"
   },
   "keywords": [],

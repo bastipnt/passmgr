@@ -1,7 +1,7 @@
 import { Button } from "@components/Button";
 import styles from "./Login.module.css";
 import Input from "@components/Input";
-import { cn } from "@utils/cn";
+import { cn, toBase64 } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -10,7 +10,6 @@ import * as opaque from "@serenity-kit/opaque";
 import { useContext, useState } from "react";
 import { SessionContext } from "../../providers/SessionProvider";
 import { genSalt } from "@repo/crypto";
-import { toBase64 } from "@repo/crypto/src/util/format";
 
 export default function Login() {
   const trpc = useTRPCClient();

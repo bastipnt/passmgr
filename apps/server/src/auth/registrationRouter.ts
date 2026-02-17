@@ -4,7 +4,7 @@ import { opaque, serverKey, serverSetup } from "../opaque";
 import { router } from "../trpc";
 import { db, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
-import { toBase64 } from "@repo/crypto/src/util/format";
+import { toBase64 } from "@repo/util";
 
 const startRegistrationInputSchema = z.object({
   email: z.email(),

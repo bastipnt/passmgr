@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import styles from "./Layout.module.css";
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 import Entries from "../data-components/Entries";
 
 type LayoutProps = {

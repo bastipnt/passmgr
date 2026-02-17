@@ -1,4 +1,4 @@
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 import type { ButtonSize, ButtonVariant } from "./Button";
 import { Link, type LinkProps } from "wouter";
 import styles from "./Button.module.css";

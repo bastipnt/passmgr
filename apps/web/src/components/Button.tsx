@@ -1,6 +1,6 @@
 import * as React from "react";
 import styles from "./Button.module.css";
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
 export type ButtonSize = "sm" | "md" | "lg";

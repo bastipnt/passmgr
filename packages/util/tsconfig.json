@@ -6,8 +6,8 @@
     "composite": true,
     "incremental": true,
     "tsBuildInfoFile": "./.tsbuildinfo",
-    "types": ["node", "@repo/util/global.d.ts"]
+    "types": ["node"]
   },
-  "include": ["index.ts", "src/**/*.ts"],
+  "include": ["index.ts", "src/**/*.ts", "global.d.ts"],
   "exclude": ["node_modules", "dist"]
 }

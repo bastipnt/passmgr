@@ -1,6 +1,6 @@
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { randomBytes } from "@noble/hashes/utils.js";
-import { toBase64, fromString } from "./util/format";
+import { toBase64, fromString } from "@repo/util";
 import { normalize } from "./util/string-utils";
 import { hkdf } from "./hash";
 

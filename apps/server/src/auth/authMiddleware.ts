@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server";
 import { getSession } from "@util/redisUtils";
 import { getMessage, verifyHmac } from "@repo/crypto";
-import { fromBase64 } from "@repo/crypto/src/util/format";
+import { fromBase64 } from "@repo/util";
 import { loggedProcedure } from "../logger";
 
 function checkTimestamp(timestamp: string): boolean {

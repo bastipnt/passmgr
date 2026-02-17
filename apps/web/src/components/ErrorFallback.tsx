@@ -1,6 +1,6 @@
 import type { FallbackProps } from "react-error-boundary";
 import PublicLayout from "../layout/PublicLayout";
-import { cn } from "@utils/cn";
+import { cn } from "@repo/util";
 import styles from "./ErrorFallback.module.css";
 import { Button } from "./Button";
 

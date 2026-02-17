@@ -5,7 +5,7 @@ import {
   SESSION_TIMESTAMP_HEADER,
 } from "@repo/crypto";
 import { secretsStore } from "../secrets-store";
-import { toBase64 } from "@repo/crypto/src/util/format";
+import { toBase64 } from "@repo/util";
 
 type Operation<TInput = unknown> = {
   id: number;

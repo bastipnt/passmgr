@@ -1,6 +1,6 @@
 import { Button } from "@components/Button";
 import Input from "@components/Input";
-import { cn } from "@utils/cn";
+import { cn } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";

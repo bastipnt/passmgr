@@ -144,6 +144,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../../packages/util
       '@serenity-kit/opaque':
         specifier: ^1.1.0
         version: 1.1.0
@@ -196,6 +199,9 @@ importers:
       '@repo/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../../packages/util
       '@serenity-kit/opaque':
         specifier: ^1.1.0
         version: 1.1.0
@@ -289,6 +295,9 @@ importers:
       '@repo/crypto':
         specifier: workspace:*
         version: link:../crypto
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../util
       zod:
         specifier: ^4.3.6
         version: 4.3.6
@@ -308,31 +317,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      oxlint:
-        specifier: ^1.48.0
-        version: 1.48.0(oxlint-tsgolint@0.14.0)
-
-  packages/cryptooo:
-    dependencies:
-      '@noble/ciphers':
-        specifier: ^2.1.1
-        version: 2.1.1
-      '@noble/hashes':
-        specifier: ^2.0.1
-        version: 2.0.1
-      '@noble/post-quantum':
-        specifier: ^0.5.4
-        version: 0.5.4
-      '@repo/client':
+      '@repo/util':
         specifier: workspace:*
-        version: link:../client
-      argon2-browser:
-        specifier: ^1.18.0
-        version: 1.18.0
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
+        version: link:../util
       oxlint:
         specifier: ^1.48.0
         version: 1.48.0(oxlint-tsgolint@0.14.0)
@@ -397,6 +384,12 @@ importers:
       typescript:
         specifier: 5.9.3
         version: 5.9.3
+
+  packages/util:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
 
 packages:
 
@@ -1641,16 +1634,8 @@ packages:
     resolution: {integrity: sha512-bysYuiVfhxNJuldNXlFEitTVdNnYUc+XNJZd7Qm2a5j1vZHgY+fazadNFWFaMK/2vye0JVlxV3gHmC0WDfAOQw==}
     engines: {node: '>= 20.19.0'}
 
-  '@noble/curves@2.0.1':
-    resolution: {integrity: sha512-vs1Az2OOTBiP4q0pwjW5aF0xp9n4MxVrmkFBxc6EKZc6ddYx5gaZiAsZoq0uRRXWbi3AT/sBqn05eRPtn1JCPw==}
-    engines: {node: '>= 20.19.0'}
-
   '@noble/hashes@2.0.1':
     resolution: {integrity: sha512-XlOlEbQcE9fmuXxrVTXCTlG2nlRXa9Rj3rr5Ue/+tX+nmkgbX720YHh0VR3hBF9xDvwnb8D2shVGOwNx+ulArw==}
-    engines: {node: '>= 20.19.0'}
-
-  '@noble/post-quantum@0.5.4':
-    resolution: {integrity: sha512-leww0zzIirrvwaYMPI9fj6aRIlA/c6Y0/lifQQ1YOOyHEr0MNH3yYpjXeiVG+tWdPps4XxGclFWX2INPO3Yo5w==}
     engines: {node: '>= 20.19.0'}
 
   '@nolyfill/is-core-module@1.0.39':
@@ -2770,9 +2755,6 @@ packages:
 
   arg@5.0.2:
     resolution: {integrity: sha512-PYjyFOLKQ9y57JvQ6QLo8dAgNqswh8M1RMJYdQduT6xbWSgK36P/Z/v+p888pM69jMMfS8Xd8F6I1kQ/I9HUGg==}
-
-  argon2-browser@1.18.0:
-    resolution: {integrity: sha512-ImVAGIItnFnvET1exhsQB7apRztcoC5TnlSqernMJDUjbc/DLq3UEYeXFrLPrlaIl8cVfwnXb6wX2KpFf2zxHw==}
 
   argparse@1.0.10:
     resolution: {integrity: sha512-o5Roy6tNG4SL/FOkCAN6RzjiakZS25RLYFrcMttJqbdd8BWrnA+fGz57iN5Pb06pvBGvl5gQ0B48dJlslXvoTg==}
@@ -7879,16 +7861,7 @@ snapshots:
 
   '@noble/ciphers@2.1.1': {}
 
-  '@noble/curves@2.0.1':
-    dependencies:
-      '@noble/hashes': 2.0.1
-
   '@noble/hashes@2.0.1': {}
-
-  '@noble/post-quantum@0.5.4':
-    dependencies:
-      '@noble/curves': 2.0.1
-      '@noble/hashes': 2.0.1
 
   '@nolyfill/is-core-module@1.0.39': {}
 
@@ -8891,8 +8864,6 @@ snapshots:
       picomatch: 2.3.1
 
   arg@5.0.2: {}
-
-  argon2-browser@1.18.0: {}
 
   argparse@1.0.10:
     dependencies:

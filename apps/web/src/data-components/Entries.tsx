@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
 import { TiUserOutline } from "react-icons/ti";
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 import styles from "./Entries.module.css";
 
 type EntriesListProps = {

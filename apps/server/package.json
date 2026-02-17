@@ -18,6 +18,7 @@
     "@repo/client": "workspace:*",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/util": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
     "@trpc/client": "^11.10.0",
     "add": "^2.0.6"

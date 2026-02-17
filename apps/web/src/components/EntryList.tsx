@@ -3,7 +3,7 @@ import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { Button } from "./Button";
 import { getAttrsForName } from "../utils/label-mapping";
 import styles from "./EntryList.module.css";
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 
 type EntryListProps = {
   children: ReactNode;

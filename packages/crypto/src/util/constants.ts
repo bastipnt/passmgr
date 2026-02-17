@@ -1,4 +1,4 @@
-import { fromString } from "./format";
+import { fromString } from "@repo/util";
 
 export const hkdfInfo = {
   sessionSecret: fromString("session-secret"),

@@ -1,6 +1,6 @@
 import { hkdfInfo } from "./util/constants";
 import { hkdf as hkdf_, hmac, sha256 } from "@noble/hashes/webcrypto.js";
-import { fromString } from "./util/format";
+import { fromString } from "@repo/util";
 import { normalize } from "./util/string-utils";
 
 /**

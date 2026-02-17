@@ -1,6 +1,6 @@
 import React, { useId } from "react";
 import styles from "./Input.module.css";
-import { cn } from "../utils/cn";
+import { cn } from "@repo/util";
 
 export interface InputProps extends Omit<React.ButtonHTMLAttributes<HTMLInputElement>, "id"> {
   label: string;
