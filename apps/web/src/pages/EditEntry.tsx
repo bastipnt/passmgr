@@ -1,5 +1,4 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { useTRPC } from "../utils/trpc";
 import { Suspense } from "react";
 import { Toast } from "../components/Toast";
 import { TiCancel, TiUpload } from "react-icons/ti";
@@ -9,7 +8,7 @@ import { entrySlug } from "../data/routes";
 import ButtonLink from "../components/ButtonLink";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { entrySchema } from "@repo/client";
+import { entrySchema, useTRPC } from "@repo/client";
 import { z } from "zod";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import Input from "../components/Input";

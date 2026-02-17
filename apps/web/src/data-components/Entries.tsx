@@ -1,11 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useTRPC } from "../utils/trpc";
 import { Suspense } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
 import { TiUserOutline } from "react-icons/ti";
 import { cn } from "@repo/util";
 import styles from "./Entries.module.css";
+import { useTRPC } from "@repo/client";
 
 type EntriesListProps = {
   entryId?: string;

@@ -5,11 +5,11 @@ import { cn, toBase64 } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTRPCClient } from "@utils/trpc";
 import * as opaque from "@serenity-kit/opaque";
 import { useContext, useState } from "react";
 import { SessionContext } from "../../providers/SessionProvider";
 import { genSalt } from "@repo/crypto";
+import { useTRPCClient } from "@repo/client";
 
 export default function Login() {
   const trpc = useTRPCClient();
@@ -64,10 +64,7 @@ export default function Login() {
 
     const { finishLoginRequest, sessionKey } = loginResult;
 
-    console.log({ sessionKey });
-
     const authSalt = genSalt();
-    console.log({ authSalt });
 
     let sessionId: string;
 

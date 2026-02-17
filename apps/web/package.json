@@ -8,6 +8,7 @@
     "build": "tcm src && tsc -b && vite build",
     "lint": "oxlint --type-aware",
     "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
     "typegen:css": "tcm src"
   },
   "dependencies": {

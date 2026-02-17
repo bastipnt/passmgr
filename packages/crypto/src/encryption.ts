@@ -18,7 +18,7 @@ import { hkdf } from "./hash";
 export function encryptXChaCha(
   key: Uint8Array,
   inputData: string,
-): [encryptedData: Base64URLString, nonce: Base64URLString] {
+): [encryptedData: string, nonce: string] {
   const nonce = randomBytes(24);
 
   const chacha = xchacha20poly1305(key, nonce);
@@ -46,13 +46,7 @@ export function encryptXChaCha(
 export async function encryptEmail(
   serverKey: Uint8Array,
   email: string,
-): Promise<
-  [
-    encryptedEmail: Base64URLString,
-    emailNonce: Base64URLString,
-    emailEncryptionKeySalt: Base64URLString,
-  ]
-> {
+): Promise<[encryptedEmail: string, emailNonce: string, emailEncryptionKeySalt: string]> {
   const normalizedEmail = normalize(email);
   const emailEncryptionKeySalt = randomBytes(32);
   const emailEncryptionKey = await hkdf(serverKey, "emailEncryptionKey", emailEncryptionKeySalt);

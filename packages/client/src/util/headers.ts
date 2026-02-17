@@ -14,19 +14,21 @@ type Operation<TInput = unknown> = {
   path: string;
 };
 
-export async function generateAuthHeaders(currentOperation: Operation): Promise<Headers> {
-  const sessionHeaders = new Headers();
+type HTTPHeaders = Record<string, string | string[] | undefined>;
+
+export async function generateAuthHeaders(currentOperation: Operation): Promise<HTTPHeaders> {
+  const sessionHeaders: HTTPHeaders = {};
 
   if (secretsStore.sessionId) {
     const timestamp = Date.now().toString();
-    sessionHeaders.set(SESSION_ID_HEADER, secretsStore.sessionId);
-    sessionHeaders.set(SESSION_TIMESTAMP_HEADER, timestamp);
+    sessionHeaders[SESSION_ID_HEADER] = secretsStore.sessionId;
+    sessionHeaders[SESSION_TIMESTAMP_HEADER] = timestamp;
 
     const { type, input, path } = currentOperation;
     const message = getMessage(type, path, timestamp, input as Record<string, string>);
 
     const signature = toBase64(await secretsStore.signRequest(message));
-    sessionHeaders.set(SESSION_SIGNATURE_HEADER, signature);
+    sessionHeaders[SESSION_SIGNATURE_HEADER] = signature;
   }
 
   return sessionHeaders;

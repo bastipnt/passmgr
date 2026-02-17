@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 
 export function getHeaderSave(
   headers: FastifyRequest["headers"],

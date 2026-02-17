@@ -1,5 +1,4 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useTRPC } from "../utils/trpc";
 import { Suspense, useState } from "react";
 import { Toast } from "../components/Toast";
 import { TiPencil, TiUserAddOutline } from "react-icons/ti";
@@ -9,6 +8,7 @@ import { useParams } from "wouter";
 import ButtonLink from "../components/ButtonLink";
 import { editSlug } from "../data/routes";
 import styles from "./DisplayEntry.module.css";
+import { useTRPC } from "@repo/client";
 
 function Fallback() {
   return (

@@ -1,6 +1,7 @@
 {
   "name": "@repo/crypto",
   "version": "1.0.0",
+  "type": "module",
   "description": "End-to-end encryption for pass-mgr",
   "main": "index.ts",
   "types": "index.ts",
@@ -9,7 +10,6 @@
     "lint": "oxlint --type-aware"
   },
   "devDependencies": {
-    "@repo/typescript-config": "workspace:*",
     "@repo/util": "workspace:*",
     "oxlint": "^1.48.0"
   },

@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { getSession } from "@util/redisUtils";
+import { getSession } from "../util/redisUtils";
 import { getMessage, verifyHmac } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
 import { loggedProcedure } from "../logger";
@@ -32,8 +32,6 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   const input = await getRawInput();
 
   const message = getMessage(type, path, timestamp, input as unknown as Record<string, string>);
-
-  console.log({ rawAuthKey });
 
   const valid = await verifyHmac(fromBase64(rawAuthKey), fromBase64(signature), message);
   if (!valid) throw new TRPCError({ code: "UNAUTHORIZED" });

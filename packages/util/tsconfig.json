@@ -1,13 +1,25 @@
 {
-  "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": ".",
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "target": "es2022",
+    "allowJs": true,
+    "resolveJsonModule": true,
+    "moduleDetection": "force",
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "outDir": "dist",
+    "declaration": true,
     "composite": true,
-    "incremental": true,
-    "tsBuildInfoFile": "./.tsbuildinfo",
-    "types": ["node"]
+    "declarationMap": true,
+    "sourceMap": true,
+    "lib": ["esnext", "dom"]
   },
-  "include": ["index.ts", "src/**/*.ts", "global.d.ts"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["**/*.ts", "../../types.d.ts"],
+  "exclude": ["node_modules"]
 }

@@ -34,12 +34,14 @@ export const entryRouter = router({
   getById: protectedProcedure
     .input(z.string())
     .output(entrySchema)
-    .query(async (opts) => {
-      return entries.find(({ id }) => id === opts.input) || entries[0];
+    .query(async (opts): Promise<Entry> => {
+      const entry = entries.find(({ id }) => id === opts.input);
+      if (!entry) throw new Error("Entry not found");
+      return entry;
     }),
 
   update: protectedProcedure.input(entrySchema).mutation(async (opts) => {
-    const { id, ...data } = opts.input;
+    const { id: _id } = opts.input;
 
     // const newEntries = entries.reduce<Entry[]>((prevEntries, currentEntry) => {
     //   if (currentEntry.id === id) {

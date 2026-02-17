@@ -6,7 +6,6 @@ export function getMessage(
 ) {
   const reqBody = JSON.stringify(body ?? "");
   const message = `${type}\n${path}\n${timestamp}\n${reqBody}`;
-  console.log(message);
 
   return message;
 }

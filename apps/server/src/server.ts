@@ -1,5 +1,4 @@
 import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
-// import { fastifyRedis } from "@fastify/redis";
 import fastify from "fastify";
 import { appRouter, type AppRouter } from "./router";
 import cors from "@fastify/cors";

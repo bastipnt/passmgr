@@ -1,13 +1,25 @@
 {
   "name": "@repo/client",
   "version": "0.0.1",
+  "type": "module",
   "main": "index.ts",
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
     "@repo/crypto": "workspace:*",
     "@repo/util": "workspace:*",
+    "@serenity-kit/opaque": "^1.1.0",
+    "@tanstack/react-query": "^5.90.21",
+    "@trpc/client": "^11.10.0",
+    "@trpc/tanstack-react-query": "^11.10.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4",
+    "server": "workspace:*",
     "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "vite": "npm:rolldown-vite@7.2.5"
   }
 }

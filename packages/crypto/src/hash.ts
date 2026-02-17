@@ -60,9 +60,6 @@ export async function verifyHmac(
   signature: Uint8Array,
   message: string,
 ): Promise<boolean> {
-  const lol = await signHmac(key, message);
-  console.log({ lol, signature });
-
   const keyWebCrypto = await crypto.subtle.importKey(
     "raw",
     key as BufferSource,

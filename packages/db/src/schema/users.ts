@@ -1,4 +1,4 @@
-import { defineRelationsPart, InferSelectModel } from "drizzle-orm";
+import { defineRelationsPart, type InferSelectModel } from "drizzle-orm";
 import { boolean, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { loginsTable } from "./logins";
 import { timestamps } from "../utils/columns.helpers";

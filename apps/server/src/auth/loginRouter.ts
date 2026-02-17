@@ -5,7 +5,7 @@ import { router } from "../trpc";
 import { db } from "@repo/db";
 import { TRPCError } from "@trpc/server";
 import { fromString, hashEmail, hkdf, wipe } from "@repo/crypto";
-import { delLoginAttempt, getLoginAttempt, setLoginAttempt, setSession } from "@util/redisUtils";
+import { delLoginAttempt, getLoginAttempt, setLoginAttempt, setSession } from "../util/redisUtils";
 import { fromBase64, toBase64 } from "@repo/util";
 
 class LoginError extends Error {

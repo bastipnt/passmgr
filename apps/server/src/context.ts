@@ -4,7 +4,7 @@ import {
   SESSION_TIMESTAMP_HEADER,
 } from "@repo/crypto";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { getHeaderSave } from "@util/general";
+import { getHeaderSave } from "./util/general";
 
 type Session = { sessionId?: string; timestamp?: string; signature?: string; salt?: string } | null;
 

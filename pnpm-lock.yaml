@@ -135,9 +135,6 @@ importers:
       '@fastify/redis':
         specifier: ^7.2.0
         version: 7.2.0
-      '@repo/client':
-        specifier: workspace:*
-        version: link:../../packages/client
       '@repo/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
@@ -163,9 +160,6 @@ importers:
       '@infra/redis':
         specifier: workspace:*
         version: link:../../infra/redis
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../../packages/typescript-config
       '@trpc/server':
         specifier: ^11.10.0
         version: 11.10.0(typescript@5.9.3)
@@ -298,9 +292,34 @@ importers:
       '@repo/util':
         specifier: workspace:*
         version: link:../util
+      '@serenity-kit/opaque':
+        specifier: ^1.1.0
+        version: 1.1.0
+      '@tanstack/react-query':
+        specifier: ^5.90.21
+        version: 5.90.21(react@19.2.4)
+      '@trpc/client':
+        specifier: ^11.10.0
+        version: 11.10.0(@trpc/server@11.10.0(typescript@5.9.3))(typescript@5.9.3)
+      '@trpc/tanstack-react-query':
+        specifier: ^11.10.0
+        version: 11.10.0(@tanstack/react-query@5.90.21(react@19.2.4))(@trpc/client@11.10.0(@trpc/server@11.10.0(typescript@5.9.3))(typescript@5.9.3))(@trpc/server@11.10.0(typescript@5.9.3))(react@19.2.4)(typescript@5.9.3)
+      react:
+        specifier: ^19.2.4
+        version: 19.2.4
+      react-dom:
+        specifier: ^19.2.4
+        version: 19.2.4(react@19.2.4)
+      server:
+        specifier: workspace:*
+        version: link:../../apps/server
       zod:
         specifier: ^4.3.6
         version: 4.3.6
+    devDependencies:
+      vite:
+        specifier: npm:rolldown-vite@7.2.5
+        version: rolldown-vite@7.2.5(@types/node@25.2.3)(esbuild@0.25.12)(jiti@2.6.1)(terser@5.46.0)(tsx@4.21.0)(yaml@2.8.2)
 
   packages/crypto:
     dependencies:
@@ -314,9 +333,6 @@ importers:
         specifier: ^2.0.1
         version: 2.0.1
     devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       '@repo/util':
         specifier: workspace:*
         version: link:../util
@@ -336,9 +352,6 @@ importers:
         specifier: ^8.18.0
         version: 8.18.0
     devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       '@types/pg':
         specifier: ^8.16.0
         version: 8.16.0
@@ -355,8 +368,6 @@ importers:
         specifier: ^4.21.0
         version: 4.21.0
 
-  packages/typescript-config: {}
-
   packages/ui:
     dependencies:
       react:
@@ -366,9 +377,6 @@ importers:
         specifier: ^19.2.4
         version: 19.2.4(react@19.2.4)
     devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       '@types/node':
         specifier: ^25.2.3
         version: 25.2.3
@@ -385,11 +393,7 @@ importers:
         specifier: 5.9.3
         version: 5.9.3
 
-  packages/util:
-    devDependencies:
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
+  packages/util: {}
 
 packages:
 

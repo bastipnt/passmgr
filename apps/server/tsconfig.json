@@ -8,6 +8,8 @@
     "allowImportingTsExtensions": true,
     "moduleDetection": "force",
     "noEmit": true,
+    "jsx": "react-jsx",
+    "lib": ["esnext", "dom"],
 
     /* Linting */
     "strict": true,
@@ -16,8 +18,9 @@
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
+    "types": ["vite/client", "node"],
 
     "paths": { "@util/*": ["./src/util/*"] }
   },
-  "include": ["src/**/*.ts", "index.ts"]
+  "include": ["src/**/*.ts", "index.ts", "../../types.d.ts"]
 }

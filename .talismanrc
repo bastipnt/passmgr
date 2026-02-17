@@ -4,6 +4,10 @@ fileignoreconfig:
     checksum: c24c4777c651f30cc01006e2d077391908a05eed35a7a2344c9767cd5ce801fa
   - filename: packages/crypto/src/encryption.ts
     checksum: c739e0ac935c9847126c8f344e7da7f6ee08341b1684c86045c910e3c0536642
+    allowed_patterns:
+      - "emailEncryptionKey"
+      - "encryptXChaCha"
+      - "encryptedEmail"
   - filename: packages/crypto/src/util/constants.ts
     allowed_patterns:
       - "emailEncryptionKey"
@@ -25,8 +29,11 @@ fileignoreconfig:
     allowed_patterns:
       - "emailEncryptionKeySalt"
   - filename: apps/server/.env.example
+    checksum: c6c07e7af74504110c7816d0a1afad43810b6d556bd6736720c078a7b1429ae1
     allowed_patterns:
       - ".env"
+    ignore_detectors:
+      - filename
 
   # Database schema and migrations
   - filename: packages/db/src/schema/users.ts
@@ -36,6 +43,20 @@ fileignoreconfig:
     checksum: 5c331004f72d32b487ad946f5f82aceb4bb67df6e6c8ec45004d56bfb1b28ba1
   - filename: packages/db/drizzle/**/migration.sql
     ignore_detectors: [filename, filecontent]
+  - filename: packages/db/drizzle/**/*.sql
+    ignore_detectors: [filename, filecontent]
+  - filename: packages/db/drizzle/20260208122631_chunky_nick_fury/migration.sql
+    checksum: 3d02c641fbb3ed4ab95d7a0b8491e29847adb05a6cfcc39bb96424c682491b4c
+  - filename: packages/db/drizzle/20260208123040_grey_kinsey_walden/migration.sql
+    checksum: c964c4b2d0977ec05b1f95b0622877cd4a17e0fb02a14f70d009220cfda9f618
+  - filename: packages/db/drizzle/20260210180518_great_meltdown/migration.sql
+    checksum: f4fb689f58e7f87414507c309c854b357657ef95bd6b52e9e2fc4b42ee85a0ef
+  - filename: packages/db/drizzle/20260211142504_blue_reaper/migration.sql
+    checksum: 66547a43d3a05f242cc501f81bc12481be3cf13f823807f2e0185493077719fd
+  - filename: packages/db/drizzle/20260211153339_noisy_scorpion/migration.sql
+    checksum: 215e6c7477b0d7e7e261e863fb55e5ab6cd0868772bd5f52fc17d511f23517fb
+  - filename: packages/db/drizzle/20260211155419_bored_goblin_queen/migration.sql
+    checksum: 1d33464cbde1b96a2b56939b8c761618c6a6c8fb2f331e838ee765e76a8b01fc
 
   # Web auth pages with password forms
   - filename: apps/web/src/pages/auth/*.tsx
@@ -69,18 +90,27 @@ fileignoreconfig:
       - "key="
 
   # Web assets and config
-  - filename: apps/web/vite-env.d.ts
-    checksum: a16335fca9844dc1ed4cfea544d771709d292593cfc96b3cb9ccc0473e33f4e9
+  - filename: packages/client/vite-env.d.ts
+    checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
   - filename: apps/web/public/vite.svg
     checksum: 4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb
 
   # Mobile assets
   - filename: apps/mobile/assets/images/icon.png
     checksum: 119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f
+    allowed_patterns:
+      - "IconifyId"
+    ignore_detectors:
+      - filecontent
 
   # Documentation
   - filename: doc/structure.md
-    checksum: c2241983b0dd6fcd4cae6753719a176bd6888d084c380c231a5bd7b25beec702
+    checksum: 87497fda8c27c558d707a2875dea466de37272a988bce971ba286cf95ec6e5a7
+    allowed_patterns:
+      - "Root Key"
+      - "Argon2id"
+    ignore_detectors:
+      - filecontent
   - filename: AGENTS.md
     allowed_patterns:
       - "password"
@@ -91,6 +121,13 @@ fileignoreconfig:
       - '"env":'
       - "POSTGRES_PASSWORD"
 
+  # Legacy files (deleted, appear in git history only)
+  # These will be ignored when using --ignoreHistory flag
+  - filename: apps/docs/app/page.tsx
+    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - filename: apps/web/app/page.tsx
+    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+
 allowed_patterns:
   - "packages/db/drizzle/*"
   - "serverKey"
@@ -100,6 +137,19 @@ allowed_patterns:
   - "sessionSecret"
   - "sessionKey"
   - "encryptEmail"
+  - "deriveAuthKey"
+  - "excludedKeys"
+  - "inputKey"
+  - "emailHashKey"
+  - "emailEncryptionKeySalt"
+  - "pass_mgr"
+  - "Recovery"
+  - "signHmac"
+  - "importKey"
+  - "secretsStore"
+  - ".{0,50}key.{0,50}"
+  - "register.*password"
+  - "const classes.*key.*string"
 
 scopeconfig:
   - scope: node

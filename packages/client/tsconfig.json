@@ -18,8 +18,10 @@
     "composite": true,
     "declarationMap": true,
     "sourceMap": true,
-    "lib": ["esnext", "dom"]
+    "lib": ["es2022", "dom", "dom.iterable"],
+    "jsx": "react-jsx",
+    "types": ["vite/client"]
   },
-  "include": ["**/*.ts", "../../types.d.ts"],
+  "include": ["**/*.ts", "**/*.tsx", "../../types.d.ts"],
   "exclude": ["node_modules"]
 }

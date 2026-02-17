@@ -4,11 +4,11 @@ import { cn } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useTRPCClient } from "@utils/trpc";
 import { useLocation } from "wouter";
 import * as opaque from "@serenity-kit/opaque";
 import { useState } from "react";
 import styles from "./Register.module.css";
+import { useTRPCClient } from "@repo/client";
 
 export default function Register() {
   const trpc = useTRPCClient();
@@ -65,8 +65,6 @@ export default function Register() {
       setRegistrationError(true);
       return;
     }
-
-    console.log({ registrationRecord });
 
     navigate("/");
   };
