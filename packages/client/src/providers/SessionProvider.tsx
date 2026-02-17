@@ -1,5 +1,5 @@
-import { secretsStore } from "@repo/client";
 import { createContext, useState, type ReactNode } from "react";
+import { secretsStore } from "../secrets-store";
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const SessionContext = createContext<{

@@ -1,39 +1,46 @@
 import * as opaque from "@serenity-kit/opaque";
-import type { TRPCClient } from "@trpc/client";
-import type { AppRouter } from "server";
+import { useTRPCClient } from "./util/trpc";
+import { useState } from "react";
 
-export async function register(trpc: TRPCClient<AppRouter>, email: string, password: string) {
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password,
-  });
+export function useRegistration() {
+  const trpc = useTRPCClient();
+  const [registrationError, setRegistrationError] = useState(false);
 
-  let registrationResponse: string;
-
-  try {
-    ({ registrationResponse } = await trpc.register.startRegistration.mutate({
-      email,
-      registrationRequest,
-    }));
-  } catch (error) {
-    console.log(error);
-    throw error;
-  }
-
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
-
-  try {
-    await trpc.register.finishRegistration.mutate({
-      email,
-      registrationRecord,
+  async function registerNewUser(email: string, password: string) {
+    const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
+      password,
     });
-  } catch (error) {
-    console.log(error);
-    throw error;
+
+    let registrationResponse: string;
+
+    try {
+      ({ registrationResponse } = await trpc.register.startRegistration.mutate({
+        email,
+        registrationRequest,
+      }));
+    } catch (error) {
+      console.log(error);
+      setRegistrationError(true);
+      return;
+    }
+
+    const { registrationRecord } = opaque.client.finishRegistration({
+      clientRegistrationState,
+      registrationResponse,
+      password,
+    });
+
+    try {
+      await trpc.register.finishRegistration.mutate({
+        email,
+        registrationRecord,
+      });
+    } catch (error) {
+      console.log(error);
+      setRegistrationError(true);
+      return;
+    }
   }
 
-  return registrationRecord;
+  return { registerNewUser, registrationError };
 }

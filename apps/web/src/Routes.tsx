@@ -9,8 +9,8 @@ import Login from "@pages/auth/Login";
 import PublicLayout from "./layout/PublicLayout";
 import NotFound from "@pages/NotFound";
 import Register from "@pages/auth/Register";
-import { SessionContext } from "./providers/SessionProvider";
 import { useContext } from "react";
+import { SessionContext } from "@repo/client";
 
 function PublicRoutes() {
   const { sessionId } = useContext(SessionContext);

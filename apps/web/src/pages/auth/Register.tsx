@@ -5,16 +5,12 @@ import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import * as opaque from "@serenity-kit/opaque";
-import { useState } from "react";
 import styles from "./Register.module.css";
-import { useTRPCClient } from "@repo/client";
+import { useRegistration } from "@repo/client";
 
 export default function Register() {
-  const trpc = useTRPCClient();
   const [_, navigate] = useLocation();
-
-  const [registrationError, setRegistrationError] = useState(false);
+  const { registerNewUser, registrationError } = useRegistration();
 
   const userCredentialsSchema = z.object({
     email: z.email(),
@@ -32,41 +28,9 @@ export default function Register() {
   });
 
   const onSubmit = async ({ password, email }: FormValues) => {
-    const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-      password,
-    });
+    await registerNewUser(email, password);
 
-    let registrationResponse: string;
-
-    try {
-      ({ registrationResponse } = await trpc.register.startRegistration.mutate({
-        email,
-        registrationRequest,
-      }));
-    } catch (error) {
-      console.log(error);
-      setRegistrationError(true);
-      return;
-    }
-
-    const { registrationRecord } = opaque.client.finishRegistration({
-      clientRegistrationState,
-      registrationResponse,
-      password,
-    });
-
-    try {
-      await trpc.register.finishRegistration.mutate({
-        email,
-        registrationRecord,
-      });
-    } catch (error) {
-      console.log(error);
-      setRegistrationError(true);
-      return;
-    }
-
-    navigate("/");
+    navigate("/login");
   };
 
   return (

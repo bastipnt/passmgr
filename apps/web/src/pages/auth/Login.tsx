@@ -1,22 +1,14 @@
 import { Button } from "@components/Button";
 import styles from "./Login.module.css";
 import Input from "@components/Input";
-import { cn, toBase64 } from "@repo/util";
+import { cn } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import * as opaque from "@serenity-kit/opaque";
-import { useContext, useState } from "react";
-import { SessionContext } from "../../providers/SessionProvider";
-import { genSalt } from "@repo/crypto";
-import { useTRPCClient } from "@repo/client";
+import { useLogin } from "@repo/client";
 
 export default function Login() {
-  const trpc = useTRPCClient();
-  const { login } = useContext(SessionContext);
-
-  const [loginError, setLoginError] = useState(false);
-
+  const { loginUser, loginError } = useLogin();
   const userCredentialsSchema = z.object({
     email: z.email(),
     password: z.string().min(8),
@@ -33,54 +25,7 @@ export default function Login() {
   });
 
   const onSubmit = async ({ password, email }: FormValues) => {
-    const { clientLoginState, startLoginRequest } = opaque.client.startLogin({
-      password,
-    });
-
-    let loginResponse: string;
-
-    try {
-      ({ loginResponse } = await trpc.login.startLogin.mutate({
-        email,
-        startLoginRequest,
-      }));
-    } catch (error) {
-      console.log(error);
-      setLoginError(true);
-      return;
-    }
-
-    const loginResult = opaque.client.finishLogin({
-      clientLoginState,
-      loginResponse,
-      password,
-    });
-
-    if (!loginResult) {
-      console.log("Login failed");
-      setLoginError(true);
-      return;
-    }
-
-    const { finishLoginRequest, sessionKey } = loginResult;
-
-    const authSalt = genSalt();
-
-    let sessionId: string;
-
-    try {
-      ({ sessionId } = await trpc.login.finishLogin.mutate({
-        email,
-        finishLoginRequest,
-        authSalt: toBase64(authSalt),
-      }));
-    } catch (error) {
-      console.log(error);
-      setLoginError(true);
-      return;
-    }
-
-    login(sessionId, sessionKey, authSalt);
+    await loginUser(email, password);
   };
 
   return (

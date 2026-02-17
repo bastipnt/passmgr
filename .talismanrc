@@ -128,6 +128,10 @@ fileignoreconfig:
   - filename: apps/web/app/page.tsx
     checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 
+  # Other
+  - filename: packages/client/src/login.ts
+    checksum: bca9a137cb2a61bd99a7dfe121b3f65136c942aac0abe6deeb5270b28c73739a
+
 allowed_patterns:
   - "packages/db/drizzle/*"
   - "serverKey"
