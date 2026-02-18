@@ -71,3 +71,6 @@ roadmap.md
 # CSS Module Types (auto-generated)
 # ---------------------------------------------------------
 apps/web/src/**/*.css.d.ts
+
+*storybook.log
+storybook-static

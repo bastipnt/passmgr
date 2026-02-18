@@ -11,7 +11,9 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "format:fix-selected": "pnpm run format -- --ignore-unknown",
     "typecheck": "turbo run typecheck",
-    "typegen:css": "turbo run typegen:css"
+    "typegen:css": "turbo run typegen:css",
+    "storybook": "turbo run storybook",
+    "build-storybook": "turbo run build-storybook"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.4.1",
