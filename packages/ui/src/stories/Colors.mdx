@@ -1,6 +1,59 @@
 import { Meta, ColorPalette, ColorItem } from "@storybook/addon-docs/blocks";
 
-<Meta title="Colors" />
+<Meta title="Theme/Colors" />
+
+## Colors
+
+<ColorPalette>
+  <ColorItem
+    title="--color-surface-*"
+    subtitle="Surface colors"
+    colors={{
+      "--color-surface-1": "var(--color-surface-1)",
+      "--color-surface-2": "var(--color-surface-2)",
+      "--color-surface-3": "var(--color-surface-3)",
+      "--color-surface-4": "var(--color-surface-4)",
+    }}
+  />
+
+<ColorItem
+  title="--color-content-*"
+  subtitle="Content/Text colors"
+  colors={{
+    "--color-content-primary": "var(--color-content-primary)",
+    "--color-content-secondary": "var(--color-content-secondary)",
+    "--color-content-muted": "var(--color-content-muted)",
+    "--color-content-disabled": "var(--color-content-disabled)",
+  }}
+/>
+
+  <ColorItem title="theme.color.primary" subtitle="Coral" colors={{ WildWatermelon: "#FF4785" }} />
+  <ColorItem title="theme.color.secondary" subtitle="Ocean" colors={{ DodgerBlue: "#1EA7FD" }} />
+  <ColorItem
+    title="theme.color.positive"
+    subtitle="Green"
+    colors={{
+      Apple: "rgba(102,191,60,1)",
+      Apple80: "rgba(102,191,60,.8)",
+      Apple60: "rgba(102,191,60,.6)",
+      Apple30: "rgba(102,191,60,.3)",
+    }}
+  />
+  <ColorItem
+    title="gradient"
+    subtitle="Grayscale"
+    colors={{
+      Gradient: "linear-gradient(to right,white,black)",
+    }}
+  />
+  <ColorItem
+    title="gradient"
+    subtitle="Grayscale"
+    colors={["linear-gradient(65deg,white,black)"]}
+  />
+</ColorPalette>
+
+## Text colors
 
 <ColorPalette>
   <ColorItem
