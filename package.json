@@ -10,7 +10,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "format:fix-selected": "pnpm run format -- --ignore-unknown",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "typegen:css": "turbo run typegen:css"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.4.1",

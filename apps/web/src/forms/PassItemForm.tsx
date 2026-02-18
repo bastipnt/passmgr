@@ -9,10 +9,10 @@ import {
   type UseFormRegister,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Input from "@components/Input";
-import ButtonLink from "@components/ButtonLink";
+import { Input } from "@repo/ui/input";
+import ButtonLink from "@repo/ui/ButtonLink";
 import { TiCancel, TiPlus, TiTimes, TiUpload } from "react-icons/ti";
-import { Button } from "@components/Button";
+import { Button } from "@repo/ui/Button";
 import { useEffect } from "react";
 
 type FormValues = z.infer<typeof entrySchema>;

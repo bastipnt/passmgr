@@ -1,7 +1,7 @@
 import { ErrorBoundary } from "react-error-boundary";
 import Routes from "./Routes";
-import ErrorFallback from "@components/ErrorFallback";
 import { ClientProvider, SessionProvider } from "@repo/client";
+import ErrorFallback from "@pages/ErrorFallback";
 
 function App() {
   return (

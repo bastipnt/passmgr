@@ -1,7 +1,7 @@
 import { useCallback, type ReactNode, useState, useEffect } from "react";
 import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { Button } from "./Button";
-import { getAttrsForName } from "../utils/label-mapping";
+import { getAttrsForName } from "./utils/label-mapping";
 import styles from "./EntryList.module.css";
 import { cn } from "@repo/util";
 

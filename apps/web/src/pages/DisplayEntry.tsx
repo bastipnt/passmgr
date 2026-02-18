@@ -1,11 +1,11 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useState } from "react";
-import { Toast } from "../components/Toast";
+import { Toast } from "@repo/ui/toast";
 import { TiPencil, TiUserAddOutline } from "react-icons/ti";
-import { Button } from "../components/Button";
-import EntryList from "../components/EntryList";
+import { Button } from "@repo/ui/Button";
+import EntryList from "@repo/ui/EntryList";
 import { useParams } from "wouter";
-import ButtonLink from "../components/ButtonLink";
+import ButtonLink from "@repo/ui/ButtonLink";
 import { editSlug } from "../data/routes";
 import styles from "./DisplayEntry.module.css";
 import { useTRPC } from "@repo/client";

@@ -1,5 +1,5 @@
-import { Button } from "@components/Button";
-import Input from "@components/Input";
+import { Button } from "@repo/ui/Button";
+import { Input } from "@repo/ui/input";
 import { cn } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";

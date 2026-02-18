@@ -1,6 +1,6 @@
-import { Button } from "@components/Button";
+import { Button } from "@repo/ui/Button";
 import styles from "./Login.module.css";
-import Input from "@components/Input";
+import { Input } from "@repo/ui/input";
 import { cn } from "@repo/util";
 import { useForm } from "react-hook-form";
 import z from "zod";

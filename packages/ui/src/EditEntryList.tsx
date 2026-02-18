@@ -1,5 +1,5 @@
 import type { FieldError, FieldErrors, FieldValues, Path, UseFormRegister } from "react-hook-form";
-import { getAttrsForName } from "../utils/label-mapping";
+import { getAttrsForName } from "./utils/label-mapping";
 import { useId } from "react";
 import styles from "./EditEntryList.module.css";
 

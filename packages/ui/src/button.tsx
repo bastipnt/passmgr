@@ -1,17 +1,26 @@
-"use client";
+import * as React from "react";
+import styles from "./Button.module.css";
+import { cn } from "@repo/util";
 
-import type { ReactNode } from "react";
+export type ButtonVariant = "primary" | "secondary" | "ghost" | "destructive";
+export type ButtonSize = "sm" | "md" | "lg";
 
-interface ButtonProps {
-  children: ReactNode;
-  className?: string;
-  appName: string;
+export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  variant?: ButtonVariant;
+  size?: ButtonSize;
 }
 
-export const Button = ({ children, className, appName }: ButtonProps) => {
+export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(function Button(
+  { className, variant = "primary", size = "md", disabled, type = "button", ...props },
+  ref,
+) {
   return (
-    <button className={className} onClick={() => alert(`Hello from your ${appName} app!`)}>
-      {children}
-    </button>
+    <button
+      ref={ref}
+      disabled={disabled}
+      className={cn(styles.button, styles[size], styles[variant], className)}
+      type={type}
+      {...props}
+    />
   );
-};
+});

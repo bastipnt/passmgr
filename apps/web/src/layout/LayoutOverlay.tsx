@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import ButtonLink from "../components/ButtonLink";
+import ButtonLink from "@repo/ui/ButtonLink";
 import { TiTimes } from "react-icons/ti";
 import styles from "./LayoutOverlay.module.css";
 

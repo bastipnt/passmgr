@@ -1,6 +1,6 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense } from "react";
-import { Toast } from "../components/Toast";
+import { Toast } from "@repo/ui/toast";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";

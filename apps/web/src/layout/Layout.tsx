@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import styles from "./Layout.module.css";
 import { cn } from "@repo/util";
 import Entries from "../data-components/Entries";
-import Input from "@components/Input";
-import ButtonLink from "@components/ButtonLink";
+import { Input } from "@repo/ui/input";
+import ButtonLink from "@repo/ui/ButtonLink";
 import { TiPlus } from "react-icons/ti";
 
 type LayoutProps = {

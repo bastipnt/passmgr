@@ -33,6 +33,7 @@
       "cache": false,
       "persistent": true,
       "env": ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
-    }
+    },
+    "typegen:css": {}
   }
 }

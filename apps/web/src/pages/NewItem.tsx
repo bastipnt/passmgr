@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { Toast } from "../components/Toast";
+import { Toast } from "@repo/ui/toast";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";

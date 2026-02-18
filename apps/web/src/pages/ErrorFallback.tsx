@@ -2,7 +2,7 @@ import type { FallbackProps } from "react-error-boundary";
 import PublicLayout from "../layout/PublicLayout";
 import { cn } from "@repo/util";
 import styles from "./ErrorFallback.module.css";
-import { Button } from "./Button";
+import { Button } from "@repo/ui/button";
 
 export default function ErrorFallback({ resetErrorBoundary }: FallbackProps) {
   return (
