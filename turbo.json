@@ -4,8 +4,8 @@
   "tasks": {
     "build": {
       "dependsOn": ["^build", "^db:generate"],
-      "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**"],
+      "inputs": ["$TURBO_DEFAULT$", ".env*", "!**/*.stories.{tsx,jsx,mdx}"],
+      "outputs": ["dist/**", "storybook-static/**"],
       "env": ["DATABASE_URL"]
     },
     "lint": {
@@ -38,6 +38,6 @@
     "storybook": {
       "persistent": true
     },
-    "build-storybook": {}
+    "build:storybook": {}
   }
 }

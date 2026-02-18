@@ -1,5 +1,5 @@
 import { router } from "../trpc";
-import { entrySchema, type Entry } from "@repo/client";
+import { entrySchema, type Entry } from "@repo/util";
 import z from "zod";
 import { protectedProcedure } from "../auth/authMiddleware";
 

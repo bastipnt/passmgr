@@ -15,23 +15,23 @@
   "license": "ISC",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
+    "@fastify/cors": "^11.2.0",
     "@fastify/redis": "^7.2.0",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/util": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
     "@trpc/client": "^11.10.0",
-    "add": "^2.0.6"
+    "@trpc/server": "^11.10.0",
+    "add": "^2.0.6",
+    "fastify": "^5.7.4",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
-    "@fastify/cors": "^11.2.0",
-    "@infra/redis": "workspace:*",
-    "@trpc/server": "^11.10.0",
-    "fastify": "^5.7.4",
+    "@types/node": "^25.2.3",
     "fastify-cli": "^7.4.1",
     "fastify-tsconfig": "^3.0.0",
     "oxlint": "^1.48.0",
-    "oxlint-tsgolint": "^0.14.0",
-    "zod": "^4.3.6"
+    "oxlint-tsgolint": "^0.14.0"
   }
 }

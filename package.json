@@ -13,7 +13,7 @@
     "typecheck": "turbo run typecheck",
     "typegen:css": "turbo run typegen:css",
     "storybook": "turbo run storybook",
-    "build-storybook": "turbo run build-storybook"
+    "build:storybook": "turbo run build:storybook"
   },
   "devDependencies": {
     "@commitlint/config-conventional": "^20.4.1",
@@ -25,7 +25,7 @@
     "turbo": "^2.8.9",
     "typescript": "5.9.3"
   },
-  "packageManager": "pnpm@10.29.3",
+  "packageManager": "pnpm@10.30.0",
   "engines": {
     "node": ">=18"
   },

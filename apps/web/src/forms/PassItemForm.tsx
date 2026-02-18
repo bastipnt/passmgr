@@ -1,6 +1,5 @@
-import type z from "zod";
 import styles from "./PassItemForm.module.css";
-import { entrySchema } from "@repo/client";
+import { entrySchema, type Entry as FormValues } from "@repo/util";
 import {
   useFieldArray,
   useForm,
@@ -14,8 +13,6 @@ import ButtonLink from "@repo/ui/ButtonLink";
 import { TiCancel, TiPlus, TiTimes, TiUpload } from "react-icons/ti";
 import { Button } from "@repo/ui/Button";
 import { useEffect } from "react";
-
-type FormValues = z.infer<typeof entrySchema>;
 
 type WebsiteFieldsProps = {
   control: Control<FormValues>;

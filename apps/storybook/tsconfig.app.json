@@ -1,15 +1,20 @@
 {
-  "extends": "fastify-tsconfig",
   "compilerOptions": {
-    "outDir": "dist",
-    "sourceMap": true,
+    "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
+    "target": "ES2022",
+    "useDefineForClassFields": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "module": "ESNext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+
+    /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
     "moduleDetection": "force",
     "noEmit": true,
     "jsx": "react-jsx",
-    "lib": ["esnext", "dom"],
 
     /* Linting */
     "strict": true,
@@ -17,10 +22,7 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true,
-    "types": ["node"],
-
-    "paths": { "@util/*": ["./src/util/*"] }
+    "noUncheckedSideEffectImports": true
   },
-  "include": ["src/**/*.ts", "index.ts", "../../types.d.ts"]
+  "include": ["src"]
 }
