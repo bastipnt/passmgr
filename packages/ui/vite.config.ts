@@ -12,11 +12,6 @@ const dirname =
 
 // More info at: https://storybook.js.org/docs/next/writing-tests/integrations/vitest-addon
 export default defineConfig({
-  resolve: {
-    alias: {
-      "@repo/ui": path.resolve(__dirname, "../../packages/ui/src"),
-    },
-  },
   plugins: [react()],
   test: {
     projects: [
