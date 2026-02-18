@@ -3,7 +3,7 @@ import Layout from "./layout/Layout";
 import Index from "@pages/Index";
 import SelectedElementProvider from "./providers/SelectedElementProvider";
 import DisplayEntry from "@pages/DisplayEntry";
-import { editSlug, entrySlug } from "./data/routes";
+import { editSlug, entrySlug, newSlug } from "./data/routes";
 import EditEntry from "@pages/EditEntry";
 import Login from "@pages/auth/Login";
 import PublicLayout from "./layout/PublicLayout";
@@ -11,6 +11,7 @@ import NotFound from "@pages/NotFound";
 import Register from "@pages/auth/Register";
 import { useContext } from "react";
 import { SessionContext } from "@repo/client";
+import NewItem from "@pages/NewItem";
 
 function PublicRoutes() {
   const { sessionId } = useContext(SessionContext);
@@ -44,6 +45,7 @@ function OverlayLayoutRoutes() {
   return (
     <Switch>
       <Route path={`/${editSlug}/:entryId`} component={EditEntry} />
+      <Route path={`/${newSlug}`} component={NewItem} />
     </Switch>
   );
 }
@@ -61,6 +63,7 @@ function ProtectedRoutes() {
 
         {/* Overlay Layout */}
         <Route path={`/${editSlug}/:entryId`} component={OverlayLayoutRoutes} />
+        <Route path={`/${newSlug}`} component={OverlayLayoutRoutes} />
 
         <Route>
           <NotFound />

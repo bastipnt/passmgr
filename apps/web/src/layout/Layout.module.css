@@ -7,7 +7,11 @@
 }
 
 .header {
+  display: grid;
+  grid-template-columns: 1fr auto;
   grid-column: span 2;
+  align-items: center;
+  gap: 2rem;
   padding: var(--space-8);
 
   --gradient-border-bg: var(--color-surface-1);

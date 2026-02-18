@@ -11,7 +11,13 @@ export const entrySchema = z.object({
   title: z.string().min(1, "Title is required"),
   username: z.string().optional(),
   password: z.string().optional(),
-  websites: z.array(z.string()).optional(),
+  websites: z
+    .array(
+      z.object({
+        value: z.string(),
+      }),
+    )
+    .optional(),
   totp: z.string().optional(),
   category: z.string().optional(),
   note: z.string().optional(),

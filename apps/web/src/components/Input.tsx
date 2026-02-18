@@ -4,11 +4,13 @@ import { cn } from "@repo/util";
 
 export interface InputProps extends Omit<React.ButtonHTMLAttributes<HTMLInputElement>, "id"> {
   label: string;
+  placeholder?: string;
   error?: string;
+  hideLabel?: boolean;
 }
 
 export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Input(
-  { className, error, name, label, ...props },
+  { className, error, name, label, hideLabel, placeholder, ...props },
   ref,
 ) {
   const id = useId();
@@ -16,15 +18,18 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
 
   return (
     <div className={styles.container}>
-      <label htmlFor={id} className={styles.label}>
-        {label}
-      </label>
+      {!hideLabel && (
+        <label htmlFor={id} className={styles.label}>
+          {label}
+        </label>
+      )}
       <input
         ref={ref}
         id={id}
         name={name}
         aria-errormessage={errorId}
         className={cn(styles.input, error && styles.inputError, className)}
+        placeholder={placeholder}
         {...props}
       />
       {error && (
