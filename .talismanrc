@@ -1,50 +1,101 @@
 fileignoreconfig:
-  # Core crypto files (legitimate security code)
-  - filename: packages/crypto/src/hash.ts
-    checksum: c24c4777c651f30cc01006e2d077391908a05eed35a7a2344c9767cd5ce801fa
+  - filename: AGENTS.md
+    allowed_patterns:
+      - password
+  - filename: apps/docs/app/page.tsx
+    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - filename: apps/mobile/assets/images/icon.png
+    checksum: 119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f
+    ignore_detectors:
+      - filecontent
+    allowed_patterns:
+      - IconifyId
+  - filename: apps/server/.env.example
+    checksum: c6c07e7af74504110c7816d0a1afad43810b6d556bd6736720c078a7b1429ae1
+    ignore_detectors:
+      - filename
+    allowed_patterns:
+      - .env
+  - filename: apps/server/src/auth/registrationRouter.ts
+    allowed_patterns:
+      - emailEncryptionKeySalt
+  - filename: apps/server/src/entry/router.ts
+    allowed_patterns:
+      - password
+  - filename: apps/server/src/util/redisUtils.ts
+    allowed_patterns:
+      - Key
+  - filename: apps/web/app/page.tsx
+    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  - filename: apps/web/public/vite.svg
+    checksum: 4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb
+  - filename: apps/web/src/App.tsx
+    checksum: 4c591b74feb04a3a2fc1ffe0b64dc630fdeecd273611b3a34363e4ee51f0ca22
+  - filename: apps/web/src/components/EditEntryList.tsx
+    allowed_patterns:
+      - key={
+  - filename: apps/web/src/components/EntryList.tsx
+    allowed_patterns:
+      - Password
+  - filename: apps/web/src/data-components/Entries.tsx
+    allowed_patterns:
+      - key={
+  - filename: apps/web/src/pages/DisplayItem.tsx
+    checksum: 157db6832ae141bda8d96fd175a808e39bc11d0b3a4b1f6a27585a0fc1f452f9
+  - filename: apps/web/src/pages/EditEntry.tsx
+    allowed_patterns:
+      - Password
+      - secret
+  - filename: apps/web/src/pages/auth/*.tsx
+    allowed_patterns:
+      - password
+      - Password
+  - filename: apps/web/src/types/css-modules.d.ts
+    allowed_patterns:
+      - key=
+  - filename: apps/web/src/utils/label-mapping.tsx
+    allowed_patterns:
+      - key=
+  - filename: doc/structure.md
+    checksum: 87497fda8c27c558d707a2875dea466de37272a988bce971ba286cf95ec6e5a7
+    ignore_detectors:
+      - filecontent
+    allowed_patterns:
+      - Root Key
+      - Argon2id
+  - filename: packages/client/src/entry-schema.ts
+    allowed_patterns:
+      - password
+  - filename: packages/client/src/login.ts
+    checksum: bca9a137cb2a61bd99a7dfe121b3f65136c942aac0abe6deeb5270b28c73739a
+  - filename: packages/client/src/secrets-store.ts
+    checksum: a7bab1c4a09bad8d54079379b9880bb926dcf87a5a5f886550254c2e362cb9d7
+  - filename: packages/client/vite-env.d.ts
+    checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
   - filename: packages/crypto/src/encryption.ts
     checksum: c739e0ac935c9847126c8f344e7da7f6ee08341b1684c86045c910e3c0536642
     allowed_patterns:
-      - "emailEncryptionKey"
-      - "encryptXChaCha"
-      - "encryptedEmail"
+      - emailEncryptionKey
+      - encryptXChaCha
+      - encryptedEmail
+  - filename: packages/crypto/src/hash.ts
+    checksum: c24c4777c651f30cc01006e2d077391908a05eed35a7a2344c9767cd5ce801fa
+  - filename: packages/crypto/src/totp.ts
+    checksum: 8cdc0a2b010e78700e7f38e8c396aacd829bda157de492954abf15ab9dbfee9f
   - filename: packages/crypto/src/util/constants.ts
     allowed_patterns:
-      - "emailEncryptionKey"
-      - "emailHashKey"
-  - filename: packages/client/src/secrets-store.ts
-    checksum: a7bab1c4a09bad8d54079379b9880bb926dcf87a5a5f886550254c2e362cb9d7
-  - filename: packages/client/src/entry-schema.ts
-    allowed_patterns:
-      - "password"
-
-  # Server files with password/crypto code
-  - filename: apps/server/src/entry/router.ts
-    allowed_patterns:
-      - "password"
-  - filename: apps/server/src/util/redisUtils.ts
-    allowed_patterns:
-      - "Key"
-  - filename: apps/server/src/auth/registrationRouter.ts
-    allowed_patterns:
-      - "emailEncryptionKeySalt"
-  - filename: apps/server/.env.example
-    checksum: c6c07e7af74504110c7816d0a1afad43810b6d556bd6736720c078a7b1429ae1
-    allowed_patterns:
-      - ".env"
-    ignore_detectors:
-      - filename
-
-  # Database schema and migrations
-  - filename: packages/db/src/schema/users.ts
-    allowed_patterns:
-      - "emailEncryptionKeySalt"
+      - emailEncryptionKey
+      - emailHashKey
   - filename: packages/db/docker-compose.yml
     checksum: 5c331004f72d32b487ad946f5f82aceb4bb67df6e6c8ec45004d56bfb1b28ba1
-  - filename: packages/db/drizzle/**/migration.sql
-    ignore_detectors: [filename, filecontent]
   - filename: packages/db/drizzle/**/*.sql
-    ignore_detectors: [filename, filecontent]
+    ignore_detectors:
+      - filename
+      - filecontent
+  - filename: packages/db/drizzle/**/migration.sql
+    ignore_detectors:
+      - filename
+      - filecontent
   - filename: packages/db/drizzle/20260208122631_chunky_nick_fury/migration.sql
     checksum: 3d02c641fbb3ed4ab95d7a0b8491e29847adb05a6cfcc39bb96424c682491b4c
   - filename: packages/db/drizzle/20260208123040_grey_kinsey_walden/migration.sql
@@ -57,104 +108,44 @@ fileignoreconfig:
     checksum: 215e6c7477b0d7e7e261e863fb55e5ab6cd0868772bd5f52fc17d511f23517fb
   - filename: packages/db/drizzle/20260211155419_bored_goblin_queen/migration.sql
     checksum: 1d33464cbde1b96a2b56939b8c761618c6a6c8fb2f331e838ee765e76a8b01fc
-
-  # Web auth pages with password forms
-  - filename: apps/web/src/pages/auth/*.tsx
+  - filename: packages/db/src/schema/users.ts
     allowed_patterns:
-      - "password"
-      - "Password"
-
-  # Web components with React key props (false positives)
-  - filename: apps/web/src/components/EntryList.tsx
-    allowed_patterns:
-      - "Password"
-  - filename: apps/web/src/components/EditEntryList.tsx
-    allowed_patterns:
-      - "key={"
-  - filename: apps/web/src/data-components/Entries.tsx
-    allowed_patterns:
-      - "key={"
-
-  # Web pages with password fields
-  - filename: apps/web/src/pages/EditEntry.tsx
-    allowed_patterns:
-      - "Password"
-      - "secret"
-
-  # Utilities with key patterns (false positives)
-  - filename: apps/web/src/utils/label-mapping.tsx
-    allowed_patterns:
-      - "key="
-  - filename: apps/web/src/types/css-modules.d.ts
-    allowed_patterns:
-      - "key="
-
-  # Web assets and config
-  - filename: packages/client/vite-env.d.ts
-    checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
-  - filename: apps/web/public/vite.svg
-    checksum: 4a748afd443918bb16591c834c401dae33e87861ab5dbad0811c3a3b4a9214fb
-
-  # Mobile assets
-  - filename: apps/mobile/assets/images/icon.png
-    checksum: 119462bb78eb240a65c869fc067ee599639b3cb5a41953f25c07b17d2a8c7e0f
-    allowed_patterns:
-      - "IconifyId"
-    ignore_detectors:
-      - filecontent
-
-  # Documentation
-  - filename: doc/structure.md
-    checksum: 87497fda8c27c558d707a2875dea466de37272a988bce971ba286cf95ec6e5a7
-    allowed_patterns:
-      - "Root Key"
-      - "Argon2id"
-    ignore_detectors:
-      - filecontent
-  - filename: AGENTS.md
-    allowed_patterns:
-      - "password"
-
-  # Build config
+      - emailEncryptionKeySalt
+  - filename: packages/ui/src/complex-components/ItemDisplay.stories.tsx
+    checksum: d0cd96de559dab3f75678a7f3d9666f149feb8519063b2322eeef81d65c3c22d
+  - filename: packages/ui/src/complex-components/ItemDisplay.tsx
+    checksum: 1092fa38f3afc48b960fa9d75d6ac3691d3baefd5593ce76247d7b7b7791d405
+  - filename: packages/ui/src/providers/ThemeProvider.tsx
+    checksum: 8ef4ebcc62e676c16d181eabe8ace76ca87e50d570514f6071809d13aa5dd416
   - filename: turbo.json
     allowed_patterns:
       - '"env":'
-      - "POSTGRES_PASSWORD"
-
-  # Legacy files (deleted, appear in git history only)
-  # These will be ignored when using --ignoreHistory flag
-  - filename: apps/docs/app/page.tsx
-    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-  - filename: apps/web/app/page.tsx
-    checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-
-  # Other
-  - filename: packages/client/src/login.ts
-    checksum: bca9a137cb2a61bd99a7dfe121b3f65136c942aac0abe6deeb5270b28c73739a
-
-allowed_patterns:
-  - "packages/db/drizzle/*"
-  - "serverKey"
-  - "authKey"
-  - "rawAuthKey"
-  - "sessionAuth"
-  - "sessionSecret"
-  - "sessionKey"
-  - "encryptEmail"
-  - "deriveAuthKey"
-  - "excludedKeys"
-  - "inputKey"
-  - "emailHashKey"
-  - "emailEncryptionKeySalt"
-  - "pass_mgr"
-  - "Recovery"
-  - "signHmac"
-  - "importKey"
-  - "secretsStore"
-  - ".{0,50}key.{0,50}"
-  - "register.*password"
-  - "const classes.*key.*string"
-  - "PassItemForm*"
-
+      - POSTGRES_PASSWORD
 scopeconfig:
   - scope: node
+allowed_patterns:
+  - packages/db/drizzle/*
+  - serverKey
+  - authKey
+  - rawAuthKey
+  - sessionAuth
+  - sessionSecret
+  - sessionKey
+  - encryptEmail
+  - deriveAuthKey
+  - excludedKeys
+  - inputKey
+  - emailHashKey
+  - emailEncryptionKeySalt
+  - pass_mgr
+  - Recovery
+  - signHmac
+  - importKey
+  - secretsStore
+  - .{0,50}key.{0,50}
+  - register.*password
+  - const classes.*key.*string
+  - PassItemForm*
+  - pass-mgr*
+  - "secret:"
+version: "1.0"

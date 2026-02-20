@@ -1,4 +1,4 @@
-import preview from "../.storybook/preview";
+import preview from "../../.storybook/preview";
 
 import ButtonLink from "./ButtonLink";
 
@@ -8,13 +8,26 @@ const meta = preview.meta({
   parameters: {
     layout: "centered",
   },
+  args: {
+    variant: "default",
+  },
   tags: ["autodocs"],
 });
 
 export const Primary = meta.story({
   args: {
-    variant: "primary",
+    variant: "default",
     children: "LinkButton",
     href: "",
+    size: "default",
+  },
+});
+
+export const Secondary = meta.story({
+  args: {
+    variant: "secondary",
+    children: "LinkButton",
+    href: "",
+    size: "default",
   },
 });

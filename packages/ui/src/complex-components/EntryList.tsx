@@ -1,16 +1,15 @@
 import { useCallback, type ReactNode, useState, useEffect } from "react";
 import { TiEyeOutline, TiTick } from "react-icons/ti";
-import { Button } from "./Button";
-import { getAttrsForName } from "./utils/label-mapping";
-import styles from "./EntryList.module.css";
+import { getAttrsForName } from "../utils/label-mapping";
 import { cn } from "@repo/util";
+import { Button } from "@repo/ui/components/Button";
 
 type EntryListProps = {
   children: ReactNode;
 };
 
 function EntryList({ children }: EntryListProps) {
-  return <ul className={cn("gradientBorder", styles.entryList)}>{children}</ul>;
+  return <ul className={cn("gradientBorder")}>{children}</ul>;
 }
 
 type EntryListItemProps = {
@@ -37,14 +36,14 @@ function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListI
   const showActions = !showValue || isPassword;
 
   return (
-    <li className={cn("gradientBorder", styles.item)}>
-      <button title="Click to copy" className={styles.contentButton} onClick={copyValue}>
-        <span className={styles.iconWrapper}>{Icon}</span>
+    <li className={cn("gradientBorder")}>
+      <button title="Click to copy" onClick={copyValue}>
+        <span>{Icon}</span>
         <small>{label}</small>
         {showValue ? value : "••••••••••••"}
       </button>
       {showActions && (
-        <div className={styles.actions}>
+        <div>
           {!showValue && (
             <Button
               onClick={() => setShowValue(true)}
@@ -56,7 +55,7 @@ function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListI
             </Button>
           )}
           {isPassword && (
-            <span className={styles.strongBadge} title="Your password is strong">
+            <span title="Your password is strong">
               <TiTick />
               Strong
             </span>

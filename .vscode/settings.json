@@ -28,5 +28,10 @@
     "**/.DS_Store": true,
     "**/Thumbs.db": true,
     "**/*.css.d.ts": true
-  }
+  },
+  "files.associations": {
+    "*.css": "tailwindcss"
+  },
+  "tailwindCSS.classFunctions": ["cn", "cva"],
+  "typescript.preferences.importModuleSpecifier": "non-relative"
 }

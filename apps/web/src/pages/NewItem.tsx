@@ -1,10 +1,12 @@
 import { useMutation } from "@tanstack/react-query";
-import { Toast } from "@repo/ui/toast";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import PassItemForm from "../forms/PassItemForm";
+import { useEffect } from "react";
+import { isDefined } from "@repo/util";
+import { toast } from "@repo/ui";
 
 export default function NewItem() {
   const trpc = useTRPC();
@@ -21,14 +23,13 @@ export default function NewItem() {
     }),
   );
 
+  useEffect(() => {
+    if (isDefined(mutationError)) toast("Error saving");
+  }, [mutationError]);
+
   return (
     <LayoutOverlay title={`New Item`}>
       <PassItemForm onSubmit={mutate} serverError={mutationError?.message} />
-      <Toast
-        message={mutationError ? "Error saving" : ""}
-        isOpen={!!mutationError}
-        onClose={() => {}}
-      />
     </LayoutOverlay>
   );
 }

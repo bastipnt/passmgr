@@ -1,11 +1,19 @@
-import { Button } from "@repo/ui/Button";
-import styles from "./Login.module.css";
-import { Input } from "@repo/ui/input";
-import { cn } from "@repo/util";
-import { useForm } from "react-hook-form";
+import { useForm } from "@repo/ui";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLogin } from "@repo/client";
+import { Button } from "@repo/ui/components/Button";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/Card";
+import ButtonLink from "@repo/ui/components/ButtonLink";
+import { FieldError, FieldGroup } from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 
 export default function Login() {
   const { loginUser, loginError } = useLogin();
@@ -16,12 +24,12 @@ export default function Login() {
 
   type FormValues = z.infer<typeof userCredentialsSchema>;
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
+  const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(userCredentialsSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
   const onSubmit = async ({ password, email }: FormValues) => {
@@ -29,17 +37,32 @@ export default function Login() {
   };
 
   return (
-    <section className={cn(styles.section, "space-y-md")}>
-      <h1>Login</h1>
+    <section className="w-xs max-w-full">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Login</CardTitle>
+            <CardAction>
+              or
+              <ButtonLink href="/register" variant="link">
+                Sign Up
+              </ButtonLink>
+            </CardAction>
+          </CardHeader>
 
-      <form onSubmit={handleSubmit(onSubmit)} className={cn(styles.form, "space-y-md")}>
-        <Input label="Email" {...register("email")} error={errors.email?.message} />
-        <Input label="Password" {...register("password")} error={errors.password?.message} />
+          <CardContent>
+            <FieldGroup>
+              <ControlledInput control={control} name="email" label="Email" />
+              <ControlledInput control={control} name="password" label="Password" />
+            </FieldGroup>
+            {loginError && <FieldError errors={[{ message: "Login error please try again" }]} />}
+          </CardContent>
 
-        <Button type="submit">Login</Button>
+          <CardFooter>
+            <Button type="submit">Login</Button>
+          </CardFooter>
+        </Card>
       </form>
-
-      {loginError && <p>Login error please try again</p>}
     </section>
   );
 }

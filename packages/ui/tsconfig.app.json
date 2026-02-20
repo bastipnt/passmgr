@@ -22,7 +22,12 @@
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedSideEffectImports": true
+    "noUncheckedSideEffectImports": true,
+
+    "paths": {
+      "@repo/ui/*": ["./src/*"]
+    }
   },
-  "include": ["src"]
+  "include": ["src", "index.ts"],
+  "exclude": ["node_modules", "dist"]
 }

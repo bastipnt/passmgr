@@ -1,4 +1,4 @@
-import "../src/index.css";
+import "../src/styles/globals.css";
 import { definePreview } from "@storybook/react-vite";
 import addonA11y from "@storybook/addon-a11y";
 import addonDocs from "@storybook/addon-docs";

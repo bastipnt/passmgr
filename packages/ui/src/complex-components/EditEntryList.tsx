@@ -1,7 +1,6 @@
 import type { FieldError, FieldErrors, FieldValues, Path, UseFormRegister } from "react-hook-form";
-import { getAttrsForName } from "./utils/label-mapping";
+import { getAttrsForName } from "../utils/label-mapping";
 import { useId } from "react";
-import styles from "./EditEntryList.module.css";
 
 type EditEntryListProps<T extends FieldValues> = {
   items: { name: Path<T> }[];
@@ -11,7 +10,7 @@ type EditEntryListProps<T extends FieldValues> = {
 
 function EditEntryList<T extends FieldValues>({ items, register, errors }: EditEntryListProps<T>) {
   return (
-    <ul className={styles.editEntryList}>
+    <ul>
       {items.map(({ name }) => {
         const { Icon, label } = getAttrsForName(name);
         const id = useId();
@@ -19,25 +18,17 @@ function EditEntryList<T extends FieldValues>({ items, register, errors }: EditE
         const error = errors[name] as FieldError;
 
         return (
-          <li key={name} className={styles.item}>
-            <span className={styles.iconWrapper}>{Icon}</span>
-            <div className={styles.labelRow}>
-              <label htmlFor={id} className={styles.label}>
-                {label}
-              </label>
+          <li key={name}>
+            <span>{Icon}</span>
+            <div>
+              <label htmlFor={id}>{label}</label>
               {error && (
                 <p id={errorId}>
-                  <small className={styles.errorMessage}>{error.message}</small>
+                  <small>{error.message}</small>
                 </p>
               )}
             </div>
-            <input
-              {...register(name)}
-              aria-errormessage={errorId}
-              type="text"
-              id={id}
-              className={styles.input}
-            />
+            <input {...register(name)} aria-errormessage={errorId} type="text" id={id} />
           </li>
         );
       })}

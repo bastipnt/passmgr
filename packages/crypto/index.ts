@@ -11,3 +11,4 @@ export {
 
 export { encryptXChaCha, encryptEmail } from "./src/encryption";
 export { hkdf, signHmac, hashEmail, verifyHmac } from "./src/hash";
+export * from "./src/totp";

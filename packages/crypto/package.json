@@ -20,6 +20,7 @@
   "dependencies": {
     "@better-auth/utils": "^0.3.1",
     "@noble/ciphers": "^2.1.1",
-    "@noble/hashes": "^2.0.1"
+    "@noble/hashes": "^2.0.1",
+    "otplib": "^13.3.0"
   }
 }

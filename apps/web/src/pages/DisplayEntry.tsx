@@ -1,14 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useState } from "react";
-import { Toast } from "@repo/ui/toast";
+import { Suspense } from "react";
 import { TiPencil, TiUserAddOutline } from "react-icons/ti";
-import { Button } from "@repo/ui/Button";
-import EntryList from "@repo/ui/EntryList";
+import { Button } from "@repo/ui/components/Button";
+import EntryList from "@repo/ui/complex-components/EntryList";
 import { useParams } from "wouter";
-import ButtonLink from "@repo/ui/ButtonLink";
+import ButtonLink from "@repo/ui/components/ButtonLink";
 import { editSlug } from "../data/routes";
 import styles from "./DisplayEntry.module.css";
 import { useTRPC } from "@repo/client";
+import { toast } from "@repo/ui";
 
 function Fallback() {
   return (
@@ -29,7 +29,6 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
   const trpc = useTRPC();
 
   const { data } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
-  const [toastMessage, setToastMessage] = useState("");
 
   return (
     <>
@@ -49,17 +48,16 @@ function DisplayEntryList({ entryId }: DisplayEntryListProps) {
         </div>
 
         <EntryList>
-          <EntryList.Item name="username" value={data.username} setToastMessage={setToastMessage} />
+          <EntryList.Item name="username" value={data.username} setToastMessage={toast} />
 
           <EntryList.Item
             name="password"
             value={data.password}
-            setToastMessage={setToastMessage}
+            setToastMessage={toast}
             valueHidden
           />
         </EntryList>
       </div>
-      <Toast message={toastMessage} isOpen={!!toastMessage} onClose={() => setToastMessage("")} />
     </>
   );
 }

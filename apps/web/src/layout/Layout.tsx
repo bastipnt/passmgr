@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import styles from "./Layout.module.css";
-import { cn } from "@repo/util";
-import Entries from "../data-components/Entries";
-import { Input } from "@repo/ui/input";
-import ButtonLink from "@repo/ui/ButtonLink";
-import { TiPlus } from "react-icons/ti";
+import { Input } from "@repo/ui/components/Input";
+import ButtonLink from "@repo/ui/components/ButtonLink";
+import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
+import ItemSidebar from "@components/ItemSidebar";
+import { PlusIcon } from "lucide-react";
 
 type LayoutProps = {
   children: ReactNode;
@@ -13,17 +12,18 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   return (
     <>
-      <div className={styles.container}>
-        <header className={cn("gradientBorder", styles.header)}>
-          <Input label="Search" hideLabel />
+      <div className="flex flex-col min-h-screen">
+        <header className="flex flex-row gap-4 content-stretch p-4 border-b">
+          <Input placeholder="Search..." />
+          <ThemeToggle />
           <ButtonLink href="/new">
-            <TiPlus />
+            <PlusIcon />
             New Item
           </ButtonLink>
         </header>
-        <main className={styles.main}>
-          <section className={styles.sectionEntries}>
-            <Entries />
+        <main className="grid grid-cols-[300px_1fr] items-stretch flex-1">
+          <section className="border-r p-4">
+            <ItemSidebar />
           </section>
           {children}
         </main>

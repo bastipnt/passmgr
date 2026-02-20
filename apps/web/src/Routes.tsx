@@ -2,7 +2,6 @@ import { Redirect, Route, Switch } from "wouter";
 import Layout from "./layout/Layout";
 import Index from "@pages/Index";
 import SelectedElementProvider from "./providers/SelectedElementProvider";
-import DisplayEntry from "@pages/DisplayEntry";
 import { editSlug, entrySlug, newSlug } from "./data/routes";
 import EditEntry from "@pages/EditEntry";
 import Login from "@pages/auth/Login";
@@ -12,6 +11,7 @@ import Register from "@pages/auth/Register";
 import { useContext } from "react";
 import { SessionContext } from "@repo/client";
 import NewItem from "@pages/NewItem";
+import DisplayItem from "@pages/DisplayItem";
 
 function PublicRoutes() {
   const { sessionId } = useContext(SessionContext);
@@ -35,7 +35,7 @@ function DefaultLayoutRoutes() {
     <Layout>
       <Switch>
         <Route path="/" component={Index} />
-        <Route path={`/${entrySlug}/:entryId`} component={DisplayEntry} />
+        <Route path={`/${entrySlug}/:entryId`} component={DisplayItem} />
       </Switch>
     </Layout>
   );

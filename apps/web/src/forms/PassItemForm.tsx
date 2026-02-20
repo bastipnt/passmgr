@@ -8,10 +8,10 @@ import {
   type UseFormRegister,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@repo/ui/input";
-import ButtonLink from "@repo/ui/ButtonLink";
+import { Input } from "@repo/ui/components/Input";
+import ButtonLink from "@repo/ui/components/ButtonLink";
 import { TiCancel, TiPlus, TiTimes, TiUpload } from "react-icons/ti";
-import { Button } from "@repo/ui/Button";
+import { Button } from "@repo/ui/components/Button";
 import { useEffect } from "react";
 
 type WebsiteFieldsProps = {

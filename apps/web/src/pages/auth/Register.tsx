@@ -1,12 +1,20 @@
-import { Button } from "@repo/ui/Button";
-import { Input } from "@repo/ui/input";
-import { cn } from "@repo/util";
-import { useForm } from "react-hook-form";
+import { Button } from "@repo/ui/components/Button";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLocation } from "wouter";
-import styles from "./Register.module.css";
 import { useRegistration } from "@repo/client";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/Card";
+import ButtonLink from "@repo/ui/components/ButtonLink";
+import { FieldError, FieldGroup } from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { useForm } from "@repo/ui";
 
 export default function Register() {
   const [_, navigate] = useLocation();
@@ -19,12 +27,12 @@ export default function Register() {
 
   type FormValues = z.infer<typeof userCredentialsSchema>;
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<FormValues>({
+  const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(userCredentialsSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
   });
 
   const onSubmit = async ({ password, email }: FormValues) => {
@@ -34,17 +42,38 @@ export default function Register() {
   };
 
   return (
-    <section className={cn(styles.section, "space-y-md")}>
-      <h1>Register</h1>
+    <section className="w-xs max-w-full">
+      <form onSubmit={handleSubmit(onSubmit)}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Sign Up</CardTitle>
+            <CardAction>
+              or
+              <ButtonLink href="/login" variant="link">
+                Login
+              </ButtonLink>
+            </CardAction>
+          </CardHeader>
 
-      <form onSubmit={handleSubmit(onSubmit)} className={cn(styles.form, "space-y-md")}>
-        <Input label="Email" {...register("email")} error={errors.email?.message} />
-        <Input label="Password" {...register("password")} error={errors.password?.message} />
+          <CardContent>
+            <FieldGroup>
+              <ControlledInput control={control} name="email" label="Email" />
+              <ControlledInput control={control} name="password" label="Password" />
+            </FieldGroup>
+            {registrationError && (
+              <FieldError
+                errors={[
+                  { message: "Error when trying to register a new account please try again" },
+                ]}
+              />
+            )}
+          </CardContent>
 
-        <Button type="submit">Create new account</Button>
+          <CardFooter>
+            <Button type="submit">Sign Up</Button>
+          </CardFooter>
+        </Card>
       </form>
-
-      {registrationError && <p>Login error please try again</p>}
     </section>
   );
 }

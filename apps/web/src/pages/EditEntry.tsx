@@ -1,12 +1,13 @@
 import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense } from "react";
-import { Toast } from "@repo/ui/toast";
+import { Suspense, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import PassItemForm from "../forms/PassItemForm";
+import { isDefined } from "@repo/util";
+import { toast } from "@repo/ui";
 
 function Fallback() {
   return (
@@ -37,17 +38,16 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
 
   const defaultValues = { ...initialData, id: entryId };
 
+  useEffect(() => {
+    if (isDefined(mutationError)) toast("Error saving");
+  }, [mutationError]);
+
   return (
     <LayoutOverlay title={`Edit ${initialData.title}`}>
       <PassItemForm
         onSubmit={mutate}
         serverError={mutationError?.message}
         defaultValues={defaultValues}
-      />
-      <Toast
-        message={mutationError ? "Error saving" : ""}
-        isOpen={!!mutationError}
-        onClose={() => {}}
       />
     </LayoutOverlay>
   );

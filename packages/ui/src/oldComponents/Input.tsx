@@ -17,7 +17,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(function Inp
   const errorId = useId();
 
   return (
-    <div className={styles.container}>
+    <div>
       {!hideLabel && (
         <label htmlFor={id} className={styles.label}>
           {label}
