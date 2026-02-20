@@ -12,8 +12,8 @@ type LayoutProps = {
 export default function Layout({ children }: LayoutProps) {
   return (
     <>
-      <div className="flex flex-col min-h-screen">
-        <header className="flex flex-row gap-4 content-stretch p-4 border-b">
+      <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-[minmax(10vw,300px)_1fr]">
+        <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <Input placeholder="Search..." />
           <ThemeToggle />
           <ButtonLink href="/new">
@@ -21,11 +21,11 @@ export default function Layout({ children }: LayoutProps) {
             New Item
           </ButtonLink>
         </header>
-        <main className="grid grid-cols-[300px_1fr] items-stretch flex-1">
-          <section className="border-r p-4">
+        <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
+          <section className="border-r p-4 overflow-y-scroll">
             <ItemSidebar />
           </section>
-          {children}
+          <section className="overflow-y-scroll">{children}</section>
         </main>
       </div>
     </>

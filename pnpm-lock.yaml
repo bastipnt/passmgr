@@ -144,6 +144,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@repo/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -193,6 +196,9 @@ importers:
       '@repo/crypto':
         specifier: workspace:*
         version: link:../../packages/crypto
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../../packages/schema
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -385,6 +391,12 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
+
+  packages/schema:
+    dependencies:
+      zod:
+        specifier: ^4.3.6
+        version: 4.3.6
 
   packages/typescript-config: {}
 

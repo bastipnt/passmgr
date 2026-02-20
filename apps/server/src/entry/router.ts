@@ -2,42 +2,22 @@ import { router } from "../trpc";
 import { entrySchema, type Entry } from "@repo/util";
 import z from "zod";
 import { protectedProcedure } from "../auth/authMiddleware";
-
-const entries: Entry[] = [
-  {
-    id: "123",
-    title: "Github",
-    username: "lol@example.com",
-    password: "Pass123",
-  },
-  {
-    id: "222",
-    title: "GitLab",
-    username: "lolaa@example.com",
-    password: "Passlol",
-  },
-  {
-    id: "333",
-    title: "Bucket",
-    username: "bla@example.com",
-    password: "Pass333",
-  },
-];
+import { exampleLoginItems, loginItemSchema } from "@repo/schema";
 
 export const entryRouter = router({
-  all: protectedProcedure.output(z.object({ entries: z.array(entrySchema) })).query(async () => {
+  all: protectedProcedure.output(z.object({ items: z.array(loginItemSchema) })).query(async () => {
     return {
-      entries,
+      items: exampleLoginItems,
     };
   }),
 
   getById: protectedProcedure
     .input(z.string())
-    .output(entrySchema)
+    .output(loginItemSchema)
     .query(async (opts): Promise<Entry> => {
-      const entry = entries.find(({ id }) => id === opts.input);
-      if (!entry) throw new Error("Entry not found");
-      return entry;
+      const loginItem = exampleLoginItems.find(({ id }) => id === opts.input);
+      if (!loginItem) throw new Error("Login Item not found");
+      return loginItem;
     }),
 
   update: protectedProcedure.input(entrySchema).mutation(async (opts) => {

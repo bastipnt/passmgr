@@ -23,7 +23,7 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
 
   return (
     <ItemGroup className="max-w-sm">
-      {data.entries.map(({ id, title, username }) => {
+      {data.items.map(({ id, title, username }) => {
         const active = id === itemId;
 
         return (
