@@ -24,7 +24,9 @@ export default function Index() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <Link href="/new">Create Item</Link>
+        <Link variant="default" href="/new">
+          Create Item
+        </Link>
         <Button variant="outline">Import</Button>
       </EmptyContent>
       <Link href="/about" variant="link" className="text-muted-foreground" size="sm">

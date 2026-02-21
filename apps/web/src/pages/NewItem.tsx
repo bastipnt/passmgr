@@ -28,7 +28,7 @@ export default function NewItem() {
   }, [mutationError]);
 
   return (
-    <LayoutOverlay title={`New Item`}>
+    <LayoutOverlay>
       <PassItemForm onSubmit={mutate} serverError={mutationError?.message} />
     </LayoutOverlay>
   );

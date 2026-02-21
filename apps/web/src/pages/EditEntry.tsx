@@ -43,7 +43,8 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
   }, [mutationError]);
 
   return (
-    <LayoutOverlay title={`Edit ${initialData.title}`}>
+    // title={`Edit ${initialData.title}`}
+    <LayoutOverlay>
       <PassItemForm
         onSubmit={mutate}
         serverError={mutationError?.message}

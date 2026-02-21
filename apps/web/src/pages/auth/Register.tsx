@@ -69,7 +69,7 @@ export default function Register() {
             )}
           </CardContent>
 
-          <CardFooter>
+          <CardFooter className="flex flex-row gap-4 justify-end">
             <Button type="submit">Sign Up</Button>
           </CardFooter>
         </Card>

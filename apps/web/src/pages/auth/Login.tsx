@@ -58,7 +58,7 @@ export default function Login() {
             {loginError && <FieldError errors={[{ message: "Login error please try again" }]} />}
           </CardContent>
 
-          <CardFooter>
+          <CardFooter className="flex flex-row gap-4 justify-end">
             <Button type="submit">Login</Button>
           </CardFooter>
         </Card>

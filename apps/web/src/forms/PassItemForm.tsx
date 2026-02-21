@@ -1,5 +1,4 @@
 import styles from "./PassItemForm.module.css";
-import { entrySchema, type Entry as FormValues } from "@repo/util";
 import {
   useFieldArray,
   useForm,
@@ -8,11 +7,28 @@ import {
   type UseFormRegister,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Input } from "@repo/ui/components/Input";
 import Link from "@repo/ui/components/Link";
-import { TiCancel, TiPlus, TiTimes, TiUpload } from "react-icons/ti";
 import { Button } from "@repo/ui/components/Button";
 import { useEffect } from "react";
+import {
+  Card,
+  CardAction,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/Card";
+import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
+import { PlusIcon, TrashIcon, UploadIcon, XIcon } from "lucide-react";
+import {
+  FieldError,
+  FieldGroup,
+  FieldLegend,
+  FieldSeparator,
+  FieldSet,
+} from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
 
 type WebsiteFieldsProps = {
   control: Control<FormValues>;
@@ -20,7 +36,7 @@ type WebsiteFieldsProps = {
   errors: FieldErrors<FormValues>;
 };
 
-function WebsiteFields({ control, register, errors }: WebsiteFieldsProps) {
+function WebsiteFields({ control }: WebsiteFieldsProps) {
   const { fields, append, replace, remove } = useFieldArray({
     control,
     name: "websites",
@@ -33,32 +49,40 @@ function WebsiteFields({ control, register, errors }: WebsiteFieldsProps) {
   }, [fields.length, replace]);
 
   return (
-    <fieldset>
-      <legend>Websites</legend>
-      {fields.map((field, index) => (
-        <div className={styles.inputGroup} key={field.id}>
-          <Input
-            label={`Website ${index}`}
-            placeholder="https://"
-            {...register(`websites.${index}.value`)}
-            error={errors.websites && errors.websites[index]?.message}
-            hideLabel
-          />
-          <Button variant="ghost" size="sm" onClick={() => remove(index)}>
-            <TiTimes />
-          </Button>
-        </div>
-      ))}
-      <Button
-        variant="ghost"
-        className={styles.addBtn}
-        onClick={() => append({ value: "" })}
-        type="button"
-      >
-        <TiPlus />
+    <FieldSet>
+      <FieldLegend>Websites</FieldLegend>
+      <FieldGroup>
+        {fields.map((field, index) => (
+          <ButtonGroup key={field.id} className="w-full">
+            <ButtonGroup className="w-full">
+              <ControlledInput
+                control={control}
+                name={`websites.${index}.value`}
+                label={`Website ${index}`}
+                autoComplete="off"
+                placeholder="https://"
+                hideLabel
+              />
+            </ButtonGroup>
+
+            <ButtonGroup>
+              <Button
+                variant="outline"
+                size="icon"
+                className="[--radius:999rem]"
+                onClick={() => remove(index)}
+              >
+                <TrashIcon />
+              </Button>
+            </ButtonGroup>
+          </ButtonGroup>
+        ))}
+      </FieldGroup>
+      <Button variant="ghost" className="w-fit" onClick={() => append({ value: "" })} type="button">
+        <PlusIcon />
         Add
       </Button>
-    </fieldset>
+    </FieldSet>
   );
 }
 
@@ -68,37 +92,50 @@ type ExtraFieldsProps = {
   errors: FieldErrors<FormValues>;
 };
 
-function ExtraFields({ control, register, errors }: ExtraFieldsProps) {
+function ExtraFields({ control }: ExtraFieldsProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "extraFields",
   });
 
   return (
-    <fieldset>
-      <legend>Additional fields</legend>
-      {fields.map((field, index) => (
-        <div className={styles.inputGroup} key={field.id}>
-          <Input
-            label={field.name}
-            {...register(`extraFields.${index}.value`)}
-            error={errors.extraFields && errors.extraFields[index]?.message}
-          />
-          <Button variant="ghost" size="sm" onClick={() => remove(index)}>
-            <TiTimes />
-          </Button>
-        </div>
-      ))}
+    <FieldSet>
+      <FieldLegend>Additional fields</FieldLegend>
+      <FieldGroup>
+        {fields.map((field, index) => (
+          <ButtonGroup key={field.id} className="w-full">
+            <ButtonGroup className="w-full">
+              <ControlledInput
+                control={control}
+                name={`extraFields.${index}.value`}
+                label={field.title}
+                autoComplete="off"
+              />
+            </ButtonGroup>
+
+            <ButtonGroup className="items-end">
+              <Button
+                variant="outline"
+                size="icon"
+                className="[--radius:999rem]"
+                onClick={() => remove(index)}
+              >
+                <TrashIcon />
+              </Button>
+            </ButtonGroup>
+          </ButtonGroup>
+        ))}
+      </FieldGroup>
       <Button
         variant="ghost"
-        className={styles.addBtn}
-        onClick={() => append({ name: "", type: "" })}
+        className="w-fit"
+        onClick={() => append({ title: "Field", type: "text", value: "" })}
         type="button"
       >
-        <TiPlus />
+        <PlusIcon />
         Add
       </Button>
-    </fieldset>
+    </FieldSet>
   );
 }
 
@@ -115,48 +152,79 @@ export default function PassItemForm({ onSubmit, serverError, defaultValues }: P
     formState: { errors },
     control,
   } = useForm<FormValues>({
-    resolver: zodResolver(entrySchema),
+    resolver: zodResolver(loginItemSchema),
     defaultValues,
   });
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className={styles.form}>
-      <fieldset>
-        <Input label="Title" {...register("title")} error={errors.title?.message} />
-      </fieldset>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <Card className="w-lg">
+        <CardHeader>
+          <CardTitle>New Login</CardTitle>
+          <CardAction>
+            <Link variant="ghost" href="/">
+              <XIcon />
+            </Link>
+          </CardAction>
+        </CardHeader>
 
-      <fieldset>
-        <Input
-          label="Username / Email"
-          {...register("username")}
-          error={errors.username?.message}
-        />
+        <CardContent>
+          <FieldGroup>
+            <FieldSet>
+              <ControlledInput control={control} name="title" label="Title" autoComplete="off" />
 
-        <Input label="Password" {...register("password")} error={errors.password?.message} />
+              <ControlledInput
+                control={control}
+                name="username"
+                label="Username"
+                autoComplete="username"
+              />
 
-        <Input label="2FA secret key (TOTP)" {...register("totp")} error={errors.totp?.message} />
-      </fieldset>
+              <ControlledInput
+                control={control}
+                name="password"
+                label="Password"
+                type="password"
+                autoComplete="new-password"
+              />
 
-      <WebsiteFields control={control} register={register} errors={errors} />
+              <ControlledInput
+                control={control}
+                name="totp"
+                label="2FA token secret (TOTP)"
+                autoComplete="off"
+              />
+            </FieldSet>
 
-      <fieldset>
-        <Input label="Note (TODO: textarea)" {...register("note")} error={errors.note?.message} />
-      </fieldset>
+            <FieldSeparator />
 
-      <ExtraFields control={control} register={register} errors={errors} />
+            <WebsiteFields control={control} register={register} errors={errors} />
 
-      {serverError && <p className={styles.error}>{serverError}</p>}
+            <FieldSeparator />
 
-      <div className={styles.actions}>
-        <Link variant="secondary" href={"/"}>
-          <TiCancel />
-          Cancel
-        </Link>
-        <Button type="submit">
-          <TiUpload />
-          Save
-        </Button>
-      </div>
+            <FieldSet>
+              {/* TODO: textarea */}
+              <ControlledInput control={control} name="note" label="Notes" autoComplete="off" />
+            </FieldSet>
+
+            <FieldSeparator />
+
+            <ExtraFields control={control} register={register} errors={errors} />
+
+            {serverError && <FieldError className={styles.error}>{serverError}</FieldError>}
+          </FieldGroup>
+        </CardContent>
+
+        <CardFooter className="flex flex-row gap-4 justify-end">
+          <Link variant="outline" href={"/"}>
+            Cancel
+          </Link>
+          <Button type="submit">
+            <UploadIcon />
+            Save
+          </Button>
+        </CardFooter>
+      </Card>
     </form>
   );
 }

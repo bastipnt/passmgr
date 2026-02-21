@@ -12,14 +12,18 @@ type ControlledInputParams<
   TFieldValues extends FieldValues = FieldValues,
   TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
   TTransformedValues = TFieldValues,
-> = Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> & {
+> = {
   label: string;
-};
+  hideLabel?: boolean;
+} & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
+  React.ComponentProps<"input">;
 
 export function ControlledInput<TFieldValues extends FieldValues = FieldValues>({
   name,
   control,
   label,
+  hideLabel = false,
+  ...props
 }: ControlledInputParams<TFieldValues>) {
   const id = useId();
 
@@ -29,8 +33,8 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
       control={control}
       render={({ field, fieldState }) => (
         <Field data-invalid={fieldState.invalid}>
-          <FieldLabel htmlFor={id}>{label}</FieldLabel>
-          <Input {...field} id={id} aria-invalid={fieldState.invalid} />
+          {!hideLabel && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+          <Input {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
           {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
         </Field>
       )}

@@ -16,7 +16,7 @@ export default function Layout({ children }: LayoutProps) {
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <Input placeholder="Search..." />
           <ThemeToggle />
-          <Link href="/new">
+          <Link href="/new" variant="default">
             <PlusIcon />
             New Item
           </Link>

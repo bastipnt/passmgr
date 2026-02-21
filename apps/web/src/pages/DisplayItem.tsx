@@ -3,12 +3,21 @@ import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { EarthIcon, KeyIcon, LockIcon, MailIcon, NotebookPenIcon, TextIcon } from "lucide-react";
+import {
+  EarthIcon,
+  EditIcon,
+  KeyIcon,
+  LockIcon,
+  MailIcon,
+  NotebookPenIcon,
+  TextIcon,
+} from "lucide-react";
 import { Fragment, Suspense } from "react";
 import { useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
+import { editSlug } from "@/data/routes";
 
 function Fallback() {
   return (
@@ -29,7 +38,12 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
 
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
-      <h1>{data.title}</h1>
+      <div className="grid grid-cols-[1fr_auto]">
+        <h1>{data.title}</h1>
+        <Link href={`/${editSlug}/${data.id}`}>
+          <EditIcon /> Edit
+        </Link>
+      </div>
 
       <ItemDisplayGroup>
         <ItemDisplay
