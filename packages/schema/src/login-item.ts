@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 const extraFieldSchema = z.object({
-  type: z.string(),
-  name: z.string(),
+  type: z.enum(["text", "secret"]),
+  title: z.string(),
   value: z.string().optional(),
 });
 

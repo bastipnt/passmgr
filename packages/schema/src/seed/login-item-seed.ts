@@ -10,8 +10,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "HXJVNAVLL3MEVIQ5LJBPOU6VD245QV5Z",
     websites: [{ value: "cool-website.example" }, { value: "wow.example" }],
     extraFields: [
-      { name: "Extra key", type: "secret", value: "super-secret-key" },
-      { name: "Question", type: "text", value: "Your first pet name?" },
+      { title: "Extra key", type: "secret", value: "super-secret-key" },
+      { title: "Question", type: "text", value: "Your first pet name?" },
     ],
     note: "This is my login for the password manager.",
   },
@@ -24,8 +24,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "JBSWY3DPEHPK3PXPZXM6TQOJQ4R7Y6KL",
     websites: [{ value: "nebula-notes.app" }, { value: "cloud.nebula.app" }],
     extraFields: [
-      { name: "Recovery Code", type: "secret", value: "NN-4839-ALPHA-7781" },
-      { name: "Workspace ID", type: "text", value: "orbit-labs-01" },
+      { title: "Recovery Code", type: "secret", value: "NN-4839-ALPHA-7781" },
+      { title: "Workspace ID", type: "text", value: "orbit-labs-01" },
     ],
     note: "Shared research vault for astronomy collaboration.",
   },
@@ -38,8 +38,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "KRSXG5DSNFXGOIDBNVSW45TFOQ======",
     websites: [{ value: "retroarcade.gg" }],
     extraFields: [
-      { name: "Favorite Game", type: "text", value: "Galactic Blaster X" },
-      { name: "API Token", type: "secret", value: "arcade-api-992244" },
+      { title: "Favorite Game", type: "text", value: "Galactic Blaster X" },
+      { title: "API Token", type: "secret", value: "arcade-api-992244" },
     ],
     note: "High score leaderboard admin account.",
   },
@@ -52,8 +52,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "MFRGGZDFMZTWQ2LKNNWG23TPOI======",
     websites: [{ value: "greenthumb.community" }],
     extraFields: [
-      { name: "Membership Tier", type: "text", value: "Evergreen Plus" },
-      { name: "Backup Seed", type: "secret", value: "soil-sun-rain-growth" },
+      { title: "Membership Tier", type: "text", value: "Evergreen Plus" },
+      { title: "Backup Seed", type: "secret", value: "soil-sun-rain-growth" },
     ],
     note: "Urban gardening community dashboard.",
   },
@@ -66,8 +66,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======",
     websites: [{ value: "ciphercafe.io" }, { value: "barista.ciphercafe.io" }],
     extraFields: [
-      { name: "Loyalty ID", type: "text", value: "CAFÉ-88421" },
-      { name: "Private Key", type: "secret", value: "-----BEGIN MOCK KEY-----" },
+      { title: "Loyalty ID", type: "text", value: "CAFÉ-88421" },
+      { title: "Private Key", type: "secret", value: "-----BEGIN MOCK KEY-----" },
     ],
     note: "Crypto-themed coworking space account.",
   },
@@ -80,8 +80,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "PZXW6YTBON2HK3TPOJQXE5LSON======",
     websites: [{ value: "skyline-drones.tech" }],
     extraFields: [
-      { name: "Fleet ID", type: "text", value: "DRN-4471-SKY" },
-      { name: "Control Override", type: "secret", value: "override-7788-delta" },
+      { title: "Fleet ID", type: "text", value: "DRN-4471-SKY" },
+      { title: "Control Override", type: "secret", value: "override-7788-delta" },
     ],
     note: "Main control dashboard for drone fleet.",
   },
@@ -94,8 +94,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "QZXW6YTBON2HK3TPOJQXE5LSNZ======",
     websites: [{ value: "mythiclibrary.org" }],
     extraFields: [
-      { name: "Library Card", type: "text", value: "ML-2026-7782" },
-      { name: "Archive Passphrase", type: "secret", value: "phoenix-rises-ancient" },
+      { title: "Library Card", type: "text", value: "ML-2026-7782" },
+      { title: "Archive Passphrase", type: "secret", value: "phoenix-rises-ancient" },
     ],
     note: "Digital archive access for rare manuscripts.",
   },
@@ -108,8 +108,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "RZXW6YTBOI2HK3TPOJQXE5LSNZ======",
     websites: [{ value: "quantumcloud.dev" }, { value: "console.quantumcloud.dev" }],
     extraFields: [
-      { name: "Cluster Region", type: "text", value: "eu-central-q1" },
-      { name: "Service Account Key", type: "secret", value: "qc-service-445566" },
+      { title: "Cluster Region", type: "text", value: "eu-central-q1" },
+      { title: "Service Account Key", type: "secret", value: "qc-service-445566" },
     ],
     note: "Experimental quantum compute environment.",
   },
@@ -121,7 +121,7 @@ export const exampleLoginItems: LoginItem[] = [
     category: "login",
     // Edge case: missing TOTP entirely
     websites: [{ value: "intranet.local" }],
-    extraFields: [{ name: "Migration Status", type: "text", value: "Pending 2FA rollout" }],
+    extraFields: [{ title: "Migration Status", type: "text", value: "Pending 2FA rollout" }],
     note: "Legacy system that does not yet support two-factor authentication.",
   },
   {
@@ -133,7 +133,7 @@ export const exampleLoginItems: LoginItem[] = [
     // Edge case: invalid Base32 (contains invalid characters like 1, 8, 9)
     totp: "INVALID189TOKEN###",
     websites: [{ value: "broken-2fa.example" }],
-    extraFields: [{ name: "QA Ticket", type: "text", value: "BUG-2245" }],
+    extraFields: [{ title: "QA Ticket", type: "text", value: "BUG-2245" }],
     note: "This entry intentionally contains an invalid Base32 TOTP secret.",
   },
   {
@@ -145,8 +145,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
     websites: [{ value: "https://例子.测试" }],
     extraFields: [
-      { name: "Emoji Field 😅", type: "text", value: "🚀🌈✨" },
-      { name: "Secret Phrase", type: "secret", value: "π≈3.14159" },
+      { title: "Emoji Field 😅", type: "text", value: "🚀🌈✨" },
+      { title: "Secret Phrase", type: "secret", value: "π≈3.14159" },
     ],
     note: "Testing full Unicode support across username, password, fields, and domain.",
   },
@@ -179,7 +179,7 @@ export const exampleLoginItems: LoginItem[] = [
       { value: "duplicate.example" },
       { value: "https://duplicate.example/login" },
     ],
-    extraFields: [{ name: "Environment", type: "text", value: "staging" }],
+    extraFields: [{ title: "Environment", type: "text", value: "staging" }],
     note: "Tests deduplication logic and normalization.",
   },
   {
@@ -203,9 +203,9 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "PZXW6YTBON2HK3TPOJQXE5LSON======",
     websites: [{ value: "metrics.shadowtrack.io" }, { value: "cdn.shadowtrack.io" }],
     extraFields: [
-      { name: "Fingerprinting Mode", type: "text", value: "aggressive" },
-      { name: "Device Hash Salt", type: "secret", value: "canvas-audio-webgl-seed" },
-      { name: "WebGL Vendor Override", type: "text", value: "enabled" },
+      { title: "Fingerprinting Mode", type: "text", value: "aggressive" },
+      { title: "Device Hash Salt", type: "secret", value: "canvas-audio-webgl-seed" },
+      { title: "WebGL Vendor Override", type: "text", value: "enabled" },
     ],
     note: "Admin dashboard for cross-device fingerprint correlation. (Perfect for your thesis demo 😈)",
   },
@@ -219,8 +219,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
     websites: [{ value: "secure-admin.portal" }],
     extraFields: [
-      { name: "Backup TOTP", type: "secret", value: "KRSXG5DSNFXGOIDBNVSW45TFOQ======" },
-      { name: "Hardware Key ID", type: "text", value: "YUBI-7788-ALPHA" },
+      { title: "Backup TOTP", type: "secret", value: "KRSXG5DSNFXGOIDBNVSW45TFOQ======" },
+      { title: "Hardware Key ID", type: "text", value: "YUBI-7788-ALPHA" },
     ],
     note: "Primary TOTP in root field, backup stored in extraFields.",
   },
@@ -233,8 +233,8 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "MFRGGZDFMZTWQ2LKNNWG23TPOI======",
     websites: [{ value: "ha-cluster.example" }],
     extraFields: [
-      { name: "Tablet TOTP", type: "secret", value: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======" },
-      { name: "Old Phone TOTP", type: "secret", value: "PZXW6YTBON2HK3TPOJQXE5LSON======" },
+      { title: "Tablet TOTP", type: "secret", value: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======" },
+      { title: "Old Phone TOTP", type: "secret", value: "PZXW6YTBON2HK3TPOJQXE5LSON======" },
     ],
     note: "Simulates multi-device 2FA storage.",
   },
@@ -247,7 +247,7 @@ export const exampleLoginItems: LoginItem[] = [
   //   category: "login",
   //   totp: null, // null instead of string
   //   websites: "not-an-array", // invalid structure
-  //   extraFields: [{ name: "ShouldBreak", type: "unknown", value: true }],
+  //   extraFields: [{ title: "ShouldBreak", type: "unknown", value: true }],
   //   note: false,
   // },
   // {
@@ -271,7 +271,7 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "QZXW6YTBON2HK3TPOJQXE5LSNZ======",
     websites: [{ value: "spreadsheet-export.example" }],
     extraFields: [
-      { name: "Formula Field", type: "text", value: '=HYPERLINK("http://malicious.example")' },
+      { title: "Formula Field", type: "text", value: '=HYPERLINK("http://malicious.example")' },
     ],
     note: "Tests CSV/Excel formula injection handling.",
   },
@@ -283,7 +283,7 @@ export const exampleLoginItems: LoginItem[] = [
     category: "login",
     totp: "RZXW6YTBOI2HK3TPOJQXE5LSNZ======",
     websites: [{ value: "ui-render.example" }],
-    extraFields: [{ name: "HTML Payload", type: "text", value: "<img src=x onerror=alert(1)>" }],
+    extraFields: [{ title: "HTML Payload", type: "text", value: "<img src=x onerror=alert(1)>" }],
     note: "<b>Rich text?</b> Or escaped safely?",
   },
   // Phishing Clone Simulation
@@ -296,7 +296,7 @@ export const exampleLoginItems: LoginItem[] = [
     totp: "JBSWY3DPEHPK3PXPZXM6TQOJQ4R7Y6KL",
     websites: [{ value: "secure-paypaI.com" }],
     extraFields: [
-      { name: "Security Alert", type: "text", value: "Your account will be suspended!" },
+      { title: "Security Alert", type: "text", value: "Your account will be suspended!" },
     ],
     note: "Tests homograph / visual phishing detection.",
   },
@@ -308,7 +308,7 @@ export const exampleLoginItems: LoginItem[] = [
     category: "login",
     totp: "KRSXG5DSNFXGOIDBNVSW45TFOQ======",
     websites: [{ value: "micr0soft-support.com" }],
-    extraFields: [{ name: "Ticket ID", type: "text", value: "SUP-URGENT-4451" }],
+    extraFields: [{ title: "Ticket ID", type: "text", value: "SUP-URGENT-4451" }],
     note: "Fake IT support portal clone.",
   },
 ];

@@ -21,11 +21,11 @@ type OnClickEvent = {
 };
 
 const hiddenVariants = ["password", "hidden"] as const;
-const itemDisplayVariants = ["default", ...hiddenVariants] as const;
+const itemDisplayVariants = ["default", "noAction", ...hiddenVariants] as const;
 
 type ItemDisplayProps = {
-  title: string;
-  value?: string;
+  title?: string;
+  value?: ReactNode;
   onClick: (event: OnClickEvent) => void;
   icon?: ReactNode;
   variant?: (typeof itemDisplayVariants)[number];
@@ -33,7 +33,7 @@ type ItemDisplayProps = {
 };
 
 function ItemDisplay({
-  title,
+  title = "-",
   onClick,
   icon,
   actions,
@@ -43,12 +43,8 @@ function ItemDisplay({
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
 
-  const CopyButton = (
-    <Button
-      variant="ghost"
-      className="h-auto group-last:rounded-b-lg group-first:rounded-t-lg rounded-none gap-x-2.5"
-      onClick={() => onClick({ type: "copy" })}
-    >
+  const ItemInner = (
+    <>
       <ItemMedia variant="icon">{icon ?? <NotebookIcon />}</ItemMedia>
       <ItemContent>
         <ItemTitle>
@@ -60,9 +56,21 @@ function ItemDisplay({
             </Badge>
           )}
         </ItemTitle>
-        <ItemDescription>{usesHiddenValue && valueHidden ? HIDDEN_VALUE : value}</ItemDescription>
+        <ItemDescription>
+          {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
+        </ItemDescription>
       </ItemContent>
       {actions && <ItemActions>{actions}</ItemActions>}
+    </>
+  );
+
+  const CopyButton = (
+    <Button
+      variant="ghost"
+      className="h-auto group-last:rounded-b-lg group-first:rounded-t-lg rounded-none gap-x-2.5"
+      onClick={() => onClick({ type: "copy" })}
+    >
+      {ItemInner}
     </Button>
   );
 
@@ -76,7 +84,10 @@ function ItemDisplay({
   }
 
   return (
-    <Item className="last:rounded-b-lg first:rounded-t-lg rounded-none group" asChild>
+    <Item
+      className="last:rounded-b-lg first:rounded-t-lg rounded-none group"
+      asChild={!(variant === "noAction")}
+    >
       {usesHiddenValue ? (
         <StackedButton>
           {CopyButton}
@@ -85,6 +96,8 @@ function ItemDisplay({
             {valueHidden ? <EyeIcon /> : <EyeOffIcon />}
           </Button>
         </StackedButton>
+      ) : variant === "noAction" ? (
+        ItemInner
       ) : (
         CopyButton
       )}
@@ -97,7 +110,7 @@ type ItemDisplayGroupProps = {
 };
 
 function ItemDisplayGroup({ children }: ItemDisplayGroupProps) {
-  return <ItemGroup className="col-start-2 border rounded-lg gap-0">{children}</ItemGroup>;
+  return <ItemGroup className="border rounded-lg gap-0">{children}</ItemGroup>;
 }
 
 export { ItemDisplay, ItemDisplayGroup, itemDisplayVariants };

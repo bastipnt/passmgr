@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import ButtonLink from "@repo/ui/components/ButtonLink";
+import Link from "@repo/ui/components/Link";
 import { TiTimes } from "react-icons/ti";
 import styles from "./LayoutOverlay.module.css";
 
@@ -14,9 +14,9 @@ export default function LayoutOverlay({ children, title }: LayoutOverlayProps) {
       <div className={styles.container}>
         <header className={styles.header}>
           <h1 className={styles.title}>{title}</h1>
-          <ButtonLink variant="ghost" size="lg" className={styles.closeButton} href="/">
+          <Link variant="ghost" size="lg" className={styles.closeButton} href="/">
             <TiTimes />
-          </ButtonLink>
+          </Link>
         </header>
         <main className={styles.main}>{children}</main>
       </div>

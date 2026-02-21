@@ -1,5 +1,5 @@
 import { Button } from "@repo/ui/components/Button";
-import ButtonLink from "@repo/ui/components/ButtonLink";
+import Link from "@repo/ui/components/Link";
 import {
   Empty,
   EmptyContent,
@@ -24,12 +24,12 @@ export default function Index() {
         </EmptyDescription>
       </EmptyHeader>
       <EmptyContent className="flex-row justify-center gap-2">
-        <ButtonLink href="/new">Create Item</ButtonLink>
+        <Link href="/new">Create Item</Link>
         <Button variant="outline">Import</Button>
       </EmptyContent>
-      <ButtonLink href="/about" variant="link" className="text-muted-foreground" size="sm">
+      <Link href="/about" variant="link" className="text-muted-foreground" size="sm">
         Learn More <ArrowUpRightIcon />
-      </ButtonLink>
+      </Link>
     </Empty>
   );
 }

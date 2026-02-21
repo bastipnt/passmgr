@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
-import ButtonLink from "@repo/ui/components/ButtonLink";
+import Link from "@repo/ui/components/Link";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { useForm } from "@repo/ui";
@@ -49,9 +49,9 @@ export default function Register() {
             <CardTitle>Sign Up</CardTitle>
             <CardAction>
               or
-              <ButtonLink href="/login" variant="link">
+              <Link href="/login" variant="link">
                 Login
-              </ButtonLink>
+              </Link>
             </CardAction>
           </CardHeader>
 

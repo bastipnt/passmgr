@@ -1,10 +1,10 @@
 import preview from "../../.storybook/preview";
 
-import ButtonLink from "./ButtonLink";
+import Link from "./Link";
 
 const meta = preview.meta({
-  title: "Design System/Atoms/ButtonLink",
-  component: ButtonLink,
+  title: "Design System/Atoms/Link",
+  component: Link,
   parameters: {
     layout: "centered",
   },

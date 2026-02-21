@@ -129,16 +129,19 @@ function ItemTitle({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-function ItemDescription({ className, ...props }: React.ComponentProps<"p">) {
+function ItemDescription({ className, children, ...props }: React.ComponentProps<"p">) {
+  const Comp = typeof children === "string" ? "p" : "div";
   return (
-    <p
+    <Comp
       data-slot="item-description"
       className={cn(
         "text-muted-foreground text-left text-sm leading-normal group-data-[size=xs]/item:text-xs [&>a:hover]:text-primary line-clamp-2 font-normal [&>a]:underline [&>a]:underline-offset-4",
         className,
       )}
       {...props}
-    />
+    >
+      {children}
+    </Comp>
   );
 }
 

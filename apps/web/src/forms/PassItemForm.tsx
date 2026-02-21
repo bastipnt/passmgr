@@ -9,7 +9,7 @@ import {
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@repo/ui/components/Input";
-import ButtonLink from "@repo/ui/components/ButtonLink";
+import Link from "@repo/ui/components/Link";
 import { TiCancel, TiPlus, TiTimes, TiUpload } from "react-icons/ti";
 import { Button } from "@repo/ui/components/Button";
 import { useEffect } from "react";
@@ -148,10 +148,10 @@ export default function PassItemForm({ onSubmit, serverError, defaultValues }: P
       {serverError && <p className={styles.error}>{serverError}</p>}
 
       <div className={styles.actions}>
-        <ButtonLink variant="secondary" href={"/"}>
+        <Link variant="secondary" href={"/"}>
           <TiCancel />
           Cancel
-        </ButtonLink>
+        </Link>
         <Button type="submit">
           <TiUpload />
           Save

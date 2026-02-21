@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Input } from "@repo/ui/components/Input";
-import ButtonLink from "@repo/ui/components/ButtonLink";
+import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
 import { PlusIcon } from "lucide-react";
@@ -16,10 +16,10 @@ export default function Layout({ children }: LayoutProps) {
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <Input placeholder="Search..." />
           <ThemeToggle />
-          <ButtonLink href="/new">
+          <Link href="/new">
             <PlusIcon />
             New Item
-          </ButtonLink>
+          </Link>
         </header>
         <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
           <section className="border-r p-4 overflow-y-scroll">
