@@ -1,7 +1,7 @@
 import { router } from "../trpc";
 import z from "zod";
 import { protectedProcedure } from "../auth/authMiddleware";
-import { exampleLoginItems, LoginItem, loginItemSchema } from "@repo/schema";
+import { exampleLoginItems, type LoginItem, loginItemSchema } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
 
 export const entryRouter = router({
