@@ -15,9 +15,13 @@ import Link from "@repo/ui/components/Link";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { useForm } from "@repo/ui";
+import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
+import { Spinner } from "@repo/ui/components/Spinner";
+import { useState } from "react";
 
 export default function Register() {
   const [_, navigate] = useLocation();
+  const [loading, setLoading] = useState(false);
   const { registerNewUser, registrationError } = useRegistration();
 
   const userCredentialsSchema = z.object({
@@ -36,9 +40,11 @@ export default function Register() {
   });
 
   const onSubmit = async ({ password, email }: FormValues) => {
+    setLoading(true);
     await registerNewUser(email, password);
 
     navigate("/login");
+    setLoading(false);
   };
 
   return (
@@ -57,8 +63,18 @@ export default function Register() {
 
           <CardContent>
             <FieldGroup>
-              <ControlledInput control={control} name="email" label="Email" />
-              <ControlledInput control={control} name="password" label="Password" />
+              <ControlledInput
+                control={control}
+                name="email"
+                label="Email"
+                autoComplete="username"
+              />
+              <ControlledPasswordInput
+                control={control}
+                name="password"
+                label="Password"
+                autoComplete="new-password"
+              />
             </FieldGroup>
             {registrationError && (
               <FieldError
@@ -71,6 +87,10 @@ export default function Register() {
 
           <CardFooter className="flex flex-row gap-4 justify-end">
             <Button type="submit">Sign Up</Button>
+            <Button type="submit" disabled={loading}>
+              Sign Up
+              {loading && <Spinner data-icon="inline-start" />}
+            </Button>
           </CardFooter>
         </Card>
       </form>

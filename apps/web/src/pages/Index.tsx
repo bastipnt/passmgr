@@ -13,25 +13,27 @@ import { TiFolderAdd } from "react-icons/ti";
 
 export default function Index() {
   return (
-    <Empty>
-      <EmptyHeader>
-        <EmptyMedia variant="icon">
-          <TiFolderAdd />
-        </EmptyMedia>
-        <EmptyTitle>No Items Yet</EmptyTitle>
-        <EmptyDescription>
-          You haven&apos;t created any items yet. Get started by creating your first item.
-        </EmptyDescription>
-      </EmptyHeader>
-      <EmptyContent className="flex-row justify-center gap-2">
-        <Link variant="default" href="/new">
-          Create Item
+    <div className="h-full flex flex-col justify-center items-center">
+      <Empty>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <TiFolderAdd />
+          </EmptyMedia>
+          <EmptyTitle>No Items Yet</EmptyTitle>
+          <EmptyDescription>
+            You haven&apos;t created any items yet. Get started by creating your first item.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="flex-row justify-center gap-2">
+          <Link variant="default" href="/new">
+            Create Item
+          </Link>
+          <Button variant="outline">Import</Button>
+        </EmptyContent>
+        <Link href="/about" variant="link" className="text-muted-foreground" size="sm">
+          Learn More <ArrowUpRightIcon />
         </Link>
-        <Button variant="outline">Import</Button>
-      </EmptyContent>
-      <Link href="/about" variant="link" className="text-muted-foreground" size="sm">
-        Learn More <ArrowUpRightIcon />
-      </Link>
-    </Empty>
+      </Empty>
+    </div>
   );
 }

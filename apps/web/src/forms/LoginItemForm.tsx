@@ -1,4 +1,3 @@
-import styles from "./PassItemForm.module.css";
 import {
   useFieldArray,
   useForm,
@@ -19,7 +18,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
-import { PlusIcon, TrashIcon, UploadIcon, XIcon } from "lucide-react";
+import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
 import {
   FieldError,
   FieldGroup,
@@ -141,11 +140,19 @@ function ExtraFields({ control }: ExtraFieldsProps) {
 
 type PassItemProps = {
   onSubmit: (data: FormValues) => void;
+  title: string;
+  action: string;
   serverError?: string;
   defaultValues?: Partial<FormValues>;
 };
 
-export default function PassItemForm({ onSubmit, serverError, defaultValues }: PassItemProps) {
+export default function LoginItemForm({
+  onSubmit,
+  serverError,
+  defaultValues,
+  title,
+  action,
+}: PassItemProps) {
   const {
     register,
     handleSubmit,
@@ -160,7 +167,7 @@ export default function PassItemForm({ onSubmit, serverError, defaultValues }: P
     <form onSubmit={handleSubmit(onSubmit)}>
       <Card className="w-lg">
         <CardHeader>
-          <CardTitle>New Login</CardTitle>
+          <CardTitle>{title}</CardTitle>
           <CardAction>
             <Link variant="ghost" href="/">
               <XIcon />
@@ -211,7 +218,7 @@ export default function PassItemForm({ onSubmit, serverError, defaultValues }: P
 
             <ExtraFields control={control} register={register} errors={errors} />
 
-            {serverError && <FieldError className={styles.error}>{serverError}</FieldError>}
+            {serverError && <FieldError>{serverError}</FieldError>}
           </FieldGroup>
         </CardContent>
 
@@ -219,10 +226,7 @@ export default function PassItemForm({ onSubmit, serverError, defaultValues }: P
           <Link variant="outline" href={"/"}>
             Cancel
           </Link>
-          <Button type="submit">
-            <UploadIcon />
-            Save
-          </Button>
+          <Button type="submit">{action}</Button>
         </CardFooter>
       </Card>
     </form>

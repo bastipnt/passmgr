@@ -3,7 +3,7 @@ import Layout from "./layout/Layout";
 import Index from "@pages/Index";
 import SelectedElementProvider from "./providers/SelectedElementProvider";
 import { editSlug, entrySlug, newSlug } from "./data/routes";
-import EditEntry from "@pages/EditEntry";
+import EditItem from "@pages/EditItem";
 import Login from "@pages/auth/Login";
 import PublicLayout from "./layout/PublicLayout";
 import NotFound from "@pages/NotFound";
@@ -44,7 +44,7 @@ function DefaultLayoutRoutes() {
 function OverlayLayoutRoutes() {
   return (
     <Switch>
-      <Route path={`/${editSlug}/:entryId`} component={EditEntry} />
+      <Route path={`/${editSlug}/:entryId`} component={EditItem} />
       <Route path={`/${newSlug}`} component={NewItem} />
     </Switch>
   );

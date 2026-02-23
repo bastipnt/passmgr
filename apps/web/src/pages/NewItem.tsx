@@ -3,7 +3,7 @@ import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
-import PassItemForm from "../forms/PassItemForm";
+import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
@@ -29,7 +29,12 @@ export default function NewItem() {
 
   return (
     <LayoutOverlay>
-      <PassItemForm onSubmit={mutate} serverError={mutationError?.message} />
+      <LoginItemForm
+        onSubmit={mutate}
+        serverError={mutationError?.message}
+        title="New Login"
+        action="Create"
+      />
     </LayoutOverlay>
   );
 }

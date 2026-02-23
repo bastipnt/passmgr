@@ -5,7 +5,7 @@ import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
-import PassItemForm from "../forms/PassItemForm";
+import LoginItemForm from "../forms/LoginItemForm";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 
@@ -17,11 +17,11 @@ function Fallback() {
   );
 }
 
-type EditEntryListProps = {
+type EditItemListProps = {
   entryId: string;
 };
 
-function EditEntryChild({ entryId }: EditEntryListProps) {
+function EditItemInner({ entryId }: EditItemListProps) {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
   const { data: initialData } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
@@ -45,22 +45,24 @@ function EditEntryChild({ entryId }: EditEntryListProps) {
   return (
     // title={`Edit ${initialData.title}`}
     <LayoutOverlay>
-      <PassItemForm
+      <LoginItemForm
         onSubmit={mutate}
         serverError={mutationError?.message}
         defaultValues={defaultValues}
+        title="Edit Login"
+        action="Save"
       />
     </LayoutOverlay>
   );
 }
 
-export default function EditEntry() {
+export default function EditItem() {
   const { entryId } = useParams();
   if (!entryId) return <Fallback />;
 
   return (
     <Suspense fallback={<Fallback />}>
-      <EditEntryChild entryId={entryId} />
+      <EditItemInner entryId={entryId} />
     </Suspense>
   );
 }

@@ -121,6 +121,8 @@ fileignoreconfig:
   checksum: d0cd96de559dab3f75678a7f3d9666f149feb8519063b2322eeef81d65c3c22d
 - filename: packages/ui/src/complex-components/ItemDisplay.tsx
   checksum: 1092fa38f3afc48b960fa9d75d6ac3691d3baefd5593ce76247d7b7b7791d405
+- filename: packages/ui/src/components/form/ControlledPasswordInput.tsx
+  checksum: 4864dc9097e056e92f156fb7ad067d91a194a2e8628f56565063c61c2c48c5fa
 - filename: packages/ui/src/providers/ThemeProvider.tsx
   checksum: 8ef4ebcc62e676c16d181eabe8ace76ca87e50d570514f6071809d13aa5dd416
 - filename: turbo.json
