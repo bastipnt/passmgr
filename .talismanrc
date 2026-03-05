@@ -50,6 +50,8 @@ fileignoreconfig:
   allowed_patterns:
   - Password
   - secret
+- filename: apps/web/src/pages/EditItem.tsx
+  checksum: 2efbc183bb73c910807cc0bc3fdf15e5adc96869c4494295077ebb6a1d7d4592
 - filename: apps/web/src/pages/auth/*.tsx
   allowed_patterns:
   - password
@@ -71,13 +73,13 @@ fileignoreconfig:
   allowed_patterns:
   - password
 - filename: packages/client/src/login.ts
-  checksum: 0b805be9a2e9aadc5d63a5924723a0ab3df320e99e2ae6de7d066ccd8a3c1541
+  checksum: 8511d804a0e8b60f4dee4b2e6e5698de66a4303c7595f84269df5769043b5dd1
 - filename: packages/client/src/providers/SessionProvider.tsx
-  checksum: c72b0d8f50f3dbd5d7f8af7f2401c316a0499b69b232be01290dec2b65a95e4e
+  checksum: 30739462d7c48aa1137326330d50965cc1905ae757720a0e271f30c3d71b54a7
 - filename: packages/client/src/register.ts
   checksum: 0af0a0142b6f506b9dd03ad191b73400b499484b4a891bf67febd72a8d9001e9
 - filename: packages/client/src/secrets-store.ts
-  checksum: 6ff9ba747a0e8fb82af7871ee04a11af4e5cb6aa16e5b35cfad8439dfcacbc2d
+  checksum: 6feb52d0a8fcfad542ca20aadec0014fd79b31af7fbe4c9593352b4d02112501
 - filename: packages/client/vite-env.d.ts
   checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
 - filename: packages/crypto/src/encryption.ts

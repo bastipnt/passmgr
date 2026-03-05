@@ -6,6 +6,7 @@ export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
 export * from "./src/schema/users";
 export * from "./src/schema/keys";
+export * from "./src/schema/items";
 
 export { schema };
 

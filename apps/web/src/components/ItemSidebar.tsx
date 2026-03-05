@@ -12,6 +12,7 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
+import { decryptPayload } from "@/utils/vault";
 
 type ItemSidebarProps = {
   itemId?: string;
@@ -19,11 +20,18 @@ type ItemSidebarProps = {
 
 function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.entry.all.queryOptions());
+  const { data } = useSuspenseQuery({
+    ...trpc.entry.all.queryOptions(),
+    select: (res) =>
+      res.items.map((item) => ({
+        itemId: item.itemId,
+        ...decryptPayload(item.encryptedData, item.encryptionNonce),
+      })),
+  });
 
   return (
     <ItemGroup className="max-w-sm">
-      {data.items.map(({ id, title, username }) => {
+      {data.map(({ itemId: id, title, username }) => {
         const active = id === itemId;
 
         return (

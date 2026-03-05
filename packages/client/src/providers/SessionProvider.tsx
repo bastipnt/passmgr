@@ -10,6 +10,7 @@ export const SessionContext = createContext<{
     sessionKey: string,
     salt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
+    password: string,
   ) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
@@ -31,9 +32,10 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     sessionKey: string,
     salt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
+    password: string,
   ) {
     setSessionId(newSessionId);
-    await secretsStore.unlock(newSessionId, sessionKey, salt, userPasswordKeys);
+    await secretsStore.unlock(newSessionId, sessionKey, salt, userPasswordKeys, password);
   }
 
   async function signRequest(message: string) {

@@ -8,6 +8,8 @@ import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
+import { decryptPayload, encryptPayload } from "@/utils/vault";
+import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 
 function Fallback() {
   return (
@@ -24,29 +26,55 @@ type EditItemListProps = {
 function EditItemInner({ entryId }: EditItemListProps) {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
-  const { data: initialData } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
 
-  const entryUrl = `/${entrySlug}/${entryId}`;
+  const { data } = useSuspenseQuery({
+    ...trpc.entry.getById.queryOptions(entryId),
+    select: (item) => ({
+      itemId: item.itemId,
+      version: item.version,
+      ...decryptPayload(item.encryptedData, item.encryptionNonce),
+    }),
+  });
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({
-      onSuccess: () => {
-        navigate(entryUrl);
-      },
+      onSuccess: () => navigate(`/${entrySlug}/${entryId}`),
     }),
   );
-
-  const defaultValues = { ...initialData, id: entryId };
 
   useEffect(() => {
     if (isDefined(mutationError)) toast("Error saving");
   }, [mutationError]);
 
+  function handleSubmit(formValues: LoginItem) {
+    const { encryptedData, encryptionNonce } = encryptPayload({
+      schemaVersion: data.schemaVersion,
+      ...formValues,
+    });
+    mutate({
+      itemId: entryId,
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: CURRENT_CRYPTO_VERSION,
+      version: data.version,
+      clientUpdatedAt: new Date().toISOString(),
+    });
+  }
+
+  const defaultValues: Partial<LoginItem> = {
+    title: data.title,
+    username: data.username,
+    password: data.password,
+    totp: data.totp,
+    websites: data.websites,
+    note: data.note,
+    extraFields: data.extraFields,
+  };
+
   return (
-    // title={`Edit ${initialData.title}`}
     <LayoutOverlay>
       <LoginItemForm
-        onSubmit={mutate}
+        onSubmit={handleSubmit}
         serverError={mutationError?.message}
         defaultValues={defaultValues}
         title="Edit Login"

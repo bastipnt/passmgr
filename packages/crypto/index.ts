@@ -9,6 +9,12 @@ export {
   SESSION_TIMESTAMP_HEADER,
 } from "./src/util/constants";
 
-export { encryptXChaCha, encryptEmail } from "./src/encryption";
+export {
+  encryptXChaCha,
+  encryptXChaChaWithAAD,
+  decryptXChaCha,
+  decryptXChaChaWithAAD,
+  encryptEmail,
+} from "./src/encryption";
 export * from "./src/hash";
 export * from "./src/totp";

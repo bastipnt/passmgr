@@ -7,19 +7,16 @@ import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
+import { encryptPayload } from "@/utils/vault";
+import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 
 export default function NewItem() {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
 
-  // TODO: get entry id from server
-  const entryUrl = `/${entrySlug}/111`;
-
   const { mutate, error: mutationError } = useMutation(
-    trpc.entry.update.mutationOptions({
-      onSuccess: () => {
-        navigate(entryUrl);
-      },
+    trpc.entry.create.mutationOptions({
+      onSuccess: (result) => navigate(`/${entrySlug}/${result.itemId}`),
     }),
   );
 
@@ -27,10 +24,22 @@ export default function NewItem() {
     if (isDefined(mutationError)) toast("Error saving");
   }, [mutationError]);
 
+  function handleSubmit(formValues: LoginItem) {
+    const itemId = crypto.randomUUID();
+    const { encryptedData, encryptionNonce } = encryptPayload({ schemaVersion: 1, ...formValues });
+    mutate({
+      itemId,
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: CURRENT_CRYPTO_VERSION,
+      clientUpdatedAt: new Date().toISOString(),
+    });
+  }
+
   return (
     <LayoutOverlay>
       <LoginItemForm
-        onSubmit={mutate}
+        onSubmit={handleSubmit}
         serverError={mutationError?.message}
         title="New Login"
         action="Create"

@@ -18,6 +18,7 @@ import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
 import { editSlug } from "@/data/routes";
+import { decryptPayload } from "@/utils/vault";
 
 function Fallback() {
   return (
@@ -33,14 +34,20 @@ type DisplayItemProps = {
 
 function DisplayItemInner({ entryId }: DisplayItemProps) {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
+  const { data } = useSuspenseQuery({
+    ...trpc.entry.getById.queryOptions(entryId),
+    select: (item) => ({
+      itemId: item.itemId,
+      ...decryptPayload(item.encryptedData, item.encryptionNonce),
+    }),
+  });
   const { progress, seconds, token } = useTotp(data.totp);
 
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
       <div className="grid grid-cols-[1fr_auto]">
         <h1>{data.title}</h1>
-        <Link href={`/${editSlug}/${data.id}`}>
+        <Link href={`/${editSlug}/${entryId}`}>
           <EditIcon /> Edit
         </Link>
       </div>

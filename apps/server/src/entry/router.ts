@@ -1,26 +1,144 @@
 import { router } from "../trpc";
 import z from "zod";
 import { protectedProcedure } from "../auth/authMiddleware";
-import { exampleLoginItems, type LoginItem, loginItemSchema } from "@repo/schema";
+import { createItemInputSchema, updateItemInputSchema, encryptedItemSchema } from "@repo/schema";
+import { db, itemsTable, type ItemType } from "@repo/db";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
-export const entryRouter = router({
-  all: protectedProcedure.output(z.object({ items: z.array(loginItemSchema) })).query(async () => {
-    return {
-      items: exampleLoginItems,
-    };
-  }),
+function serializeItem(item: ItemType) {
+  const { rowId: _rowId, userId: _userId, ...rest } = item;
+  return {
+    ...rest,
+    clientUpdatedAt: item.clientUpdatedAt.toISOString(),
+    created_at: item.created_at?.toISOString() ?? null,
+    updated_at: item.updated_at?.toISOString() ?? null,
+    deleted_at: item.deleted_at?.toISOString() ?? null,
+  };
+}
 
-  getById: protectedProcedure
-    .input(z.string())
-    .output(loginItemSchema)
-    .query(async (opts): Promise<LoginItem> => {
-      const loginItem = exampleLoginItems.find(({ id }) => id === opts.input);
-      if (!loginItem) throw new TRPCError({ code: "UNAUTHORIZED" });
-      return loginItem;
+export const entryRouter = router({
+  all: protectedProcedure
+    .output(z.object({ items: z.array(encryptedItemSchema) }))
+    .query(async ({ ctx }) => {
+      // DISTINCT ON gets the latest version (highest) per itemId, then filter out deleted
+      const latestPerItem = db
+        .selectDistinctOn([itemsTable.itemId])
+        .from(itemsTable)
+        .where(eq(itemsTable.userId, ctx.userId))
+        .orderBy(itemsTable.itemId, desc(itemsTable.version))
+        .as("latest_per_item");
+
+      const items = await db
+        .select()
+        .from(latestPerItem)
+        .where(isNull(latestPerItem.deleted_at));
+
+      return { items: items.map(serializeItem) };
     }),
 
-  update: protectedProcedure.input(loginItemSchema).mutation(async (opts) => {
-    const { id: _id } = opts.input;
+  getById: protectedProcedure
+    .input(z.uuid())
+    .output(encryptedItemSchema)
+    .query(async ({ ctx, input }) => {
+      const latestForItem = db
+        .selectDistinctOn([itemsTable.itemId])
+        .from(itemsTable)
+        .where(and(eq(itemsTable.itemId, input), eq(itemsTable.userId, ctx.userId)))
+        .orderBy(itemsTable.itemId, desc(itemsTable.version))
+        .as("latest_for_item");
+
+      const [item] = await db
+        .select()
+        .from(latestForItem)
+        .where(isNull(latestForItem.deleted_at));
+
+      if (!item) throw new TRPCError({ code: "NOT_FOUND" });
+      return serializeItem(item);
+    }),
+
+  history: protectedProcedure
+    .input(z.uuid())
+    .output(z.array(encryptedItemSchema))
+    .query(async ({ ctx, input }) => {
+      const items = await db
+        .select()
+        .from(itemsTable)
+        .where(and(eq(itemsTable.itemId, input), eq(itemsTable.userId, ctx.userId)))
+        .orderBy(desc(itemsTable.version));
+      return items.map(serializeItem);
+    }),
+
+  create: protectedProcedure
+    .input(createItemInputSchema)
+    .output(encryptedItemSchema)
+    .mutation(async ({ ctx, input }) => {
+      const [item] = await db
+        .insert(itemsTable)
+        .values({
+          ...input,
+          userId: ctx.userId,
+          clientUpdatedAt: new Date(input.clientUpdatedAt),
+          version: 1,
+        })
+        .returning();
+      if (!item) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return serializeItem(item);
+    }),
+
+  update: protectedProcedure
+    .input(updateItemInputSchema)
+    .output(encryptedItemSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { itemId, version, clientUpdatedAt, ...data } = input;
+
+      const [current] = await db
+        .select({ version: itemsTable.version, deletedAt: itemsTable.deleted_at })
+        .from(itemsTable)
+        .where(and(eq(itemsTable.itemId, itemId), eq(itemsTable.userId, ctx.userId)))
+        .orderBy(desc(itemsTable.version))
+        .limit(1);
+
+      if (!current || current.deletedAt !== null)
+        throw new TRPCError({ code: "NOT_FOUND" });
+      if (current.version !== version)
+        throw new TRPCError({ code: "CONFLICT" });
+
+      const [item] = await db
+        .insert(itemsTable)
+        .values({
+          itemId,
+          userId: ctx.userId,
+          ...data,
+          version: version + 1,
+          clientUpdatedAt: new Date(clientUpdatedAt),
+        })
+        .returning();
+      if (!item) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      return serializeItem(item);
+    }),
+
+  delete: protectedProcedure.input(z.uuid()).mutation(async ({ ctx, input }) => {
+    const [current] = await db
+      .select()
+      .from(itemsTable)
+      .where(
+        and(eq(itemsTable.itemId, input), eq(itemsTable.userId, ctx.userId), isNull(itemsTable.deleted_at)),
+      )
+      .orderBy(desc(itemsTable.version))
+      .limit(1);
+
+    if (!current) throw new TRPCError({ code: "NOT_FOUND" });
+
+    await db.insert(itemsTable).values({
+      itemId: input,
+      userId: ctx.userId,
+      encryptedData: current.encryptedData,
+      encryptionNonce: current.encryptionNonce,
+      cryptoVersion: current.cryptoVersion,
+      clientUpdatedAt: current.clientUpdatedAt,
+      version: current.version + 1,
+      deleted_at: new Date(),
+    });
   }),
 });

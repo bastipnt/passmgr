@@ -7,7 +7,6 @@ const extraFieldSchema = z.object({
 });
 
 export const loginItemSchema = z.object({
-  id: z.string(),
   title: z.string().min(1, "Title is required"),
   username: z.string().optional(),
   password: z.string().optional(),

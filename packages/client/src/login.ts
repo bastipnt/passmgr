@@ -58,7 +58,7 @@ export function useLogin() {
       return;
     }
 
-    login(sessionId, sessionKey, authSalt, userPasswordKeys);
+    login(sessionId, sessionKey, authSalt, userPasswordKeys, password);
   }
 
   return { loginUser, loginError };
