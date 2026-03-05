@@ -1,6 +1,8 @@
-import { getRemainingTime, getToken } from "@repo/crypto";
+import { getToken } from "@repo/crypto";
 import { isDefined } from "@repo/util";
 import { useEffect, useRef, useState } from "react";
+
+const TOTP_PERIOD_MS = 30 * 1_000;
 
 export function useTotp(totpSecret?: string) {
   const [seconds, setSeconds] = useState<number>();
@@ -8,45 +10,39 @@ export function useTotp(totpSecret?: string) {
   const [token, setToken] = useState<string>();
 
   const totpSecretRef = useRef(totpSecret);
+  const periodRef = useRef<number>(null);
 
-  function updateSeconds() {
-    setSeconds(getRemainingTime());
-  }
-
-  function updateProgress() {
-    const currentTimeRounded = Math.floor(Date.now() / 100) * 100;
-    const delta = currentTimeRounded % (30 * 1_000);
-    setProgress(delta);
-    void updateToken(delta);
-  }
-
-  async function updateToken(ms: number) {
-    if (!isDefined(totpSecretRef.current)) return;
-    if (ms !== 0) return;
-    let newToken = "-";
-
+  async function fetchToken(secret: string) {
     try {
-      newToken = await getToken(totpSecretRef.current);
-    } catch (error) {
-      // TODO: handle token error
-    } finally {
-      setToken(newToken);
+      setToken(await getToken(secret));
+    } catch {
+      setToken("-");
     }
   }
 
   useEffect(() => {
     totpSecretRef.current = totpSecret;
-    void updateToken(0);
+    if (isDefined(totpSecret)) {
+      void fetchToken(totpSecret);
+    }
   }, [totpSecret]);
 
   useEffect(() => {
-    const intervalSeconds = setInterval(updateSeconds, 1_000);
-    const intervalProgress = setInterval(updateProgress, 100);
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const msRemaining = TOTP_PERIOD_MS - (now % TOTP_PERIOD_MS);
 
-    return () => {
-      if (intervalSeconds) clearInterval(intervalSeconds);
-      if (intervalProgress) clearInterval(intervalProgress);
-    };
+      setSeconds(Math.ceil(msRemaining / 1_000));
+      setProgress((msRemaining / TOTP_PERIOD_MS) * 100);
+
+      const period = Math.floor(now / TOTP_PERIOD_MS);
+      if (period !== periodRef.current && isDefined(totpSecretRef.current)) {
+        periodRef.current = period;
+        void fetchToken(totpSecretRef.current);
+      }
+    }, 100);
+
+    return () => clearInterval(interval);
   }, []);
 
   return { seconds, progress, token };

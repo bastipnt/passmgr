@@ -2,52 +2,67 @@ import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
 import type { ReactNode } from "react";
 
-const circleProgressVariants = cva(
-  cn(
-    "flex flex-col items-center justify-center",
-    "rounded-full bg-background",
-    "bg-[radial-gradient(closest-side,var(--color-background)_calc((99-var(--line-value))*1%),transparent_calc((100-var(--line-value))*1%)_100%),conic-gradient(var(--color-border)_calc(var(--progress-value)*1%),var(--color-primary)_0)]",
-  ),
-  {
-    variants: {
-      size: {
-        default: "h-9.5 w-9.5",
-        xs: "h-7 w-7 text-xs",
-        sm: "h-8 w-8 text-sm",
-        xl: "h-10 w-10 text-xl",
-      },
-    },
-    defaultVariants: {
-      size: "default",
+const RADIUS = 45;
+const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+const circleProgressVariants = cva("relative flex items-center justify-center", {
+  variants: {
+    size: {
+      default: "h-9.5 w-9.5",
+      xs: "h-7 w-7 text-xs",
+      sm: "h-8 w-8 text-sm",
+      xl: "h-10 w-10 text-xl",
     },
   },
-);
+  defaultVariants: {
+    size: "default",
+  },
+});
 
 type CircleProgressParams = {
+  /** Progress value from 0 to 100 */
   progress: number;
-  line?: number;
+  strokeWidth?: number;
   children?: ReactNode;
   className?: string;
 } & VariantProps<typeof circleProgressVariants>;
 
+function getProgressColor(progress: number) {
+  if (progress > 33) return "text-primary";
+  if (progress > 16) return "text-yellow-500";
+  return "text-red-500";
+}
+
 function CircleProgress({
   progress = 30,
-  line = 10,
+  strokeWidth = 8,
   children,
   size,
   className,
 }: CircleProgressParams) {
+  const offset = CIRCUMFERENCE * (1 - progress / 100);
+
   return (
-    <div
-      className={cn(circleProgressVariants({ size, className }))}
-      style={
-        {
-          "--progress-value": String(progress),
-          "--line-value": String(line),
-        } as React.CSSProperties
-      }
-    >
-      {children}
+    <div className={cn(circleProgressVariants({ size, className }))}>
+      <svg
+        className={cn("absolute inset-0 -rotate-90 size-full", getProgressColor(progress))}
+        viewBox="0 0 100 100"
+        fill="none"
+        aria-hidden="true"
+      >
+        <circle cx="50" cy="50" r={RADIUS} stroke="var(--color-border)" strokeWidth={strokeWidth} />
+        <circle
+          cx="50"
+          cy="50"
+          r={RADIUS}
+          stroke="currentColor"
+          strokeWidth={strokeWidth}
+          strokeDasharray={CIRCUMFERENCE}
+          strokeDashoffset={offset}
+          strokeLinecap="round"
+        />
+      </svg>
+      <span className="relative">{children}</span>
     </div>
   );
 }

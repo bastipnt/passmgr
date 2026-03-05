@@ -87,7 +87,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
               onClick={() => copyField(token, "2FA token")}
               icon={<LockIcon />}
               actions={
-                <CircleProgress progress={(100 / (30 * 1_000)) * Number(progress)}>
+                <CircleProgress progress={progress ?? 0}>
                   {seconds}
                 </CircleProgress>
               }
