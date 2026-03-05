@@ -39,6 +39,8 @@ fileignoreconfig:
 - filename: apps/web/src/components/EntryList.tsx
   allowed_patterns:
   - Password
+- filename: apps/web/src/components/ItemSidebar.tsx
+  checksum: b1e1a97f74069cf25e81305f56d8ef592ec45ea46b7b57b3a6370060ef1d4aaa
 - filename: apps/web/src/data-components/Entries.tsx
   allowed_patterns:
   - key={
@@ -59,9 +61,13 @@ fileignoreconfig:
 - filename: apps/web/src/types/css-modules.d.ts
   allowed_patterns:
   - key=
+- filename: apps/web/src/utils/decrypt-worker-service.ts
+  checksum: 7aaab39402ec0da0a0b4f451cf4e4e2f49538f7e50c9d39e1176294b008094c4
 - filename: apps/web/src/utils/label-mapping.tsx
   allowed_patterns:
   - key=
+- filename: apps/web/src/workers/decrypt.worker.ts
+  checksum: 9a284325d1c3080ebe642e9ac54c61bf6c0ae949e85ce86501ffff2571fed1b1
 - filename: doc/structure.md
   checksum: 87497fda8c27c558d707a2875dea466de37272a988bce971ba286cf95ec6e5a7
   ignore_detectors:
@@ -73,13 +79,13 @@ fileignoreconfig:
   allowed_patterns:
   - password
 - filename: packages/client/src/login.ts
-  checksum: 8511d804a0e8b60f4dee4b2e6e5698de66a4303c7595f84269df5769043b5dd1
+  checksum: c4f9b5e7119344d5a217524162571d727e4e34e9d71cece1a00c1726d0dfbbb6
 - filename: packages/client/src/providers/SessionProvider.tsx
   checksum: 30739462d7c48aa1137326330d50965cc1905ae757720a0e271f30c3d71b54a7
 - filename: packages/client/src/register.ts
   checksum: 0af0a0142b6f506b9dd03ad191b73400b499484b4a891bf67febd72a8d9001e9
 - filename: packages/client/src/secrets-store.ts
-  checksum: 6feb52d0a8fcfad542ca20aadec0014fd79b31af7fbe4c9593352b4d02112501
+  checksum: 7428b41a61e873d10dbd9b443daccaafcc51896eda987ce50dda88ec7de276b0
 - filename: packages/client/vite-env.d.ts
   checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
 - filename: packages/crypto/src/encryption.ts

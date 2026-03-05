@@ -98,6 +98,11 @@ class SecretsStore {
     return decryptXChaCha(this.vaultKey, encryptedData, nonce);
   }
 
+  exportVaultKeyForWorker(): Uint8Array {
+    if (!this.vaultKey) throw new SessionLockedError();
+    return this.vaultKey.slice();
+  }
+
   private async deriveAuthKey(): Promise<Uint8Array> {
     if (!this.sessionSecret) throw new SessionLockedError();
     if (!this.authSalt) throw new SessionLockedError();

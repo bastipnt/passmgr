@@ -19,6 +19,7 @@ export const itemsTable = pgTable(
     index("items_user_id_idx").on(table.userId),
     index("items_item_id_idx").on(table.itemId),
     uniqueIndex("items_item_id_version_idx").on(table.itemId, table.version),
+    index("items_user_item_version_idx").on(table.userId, table.itemId, table.version),
   ],
 );
 

@@ -2,6 +2,7 @@
 
 import { secretsStore } from "@repo/client";
 import type { ItemPayload } from "@repo/schema";
+import { decryptWorkerService } from "./decrypt-worker-service";
 
 export function encryptPayload(payload: ItemPayload): {
   encryptedData: string;
@@ -14,4 +15,12 @@ export function encryptPayload(payload: ItemPayload): {
 export function decryptPayload(encryptedData: string, encryptionNonce: string): ItemPayload {
   const bytes = secretsStore.decryptItem(encryptedData, encryptionNonce);
   return JSON.parse(new TextDecoder().decode(bytes)) as ItemPayload;
+}
+
+export function decryptPayloadAsync(
+  id: string,
+  encryptedData: string,
+  encryptionNonce: string,
+): Promise<ItemPayload> {
+  return decryptWorkerService.decrypt(id, encryptedData, encryptionNonce);
 }

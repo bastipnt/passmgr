@@ -11,10 +11,10 @@ export const SessionContext = createContext<{
     salt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
     password: string,
-  ) => void;
+  ) => Promise<void>;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
-  login() {},
+  async login() {},
   async signRequest() {
     return new Uint8Array(32);
   },

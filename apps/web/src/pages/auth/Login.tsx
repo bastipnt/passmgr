@@ -1,7 +1,8 @@
 import { useForm } from "@repo/ui";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLogin } from "@repo/client";
+import { useLogin, secretsStore } from "@repo/client";
+import { decryptWorkerService } from "@/utils/decrypt-worker-service";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -40,6 +41,11 @@ export default function Login() {
   const onSubmit = async ({ password, email }: FormValues) => {
     setLoading(true);
     await loginUser(email, password);
+    try {
+      decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+    } catch {
+      // login failed, vault key not available
+    }
     setLoading(false);
   };
 

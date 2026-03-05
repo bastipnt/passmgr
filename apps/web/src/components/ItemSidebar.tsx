@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
@@ -12,11 +12,83 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
-import { decryptPayload } from "@/utils/vault";
+import { Skeleton } from "@repo/ui/components/Skeleton";
+import { decryptPayloadAsync } from "@/utils/vault";
+import type { ItemPayload } from "@repo/schema";
 
 type ItemSidebarProps = {
   itemId?: string;
 };
+
+type EncryptedItem = {
+  itemId: string;
+  encryptedData: string;
+  encryptionNonce: string;
+};
+
+function EncryptedSidebarItem({ item, active }: { item: EncryptedItem; active: boolean }) {
+  const [payload, setPayload] = useState<ItemPayload | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    void decryptPayloadAsync(item.itemId, item.encryptedData, item.encryptionNonce).then((p) => {
+      if (!cancelled) setPayload(p);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [item.itemId, item.encryptedData, item.encryptionNonce]);
+
+  if (!payload) {
+    return (
+      <Item variant={active ? "muted" : "outline"}>
+        <ItemMedia>
+          <Skeleton className="size-8 rounded-full" />
+        </ItemMedia>
+        <ItemContent className="gap-1">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-3 w-24" />
+        </ItemContent>
+      </Item>
+    );
+  }
+
+  return (
+    <Item variant={active ? "muted" : "outline"} asChild>
+      <Link href={`../${entrySlug}/${item.itemId}`}>
+        <ItemMedia>
+          <Avatar>
+            <AvatarImage src={""} className="grayscale" />
+            <AvatarFallback>{payload.title.charAt(0)}</AvatarFallback>
+          </Avatar>
+        </ItemMedia>
+        <ItemContent className="gap-1">
+          <ItemTitle>{payload.title}</ItemTitle>
+          <ItemDescription className="line-clamp-1">{payload.username}</ItemDescription>
+        </ItemContent>
+      </Link>
+    </Item>
+  );
+}
+
+function ItemSidebarSkeleton() {
+  return (
+    <ItemGroup className="max-w-sm">
+      {Array.from({ length: 5 }).map((_, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
+        <Item key={i} variant="outline">
+          <ItemMedia>
+            <Skeleton className="size-8 rounded-full" />
+          </ItemMedia>
+          <ItemContent className="gap-1">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-3 w-24" />
+          </ItemContent>
+        </Item>
+      ))}
+    </ItemGroup>
+  );
+}
 
 function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   const trpc = useTRPC();
@@ -25,32 +97,16 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
     select: (res) =>
       res.items.map((item) => ({
         itemId: item.itemId,
-        ...decryptPayload(item.encryptedData, item.encryptionNonce),
+        encryptedData: item.encryptedData,
+        encryptionNonce: item.encryptionNonce,
       })),
   });
 
   return (
     <ItemGroup className="max-w-sm">
-      {data.map(({ itemId: id, title, username }) => {
-        const active = id === itemId;
-
-        return (
-          <Item key={id} variant={active ? "muted" : "outline"} asChild>
-            <Link href={`../${entrySlug}/${id}`}>
-              <ItemMedia>
-                <Avatar>
-                  <AvatarImage src={""} className="grayscale" />
-                  <AvatarFallback>{title.charAt(0)}</AvatarFallback>
-                </Avatar>
-              </ItemMedia>
-              <ItemContent className="gap-1">
-                <ItemTitle>{title}</ItemTitle>
-                <ItemDescription className="line-clamp-1">{username}</ItemDescription>
-              </ItemContent>
-            </Link>
-          </Item>
-        );
-      })}
+      {data.map((item) => (
+        <EncryptedSidebarItem key={item.itemId} item={item} active={item.itemId === itemId} />
+      ))}
     </ItemGroup>
   );
 }
@@ -59,7 +115,7 @@ export default function ItemSidebar() {
   const [_, params] = useRoute(`/${entrySlug}/:itemId`);
 
   return (
-    <Suspense fallback={<p>No Data</p>}>
+    <Suspense fallback={<ItemSidebarSkeleton />}>
       <ItemSidebarInner itemId={params?.itemId} />
     </Suspense>
   );
