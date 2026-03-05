@@ -1,4 +1,4 @@
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
 import { useTRPC } from "@repo/client";
@@ -13,10 +13,14 @@ import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 export default function NewItem() {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
-      onSuccess: (result) => navigate(`/${entrySlug}/${result.itemId}`),
+      onSuccess: (result) => {
+        queryClient.invalidateQueries(trpc.entry.all.queryFilter());
+        navigate(`/${entrySlug}/${result.itemId}`);
+      },
     }),
   );
 

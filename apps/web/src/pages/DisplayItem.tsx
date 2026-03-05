@@ -67,22 +67,26 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
           value={data.password}
           onClick={() => {}}
           icon={<KeyIcon />}
-          variant="password"
+          variant={data.password ? "password" : "noAction"}
         />
 
-        <Separator />
+        {isDefined(data.totp) && (
+          <>
+            <Separator />
 
-        <ItemDisplay
-          title="2FA token (TOTP)"
-          value={token}
-          onClick={() => {}}
-          icon={<LockIcon />}
-          actions={
-            <CircleProgress progress={(100 / (30 * 1_000)) * Number(progress)}>
-              {seconds}
-            </CircleProgress>
-          }
-        />
+            <ItemDisplay
+              title="2FA token (TOTP)"
+              value={token}
+              onClick={() => {}}
+              icon={<LockIcon />}
+              actions={
+                <CircleProgress progress={(100 / (30 * 1_000)) * Number(progress)}>
+                  {seconds}
+                </CircleProgress>
+              }
+            />
+          </>
+        )}
       </ItemDisplayGroup>
 
       <ItemDisplayGroup>

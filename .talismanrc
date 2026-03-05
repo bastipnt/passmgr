@@ -45,7 +45,7 @@ fileignoreconfig:
 - filename: apps/web/src/hooks/totp-hook.ts
   checksum: 46f7f5be93f0be6a464c7202c423704ee4ae4a6d320ba039c5664698488c52c0
 - filename: apps/web/src/pages/DisplayItem.tsx
-  checksum: 3a91fd0cbb459dc1b18090584605abf823a63835e35c947bafde1a3158febda6
+  checksum: 7e509f090f1f62beb00201d2ff1bbaf9cf7e0e8711b542d43a7c49f65d48592e
 - filename: apps/web/src/pages/EditEntry.tsx
   allowed_patterns:
   - Password

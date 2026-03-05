@@ -1,4 +1,4 @@
-import { useMutation, useSuspenseQuery } from "@tanstack/react-query";
+import { useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
 import { Suspense, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
@@ -26,6 +26,7 @@ type EditItemListProps = {
 function EditItemInner({ entryId }: EditItemListProps) {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
+  const queryClient = useQueryClient();
 
   const { data } = useSuspenseQuery({
     ...trpc.entry.getById.queryOptions(entryId),
@@ -38,7 +39,11 @@ function EditItemInner({ entryId }: EditItemListProps) {
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({
-      onSuccess: () => navigate(`/${entrySlug}/${entryId}`),
+      onSuccess: () => {
+        queryClient.invalidateQueries(trpc.entry.all.queryFilter());
+        queryClient.invalidateQueries(trpc.entry.getById.queryFilter(entryId));
+        navigate(`/${entrySlug}/${entryId}`);
+      },
     }),
   );
 
