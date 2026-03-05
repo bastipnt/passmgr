@@ -46,7 +46,7 @@ function ItemDisplay({
   const ItemInner = (
     <>
       <ItemMedia variant="icon">{icon ?? <NotebookIcon />}</ItemMedia>
-      <ItemContent>
+      <ItemContent className="w-full overflow-hidden">
         <ItemTitle>
           {title}
           {variant === "password" && (
@@ -56,7 +56,7 @@ function ItemDisplay({
             </Badge>
           )}
         </ItemTitle>
-        <ItemDescription>
+        <ItemDescription className="text-ellipsis overflow-hidden">
           {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
         </ItemDescription>
       </ItemContent>

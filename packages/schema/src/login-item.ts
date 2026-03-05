@@ -8,7 +8,7 @@ const extraFieldSchema = z.object({
 
 export const loginItemSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  username: z.string().optional(),
+  username: z.string().optional(), // TODO: do I need max length here?
   password: z.string().optional(),
   websites: z
     .array(
