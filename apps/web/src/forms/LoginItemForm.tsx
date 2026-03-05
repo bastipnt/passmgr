@@ -189,7 +189,7 @@ export default function LoginItemForm({
   }
 
   return (
-    <form onSubmit={handleSubmit(handleFormSubmit)}>
+    <form onSubmit={handleSubmit(handleFormSubmit)} autoComplete="off">
       <Card className="w-lg">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -209,7 +209,7 @@ export default function LoginItemForm({
                 control={control}
                 name="username"
                 label="Username"
-                autoComplete="username"
+                autoComplete="off"
               />
 
               <ControlledInput
@@ -217,7 +217,7 @@ export default function LoginItemForm({
                 name="password"
                 label="Password"
                 type="password"
-                autoComplete="new-password"
+                autoComplete="off"
               />
 
               <ControlledInput
