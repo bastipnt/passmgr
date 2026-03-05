@@ -2,6 +2,8 @@ import { hkdfInfo } from "./util/constants";
 import { hkdf as hkdf_, hmac, sha256 } from "@noble/hashes/webcrypto.js";
 import { fromString } from "@repo/util";
 import { normalize } from "./util/string-utils";
+import { genSalt } from "./util/secrets-utils";
+import { argon2idAsync, type ArgonOpts } from "@noble/hashes/argon2.js";
 
 /**
  * -------------------------- Key Derivation Functions (KDF) ---------------------------------------
@@ -92,4 +94,55 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
   const normalizedEmail = normalize(email);
   const emailHashKey = await hkdf(serverKey, "emailHashKey");
   return await signHmac(emailHashKey, normalizedEmail);
+}
+
+/**
+ * Generate Password Root Key (PRK)
+ *
+ * @param password
+ *
+ * @returns PRK, params and salt
+ */
+export async function genPasswordKek(password: string): Promise<{
+  passwordKek: Uint8Array;
+  passwordKekParams: ArgonOpts;
+  passwordKekSaltData: Uint8Array;
+}> {
+  const passwordKekSaltData = genSalt();
+
+  /**
+   * | Parameter       | Value     |
+   * | --------------- | --------- |
+   * | Memory (m)      | 64–256 MB |
+   * | Iterations (t)  | 3         |
+   * | Parallelism (p) | 1–4       |
+   * | Output length   | 32 bytes  |
+   * | Variant         | Argon2id  |
+   *
+   * TODO: version parameters and adjust to client
+   */
+  const passwordKekParams: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
+
+  const passwordKek = await argon2idAsync(password, passwordKekSaltData, {
+    ...passwordKekParams,
+    maxmem: 2 ** 32 - 1,
+  });
+  return { passwordKek, passwordKekParams, passwordKekSaltData };
+}
+
+/**
+ * Retrieve Password Root Key (PRK)
+ *
+ * @param password
+ * @param passwordKekSaltData
+ * @param passwordKekParams
+ *
+ * @returns PRK
+ */
+export async function retrievePRK(
+  password: string,
+  passwordKekSaltData: Uint8Array,
+  passwordKekParams: ArgonOpts,
+): Promise<Uint8Array> {
+  return await argon2idAsync(password, passwordKekSaltData, passwordKekParams);
 }

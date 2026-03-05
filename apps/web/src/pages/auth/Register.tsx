@@ -86,7 +86,6 @@ export default function Register() {
           </CardContent>
 
           <CardFooter className="flex flex-row gap-4 justify-end">
-            <Button type="submit">Sign Up</Button>
             <Button type="submit" disabled={loading}>
               Sign Up
               {loading && <Spinner data-icon="inline-start" />}

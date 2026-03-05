@@ -1,24 +1,14 @@
-import z from "zod";
 import { loggedProcedure } from "../logger";
 import { opaque, serverKey, serverSetup } from "../opaque";
 import { router } from "../trpc";
-import { db, usersTable } from "@repo/db";
+import { db, keysTable, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
-
-const startRegistrationInputSchema = z.object({
-  email: z.email(),
-  registrationRequest: z.string(),
-});
-
-const startRegistrationOutputSchema = z.object({
-  registrationResponse: z.string(),
-});
-
-const finishRegistrationInputSchema = z.object({
-  email: z.string(),
-  registrationRecord: z.string(),
-});
+import {
+  finishRegistrationInputSchema,
+  startRegistrationInputSchema,
+  startRegistrationOutputSchema,
+} from "@repo/schema";
 
 export const registrationRouter = router({
   startRegistration: loggedProcedure
@@ -39,7 +29,7 @@ export const registrationRouter = router({
   finishRegistration: loggedProcedure
     .input(finishRegistrationInputSchema)
     .mutation(async ({ input }) => {
-      const { email, registrationRecord } = input;
+      const { email, registrationRecord, userKeys } = input;
 
       const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(
         serverKey,
@@ -47,7 +37,8 @@ export const registrationRouter = router({
       );
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      await db
+      // If user is already registered this will return an empty array
+      const dbUsers = await db
         .insert(usersTable)
         .values({
           encryptedEmail,
@@ -56,6 +47,13 @@ export const registrationRouter = router({
           emailHash,
           registrationRecord,
         })
-        .onConflictDoNothing({ target: usersTable.emailHash });
+        .onConflictDoNothing({ target: usersTable.emailHash })
+        .returning({ userId: usersTable.userId });
+
+      // fails if there is already a user with that email
+      if (dbUsers.length === 0) return;
+
+      const { userId } = dbUsers[0];
+      await db.insert(keysTable).values({ userId, ...userKeys });
     }),
 });

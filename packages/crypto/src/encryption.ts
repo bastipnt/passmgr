@@ -17,12 +17,12 @@ import { hkdf } from "./hash";
  */
 export function encryptXChaCha(
   key: Uint8Array,
-  inputData: string,
+  inputData: string | Uint8Array,
 ): [encryptedData: string, nonce: string] {
   const nonce = randomBytes(24);
 
   const chacha = xchacha20poly1305(key, nonce);
-  const data = fromString(inputData);
+  const data = typeof inputData === "string" ? fromString(inputData) : inputData;
   const ciphertext = chacha.encrypt(data);
 
   return [toBase64(ciphertext), toBase64(nonce)];

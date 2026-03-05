@@ -5,6 +5,7 @@ export const hkdfInfo = {
   sessionAuth: fromString("session-auth"),
   emailHashKey: fromString("email-hash-key"),
   emailEncryptionKey: fromString("email-encryption-key"),
+  recoveryRootKey: fromString("recovery-root-key"),
 };
 
 export const SESSION_ID_HEADER = "x-session-id";

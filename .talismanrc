@@ -69,9 +69,13 @@ fileignoreconfig:
   allowed_patterns:
   - password
 - filename: packages/client/src/login.ts
-  checksum: bca9a137cb2a61bd99a7dfe121b3f65136c942aac0abe6deeb5270b28c73739a
+  checksum: 0b805be9a2e9aadc5d63a5924723a0ab3df320e99e2ae6de7d066ccd8a3c1541
+- filename: packages/client/src/providers/SessionProvider.tsx
+  checksum: c72b0d8f50f3dbd5d7f8af7f2401c316a0499b69b232be01290dec2b65a95e4e
+- filename: packages/client/src/register.ts
+  checksum: 0af0a0142b6f506b9dd03ad191b73400b499484b4a891bf67febd72a8d9001e9
 - filename: packages/client/src/secrets-store.ts
-  checksum: a7bab1c4a09bad8d54079379b9880bb926dcf87a5a5f886550254c2e362cb9d7
+  checksum: 6ff9ba747a0e8fb82af7871ee04a11af4e5cb6aa16e5b35cfad8439dfcacbc2d
 - filename: packages/client/vite-env.d.ts
   checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
 - filename: packages/crypto/src/encryption.ts
@@ -81,7 +85,7 @@ fileignoreconfig:
   - encryptXChaCha
   - encryptedEmail
 - filename: packages/crypto/src/hash.ts
-  checksum: c24c4777c651f30cc01006e2d077391908a05eed35a7a2344c9767cd5ce801fa
+  checksum: be78ae601b3b5bf4b996afef9a64c8256e547c92a15a0c46f3fc2d5dd2280a0e
 - filename: packages/crypto/src/totp.ts
   checksum: 8cdc0a2b010e78700e7f38e8c396aacd829bda157de492954abf15ab9dbfee9f
 - filename: packages/crypto/src/util/constants.ts
@@ -110,6 +114,10 @@ fileignoreconfig:
   checksum: 215e6c7477b0d7e7e261e863fb55e5ab6cd0868772bd5f52fc17d511f23517fb
 - filename: packages/db/drizzle/20260211155419_bored_goblin_queen/migration.sql
   checksum: 1d33464cbde1b96a2b56939b8c761618c6a6c8fb2f331e838ee765e76a8b01fc
+- filename: packages/db/src/relations.ts
+  checksum: c1f0b2e04a0603f4b71dc14cc32adc0d856228c6d2c08e46e03f774809149979
+- filename: packages/db/src/schema/keys.ts
+  checksum: f7cd742ae4959868471a6578be5fa9fbb051b481090ae1637cda8d1c9ff6c002
 - filename: packages/db/src/schema/users.ts
   allowed_patterns:
   - emailEncryptionKeySalt
@@ -117,6 +125,12 @@ fileignoreconfig:
   checksum: 5c11f7166fe96eacefdeeb2c99ecaa4e1698bcbb82d23c018e065a0cc35a253c
 - filename: packages/schema/src/seed/login-item-seed.ts
   checksum: d9a7296e5101ce76bfc7bef40ea39c3bc1b6c22ed64ec7ff71b0351cb0e8cd9b
+- filename: packages/schema/src/user/key-schema.ts
+  checksum: bbe880de7191653f7883ca09e9336e9f9ab28c2c7992d0b02d7093af7aefd47e
+- filename: packages/schema/src/user/login-schema.ts
+  checksum: f2622414d48199eebde8baba860576c66a4487c22273f7e07fee69c4a641c543
+- filename: packages/schema/src/user/registration-schema.ts
+  checksum: be01a752d275361939f8b170b820f71ca3f11686cc7034a5d541dee539942fd2
 - filename: packages/ui/src/complex-components/ItemDisplay.stories.tsx
   checksum: d0cd96de559dab3f75678a7f3d9666f149feb8519063b2322eeef81d65c3c22d
 - filename: packages/ui/src/complex-components/ItemDisplay.tsx

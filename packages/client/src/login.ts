@@ -3,6 +3,7 @@ import { useTRPCClient } from "./util/trpc";
 import { useContext, useState } from "react";
 import { SessionContext } from "./providers/SessionProvider";
 import { genSalt, toBase64 } from "@repo/crypto";
+import type { PasswordKeySchema } from "@repo/schema";
 
 export function useLogin() {
   const trpc = useTRPCClient();
@@ -43,9 +44,10 @@ export function useLogin() {
     const authSalt = genSalt();
 
     let sessionId: string;
+    let userPasswordKeys: PasswordKeySchema;
 
     try {
-      ({ sessionId } = await trpc.login.finishLogin.mutate({
+      ({ sessionId, userPasswordKeys } = await trpc.login.finishLogin.mutate({
         email,
         finishLoginRequest,
         authSalt: toBase64(authSalt),
@@ -56,7 +58,7 @@ export function useLogin() {
       return;
     }
 
-    login(sessionId, sessionKey, authSalt);
+    login(sessionId, sessionKey, authSalt, userPasswordKeys);
   }
 
   return { loginUser, loginError };

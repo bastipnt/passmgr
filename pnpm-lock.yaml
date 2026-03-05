@@ -304,6 +304,9 @@ importers:
       '@repo/crypto':
         specifier: workspace:*
         version: link:../crypto
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../schema
       '@repo/util':
         specifier: workspace:*
         version: link:../util
@@ -366,6 +369,9 @@ importers:
 
   packages/db:
     dependencies:
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../schema
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1

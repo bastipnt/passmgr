@@ -1,4 +1,3 @@
-import z from "zod";
 import { loggedProcedure } from "../logger";
 import { opaque, serverKey, serverSetup } from "../opaque";
 import { router } from "../trpc";
@@ -7,29 +6,16 @@ import { TRPCError } from "@trpc/server";
 import { fromString, hashEmail, hkdf, wipe } from "@repo/crypto";
 import { delLoginAttempt, getLoginAttempt, setLoginAttempt, setSession } from "../util/redisUtils";
 import { fromBase64, toBase64 } from "@repo/util";
+import {
+  finishLoginInputSchema,
+  finishLoginOutputSchema,
+  startLoginInputSchema,
+  startLoginOutputSchema,
+} from "@repo/schema";
 
 class LoginError extends Error {
   override name: string = "LoginError";
 }
-
-const startLoginInputSchema = z.object({
-  email: z.email(),
-  startLoginRequest: z.string(),
-});
-
-const startLoginOutputSchema = z.object({
-  loginResponse: z.string(),
-});
-
-const finishLoginInputSchema = z.object({
-  email: z.string(),
-  finishLoginRequest: z.string(),
-  authSalt: z.string(),
-});
-
-const finishLoginOutputSchema = z.object({
-  sessionId: z.string(),
-});
 
 export const loginRouter = router({
   startLogin: loggedProcedure
@@ -77,17 +63,17 @@ export const loginRouter = router({
       const { finishLoginRequest, email, authSalt } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const res = await db.query.usersTable.findFirst({
+      const userQueryRes = await db.query.usersTable.findFirst({
         columns: { userId: true },
-        where: { emailHash },
+        where: { emailHash, deleted_at: { isNull: true } },
       });
 
-      if (!res)
+      if (!userQueryRes)
         throw new TRPCError({
           code: "UNAUTHORIZED",
           message: "invalid user credentials",
         });
-      const { userId } = res;
+      const { userId } = userQueryRes;
 
       const loginAttempt = await getLoginAttempt(userId);
       if (!loginAttempt) throw new LoginError();
@@ -111,6 +97,7 @@ export const loginRouter = router({
       const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
       const authKey = await hkdf(sessionSecret, "sessionAuth", fromBase64(authSalt));
 
+      // TODO: make session disappear in redis after x time
       const sessionId = await setSession({
         userId,
         rawAuthKey: toBase64(authKey),
@@ -120,6 +107,27 @@ export const loginRouter = router({
       wipe(sessionSecret);
       wipe(authKey);
 
-      return { sessionId };
+      // TODO: global constraint deleted_at is null?
+      const keyQueryRes = await db.query.keysTable.findFirst({
+        columns: {
+          passwordKekParams: true,
+          passwordKekSalt: true,
+          encryptedVaultKey: true,
+          vaultKeyEncryptionNonce: true,
+        },
+        where: {
+          userId,
+          valid_to: { isNull: true },
+          deleted_at: { isNull: true },
+        },
+      });
+
+      if (!keyQueryRes)
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "invalid user credentials",
+        });
+
+      return { sessionId, userPasswordKeys: keyQueryRes };
     }),
 });
