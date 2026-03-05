@@ -1,4 +1,4 @@
-import { useTRPC } from "@repo/client";
+import { useTRPC, SessionContext } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -12,7 +12,7 @@ import {
   NotebookPenIcon,
   TextIcon,
 } from "lucide-react";
-import { Fragment, Suspense } from "react";
+import { Fragment, Suspense, useContext } from "react";
 import { useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
@@ -65,13 +65,15 @@ type DisplayItemProps = {
 
 function DisplayItemInner({ entryId }: DisplayItemProps) {
   const trpc = useTRPC();
-  const { data } = useSuspenseQuery({
-    ...trpc.entry.getById.queryOptions(entryId),
-    select: (item) => ({
-      itemId: item.itemId,
-      ...decryptPayload(item.encryptedData, item.encryptionNonce),
-    }),
-  });
+  const { vaultReady } = useContext(SessionContext);
+  const { data: encryptedItem } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
+
+  if (!vaultReady) return <Fallback />;
+
+  const data = {
+    itemId: encryptedItem.itemId,
+    ...decryptPayload(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
+  };
   const { progress, seconds, token } = useTotp(data.totp);
 
   function copyField(value: string | undefined, label: string) {

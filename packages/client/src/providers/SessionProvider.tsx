@@ -5,16 +5,19 @@ import type { PasswordKeySchema } from "@repo/schema";
 // eslint-disable-next-line react-refresh/only-export-components
 export const SessionContext = createContext<{
   sessionId?: string;
-  login: (
+  vaultReady: boolean;
+  loginSession: (
     newSessionId: string,
     sessionKey: string,
     salt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
-    password: string,
   ) => Promise<void>;
+  unlockVault: (passwordKek: Uint8Array) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
-  async login() {},
+  vaultReady: false,
+  async loginSession() {},
+  unlockVault() {},
   async signRequest() {
     return new Uint8Array(32);
   },
@@ -26,21 +29,30 @@ type SessionProviderProps = {
 
 export default function SessionProvider({ children }: SessionProviderProps) {
   const [sessionId, setSessionId] = useState<string>();
+  const [vaultReady, setVaultReady] = useState(false);
 
-  async function login(
+  async function loginSession(
     newSessionId: string,
     sessionKey: string,
     salt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
-    password: string,
   ) {
+    await secretsStore.unlockSession(newSessionId, sessionKey, salt, userPasswordKeys);
     setSessionId(newSessionId);
-    await secretsStore.unlock(newSessionId, sessionKey, salt, userPasswordKeys, password);
+  }
+
+  function unlockVault(passwordKek: Uint8Array) {
+    secretsStore.unlockVaultWithKek(passwordKek);
+    setVaultReady(true);
   }
 
   async function signRequest(message: string) {
     return await secretsStore.signRequest(message);
   }
 
-  return <SessionContext value={{ sessionId, login, signRequest }}>{children}</SessionContext>;
+  return (
+    <SessionContext value={{ sessionId, vaultReady, loginSession, unlockVault, signRequest }}>
+      {children}
+    </SessionContext>
+  );
 }

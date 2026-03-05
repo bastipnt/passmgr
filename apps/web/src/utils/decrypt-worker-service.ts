@@ -1,4 +1,5 @@
 import type { ItemPayload } from "@repo/schema";
+// oxlint-disable-next-line import/default -- Vite ?worker import
 import DecryptWorker from "../workers/decrypt.worker.ts?worker";
 
 type PendingDecrypt = {

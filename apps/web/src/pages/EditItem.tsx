@@ -1,8 +1,8 @@
 import { useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
-import { Suspense, useEffect } from "react";
+import { Suspense, useContext, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useTRPC } from "@repo/client";
+import { useTRPC, SessionContext } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
@@ -25,17 +25,19 @@ type EditItemListProps = {
 
 function EditItemInner({ entryId }: EditItemListProps) {
   const trpc = useTRPC();
+  const { vaultReady } = useContext(SessionContext);
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
 
-  const { data } = useSuspenseQuery({
-    ...trpc.entry.getById.queryOptions(entryId),
-    select: (item) => ({
-      itemId: item.itemId,
-      version: item.version,
-      ...decryptPayload(item.encryptedData, item.encryptionNonce),
-    }),
-  });
+  const { data: encryptedItem } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
+
+  if (!vaultReady) return <Fallback />;
+
+  const data = {
+    itemId: encryptedItem.itemId,
+    version: encryptedItem.version,
+    ...decryptPayload(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
+  };
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({

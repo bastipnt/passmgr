@@ -4,7 +4,6 @@ import {
   fromBase64,
   fromString,
   hkdf,
-  retrievePRK,
   signHmac,
   wipe,
 } from "@repo/crypto";
@@ -22,16 +21,19 @@ class SecretsStore {
 
   private passwordKekParams?: ArgonParams;
   private passwordKekSalt?: Uint8Array;
-  private encryptedVaultKey?: Uint8Array;
-  private vaultKeyEncryptionNonce?: Uint8Array;
+  private encryptedVaultKeyB64?: string;
+  private vaultKeyEncryptionNonceB64?: string;
   private vaultKey?: Uint8Array;
 
-  async unlock(
+  /**
+   * Phase 1: Establish session (fast — HKDF only).
+   * After this, authenticated requests work but item decryption does not.
+   */
+  async unlockSession(
     sessionId: string,
     sessionKey: string,
     authSalt: Uint8Array,
     userPasswordKeys: PasswordKeySchema,
-    password: string,
   ) {
     this.sessionId = sessionId;
     this.sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
@@ -40,20 +42,38 @@ class SecretsStore {
 
     this.passwordKekParams = userPasswordKeys.passwordKekParams;
     this.passwordKekSalt = fromBase64(userPasswordKeys.passwordKekSalt);
-    this.encryptedVaultKey = fromBase64(userPasswordKeys.encryptedVaultKey);
-    this.vaultKeyEncryptionNonce = fromBase64(userPasswordKeys.vaultKeyEncryptionNonce);
+    this.encryptedVaultKeyB64 = userPasswordKeys.encryptedVaultKey;
+    this.vaultKeyEncryptionNonceB64 = userPasswordKeys.vaultKeyEncryptionNonce;
+  }
 
-    const passwordKek = await retrievePRK(
-      password,
-      this.passwordKekSalt,
-      this.passwordKekParams,
-    );
+  /**
+   * Phase 2: Derive vault key (slow — Argon2id).
+   * Must be called after unlockSession. Can run off main thread.
+   */
+  unlockVaultWithKek(passwordKek: Uint8Array) {
+    if (!this.encryptedVaultKeyB64 || !this.vaultKeyEncryptionNonceB64) {
+      throw new SessionLockedError();
+    }
     this.vaultKey = decryptXChaCha(
       passwordKek,
-      userPasswordKeys.encryptedVaultKey,
-      userPasswordKeys.vaultKeyEncryptionNonce,
+      this.encryptedVaultKeyB64,
+      this.vaultKeyEncryptionNonceB64,
     );
     wipe(passwordKek);
+  }
+
+  getVaultUnlockParams(): { passwordKekSalt: Uint8Array; passwordKekParams: ArgonParams } {
+    if (!this.passwordKekSalt || !this.passwordKekParams) {
+      throw new SessionLockedError();
+    }
+    return {
+      passwordKekSalt: this.passwordKekSalt,
+      passwordKekParams: this.passwordKekParams,
+    };
+  }
+
+  get isVaultUnlocked(): boolean {
+    return this.vaultKey !== undefined;
   }
 
   lock() {
@@ -73,11 +93,8 @@ class SecretsStore {
     if (this.passwordKekSalt) wipe(this.passwordKekSalt);
     this.passwordKekSalt = undefined;
 
-    if (this.encryptedVaultKey) wipe(this.encryptedVaultKey);
-    this.encryptedVaultKey = undefined;
-
-    if (this.vaultKeyEncryptionNonce) wipe(this.vaultKeyEncryptionNonce);
-    this.vaultKeyEncryptionNonce = undefined;
+    this.encryptedVaultKeyB64 = undefined;
+    this.vaultKeyEncryptionNonceB64 = undefined;
 
     if (this.vaultKey) wipe(this.vaultKey);
     this.vaultKey = undefined;

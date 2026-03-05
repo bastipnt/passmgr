@@ -2,7 +2,6 @@ import type { LoginItem } from "../login-item";
 
 export const exampleLoginItems: LoginItem[] = [
   {
-    id: crypto.randomUUID(),
     title: "Pass Mgr",
     username: "lin@example.com",
     password: "super-secret", // TODO: decrypted here?
@@ -16,7 +15,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "This is my login for the password manager.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Nebula Notes",
     username: "stella.orbit",
     password: "Galaxies!42&Drift",
@@ -30,7 +29,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Shared research vault for astronomy collaboration.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Retro Arcade Hub",
     username: "pixelPirate77",
     password: "8Bit$Forever1989",
@@ -44,7 +43,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "High score leaderboard admin account.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "GreenThumb Portal",
     username: "fern.fable",
     password: "Root&Bloom#2026",
@@ -58,7 +57,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Urban gardening community dashboard.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Cipher Café",
     username: "espresso.encrypt",
     password: "Latte!AES256#",
@@ -72,7 +71,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Crypto-themed coworking space account.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Skyline Drones",
     username: "altitude.admin",
     password: "Prop3ller$SkyHigh",
@@ -86,7 +85,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Main control dashboard for drone fleet.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Mythic Library",
     username: "atlas.reader",
     password: "Scrolls&Secrets!9",
@@ -100,7 +99,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Digital archive access for rare manuscripts.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Quantum Cloud",
     username: "qubit.operator",
     password: "Entangle#Future88",
@@ -114,7 +113,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Experimental quantum compute environment.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "No 2FA Account",
     username: "legacy.user",
     password: "OldSystem#123",
@@ -125,7 +124,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Legacy system that does not yet support two-factor authentication.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Broken TOTP Seed",
     username: "validator.test",
     password: "Test!InvalidTOTP",
@@ -137,7 +136,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "This entry intentionally contains an invalid Base32 TOTP secret.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "🌍 Unicode Portal Δ",
     username: "søren.测试.🚀",
     password: "Pāsswørd🔥安全",
@@ -151,7 +150,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Testing full Unicode support across username, password, fields, and domain.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Very Long Note Entry",
     username: "documentation.bot",
     password: "LongNote#2026",
@@ -167,7 +166,7 @@ export const exampleLoginItems: LoginItem[] = [
       "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Duplicate Websites Test",
     username: "dup.checker",
     password: "Dup3Check!Pass",
@@ -183,7 +182,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Tests deduplication logic and normalization.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Empty Everything",
     username: "",
     password: "",
@@ -195,7 +194,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Tracker Admin Console",
     username: "fingerprint.collector",
     password: "CanvasHash!Entropy99",
@@ -211,7 +210,7 @@ export const exampleLoginItems: LoginItem[] = [
   },
   // multiple TOTP
   {
-    id: crypto.randomUUID(),
+
     title: "Dual 2FA Admin",
     username: "multi.factor.admin",
     password: "Primary!Device#1",
@@ -225,7 +224,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Primary TOTP in root field, backup stored in extraFields.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Triple Device 2FA",
     username: "redundancy.user",
     password: "Fail0ver!Ready",
@@ -263,7 +262,7 @@ export const exampleLoginItems: LoginItem[] = [
   // },
   // Import / Export Attack Simulation
   {
-    id: crypto.randomUUID(),
+
     title: "=CMD|' /C calc'!A0",
     username: "excel.injection",
     password: "CSV!Injection#1",
@@ -276,7 +275,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Tests CSV/Excel formula injection handling.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "<script>alert('xss')</script>",
     username: "html.injector",
     password: "DOMPurify!Now",
@@ -288,7 +287,7 @@ export const exampleLoginItems: LoginItem[] = [
   },
   // Phishing Clone Simulation
   {
-    id: crypto.randomUUID(),
+
     title: "PayPaI Account", // capital i instead of l
     username: "user@secure-paypaI.com",
     password: "PhishMeNot!22",
@@ -301,7 +300,7 @@ export const exampleLoginItems: LoginItem[] = [
     note: "Tests homograph / visual phishing detection.",
   },
   {
-    id: crypto.randomUUID(),
+
     title: "Micr0soft 365",
     username: "admin@micr0soft-support.com",
     password: "ResetImmediately#",

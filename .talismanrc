@@ -61,11 +61,15 @@ fileignoreconfig:
 - filename: apps/web/src/types/css-modules.d.ts
   allowed_patterns:
   - key=
+- filename: apps/web/src/utils/argon2-worker-service.ts
+  checksum: f65f680e7f4fb031662558c15e8218595ce0fb4f1f11986234a32ca5ddc347c7
 - filename: apps/web/src/utils/decrypt-worker-service.ts
   checksum: 7aaab39402ec0da0a0b4f451cf4e4e2f49538f7e50c9d39e1176294b008094c4
 - filename: apps/web/src/utils/label-mapping.tsx
   allowed_patterns:
   - key=
+- filename: apps/web/src/workers/argon2.worker.ts
+  checksum: d2d1724b373734f453a062e96e0dae157a8203959fb016d7c591b4a57a93808e
 - filename: apps/web/src/workers/decrypt.worker.ts
   checksum: 9a284325d1c3080ebe642e9ac54c61bf6c0ae949e85ce86501ffff2571fed1b1
 - filename: doc/structure.md
@@ -79,13 +83,13 @@ fileignoreconfig:
   allowed_patterns:
   - password
 - filename: packages/client/src/login.ts
-  checksum: c4f9b5e7119344d5a217524162571d727e4e34e9d71cece1a00c1726d0dfbbb6
+  checksum: a06b2423540c3ab0508d288712f0865b6e543594894f4c460fbd4f3d1f9c7d3f
 - filename: packages/client/src/providers/SessionProvider.tsx
-  checksum: 30739462d7c48aa1137326330d50965cc1905ae757720a0e271f30c3d71b54a7
+  checksum: aa953ce4d3ffc5561ecc5a31838504cf776d856e96c2471a00ec8309997a34a5
 - filename: packages/client/src/register.ts
   checksum: 0af0a0142b6f506b9dd03ad191b73400b499484b4a891bf67febd72a8d9001e9
 - filename: packages/client/src/secrets-store.ts
-  checksum: 7428b41a61e873d10dbd9b443daccaafcc51896eda987ce50dda88ec7de276b0
+  checksum: 7258eea6c3741e93d9ed0c518178ba7a7af32082876bafb9d47606eddbe5a0b5
 - filename: packages/client/vite-env.d.ts
   checksum: 8d6095c451780e81f14f27cdcee314a6f73c023068d3ae4cdcfa559e141e0c34
 - filename: packages/crypto/src/encryption.ts

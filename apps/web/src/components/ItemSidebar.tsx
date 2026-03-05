@@ -1,8 +1,8 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useTRPC } from "@repo/client";
+import { useTRPC, SessionContext } from "@repo/client";
 import {
   Item,
   ItemContent,
@@ -26,10 +26,11 @@ type EncryptedItem = {
   encryptionNonce: string;
 };
 
-function EncryptedSidebarItem({ item, active }: { item: EncryptedItem; active: boolean }) {
+function EncryptedSidebarItem({ item, active, vaultReady }: { item: EncryptedItem; active: boolean; vaultReady: boolean }) {
   const [payload, setPayload] = useState<ItemPayload | null>(null);
 
   useEffect(() => {
+    if (!vaultReady) return;
     let cancelled = false;
     void decryptPayloadAsync(item.itemId, item.encryptedData, item.encryptionNonce).then((p) => {
       if (!cancelled) setPayload(p);
@@ -37,7 +38,7 @@ function EncryptedSidebarItem({ item, active }: { item: EncryptedItem; active: b
     return () => {
       cancelled = true;
     };
-  }, [item.itemId, item.encryptedData, item.encryptionNonce]);
+  }, [item.itemId, item.encryptedData, item.encryptionNonce, vaultReady]);
 
   if (!payload) {
     return (
@@ -92,6 +93,7 @@ function ItemSidebarSkeleton() {
 
 function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   const trpc = useTRPC();
+  const { vaultReady } = useContext(SessionContext);
   const { data } = useSuspenseQuery({
     ...trpc.entry.all.queryOptions(),
     select: (res) =>
@@ -105,7 +107,7 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   return (
     <ItemGroup className="max-w-sm">
       {data.map((item) => (
-        <EncryptedSidebarItem key={item.itemId} item={item} active={item.itemId === itemId} />
+        <EncryptedSidebarItem key={item.itemId} item={item} active={item.itemId === itemId} vaultReady={vaultReady} />
       ))}
     </ItemGroup>
   );

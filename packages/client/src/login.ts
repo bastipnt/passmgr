@@ -3,14 +3,26 @@ import { useTRPCClient } from "./util/trpc";
 import { useContext, useState } from "react";
 import { SessionContext } from "./providers/SessionProvider";
 import { genSalt, toBase64 } from "@repo/crypto";
+import { secretsStore } from "./secrets-store";
 import type { PasswordKeySchema } from "@repo/schema";
+
+export type VaultUnlockInfo = {
+  password: string;
+  passwordKekSalt: Uint8Array;
+  passwordKekParams: { t: number; m: number; p: number };
+};
 
 export function useLogin() {
   const trpc = useTRPCClient();
-  const { login } = useContext(SessionContext);
+  const { loginSession } = useContext(SessionContext);
   const [loginError, setLoginError] = useState(false);
 
-  async function loginUser(email: string, password: string) {
+  /**
+   * Performs the OPAQUE login and establishes the session (fast).
+   * Returns the info needed to derive the vault key (slow Argon2id step)
+   * so the caller can run it off the main thread.
+   */
+  async function loginUser(email: string, password: string): Promise<VaultUnlockInfo | undefined> {
     const { clientLoginState, startLoginRequest } = opaque.client.startLogin({
       password,
     });
@@ -58,7 +70,11 @@ export function useLogin() {
       return;
     }
 
-    await login(sessionId, sessionKey, authSalt, userPasswordKeys, password);
+    await loginSession(sessionId, sessionKey, authSalt, userPasswordKeys);
+
+    const { passwordKekSalt, passwordKekParams } = secretsStore.getVaultUnlockParams();
+
+    return { password, passwordKekSalt, passwordKekParams };
   }
 
   return { loginUser, loginError };
