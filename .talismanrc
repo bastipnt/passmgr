@@ -2,6 +2,8 @@ fileignoreconfig:
 - filename: AGENTS.md
   allowed_patterns:
   - password
+- filename: CLAUDE.md
+  checksum: 9fea7b50512ee799f74485cd021202aae047bb57cc9231883389290eaa31a3cd
 - filename: apps/docs/app/page.tsx
   checksum: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
 - filename: apps/mobile/assets/images/icon.png

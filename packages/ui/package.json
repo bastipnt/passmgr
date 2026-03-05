@@ -4,6 +4,7 @@
   "type": "module",
   "private": true,
   "scripts": {
+    "lint": "oxlint --type-aware",
     "typegen:css": "tcm src",
     "typecheck": "tsc --noEmit",
     "storybook": "storybook dev -p 6006",
@@ -14,6 +15,8 @@
   },
   "devDependencies": {
     "@chromatic-com/storybook": "^5.0.1",
+    "oxlint": "^1.48.0",
+    "oxlint-tsgolint": "^0.14.0",
     "@repo/typescript-config": "workspace:*",
     "@storybook/addon-a11y": "^10.2.10",
     "@storybook/addon-docs": "^10.2.10",

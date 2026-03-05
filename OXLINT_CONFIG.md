@@ -31,7 +31,7 @@ Create `.oxlintrc.json`:
 
 ```json
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.base.json"]
 }
 ```
@@ -42,7 +42,7 @@ Create `.oxlintrc.json`:
 
 ```json
 {
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.base.json"],
   "plugins": ["jsx-a11y", "react"]
 }
