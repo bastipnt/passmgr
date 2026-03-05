@@ -45,7 +45,7 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
               </ItemMedia>
               <ItemContent className="gap-1">
                 <ItemTitle>{title}</ItemTitle>
-                <ItemDescription>{username}</ItemDescription>
+                <ItemDescription className="line-clamp-1">{username}</ItemDescription>
               </ItemContent>
             </Link>
           </Item>

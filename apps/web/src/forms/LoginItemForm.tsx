@@ -4,6 +4,7 @@ import {
   type Control,
   type FieldErrors,
   type UseFormRegister,
+  type UseFormSetValue,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "@repo/ui/components/Link";
@@ -29,13 +30,18 @@ import {
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
 
+function normalizeWebsiteUrl(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+}
+
 type WebsiteFieldsProps = {
   control: Control<FormValues>;
   register: UseFormRegister<FormValues>;
   errors: FieldErrors<FormValues>;
+  setValue: UseFormSetValue<FormValues>;
 };
 
-function WebsiteFields({ control }: WebsiteFieldsProps) {
+function WebsiteFields({ control, setValue }: WebsiteFieldsProps) {
   const { fields, append, replace, remove } = useFieldArray({
     control,
     name: "websites",
@@ -46,6 +52,11 @@ function WebsiteFields({ control }: WebsiteFieldsProps) {
 
     replace({ value: "" });
   }, [fields.length, replace]);
+
+  function normalizeWebsite(index: number, value: string) {
+    const trimmed = value.trim();
+    if (trimmed) setValue(`websites.${index}.value`, normalizeWebsiteUrl(trimmed));
+  }
 
   return (
     <FieldSet>
@@ -61,6 +72,7 @@ function WebsiteFields({ control }: WebsiteFieldsProps) {
                 autoComplete="off"
                 placeholder="https://"
                 hideLabel
+                onBlur={(e) => normalizeWebsite(index, e.target.value)}
               />
             </ButtonGroup>
 
@@ -144,6 +156,7 @@ type PassItemProps = {
   action: string;
   serverError?: string;
   defaultValues?: Partial<FormValues>;
+  cancelHref?: string;
 };
 
 export default function LoginItemForm({
@@ -152,19 +165,31 @@ export default function LoginItemForm({
   defaultValues,
   title,
   action,
+  cancelHref = "/",
 }: PassItemProps) {
   const {
     register,
     handleSubmit,
     formState: { errors },
     control,
+    setValue,
   } = useForm<FormValues>({
     resolver: zodResolver(loginItemSchema),
     defaultValues,
   });
 
+  function handleFormSubmit(data: FormValues) {
+    onSubmit({
+      ...data,
+      websites: data.websites
+        ?.map(({ value, ...rest }) => ({ ...rest, value: value.trim() }))
+        .filter(({ value }) => value !== "")
+        .map(({ value, ...rest }) => ({ ...rest, value: normalizeWebsiteUrl(value) })),
+    });
+  }
+
   return (
-    <form onSubmit={handleSubmit(onSubmit)}>
+    <form onSubmit={handleSubmit(handleFormSubmit)}>
       <Card className="w-lg">
         <CardHeader>
           <CardTitle>{title}</CardTitle>
@@ -205,7 +230,12 @@ export default function LoginItemForm({
 
             <FieldSeparator />
 
-            <WebsiteFields control={control} register={register} errors={errors} />
+            <WebsiteFields
+              control={control}
+              register={register}
+              errors={errors}
+              setValue={setValue}
+            />
 
             <FieldSeparator />
 
@@ -223,7 +253,7 @@ export default function LoginItemForm({
         </CardContent>
 
         <CardFooter className="flex flex-row gap-4 justify-end">
-          <Link variant="outline" href={"/"}>
+          <Link variant="outline" href={cancelHref}>
             Cancel
           </Link>
           <Button type="submit">{action}</Button>

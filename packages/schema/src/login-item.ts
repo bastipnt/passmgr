@@ -13,7 +13,7 @@ export const loginItemSchema = z.object({
   websites: z
     .array(
       z.object({
-        value: z.string(),
+        value: z.url("Must be a valid URL"),
       }),
     )
     .optional(),

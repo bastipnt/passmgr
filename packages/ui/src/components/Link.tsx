@@ -21,17 +21,21 @@ export default function Link({
   children,
   ...props
 }: LinkProps) {
+  const isExternal = target === "_blank";
+
   return (
     <Button asChild variant={variant} size={size} className={className}>
-      <WouterLink href={href} target={target} {...props}>
-        {children}
-        {target === "_blank" && (
-          <>
-            {" "}
-            <ArrowUpRightIcon />
-          </>
-        )}
-      </WouterLink>
+      {isExternal ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+          {children}
+          {" "}
+          <ArrowUpRightIcon />
+        </a>
+      ) : (
+        <WouterLink href={href} target={target} {...props}>
+          {children}
+        </WouterLink>
+      )}
     </Button>
   );
 }

@@ -19,6 +19,7 @@ import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
 import { editSlug } from "@/data/routes";
 import { decryptPayload } from "@/utils/vault";
+import { toast } from "@repo/ui";
 
 function Fallback() {
   return (
@@ -43,6 +44,12 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
   });
   const { progress, seconds, token } = useTotp(data.totp);
 
+  function copyField(value: string | undefined, label: string) {
+    if (!value) return;
+    void navigator.clipboard.writeText(value);
+    toast.success(`${label} copied to clipboard`);
+  }
+
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
       <div className="grid grid-cols-[1fr_auto]">
@@ -56,7 +63,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         <ItemDisplay
           title="Username"
           value={data.username}
-          onClick={() => {}}
+          onClick={() => copyField(data.username, "Username")}
           icon={<MailIcon />}
         />
 
@@ -65,7 +72,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         <ItemDisplay
           title="Password"
           value={data.password}
-          onClick={() => {}}
+          onClick={({ type }) => type === "copy" && copyField(data.password, "Password")}
           icon={<KeyIcon />}
           variant={data.password ? "password" : "noAction"}
         />
@@ -77,7 +84,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
             <ItemDisplay
               title="2FA token (TOTP)"
               value={token}
-              onClick={() => {}}
+              onClick={() => copyField(token, "2FA token")}
               icon={<LockIcon />}
               actions={
                 <CircleProgress progress={(100 / (30 * 1_000)) * Number(progress)}>
@@ -89,42 +96,39 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         )}
       </ItemDisplayGroup>
 
-      <ItemDisplayGroup>
-        <ItemDisplay
-          title="Websites"
-          value={
-            !data.websites || data.websites.length === 0 ? (
-              <li>
-                <p>https://</p>
-              </li>
-            ) : (
+      {isDefined(data.websites) && data.websites.length > 0 && (
+        <ItemDisplayGroup>
+          <ItemDisplay
+            title="Websites"
+            value={
               <ul>
                 {data.websites.map(({ value }, i) => (
                   <li key={i}>
-                    {/* TODO: correct website formatting with https:// */}
-                    <Link target="_blank" href={`//${value}`} className="p-0">
+                    <Link target="_blank" href={value} className="p-0">
                       {value}
                     </Link>
                   </li>
                 ))}
               </ul>
-            )
-          }
-          onClick={() => {}}
-          icon={<EarthIcon />}
-          variant="noAction"
-        />
-      </ItemDisplayGroup>
+            }
+            onClick={() => {}}
+            icon={<EarthIcon />}
+            variant="noAction"
+          />
+        </ItemDisplayGroup>
+      )}
 
-      <ItemDisplayGroup>
-        <ItemDisplay
-          title="Notes"
-          value={data.note}
-          onClick={() => {}}
-          icon={<NotebookPenIcon />}
-          variant="noAction"
-        />
-      </ItemDisplayGroup>
+      {isDefined(data.note) && data.note !== "" && (
+        <ItemDisplayGroup>
+          <ItemDisplay
+            title="Notes"
+            value={data.note}
+            onClick={() => {}}
+            icon={<NotebookPenIcon />}
+            variant="noAction"
+          />
+        </ItemDisplayGroup>
+      )}
 
       {isDefined(data.extraFields) && data.extraFields.length > 0 && (
         <ItemDisplayGroup>
@@ -133,7 +137,9 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
               <ItemDisplay
                 title={extraField.title}
                 value={extraField.value}
-                onClick={() => {}}
+                onClick={({ type }) =>
+                  type === "copy" && copyField(extraField.value, extraField.title)
+                }
                 icon={extraField.type === "secret" ? <LockIcon /> : <TextIcon />}
                 variant={extraField.type === "secret" ? "hidden" : "default"}
               />

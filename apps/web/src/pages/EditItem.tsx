@@ -40,8 +40,8 @@ function EditItemInner({ entryId }: EditItemListProps) {
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({
       onSuccess: () => {
-        queryClient.invalidateQueries(trpc.entry.all.queryFilter());
-        queryClient.invalidateQueries(trpc.entry.getById.queryFilter(entryId));
+        void queryClient.invalidateQueries(trpc.entry.all.queryFilter());
+        void queryClient.invalidateQueries(trpc.entry.getById.queryFilter(entryId));
         navigate(`/${entrySlug}/${entryId}`);
       },
     }),
@@ -84,6 +84,7 @@ function EditItemInner({ entryId }: EditItemListProps) {
         defaultValues={defaultValues}
         title="Edit Login"
         action="Save"
+        cancelHref={`/${entrySlug}/${entryId}`}
       />
     </LayoutOverlay>
   );

@@ -18,7 +18,7 @@ export default function NewItem() {
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
       onSuccess: (result) => {
-        queryClient.invalidateQueries(trpc.entry.all.queryFilter());
+        void queryClient.invalidateQueries(trpc.entry.all.queryFilter());
         navigate(`/${entrySlug}/${result.itemId}`);
       },
     }),
