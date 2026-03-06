@@ -1,4 +1,14 @@
 import { useForm } from "@repo/ui";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@repo/ui/components/Dialog";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { fromBase64 } from "@repo/crypto";
@@ -45,7 +55,6 @@ export default function Unlock({
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [showEnrollPrompt, setShowEnrollPrompt] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(false);
   // Holds the pending unlock callback so we can defer the redirect until after enrollment
   const pendingUnlockRef = useRef<(() => void) | null>(null);
 
@@ -233,8 +242,34 @@ export default function Unlock({
         </Card>
       </form>
 
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button variant="link" className="text-muted-foreground text-xs">
+            Remove vault from this device
+          </Button>
+        </DialogTrigger>
+
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Remove vault</DialogTitle>
+            <DialogDescription>
+              This will remove the local vault data from this device. Your account and server data
+              are not affected. You can log in again with your credentials.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button variant="secondary">Close</Button>
+            </DialogClose>
+            <Button variant="destructive" onClick={onRemoveVault}>
+              Remove vault
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* TODO: as dialog and also on unlock */}
-      {confirmRemove ? (
+      {/* {confirmRemove ? (
         <Card>
           <CardContent className="pt-6">
             <p className="text-sm text-muted-foreground">
@@ -260,7 +295,7 @@ export default function Unlock({
         >
           Remove vault from this device
         </Button>
-      )}
+      )} */}
     </section>
   );
 }
