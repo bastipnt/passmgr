@@ -29,6 +29,7 @@ const SCHEMA_SQL = /* sql */ `
   );
 `;
 
+// TODO: why done like this? why extending StorageAdapter?
 export class SqliteAdapter implements StorageAdapter {
   private db: SQLocal;
   private initialized: Promise<void>;
