@@ -62,6 +62,19 @@ class SecretsStore {
     wipe(passwordKek);
   }
 
+  /**
+   * Offline unlock: derive vault key from stored encrypted material + password KEK.
+   * No server session is established — only item decryption works.
+   */
+  unlockOffline(
+    passwordKek: Uint8Array,
+    encryptedVaultKey: string,
+    vaultKeyEncryptionNonce: string,
+  ) {
+    this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKey, vaultKeyEncryptionNonce);
+    wipe(passwordKek);
+  }
+
   getVaultUnlockParams(): { passwordKekSalt: Uint8Array; passwordKekParams: ArgonParams } {
     if (!this.passwordKekSalt || !this.passwordKekParams) {
       throw new SessionLockedError();
@@ -69,6 +82,19 @@ class SecretsStore {
     return {
       passwordKekSalt: this.passwordKekSalt,
       passwordKekParams: this.passwordKekParams,
+    };
+  }
+
+  getEncryptedVaultKeyMaterial(): {
+    encryptedVaultKey: string;
+    vaultKeyEncryptionNonce: string;
+  } {
+    if (!this.encryptedVaultKeyB64 || !this.vaultKeyEncryptionNonceB64) {
+      throw new SessionLockedError();
+    }
+    return {
+      encryptedVaultKey: this.encryptedVaultKeyB64,
+      vaultKeyEncryptionNonce: this.vaultKeyEncryptionNonceB64,
     };
   }
 

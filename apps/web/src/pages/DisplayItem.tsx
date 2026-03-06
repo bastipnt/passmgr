@@ -65,7 +65,7 @@ type DisplayItemProps = {
 };
 
 function DisplayItemInner({ entryId }: DisplayItemProps) {
-  const { vaultReady } = useContext(SessionContext);
+  const { vaultReady, isOffline } = useContext(SessionContext);
   const { data: encryptedItem } = useSuspenseQuery(useLocalEntryByIdOptions(entryId));
 
   if (!vaultReady) return <Fallback />;
@@ -86,9 +86,11 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
     <div className="grid grid-cols-1 p-8 items-start gap-4">
       <div className="grid grid-cols-[1fr_auto]">
         <h1>{data.title}</h1>
-        <Link href={`/${editSlug}/${entryId}`}>
-          <EditIcon /> Edit
-        </Link>
+        {!isOffline && (
+          <Link href={`/${editSlug}/${entryId}`}>
+            <EditIcon /> Edit
+          </Link>
+        )}
       </div>
 
       <ItemDisplayGroup>

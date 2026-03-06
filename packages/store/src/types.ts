@@ -10,6 +10,14 @@ export type LocalItem = {
   deleted_at?: string | null;
 };
 
+export type VaultKeyMaterial = {
+  encryptedVaultKey: string;
+  vaultKeyEncryptionNonce: string;
+  passwordKekSalt: string;
+  passwordKekParams: string; // JSON-encoded {t, m, p}
+  email: string;
+};
+
 export interface StorageAdapter {
   /** Insert or replace item rows (by itemId + version). */
   upsertItems(items: LocalItem[]): Promise<void>;
@@ -23,6 +31,12 @@ export interface StorageAdapter {
   /** Sync metadata */
   getLastSyncTimestamp(): Promise<string | null>;
   setLastSyncTimestamp(ts: string): Promise<void>;
+
+  /** Persist encrypted vault key material for offline unlock. */
+  setVaultKeyMaterial(material: VaultKeyMaterial): Promise<void>;
+
+  /** Retrieve stored vault key material, or null if not set. */
+  getVaultKeyMaterial(): Promise<VaultKeyMaterial | null>;
 
   /** Clear all data (on logout). */
   clear(): Promise<void>;

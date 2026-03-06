@@ -2,8 +2,10 @@ import { useForm } from "@repo/ui";
 import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useLogin, secretsStore } from "@repo/client";
+import { toBase64 } from "@repo/crypto";
 import { decryptWorkerService } from "@/utils/decrypt-worker-service";
 import { argon2WorkerService } from "@/utils/argon2-worker-service";
+import { useLocalStore } from "@/store/store-provider";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -21,9 +23,15 @@ import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPass
 import { useContext, useState } from "react";
 import { SessionContext } from "@repo/client";
 
-export default function Login() {
+type LoginProps = {
+  storedEmail?: string;
+  onBackToUnlock?: () => void;
+};
+
+export default function Login({ storedEmail, onBackToUnlock }: LoginProps) {
   const { loginUser, loginError } = useLogin();
   const { unlockVault } = useContext(SessionContext);
+  const store = useLocalStore();
   const [loading, setLoading] = useState(false);
 
   const userCredentialsSchema = z.object({
@@ -54,9 +62,26 @@ export default function Login() {
     // Now derive vault key off the main thread.
     argon2WorkerService
       .derive(unlockInfo.password, unlockInfo.passwordKekSalt, unlockInfo.passwordKekParams)
-      .then((passwordKek) => {
+      .then(async (passwordKek) => {
         unlockVault(passwordKek);
         decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+
+        // Clear previous user's data if a different account logs in
+        const previousEmail = store?.vaultKeyMaterial?.email;
+        if (previousEmail && previousEmail !== email) {
+          await store?.localStore.clear();
+        }
+
+        // Persist encrypted vault key material for offline unlock
+        const { encryptedVaultKey, vaultKeyEncryptionNonce } =
+          secretsStore.getEncryptedVaultKeyMaterial();
+        void store?.localStore.setVaultKeyMaterial({
+          encryptedVaultKey,
+          vaultKeyEncryptionNonce,
+          passwordKekSalt: toBase64(unlockInfo.passwordKekSalt),
+          passwordKekParams: JSON.stringify(unlockInfo.passwordKekParams),
+          email,
+        });
       })
       .catch((err) => {
         console.error("Vault unlock failed:", err);
@@ -64,7 +89,7 @@ export default function Login() {
   };
 
   return (
-    <section className="w-xs max-w-full">
+    <section className="w-xs max-w-full flex flex-col gap-3">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
@@ -104,6 +129,22 @@ export default function Login() {
           </CardFooter>
         </Card>
       </form>
+
+      {storedEmail && onBackToUnlock && (
+        <button
+          type="button"
+          onClick={onBackToUnlock}
+          className="flex items-center gap-3 rounded-lg border p-3 text-sm text-left hover:bg-muted transition-colors"
+        >
+          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
+            {storedEmail.charAt(0).toUpperCase()}
+          </span>
+          <span className="flex flex-col min-w-0">
+            <span className="truncate font-medium">{storedEmail}</span>
+            <span className="text-muted-foreground text-xs">Unlock existing vault</span>
+          </span>
+        </button>
+      )}
     </section>
   );
 }

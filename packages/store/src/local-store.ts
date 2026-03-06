@@ -1,4 +1,4 @@
-import type { LocalItem, StorageAdapter } from "./types";
+import type { LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
 
 export class LocalStore {
   constructor(private adapter: StorageAdapter) {}
@@ -22,6 +22,14 @@ export class LocalStore {
 
   async setLastSyncTimestamp(ts: string): Promise<void> {
     await this.adapter.setLastSyncTimestamp(ts);
+  }
+
+  async setVaultKeyMaterial(material: VaultKeyMaterial): Promise<void> {
+    await this.adapter.setVaultKeyMaterial(material);
+  }
+
+  async getVaultKeyMaterial(): Promise<VaultKeyMaterial | null> {
+    return this.adapter.getVaultKeyMaterial();
   }
 
   async clear(): Promise<void> {

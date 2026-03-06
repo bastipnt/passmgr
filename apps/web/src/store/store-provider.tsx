@@ -1,12 +1,13 @@
-import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LocalStore, SyncManager } from "@repo/store";
+import { LocalStore, SyncManager, type VaultKeyMaterial } from "@repo/store";
 import { SessionContext, useTRPCClient } from "@repo/client";
 import { SqliteAdapter } from "./sqlite-adapter";
 
 type StoreContextValue = {
   localStore: LocalStore;
   syncManager: SyncManager;
+  vaultKeyMaterial: VaultKeyMaterial | null;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -20,11 +21,12 @@ type StoreProviderProps = {
 };
 
 export default function StoreProvider({ children }: StoreProviderProps) {
-  const { sessionId, vaultReady } = useContext(SessionContext);
+  const { sessionId, vaultReady, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const queryClient = useQueryClient();
+  const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
 
-  const storeRef = useRef<StoreContextValue | null>(null);
+  const storeRef = useRef<{ localStore: LocalStore; syncManager: SyncManager } | null>(null);
 
   if (!storeRef.current) {
     const adapter = new SqliteAdapter();
@@ -36,11 +38,16 @@ export default function StoreProvider({ children }: StoreProviderProps) {
     storeRef.current = { localStore, syncManager };
   }
 
-  const { syncManager } = storeRef.current;
+  const { localStore, syncManager } = storeRef.current;
 
-  // Sync on login + start periodic sync + resync when back online
+  // Load vault key material on mount to check if offline unlock is available
   useEffect(() => {
-    if (!sessionId) return;
+    void localStore.getVaultKeyMaterial().then(setVaultKeyMaterial);
+  }, [localStore]);
+
+  // Sync on login + start periodic sync + resync when back online (skip when offline-only)
+  useEffect(() => {
+    if (!sessionId || isOffline) return;
 
     const unsub = syncManager.onSync(() => {
       void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
@@ -57,7 +64,7 @@ export default function StoreProvider({ children }: StoreProviderProps) {
       window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [sessionId, syncManager, queryClient]);
+  }, [sessionId, isOffline, syncManager, queryClient]);
 
   // Re-sync when vault becomes ready (items may have been fetched but not decryptable yet)
   useEffect(() => {
@@ -66,5 +73,10 @@ export default function StoreProvider({ children }: StoreProviderProps) {
     }
   }, [vaultReady, queryClient]);
 
-  return <StoreContext value={storeRef.current}>{children}</StoreContext>;
+  const value: StoreContextValue = {
+    ...storeRef.current,
+    vaultKeyMaterial,
+  };
+
+  return <StoreContext value={value}>{children}</StoreContext>;
 }

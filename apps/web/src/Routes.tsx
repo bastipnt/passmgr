@@ -5,22 +5,41 @@ import SelectedElementProvider from "./providers/SelectedElementProvider";
 import { editSlug, entrySlug, newSlug } from "./data/routes";
 import EditItem from "@pages/EditItem";
 import Login from "@pages/auth/Login";
+import Unlock from "@pages/auth/Unlock";
 import PublicLayout from "./layout/PublicLayout";
 import NotFound from "@pages/NotFound";
 import Register from "@pages/auth/Register";
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { SessionContext } from "@repo/client";
 import NewItem from "@pages/NewItem";
 import DisplayItem from "@pages/DisplayItem";
+import { useLocalStore } from "./store/store-provider";
 
 function PublicRoutes() {
   const { sessionId } = useContext(SessionContext);
+  const store = useLocalStore();
+  const [switchAccount, setSwitchAccount] = useState(false);
+
   if (sessionId) return <Redirect to="/" />;
+
+  const showUnlock = !switchAccount && store?.vaultKeyMaterial;
 
   return (
     <PublicLayout>
       <Switch>
-        <Route path="/login" component={Login} />
+        <Route path="/login">
+          {showUnlock ? (
+            <Unlock
+              vaultKeyMaterial={store.vaultKeyMaterial!}
+              onSwitchAccount={() => setSwitchAccount(true)}
+            />
+          ) : (
+            <Login
+              storedEmail={store?.vaultKeyMaterial?.email}
+              onBackToUnlock={store?.vaultKeyMaterial ? () => setSwitchAccount(false) : undefined}
+            />
+          )}
+        </Route>
         <Route path="/register" component={Register} />
         <Route>
           <NotFound />

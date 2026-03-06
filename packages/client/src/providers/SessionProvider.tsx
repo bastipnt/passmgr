@@ -6,6 +6,7 @@ import type { PasswordKeySchema } from "@repo/schema";
 export const SessionContext = createContext<{
   sessionId?: string;
   vaultReady: boolean;
+  isOffline: boolean;
   loginSession: (
     newSessionId: string,
     sessionKey: string,
@@ -13,11 +14,18 @@ export const SessionContext = createContext<{
     userPasswordKeys: PasswordKeySchema,
   ) => Promise<void>;
   unlockVault: (passwordKek: Uint8Array) => void;
+  offlineUnlock: (
+    passwordKek: Uint8Array,
+    encryptedVaultKey: string,
+    vaultKeyEncryptionNonce: string,
+  ) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
   vaultReady: false,
+  isOffline: false,
   async loginSession() {},
   unlockVault() {},
+  offlineUnlock() {},
   async signRequest() {
     return new Uint8Array(32);
   },
@@ -30,6 +38,8 @@ type SessionProviderProps = {
 export default function SessionProvider({ children }: SessionProviderProps) {
   const [sessionId, setSessionId] = useState<string>();
   const [vaultReady, setVaultReady] = useState(false);
+  // TODO: offline state should come from network?
+  const [isOffline, setIsOffline] = useState(false);
 
   async function loginSession(
     newSessionId: string,
@@ -38,6 +48,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     userPasswordKeys: PasswordKeySchema,
   ) {
     await secretsStore.unlockSession(newSessionId, sessionKey, salt, userPasswordKeys);
+    setIsOffline(false);
     setSessionId(newSessionId);
   }
 
@@ -46,12 +57,33 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     setVaultReady(true);
   }
 
+  function offlineUnlock(
+    passwordKek: Uint8Array,
+    encryptedVaultKey: string,
+    vaultKeyEncryptionNonce: string,
+  ) {
+    secretsStore.unlockOffline(passwordKek, encryptedVaultKey, vaultKeyEncryptionNonce);
+    setIsOffline(true);
+    setSessionId("offline");
+    setVaultReady(true);
+  }
+
   async function signRequest(message: string) {
     return await secretsStore.signRequest(message);
   }
 
   return (
-    <SessionContext value={{ sessionId, vaultReady, loginSession, unlockVault, signRequest }}>
+    <SessionContext
+      value={{
+        sessionId,
+        vaultReady,
+        isOffline,
+        loginSession,
+        unlockVault,
+        offlineUnlock,
+        signRequest,
+      }}
+    >
       {children}
     </SessionContext>
   );

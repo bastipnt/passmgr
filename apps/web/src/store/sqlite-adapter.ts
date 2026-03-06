@@ -1,8 +1,9 @@
 import { SQLocal } from "sqlocal";
-import type { StorageAdapter, LocalItem } from "@repo/store";
+import type { StorageAdapter, LocalItem, VaultKeyMaterial } from "@repo/store";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import SQLocalWorker from "../workers/sqlocal.worker.ts?worker";
 
+// TODO: separation between multiple users?
 const SCHEMA_SQL = /* sql */ `
   CREATE TABLE IF NOT EXISTS items (
     itemId TEXT NOT NULL,
@@ -100,6 +101,26 @@ export class SqliteAdapter implements StorageAdapter {
     await this.db.sql`
       INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('lastSyncedAt', ${ts})
     `;
+  }
+
+  async setVaultKeyMaterial(material: VaultKeyMaterial): Promise<void> {
+    await this.ready();
+    await this.db.transaction(async (tx) => {
+      for (const [key, value] of Object.entries(material)) {
+        await tx.sql`INSERT OR REPLACE INTO sync_meta (key, value) VALUES (${key}, ${value})`;
+      }
+    });
+  }
+
+  async getVaultKeyMaterial(): Promise<VaultKeyMaterial | null> {
+    await this.ready();
+    const rows = await this.db.sql<{ key: string; value: string }> /* sql */ `
+      SELECT key, value FROM sync_meta
+      WHERE key IN ('encryptedVaultKey', 'vaultKeyEncryptionNonce', 'passwordKekSalt', 'passwordKekParams', 'email')
+    `;
+    if (rows.length < 5) return null;
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return map as VaultKeyMaterial;
   }
 
   async clear(): Promise<void> {

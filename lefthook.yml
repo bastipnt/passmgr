@@ -3,17 +3,10 @@ commit-msg:
     lint-commit-msg:
       run: pnpm dlx commitlint --edit
 pre-commit:
-  parallel: true
   commands:
-    talisman:
-      tags: security audit
-      run: talisman --githook pre-commit
     gitleaks:
       tags: security audit
-      run: |
-        for file in {staged_files}; do
-          gitleaks dir -v --no-banner "$file"
-        done
+      run: gitleaks protect --staged --no-banner -v
 pre-push:
   parallel: true
   commands:

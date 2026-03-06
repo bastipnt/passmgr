@@ -1,25 +1,30 @@
-import type { ReactNode } from "react";
+import { useContext, type ReactNode } from "react";
 import { Input } from "@repo/ui/components/Input";
 import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
 import { PlusIcon } from "lucide-react";
+import { SessionContext } from "@repo/client";
 
 type LayoutProps = {
   children: ReactNode;
 };
 
 export default function Layout({ children }: LayoutProps) {
+  const { isOffline } = useContext(SessionContext);
+
   return (
     <>
       <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-[minmax(10vw,300px)_1fr]">
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <Input placeholder="Search..." />
           <ThemeToggle />
-          <Link href="/new" variant="default">
-            <PlusIcon />
-            New Item
-          </Link>
+          {!isOffline && (
+            <Link href="/new" variant="default">
+              <PlusIcon />
+              New Item
+            </Link>
+          )}
         </header>
         <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
           <section className="border-r p-4 overflow-y-scroll">
