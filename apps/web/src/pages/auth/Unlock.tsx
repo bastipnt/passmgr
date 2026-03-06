@@ -22,12 +22,14 @@ import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPass
 import { useContext, useEffect, useRef, useState } from "react";
 import { SessionContext } from "@repo/client";
 import type { BiometricKeyMaterial, LocalStore, VaultKeyMaterial } from "@repo/store";
+import { FingerprintIcon } from "lucide-react";
 
 type UnlockProps = {
   vaultKeyMaterial: VaultKeyMaterial;
   biometricKeyMaterial: BiometricKeyMaterial | null;
   localStore: LocalStore;
   onSwitchAccount: () => void;
+  onRemoveVault: () => Promise<void>;
 };
 
 export default function Unlock({
@@ -35,6 +37,7 @@ export default function Unlock({
   biometricKeyMaterial,
   localStore,
   onSwitchAccount,
+  onRemoveVault,
 }: UnlockProps) {
   const { offlineUnlock, offlineUnlockWithVaultKey } = useContext(SessionContext);
   const [loading, setLoading] = useState(false);
@@ -42,6 +45,7 @@ export default function Unlock({
   const [biometricAvailable, setBiometricAvailable] = useState(false);
   const [showEnrollPrompt, setShowEnrollPrompt] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
   // Holds the pending unlock callback so we can defer the redirect until after enrollment
   const pendingUnlockRef = useRef<(() => void) | null>(null);
 
@@ -174,9 +178,14 @@ export default function Unlock({
   }
 
   return (
-    <section className="w-xs max-w-full flex flex-col gap-3">
+    <section className="w-xs max-w-full flex flex-col gap-4">
       {biometricKeyMaterial && (
         <Card>
+          <CardHeader>
+            <CardTitle>
+              <FingerprintIcon className="size-12 mx-auto" />
+            </CardTitle>
+          </CardHeader>
           <CardContent className="pt-6">
             <Button type="button" className="w-full" onClick={onBiometricUnlock} disabled={loading}>
               Unlock with biometrics
@@ -190,7 +199,7 @@ export default function Unlock({
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
-            <CardTitle>Unlock</CardTitle>
+            <CardTitle>Unlock vault</CardTitle>
             <CardAction>
               <Button type="button" variant="link" onClick={onSwitchAccount}>
                 Switch account
@@ -223,6 +232,35 @@ export default function Unlock({
           </CardFooter>
         </Card>
       </form>
+
+      {/* TODO: as dialog and also on unlock */}
+      {confirmRemove ? (
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-sm text-muted-foreground">
+              This will remove the local vault data from this device. Your account and server data
+              are not affected. You can log in again with your credentials.
+            </p>
+          </CardContent>
+          <CardFooter className="flex flex-row gap-4 justify-end">
+            <Button type="button" variant="outline" onClick={() => setConfirmRemove(false)}>
+              Cancel
+            </Button>
+            <Button type="button" variant="destructive" onClick={onRemoveVault}>
+              Remove vault
+            </Button>
+          </CardFooter>
+        </Card>
+      ) : (
+        <Button
+          type="button"
+          variant="link"
+          className="text-muted-foreground text-xs"
+          onClick={() => setConfirmRemove(true)}
+        >
+          Remove vault from this device
+        </Button>
+      )}
     </section>
   );
 }

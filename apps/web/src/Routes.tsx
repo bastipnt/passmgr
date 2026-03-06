@@ -34,11 +34,13 @@ function PublicRoutes() {
               biometricKeyMaterial={store.biometricKeyMaterial}
               localStore={store.localStore}
               onSwitchAccount={() => setSwitchAccount(true)}
+              onRemoveVault={store.removeVault}
             />
           ) : (
             <Login
               storedEmail={store?.vaultKeyMaterial?.email}
               onBackToUnlock={store?.vaultKeyMaterial ? () => setSwitchAccount(false) : undefined}
+              onRemoveVault={store?.vaultKeyMaterial ? store.removeVault : undefined}
             />
           )}
         </Route>

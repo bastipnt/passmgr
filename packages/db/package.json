@@ -12,14 +12,18 @@
     "db:push": "npx drizzle-kit push",
     "db:generate": "bunx drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "bunx drizzle-kit migrate",
-    "db:reset": "bun ./devResetDB.ts"
+    "db:reset": "bun ./devResetDB.ts",
+    "db:seed": "bun ./devSeed.ts"
   },
   "keywords": [],
   "author": "",
   "license": "MIT",
   "packageManager": "pnpm@10.28.2",
   "dependencies": {
+    "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
+    "@repo/util": "workspace:*",
+    "@serenity-kit/opaque": "^1.1.0",
     "dotenv": "^17.3.1",
     "drizzle-orm": "1.0.0-beta.15-859cf75",
     "pg": "^8.18.0"

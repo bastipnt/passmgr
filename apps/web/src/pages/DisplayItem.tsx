@@ -111,7 +111,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
           variant={data.password ? "password" : "noAction"}
         />
 
-        {isDefined(data.totp) && (
+        {isDefined(data.totp) && token && (
           <>
             <Separator />
 

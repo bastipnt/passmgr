@@ -21,14 +21,20 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { useContext, useState } from "react";
+import { TrashIcon } from "lucide-react";
 import { SessionContext } from "@repo/client";
+import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
+import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@repo/ui/components/Item";
+import { Avatar, AvatarFallback } from "@repo/ui/components/Avatar";
+import { StackedButton } from "@repo/ui/components/StackedButton";
 
 type LoginProps = {
   storedEmail?: string;
   onBackToUnlock?: () => void;
+  onRemoveVault?: () => Promise<void>;
 };
 
-export default function Login({ storedEmail, onBackToUnlock }: LoginProps) {
+export default function Login({ storedEmail, onBackToUnlock, onRemoveVault }: LoginProps) {
   const { loginUser, loginError } = useLogin();
   const { unlockVault } = useContext(SessionContext);
   const store = useLocalStore();
@@ -89,7 +95,7 @@ export default function Login({ storedEmail, onBackToUnlock }: LoginProps) {
   };
 
   return (
-    <section className="w-xs max-w-full flex flex-col gap-3">
+    <section className="w-xs max-w-full flex flex-col gap-4">
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
@@ -131,19 +137,31 @@ export default function Login({ storedEmail, onBackToUnlock }: LoginProps) {
       </form>
 
       {storedEmail && onBackToUnlock && (
-        <button
-          type="button"
-          onClick={onBackToUnlock}
-          className="flex items-center gap-3 rounded-lg border p-3 text-sm text-left hover:bg-muted transition-colors"
-        >
-          <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground text-xs font-medium">
-            {storedEmail.charAt(0).toUpperCase()}
-          </span>
-          <span className="flex flex-col min-w-0">
-            <span className="truncate font-medium">{storedEmail}</span>
-            <span className="text-muted-foreground text-xs">Unlock existing vault</span>
-          </span>
-        </button>
+        <StackedButton>
+          <Button onClick={onBackToUnlock} variant="outline" className="h-auto">
+            <Item variant="default" className="px-0">
+              <ItemMedia>
+                <Avatar>
+                  <AvatarFallback>{storedEmail.charAt(0).toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </ItemMedia>
+              <ItemContent className="gap-1">
+                <ItemTitle>{storedEmail}</ItemTitle>
+                <ItemDescription className="line-clamp-1">Unlock existing vault</ItemDescription>
+              </ItemContent>
+            </Item>
+          </Button>
+
+          {onRemoveVault && (
+            <Button
+              variant="destructive"
+              onClick={onRemoveVault}
+              title="Remove vault from this device"
+            >
+              <TrashIcon className="size-4" />
+            </Button>
+          )}
+        </StackedButton>
       )}
     </section>
   );

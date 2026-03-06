@@ -16,7 +16,7 @@ export function useTotp(totpSecret?: string) {
     try {
       setToken(await getToken(secret));
     } catch {
-      setToken("-");
+      setToken("invalid TOTP secret");
     }
   }
 

@@ -363,9 +363,18 @@ importers:
 
   packages/db:
     dependencies:
+      '@repo/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@repo/schema':
         specifier: workspace:*
         version: link:../schema
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../util
+      '@serenity-kit/opaque':
+        specifier: ^1.1.0
+        version: 1.1.0
       dotenv:
         specifier: ^17.3.1
         version: 17.3.1
@@ -445,9 +454,6 @@ importers:
       react-icons:
         specifier: ^5.5.0
         version: 5.5.0(react@19.2.4)
-      shadcn:
-        specifier: ^3.8.5
-        version: 3.8.5(@types/node@25.2.3)(typescript@5.9.3)
       sonner:
         specifier: ^2.0.7
         version: 2.0.7(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -515,6 +521,9 @@ importers:
       playwright:
         specifier: ^1.58.2
         version: 1.58.2
+      shadcn:
+        specifier: ^3.8.5
+        version: 3.8.5(@types/node@25.2.3)(typescript@5.9.3)
       storybook:
         specifier: ^10.2.10
         version: 10.2.10(@testing-library/dom@10.4.1)(prettier@3.8.1)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
@@ -4345,15 +4354,6 @@ packages:
       '@types/node': '*'
       cosmiconfig: '>=9'
       typescript: '>=5'
-
-  cosmiconfig@9.0.0:
-    resolution: {integrity: sha512-itvL5h8RETACmOTFc4UfIyB2RfEHi71Ax6E/PivVxq9NseKbOWpeyHEOIbmAw1rs8Ak0VursQNww7lf7YtUwzg==}
-    engines: {node: '>=14'}
-    peerDependencies:
-      typescript: '>=4.9.5'
-    peerDependenciesMeta:
-      typescript:
-        optional: true
 
   cosmiconfig@9.0.1:
     resolution: {integrity: sha512-hr4ihw+DBqcvrsEDioRO31Z17x71pUYoNe/4h6Z0wB72p7MU7/9gH8Q3s12NFhHPfYBBOV3qyfUxmr/Yn3shnQ==}
@@ -12251,15 +12251,6 @@ snapshots:
       jiti: 2.6.1
       typescript: 5.9.3
 
-  cosmiconfig@9.0.0(typescript@5.9.3):
-    dependencies:
-      env-paths: 2.2.1
-      import-fresh: 3.3.1
-      js-yaml: 4.1.1
-      parse-json: 5.2.0
-    optionalDependencies:
-      typescript: 5.9.3
-
   cosmiconfig@9.0.1(typescript@5.9.3):
     dependencies:
       env-paths: 2.2.1
@@ -15222,7 +15213,7 @@ snapshots:
       '@types/validate-npm-package-name': 4.0.2
       browserslist: 4.28.1
       commander: 14.0.3
-      cosmiconfig: 9.0.0(typescript@5.9.3)
+      cosmiconfig: 9.0.1(typescript@5.9.3)
       dedent: 1.7.1
       deepmerge: 4.3.1
       diff: 8.0.3

@@ -14,6 +14,7 @@ type StoreContextValue = {
   syncManager: SyncManager;
   vaultKeyMaterial: VaultKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
+  removeVault: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -83,10 +84,18 @@ export default function StoreProvider({ children }: StoreProviderProps) {
     }
   }, [vaultReady, queryClient]);
 
+  async function removeVault() {
+    await localStore.clear();
+    localStorage.removeItem("biometric-dismissed");
+    setVaultKeyMaterial(null);
+    setBiometricKeyMaterial(null);
+  }
+
   const value: StoreContextValue = {
     ...storeRef.current,
     vaultKeyMaterial,
     biometricKeyMaterial,
+    removeVault,
   };
 
   return <StoreContext value={value}>{children}</StoreContext>;

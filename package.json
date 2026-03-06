@@ -7,6 +7,7 @@
     "db:up": "turbo run db:up",
     "db:generate": "pnpm run --filter @repo/db db:generate",
     "db:migrate": "pnpm run --filter @repo/db db:migrate",
+    "db:seed": "pnpm run --filter @repo/db db:seed",
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "format:fix-selected": "pnpm run format -- --ignore-unknown",
