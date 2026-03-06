@@ -2,7 +2,8 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useTRPC, SessionContext } from "@repo/client";
+import { SessionContext } from "@repo/client";
+import { useLocalEntryAllOptions } from "@/store/use-local-entries";
 import {
   Item,
   ItemContent,
@@ -92,10 +93,9 @@ function ItemSidebarSkeleton() {
 }
 
 function ItemSidebarInner({ itemId }: ItemSidebarProps) {
-  const trpc = useTRPC();
   const { vaultReady } = useContext(SessionContext);
   const { data } = useSuspenseQuery({
-    ...trpc.entry.all.queryOptions(),
+    ...useLocalEntryAllOptions(),
     select: (res) =>
       res.items.map((item) => ({
         itemId: item.itemId,

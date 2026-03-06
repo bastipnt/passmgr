@@ -1,4 +1,5 @@
-import { useTRPC, SessionContext } from "@repo/client";
+import { SessionContext } from "@repo/client";
+import { useLocalEntryByIdOptions } from "@/store/use-local-entries";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -64,9 +65,8 @@ type DisplayItemProps = {
 };
 
 function DisplayItemInner({ entryId }: DisplayItemProps) {
-  const trpc = useTRPC();
   const { vaultReady } = useContext(SessionContext);
-  const { data: encryptedItem } = useSuspenseQuery(trpc.entry.getById.queryOptions(entryId));
+  const { data: encryptedItem } = useSuspenseQuery(useLocalEntryByIdOptions(entryId));
 
   if (!vaultReady) return <Fallback />;
 

@@ -14,10 +14,11 @@
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@repo/client": "workspace:*",
+    "@repo/store": "workspace:*",
     "@repo/crypto": "workspace:*",
+    "@repo/schema": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/util": "workspace:*",
-    "@repo/schema": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
     "@tailwindcss/postcss": "^4.2.0",
     "@tanstack/react-query": "^5.90.21",
@@ -29,6 +30,7 @@
     "react-error-boundary": "^6.1.1",
     "react-icons": "^5.5.0",
     "server": "workspace:*",
+    "sqlocal": "^0.17.0",
     "wouter": "^3.9.0",
     "zod": "^4.3.6"
   },

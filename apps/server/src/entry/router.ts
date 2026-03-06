@@ -1,9 +1,15 @@
 import { router } from "../trpc";
 import z from "zod";
 import { protectedProcedure } from "../auth/authMiddleware";
-import { createItemInputSchema, updateItemInputSchema, encryptedItemSchema } from "@repo/schema";
+import {
+  createItemInputSchema,
+  updateItemInputSchema,
+  encryptedItemSchema,
+  syncInputSchema,
+  syncOutputSchema,
+} from "@repo/schema";
 import { db, itemsTable, type ItemType } from "@repo/db";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 
 function serializeItem(item: ItemType) {
@@ -12,12 +18,32 @@ function serializeItem(item: ItemType) {
     ...rest,
     clientUpdatedAt: item.clientUpdatedAt.toISOString(),
     created_at: item.created_at?.toISOString() ?? null,
-    updated_at: item.updated_at?.toISOString() ?? null,
+    updated_at: item.updated_at.toISOString(),
     deleted_at: item.deleted_at?.toISOString() ?? null,
   };
 }
 
 export const entryRouter = router({
+  sync: protectedProcedure
+    .input(syncInputSchema)
+    .output(syncOutputSchema)
+    .query(async ({ ctx, input }) => {
+      const serverTimestamp = new Date().toISOString();
+
+      const conditions = [eq(itemsTable.userId, ctx.userId)];
+      if (input.lastSyncedAt) {
+        conditions.push(gt(itemsTable.updated_at, new Date(input.lastSyncedAt)));
+      }
+
+      const items = await db
+        .select()
+        .from(itemsTable)
+        .where(and(...conditions))
+        .orderBy(itemsTable.itemId, desc(itemsTable.version));
+
+      return { items: items.map(serializeItem), serverTimestamp };
+    }),
+
   all: protectedProcedure
     .output(z.object({ items: z.array(encryptedItemSchema) }))
     .query(async ({ ctx }) => {
@@ -29,10 +55,7 @@ export const entryRouter = router({
         .orderBy(itemsTable.itemId, desc(itemsTable.version))
         .as("latest_per_item");
 
-      const items = await db
-        .select()
-        .from(latestPerItem)
-        .where(isNull(latestPerItem.deleted_at));
+      const items = await db.select().from(latestPerItem).where(isNull(latestPerItem.deleted_at));
 
       return { items: items.map(serializeItem) };
     }),
@@ -48,10 +71,7 @@ export const entryRouter = router({
         .orderBy(itemsTable.itemId, desc(itemsTable.version))
         .as("latest_for_item");
 
-      const [item] = await db
-        .select()
-        .from(latestForItem)
-        .where(isNull(latestForItem.deleted_at));
+      const [item] = await db.select().from(latestForItem).where(isNull(latestForItem.deleted_at));
 
       if (!item) throw new TRPCError({ code: "NOT_FOUND" });
       return serializeItem(item);
@@ -99,10 +119,8 @@ export const entryRouter = router({
         .orderBy(desc(itemsTable.version))
         .limit(1);
 
-      if (!current || current.deletedAt !== null)
-        throw new TRPCError({ code: "NOT_FOUND" });
-      if (current.version !== version)
-        throw new TRPCError({ code: "CONFLICT" });
+      if (!current || current.deletedAt !== null) throw new TRPCError({ code: "NOT_FOUND" });
+      if (current.version !== version) throw new TRPCError({ code: "CONFLICT" });
 
       const [item] = await db
         .insert(itemsTable)
@@ -123,7 +141,11 @@ export const entryRouter = router({
       .select()
       .from(itemsTable)
       .where(
-        and(eq(itemsTable.itemId, input), eq(itemsTable.userId, ctx.userId), isNull(itemsTable.deleted_at)),
+        and(
+          eq(itemsTable.itemId, input),
+          eq(itemsTable.userId, ctx.userId),
+          isNull(itemsTable.deleted_at),
+        ),
       )
       .orderBy(desc(itemsTable.version))
       .limit(1);

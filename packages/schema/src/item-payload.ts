@@ -34,3 +34,12 @@ export type ItemPayload = { schemaVersion: 1 } & LoginItem;
 
 /** The crypto version used when encrypting items with the current code. */
 export const CURRENT_CRYPTO_VERSION = 1;
+
+export const syncInputSchema = z.object({
+  lastSyncedAt: z.string().optional(),
+});
+
+export const syncOutputSchema = z.object({
+  items: z.array(encryptedItemSchema),
+  serverTimestamp: z.string(),
+});

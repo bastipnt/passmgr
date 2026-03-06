@@ -5,6 +5,7 @@ import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
+import { useLocalStore } from "@/store/store-provider";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 import { encryptPayload } from "@/utils/vault";
@@ -14,11 +15,13 @@ export default function NewItem() {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
+  const store = useLocalStore();
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
-      onSuccess: (result) => {
-        void queryClient.invalidateQueries(trpc.entry.all.queryFilter());
+      onSuccess: async (result) => {
+        await store?.localStore.upsertItems([result]);
+        void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
         navigate(`/${entrySlug}/${result.itemId}`);
       },
     }),

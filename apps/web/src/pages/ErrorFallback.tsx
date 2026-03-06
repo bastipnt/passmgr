@@ -11,12 +11,11 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 
-interface ErrorFallbackProps extends FallbackProps {
-  error: { message?: string } | undefined;
-}
-
-export default function ErrorFallback({ resetErrorBoundary, error }: ErrorFallbackProps) {
-  const errorMessage = isDefined(error) && "message" in error ? error.message : "";
+export default function ErrorFallback({ resetErrorBoundary, error }: FallbackProps) {
+  const errorMessage =
+    isDefined(error) && "message" in (error as { message?: string })
+      ? (error as { message: string }).message
+      : "";
   return (
     <PublicLayout>
       <section role="alert" className="w-lg">

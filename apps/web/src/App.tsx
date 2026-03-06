@@ -4,6 +4,7 @@ import { ClientProvider, SessionProvider } from "@repo/client";
 import ErrorFallback from "@pages/ErrorFallback";
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
+import StoreProvider from "./store/store-provider";
 
 function App() {
   return (
@@ -11,8 +12,10 @@ function App() {
       <ThemeProvider storageKey="pass-mgr-theme">
         <SessionProvider>
           <ClientProvider>
-            <Toaster />
-            <Routes />
+            <StoreProvider>
+              <Toaster />
+              <Routes />
+            </StoreProvider>
           </ClientProvider>
         </SessionProvider>
       </ThemeProvider>

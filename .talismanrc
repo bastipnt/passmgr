@@ -53,11 +53,19 @@ fileignoreconfig:
   - Password
   - secret
 - filename: apps/web/src/pages/EditItem.tsx
-  checksum: 2efbc183bb73c910807cc0bc3fdf15e5adc96869c4494295077ebb6a1d7d4592
+  checksum: a83a50c6d2f5f6b2c0d2a59fc72f1a7fc8e827c99a484f29ca28650561ae6efc
+- filename: apps/web/src/pages/NewItem.tsx
+  checksum: c8a76231071cdd0e707bc643c90718260c61040be2b74a4908db56e282d5dd41
 - filename: apps/web/src/pages/auth/*.tsx
   allowed_patterns:
   - password
   - Password
+- filename: apps/web/src/store/sqlite-adapter.ts
+  checksum: 58bf9bac96edbfcfd13dfc4523040f64eaff5e6a548966ae0a7ba059613240bf
+- filename: apps/web/src/store/store-provider.tsx
+  checksum: c4b21b6ccd766f5dd32dbb44ad2d84e8ed6d1bafad5544cd2acec5bf632dbeaa
+- filename: apps/web/src/store/use-local-entries.ts
+  checksum: f3723aa4e21113d6cd60b9015129f5eba6a563de2ad182ab1e0206bbee7f07b3
 - filename: apps/web/src/types/css-modules.d.ts
   allowed_patterns:
   - key=
@@ -72,6 +80,8 @@ fileignoreconfig:
   checksum: d2d1724b373734f453a062e96e0dae157a8203959fb016d7c591b4a57a93808e
 - filename: apps/web/src/workers/decrypt.worker.ts
   checksum: 9a284325d1c3080ebe642e9ac54c61bf6c0ae949e85ce86501ffff2571fed1b1
+- filename: apps/web/src/workers/sqlocal.worker.ts
+  checksum: 47f905c47efad557690e626479e7acc7a81a10d20f500e9196068a75cc45583a
 - filename: doc/structure.md
   checksum: 87497fda8c27c558d707a2875dea466de37272a988bce971ba286cf95ec6e5a7
   ignore_detectors:
