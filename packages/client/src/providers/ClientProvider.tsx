@@ -1,7 +1,7 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { TRPCProvider } from "../util/trpc";
-import { createTRPCClient, httpBatchLink, type TRPCClient } from "@trpc/client";
+import { createTRPCClient, httpLink, type TRPCClient } from "@trpc/client";
 import type { AppRouter } from "server";
 import { generateAuthHeaders } from "../util/headers";
 
@@ -43,11 +43,10 @@ export default function ClientProvider({ children }: ClientProviderProps) {
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
     createTRPCClient<AppRouter>({
       links: [
-        httpBatchLink({
+        httpLink({
           url: import.meta.env.VITE_SERVER_URL,
-          async headers({ opList }) {
-            const [currentOperation] = opList;
-            return await generateAuthHeaders(currentOperation);
+          async headers({ op }) {
+            return await generateAuthHeaders(op);
           },
           async fetch(url, options) {
             return fetch(url, {
