@@ -63,6 +63,14 @@ class SecretsStore {
   }
 
   /**
+   * Biometric unlock: set vault key directly (already decrypted via WebAuthn PRF).
+   * No server session is established — only item decryption works.
+   */
+  unlockWithVaultKey(vaultKey: Uint8Array) {
+    this.vaultKey = vaultKey;
+  }
+
+  /**
    * Offline unlock: derive vault key from stored encrypted material + password KEK.
    * No server session is established — only item decryption works.
    */

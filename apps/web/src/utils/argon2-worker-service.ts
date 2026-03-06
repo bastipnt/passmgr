@@ -30,10 +30,9 @@ class Argon2WorkerService {
       };
 
       const saltCopy = salt.slice();
-      worker.postMessage(
-        { type: "derive", password, salt: saltCopy.buffer, params },
-        [saltCopy.buffer],
-      );
+      worker.postMessage({ type: "derive", password, salt: saltCopy.buffer, params }, [
+        saltCopy.buffer,
+      ]);
     });
   }
 

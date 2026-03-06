@@ -59,12 +59,14 @@ packages/
 ### Authentication Flow (OPAQUE protocol)
 
 Registration:
+
 1. Client: `opaque.client.startRegistration` → sends `registrationRequest` to server
 2. Server: `opaque.server.createRegistrationResponse` → returns `registrationResponse`
 3. Client: `opaque.client.finishRegistration` → generates `registrationRecord` + derives key hierarchy (Argon2id password KEK → vault key encrypted twice: once with password KEK, once with recovery KEK)
 4. Server: stores `registrationRecord` + encrypted key material in DB
 
 Login:
+
 1. Client: `opaque.client.startLogin` → sends `startLoginRequest`
 2. Server: `opaque.server.startLogin` → returns `loginResponse`, stores `serverLoginState` in Redis
 3. Client: `opaque.client.finishLogin` → derives `sessionKey`
@@ -74,6 +76,7 @@ Login:
 ### Request Authentication
 
 Authenticated requests use HMAC-signed headers (no cookies):
+
 - `x-session-id` — session identifier
 - `x-timestamp` — Unix timestamp (requests >5 min old are rejected as replay protection)
 - `x-signature` — HMAC-SHA256 of `(type, path, timestamp, input)` using the `authKey`
@@ -94,6 +97,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 ### tRPC Router Structure
 
 `appRouter` (in `apps/server/src/router.ts`):
+
 - `login` → `loginRouter` (startLogin, finishLogin)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `entry` → `entryRouter` (all, getById, update) — uses `protectedProcedure`
@@ -104,11 +108,13 @@ All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProc
 ### Environment Variables
 
 Server (`apps/server/.env`):
+
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_HOST`, `REDIS_PORT`
 - `OPAQUE_SERVER_SETUP` — base64-encoded OPAQUE server setup secret (must be stable across restarts)
 
 DB package (`packages/db/.env`):
+
 - `DATABASE_URL`
 
 ## Code Conventions

@@ -1,5 +1,10 @@
 import { SQLocal } from "sqlocal";
-import type { StorageAdapter, LocalItem, VaultKeyMaterial } from "@repo/store";
+import type {
+  StorageAdapter,
+  LocalItem,
+  VaultKeyMaterial,
+  BiometricKeyMaterial,
+} from "@repo/store";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import SQLocalWorker from "../workers/sqlocal.worker.ts?worker";
 
@@ -121,6 +126,43 @@ export class SqliteAdapter implements StorageAdapter {
     if (rows.length < 5) return null;
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return map as VaultKeyMaterial;
+  }
+
+  private static readonly BIOMETRIC_KEYS = [
+    "biometricEncryptedVaultKey",
+    "biometricNonce",
+    "credentialId",
+    "prfSalt",
+  ] as const;
+
+  async setBiometricKeyMaterial(material: BiometricKeyMaterial): Promise<void> {
+    await this.ready();
+    await this.db.transaction(async (tx) => {
+      for (const [key, value] of Object.entries(material)) {
+        await tx.sql`INSERT OR REPLACE INTO sync_meta (key, value) VALUES (${key}, ${value})`;
+      }
+    });
+  }
+
+  async getBiometricKeyMaterial(): Promise<BiometricKeyMaterial | null> {
+    await this.ready();
+    const keys = SqliteAdapter.BIOMETRIC_KEYS;
+    const rows = await this.db.sql<{ key: string; value: string }> /* sql */ `
+      SELECT key, value FROM sync_meta
+      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]})
+    `;
+    if (rows.length < 4) return null;
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    return map as BiometricKeyMaterial;
+  }
+
+  async clearBiometricKeyMaterial(): Promise<void> {
+    await this.ready();
+    const keys = SqliteAdapter.BIOMETRIC_KEYS;
+    await this.db.sql`
+      DELETE FROM sync_meta
+      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]})
+    `;
   }
 
   async clear(): Promise<void> {

@@ -1,6 +1,11 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { LocalStore, SyncManager, type VaultKeyMaterial } from "@repo/store";
+import {
+  LocalStore,
+  SyncManager,
+  type BiometricKeyMaterial,
+  type VaultKeyMaterial,
+} from "@repo/store";
 import { SessionContext, useTRPCClient } from "@repo/client";
 import { SqliteAdapter } from "./sqlite-adapter";
 
@@ -8,6 +13,7 @@ type StoreContextValue = {
   localStore: LocalStore;
   syncManager: SyncManager;
   vaultKeyMaterial: VaultKeyMaterial | null;
+  biometricKeyMaterial: BiometricKeyMaterial | null;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -25,6 +31,9 @@ export default function StoreProvider({ children }: StoreProviderProps) {
   const trpc = useTRPCClient();
   const queryClient = useQueryClient();
   const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
+  const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
+    null,
+  );
 
   const storeRef = useRef<{ localStore: LocalStore; syncManager: SyncManager } | null>(null);
 
@@ -43,6 +52,7 @@ export default function StoreProvider({ children }: StoreProviderProps) {
   // Load vault key material on mount to check if offline unlock is available
   useEffect(() => {
     void localStore.getVaultKeyMaterial().then(setVaultKeyMaterial);
+    void localStore.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
   }, [localStore]);
 
   // Sync on login + start periodic sync + resync when back online (skip when offline-only)
@@ -76,6 +86,7 @@ export default function StoreProvider({ children }: StoreProviderProps) {
   const value: StoreContextValue = {
     ...storeRef.current,
     vaultKeyMaterial,
+    biometricKeyMaterial,
   };
 
   return <StoreContext value={value}>{children}</StoreContext>;

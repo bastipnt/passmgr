@@ -31,6 +31,8 @@ function PublicRoutes() {
           {showUnlock ? (
             <Unlock
               vaultKeyMaterial={store.vaultKeyMaterial!}
+              biometricKeyMaterial={store.biometricKeyMaterial}
+              localStore={store.localStore}
               onSwitchAccount={() => setSwitchAccount(true)}
             />
           ) : (

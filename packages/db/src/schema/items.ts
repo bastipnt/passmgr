@@ -5,7 +5,9 @@ import type { InferSelectModel } from "drizzle-orm";
 export const itemsTable = pgTable(
   "items",
   {
-    rowId: varchar().$defaultFn(() => crypto.randomUUID()).primaryKey(),
+    rowId: varchar()
+      .$defaultFn(() => crypto.randomUUID())
+      .primaryKey(),
     itemId: varchar().notNull(),
     userId: varchar().notNull(),
     encryptedData: varchar().notNull(),

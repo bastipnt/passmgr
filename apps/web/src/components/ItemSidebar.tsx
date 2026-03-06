@@ -27,7 +27,15 @@ type EncryptedItem = {
   encryptionNonce: string;
 };
 
-function EncryptedSidebarItem({ item, active, vaultReady }: { item: EncryptedItem; active: boolean; vaultReady: boolean }) {
+function EncryptedSidebarItem({
+  item,
+  active,
+  vaultReady,
+}: {
+  item: EncryptedItem;
+  active: boolean;
+  vaultReady: boolean;
+}) {
   const [payload, setPayload] = useState<ItemPayload | null>(null);
 
   useEffect(() => {
@@ -107,7 +115,12 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   return (
     <ItemGroup className="max-w-sm">
       {data.map((item) => (
-        <EncryptedSidebarItem key={item.itemId} item={item} active={item.itemId === itemId} vaultReady={vaultReady} />
+        <EncryptedSidebarItem
+          key={item.itemId}
+          item={item}
+          active={item.itemId === itemId}
+          vaultReady={vaultReady}
+        />
       ))}
     </ItemGroup>
   );

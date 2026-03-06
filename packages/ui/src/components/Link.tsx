@@ -27,9 +27,7 @@ export default function Link({
     <Button asChild variant={variant} size={size} className={className}>
       {isExternal ? (
         <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
-          {children}
-          {" "}
-          <ArrowUpRightIcon />
+          {children} <ArrowUpRightIcon />
         </a>
       ) : (
         <WouterLink href={href} target={target} {...props}>

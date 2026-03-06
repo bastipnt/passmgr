@@ -6,6 +6,7 @@ export const hkdfInfo = {
   emailHashKey: fromString("email-hash-key"),
   emailEncryptionKey: fromString("email-encryption-key"),
   recoveryRootKey: fromString("recovery-root-key"),
+  biometricKek: fromString("biometric-kek"),
 };
 
 export const SESSION_ID_HEADER = "x-session-id";

@@ -19,6 +19,7 @@ export const SessionContext = createContext<{
     encryptedVaultKey: string,
     vaultKeyEncryptionNonce: string,
   ) => void;
+  offlineUnlockWithVaultKey: (vaultKey: Uint8Array) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
   vaultReady: false,
@@ -26,6 +27,7 @@ export const SessionContext = createContext<{
   async loginSession() {},
   unlockVault() {},
   offlineUnlock() {},
+  offlineUnlockWithVaultKey() {},
   async signRequest() {
     return new Uint8Array(32);
   },
@@ -68,6 +70,13 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     setVaultReady(true);
   }
 
+  function offlineUnlockWithVaultKey(vaultKey: Uint8Array) {
+    secretsStore.unlockWithVaultKey(vaultKey);
+    setIsOffline(true);
+    setSessionId("offline");
+    setVaultReady(true);
+  }
+
   async function signRequest(message: string) {
     return await secretsStore.signRequest(message);
   }
@@ -81,6 +90,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
         loginSession,
         unlockVault,
         offlineUnlock,
+        offlineUnlockWithVaultKey,
         signRequest,
       }}
     >

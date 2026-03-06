@@ -5,6 +5,7 @@ import { fromBase64 } from "@repo/crypto";
 import { secretsStore } from "@repo/client";
 import { decryptWorkerService } from "@/utils/decrypt-worker-service";
 import { argon2WorkerService } from "@/utils/argon2-worker-service";
+import { isPrfSupported, enrollBiometric, authenticateBiometric } from "@/utils/webauthn";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -18,19 +19,37 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/F
 import { Input } from "@repo/ui/components/Input";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { SessionContext } from "@repo/client";
-import type { VaultKeyMaterial } from "@repo/store";
+import type { BiometricKeyMaterial, LocalStore, VaultKeyMaterial } from "@repo/store";
 
 type UnlockProps = {
   vaultKeyMaterial: VaultKeyMaterial;
+  biometricKeyMaterial: BiometricKeyMaterial | null;
+  localStore: LocalStore;
   onSwitchAccount: () => void;
 };
 
-export default function Unlock({ vaultKeyMaterial, onSwitchAccount }: UnlockProps) {
-  const { offlineUnlock } = useContext(SessionContext);
+export default function Unlock({
+  vaultKeyMaterial,
+  biometricKeyMaterial,
+  localStore,
+  onSwitchAccount,
+}: UnlockProps) {
+  const { offlineUnlock, offlineUnlockWithVaultKey } = useContext(SessionContext);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [showEnrollPrompt, setShowEnrollPrompt] = useState(false);
+  const [enrolling, setEnrolling] = useState(false);
+  // Holds the pending unlock callback so we can defer the redirect until after enrollment
+  const pendingUnlockRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!biometricKeyMaterial) {
+      void isPrfSupported().then(setBiometricAvailable);
+    }
+  }, [biometricKeyMaterial]);
 
   const schema = z.object({
     password: z.string().min(8),
@@ -43,9 +62,24 @@ export default function Unlock({ vaultKeyMaterial, onSwitchAccount }: UnlockProp
     defaultValues: { password: "" },
   });
 
+  const onBiometricUnlock = async () => {
+    if (!biometricKeyMaterial) return;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const vaultKey = await authenticateBiometric(biometricKeyMaterial);
+      offlineUnlockWithVaultKey(vaultKey);
+      decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+    } catch {
+      setError("Biometric authentication failed");
+      setLoading(false);
+    }
+  };
+
   const onSubmit = async ({ password }: FormValues) => {
     setLoading(true);
-    setError(false);
+    setError(null);
 
     const params = JSON.parse(vaultKeyMaterial.passwordKekParams) as {
       t: number;
@@ -56,20 +90,103 @@ export default function Unlock({ vaultKeyMaterial, onSwitchAccount }: UnlockProp
 
     try {
       const passwordKek = await argon2WorkerService.derive(password, salt, params);
-      offlineUnlock(
-        passwordKek,
-        vaultKeyMaterial.encryptedVaultKey,
-        vaultKeyMaterial.vaultKeyEncryptionNonce,
-      );
-      decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+
+      const shouldPromptEnroll =
+        biometricAvailable && !biometricKeyMaterial && !localStorage.getItem("biometric-dismissed");
+
+      if (shouldPromptEnroll) {
+        // Unlock the vault in secretsStore without setting sessionId (no redirect yet)
+        secretsStore.unlockOffline(
+          passwordKek,
+          vaultKeyMaterial.encryptedVaultKey,
+          vaultKeyMaterial.vaultKeyEncryptionNonce,
+        );
+        decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+        // Store a callback to complete the session unlock after enrollment
+        pendingUnlockRef.current = () => {
+          offlineUnlockWithVaultKey(secretsStore.exportVaultKeyForWorker());
+        };
+        setLoading(false);
+        setShowEnrollPrompt(true);
+      } else {
+        offlineUnlock(
+          passwordKek,
+          vaultKeyMaterial.encryptedVaultKey,
+          vaultKeyMaterial.vaultKeyEncryptionNonce,
+        );
+        decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+      }
     } catch {
-      setError(true);
+      setError("Wrong password or corrupted data");
       setLoading(false);
     }
   };
 
+  const completePendingUnlock = () => {
+    pendingUnlockRef.current?.();
+    pendingUnlockRef.current = null;
+  };
+
+  const onEnroll = async () => {
+    setEnrolling(true);
+    try {
+      const vaultKey = secretsStore.exportVaultKeyForWorker();
+      const material = await enrollBiometric(vaultKey);
+      await localStore.setBiometricKeyMaterial(material);
+      completePendingUnlock();
+    } catch {
+      setError("Biometric enrollment failed");
+    } finally {
+      setEnrolling(false);
+    }
+  };
+
+  const onDismissEnroll = () => {
+    localStorage.setItem("biometric-dismissed", "1");
+    completePendingUnlock();
+  };
+
+  if (showEnrollPrompt) {
+    return (
+      <section className="w-xs max-w-full">
+        <Card>
+          <CardHeader>
+            <CardTitle>Enable Biometric Unlock?</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Use fingerprint or Face ID to unlock your vault next time — no password needed.
+            </p>
+            {error && <FieldError errors={[{ message: error }]} />}
+          </CardContent>
+          <CardFooter className="flex flex-row gap-4 justify-end">
+            <Button type="button" variant="outline" onClick={onDismissEnroll} disabled={enrolling}>
+              Skip
+            </Button>
+            <Button type="button" onClick={onEnroll} disabled={enrolling}>
+              Enable
+              {enrolling && <Spinner data-icon="inline-start" />}
+            </Button>
+          </CardFooter>
+        </Card>
+      </section>
+    );
+  }
+
   return (
-    <section className="w-xs max-w-full">
+    <section className="w-xs max-w-full flex flex-col gap-3">
+      {biometricKeyMaterial && (
+        <Card>
+          <CardContent className="pt-6">
+            <Button type="button" className="w-full" onClick={onBiometricUnlock} disabled={loading}>
+              Unlock with biometrics
+              {loading && <Spinner data-icon="inline-start" />}
+            </Button>
+            {error && <FieldError errors={[{ message: error }]} />}
+          </CardContent>
+        </Card>
+      )}
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>
@@ -95,7 +212,7 @@ export default function Unlock({ vaultKeyMaterial, onSwitchAccount }: UnlockProp
                 autoComplete="current-password"
               />
             </FieldGroup>
-            {error && <FieldError errors={[{ message: "Wrong password or corrupted data" }]} />}
+            {!biometricKeyMaterial && error && <FieldError errors={[{ message: error }]} />}
           </CardContent>
 
           <CardFooter className="flex flex-row gap-4 justify-end">

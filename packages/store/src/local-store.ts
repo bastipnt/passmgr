@@ -1,4 +1,4 @@
-import type { LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
+import type { BiometricKeyMaterial, LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
 
 export class LocalStore {
   constructor(private adapter: StorageAdapter) {}
@@ -30,6 +30,18 @@ export class LocalStore {
 
   async getVaultKeyMaterial(): Promise<VaultKeyMaterial | null> {
     return this.adapter.getVaultKeyMaterial();
+  }
+
+  async setBiometricKeyMaterial(material: BiometricKeyMaterial): Promise<void> {
+    await this.adapter.setBiometricKeyMaterial(material);
+  }
+
+  async getBiometricKeyMaterial(): Promise<BiometricKeyMaterial | null> {
+    return this.adapter.getBiometricKeyMaterial();
+  }
+
+  async clearBiometricKeyMaterial(): Promise<void> {
+    await this.adapter.clearBiometricKeyMaterial();
   }
 
   async clear(): Promise<void> {
