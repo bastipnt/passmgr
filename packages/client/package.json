@@ -12,6 +12,7 @@
     "@repo/crypto": "workspace:*",
     "@repo/util": "workspace:*",
     "@repo/schema": "workspace:*",
+    "@repo/store": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
     "@tanstack/react-query": "^5.90.21",
     "@trpc/client": "^11.10.0",

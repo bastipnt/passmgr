@@ -4,7 +4,7 @@ import {
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "@repo/crypto";
-import { secretsStore } from "../secrets-store";
+import { secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
 
 type Operation<TInput = unknown> = {

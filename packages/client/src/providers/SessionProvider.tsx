@@ -1,5 +1,5 @@
+import { secretsStore } from "@repo/store";
 import { createContext, useEffect, useState, type ReactNode } from "react";
-import { secretsStore } from "../secrets-store";
 
 const sessionStates = {
   loggedOut: "logged-out", // no session

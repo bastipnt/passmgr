@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
-import { SessionContext } from "@repo/client";
+import { decryptItemWithWorker, SessionContext, useLocalEntryAllOptions } from "@repo/client";
 import {
   Item,
   ItemContent,
@@ -13,9 +13,7 @@ import {
 } from "@repo/ui/components/Item";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import { decryptPayloadAsync } from "@/utils/vault";
 import type { ItemPayload } from "@repo/schema";
-import { useLocalEntryAllOptions } from "@repo/store";
 
 type ItemSidebarProps = {
   itemId?: string;
@@ -41,7 +39,7 @@ function EncryptedSidebarItem({
   useEffect(() => {
     if (!vaultReady) return;
     let cancelled = false;
-    void decryptPayloadAsync(item.itemId, item.encryptedData, item.encryptionNonce).then((p) => {
+    void decryptItemWithWorker(item.itemId, item.encryptedData, item.encryptionNonce).then((p) => {
       if (!cancelled) setPayload(p);
     });
     return () => {

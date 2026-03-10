@@ -1,10 +1,11 @@
 import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import { useContext, useState } from "react";
 import { fromBase64 } from "@repo/util";
-import { secretsStore, SessionContext } from "@repo/client";
-import { useStore } from "../providers/StoreProvider";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
+import { SessionContext } from "../providers/SessionProvider";
+import { secretsStore } from "@repo/store";
+import { useStore } from "../providers/StoreProvider";
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState(false);

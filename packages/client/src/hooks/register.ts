@@ -1,5 +1,4 @@
 import * as opaque from "@serenity-kit/opaque";
-import { useTRPCClient } from "./util/trpc";
 import { useState } from "react";
 import {
   encryptXChaCha,
@@ -11,6 +10,7 @@ import {
   wipe,
 } from "@repo/crypto";
 import type { UserKeySchema } from "@repo/schema";
+import { useTRPCClient } from "../util/trpc";
 
 export function useRegistration() {
   const trpc = useTRPCClient();

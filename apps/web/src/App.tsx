@@ -4,7 +4,7 @@ import { ClientProvider, SessionProvider } from "@repo/client";
 import ErrorFallback from "@pages/ErrorFallback";
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
-import { StoreProvider } from "@repo/store";
+import { StoreProvider } from "@repo/client";
 
 function App() {
   return (

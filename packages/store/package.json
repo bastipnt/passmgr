@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "@repo/schema": "workspace:*",
-    "@repo/client": "workspace:*",
     "@repo/util": "workspace:*",
     "@repo/crypto": "workspace:*"
   }

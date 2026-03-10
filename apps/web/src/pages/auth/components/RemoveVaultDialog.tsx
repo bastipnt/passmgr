@@ -1,4 +1,4 @@
-import { useStore } from "@repo/store";
+import { useStore } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   Dialog,

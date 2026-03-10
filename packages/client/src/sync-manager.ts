@@ -1,5 +1,4 @@
-import type { LocalItem } from "./types";
-import type { LocalStore } from "./local-store";
+import type { LocalItem, LocalStore } from "@repo/store";
 
 export type SyncFetcher = (lastSyncedAt?: string) => Promise<{
   items: LocalItem[];

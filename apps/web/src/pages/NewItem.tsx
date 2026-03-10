@@ -1,15 +1,13 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useTRPC } from "@repo/client";
+import { encryptItem, useStore, useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
-import { encryptPayload } from "@/utils/vault";
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
-import { useStore } from "@repo/store";
 
 export default function NewItem() {
   const trpc = useTRPC();
@@ -33,7 +31,7 @@ export default function NewItem() {
 
   function handleSubmit(formValues: LoginItem) {
     const itemId = crypto.randomUUID();
-    const { encryptedData, encryptionNonce } = encryptPayload({ schemaVersion: 1, ...formValues });
+    const { encryptedData, encryptionNonce } = encryptItem({ schemaVersion: 1, ...formValues });
     mutate({
       itemId,
       encryptedData,

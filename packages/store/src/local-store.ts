@@ -1,4 +1,5 @@
-import type { BiometricKeyMaterial, LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
+import type { BiometricKeyMaterial } from "@repo/crypto";
+import type { LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
 
 export class LocalStore {
   constructor(private adapter: StorageAdapter) {}

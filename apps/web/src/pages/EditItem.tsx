@@ -2,15 +2,20 @@ import { useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-q
 import { Suspense, useContext, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useTRPC, SessionContext } from "@repo/client";
+import {
+  useTRPC,
+  SessionContext,
+  useLocalEntryByIdOptions,
+  useStore,
+  decryptItem,
+  encryptItem,
+} from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
-import { decryptPayload, encryptPayload } from "@/utils/vault";
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
-import { useLocalEntryByIdOptions, useStore } from "@repo/store";
 
 function Fallback() {
   return (
@@ -38,7 +43,7 @@ function EditItemInner({ entryId }: EditItemListProps) {
   const data = {
     itemId: encryptedItem.itemId,
     version: encryptedItem.version,
-    ...decryptPayload(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
+    ...decryptItem(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
   };
 
   const { mutate, error: mutationError } = useMutation(
@@ -56,7 +61,7 @@ function EditItemInner({ entryId }: EditItemListProps) {
   }, [mutationError]);
 
   function handleSubmit(formValues: LoginItem) {
-    const { encryptedData, encryptionNonce } = encryptPayload({
+    const { encryptedData, encryptionNonce } = encryptItem({
       schemaVersion: data.schemaVersion,
       ...formValues,
     });

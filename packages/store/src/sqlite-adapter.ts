@@ -1,7 +1,8 @@
 import { SQLocal } from "sqlocal";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import SQLocalWorker from "./workers/sqlocal.worker.ts?worker";
-import type { BiometricKeyMaterial, LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
+import type { LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
+import type { BiometricKeyMaterial } from "@repo/crypto";
 
 // TODO: separation between multiple users?
 const SCHEMA_SQL = /* sql */ `

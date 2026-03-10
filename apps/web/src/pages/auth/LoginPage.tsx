@@ -1,7 +1,6 @@
-import { SessionContext, useLogin } from "@repo/client";
+import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { useContext, useState } from "react";
-import { useStore, useUnlock } from "@repo/store";
 import LoginForm, { type LoginFormValues } from "@pages/auth/components/LoginForm";
 import RemoveVaultDialog from "@pages/auth/components/RemoveVaultDialog";
 import type { VaultUnlockInfo } from "@repo/schema";

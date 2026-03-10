@@ -1,3 +1,5 @@
+import type { BiometricKeyMaterial } from "@repo/crypto";
+
 export type LocalItem = {
   itemId: string;
   encryptedData: string;
@@ -16,13 +18,6 @@ export type VaultKeyMaterial = {
   passwordKekSalt: string;
   passwordKekParams: string; // JSON-encoded {t, m, p}
   email: string;
-};
-
-export type BiometricKeyMaterial = {
-  biometricEncryptedVaultKey: string;
-  biometricNonce: string;
-  credentialId: string; // base64
-  prfSalt: string; // base64
 };
 
 export interface StorageAdapter {

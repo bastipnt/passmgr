@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { LocalItem } from "./types";
-import { useStore } from "./providers/StoreProvider";
+import type { LocalItem } from "@repo/store/src/types";
+import { useStore } from "../providers/StoreProvider";
 
 /**
  * Query options that read entries from the local SQLite store.

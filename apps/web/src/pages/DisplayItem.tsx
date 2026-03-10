@@ -1,4 +1,4 @@
-import { SessionContext } from "@repo/client";
+import { decryptItem, SessionContext, useLocalEntryByIdOptions } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -18,7 +18,6 @@ import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
 import { editSlug } from "@/data/routes";
-import { decryptPayload } from "@/utils/vault";
 import { toast } from "@repo/ui";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import {
@@ -29,7 +28,6 @@ import {
   ItemDescription,
   ItemGroup,
 } from "@repo/ui/components/Item";
-import { useLocalEntryByIdOptions } from "@repo/store";
 
 function Fallback() {
   return (
@@ -72,7 +70,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
 
   const data = {
     itemId: encryptedItem.itemId,
-    ...decryptPayload(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
+    ...decryptItem(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
   };
   const { progress, seconds, token } = useTotp(data.totp);
 

@@ -3,8 +3,7 @@ import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
 import LoginPage from "@pages/auth/LoginPage";
 import RegisterPage from "@pages/auth/RegisterPage";
 import NotFound from "@pages/NotFound";
-import { SessionContext } from "@repo/client";
-import { useStore } from "@repo/store";
+import { SessionContext, useStore } from "@repo/client";
 import { useContext } from "react";
 import { Redirect, Route, Switch, useRoute } from "wouter";
 

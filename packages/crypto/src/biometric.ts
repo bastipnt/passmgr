@@ -1,6 +1,14 @@
-// TODO: maybe in different location -> @repo/client or new @repo/data\store\vault idk
-import { encryptXChaCha, decryptXChaCha, hkdf, wipe, toBase64, fromBase64 } from "@repo/crypto";
-import type { BiometricKeyMaterial } from "@repo/store";
+import { fromBase64, toBase64 } from "@repo/util";
+import { hkdf } from "./hash";
+import { decryptXChaCha, encryptXChaCha } from "./encryption";
+import { wipe } from "./util/secrets-utils";
+
+export type BiometricKeyMaterial = {
+  biometricEncryptedVaultKey: string;
+  biometricNonce: string;
+  credentialId: string; // base64
+  prfSalt: string; // base64
+};
 
 // WebAuthn PRF extension types (not yet in lib.dom.d.ts)
 type PRFValues = { first: ArrayBuffer };
@@ -8,6 +16,7 @@ type PRFExtensionInput = { eval: PRFValues };
 type PRFExtensionCreateResult = { enabled?: boolean; results?: { first: ArrayBuffer } };
 type PRFExtensionGetResult = { results?: { first: ArrayBuffer } };
 
+// TODO: use this check in enroll?
 export async function isPrfSupported(): Promise<boolean> {
   if (typeof window === "undefined") return false;
   if (!window.PublicKeyCredential) return false;

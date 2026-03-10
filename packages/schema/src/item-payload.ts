@@ -13,6 +13,8 @@ export const encryptedItemSchema = z.object({
   deleted_at: z.string().nullable().optional(),
 });
 
+export type EncryptedItemSchema = z.infer<typeof encryptedItemSchema>;
+
 export const createItemInputSchema = z.object({
   itemId: z.uuid(),
   encryptedData: z.string(),

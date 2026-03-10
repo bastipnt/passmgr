@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { SessionContext, useTRPCClient } from "@repo/client";
-import { SqliteAdapter } from "../sqlite-adapter";
-import { LocalStore } from "../local-store";
 import { SyncManager } from "../sync-manager";
-import type { BiometricKeyMaterial, VaultKeyMaterial } from "../types";
+import type { VaultKeyMaterial } from "@repo/store/src/types";
+import { SessionContext } from "./SessionProvider";
+import { useTRPCClient } from "../util/trpc";
+import { LocalStore, SqliteAdapter } from "@repo/store";
+import type { BiometricKeyMaterial } from "@repo/crypto";
 
 const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 

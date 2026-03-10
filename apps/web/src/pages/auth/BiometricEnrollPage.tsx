@@ -1,10 +1,10 @@
-import { secretsStore } from "@repo/client";
-import { useStore } from "@repo/store";
+import { useStore } from "@repo/client";
+import { enrollBiometric } from "@repo/crypto";
+import { secretsStore } from "@repo/store";
 import { Button } from "@repo/ui/components/Button";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { enrollBiometric } from "@utils/webauthn";
 import { useState } from "react";
 import { useLocation } from "wouter";
 

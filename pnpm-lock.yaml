@@ -295,6 +295,9 @@ importers:
       '@repo/schema':
         specifier: workspace:*
         version: link:../schema
+      '@repo/store':
+        specifier: workspace:*
+        version: link:../store
       '@repo/util':
         specifier: workspace:*
         version: link:../util
@@ -416,9 +419,6 @@ importers:
 
   packages/store:
     dependencies:
-      '@repo/client':
-        specifier: workspace:*
-        version: link:../client
       '@repo/crypto':
         specifier: workspace:*
         version: link:../crypto

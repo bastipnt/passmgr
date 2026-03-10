@@ -1,7 +1,7 @@
 import * as opaque from "@serenity-kit/opaque";
-import { useTRPCClient } from "./util/trpc";
+import { useTRPCClient } from "../util/trpc";
 import { useContext, useState } from "react";
-import { SessionContext } from "./providers/SessionProvider";
+import { SessionContext } from "../providers/SessionProvider";
 import { genSalt, toBase64 } from "@repo/crypto";
 import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 
@@ -64,8 +64,6 @@ export function useLogin() {
     }
 
     await loginSession(sessionId, sessionKey, authSalt);
-
-    // const { passwordKekSalt, passwordKekParams } = secretsStore.getVaultUnlockParams();
 
     return { password, userPasswordKeys };
   }

@@ -1,13 +1,4 @@
-import {
-  decryptXChaCha,
-  encryptXChaCha,
-  fromBase64,
-  fromString,
-  hkdf,
-  signHmac,
-  wipe,
-} from "@repo/crypto";
-import type { ArgonParams, PasswordKeySchema } from "@repo/schema";
+import { decryptXChaCha, encryptXChaCha, fromString, hkdf, signHmac, wipe } from "@repo/crypto";
 
 class SessionLockedError extends Error {
   override message: string = "SessionLockedError";
@@ -21,31 +12,17 @@ class SecretsStore {
   private authSalt?: Uint8Array;
 
   // Vault related keys
-  private passwordKekParams?: ArgonParams;
-  private passwordKekSalt?: Uint8Array;
-  private encryptedVaultKeyB64?: string;
-  private vaultKeyEncryptionNonceB64?: string;
   private vaultKey?: Uint8Array;
 
   /**
    * Phase 1: Establish session (fast — HKDF only).
    * After this, authenticated requests work but item decryption does not.
    */
-  async unlockSession(
-    sessionId: string,
-    sessionKey: string,
-    authSalt: Uint8Array,
-    // userPasswordKeys: PasswordKeySchema,
-  ) {
+  async unlockSession(sessionId: string, sessionKey: string, authSalt: Uint8Array) {
     this.sessionId = sessionId;
     this.sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
     this.authSalt = authSalt;
     this.authKey = await this.deriveAuthKey();
-
-    // this.passwordKekParams = userPasswordKeys.passwordKekParams;
-    // this.passwordKekSalt = fromBase64(userPasswordKeys.passwordKekSalt);
-    // this.encryptedVaultKeyB64 = userPasswordKeys.encryptedVaultKey;
-    // this.vaultKeyEncryptionNonceB64 = userPasswordKeys.vaultKeyEncryptionNonce;
   }
 
   /**
@@ -57,14 +34,7 @@ class SecretsStore {
     encryptedVaultKeyB64: string,
     vaultKeyEncryptionNonceB64: string,
   ) {
-    this.encryptedVaultKeyB64 = encryptedVaultKeyB64;
-    this.vaultKeyEncryptionNonceB64 = vaultKeyEncryptionNonceB64;
-
-    this.vaultKey = decryptXChaCha(
-      passwordKek,
-      this.encryptedVaultKeyB64,
-      this.vaultKeyEncryptionNonceB64,
-    );
+    this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
     wipe(passwordKek);
   }
 
@@ -74,29 +44,6 @@ class SecretsStore {
    */
   unlockWithVaultKey(vaultKey: Uint8Array) {
     this.vaultKey = vaultKey;
-  }
-
-  getVaultUnlockParams(): { passwordKekSalt: Uint8Array; passwordKekParams: ArgonParams } {
-    if (!this.passwordKekSalt || !this.passwordKekParams) {
-      throw new SessionLockedError();
-    }
-    return {
-      passwordKekSalt: this.passwordKekSalt,
-      passwordKekParams: this.passwordKekParams,
-    };
-  }
-
-  getEncryptedVaultKeyMaterial(): {
-    encryptedVaultKey: string;
-    vaultKeyEncryptionNonce: string;
-  } {
-    if (!this.encryptedVaultKeyB64 || !this.vaultKeyEncryptionNonceB64) {
-      throw new SessionLockedError();
-    }
-    return {
-      encryptedVaultKey: this.encryptedVaultKeyB64,
-      vaultKeyEncryptionNonce: this.vaultKeyEncryptionNonceB64,
-    };
   }
 
   get isVaultUnlocked(): boolean {
@@ -114,14 +61,6 @@ class SecretsStore {
 
     if (this.authSalt) wipe(this.authSalt);
     this.authSalt = undefined;
-
-    this.passwordKekParams = undefined;
-
-    if (this.passwordKekSalt) wipe(this.passwordKekSalt);
-    this.passwordKekSalt = undefined;
-
-    this.encryptedVaultKeyB64 = undefined;
-    this.vaultKeyEncryptionNonceB64 = undefined;
 
     if (this.vaultKey) wipe(this.vaultKey);
     this.vaultKey = undefined;

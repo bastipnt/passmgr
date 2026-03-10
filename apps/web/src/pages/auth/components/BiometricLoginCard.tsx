@@ -2,12 +2,12 @@ import { Button } from "@repo/ui/components/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { authenticateBiometric } from "@/utils/webauthn";
 import { FingerprintIcon } from "lucide-react";
 import { useContext, useState } from "react";
-import { useStore } from "@repo/store";
-import { secretsStore, SessionContext } from "@repo/client";
+import { SessionContext, useStore } from "@repo/client";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
+import { secretsStore } from "@repo/store";
+import { authenticateBiometric } from "@repo/crypto";
 
 type BiometricLoginCardParams = {
   loading: boolean;
