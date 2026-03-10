@@ -2,7 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
-import { decryptItemWithWorker, SessionContext, useLocalEntryAllOptions } from "@repo/client";
+import { decryptItemWithWorker, SessionContext, useGetAllItemsOptions } from "@repo/client";
 import {
   Item,
   ItemContent,
@@ -101,7 +101,7 @@ function ItemSidebarSkeleton() {
 function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   const { vaultReady } = useContext(SessionContext);
   const { data } = useSuspenseQuery({
-    ...useLocalEntryAllOptions(),
+    ...useGetAllItemsOptions(),
     select: (res) =>
       res.items.map((item) => ({
         itemId: item.itemId,

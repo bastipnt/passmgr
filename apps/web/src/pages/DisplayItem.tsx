@@ -1,4 +1,4 @@
-import { decryptItem, SessionContext, useLocalEntryByIdOptions } from "@repo/client";
+import { decryptItem, SessionContext, useGetItemByIdOptions } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -64,7 +64,7 @@ type DisplayItemProps = {
 
 function DisplayItemInner({ entryId }: DisplayItemProps) {
   const { vaultReady, isOffline } = useContext(SessionContext);
-  const { data: encryptedItem } = useSuspenseQuery(useLocalEntryByIdOptions(entryId));
+  const { data: encryptedItem } = useSuspenseQuery(useGetItemByIdOptions(entryId));
 
   if (!vaultReady) return <Fallback />;
 

@@ -8,7 +8,7 @@ import { useStore } from "../providers/StoreProvider";
  * The SyncManager keeps the local store up to date and invalidates
  * these queries after each sync.
  */
-export function useLocalEntryAllOptions() {
+export function useGetAllItemsOptions() {
   const store = useStore();
 
   return queryOptions({
@@ -23,7 +23,7 @@ export function useLocalEntryAllOptions() {
   });
 }
 
-export function useLocalEntryByIdOptions(itemId: string) {
+export function useGetItemByIdOptions(itemId: string) {
   const store = useStore();
 
   return queryOptions({

@@ -1,14 +1,13 @@
-import { useMutation, useSuspenseQuery, useQueryClient } from "@tanstack/react-query";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useContext, useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
 import {
-  useTRPC,
   SessionContext,
-  useLocalEntryByIdOptions,
-  useStore,
+  useGetItemByIdOptions,
   decryptItem,
   encryptItem,
+  useUpdateItem,
 } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
@@ -30,13 +29,10 @@ type EditItemListProps = {
 };
 
 function EditItemInner({ entryId }: EditItemListProps) {
-  const trpc = useTRPC();
   const { vaultReady } = useContext(SessionContext);
   const [_, navigate] = useLocation();
-  const queryClient = useQueryClient();
-  const store = useStore();
 
-  const { data: encryptedItem } = useSuspenseQuery(useLocalEntryByIdOptions(entryId));
+  const { data: encryptedItem } = useSuspenseQuery(useGetItemByIdOptions(entryId));
 
   if (!vaultReady) return <Fallback />;
 
@@ -46,26 +42,22 @@ function EditItemInner({ entryId }: EditItemListProps) {
     ...decryptItem(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
   };
 
-  const { mutate, error: mutationError } = useMutation(
-    trpc.entry.update.mutationOptions({
-      onSuccess: async (result) => {
-        await store?.localStore.upsertItems([result]);
-        void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
-        navigate(`/${entrySlug}/${entryId}`);
-      },
-    }),
-  );
+  const { updateItem, updateItemError } = useUpdateItem({
+    onSuccess: () => {
+      navigate(`/${entrySlug}/${entryId}`);
+    },
+  });
 
   useEffect(() => {
-    if (isDefined(mutationError)) toast("Error saving");
-  }, [mutationError]);
+    if (isDefined(updateItemError)) toast("Error saving");
+  }, [updateItemError]);
 
   function handleSubmit(formValues: LoginItem) {
     const { encryptedData, encryptionNonce } = encryptItem({
       schemaVersion: data.schemaVersion,
       ...formValues,
     });
-    mutate({
+    updateItem({
       itemId: entryId,
       encryptedData,
       encryptionNonce,
@@ -89,7 +81,7 @@ function EditItemInner({ entryId }: EditItemListProps) {
     <LayoutOverlay>
       <LoginItemForm
         onSubmit={handleSubmit}
-        serverError={mutationError?.message}
+        serverError={updateItemError?.message}
         defaultValues={defaultValues}
         title="Edit Login"
         action="Save"
