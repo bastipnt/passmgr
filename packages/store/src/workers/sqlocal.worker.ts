@@ -8,5 +8,5 @@ self.onmessage = (message: MessageEvent) => {
 };
 
 processor.onmessage = (message, transfer) => {
-  self.postMessage(message, transfer);
+  self.postMessage(message, { transfer });
 };

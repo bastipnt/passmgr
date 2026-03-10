@@ -354,6 +354,9 @@ importers:
         specifier: ^13.3.0
         version: 13.3.0
     devDependencies:
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../schema
       '@repo/util':
         specifier: workspace:*
         version: link:../util
@@ -413,9 +416,18 @@ importers:
 
   packages/store:
     dependencies:
+      '@repo/client':
+        specifier: workspace:*
+        version: link:../client
+      '@repo/crypto':
+        specifier: workspace:*
+        version: link:../crypto
       '@repo/schema':
         specifier: workspace:*
         version: link:../schema
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../util
 
   packages/typescript-config: {}
 

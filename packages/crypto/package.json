@@ -11,6 +11,7 @@
   },
   "devDependencies": {
     "@repo/util": "workspace:*",
+    "@repo/schema": "workspace:*",
     "oxlint": "^1.48.0"
   },
   "keywords": [],
@@ -22,5 +23,9 @@
     "@noble/ciphers": "^2.1.1",
     "@noble/hashes": "^2.0.1",
     "otplib": "^13.3.0"
+  },
+  "exports": {
+    ".": "./index.ts",
+    "./services/*": "./src/services/*.ts"
   }
 }

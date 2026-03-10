@@ -3,7 +3,6 @@ import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
 import { SessionContext } from "@repo/client";
-import { useLocalEntryAllOptions } from "@/store/use-local-entries";
 import {
   Item,
   ItemContent,
@@ -16,6 +15,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar"
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { decryptPayloadAsync } from "@/utils/vault";
 import type { ItemPayload } from "@repo/schema";
+import { useLocalEntryAllOptions } from "@repo/store";
 
 type ItemSidebarProps = {
   itemId?: string;

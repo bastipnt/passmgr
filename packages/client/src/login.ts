@@ -3,18 +3,11 @@ import { useTRPCClient } from "./util/trpc";
 import { useContext, useState } from "react";
 import { SessionContext } from "./providers/SessionProvider";
 import { genSalt, toBase64 } from "@repo/crypto";
-import { secretsStore } from "./secrets-store";
-import type { PasswordKeySchema } from "@repo/schema";
-
-export type VaultUnlockInfo = {
-  password: string;
-  passwordKekSalt: Uint8Array;
-  passwordKekParams: { t: number; m: number; p: number };
-};
+import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 
 export function useLogin() {
   const trpc = useTRPCClient();
-  const { loginSession } = useContext(SessionContext);
+  const { loginSession, offlineLoginSession } = useContext(SessionContext);
   const [loginError, setLoginError] = useState(false);
 
   /**
@@ -70,12 +63,16 @@ export function useLogin() {
       return;
     }
 
-    await loginSession(sessionId, sessionKey, authSalt, userPasswordKeys);
+    await loginSession(sessionId, sessionKey, authSalt);
 
-    const { passwordKekSalt, passwordKekParams } = secretsStore.getVaultUnlockParams();
+    // const { passwordKekSalt, passwordKekParams } = secretsStore.getVaultUnlockParams();
 
-    return { password, passwordKekSalt, passwordKekParams };
+    return { password, userPasswordKeys };
   }
 
-  return { loginUser, loginError };
+  function offlineLogin() {
+    offlineLoginSession();
+  }
+
+  return { loginUser, offlineLogin, loginError };
 }

@@ -14,11 +14,13 @@ class SessionLockedError extends Error {
 }
 
 class SecretsStore {
+  // Session related keys
   sessionId?: string;
   private sessionSecret?: Uint8Array;
   private authKey?: Uint8Array;
   private authSalt?: Uint8Array;
 
+  // Vault related keys
   private passwordKekParams?: ArgonParams;
   private passwordKekSalt?: Uint8Array;
   private encryptedVaultKeyB64?: string;
@@ -33,27 +35,31 @@ class SecretsStore {
     sessionId: string,
     sessionKey: string,
     authSalt: Uint8Array,
-    userPasswordKeys: PasswordKeySchema,
+    // userPasswordKeys: PasswordKeySchema,
   ) {
     this.sessionId = sessionId;
     this.sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
     this.authSalt = authSalt;
     this.authKey = await this.deriveAuthKey();
 
-    this.passwordKekParams = userPasswordKeys.passwordKekParams;
-    this.passwordKekSalt = fromBase64(userPasswordKeys.passwordKekSalt);
-    this.encryptedVaultKeyB64 = userPasswordKeys.encryptedVaultKey;
-    this.vaultKeyEncryptionNonceB64 = userPasswordKeys.vaultKeyEncryptionNonce;
+    // this.passwordKekParams = userPasswordKeys.passwordKekParams;
+    // this.passwordKekSalt = fromBase64(userPasswordKeys.passwordKekSalt);
+    // this.encryptedVaultKeyB64 = userPasswordKeys.encryptedVaultKey;
+    // this.vaultKeyEncryptionNonceB64 = userPasswordKeys.vaultKeyEncryptionNonce;
   }
 
   /**
    * Phase 2: Derive vault key (slow — Argon2id).
    * Must be called after unlockSession. Can run off main thread.
    */
-  unlockVaultWithKek(passwordKek: Uint8Array) {
-    if (!this.encryptedVaultKeyB64 || !this.vaultKeyEncryptionNonceB64) {
-      throw new SessionLockedError();
-    }
+  unlockVault(
+    passwordKek: Uint8Array,
+    encryptedVaultKeyB64: string,
+    vaultKeyEncryptionNonceB64: string,
+  ) {
+    this.encryptedVaultKeyB64 = encryptedVaultKeyB64;
+    this.vaultKeyEncryptionNonceB64 = vaultKeyEncryptionNonceB64;
+
     this.vaultKey = decryptXChaCha(
       passwordKek,
       this.encryptedVaultKeyB64,
@@ -68,19 +74,6 @@ class SecretsStore {
    */
   unlockWithVaultKey(vaultKey: Uint8Array) {
     this.vaultKey = vaultKey;
-  }
-
-  /**
-   * Offline unlock: derive vault key from stored encrypted material + password KEK.
-   * No server session is established — only item decryption works.
-   */
-  unlockOffline(
-    passwordKek: Uint8Array,
-    encryptedVaultKey: string,
-    vaultKeyEncryptionNonce: string,
-  ) {
-    this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKey, vaultKeyEncryptionNonce);
-    wipe(passwordKek);
   }
 
   getVaultUnlockParams(): { passwordKekSalt: Uint8Array; passwordKekParams: ArgonParams } {

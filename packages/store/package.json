@@ -7,6 +7,9 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@repo/schema": "workspace:*"
+    "@repo/schema": "workspace:*",
+    "@repo/client": "workspace:*",
+    "@repo/util": "workspace:*",
+    "@repo/crypto": "workspace:*"
   }
 }

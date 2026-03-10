@@ -1,5 +1,4 @@
 import { SessionContext } from "@repo/client";
-import { useLocalEntryByIdOptions } from "@/store/use-local-entries";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -30,6 +29,7 @@ import {
   ItemDescription,
   ItemGroup,
 } from "@repo/ui/components/Item";
+import { useLocalEntryByIdOptions } from "@repo/store";
 
 function Fallback() {
   return (

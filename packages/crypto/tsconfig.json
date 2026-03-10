@@ -18,7 +18,8 @@
     "composite": true,
     "declarationMap": true,
     "sourceMap": true,
-    "lib": ["esnext", "dom"]
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "types": ["vite/client"]
   },
   "include": ["**/*.ts", "../../types.d.ts"],
   "exclude": ["node_modules"]

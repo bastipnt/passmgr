@@ -19,7 +19,7 @@ import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPass
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useState } from "react";
 
-export default function Register() {
+export default function RegisterPage() {
   const [_, navigate] = useLocation();
   const [loading, setLoading] = useState(false);
   const { registerNewUser, registrationError } = useRegistration();

@@ -12,7 +12,8 @@
       "dependsOn": ["^lint"]
     },
     "typecheck": {
-      "dependsOn": ["^typecheck"]
+      "dependsOn": ["^typecheck"],
+      "cache": false
     },
     "dev": {
       "cache": false,

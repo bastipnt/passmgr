@@ -1,33 +1,38 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import {
-  LocalStore,
-  SyncManager,
-  type BiometricKeyMaterial,
-  type VaultKeyMaterial,
-} from "@repo/store";
 import { SessionContext, useTRPCClient } from "@repo/client";
-import { SqliteAdapter } from "./sqlite-adapter";
+import { SqliteAdapter } from "../sqlite-adapter";
+import { LocalStore } from "../local-store";
+import { SyncManager } from "../sync-manager";
+import type { BiometricKeyMaterial, VaultKeyMaterial } from "../types";
+
+const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 
 type StoreContextValue = {
   localStore: LocalStore;
   syncManager: SyncManager;
   vaultKeyMaterial: VaultKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
+  biometricDismissed: boolean;
+
+  setBiometricDismissed: (dismissed: boolean) => void;
   removeVault: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
-export function useLocalStore(): StoreContextValue | null {
-  return useContext(StoreContext);
+export function useStore(): StoreContextValue {
+  const store = useContext(StoreContext);
+  if (store === null) throw new Error("Store could not be loaded");
+
+  return store;
 }
 
 type StoreProviderProps = {
   children: ReactNode;
 };
 
-export default function StoreProvider({ children }: StoreProviderProps) {
+export function StoreProvider({ children }: StoreProviderProps) {
   const { sessionId, vaultReady, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const queryClient = useQueryClient();
@@ -35,6 +40,16 @@ export default function StoreProvider({ children }: StoreProviderProps) {
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
     null,
   );
+  const [biometricDismissed, setBiometricDismissed_] = useState(
+    Number(localStorage.getItem(BIOMETRIC_DISMISSED)) === 1,
+  );
+
+  function setBiometricDismissed(dismissed: boolean) {
+    setBiometricDismissed_(dismissed);
+
+    if (dismissed) localStorage.setItem(BIOMETRIC_DISMISSED, "1");
+    else localStorage.removeItem(BIOMETRIC_DISMISSED);
+  }
 
   const storeRef = useRef<{ localStore: LocalStore; syncManager: SyncManager } | null>(null);
 
@@ -86,7 +101,7 @@ export default function StoreProvider({ children }: StoreProviderProps) {
 
   async function removeVault() {
     await localStore.clear();
-    localStorage.removeItem("biometric-dismissed");
+    localStorage.removeItem(BIOMETRIC_DISMISSED);
     setVaultKeyMaterial(null);
     setBiometricKeyMaterial(null);
   }
@@ -95,6 +110,9 @@ export default function StoreProvider({ children }: StoreProviderProps) {
     ...storeRef.current,
     vaultKeyMaterial,
     biometricKeyMaterial,
+    biometricDismissed,
+
+    setBiometricDismissed,
     removeVault,
   };
 

@@ -5,17 +5,17 @@ import { useTRPC } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
-import { useLocalStore } from "@/store/store-provider";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 import { encryptPayload } from "@/utils/vault";
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
+import { useStore } from "@repo/store";
 
 export default function NewItem() {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
   const queryClient = useQueryClient();
-  const store = useLocalStore();
+  const store = useStore();
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({

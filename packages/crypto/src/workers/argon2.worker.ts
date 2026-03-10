@@ -14,6 +14,7 @@ self.onmessage = async (event: MessageEvent<ArgonRequest>) => {
     try {
       const salt = new Uint8Array(msg.salt);
       const result = await argon2idAsync(msg.password, salt, msg.params);
+      // @ts-expect-error result buffer
       self.postMessage({ type: "result", key: result.buffer }, [result.buffer]);
     } catch (e) {
       self.postMessage({

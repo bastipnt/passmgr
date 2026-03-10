@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { LocalItem } from "@repo/store";
-import { useLocalStore } from "./store-provider";
+import type { LocalItem } from "./types";
+import { useStore } from "./providers/StoreProvider";
 
 /**
  * Query options that read entries from the local SQLite store.
@@ -9,7 +9,7 @@ import { useLocalStore } from "./store-provider";
  * these queries after each sync.
  */
 export function useLocalEntryAllOptions() {
-  const store = useLocalStore();
+  const store = useStore();
 
   return queryOptions({
     queryKey: ["entry", "all", "local"],
@@ -24,7 +24,7 @@ export function useLocalEntryAllOptions() {
 }
 
 export function useLocalEntryByIdOptions(itemId: string) {
-  const store = useLocalStore();
+  const store = useStore();
 
   return queryOptions({
     queryKey: ["entry", "getById", "local", itemId],

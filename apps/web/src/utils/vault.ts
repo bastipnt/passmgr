@@ -1,8 +1,8 @@
 // TODO: not sure if this file should rather be in @repo/client
 
 import { secretsStore } from "@repo/client";
+import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import type { ItemPayload } from "@repo/schema";
-import { decryptWorkerService } from "./decrypt-worker-service";
 
 export function encryptPayload(payload: ItemPayload): {
   encryptedData: string;
