@@ -19,7 +19,7 @@ export default function NewItem() {
     trpc.entry.create.mutationOptions({
       onSuccess: async (result) => {
         await store?.localStore.upsertItems([result]);
-        void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
+        await queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
         navigate(`/${entrySlug}/${result.itemId}`);
       },
     }),

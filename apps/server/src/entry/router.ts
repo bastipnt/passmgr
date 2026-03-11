@@ -8,7 +8,7 @@ import {
   syncInputSchema,
   syncOutputSchema,
 } from "@repo/schema";
-import { db, itemsTable, type ItemType } from "@repo/db";
+import { db, type ItemType, itemsTable } from "@repo/db";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { TRPCError } from "@trpc/server";
 

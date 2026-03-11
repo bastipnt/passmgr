@@ -1,8 +1,16 @@
 import { SQLocal } from "sqlocal";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import SQLocalWorker from "./workers/sqlocal.worker.ts?worker";
-import type { LocalItem, StorageAdapter, VaultKeyMaterial } from "./types";
 import type { BiometricKeyMaterial } from "@repo/crypto";
+import type { EncryptedItemSchema } from "@repo/schema";
+
+export type VaultKeyMaterial = {
+  encryptedVaultKey: string;
+  vaultKeyEncryptionNonce: string;
+  passwordKekSalt: string;
+  passwordKekParams: string; // JSON-encoded {t, m, p}
+  email: string;
+};
 
 // TODO: separation between multiple users?
 const SCHEMA_SQL = /* sql */ `
@@ -25,8 +33,7 @@ const SCHEMA_SQL = /* sql */ `
   );
 `;
 
-// TODO: why done like this? why extending StorageAdapter?
-export class SqliteAdapter implements StorageAdapter {
+export class SqliteAdapter {
   private db: SQLocal;
   private initialized: Promise<void>;
 
@@ -46,7 +53,7 @@ export class SqliteAdapter implements StorageAdapter {
     await this.initialized;
   }
 
-  async upsertItems(items: LocalItem[]): Promise<void> {
+  async upsertItems(items: EncryptedItemSchema[]): Promise<void> {
     await this.ready();
     if (items.length === 0) return;
 
@@ -65,9 +72,9 @@ export class SqliteAdapter implements StorageAdapter {
     });
   }
 
-  async getAllLatest(): Promise<LocalItem[]> {
+  async getAllLatest(): Promise<EncryptedItemSchema[]> {
     await this.ready();
-    return await this.db.sql<LocalItem> /* sql */ `
+    return await this.db.sql<EncryptedItemSchema> /* sql */ `
       SELECT i.*
       FROM items i
       INNER JOIN (
@@ -79,9 +86,9 @@ export class SqliteAdapter implements StorageAdapter {
     `;
   }
 
-  async getByItemId(itemId: string): Promise<LocalItem | undefined> {
+  async getByItemId(itemId: string): Promise<EncryptedItemSchema | undefined> {
     await this.ready();
-    const rows = await this.db.sql<LocalItem> /* sql */ `
+    const rows = await this.db.sql<EncryptedItemSchema> /* sql */ `
       SELECT * FROM items
       WHERE itemId = ${itemId}
       ORDER BY version DESC

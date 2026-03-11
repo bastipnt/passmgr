@@ -1,6 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
-import type { LocalItem } from "@repo/store/src/types";
 import { useStore } from "../providers/StoreProvider";
+import type { EncryptedItemSchema } from "@repo/schema";
 
 /**
  * Query options that read entries from the local SQLite store.
@@ -15,7 +15,7 @@ export function useGetAllItemsOptions() {
     queryKey: ["entry", "all", "local"],
     staleTime: Infinity,
     networkMode: "always",
-    queryFn: async (): Promise<{ items: LocalItem[] }> => {
+    queryFn: async (): Promise<{ items: EncryptedItemSchema[] }> => {
       if (!store) return { items: [] };
       const items = await store.localStore.getAllLatest();
       return { items };
@@ -30,7 +30,7 @@ export function useGetItemByIdOptions(itemId: string) {
     queryKey: ["entry", "getById", "local", itemId],
     staleTime: Infinity,
     networkMode: "always",
-    queryFn: async (): Promise<LocalItem> => {
+    queryFn: async (): Promise<EncryptedItemSchema> => {
       if (!store) throw new Error("Store not initialized");
       const item = await store.localStore.getByItemId(itemId);
       if (!item || item.deleted_at) throw new Error("Item not found");

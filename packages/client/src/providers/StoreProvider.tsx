@@ -1,16 +1,15 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { SyncManager } from "../sync-manager";
-import type { VaultKeyMaterial } from "@repo/store/src/types";
 import { SessionContext } from "./SessionProvider";
 import { useTRPCClient } from "../util/trpc";
-import { LocalStore, SqliteAdapter } from "@repo/store";
+import { SqliteAdapter, type VaultKeyMaterial } from "@repo/store";
 import type { BiometricKeyMaterial } from "@repo/crypto";
 
 const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 
 type StoreContextValue = {
-  localStore: LocalStore;
+  localStore: SqliteAdapter;
   syncManager: SyncManager;
   vaultKeyMaterial: VaultKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
@@ -52,16 +51,15 @@ export function StoreProvider({ children }: StoreProviderProps) {
     else localStorage.removeItem(BIOMETRIC_DISMISSED);
   }
 
-  const storeRef = useRef<{ localStore: LocalStore; syncManager: SyncManager } | null>(null);
+  const storeRef = useRef<{ localStore: SqliteAdapter; syncManager: SyncManager } | null>(null);
 
   if (!storeRef.current) {
     const adapter = new SqliteAdapter();
-    const localStore = new LocalStore(adapter);
-    const syncManager = new SyncManager(localStore, async (lastSyncedAt) => {
+    const syncManager = new SyncManager(adapter, async (lastSyncedAt) => {
       if (!navigator.onLine) throw new Error("offline");
       return await trpc.entry.sync.query({ lastSyncedAt });
     });
-    storeRef.current = { localStore, syncManager };
+    storeRef.current = { localStore: adapter, syncManager };
   }
 
   const { localStore, syncManager } = storeRef.current;
