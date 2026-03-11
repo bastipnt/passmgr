@@ -8,6 +8,7 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { useState } from "react";
 import { useLocation } from "wouter";
 
+// TODO: fails if argon2id not finished
 export default function BiometricEnrollPage() {
   const [error, setError] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
@@ -23,8 +24,14 @@ export default function BiometricEnrollPage() {
     setEnrolling(true);
     try {
       const vaultKey = secretsStore.exportVaultKeyForWorker();
-      const material = await enrollBiometric(vaultKey);
+      const password = secretsStore.getPassword();
+      if (!password) {
+        setError(true);
+        return;
+      }
+      const material = await enrollBiometric(vaultKey, password);
       await store.localStore.setBiometricKeyMaterial(material);
+      secretsStore.clearPassword();
 
       navigateNext();
     } catch {
@@ -36,6 +43,7 @@ export default function BiometricEnrollPage() {
   }
 
   function onDismissEnroll() {
+    secretsStore.clearPassword();
     store.setBiometricDismissed(true);
     navigateNext();
   }

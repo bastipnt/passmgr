@@ -4,6 +4,7 @@ import { useContext, useState } from "react";
 import LoginForm, { type LoginFormValues } from "@pages/auth/components/LoginForm";
 import RemoveVaultDialog from "@pages/auth/components/RemoveVaultDialog";
 import type { VaultUnlockInfo } from "@repo/schema";
+import { secretsStore } from "@repo/store";
 import ExistingUserButton from "@pages/auth/components/ExistingUserButton";
 import { BiometricLoginCard } from "@pages/auth/components/BiometricLoginCard";
 
@@ -49,6 +50,11 @@ export default function LoginPage() {
 
     // unlock vault (store)
     await unlock(unlockVaultInfo);
+
+    // Store password temporarily for biometric enrollment (only if enrollment is upcoming)
+    if (!store.biometricKeyMaterial && !store.biometricDismissed) {
+      secretsStore.setPassword(unlockVaultInfo.password);
+    }
 
     await storeKeyMaterial(email, unlockVaultInfo.userPasswordKeys);
   };

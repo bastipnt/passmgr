@@ -27,7 +27,7 @@ export const SessionContext = createContext<{
     encryptedVaultKeyB64: string,
     vaultKeyEncryptionNonceB64: string,
   ) => void;
-  offlineUnlockWithVaultKey: (vaultKey: Uint8Array) => void;
+  unlockWithVaultKey: (vaultKey: Uint8Array, offline?: boolean) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
   sessionState: sessionStates.loggedOut,
@@ -36,8 +36,7 @@ export const SessionContext = createContext<{
   async loginSession() {},
   offlineLoginSession() {},
   unlockVault() {},
-  // offlineUnlock() {},
-  offlineUnlockWithVaultKey() {},
+  unlockWithVaultKey() {},
   async signRequest() {
     return new Uint8Array(32);
   },
@@ -99,11 +98,13 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     setVaultReady(true);
   }
 
-  // TODO: needs to work online as well
-  function offlineUnlockWithVaultKey(vaultKey: Uint8Array) {
+  /**
+   * Unlock vault with a pre-decrypted key (e.g. from biometric).
+   * When offline, also sets sessionId to "offline".
+   */
+  function unlockWithVaultKey(vaultKey: Uint8Array, offline = false) {
     secretsStore.unlockWithVaultKey(vaultKey);
-    // setIsOffline(true);
-    setSessionId("offline");
+    if (offline) setSessionId("offline");
     setVaultReady(true);
   }
 
@@ -121,8 +122,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
         loginSession,
         offlineLoginSession,
         unlockVault,
-        // offlineUnlock,
-        offlineUnlockWithVaultKey,
+        unlockWithVaultKey,
         signRequest,
       }}
     >

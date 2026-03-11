@@ -14,6 +14,9 @@ class SecretsStore {
   // Vault related keys
   private vaultKey?: Uint8Array;
 
+  // Temporary password for biometric enrollment
+  private password?: string;
+
   /**
    * Phase 1: Establish session (fast — HKDF only).
    * After this, authenticated requests work but item decryption does not.
@@ -46,6 +49,18 @@ class SecretsStore {
     this.vaultKey = vaultKey;
   }
 
+  setPassword(pw: string) {
+    this.password = pw;
+  }
+
+  getPassword(): string | undefined {
+    return this.password;
+  }
+
+  clearPassword() {
+    this.password = undefined;
+  }
+
   get isVaultUnlocked(): boolean {
     return this.vaultKey !== undefined;
   }
@@ -64,6 +79,8 @@ class SecretsStore {
 
     if (this.vaultKey) wipe(this.vaultKey);
     this.vaultKey = undefined;
+
+    this.password = undefined;
   }
 
   async signRequest(message: string) {

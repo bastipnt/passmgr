@@ -6,6 +6,8 @@ import { wipe } from "./util/secrets-utils";
 export type BiometricKeyMaterial = {
   biometricEncryptedVaultKey: string;
   biometricNonce: string;
+  biometricEncryptedPassword: string;
+  biometricPasswordNonce: string;
   credentialId: string; // base64
   prfSalt: string; // base64
 };
@@ -27,7 +29,10 @@ export async function isPrfSupported(): Promise<boolean> {
   }
 }
 
-export async function enrollBiometric(vaultKey: Uint8Array): Promise<BiometricKeyMaterial> {
+export async function enrollBiometric(
+  vaultKey: Uint8Array,
+  password: string,
+): Promise<BiometricKeyMaterial> {
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
 
   const credential = (await navigator.credentials.create({
@@ -93,17 +98,25 @@ export async function enrollBiometric(vaultKey: Uint8Array): Promise<BiometricKe
 
   const biometricKek = await hkdf(new Uint8Array(prfOutput), "biometricKek");
   const [biometricEncryptedVaultKey, biometricNonce] = encryptXChaCha(biometricKek, vaultKey);
+  const [biometricEncryptedPassword, biometricPasswordNonce] = encryptXChaCha(
+    biometricKek,
+    password,
+  );
   wipe(biometricKek);
 
   return {
     biometricEncryptedVaultKey,
     biometricNonce,
+    biometricEncryptedPassword,
+    biometricPasswordNonce,
     credentialId,
     prfSalt: toBase64(prfSalt),
   };
 }
 
-export async function authenticateBiometric(material: BiometricKeyMaterial): Promise<Uint8Array> {
+export async function authenticateBiometric(
+  material: BiometricKeyMaterial,
+): Promise<{ vaultKey: Uint8Array; password: string }> {
   const credentialId = fromBase64(material.credentialId);
   const prfSalt = fromBase64(material.prfSalt);
 
@@ -133,7 +146,15 @@ export async function authenticateBiometric(material: BiometricKeyMaterial): Pro
     material.biometricEncryptedVaultKey,
     material.biometricNonce,
   );
+  const passwordBytes = decryptXChaCha(
+    biometricKek,
+    material.biometricEncryptedPassword,
+    material.biometricPasswordNonce,
+  );
   wipe(biometricKek);
 
-  return vaultKey;
+  const password = new TextDecoder().decode(passwordBytes);
+  wipe(passwordBytes);
+
+  return { vaultKey, password };
 }

@@ -135,6 +135,8 @@ export class SqliteAdapter {
   private static readonly BIOMETRIC_KEYS = [
     "biometricEncryptedVaultKey",
     "biometricNonce",
+    "biometricEncryptedPassword",
+    "biometricPasswordNonce",
     "credentialId",
     "prfSalt",
   ] as const;
@@ -153,9 +155,9 @@ export class SqliteAdapter {
     const keys = SqliteAdapter.BIOMETRIC_KEYS;
     const rows = await this.db.sql<{ key: string; value: string }> /* sql */ `
       SELECT key, value FROM sync_meta
-      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]})
+      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]}, ${keys[4]}, ${keys[5]})
     `;
-    if (rows.length < 4) return null;
+    if (rows.length < 6) return null;
     const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
     return map as BiometricKeyMaterial;
   }
@@ -165,7 +167,7 @@ export class SqliteAdapter {
     const keys = SqliteAdapter.BIOMETRIC_KEYS;
     await this.db.sql`
       DELETE FROM sync_meta
-      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]})
+      WHERE key IN (${keys[0]}, ${keys[1]}, ${keys[2]}, ${keys[3]}, ${keys[4]}, ${keys[5]})
     `;
   }
 

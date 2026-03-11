@@ -4,7 +4,7 @@ import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { FingerprintIcon } from "lucide-react";
 import { useContext, useState } from "react";
-import { SessionContext, useStore } from "@repo/client";
+import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import { secretsStore } from "@repo/store";
 import { authenticateBiometric } from "@repo/crypto";
@@ -15,7 +15,9 @@ type BiometricLoginCardParams = {
 };
 
 export function BiometricLoginCard({ loading, setLoading }: BiometricLoginCardParams) {
-  const { offlineUnlockWithVaultKey } = useContext(SessionContext);
+  const { unlockWithVaultKey } = useContext(SessionContext);
+  const { loginUser } = useLogin();
+  const { storeKeyMaterial } = useUnlock();
   const [error, setError] = useState(false);
   const store = useStore();
 
@@ -24,11 +26,24 @@ export function BiometricLoginCard({ loading, setLoading }: BiometricLoginCardPa
     setLoading(true);
     setError(false);
 
-    // TODO: move into useUnlock
     try {
-      const vaultKey = await authenticateBiometric(store.biometricKeyMaterial);
-      // TODO: should also be possible online
-      offlineUnlockWithVaultKey(vaultKey);
+      const { vaultKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
+      const email = store.vaultKeyMaterial?.email;
+
+      if (navigator.onLine && email) {
+        const unlockInfo = await loginUser(email, password);
+
+        if (unlockInfo) {
+          unlockWithVaultKey(vaultKey);
+          await storeKeyMaterial(email, unlockInfo.userPasswordKeys);
+        } else {
+          // OPAQUE failed — fall back to offline
+          unlockWithVaultKey(vaultKey, true);
+        }
+      } else {
+        unlockWithVaultKey(vaultKey, true);
+      }
+
       decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
     } catch {
       setError(true);
