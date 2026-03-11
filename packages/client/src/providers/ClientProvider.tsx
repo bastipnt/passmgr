@@ -1,7 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useState, type ReactNode } from "react";
 import { TRPCProvider } from "../util/trpc";
-import { createTRPCClient, httpLink, type TRPCClient } from "@trpc/client";
+import {
+  createTRPCClient,
+  httpLink,
+  splitLink,
+  httpSubscriptionLink,
+  type TRPCClient,
+} from "@trpc/client";
 import type { AppRouter } from "server";
 import { generateAuthHeaders } from "../util/headers";
 
@@ -43,17 +49,27 @@ export default function ClientProvider({ children }: ClientProviderProps) {
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
     createTRPCClient<AppRouter>({
       links: [
-        httpLink({
-          url: import.meta.env.VITE_SERVER_URL,
-          async headers({ op }) {
-            return await generateAuthHeaders(op);
-          },
-          async fetch(url, options) {
-            return fetch(url, {
-              ...options,
-              credentials: "include",
-            });
-          },
+        splitLink({
+          condition: (op) => op.type === "subscription",
+          true: httpSubscriptionLink({
+            url: import.meta.env.VITE_SERVER_URL,
+            connectionParams: async () => {
+              const { secretsStore } = await import("@repo/store");
+              return { sessionId: secretsStore.sessionId ?? "" };
+            },
+          }),
+          false: httpLink({
+            url: import.meta.env.VITE_SERVER_URL,
+            async headers({ op }) {
+              return await generateAuthHeaders(op);
+            },
+            async fetch(url, options) {
+              return fetch(url, {
+                ...options,
+                credentials: "include",
+              });
+            },
+          }),
         }),
       ],
     });

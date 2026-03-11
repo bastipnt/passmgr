@@ -70,7 +70,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
     void localStore.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
   }, [localStore]);
 
-  // Sync on login + start periodic sync + resync when back online (skip when offline-only)
+  // Sync on login + start periodic sync + SSE subscription + resync when back online
   useEffect(() => {
     if (!sessionId || isOffline) return;
 
@@ -81,15 +81,26 @@ export function StoreProvider({ children }: StoreProviderProps) {
     const onOnline = () => void syncManager.sync();
     window.addEventListener("online", onOnline);
 
+    // Subscribe to SSE notifications for real-time sync
+    const sseSubscription = trpc.entry.onItemChange.subscribe(undefined, {
+      onData: (event) => {
+        if (event.data.type === "changed") {
+          void syncManager.sync();
+        }
+      },
+    });
+
     void syncManager.sync();
-    syncManager.startPeriodicSync(60_000);
+    // Fallback polling at 5 minutes (SSE handles real-time)
+    syncManager.startPeriodicSync(5 * 60_000);
 
     return () => {
       unsub();
+      sseSubscription.unsubscribe();
       window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [sessionId, isOffline, syncManager, queryClient]);
+  }, [sessionId, isOffline, syncManager, queryClient, trpc]);
 
   // Re-sync when vault becomes ready (items may have been fetched but not decryptable yet)
   useEffect(() => {

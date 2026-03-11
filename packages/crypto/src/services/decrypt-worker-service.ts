@@ -10,6 +10,7 @@ type PendingDecrypt = {
 class DecryptWorkerService {
   private worker: Worker | null = null;
   private pending = new Map<string, PendingDecrypt>();
+  private nextRequestId = 0;
 
   private getWorker(): Worker {
     if (!this.worker) {
@@ -33,6 +34,10 @@ class DecryptWorkerService {
     return this.worker;
   }
 
+  private createRequestId(): string {
+    return `req_${++this.nextRequestId}`;
+  }
+
   init(vaultKeyBytes: Uint8Array): void {
     const worker = this.getWorker();
     // Transfer a copy so we don't transfer the original buffer
@@ -40,7 +45,8 @@ class DecryptWorkerService {
     worker.postMessage({ type: "init", key: copy.buffer }, [copy.buffer]);
   }
 
-  decrypt(id: string, encryptedData: string, nonce: string): Promise<ItemPayload> {
+  decrypt(encryptedData: string, nonce: string): Promise<ItemPayload> {
+    const id = this.createRequestId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
       this.getWorker().postMessage({ type: "decrypt", id, encryptedData, nonce });

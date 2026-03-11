@@ -39,7 +39,7 @@ function EncryptedSidebarItem({
   useEffect(() => {
     if (!vaultReady) return;
     let cancelled = false;
-    void decryptItemWithWorker(item.itemId, item.encryptedData, item.encryptionNonce).then((p) => {
+    void decryptItemWithWorker(item.encryptedData, item.encryptionNonce).then((p) => {
       if (!cancelled) setPayload(p);
     });
     return () => {

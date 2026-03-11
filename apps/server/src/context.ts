@@ -1,10 +1,6 @@
-import {
-  SESSION_ID_HEADER,
-  SESSION_SIGNATURE_HEADER,
-  SESSION_TIMESTAMP_HEADER,
-} from "@repo/crypto";
+import { SESSION_SIGNATURE_HEADER, SESSION_TIMESTAMP_HEADER } from "@repo/crypto";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { getHeaderSave } from "./util/general";
+import { getHeaderSave, getSessionIdSave } from "./util/general";
 
 type Session = { sessionId?: string; timestamp?: string; signature?: string; salt?: string } | null;
 
@@ -19,7 +15,10 @@ export async function createContextInner(opts?: CreateInnerContextOptions) {
 }
 
 export async function createContext(opts: CreateFastifyContextOptions) {
-  const sessionId = getHeaderSave(opts.req.headers, SESSION_ID_HEADER);
+  const sessionId = getSessionIdSave(opts.req.headers, opts.req.query);
+
+  console.log({ sessionId }, opts.req.query);
+
   const timestamp = getHeaderSave(opts.req.headers, SESSION_TIMESTAMP_HEADER);
   const signature = getHeaderSave(opts.req.headers, SESSION_SIGNATURE_HEADER);
 

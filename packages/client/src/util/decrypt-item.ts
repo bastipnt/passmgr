@@ -8,9 +8,8 @@ export function decryptItem(encryptedData: string, encryptionNonce: string): Ite
 }
 
 export function decryptItemWithWorker(
-  id: string,
   encryptedData: string,
   encryptionNonce: string,
 ): Promise<ItemPayload> {
-  return decryptWorkerService.decrypt(id, encryptedData, encryptionNonce);
+  return decryptWorkerService.decrypt(encryptedData, encryptionNonce);
 }

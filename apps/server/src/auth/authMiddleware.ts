@@ -11,6 +11,21 @@ function checkTimestamp(timestamp: string): boolean {
   else return true;
 }
 
+// TODO: verify signature here?
+export const protectedSubscriptionProcedure = loggedProcedure.use(async (opts) => {
+  const { ctx } = opts;
+
+  console.log(ctx.session);
+
+  const sessionId = ctx.session?.sessionId;
+  if (!sessionId) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+  const session = await getSession(sessionId);
+  if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+
+  return opts.next({ ctx: { userId: session.userId } });
+});
+
 export const protectedProcedure = loggedProcedure.use(async (opts) => {
   const { ctx, type, path, getRawInput } = opts;
 

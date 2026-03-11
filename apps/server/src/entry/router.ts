@@ -1,6 +1,6 @@
 import { router } from "../trpc";
 import z from "zod";
-import { protectedProcedure } from "../auth/authMiddleware";
+import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/authMiddleware";
 import {
   createItemInputSchema,
   updateItemInputSchema,
@@ -10,7 +10,8 @@ import {
 } from "@repo/schema";
 import { db, type ItemType, itemsTable } from "@repo/db";
 import { and, desc, eq, gt, isNull } from "drizzle-orm";
-import { TRPCError } from "@trpc/server";
+import { TRPCError, tracked } from "@trpc/server";
+import { emitItemsChanged, onItemsChanged } from "../events/itemEvents";
 
 function serializeItem(item: ItemType) {
   const { rowId: _rowId, userId: _userId, ...rest } = item;
@@ -103,6 +104,7 @@ export const entryRouter = router({
         })
         .returning();
       if (!item) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      emitItemsChanged(ctx.userId);
       return serializeItem(item);
     }),
 
@@ -133,6 +135,7 @@ export const entryRouter = router({
         })
         .returning();
       if (!item) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+      emitItemsChanged(ctx.userId);
       return serializeItem(item);
     }),
 
@@ -162,5 +165,34 @@ export const entryRouter = router({
       version: current.version + 1,
       deleted_at: new Date(),
     });
+
+    emitItemsChanged(ctx.userId);
+  }),
+
+  onItemChange: protectedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
+    yield tracked("connected", { type: "connected" as const });
+
+    let resolve: (() => void) | null = null;
+    const unsubscribe = onItemsChanged(ctx.userId, () => {
+      if (resolve) {
+        const r = resolve;
+        resolve = null;
+        r();
+      }
+    });
+
+    try {
+      while (!signal?.aborted) {
+        await new Promise<void>((r) => {
+          resolve = r;
+          signal?.addEventListener("abort", () => r(), { once: true });
+        });
+        if (!signal?.aborted) {
+          yield tracked(Date.now().toString(), { type: "changed" as const });
+        }
+      }
+    } finally {
+      unsubscribe();
+    }
   }),
 });
