@@ -36,6 +36,8 @@ export default function LoginPage() {
 
       // Session id gets set to "offline"
       offlineLogin();
+      // Store password for auto-reconnect when back online
+      secretsStore.setPassword(password);
     } else {
       // only authentication with the server
       unlockVaultInfo = await loginUser(email, password);

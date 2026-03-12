@@ -8,6 +8,7 @@ export * from "./src/hooks/login";
 export * from "./src/hooks/unlock";
 export * from "./src/hooks/update-item";
 export * from "./src/hooks/get-items";
+export * from "./src/hooks/auto-reconnect";
 
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export { default as SessionProvider, SessionContext } from "./src/providers/SessionProvider";

@@ -6,7 +6,7 @@ import { editSlug, entrySlug, newSlug } from "../data/routes";
 import EditItem from "@pages/EditItem";
 import NotFound from "@pages/NotFound";
 import { useContext } from "react";
-import { SessionContext } from "@repo/client";
+import { SessionContext, useAutoReconnect } from "@repo/client";
 import NewItem from "@pages/NewItem";
 import DisplayItem from "@pages/DisplayItem";
 import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
@@ -35,6 +35,7 @@ function OverlayLayoutRoutes() {
 
 function ProtectedRoutes() {
   const { sessionId } = useContext(SessionContext);
+  useAutoReconnect();
   if (!sessionId) return <Redirect to="/login" />;
 
   return (
