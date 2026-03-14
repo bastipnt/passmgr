@@ -13,7 +13,7 @@ import {
 } from "@repo/ui/components/Item";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import type { ItemPayload } from "@repo/schema";
+import type { ItemSchema } from "@repo/schema";
 
 type ItemSidebarProps = {
   itemId?: string;
@@ -25,29 +25,34 @@ type EncryptedItem = {
   encryptionNonce: string;
 };
 
-function EncryptedSidebarItem({
-  item,
-  active,
-  vaultReady,
-}: {
-  item: EncryptedItem;
+type SidebarItemProps = {
+  encryptedItem: EncryptedItem;
   active: boolean;
   vaultReady: boolean;
-}) {
-  const [payload, setPayload] = useState<ItemPayload | null>(null);
+};
+
+function SidebarItem({ encryptedItem, active, vaultReady }: SidebarItemProps) {
+  const [item, setItem] = useState<ItemSchema | null>(null);
 
   useEffect(() => {
     if (!vaultReady) return;
     let cancelled = false;
-    void decryptItemWithWorker(item.encryptedData, item.encryptionNonce).then((p) => {
-      if (!cancelled) setPayload(p);
-    });
+    void decryptItemWithWorker(encryptedItem.encryptedData, encryptedItem.encryptionNonce).then(
+      (decryptedItem) => {
+        if (!cancelled) setItem(decryptedItem);
+      },
+    );
     return () => {
       cancelled = true;
     };
-  }, [item.itemId, item.encryptedData, item.encryptionNonce, vaultReady]);
+  }, [
+    encryptedItem.itemId,
+    encryptedItem.encryptedData,
+    encryptedItem.encryptionNonce,
+    vaultReady,
+  ]);
 
-  if (!payload) {
+  if (!item) {
     return (
       <Item variant={active ? "muted" : "outline"}>
         <ItemMedia>
@@ -63,16 +68,16 @@ function EncryptedSidebarItem({
 
   return (
     <Item variant={active ? "muted" : "outline"} asChild>
-      <Link href={`../${entrySlug}/${item.itemId}`}>
+      <Link href={`../${entrySlug}/${encryptedItem.itemId}`}>
         <ItemMedia>
           <Avatar>
             <AvatarImage src={""} className="grayscale" />
-            <AvatarFallback>{payload.title.charAt(0)}</AvatarFallback>
+            <AvatarFallback>{item.title.charAt(0)}</AvatarFallback>
           </Avatar>
         </ItemMedia>
         <ItemContent className="gap-1">
-          <ItemTitle>{payload.title}</ItemTitle>
-          <ItemDescription className="line-clamp-1">{payload.username}</ItemDescription>
+          <ItemTitle>{item.title}</ItemTitle>
+          <ItemDescription className="line-clamp-1">{item.username || "-"}</ItemDescription>
         </ItemContent>
       </Link>
     </Item>
@@ -103,20 +108,20 @@ function ItemSidebarInner({ itemId }: ItemSidebarProps) {
   const { data } = useSuspenseQuery({
     ...useGetAllItemsOptions(),
     select: (res) =>
-      res.items.map((item) => ({
-        itemId: item.itemId,
-        encryptedData: item.encryptedData,
-        encryptionNonce: item.encryptionNonce,
+      res.items.map((encryptedItem) => ({
+        itemId: encryptedItem.itemId,
+        encryptedData: encryptedItem.encryptedData,
+        encryptionNonce: encryptedItem.encryptionNonce,
       })),
   });
 
   return (
     <ItemGroup className="max-w-sm">
-      {data.map((item) => (
-        <EncryptedSidebarItem
-          key={item.itemId}
-          item={item}
-          active={item.itemId === itemId}
+      {data.map((encryptedItem) => (
+        <SidebarItem
+          key={encryptedItem.itemId}
+          encryptedItem={encryptedItem}
+          active={encryptedItem.itemId === itemId}
           vaultReady={vaultReady}
         />
       ))}

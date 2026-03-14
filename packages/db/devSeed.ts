@@ -17,7 +17,7 @@ import {
   fromString,
 } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
-import { exampleLoginItems, type ItemPayload } from "@repo/schema";
+import { exampleLoginItems, type ItemSchema } from "@repo/schema";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
@@ -108,7 +108,7 @@ async function seed() {
 
   const now = new Date();
   const itemRows = exampleLoginItems.map((loginItem, i) => {
-    const payload: ItemPayload = { schemaVersion: 1, ...loginItem };
+    const payload: ItemSchema = { schemaVersion: 1, ...loginItem };
     const [encryptedData, encryptionNonce] = encryptXChaCha(vaultKey, JSON.stringify(payload));
 
     return {

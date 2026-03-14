@@ -1,9 +1,9 @@
-import type { ItemPayload } from "@repo/schema";
+import type { ItemSchema } from "@repo/schema";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import DecryptWorker from "../workers/decrypt.worker.ts?worker";
 
 type PendingDecrypt = {
-  resolve: (payload: ItemPayload) => void;
+  resolve: (payload: ItemSchema) => void;
   reject: (reason: Error) => void;
 };
 
@@ -17,7 +17,7 @@ class DecryptWorkerService {
       this.worker = new DecryptWorker();
       this.worker.onmessage = (event: MessageEvent) => {
         const msg = event.data as
-          | { type: "result"; id: string; payload: ItemPayload }
+          | { type: "result"; id: string; payload: ItemSchema }
           | { type: "error"; id: string; message: string };
 
         const callbacks = this.pending.get(msg.id);
@@ -45,7 +45,7 @@ class DecryptWorkerService {
     worker.postMessage({ type: "init", key: copy.buffer }, [copy.buffer]);
   }
 
-  decrypt(encryptedData: string, nonce: string): Promise<ItemPayload> {
+  decrypt(encryptedData: string, nonce: string): Promise<ItemSchema> {
     const id = this.createRequestId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });

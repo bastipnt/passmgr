@@ -73,6 +73,9 @@ function WebsiteFields({ control, setValue }: WebsiteFieldsProps) {
                 placeholder="https://"
                 hideLabel
                 onBlur={(e) => normalizeWebsite(index, e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") normalizeWebsite(index, e.currentTarget.value);
+                }}
               />
             </ButtonGroup>
 

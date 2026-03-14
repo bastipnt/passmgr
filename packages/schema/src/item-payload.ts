@@ -32,7 +32,7 @@ export const updateItemInputSchema = z.object({
   clientUpdatedAt: z.string(),
 });
 
-export type ItemPayload = { schemaVersion: 1 } & LoginItem;
+export type ItemSchema = { schemaVersion: 1 } & LoginItem;
 
 /** The crypto version used when encrypting items with the current code. */
 export const CURRENT_CRYPTO_VERSION = 1;
