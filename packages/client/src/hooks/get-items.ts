@@ -17,7 +17,7 @@ export function useGetAllItemsOptions() {
     networkMode: "always",
     queryFn: async (): Promise<{ items: EncryptedItemSchema[] }> => {
       if (!store) return { items: [] };
-      const items = await store.localStore.getAllLatest();
+      const items = await store.vault.getAllLatest();
       return { items };
     },
   });
@@ -32,7 +32,7 @@ export function useGetItemByIdOptions(itemId: string) {
     networkMode: "always",
     queryFn: async (): Promise<EncryptedItemSchema> => {
       if (!store) throw new Error("Store not initialized");
-      const item = await store.localStore.getByItemId(itemId);
+      const item = await store.vault.getByItemId(itemId);
       if (!item || item.deleted_at) throw new Error("Item not found");
       return item;
     },

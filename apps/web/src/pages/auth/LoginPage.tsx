@@ -25,13 +25,10 @@ export default function LoginPage() {
     let unlockVaultInfo: VaultUnlockInfo | undefined;
 
     if (isOffline && store.vaultKeyMaterial !== null) {
-      // TODO: bring to a form, that I can use here better
       unlockVaultInfo = {
         password,
-        userPasswordKeys: {
-          ...store.vaultKeyMaterial,
-          passwordKekParams: JSON.parse(store.vaultKeyMaterial.passwordKekParams),
-        },
+        // TODO: maybe userPasswordKeyMaterial
+        userPasswordKeys: store.vaultKeyMaterial,
       };
 
       // Session id gets set to "offline"

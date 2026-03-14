@@ -3,14 +3,16 @@ import { hkdf } from "./hash";
 import { decryptXChaCha, encryptXChaCha } from "./encryption";
 import { wipe } from "./util/secrets-utils";
 
-export type BiometricKeyMaterial = {
-  biometricEncryptedVaultKey: string;
-  biometricNonce: string;
-  biometricEncryptedPassword: string;
-  biometricPasswordNonce: string;
-  credentialId: string; // base64
-  prfSalt: string; // base64
-};
+export const BIOMETRIC_KEY = [
+  "biometricEncryptedVaultKey",
+  "biometricNonce",
+  "biometricEncryptedPassword",
+  "biometricPasswordNonce",
+  "credentialId",
+  "prfSalt",
+] as const;
+
+export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_KEY)[number], string>;
 
 // WebAuthn PRF extension types (not yet in lib.dom.d.ts)
 type PRFValues = { first: ArrayBuffer };

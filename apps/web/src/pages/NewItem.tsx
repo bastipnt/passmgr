@@ -18,7 +18,7 @@ export default function NewItem() {
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
       onSuccess: async (result) => {
-        await store?.localStore.upsertItems([result]);
+        await store.vault.upsertItems([result]);
         await queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
         navigate(`/${entrySlug}/${result.itemId}`);
       },

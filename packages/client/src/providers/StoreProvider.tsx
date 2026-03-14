@@ -3,14 +3,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { SyncManager } from "../sync-manager";
 import { SessionContext } from "./SessionProvider";
 import { useTRPCClient } from "../util/trpc";
-import { SqliteAdapter, type VaultKeyMaterial } from "@repo/store";
+import { Vault } from "@repo/store";
 import type { BiometricKeyMaterial } from "@repo/crypto";
+import type { VaultKeyMaterial } from "@repo/schema";
 
 const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 
 type StoreContextValue = {
-  localStore: SqliteAdapter;
+  vault: Vault;
   syncManager: SyncManager;
+
   vaultKeyMaterial: VaultKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
   biometricDismissed: boolean;
@@ -36,10 +38,12 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const { sessionId, vaultReady, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const queryClient = useQueryClient();
+
   const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
     null,
   );
+
   const [biometricDismissed, setBiometricDismissed_] = useState(
     Number(localStorage.getItem(BIOMETRIC_DISMISSED)) === 1,
   );
@@ -51,24 +55,24 @@ export function StoreProvider({ children }: StoreProviderProps) {
     else localStorage.removeItem(BIOMETRIC_DISMISSED);
   }
 
-  const storeRef = useRef<{ localStore: SqliteAdapter; syncManager: SyncManager } | null>(null);
+  const storeRef = useRef<{ vault: Vault; syncManager: SyncManager } | null>(null);
 
   if (!storeRef.current) {
-    const adapter = new SqliteAdapter();
-    const syncManager = new SyncManager(adapter, async (lastSyncedAt) => {
+    const vault = new Vault();
+    const syncManager = new SyncManager(vault, async (lastSyncedAt) => {
       if (!navigator.onLine) throw new Error("offline");
       return await trpc.entry.sync.query({ lastSyncedAt });
     });
-    storeRef.current = { localStore: adapter, syncManager };
+    storeRef.current = { vault, syncManager };
   }
 
-  const { localStore, syncManager } = storeRef.current;
+  const { vault, syncManager } = storeRef.current;
 
   // Load vault key material on mount to check if offline unlock is available
   useEffect(() => {
-    void localStore.getVaultKeyMaterial().then(setVaultKeyMaterial);
-    void localStore.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
-  }, [localStore]);
+    void vault.getVaultKeyMaterial().then(setVaultKeyMaterial);
+    void vault.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
+  }, [vault]);
 
   // Sync on login + start periodic sync + SSE subscription + resync when back online
   useEffect(() => {
@@ -110,7 +114,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
   }, [vaultReady, queryClient]);
 
   async function removeVault() {
-    await localStore.clear();
+    await vault.clear();
     localStorage.removeItem(BIOMETRIC_DISMISSED);
     setVaultKeyMaterial(null);
     setBiometricKeyMaterial(null);
@@ -118,6 +122,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
 
   const value: StoreContextValue = {
     ...storeRef.current,
+
     vaultKeyMaterial,
     biometricKeyMaterial,
     biometricDismissed,

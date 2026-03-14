@@ -1,27 +1,8 @@
-import { defineConfig, type Plugin } from "vite";
+import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 // import tailwindcss from "@tailwindcss/vite";
 import path from "path";
-
-function crossOriginIsolation(): Plugin {
-  return {
-    name: "cross-origin-isolation",
-    configureServer(server) {
-      server.middlewares.use((_, res, next) => {
-        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
-        next();
-      });
-    },
-    configurePreviewServer(server) {
-      server.middlewares.use((_, res, next) => {
-        res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
-        res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
-        next();
-      });
-    },
-  };
-}
+import sqlocal from "sqlocal/vite";
 
 // https://vite.dev/config/
 export default defineConfig({
@@ -33,7 +14,7 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  plugins: [react(), crossOriginIsolation()],
+  plugins: [react(), sqlocal()],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },

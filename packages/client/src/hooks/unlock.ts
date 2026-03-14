@@ -42,13 +42,10 @@ export function useUnlock() {
   async function storeKeyMaterial(email: string, userPasswordKeys: PasswordKeySchema) {
     // Clear previous user's data if a different account logs in
     const previousEmail = store.vaultKeyMaterial?.email;
-    if (previousEmail && previousEmail !== email) await store.localStore.clear();
+    if (previousEmail && previousEmail !== email) await store.vault.clear();
 
-    await store.localStore.setVaultKeyMaterial({
-      encryptedVaultKey: userPasswordKeys.encryptedVaultKey,
-      vaultKeyEncryptionNonce: userPasswordKeys.vaultKeyEncryptionNonce,
-      passwordKekSalt: userPasswordKeys.passwordKekSalt,
-      passwordKekParams: JSON.stringify(userPasswordKeys.passwordKekParams),
+    await store.vault.setVaultKeyMaterial({
+      ...userPasswordKeys,
       email,
     });
   }

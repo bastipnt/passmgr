@@ -14,7 +14,7 @@ export function useUpdateItem({ onSuccess }: UseUpdateItemOpts) {
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({
       onSuccess: async (result) => {
-        await store?.localStore.upsertItems([result]);
+        await store.vault.upsertItems([result]);
         void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
 
         onSuccess();

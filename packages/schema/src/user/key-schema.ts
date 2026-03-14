@@ -34,3 +34,10 @@ export const userKeySchema = z.object({
 
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
+
+// for client
+export const VAULT_KEY = [...Object.keys(passwordKeySchema.shape), "email"];
+
+export type VaultKeyMaterial = PasswordKeySchema & {
+  email: string;
+};

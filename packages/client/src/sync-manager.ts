@@ -1,5 +1,5 @@
 import type { EncryptedItemSchema } from "@repo/schema";
-import type { SqliteAdapter } from "@repo/store";
+import type { Vault } from "@repo/store";
 
 export type SyncFetcher = (lastSyncedAt?: string) => Promise<{
   items: EncryptedItemSchema[];
@@ -12,10 +12,10 @@ export class SyncManager {
   private syncing = false;
   private syncInterval: ReturnType<typeof setInterval> | null = null;
   private listeners: Set<SyncListener> = new Set();
-  private store: SqliteAdapter;
+  private store: Vault;
   private fetcher: SyncFetcher;
 
-  constructor(store: SqliteAdapter, fetcher: SyncFetcher) {
+  constructor(store: Vault, fetcher: SyncFetcher) {
     this.store = store;
     this.fetcher = fetcher;
   }

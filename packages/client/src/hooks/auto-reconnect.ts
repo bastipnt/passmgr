@@ -29,11 +29,8 @@ export function useAutoReconnect() {
       .then(async (unlockInfo) => {
         if (unlockInfo) {
           // Update stored key material (server may have newer values)
-          await storeRef.current.localStore.setVaultKeyMaterial({
-            encryptedVaultKey: unlockInfo.userPasswordKeys.encryptedVaultKey,
-            vaultKeyEncryptionNonce: unlockInfo.userPasswordKeys.vaultKeyEncryptionNonce,
-            passwordKekSalt: unlockInfo.userPasswordKeys.passwordKekSalt,
-            passwordKekParams: JSON.stringify(unlockInfo.userPasswordKeys.passwordKekParams),
+          await storeRef.current.vault.setVaultKeyMaterial({
+            ...unlockInfo.userPasswordKeys,
             email,
           });
 

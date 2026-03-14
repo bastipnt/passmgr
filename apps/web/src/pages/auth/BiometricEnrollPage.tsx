@@ -30,7 +30,7 @@ export default function BiometricEnrollPage() {
         return;
       }
       const material = await enrollBiometric(vaultKey, password);
-      await store.localStore.setBiometricKeyMaterial(material);
+      await store.vault.setBiometricKeyMaterial(material);
       secretsStore.clearPassword();
 
       navigateNext();
