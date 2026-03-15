@@ -1,20 +1,19 @@
 import { z } from "zod";
 
 const extraFieldSchema = z.object({
-  type: z.string(),
-  name: z.string(),
-  value: z.string().optional(),
+  type: z.enum(["text", "secret"]),
+  title: z.string().min(1, "Title is required"),
+  value: z.string().min(1, "Value is required"),
 });
 
-export const entrySchema = z.object({
-  id: z.string(),
+export const loginItemSchema = z.object({
   title: z.string().min(1, "Title is required"),
-  username: z.string().optional(),
+  username: z.string().optional(), // TODO: do I need max length here?
   password: z.string().optional(),
   websites: z
     .array(
       z.object({
-        value: z.string(),
+        value: z.union([z.literal(""), z.url("Must be a valid URL")]),
       }),
     )
     .optional(),
@@ -24,4 +23,4 @@ export const entrySchema = z.object({
   extraFields: z.array(extraFieldSchema).optional(),
 });
 
-export type Entry = z.infer<typeof entrySchema>;
+export type LoginItem = z.infer<typeof loginItemSchema>;

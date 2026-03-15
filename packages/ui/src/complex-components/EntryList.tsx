@@ -1,7 +1,8 @@
+// TODO: still used?
+
 import { useCallback, type ReactNode, useState, useEffect } from "react";
 import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { getAttrsForName } from "../utils/label-mapping";
-import { cn } from "@repo/util";
 import { Button } from "@repo/ui/components/Button";
 
 type EntryListProps = {
@@ -9,7 +10,7 @@ type EntryListProps = {
 };
 
 function EntryList({ children }: EntryListProps) {
-  return <ul className={cn("gradientBorder")}>{children}</ul>;
+  return <ul className="gradientBorder">{children}</ul>;
 }
 
 type EntryListItemProps = {
@@ -36,7 +37,7 @@ function EntryListItem({ name, value, setToastMessage, valueHidden }: EntryListI
   const showActions = !showValue || isPassword;
 
   return (
-    <li className={cn("gradientBorder")}>
+    <li className="gradientBorder">
       <button title="Click to copy" onClick={copyValue}>
         <span>{Icon}</span>
         <small>{label}</small>

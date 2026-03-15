@@ -1,4 +1,4 @@
-import type { LoginItem } from "../login-item";
+import type { LoginItem } from "../login-item-schema";
 
 export const exampleLoginItems: LoginItem[] = [
   {

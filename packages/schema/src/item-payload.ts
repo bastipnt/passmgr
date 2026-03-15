@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LoginItem } from "./login-item";
+import type { LoginItem } from "./login-item-schema";
 
 export const encryptedItemSchema = z.object({
   itemId: z.uuid(),

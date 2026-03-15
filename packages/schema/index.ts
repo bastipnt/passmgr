@@ -1,4 +1,4 @@
-export * from "./src/login-item";
+export * from "./src/login-item-schema";
 export * from "./src/item-payload";
 export * from "./src/user/login-schema";
 export * from "./src/user/registration-schema";

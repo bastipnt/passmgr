@@ -29,6 +29,7 @@ import {
 } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
+import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
 import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
 
 function normalizeWebsiteUrl(value: string) {
@@ -120,11 +121,10 @@ function ExtraFields({ control }: ExtraFieldsProps) {
         {fields.map((field, index) => (
           <ButtonGroup key={field.id} className="w-full">
             <ButtonGroup className="w-full">
-              <ControlledInput
+              <ControlledExtraField
                 control={control}
-                name={`extraFields.${index}.value`}
-                label={field.title}
-                autoComplete="off"
+                titleName={`extraFields.${index}.title`}
+                valueName={`extraFields.${index}.value`}
               />
             </ButtonGroup>
 
@@ -144,7 +144,7 @@ function ExtraFields({ control }: ExtraFieldsProps) {
       <Button
         variant="ghost"
         className="w-fit"
-        onClick={() => append({ title: "Field", type: "text", value: "" })}
+        onClick={() => append({ title: "", type: "text", value: "" })}
         type="button"
       >
         <PlusIcon />

@@ -3,14 +3,6 @@
  */
 
 /**
- * Combine class names, filtering out falsy values
- * Simplified version without Tailwind merge
- */
-export function cn(...inputs: (string | undefined | null | false)[]): string {
-  return inputs.filter(Boolean).join(" ");
-}
-
-/**
  * Type guard for non-null values
  */
 export function isDefined<T>(value: T | undefined | null): value is T {
