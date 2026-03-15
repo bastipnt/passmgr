@@ -12,12 +12,14 @@ export type ControlledExtraFieldProps<
   control: Control<TFieldValues>;
   titleName: TTitleName;
   valueName: TValueName;
+  type?: "text" | "secret";
 };
 
 export function ControlledExtraField<TFieldValues extends FieldValues = FieldValues>({
   control,
   titleName,
   valueName,
+  type = "text",
 }: ControlledExtraFieldProps<TFieldValues>) {
   const id = useId();
 
@@ -49,7 +51,10 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                   <InputGroupInput
                     {...valueField}
                     id={id}
-                    className={cn(valueState.invalid && "text-destructive")}
+                    className={cn(
+                      valueState.invalid && "text-destructive",
+                      type === "secret" && "[-webkit-text-security:disc] focus:[-webkit-text-security:none]",
+                    )}
                     aria-invalid={valueState.invalid}
                     autoComplete="off"
                     placeholder="Value"

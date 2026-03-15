@@ -9,6 +9,12 @@ import {
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "@repo/ui/components/Link";
 import { Button } from "@repo/ui/components/Button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from "@repo/ui/components/DropdownMenu";
 import { useEffect } from "react";
 import {
   Card,
@@ -125,6 +131,7 @@ function ExtraFields({ control }: ExtraFieldsProps) {
                 control={control}
                 titleName={`extraFields.${index}.title`}
                 valueName={`extraFields.${index}.value`}
+                type={field.type}
               />
             </ButtonGroup>
 
@@ -141,15 +148,22 @@ function ExtraFields({ control }: ExtraFieldsProps) {
           </ButtonGroup>
         ))}
       </FieldGroup>
-      <Button
-        variant="ghost"
-        className="w-fit"
-        onClick={() => append({ title: "", type: "text", value: "" })}
-        type="button"
-      >
-        <PlusIcon />
-        Add
-      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" className="w-fit" type="button">
+            <PlusIcon />
+            Add
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent>
+          <DropdownMenuItem onClick={() => append({ title: "", type: "text", value: "" })}>
+            Text
+          </DropdownMenuItem>
+          <DropdownMenuItem onClick={() => append({ title: "", type: "secret", value: "" })}>
+            Secret
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </FieldSet>
   );
 }
