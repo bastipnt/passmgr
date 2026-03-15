@@ -216,7 +216,7 @@ export default function LoginItemForm({
               />
 
               <ControlledInput
-                className="[-webkit-text-security:disc]"
+                className="[-webkit-text-security:disc] focus:[-webkit-text-security:none]"
                 control={control}
                 name="password"
                 label="Password"
