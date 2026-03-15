@@ -28,6 +28,7 @@ import {
   FieldSet,
 } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
 import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
 
 function normalizeWebsiteUrl(value: string) {
@@ -245,7 +246,7 @@ export default function LoginItemForm({
 
             <FieldSet>
               {/* TODO: textarea */}
-              <ControlledInput control={control} name="note" label="Notes" autoComplete="off" />
+              <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
             </FieldSet>
 
             <FieldSeparator />

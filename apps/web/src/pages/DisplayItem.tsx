@@ -146,7 +146,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         <ItemDisplayGroup>
           <ItemDisplay
             title="Notes"
-            value={data.note}
+            value={<span className="whitespace-pre-line wrap-break-word">{data.note}</span>}
             onClick={() => {}}
             icon={<NotebookPenIcon />}
             variant="noAction"
