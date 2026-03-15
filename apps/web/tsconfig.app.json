@@ -31,6 +31,12 @@
       "@repo/ui/*": ["../../packages/ui/src/*"]
     }
   },
-  "include": ["src", "src/**/*.d.ts", "vite-env.d.ts", "../../types.d.ts"],
+  "include": [
+    "src",
+    "src/**/*.d.ts",
+    "vite-env.d.ts",
+    "../../types.d.ts",
+    "../../packages/client/src/providers/SortedItemsProvider.tsx"
+  ],
   "exclude": ["node_modules"]
 }

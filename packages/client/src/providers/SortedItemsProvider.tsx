@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { DecryptedItem } from "@repo/schema";
+import { useGetItems } from "../hooks/get-items";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type ItemGroup = { label: string | null; items: DecryptedItem[] };
@@ -164,11 +165,54 @@ function sortItems(items: DecryptedItem[], sort: SortOption): DecryptedItem[] {
   });
 }
 
-export function useSortedItems(items: DecryptedItem[]) {
+function filterBySearch(items: DecryptedItem[], query: string): DecryptedItem[] {
+  if (!query.trim()) return items;
+  const q = query.toLowerCase().trim();
+  const titleMatches: DecryptedItem[] = [];
+  const usernameMatches: DecryptedItem[] = [];
+  for (const item of items) {
+    if (item.title.toLowerCase().includes(q)) titleMatches.push(item);
+    else if (item.username?.toLowerCase().includes(q)) usernameMatches.push(item);
+  }
+  return [...titleMatches, ...usernameMatches];
+}
+
+type SortedItemsContextValue = {
+  query: string;
+  setQuery: (query: string) => void;
+  sort: SortOption;
+  handleSortChange: (value: string) => void;
+  sortedItems: DecryptedItem[];
+  groups: ItemGroup[];
+};
+
+const SortedItemsContext = createContext<SortedItemsContextValue | null>(null);
+
+export function useSortedItems(): SortedItemsContextValue {
+  const ctx = useContext(SortedItemsContext);
+  if (!ctx) throw new Error("useSortedItems must be used within SortedItemsProvider");
+  return ctx;
+}
+
+type SortedItemsProviderProps = {
+  children: ReactNode;
+};
+
+export function SortedItemsProvider({ children }: SortedItemsProviderProps) {
+  const { items } = useGetItems();
+  const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortOption>(getInitialSort);
 
-  const sortedItems = useMemo(() => sortItems(items, sort), [items, sort]);
-  const groups = useMemo(() => groupItems(sortedItems, sort), [sortedItems, sort]);
+  const hasQuery = query.trim().length > 0;
+  const filtered = useMemo(() => filterBySearch(items, query), [items, query]);
+  const sortedItems = useMemo(
+    () => (hasQuery ? filtered : sortItems(filtered, sort)),
+    [filtered, sort, hasQuery],
+  );
+  const groups = useMemo(
+    () => (hasQuery ? [{ label: null, items: sortedItems }] : groupItems(sortedItems, sort)),
+    [sortedItems, sort, hasQuery],
+  );
 
   function handleSortChange(value: string) {
     const next = value as SortOption;
@@ -176,5 +220,10 @@ export function useSortedItems(items: DecryptedItem[]) {
     localStorage.setItem(STORAGE_KEY, next);
   }
 
-  return { sort, sortedItems, groups, handleSortChange };
+  const value = useMemo(
+    () => ({ query, setQuery, sort, handleSortChange, sortedItems, groups }),
+    [query, sort, sortedItems, groups],
+  );
+
+  return <SortedItemsContext value={value}>{children}</SortedItemsContext>;
 }

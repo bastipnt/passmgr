@@ -4,7 +4,7 @@ import { entrySlug } from "../data/routes";
 import { encryptItem, useStore, useTRPC, useRefreshItem } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
@@ -14,6 +14,10 @@ export default function NewItem() {
   const [_, navigate] = useLocation();
   const store = useStore();
   const refreshItem = useRefreshItem();
+  const initialTitle = useMemo(
+    () => new URLSearchParams(window.location.search).get("title") ?? undefined,
+    [],
+  );
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
@@ -48,6 +52,7 @@ export default function NewItem() {
         serverError={mutationError?.message}
         title="New Login"
         action="Create"
+        defaultValues={initialTitle ? { title: initialTitle } : undefined}
       />
     </LayoutOverlay>
   );

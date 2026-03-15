@@ -1,7 +1,6 @@
 import { Link, useRoute, useLocation } from "wouter";
-import { Fragment, useEffect } from "react";
+import { Fragment, useEffect, useRef } from "react";
 import { entrySlug } from "../data/routes";
-import { useGetItems } from "@repo/client";
 import type { DecryptedItem } from "@repo/schema";
 import {
   Item,
@@ -22,8 +21,9 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { ArrowUpDownIcon } from "lucide-react";
-import { useSortedItems, SORT_LABELS } from "../hooks/use-sorted-items";
-import type { SortOption } from "../hooks/use-sorted-items";
+import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedItemsProvider";
+import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
+import { useGetItems } from "@repo/client";
 
 type SidebarItemProps = {
   item: DecryptedItem;
@@ -71,8 +71,9 @@ function ItemSidebarSkeleton() {
 export default function ItemSidebar() {
   const [_, params] = useRoute(`/${entrySlug}/:itemId`);
   const [, navigate] = useLocation();
-  const { items, ready } = useGetItems();
-  const { sort, sortedItems, groups, handleSortChange } = useSortedItems(items);
+  const { ready } = useGetItems();
+  const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
+  const prevQueryRef = useRef(query);
 
   useEffect(() => {
     if (ready && !params?.itemId && sortedItems.length > 0) {
@@ -80,7 +81,20 @@ export default function ItemSidebar() {
     }
   }, [ready, params?.itemId, sortedItems, navigate]);
 
+  // Auto-navigate to first filtered result when search query changes
+  useEffect(() => {
+    if (prevQueryRef.current !== query) {
+      prevQueryRef.current = query;
+      if (sortedItems.length > 0) {
+        navigate(`/${entrySlug}/${sortedItems[0].itemId}`, { replace: true });
+      }
+    }
+  }, [query, sortedItems, navigate]);
+
   if (!ready) return <ItemSidebarSkeleton />;
+
+  const hasQuery = query.trim().length > 0;
+  const noResults = hasQuery && sortedItems.length === 0;
 
   return (
     <div className="flex max-w-sm flex-col gap-2">
@@ -102,20 +116,28 @@ export default function ItemSidebar() {
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
-      <ItemGroup>
-        {groups.map((group) => (
-          <Fragment key={group.label ?? "all"}>
-            {group.label && (
-              <p className="text-xs text-muted-foreground font-medium px-1 pt-2 first:pt-0">
-                {group.label}
-              </p>
-            )}
-            {group.items.map((item) => (
-              <SidebarItem key={item.itemId} item={item} active={item.itemId === params?.itemId} />
-            ))}
-          </Fragment>
-        ))}
-      </ItemGroup>
+      {noResults ? (
+        <p className="text-sm text-muted-foreground px-1 py-4">No results</p>
+      ) : (
+        <ItemGroup>
+          {groups.map((group) => (
+            <Fragment key={group.label ?? "all"}>
+              {group.label && (
+                <p className="text-xs text-muted-foreground font-medium px-1 pt-2 first:pt-0">
+                  {group.label}
+                </p>
+              )}
+              {group.items.map((item) => (
+                <SidebarItem
+                  key={item.itemId}
+                  item={item}
+                  active={item.itemId === params?.itemId}
+                />
+              ))}
+            </Fragment>
+          ))}
+        </ItemGroup>
+      )}
     </div>
   );
 }
