@@ -6,7 +6,7 @@ import {
 } from "react-hook-form";
 import { Field, FieldError, FieldLabel } from "../Field";
 import { Textarea } from "../Textarea";
-import { useId } from "react";
+import { useId, type ReactNode } from "react";
 
 export type ControlledTextareaParams<
   TFieldValues extends FieldValues = FieldValues,
@@ -14,6 +14,7 @@ export type ControlledTextareaParams<
   TTransformedValues = TFieldValues,
 > = {
   label: string;
+  icon?: ReactNode;
   hideLabel?: boolean;
 } & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
   React.ComponentProps<"textarea">;
@@ -22,6 +23,7 @@ export function ControlledTextarea<TFieldValues extends FieldValues = FieldValue
   name,
   control,
   label,
+  icon,
   hideLabel = false,
   ...props
 }: ControlledTextareaParams<TFieldValues>) {
@@ -31,14 +33,27 @@ export function ControlledTextarea<TFieldValues extends FieldValues = FieldValue
     <Controller
       name={name}
       control={control}
-      render={({ field, fieldState }) => (
-        <Field data-invalid={fieldState.invalid}>
-          {!hideLabel && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-          <Textarea {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
+      render={({ field, fieldState }) => {
+        const fieldContent = (
+          <Field data-invalid={fieldState.invalid}>
+            {!hideLabel && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
+            <Textarea {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
 
-          {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-        </Field>
-      )}
+            {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
+          </Field>
+        );
+
+        if (icon) {
+          return (
+            <div className="flex items-start gap-2">
+              <span className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</span>
+              {fieldContent}
+            </div>
+          );
+        }
+
+        return fieldContent;
+      }}
     />
   );
 }

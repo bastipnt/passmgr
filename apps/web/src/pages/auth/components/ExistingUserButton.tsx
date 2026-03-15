@@ -1,4 +1,5 @@
-import RemoveVaultDialog from "@pages/auth/components/RemoveVaultDialog";
+import { useStore } from "@repo/client";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Avatar, AvatarFallback } from "@repo/ui/components/Avatar";
 import { Button } from "@repo/ui/components/Button";
 import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@repo/ui/components/Item";
@@ -14,6 +15,8 @@ export default function ExistingUserButton({
   storedEmail,
   toggleSwitchUser,
 }: ExistingUserButtonProps) {
+  const store = useStore();
+
   return (
     <StackedButton>
       <Button onClick={toggleSwitchUser} variant="outline" className="h-auto">
@@ -30,7 +33,12 @@ export default function ExistingUserButton({
         </Item>
       </Button>
 
-      <RemoveVaultDialog>
+      <RemoveDialog
+        title="Remove vault"
+        description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+        removeTitle="Remove vault"
+        onRemove={() => store.removeVault()}
+      >
         <Button
           variant="destructive"
           title="Remove vault from this device"
@@ -38,7 +46,7 @@ export default function ExistingUserButton({
         >
           <TrashIcon />
         </Button>
-      </RemoveVaultDialog>
+      </RemoveDialog>
     </StackedButton>
   );
 }

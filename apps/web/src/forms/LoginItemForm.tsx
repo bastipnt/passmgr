@@ -25,7 +25,18 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
-import { PlusIcon, TrashIcon, XIcon } from "lucide-react";
+import {
+  EarthIcon,
+  KeyIcon,
+  LockIcon,
+  MailIcon,
+  NotebookPenIcon,
+  PlusIcon,
+  TagIcon,
+  TextIcon,
+  TrashIcon,
+  XIcon,
+} from "lucide-react";
 import {
   FieldError,
   FieldGroup,
@@ -33,10 +44,12 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@repo/ui/components/Field";
+import { InputGroupAddon } from "@repo/ui/components/InputGroup";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
 import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 
 function normalizeWebsiteUrl(value: string) {
   return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
@@ -80,6 +93,11 @@ function WebsiteFields({ control, setValue }: WebsiteFieldsProps) {
                 autoComplete="off"
                 placeholder="https://"
                 hideLabel
+                addon={
+                  <InputGroupAddon>
+                    <EarthIcon />
+                  </InputGroupAddon>
+                }
                 onBlur={(e) => normalizeWebsite(index, e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") normalizeWebsite(index, e.currentTarget.value);
@@ -88,14 +106,16 @@ function WebsiteFields({ control, setValue }: WebsiteFieldsProps) {
             </ButtonGroup>
 
             <ButtonGroup>
-              <Button
-                variant="outline"
-                size="icon"
-                className="[--radius:999rem]"
-                onClick={() => remove(index)}
+              <RemoveDialog
+                title="Delete field"
+                description="Are you sure you want to delete this website?"
+                removeTitle="Delete"
+                onRemove={() => remove(index)}
               >
-                <TrashIcon />
-              </Button>
+                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
+                  <TrashIcon />
+                </Button>
+              </RemoveDialog>
             </ButtonGroup>
           </ButtonGroup>
         ))}
@@ -132,18 +152,21 @@ function ExtraFields({ control }: ExtraFieldsProps) {
                 titleName={`extraFields.${index}.title`}
                 valueName={`extraFields.${index}.value`}
                 type={field.type}
+                icon={field.type === "secret" ? <LockIcon /> : <TextIcon />}
               />
             </ButtonGroup>
 
-            <ButtonGroup className="items-end">
-              <Button
-                variant="outline"
-                size="icon"
-                className="[--radius:999rem]"
-                onClick={() => remove(index)}
+            <ButtonGroup className="mt-4.5">
+              <RemoveDialog
+                title="Delete field"
+                description="Are you sure you want to delete this field?"
+                removeTitle="Delete"
+                onRemove={() => remove(index)}
               >
-                <TrashIcon />
-              </Button>
+                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
+                  <TrashIcon />
+                </Button>
+              </RemoveDialog>
             </ButtonGroup>
           </ButtonGroup>
         ))}
@@ -212,7 +235,7 @@ export default function LoginItemForm({
         <CardHeader>
           <CardTitle>{title}</CardTitle>
           <CardAction>
-            <Link variant="ghost" href="/">
+            <Link variant="ghost" href={cancelHref}>
               <XIcon />
             </Link>
           </CardAction>
@@ -221,13 +244,20 @@ export default function LoginItemForm({
         <CardContent>
           <FieldGroup>
             <FieldSet>
-              <ControlledInput control={control} name="title" label="Title" autoComplete="off" />
+              <ControlledInput
+                control={control}
+                name="title"
+                label="Title"
+                autoComplete="off"
+                icon={<TagIcon />}
+              />
 
               <ControlledInput
                 control={control}
                 name="username"
                 label="Username"
                 autoComplete="off"
+                icon={<MailIcon />}
               />
 
               <ControlledInput
@@ -237,6 +267,7 @@ export default function LoginItemForm({
                 label="Password"
                 type="text"
                 autoComplete="off"
+                icon={<KeyIcon />}
               />
 
               <ControlledInput
@@ -244,6 +275,7 @@ export default function LoginItemForm({
                 name="totp"
                 label="2FA token secret (TOTP)"
                 autoComplete="off"
+                icon={<LockIcon />}
               />
             </FieldSet>
 
@@ -260,7 +292,13 @@ export default function LoginItemForm({
 
             <FieldSet>
               {/* TODO: textarea */}
-              <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
+              <ControlledTextarea
+                control={control}
+                name="note"
+                label="Notes"
+                autoComplete="off"
+                icon={<NotebookPenIcon />}
+              />
             </FieldSet>
 
             <FieldSeparator />

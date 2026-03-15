@@ -2,7 +2,7 @@ import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { useContext, useState } from "react";
 import LoginForm, { type LoginFormValues } from "@pages/auth/components/LoginForm";
-import RemoveVaultDialog from "@pages/auth/components/RemoveVaultDialog";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import type { VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import ExistingUserButton from "@pages/auth/components/ExistingUserButton";
@@ -74,11 +74,16 @@ export default function LoginPage() {
               Login with a different account
             </Button>
 
-            <RemoveVaultDialog>
+            <RemoveDialog
+              title="Remove vault"
+              description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+              removeTitle="Remove vault"
+              onRemove={() => store.removeVault()}
+            >
               <Button variant="link" className="text-muted-foreground text-xs">
                 Remove vault from this device
               </Button>
-            </RemoveVaultDialog>
+            </RemoveDialog>
           </>
         ) : (
           <ExistingUserButton

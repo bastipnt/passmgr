@@ -1,4 +1,5 @@
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
+import type { ReactNode } from "react";
 import { Field, FieldError } from "../Field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { useId } from "react";
@@ -13,6 +14,7 @@ export type ControlledExtraFieldProps<
   titleName: TTitleName;
   valueName: TValueName;
   type?: "text" | "secret";
+  icon?: ReactNode;
 };
 
 export function ControlledExtraField<TFieldValues extends FieldValues = FieldValues>({
@@ -20,6 +22,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
   titleName,
   valueName,
   type = "text",
+  icon,
 }: ControlledExtraFieldProps<TFieldValues>) {
   const id = useId();
 
@@ -33,7 +36,8 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
           control={control}
           render={({ field: valueField, fieldState: valueState }) => {
             const isInvalid = titleState.invalid || valueState.invalid;
-            return (
+
+            const fieldContent = (
               <Field data-invalid={isInvalid} className="text-inherit!">
                 <InputGroup>
                   <InputGroupAddon align="block-start">
@@ -44,7 +48,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                         "bg-transparent text-muted-foreground w-full border-none text-xs outline-none",
                         titleState.invalid && "text-destructive",
                       )}
-                      placeholder="Field name"
+                      placeholder="Title"
                       aria-invalid={titleState.invalid}
                     />
                   </InputGroupAddon>
@@ -52,19 +56,34 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                     {...valueField}
                     id={id}
                     className={cn(
-                      valueState.invalid && "text-destructive",
-                      type === "secret" && "[-webkit-text-security:disc] focus:[-webkit-text-security:none]",
+                      valueState.invalid && "text-destructive placeholder:text-destructive",
+                      type === "secret" &&
+                        "[-webkit-text-security:disc] focus:[-webkit-text-security:none]",
                     )}
                     aria-invalid={valueState.invalid}
                     autoComplete="off"
                     placeholder="Value"
                   />
                 </InputGroup>
+
                 {isInvalid && (
                   <FieldError errors={[titleState.error, valueState.error].filter(Boolean)} />
                 )}
               </Field>
             );
+
+            if (icon) {
+              return (
+                <div className="flex items-start gap-2 flex-1">
+                  <span className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">
+                    {icon}
+                  </span>
+                  {fieldContent}
+                </div>
+              );
+            }
+
+            return fieldContent;
           }}
         />
       )}
