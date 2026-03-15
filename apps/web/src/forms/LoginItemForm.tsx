@@ -216,10 +216,11 @@ export default function LoginItemForm({
               />
 
               <ControlledInput
+                className="[-webkit-text-security:disc]"
                 control={control}
                 name="password"
                 label="Password"
-                type="password"
+                type="text"
                 autoComplete="off"
               />
 
