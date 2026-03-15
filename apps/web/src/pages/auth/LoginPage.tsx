@@ -10,7 +10,7 @@ import { BiometricLoginCard } from "@pages/auth/components/BiometricLoginCard";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError } = useLogin();
-  const { unlock, storeKeyMaterial, unlockError } = useUnlock();
+  const { unlock, unlockError } = useUnlock();
 
   const [loginWithStoredEmail, setLoginWithStoredEmail] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -26,6 +26,7 @@ export default function LoginPage() {
 
     if (isOffline && store.vaultKeyMaterial !== null) {
       unlockVaultInfo = {
+        email,
         password,
         // TODO: maybe userPasswordKeyMaterial
         userPasswordKeys: store.vaultKeyMaterial,
@@ -49,13 +50,6 @@ export default function LoginPage() {
 
     // unlock vault (store)
     await unlock(unlockVaultInfo);
-
-    // Store password temporarily for biometric enrollment (only if enrollment is upcoming)
-    if (!store.biometricKeyMaterial && !store.biometricDismissed) {
-      secretsStore.setPassword(unlockVaultInfo.password);
-    }
-
-    await storeKeyMaterial(email, unlockVaultInfo.userPasswordKeys);
   };
 
   return (

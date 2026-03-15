@@ -15,8 +15,6 @@ function checkTimestamp(timestamp: string): boolean {
 export const protectedSubscriptionProcedure = loggedProcedure.use(async (opts) => {
   const { ctx } = opts;
 
-  console.log(ctx.session);
-
   const sessionId = ctx.session?.sessionId;
   if (!sessionId) throw new TRPCError({ code: "UNAUTHORIZED" });
 

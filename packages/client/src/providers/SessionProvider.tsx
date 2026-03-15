@@ -1,23 +1,12 @@
 import { secretsStore } from "@repo/store";
 import { createContext, useEffect, useState, type ReactNode } from "react";
 
-const sessionStates = {
-  loggedOut: "logged-out", // no session
-  loggedIn: "logged-in", // authenticated, unlocked vault
-  authenticated: "authenticated", // only authenticated, locked vault
-  unlocked: "unlocked", // not authenticated, unlocked vault
-  biometricEnrollPending: "biometric-enroll-pending", // unlocked vault -> user can enroll in biometric unlocking (auth state is unimportant here)
-  biometricUnlockPending: "biometric-unlock-pending", // locked vault, TODO: unauthenticated -> needs to be able to authenticate
-} as const;
-
-type SessionState = (typeof sessionStates)[keyof typeof sessionStates];
-
 // eslint-disable-next-line react-refresh/only-export-components
 export const SessionContext = createContext<{
   sessionId?: string;
 
-  sessionState: SessionState;
-  vaultReady: boolean;
+  vaultUnlocked: boolean;
+  loggedIn: boolean;
   isOffline: boolean;
 
   loginSession: (newSessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
@@ -30,8 +19,8 @@ export const SessionContext = createContext<{
   unlockWithVaultKey: (vaultKey: Uint8Array, offline?: boolean) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
 }>({
-  sessionState: sessionStates.loggedOut,
-  vaultReady: false,
+  loggedIn: false,
+  vaultUnlocked: false,
   isOffline: false,
   async loginSession() {},
   offlineLoginSession() {},
@@ -48,8 +37,8 @@ type SessionProviderProps = {
 
 export default function SessionProvider({ children }: SessionProviderProps) {
   const [sessionId, setSessionId] = useState<string>();
-  const [sessionState, setSessionState] = useState<SessionState>(sessionStates.loggedOut);
-  const [vaultReady, setVaultReady] = useState(false);
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [vaultUnlocked, setVaultUnlocked] = useState(false);
   // TODO: offline state should come from network?
   const [isOffline, setIsOffline] = useState(false);
 
@@ -80,12 +69,12 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     // in here we can not be offline, so we set isOffline -> false
     // setIsOffline(false);
     setSessionId(newSessionId);
-    setSessionState(sessionStates.loggedIn);
+    setLoggedIn(true);
   }
 
   function offlineLoginSession() {
     setSessionId("offline");
-    setSessionState(sessionStates.loggedIn);
+    setLoggedIn(true);
   }
 
   // TODO: why difference between unlock and offlineUnlock
@@ -95,7 +84,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     vaultKeyEncryptionNonceB64: string,
   ) {
     secretsStore.unlockVault(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
-    setVaultReady(true);
+    setVaultUnlocked(true);
   }
 
   /**
@@ -103,9 +92,9 @@ export default function SessionProvider({ children }: SessionProviderProps) {
    * When offline, also sets sessionId to "offline".
    */
   function unlockWithVaultKey(vaultKey: Uint8Array, offline = false) {
-    secretsStore.unlockWithVaultKey(vaultKey);
     if (offline) setSessionId("offline");
-    setVaultReady(true);
+    secretsStore.unlockWithVaultKey(vaultKey);
+    setVaultUnlocked(true);
   }
 
   async function signRequest(message: string) {
@@ -116,8 +105,8 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     <SessionContext
       value={{
         sessionId,
-        sessionState,
-        vaultReady,
+        loggedIn,
+        vaultUnlocked,
         isOffline,
         loginSession,
         offlineLoginSession,

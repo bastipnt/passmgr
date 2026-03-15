@@ -1,7 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
-import { encryptItem, useStore, useTRPC } from "@repo/client";
+import { encryptItem, useStore, useTRPC, useRefreshItem } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect } from "react";
@@ -12,14 +12,14 @@ import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 export default function NewItem() {
   const trpc = useTRPC();
   const [_, navigate] = useLocation();
-  const queryClient = useQueryClient();
   const store = useStore();
+  const refreshItem = useRefreshItem();
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({
       onSuccess: async (result) => {
         await store.vault.upsertItems([result]);
-        await queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
+        await refreshItem(result.itemId);
         navigate(`/${entrySlug}/${result.itemId}`);
       },
     }),

@@ -1,14 +1,7 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useContext, useEffect } from "react";
+import { useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
-import {
-  SessionContext,
-  useGetItemByIdOptions,
-  decryptItem,
-  encryptItem,
-  useUpdateItem,
-} from "@repo/client";
+import { useGetItem, encryptItem, useUpdateItem } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
@@ -24,23 +17,13 @@ function Fallback() {
   );
 }
 
-type EditItemListProps = {
+type EditItemInnerProps = {
   entryId: string;
 };
 
-function EditItemInner({ entryId }: EditItemListProps) {
-  const { vaultReady } = useContext(SessionContext);
+function EditItemInner({ entryId }: EditItemInnerProps) {
   const [_, navigate] = useLocation();
-
-  const { data: encryptedItem } = useSuspenseQuery(useGetItemByIdOptions(entryId));
-
-  if (!vaultReady) return <Fallback />;
-
-  const data = {
-    itemId: encryptedItem.itemId,
-    version: encryptedItem.version,
-    ...decryptItem(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
-  };
+  const { item: data, ready } = useGetItem(entryId);
 
   const { updateItem, updateItemError } = useUpdateItem({
     onSuccess: () => {
@@ -52,9 +35,11 @@ function EditItemInner({ entryId }: EditItemListProps) {
     if (isDefined(updateItemError)) toast("Error saving");
   }, [updateItemError]);
 
+  if (!ready || !data) return <Fallback />;
+
   function handleSubmit(formValues: LoginItem) {
     const { encryptedData, encryptionNonce } = encryptItem({
-      schemaVersion: data.schemaVersion,
+      schemaVersion: data!.schemaVersion,
       ...formValues,
     });
     updateItem({
@@ -62,7 +47,7 @@ function EditItemInner({ entryId }: EditItemListProps) {
       encryptedData,
       encryptionNonce,
       cryptoVersion: CURRENT_CRYPTO_VERSION,
-      version: data.version,
+      version: data!.version,
       clientUpdatedAt: new Date().toISOString(),
     });
   }
@@ -95,9 +80,5 @@ export default function EditItem() {
   const { entryId } = useParams();
   if (!entryId) return <Fallback />;
 
-  return (
-    <Suspense fallback={<Fallback />}>
-      <EditItemInner entryId={entryId} />
-    </Suspense>
-  );
+  return <EditItemInner entryId={entryId} />;
 }

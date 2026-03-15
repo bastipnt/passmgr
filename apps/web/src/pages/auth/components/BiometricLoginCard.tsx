@@ -3,11 +3,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/Ca
 import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { FingerprintIcon } from "lucide-react";
-import { useContext, useState } from "react";
-import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
-import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
-import { secretsStore } from "@repo/store";
-import { authenticateBiometric } from "@repo/crypto";
+import { useState } from "react";
+import { useUnlock } from "@repo/client";
 
 type BiometricLoginCardParams = {
   loading: boolean;
@@ -15,36 +12,16 @@ type BiometricLoginCardParams = {
 };
 
 export function BiometricLoginCard({ loading, setLoading }: BiometricLoginCardParams) {
-  const { unlockWithVaultKey } = useContext(SessionContext);
-  const { loginUser } = useLogin();
-  const { storeKeyMaterial } = useUnlock();
+  const { biometricUnlock } = useUnlock();
   const [error, setError] = useState(false);
-  const store = useStore();
 
+  // TODO: move to unlock
   const onBiometricUnlock = async () => {
-    if (!store.biometricKeyMaterial) return;
     setLoading(true);
     setError(false);
 
     try {
-      const { vaultKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
-      const email = store.vaultKeyMaterial?.email;
-
-      if (navigator.onLine && email) {
-        const unlockInfo = await loginUser(email, password);
-
-        if (unlockInfo) {
-          unlockWithVaultKey(vaultKey);
-          await storeKeyMaterial(email, unlockInfo.userPasswordKeys);
-        } else {
-          // OPAQUE failed — fall back to offline
-          unlockWithVaultKey(vaultKey, true);
-        }
-      } else {
-        unlockWithVaultKey(vaultKey, true);
-      }
-
-      decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+      await biometricUnlock();
     } catch {
       setError(true);
       setLoading(false);

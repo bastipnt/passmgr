@@ -1,8 +1,7 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useContext, useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { entrySlug } from "../data/routes";
-import { decryptItemWithWorker, SessionContext, useGetAllItemsOptions } from "@repo/client";
+import { useGetItems } from "@repo/client";
+import type { DecryptedItem } from "@repo/schema";
 import {
   Item,
   ItemContent,
@@ -13,62 +12,16 @@ import {
 } from "@repo/ui/components/Item";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import type { ItemSchema } from "@repo/schema";
-
-type ItemSidebarProps = {
-  itemId?: string;
-};
-
-type EncryptedItem = {
-  itemId: string;
-  encryptedData: string;
-  encryptionNonce: string;
-};
 
 type SidebarItemProps = {
-  encryptedItem: EncryptedItem;
+  item: DecryptedItem;
   active: boolean;
-  vaultReady: boolean;
 };
 
-function SidebarItem({ encryptedItem, active, vaultReady }: SidebarItemProps) {
-  const [item, setItem] = useState<ItemSchema | null>(null);
-
-  useEffect(() => {
-    if (!vaultReady) return;
-    let cancelled = false;
-    void decryptItemWithWorker(encryptedItem.encryptedData, encryptedItem.encryptionNonce).then(
-      (decryptedItem) => {
-        if (!cancelled) setItem(decryptedItem);
-      },
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    encryptedItem.itemId,
-    encryptedItem.encryptedData,
-    encryptedItem.encryptionNonce,
-    vaultReady,
-  ]);
-
-  if (!item) {
-    return (
-      <Item variant={active ? "muted" : "outline"}>
-        <ItemMedia>
-          <Skeleton className="size-8 rounded-full" />
-        </ItemMedia>
-        <ItemContent className="gap-1">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-3 w-24" />
-        </ItemContent>
-      </Item>
-    );
-  }
-
+function SidebarItem({ item, active }: SidebarItemProps) {
   return (
     <Item variant={active ? "muted" : "outline"} asChild>
-      <Link href={`../${entrySlug}/${encryptedItem.itemId}`}>
+      <Link href={`../${entrySlug}/${item.itemId}`}>
         <ItemMedia>
           <Avatar>
             <AvatarImage src={""} className="grayscale" />
@@ -103,38 +56,17 @@ function ItemSidebarSkeleton() {
   );
 }
 
-function ItemSidebarInner({ itemId }: ItemSidebarProps) {
-  const { vaultReady } = useContext(SessionContext);
-  const { data } = useSuspenseQuery({
-    ...useGetAllItemsOptions(),
-    select: (res) =>
-      res.items.map((encryptedItem) => ({
-        itemId: encryptedItem.itemId,
-        encryptedData: encryptedItem.encryptedData,
-        encryptionNonce: encryptedItem.encryptionNonce,
-      })),
-  });
+export default function ItemSidebar() {
+  const [_, params] = useRoute(`/${entrySlug}/:itemId`);
+  const { items, ready } = useGetItems();
+
+  if (!ready) return <ItemSidebarSkeleton />;
 
   return (
     <ItemGroup className="max-w-sm">
-      {data.map((encryptedItem) => (
-        <SidebarItem
-          key={encryptedItem.itemId}
-          encryptedItem={encryptedItem}
-          active={encryptedItem.itemId === itemId}
-          vaultReady={vaultReady}
-        />
+      {items.map((item) => (
+        <SidebarItem key={item.itemId} item={item} active={item.itemId === params?.itemId} />
       ))}
     </ItemGroup>
-  );
-}
-
-export default function ItemSidebar() {
-  const [_, params] = useRoute(`/${entrySlug}/:itemId`);
-
-  return (
-    <Suspense fallback={<ItemSidebarSkeleton />}>
-      <ItemSidebarInner itemId={params?.itemId} />
-    </Suspense>
   );
 }

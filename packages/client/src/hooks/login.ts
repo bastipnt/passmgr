@@ -65,7 +65,7 @@ export function useLogin() {
 
     await loginSession(sessionId, sessionKey, authSalt);
 
-    return { password, userPasswordKeys };
+    return { email, password, userPasswordKeys };
   }
 
   function offlineLogin() {

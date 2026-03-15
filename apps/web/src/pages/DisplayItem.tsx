@@ -1,8 +1,7 @@
-import { decryptItem, SessionContext, useGetItemByIdOptions } from "@repo/client";
+import { SessionContext, useGetItem } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   EarthIcon,
   EditIcon,
@@ -12,7 +11,7 @@ import {
   NotebookPenIcon,
   TextIcon,
 } from "lucide-react";
-import { Fragment, Suspense, useContext } from "react";
+import { Fragment, useContext } from "react";
 import { useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
@@ -62,16 +61,13 @@ type DisplayItemProps = {
   entryId: string;
 };
 
+// TODO: rename entryId
 function DisplayItemInner({ entryId }: DisplayItemProps) {
-  const { vaultReady, isOffline } = useContext(SessionContext);
-  const { data: encryptedItem } = useSuspenseQuery(useGetItemByIdOptions(entryId));
+  const { isOffline } = useContext(SessionContext);
+  const { item: data, ready } = useGetItem(entryId);
 
-  if (!vaultReady) return <Fallback />;
+  if (!ready || !data) return <Fallback />;
 
-  const data = {
-    itemId: encryptedItem.itemId,
-    ...decryptItem(encryptedItem.encryptedData, encryptedItem.encryptionNonce),
-  };
   const { progress, seconds, token } = useTotp(data.totp);
 
   function copyField(value: string | undefined, label: string) {
@@ -184,9 +180,5 @@ export default function DisplayItem() {
   const { entryId } = useParams();
   if (!entryId) return <Fallback />;
 
-  return (
-    <Suspense fallback={<Fallback />}>
-      <DisplayItemInner entryId={entryId} />
-    </Suspense>
-  );
+  return <DisplayItemInner entryId={entryId} />;
 }

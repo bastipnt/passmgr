@@ -34,6 +34,13 @@ export const updateItemInputSchema = z.object({
 
 export type ItemSchema = { schemaVersion: 1 } & LoginItem;
 
+// TODO: not happy with too many Item types
+export type DecryptedItem = ItemSchema & {
+  itemId: string;
+  version: number;
+  clientUpdatedAt: string;
+};
+
 /** The crypto version used when encrypting items with the current code. */
 export const CURRENT_CRYPTO_VERSION = 1;
 

@@ -16,9 +16,6 @@ export async function createContextInner(opts?: CreateInnerContextOptions) {
 
 export async function createContext(opts: CreateFastifyContextOptions) {
   const sessionId = getSessionIdSave(opts.req.headers, opts.req.query);
-
-  console.log({ sessionId }, opts.req.query);
-
   const timestamp = getHeaderSave(opts.req.headers, SESSION_TIMESTAMP_HEADER);
   const signature = getHeaderSave(opts.req.headers, SESSION_SIGNATURE_HEADER);
 

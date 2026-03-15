@@ -6,13 +6,16 @@ import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-servi
 import { SessionContext } from "../providers/SessionProvider";
 import { secretsStore } from "@repo/store";
 import { useStore } from "../providers/StoreProvider";
+import { authenticateBiometric } from "@repo/crypto";
+import { useLogin } from "./login";
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState(false);
-  const { unlockVault } = useContext(SessionContext);
+  const { unlockVault, unlockWithVaultKey } = useContext(SessionContext);
   const store = useStore();
+  const { loginUser } = useLogin();
 
-  async function unlock({ password, userPasswordKeys }: VaultUnlockInfo) {
+  async function unlock({ email, password, userPasswordKeys }: VaultUnlockInfo) {
     let passwordKek: Uint8Array;
 
     try {
@@ -27,12 +30,34 @@ export function useUnlock() {
       return;
     }
 
+    // Store password temporarily for biometric enrollment (only if enrollment is upcoming)
+    if (store.needsBiometricEnroll) secretsStore.setPassword(password);
+    await storeKeyMaterial(email, userPasswordKeys);
+
     unlockVault(
       passwordKek,
       userPasswordKeys.encryptedVaultKey,
       userPasswordKeys.vaultKeyEncryptionNonce,
     );
 
+    decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+  }
+
+  async function biometricUnlock() {
+    if (!store.biometricKeyMaterial) return;
+
+    const { vaultKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
+    const email = store.vaultKeyMaterial?.email;
+    let onlineAuthFailure = true;
+
+    if (navigator.onLine && email) {
+      const unlockInfo = await loginUser(email, password);
+      onlineAuthFailure = !unlockInfo;
+
+      if (unlockInfo) await storeKeyMaterial(email, unlockInfo.userPasswordKeys);
+    }
+
+    unlockWithVaultKey(vaultKey, onlineAuthFailure);
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
   }
 
@@ -50,5 +75,5 @@ export function useUnlock() {
     });
   }
 
-  return { unlockError, unlock, storeKeyMaterial };
+  return { unlockError, unlock, biometricUnlock };
 }

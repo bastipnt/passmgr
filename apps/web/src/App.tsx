@@ -1,6 +1,6 @@
 import { ErrorBoundary } from "react-error-boundary";
 import Routes from "./routes/Routes";
-import { ClientProvider, SessionProvider } from "@repo/client";
+import { ClientProvider, SessionProvider, ItemsProvider } from "@repo/client";
 import ErrorFallback from "@pages/ErrorFallback";
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
@@ -13,8 +13,10 @@ function App() {
         <SessionProvider>
           <ClientProvider>
             <StoreProvider>
-              <Toaster />
-              <Routes />
+              <ItemsProvider>
+                <Toaster />
+                <Routes />
+              </ItemsProvider>
             </StoreProvider>
           </ClientProvider>
         </SessionProvider>

@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { SyncManager } from "../sync-manager";
 import { SessionContext } from "./SessionProvider";
 import { useTRPCClient } from "../util/trpc";
@@ -17,6 +16,7 @@ type StoreContextValue = {
   biometricKeyMaterial: BiometricKeyMaterial | null;
   biometricDismissed: boolean;
 
+  needsBiometricEnroll: boolean;
   setBiometricDismissed: (dismissed: boolean) => void;
   removeVault: () => Promise<void>;
 };
@@ -35,9 +35,8 @@ type StoreProviderProps = {
 };
 
 export function StoreProvider({ children }: StoreProviderProps) {
-  const { sessionId, vaultReady, isOffline } = useContext(SessionContext);
+  const { loggedIn, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
-  const queryClient = useQueryClient();
 
   const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
@@ -47,6 +46,8 @@ export function StoreProvider({ children }: StoreProviderProps) {
   const [biometricDismissed, setBiometricDismissed_] = useState(
     Number(localStorage.getItem(BIOMETRIC_DISMISSED)) === 1,
   );
+
+  const needsBiometricEnroll = !biometricDismissed && biometricKeyMaterial === null;
 
   function setBiometricDismissed(dismissed: boolean) {
     setBiometricDismissed_(dismissed);
@@ -76,42 +77,49 @@ export function StoreProvider({ children }: StoreProviderProps) {
 
   // Sync on login + start periodic sync + SSE subscription + resync when back online
   useEffect(() => {
-    if (!sessionId || isOffline) return;
-
-    const unsub = syncManager.onSync(() => {
-      void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
-    });
+    if (!loggedIn || isOffline) return;
 
     const onOnline = () => void syncManager.sync();
     window.addEventListener("online", onOnline);
 
-    // Subscribe to SSE notifications for real-time sync
-    const sseSubscription = trpc.entry.onItemChange.subscribe(undefined, {
-      onData: (event) => {
-        if (event.data.type === "changed") {
-          void syncManager.sync();
-        }
-      },
-    });
+    let retryDelay = 5_000;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+    let currentSubscription: { unsubscribe: () => void } | null = null;
+    let disposed = false;
+
+    function subscribe() {
+      currentSubscription = trpc.entry.onItemChange.subscribe(undefined, {
+        onData: (event) => {
+          retryDelay = 5_000;
+          if (event.data.type === "changed") {
+            void syncManager.sync();
+          }
+        },
+        onError: () => {
+          currentSubscription = null;
+          if (disposed) return;
+          retryTimer = setTimeout(() => {
+            retryDelay = Math.min(retryDelay * 2, 60_000);
+            subscribe();
+          }, retryDelay);
+        },
+      });
+    }
+
+    subscribe();
 
     void syncManager.sync();
     // Fallback polling at 5 minutes (SSE handles real-time)
     syncManager.startPeriodicSync(5 * 60_000);
 
     return () => {
-      unsub();
-      sseSubscription.unsubscribe();
+      disposed = true;
+      currentSubscription?.unsubscribe();
+      if (retryTimer) clearTimeout(retryTimer);
       window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [sessionId, isOffline, syncManager, queryClient, trpc]);
-
-  // Re-sync when vault becomes ready (items may have been fetched but not decryptable yet)
-  useEffect(() => {
-    if (vaultReady) {
-      void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
-    }
-  }, [vaultReady, queryClient]);
+  }, [loggedIn, isOffline, syncManager, trpc]);
 
   async function removeVault() {
     await vault.clear();
@@ -127,6 +135,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
     biometricKeyMaterial,
     biometricDismissed,
 
+    needsBiometricEnroll,
     setBiometricDismissed,
     removeVault,
   };

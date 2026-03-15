@@ -1,6 +1,7 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { useTRPC } from "../util/trpc";
 import { useStore } from "../providers/StoreProvider";
+import { useRefreshItem } from "./get-items";
 
 type UseUpdateItemOpts = {
   onSuccess: () => void;
@@ -8,14 +9,14 @@ type UseUpdateItemOpts = {
 
 export function useUpdateItem({ onSuccess }: UseUpdateItemOpts) {
   const trpc = useTRPC();
-  const queryClient = useQueryClient();
   const store = useStore();
+  const refreshItem = useRefreshItem();
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.update.mutationOptions({
       onSuccess: async (result) => {
         await store.vault.upsertItems([result]);
-        void queryClient.invalidateQueries({ queryKey: ["entry"], exact: false });
+        await refreshItem(result.itemId);
 
         onSuccess();
       },
