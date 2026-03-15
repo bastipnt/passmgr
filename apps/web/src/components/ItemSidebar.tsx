@@ -1,5 +1,5 @@
 import { Link, useRoute, useLocation } from "wouter";
-import { useEffect } from "react";
+import { Fragment, useEffect } from "react";
 import { entrySlug } from "../data/routes";
 import { useGetItems } from "@repo/client";
 import type { DecryptedItem } from "@repo/schema";
@@ -72,7 +72,7 @@ export default function ItemSidebar() {
   const [_, params] = useRoute(`/${entrySlug}/:itemId`);
   const [, navigate] = useLocation();
   const { items, ready } = useGetItems();
-  const { sort, sortedItems, handleSortChange } = useSortedItems(items);
+  const { sort, sortedItems, groups, handleSortChange } = useSortedItems(items);
 
   useEffect(() => {
     if (ready && !params?.itemId && sortedItems.length > 0) {
@@ -103,8 +103,17 @@ export default function ItemSidebar() {
         </DropdownMenu>
       </div>
       <ItemGroup>
-        {sortedItems.map((item) => (
-          <SidebarItem key={item.itemId} item={item} active={item.itemId === params?.itemId} />
+        {groups.map((group) => (
+          <Fragment key={group.label ?? "all"}>
+            {group.label && (
+              <p className="text-xs text-muted-foreground font-medium px-1 pt-2 first:pt-0">
+                {group.label}
+              </p>
+            )}
+            {group.items.map((item) => (
+              <SidebarItem key={item.itemId} item={item} active={item.itemId === params?.itemId} />
+            ))}
+          </Fragment>
         ))}
       </ItemGroup>
     </div>
