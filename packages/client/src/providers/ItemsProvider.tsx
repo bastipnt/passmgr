@@ -39,6 +39,7 @@ async function decryptItem(encrypted: EncryptedItemSchema): Promise<DecryptedIte
     itemId: encrypted.itemId,
     version: encrypted.version,
     clientUpdatedAt: encrypted.clientUpdatedAt,
+    created_at: encrypted.created_at ?? null,
   };
 }
 

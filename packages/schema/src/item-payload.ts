@@ -39,6 +39,7 @@ export type DecryptedItem = ItemSchema & {
   itemId: string;
   version: number;
   clientUpdatedAt: string;
+  created_at: string | null;
 };
 
 /** The crypto version used when encrypting items with the current code. */
