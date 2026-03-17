@@ -1,4 +1,4 @@
-import { useContext, type ReactNode } from "react";
+import { useContext, useRef, type ReactNode } from "react";
 
 import {
   Empty,
@@ -18,11 +18,12 @@ import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
 import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
-import { SessionContext } from "@repo/client";
+import { SessionContext, useShortcut } from "@repo/client";
 import {
   SortedItemsProvider,
   useSortedItems,
 } from "@repo/client/src/providers/SortedItemsProvider";
+import { useLocation } from "wouter";
 
 type LayoutProps = {
   children: ReactNode;
@@ -30,12 +31,20 @@ type LayoutProps = {
 
 function SearchInput() {
   const { query, setQuery } = useSortedItems();
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useShortcut("$mod+k", () => inputRef.current?.focus(), {
+    description: "Focus search",
+    allowInInput: true,
+  });
+
   return (
     <InputGroup>
       <InputGroupAddon align="inline-start">
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
+        ref={inputRef}
         placeholder="Search..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
@@ -88,6 +97,17 @@ function MainContent({ children }: { children: ReactNode }) {
 
 export default function Layout({ children }: LayoutProps) {
   const { isOffline } = useContext(SessionContext);
+  const [, navigate] = useLocation();
+
+  useShortcut("$mod+Shift+n", () => navigate("/new"), {
+    description: "Create new item",
+    enabled: !isOffline,
+  });
+
+  useShortcut("$mod+l", () => window.location.reload(), {
+    description: "Lock vault",
+    allowInInput: true,
+  });
 
   return (
     <SortedItemsProvider>

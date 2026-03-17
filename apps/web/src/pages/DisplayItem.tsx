@@ -1,4 +1,4 @@
-import { SessionContext, useGetItem } from "@repo/client";
+import { SessionContext, useGetItem, useShortcut } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -12,7 +12,7 @@ import {
   TextIcon,
 } from "lucide-react";
 import { Fragment, useContext } from "react";
-import { useParams } from "wouter";
+import { useLocation, useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
@@ -65,10 +65,10 @@ type DisplayItemProps = {
 function DisplayItemInner({ entryId }: DisplayItemProps) {
   const { isOffline } = useContext(SessionContext);
   const { item: data, ready } = useGetItem(entryId);
+  const [_, navigate] = useLocation();
+  const { progress, seconds, token } = useTotp(data?.totp);
 
-  if (!ready || !data) return <Fallback />;
-
-  const { progress, seconds, token } = useTotp(data.totp);
+  const editLink = `/${editSlug}/${entryId}`;
 
   function copyField(value: string | undefined, label: string) {
     if (!value) return;
@@ -76,12 +76,32 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
     toast.success(`${label} copied to clipboard`);
   }
 
+  useShortcut("$mod+Shift+c", () => copyField(data?.password, "Password"), {
+    description: "Copy password",
+    enabled: ready && !!data?.password,
+    allowInInput: true,
+  });
+
+  useShortcut("$mod+Shift+u", () => copyField(data?.username, "Username"), {
+    description: "Copy username",
+    enabled: ready && !!data?.username,
+    allowInInput: true,
+  });
+
+  useShortcut("$mod+e", () => navigate(editLink), {
+    description: "Copy username",
+    enabled: ready && !!data?.username && !isOffline,
+    allowInInput: true,
+  });
+
+  if (!ready || !data) return <Fallback />;
+
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
       <div className="grid grid-cols-[1fr_auto]">
         <h1>{data.title}</h1>
         {!isOffline && (
-          <Link href={`/${editSlug}/${entryId}`}>
+          <Link href={editLink}>
             <EditIcon /> Edit
           </Link>
         )}

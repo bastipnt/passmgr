@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useGetItem, encryptItem, useUpdateItem } from "@repo/client";
+import { useGetItem, encryptItem, useUpdateItem, useShortcut } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
@@ -24,11 +24,17 @@ type EditItemInnerProps = {
 function EditItemInner({ entryId }: EditItemInnerProps) {
   const [_, navigate] = useLocation();
   const { item: data, ready } = useGetItem(entryId);
+  const itemUrl = `/${entrySlug}/${entryId}`;
 
   const { updateItem, updateItemError } = useUpdateItem({
     onSuccess: () => {
-      navigate(`/${entrySlug}/${entryId}`);
+      navigate(itemUrl);
     },
+  });
+
+  useShortcut("Escape", () => navigate(itemUrl), {
+    description: "Go back",
+    allowInInput: true,
   });
 
   useEffect(() => {

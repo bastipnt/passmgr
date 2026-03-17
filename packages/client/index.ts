@@ -14,3 +14,6 @@ export { default as ClientProvider } from "./src/providers/ClientProvider";
 export { default as SessionProvider, SessionContext } from "./src/providers/SessionProvider";
 export * from "./src/providers/StoreProvider";
 export * from "./src/providers/ItemsProvider";
+export { default as ShortcutProvider, useShortcutContext } from "./src/providers/ShortcutProvider";
+export type { ShortcutEntry } from "./src/providers/ShortcutProvider";
+export { useShortcut } from "./src/hooks/use-shortcut";

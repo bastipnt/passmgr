@@ -1,7 +1,7 @@
 import { useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { entrySlug } from "../data/routes";
-import { encryptItem, useStore, useTRPC, useRefreshItem } from "@repo/client";
+import { encryptItem, useStore, useTRPC, useRefreshItem, useShortcut } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import LoginItemForm from "../forms/LoginItemForm";
 import { useEffect, useMemo } from "react";
@@ -18,6 +18,11 @@ export default function NewItem() {
     () => new URLSearchParams(window.location.search).get("title") ?? undefined,
     [],
   );
+
+  useShortcut("Escape", () => navigate("/"), {
+    description: "Go back",
+    allowInInput: true,
+  });
 
   const { mutate, error: mutationError } = useMutation(
     trpc.entry.create.mutationOptions({

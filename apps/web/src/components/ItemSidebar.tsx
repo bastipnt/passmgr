@@ -1,5 +1,5 @@
 import { Link, useRoute, useLocation } from "wouter";
-import { Fragment, useEffect, useRef } from "react";
+import { Fragment, useCallback, useEffect, useRef } from "react";
 import { entrySlug } from "../data/routes";
 import type { DecryptedItem } from "@repo/schema";
 import {
@@ -23,7 +23,7 @@ import {
 import { ArrowUpDownIcon } from "lucide-react";
 import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedItemsProvider";
 import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
-import { useGetItems } from "@repo/client";
+import { useGetItems, useShortcut } from "@repo/client";
 
 type SidebarItemProps = {
   item: DecryptedItem;
@@ -74,6 +74,29 @@ export default function ItemSidebar() {
   const { ready } = useGetItems();
   const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
   const prevQueryRef = useRef(query);
+
+  const navigateByOffset = useCallback(
+    (offset: number) => {
+      if (sortedItems.length === 0) return;
+      const currentIndex = sortedItems.findIndex((item) => item.itemId === params?.itemId);
+      const nextIndex = Math.max(0, Math.min(sortedItems.length - 1, currentIndex + offset));
+      const nextItem = sortedItems[nextIndex];
+      if (nextItem) navigate(`/${entrySlug}/${nextItem.itemId}`);
+    },
+    [sortedItems, params?.itemId, navigate],
+  );
+
+  useShortcut("ArrowDown", () => navigateByOffset(1), {
+    description: "Next item",
+    enabled: ready && sortedItems.length > 0,
+    allowInInput: true,
+  });
+
+  useShortcut("ArrowUp", () => navigateByOffset(-1), {
+    description: "Previous item",
+    enabled: ready && sortedItems.length > 0,
+    allowInInput: true,
+  });
 
   useEffect(() => {
     if (ready && !params?.itemId && sortedItems.length > 0) {

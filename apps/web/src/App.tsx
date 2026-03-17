@@ -1,6 +1,6 @@
 import { ErrorBoundary } from "react-error-boundary";
 import Routes from "./routes/Routes";
-import { ClientProvider, SessionProvider, ItemsProvider } from "@repo/client";
+import { ClientProvider, SessionProvider, ItemsProvider, ShortcutProvider } from "@repo/client";
 import ErrorFallback from "@pages/ErrorFallback";
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
@@ -11,14 +11,16 @@ function App() {
     <ErrorBoundary FallbackComponent={ErrorFallback}>
       <ThemeProvider storageKey="pass-mgr-theme">
         <SessionProvider>
-          <ClientProvider>
-            <StoreProvider>
-              <ItemsProvider>
-                <Toaster />
-                <Routes />
-              </ItemsProvider>
-            </StoreProvider>
-          </ClientProvider>
+          <ShortcutProvider>
+            <ClientProvider>
+              <StoreProvider>
+                <ItemsProvider>
+                  <Toaster />
+                  <Routes />
+                </ItemsProvider>
+              </StoreProvider>
+            </ClientProvider>
+          </ShortcutProvider>
         </SessionProvider>
       </ThemeProvider>
     </ErrorBoundary>

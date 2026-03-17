@@ -36,7 +36,8 @@
     "src/**/*.d.ts",
     "vite-env.d.ts",
     "../../types.d.ts",
-    "../../packages/client/src/providers/SortedItemsProvider.tsx"
+    "../../packages/client/src/providers/SortedItemsProvider.tsx",
+    "../../packages/client/src/tinykeys.d.ts"
   ],
   "exclude": ["node_modules"]
 }
