@@ -1,4 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useAppConfig } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -39,6 +40,7 @@ export default function LoginForm({
   unlockError,
   loading,
 }: LoginFormProps) {
+  const { registrationEnabled } = useAppConfig();
   const { handleSubmit, control, setValue } = useForm<LoginFormValues>({
     resolver: zodResolver(userCredentialsSchema),
     defaultValues: {
@@ -56,12 +58,14 @@ export default function LoginForm({
       <Card>
         <CardHeader>
           <CardTitle>Login</CardTitle>
-          <CardAction>
-            or
-            <Link href="/register" variant="link">
-              Sign Up
-            </Link>
-          </CardAction>
+          {registrationEnabled && (
+            <CardAction>
+              or
+              <Link href="/register" variant="link">
+                Sign Up
+              </Link>
+            </CardAction>
+          )}
         </CardHeader>
 
         <CardContent>

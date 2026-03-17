@@ -1,3 +1,4 @@
+export * from "./src/app-config-schema";
 export * from "./src/login-item-schema";
 export * from "./src/item-payload";
 export * from "./src/user/login-schema";

@@ -3,6 +3,7 @@ export { useTRPCClient, useTRPC } from "./src/util/trpc";
 export * from "./src/util/decrypt-item";
 export * from "./src/util/encrypt-item";
 
+export * from "./src/hooks/app-config";
 export * from "./src/hooks/register";
 export * from "./src/hooks/login";
 export * from "./src/hooks/unlock";

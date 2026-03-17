@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server";
 import { loggedProcedure } from "../logger";
 import { opaque, serverKey, serverSetup } from "../opaque";
 import { router } from "../trpc";
@@ -10,11 +11,21 @@ import {
   startRegistrationOutputSchema,
 } from "@repo/schema";
 
+function assertRegistrationEnabled() {
+  if (process.env.REGISTRATION_DISABLED === "true") {
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Registration is disabled",
+    });
+  }
+}
+
 export const registrationRouter = router({
   startRegistration: loggedProcedure
     .input(startRegistrationInputSchema)
     .output(startRegistrationOutputSchema)
     .mutation(async ({ input }) => {
+      assertRegistrationEnabled();
       const { email, registrationRequest } = input;
 
       const { registrationResponse } = opaque.server.createRegistrationResponse({
@@ -29,6 +40,7 @@ export const registrationRouter = router({
   finishRegistration: loggedProcedure
     .input(finishRegistrationInputSchema)
     .mutation(async ({ input }) => {
+      assertRegistrationEnabled();
       const { email, registrationRecord, userKeys } = input;
 
       const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(

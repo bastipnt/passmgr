@@ -2,8 +2,7 @@ import PublicLayout from "@/layout/PublicLayout";
 import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
 import LoginPage from "@pages/auth/LoginPage";
 import RegisterPage from "@pages/auth/RegisterPage";
-import NotFound from "@pages/NotFound";
-import { SessionContext, useStore } from "@repo/client";
+import { SessionContext, useAppConfig, useStore } from "@repo/client";
 import { useContext } from "react";
 import { Redirect, Route, Switch, useRoute } from "wouter";
 
@@ -16,6 +15,7 @@ export const loginRoutes = {
 export default function LoginRoutes() {
   const { loggedIn, vaultUnlocked } = useContext(SessionContext);
   const { needsBiometricEnroll } = useStore();
+  const { registrationEnabled } = useAppConfig();
   const [isEnrollBiometricRoute] = useRoute(loginRoutes.enrollBiometric);
 
   if (loggedIn && vaultUnlocked) {
@@ -30,10 +30,10 @@ export default function LoginRoutes() {
       <Switch>
         <Route path={loginRoutes.login} component={LoginPage} />
         <Route path={loginRoutes.enrollBiometric} component={BiometricEnrollPage} />
-        <Route path={loginRoutes.register} component={RegisterPage} />
+        {registrationEnabled && <Route path={loginRoutes.register} component={RegisterPage} />}
 
         <Route>
-          <NotFound />
+          <Redirect to={loginRoutes.login} />
         </Route>
       </Switch>
     </PublicLayout>
