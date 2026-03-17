@@ -11,13 +11,26 @@ import {
 } from "@repo/ui/components/Dialog";
 import type { ReactNode } from "react";
 
-type RemoveDialogProps = {
+type RemoveDialogBaseProps = {
   title: string;
   description: string;
-  children: ReactNode;
   removeTitle: string;
   onRemove: () => void;
 };
+
+type UncontrolledRemoveDialogProps = RemoveDialogBaseProps & {
+  children: ReactNode;
+  open?: never;
+  onOpenChange?: never;
+};
+
+type ControlledRemoveDialogProps = RemoveDialogBaseProps & {
+  children?: never;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+};
+
+type RemoveDialogProps = UncontrolledRemoveDialogProps | ControlledRemoveDialogProps;
 
 export default function RemoveDialog({
   title,
@@ -25,10 +38,12 @@ export default function RemoveDialog({
   children,
   removeTitle,
   onRemove,
+  open,
+  onOpenChange,
 }: RemoveDialogProps) {
   return (
-    <Dialog>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>

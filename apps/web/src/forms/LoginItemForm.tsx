@@ -193,6 +193,7 @@ function ExtraFields({ control }: ExtraFieldsProps) {
 
 type PassItemProps = {
   onSubmit: (data: FormValues) => void;
+  onDelete?: () => void;
   title: string;
   action: string;
   serverError?: string;
@@ -202,6 +203,7 @@ type PassItemProps = {
 
 export default function LoginItemForm({
   onSubmit,
+  onDelete,
   serverError,
   defaultValues,
   title,
@@ -309,11 +311,27 @@ export default function LoginItemForm({
           </FieldGroup>
         </CardContent>
 
-        <CardFooter className="flex flex-row gap-4 justify-end">
-          <Link variant="outline" href={cancelHref}>
-            Cancel
-          </Link>
-          <Button type="submit">{action}</Button>
+        <CardFooter className="flex flex-row gap-4 justify-between">
+          <div>
+            {onDelete && (
+              <RemoveDialog
+                title="Delete item"
+                description="Are you sure you want to delete this item? This action cannot be undone."
+                removeTitle="Delete"
+                onRemove={onDelete}
+              >
+                <Button variant="ghost" type="button">
+                  <TrashIcon /> Delete
+                </Button>
+              </RemoveDialog>
+            )}
+          </div>
+          <div className="flex flex-row gap-4">
+            <Link variant="outline" href={cancelHref}>
+              Cancel
+            </Link>
+            <Button type="submit">{action}</Button>
+          </div>
         </CardFooter>
       </Card>
     </form>

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, useParams } from "wouter";
 import { entrySlug } from "../data/routes";
-import { useGetItem, encryptItem, useUpdateItem, useShortcut } from "@repo/client";
+import { useGetItem, encryptItem, useUpdateItem, useDeleteItem, useShortcut } from "@repo/client";
 import LayoutOverlay from "../layout/LayoutOverlay";
 import styles from "./EditEntry.module.css";
 import LoginItemForm from "../forms/LoginItemForm";
@@ -29,6 +29,13 @@ function EditItemInner({ entryId }: EditItemInnerProps) {
   const { updateItem, updateItemError } = useUpdateItem({
     onSuccess: () => {
       navigate(itemUrl);
+    },
+  });
+
+  const { deleteItem } = useDeleteItem({
+    onSuccess: () => {
+      toast.success("Item deleted");
+      navigate("/");
     },
   });
 
@@ -72,6 +79,7 @@ function EditItemInner({ entryId }: EditItemInnerProps) {
     <LayoutOverlay>
       <LoginItemForm
         onSubmit={handleSubmit}
+        onDelete={() => deleteItem(entryId)}
         serverError={updateItemError?.message}
         defaultValues={defaultValues}
         title="Edit Login"

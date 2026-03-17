@@ -1,17 +1,19 @@
-import { SessionContext, useGetItem, useShortcut } from "@repo/client";
+import { SessionContext, useGetItem, useShortcut, useDeleteItem } from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import {
   EarthIcon,
   EditIcon,
+  EllipsisVerticalIcon,
   KeyIcon,
   LockIcon,
   MailIcon,
   NotebookPenIcon,
   TextIcon,
+  TrashIcon,
 } from "lucide-react";
-import { Fragment, useContext } from "react";
+import { Fragment, useContext, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
@@ -27,6 +29,14 @@ import {
   ItemDescription,
   ItemGroup,
 } from "@repo/ui/components/Item";
+import { Button } from "@repo/ui/components/Button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@repo/ui/components/DropdownMenu";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 
 function Fallback() {
   return (
@@ -68,6 +78,14 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
   const [_, navigate] = useLocation();
   const { progress, seconds, token } = useTotp(data?.totp);
 
+  const { deleteItem } = useDeleteItem({
+    onSuccess: () => {
+      toast.success("Item deleted");
+      navigate("/");
+    },
+  });
+
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const editLink = `/${editSlug}/${entryId}`;
 
   function copyField(value: string | undefined, label: string) {
@@ -98,12 +116,35 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
 
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
-      <div className="grid grid-cols-[1fr_auto]">
+      <div className="grid grid-cols-[1fr_auto] items-center">
         <h1>{data.title}</h1>
         {!isOffline && (
-          <Link href={editLink}>
-            <EditIcon /> Edit
-          </Link>
+          <div className="flex gap-2 items-center">
+            <Link variant="ghost" href={editLink}>
+              <EditIcon /> Edit
+            </Link>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <EllipsisVerticalIcon />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+                  <TrashIcon /> Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <RemoveDialog
+              title="Delete item"
+              description="Are you sure you want to delete this item? This action cannot be undone."
+              removeTitle="Delete"
+              onRemove={() => deleteItem(entryId)}
+              open={deleteDialogOpen}
+              onOpenChange={setDeleteDialogOpen}
+            />
+          </div>
         )}
       </div>
 
