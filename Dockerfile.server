@@ -1,0 +1,49 @@
+# ---- Stage 1: Install dependencies ----
+FROM oven/bun:1 AS install
+
+WORKDIR /app
+
+# Copy workspace config and lockfile
+COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
+COPY types.d.ts ./
+
+# Copy all package.json files to leverage Docker layer caching
+COPY apps/server/package.json apps/server/
+COPY packages/db/package.json packages/db/
+COPY packages/crypto/package.json packages/crypto/
+COPY packages/schema/package.json packages/schema/
+COPY packages/util/package.json packages/util/
+
+# Install pnpm (no npm or curl in bun image) and dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/* && \
+  curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" PNPM_VERSION=10.32.1 sh - && \
+  export PNPM_HOME="$HOME/.local/share/pnpm" && \
+  export PATH="$PNPM_HOME:$PATH" && \
+  pnpm install --frozen-lockfile
+
+# ---- Stage 2: Build ----
+FROM install AS build
+
+# Copy all source code
+COPY apps/server/ apps/server/
+COPY packages/db/ packages/db/
+COPY packages/crypto/ packages/crypto/
+COPY packages/schema/ packages/schema/
+COPY packages/util/ packages/util/
+
+# Generate Drizzle schema (needed before build)
+# DATABASE_URL is not needed for generate, only for migrate/push
+RUN cd packages/db && pnpm dlx drizzle-kit generate --config drizzle.config.ts || true
+
+# ---- Stage 3: Production ----
+FROM oven/bun:1-slim AS production
+
+WORKDIR /app
+
+# Copy everything from build stage
+COPY --from=build /app ./
+
+EXPOSE 3000
+
+# Run migrations then start the server
+CMD ["sh", "-c", "cd packages/db && bunx drizzle-kit migrate && cd /app && bun run apps/server/index.ts"]

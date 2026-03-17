@@ -1,0 +1,13 @@
+:8080 {
+	# Proxy tRPC API requests to the server
+	handle /trpc/* {
+		reverse_proxy server:3000
+	}
+
+	# Serve static web files with SPA fallback
+	handle {
+		root * /srv
+		file_server
+		try_files {path} /index.html
+	}
+}

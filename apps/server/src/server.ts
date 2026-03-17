@@ -19,17 +19,26 @@ await server.register(fastifyRedis, {
   port: Number(process.env.REDIS_PORT),
 });
 
+const allowedOrigins = new Set(["localhost"]);
+if (process.env.CORS_ORIGIN) {
+  try {
+    allowedOrigins.add(new URL(process.env.CORS_ORIGIN).hostname);
+  } catch {
+    // If CORS_ORIGIN is just a hostname without protocol, add it directly
+    allowedOrigins.add(process.env.CORS_ORIGIN);
+  }
+}
+
 await server.register(cors, {
   origin: (origin, cb) => {
     if (!origin) {
-      cb(new Error("Not allowed"), false);
-      // cb(null, true);
+      // Allow requests with no Origin header (e.g. same-origin, reverse proxy, non-browser)
+      cb(null, true);
       return;
     }
 
     const hostname = new URL(origin).hostname;
-    if (hostname === "localhost") {
-      //  Request from localhost will pass
+    if (allowedOrigins.has(hostname)) {
       cb(null, true);
       return;
     }
@@ -40,6 +49,7 @@ await server.register(cors, {
 });
 
 await server.register(fastifyTRPCPlugin, {
+  prefix: "/trpc",
   trpcOptions: {
     router: appRouter,
     createContext,

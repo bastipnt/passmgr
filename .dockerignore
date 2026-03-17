@@ -1,0 +1,27 @@
+node_modules
+.git
+.gitignore
+
+# Mobile app not needed for Docker builds
+apps/mobile
+
+# Dev infrastructure (managed by docker-compose)
+infra/
+
+# Build artifacts
+**/dist
+**/storybook-static
+
+# Environment files (secrets injected via docker-compose)
+.env
+.env.*
+!.env.production.example
+
+# IDE / OS
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# Turborepo cache
+.turbo
