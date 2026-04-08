@@ -45,6 +45,7 @@ type ClientProviderProps = {
 
 export default function ClientProvider({ children }: ClientProviderProps) {
   const queryClient = getQueryClient();
+  console.log("server url", import.meta.env.VITE_SERVER_URL);
 
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
     createTRPCClient<AppRouter>({

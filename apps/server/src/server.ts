@@ -49,7 +49,7 @@ await server.register(cors, {
 });
 
 await server.register(fastifyTRPCPlugin, {
-  prefix: "/trpc",
+  prefix: process.env.PREFIX,
   trpcOptions: {
     router: appRouter,
     createContext,
