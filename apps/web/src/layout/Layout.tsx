@@ -14,6 +14,7 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
+import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
@@ -28,6 +29,9 @@ import { useLocation } from "wouter";
 type LayoutProps = {
   children: ReactNode;
 };
+
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+const modKey = isMac ? "⌘" : "Ctrl";
 
 function SearchInput() {
   const { query, setQuery } = useSortedItems();
@@ -48,14 +52,22 @@ function SearchInput() {
         placeholder="Search..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && query) {
+            e.preventDefault();
+            setQuery("");
+          }
+        }}
       />
-      {query && (
-        <InputGroupAddon align="inline-end">
+      <InputGroupAddon align="inline-end">
+        {query ? (
           <InputGroupButton size="icon-xs" onClick={() => setQuery("")} aria-label="Clear search">
             <XIcon />
           </InputGroupButton>
-        </InputGroupAddon>
-      )}
+        ) : (
+          <Kbd aria-hidden>{modKey}K</Kbd>
+        )}
+      </InputGroupAddon>
     </InputGroup>
   );
 }
