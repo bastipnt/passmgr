@@ -259,12 +259,7 @@ export default function LoginItemForm({
 
       <FieldSeparator />
 
-      <WebsiteFields
-        control={control}
-        register={register}
-        errors={errors}
-        setValue={setValue}
-      />
+      <WebsiteFields control={control} register={register} errors={errors} setValue={setValue} />
 
       <FieldSeparator />
 
