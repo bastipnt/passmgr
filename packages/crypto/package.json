@@ -12,7 +12,7 @@
   "devDependencies": {
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
-    "oxlint": "^1.59.0"
+    "oxlint": "^1.60.0"
   },
   "keywords": [],
   "author": "",
@@ -20,8 +20,8 @@
   "packageManager": "pnpm@10.29.2",
   "dependencies": {
     "@better-auth/utils": "^0.4.0",
-    "@noble/ciphers": "^2.1.1",
-    "@noble/hashes": "^2.0.1",
+    "@noble/ciphers": "^2.2.0",
+    "@noble/hashes": "^2.2.0",
     "otplib": "^13.4.0"
   },
   "exports": {
