@@ -107,7 +107,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
   });
 
   useShortcut("$mod+e", () => navigate(editLink), {
-    description: "Copy username",
+    description: "Edit item",
     enabled: ready && !!data?.username && !isOffline,
     allowInInput: true,
   });

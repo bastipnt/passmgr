@@ -1,5 +1,6 @@
-import { useContext, useRef, type ReactNode } from "react";
+import { useContext, useRef, useState, type ReactNode } from "react";
 
+import { Button } from "@repo/ui/components/Button";
 import {
   Empty,
   EmptyContent,
@@ -18,7 +19,8 @@ import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
-import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
+import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
+import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { SessionContext, useShortcut } from "@repo/client";
 import {
   SortedItemsProvider,
@@ -26,12 +28,11 @@ import {
 } from "@repo/client/src/providers/SortedItemsProvider";
 import { useLocation } from "wouter";
 
+import { modKey } from "@/lib/formatShortcut";
+
 type LayoutProps = {
   children: ReactNode;
 };
-
-const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
-const modKey = isMac ? "⌘" : "Ctrl";
 
 function SearchInput() {
   const { query, setQuery } = useSortedItems();
@@ -110,6 +111,7 @@ function MainContent({ children }: { children: ReactNode }) {
 export default function Layout({ children }: LayoutProps) {
   const { isOffline } = useContext(SessionContext);
   const [, navigate] = useLocation();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   useShortcut("$mod+Shift+n", () => navigate("/new"), {
     description: "Create new item",
@@ -121,11 +123,24 @@ export default function Layout({ children }: LayoutProps) {
     allowInInput: true,
   });
 
+  useShortcut("Shift+?", () => setHelpOpen((o) => !o), {
+    description: "Show keyboard shortcuts",
+    allowInInput: false,
+  });
+
   return (
     <SortedItemsProvider>
       <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-[minmax(10vw,300px)_1fr]">
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <SearchInput />
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setHelpOpen(true)}
+            aria-label="Show keyboard shortcuts"
+          >
+            <CircleHelpIcon className="h-[1.2rem] w-[1.2rem]" />
+          </Button>
           <ThemeToggle />
           {!isOffline && (
             <Link href="/new" variant="default">
@@ -141,6 +156,7 @@ export default function Layout({ children }: LayoutProps) {
           <MainContent>{children}</MainContent>
         </main>
       </div>
+      <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </SortedItemsProvider>
   );
 }
