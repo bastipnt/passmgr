@@ -46,6 +46,6 @@
     "oxlint-tsgolint": "^0.20.0",
     "typed-css-modules": "^0.9.1",
     "typescript": "~6.0.2",
-    "vite": "npm:rolldown-vite@latest"
+    "vite": "8.0.7"
   }
 }

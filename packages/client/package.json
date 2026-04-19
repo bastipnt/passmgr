@@ -28,6 +28,6 @@
     "@types/react-dom": "^19.2.3",
     "oxlint": "^1.59.0",
     "oxlint-tsgolint": "^0.20.0",
-    "vite": "npm:rolldown-vite@latest"
+    "vite": "8.0.7"
   }
 }
