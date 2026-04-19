@@ -7,6 +7,7 @@ export * from "./src/hooks/app-config";
 export * from "./src/hooks/register";
 export * from "./src/hooks/login";
 export * from "./src/hooks/unlock";
+export * from "./src/hooks/create-item";
 export * from "./src/hooks/update-item";
 export * from "./src/hooks/delete-item";
 export * from "./src/hooks/get-items";

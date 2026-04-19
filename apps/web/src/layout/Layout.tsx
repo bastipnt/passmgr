@@ -16,7 +16,6 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
-import Link from "@repo/ui/components/Link";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import ItemSidebar from "@components/ItemSidebar";
 import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
@@ -26,9 +25,10 @@ import {
   SortedItemsProvider,
   useSortedItems,
 } from "@repo/client/src/providers/SortedItemsProvider";
-import { useLocation } from "wouter";
 
 import { modKey } from "@/lib/formatShortcut";
+import { useEditingContext } from "@/providers/EditingProvider";
+import { useCreateEntryContext } from "@/providers/CreateEntryProvider";
 
 type LayoutProps = {
   children: ReactNode;
@@ -37,9 +37,11 @@ type LayoutProps = {
 function SearchInput() {
   const { query, setQuery } = useSortedItems();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { isEditing } = useEditingContext();
 
   useShortcut("$mod+k", () => inputRef.current?.focus(), {
     description: "Focus search",
+    enabled: !isEditing,
     allowInInput: true,
   });
 
@@ -75,6 +77,8 @@ function SearchInput() {
 
 function NoSearchResults() {
   const { query, setQuery } = useSortedItems();
+  const { openCreateSheet } = useCreateEntryContext();
+
   return (
     <div className="h-full flex flex-col justify-center items-center">
       <Empty>
@@ -86,13 +90,15 @@ function NoSearchResults() {
           <EmptyDescription>No items matched your search.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center">
-          <Link
+          <Button
             variant="default"
-            href={`/new?title=${encodeURIComponent(query.trim())}`}
-            onClick={() => setQuery("")}
+            onClick={() => {
+              openCreateSheet(query.trim());
+              setQuery("");
+            }}
           >
             Create a new entry for &ldquo;{query.trim()}&rdquo;
-          </Link>
+          </Button>
         </EmptyContent>
       </Empty>
     </div>
@@ -110,21 +116,24 @@ function MainContent({ children }: { children: ReactNode }) {
 
 export default function Layout({ children }: LayoutProps) {
   const { isOffline } = useContext(SessionContext);
-  const [, navigate] = useLocation();
+  const { isEditing } = useEditingContext();
+  const { openCreateSheet } = useCreateEntryContext();
   const [helpOpen, setHelpOpen] = useState(false);
 
-  useShortcut("$mod+Shift+n", () => navigate("/new"), {
+  useShortcut("$mod+Shift+n", () => openCreateSheet(), {
     description: "Create new item",
-    enabled: !isOffline,
+    enabled: !isOffline && !isEditing,
   });
 
   useShortcut("$mod+l", () => window.location.reload(), {
     description: "Lock vault",
+    enabled: !isEditing,
     allowInInput: true,
   });
 
   useShortcut("Shift+?", () => setHelpOpen((o) => !o), {
     description: "Show keyboard shortcuts",
+    enabled: !isEditing,
     allowInInput: false,
   });
 
@@ -143,10 +152,10 @@ export default function Layout({ children }: LayoutProps) {
           </Button>
           <ThemeToggle />
           {!isOffline && (
-            <Link href="/new" variant="default">
+            <Button variant="default" onClick={() => openCreateSheet()}>
               <PlusIcon />
               New Item
-            </Link>
+            </Button>
           )}
         </header>
         <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">

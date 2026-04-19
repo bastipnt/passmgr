@@ -24,6 +24,7 @@ import { ArrowUpDownIcon } from "lucide-react";
 import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedItemsProvider";
 import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
 import { useGetItems, useShortcut } from "@repo/client";
+import { useEditingContext } from "@/providers/EditingProvider";
 
 type SidebarItemProps = {
   item: DecryptedItem;
@@ -73,6 +74,7 @@ export default function ItemSidebar() {
   const [, navigate] = useLocation();
   const { ready } = useGetItems();
   const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
+  const { isEditing } = useEditingContext();
   const prevQueryRef = useRef(query);
 
   const navigateByOffset = useCallback(
@@ -88,13 +90,13 @@ export default function ItemSidebar() {
 
   useShortcut("ArrowDown", () => navigateByOffset(1), {
     description: "Next item",
-    enabled: ready && sortedItems.length > 0,
+    enabled: ready && sortedItems.length > 0 && !isEditing,
     allowInInput: true,
   });
 
   useShortcut("ArrowUp", () => navigateByOffset(-1), {
     description: "Previous item",
-    enabled: ready && sortedItems.length > 0,
+    enabled: ready && sortedItems.length > 0 && !isEditing,
     allowInInput: true,
   });
 

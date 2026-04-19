@@ -1,4 +1,11 @@
-import { SessionContext, useGetItem, useShortcut, useDeleteItem } from "@repo/client";
+import {
+  SessionContext,
+  useGetItem,
+  useShortcut,
+  useDeleteItem,
+  useUpdateItem,
+  encryptItem,
+} from "@repo/client";
 import { Separator } from "@repo/ui/components/Separator";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
@@ -13,12 +20,11 @@ import {
   TextIcon,
   TrashIcon,
 } from "lucide-react";
-import { Fragment, useContext, useState } from "react";
+import { Fragment, useContext, useEffect, useState } from "react";
 import { useLocation, useParams } from "wouter";
 import { useTotp } from "@/hooks/totp-hook";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
-import { editSlug } from "@/data/routes";
 import { toast } from "@repo/ui";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import {
@@ -37,6 +43,10 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import LoginItemForm from "@/forms/LoginItemForm";
+import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@repo/ui/components/Sheet";
+import { useEditingContext } from "@/providers/EditingProvider";
 
 function Fallback() {
   return (
@@ -77,6 +87,13 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
   const { item: data, ready } = useGetItem(entryId);
   const [_, navigate] = useLocation();
   const { progress, seconds, token } = useTotp(data?.totp);
+  const { isEditing, setIsEditing } = useEditingContext();
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+
+  function handleEditSheetChange(open: boolean) {
+    setIsEditSheetOpen(open);
+    setIsEditing(open);
+  }
 
   const { deleteItem } = useDeleteItem({
     onSuccess: () => {
@@ -85,8 +102,18 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
     },
   });
 
+  const { updateItem, updateItemError } = useUpdateItem({
+    onSuccess: () => {
+      handleEditSheetChange(false);
+      toast.success("Item saved");
+    },
+  });
+
+  useEffect(() => {
+    if (isDefined(updateItemError)) toast.error("Error saving");
+  }, [updateItemError]);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const editLink = `/${editSlug}/${entryId}`;
 
   function copyField(value: string | undefined, label: string) {
     if (!value) return;
@@ -96,23 +123,48 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
 
   useShortcut("$mod+Shift+c", () => copyField(data?.password, "Password"), {
     description: "Copy password",
-    enabled: ready && !!data?.password,
+    enabled: ready && !!data?.password && !isEditing,
     allowInInput: true,
   });
 
   useShortcut("$mod+Shift+u", () => copyField(data?.username, "Username"), {
     description: "Copy username",
-    enabled: ready && !!data?.username,
+    enabled: ready && !!data?.username && !isEditing,
     allowInInput: true,
   });
 
-  useShortcut("$mod+e", () => navigate(editLink), {
+  useShortcut("$mod+e", () => handleEditSheetChange(true), {
     description: "Edit item",
-    enabled: ready && !!data?.username && !isOffline,
+    enabled: ready && !!data?.username && !isOffline && !isEditing,
     allowInInput: true,
   });
 
   if (!ready || !data) return <Fallback />;
+
+  function handleSubmit(formValues: LoginItem) {
+    const { encryptedData, encryptionNonce } = encryptItem({
+      schemaVersion: data!.schemaVersion,
+      ...formValues,
+    });
+    updateItem({
+      itemId: entryId,
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: CURRENT_CRYPTO_VERSION,
+      version: data!.version,
+      clientUpdatedAt: new Date().toISOString(),
+    });
+  }
+
+  const defaultValues: Partial<LoginItem> = {
+    title: data.title,
+    username: data.username,
+    password: data.password,
+    totp: data.totp,
+    websites: data.websites,
+    note: data.note,
+    extraFields: data.extraFields,
+  };
 
   return (
     <div className="grid grid-cols-1 p-8 items-start gap-4">
@@ -120,9 +172,9 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         <h1>{data.title}</h1>
         {!isOffline && (
           <div className="flex gap-2 items-center">
-            <Link variant="ghost" href={editLink}>
+            <Button variant="ghost" onClick={() => handleEditSheetChange(true)}>
               <EditIcon /> Edit
-            </Link>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="ghost" size="icon">
@@ -233,6 +285,24 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
           ))}
         </ItemDisplayGroup>
       )}
+
+      <Sheet open={isEditSheetOpen} onOpenChange={handleEditSheetChange}>
+        <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-lg">
+          <SheetHeader>
+            <SheetTitle>Edit Login</SheetTitle>
+          </SheetHeader>
+          <div className="px-4 pb-4">
+            <LoginItemForm
+              onSubmit={handleSubmit}
+              onDelete={() => deleteItem(entryId)}
+              onCancel={() => handleEditSheetChange(false)}
+              serverError={updateItemError?.message}
+              defaultValues={defaultValues}
+              action="Save"
+            />
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }

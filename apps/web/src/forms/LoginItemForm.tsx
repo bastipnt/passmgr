@@ -7,7 +7,6 @@ import {
   type UseFormSetValue,
 } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import Link from "@repo/ui/components/Link";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -16,14 +15,6 @@ import {
   DropdownMenuItem,
 } from "@repo/ui/components/DropdownMenu";
 import { useEffect } from "react";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/Card";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import {
   EarthIcon,
@@ -35,7 +26,6 @@ import {
   TagIcon,
   TextIcon,
   TrashIcon,
-  XIcon,
 } from "lucide-react";
 import {
   FieldError,
@@ -194,11 +184,10 @@ function ExtraFields({ control }: ExtraFieldsProps) {
 type PassItemProps = {
   onSubmit: (data: FormValues) => void;
   onDelete?: () => void;
-  title: string;
   action: string;
   serverError?: string;
   defaultValues?: Partial<FormValues>;
-  cancelHref?: string;
+  onCancel: () => void;
 };
 
 export default function LoginItemForm({
@@ -206,9 +195,8 @@ export default function LoginItemForm({
   onDelete,
   serverError,
   defaultValues,
-  title,
   action,
-  cancelHref = "/",
+  onCancel,
 }: PassItemProps) {
   const {
     register,
@@ -231,109 +219,98 @@ export default function LoginItemForm({
     });
   }
 
+  const formFields = (
+    <FieldGroup>
+      <FieldSet>
+        <ControlledInput
+          control={control}
+          name="title"
+          label="Title"
+          autoComplete="off"
+          icon={<TagIcon />}
+        />
+
+        <ControlledInput
+          control={control}
+          name="username"
+          label="Username"
+          autoComplete="off"
+          icon={<MailIcon />}
+        />
+
+        <ControlledInput
+          className="[-webkit-text-security:disc] focus:[-webkit-text-security:none]"
+          control={control}
+          name="password"
+          label="Password"
+          type="text"
+          autoComplete="off"
+          icon={<KeyIcon />}
+        />
+
+        <ControlledInput
+          control={control}
+          name="totp"
+          label="2FA token secret (TOTP)"
+          autoComplete="off"
+          icon={<LockIcon />}
+        />
+      </FieldSet>
+
+      <FieldSeparator />
+
+      <WebsiteFields
+        control={control}
+        register={register}
+        errors={errors}
+        setValue={setValue}
+      />
+
+      <FieldSeparator />
+
+      <FieldSet>
+        <ControlledTextarea
+          control={control}
+          name="note"
+          label="Notes"
+          autoComplete="off"
+          icon={<NotebookPenIcon />}
+        />
+      </FieldSet>
+
+      <FieldSeparator />
+
+      <ExtraFields control={control} register={register} errors={errors} />
+
+      {serverError && <FieldError>{serverError}</FieldError>}
+    </FieldGroup>
+  );
+
   return (
     <form onSubmit={handleSubmit(handleFormSubmit)} autoComplete="off">
-      <Card className="w-lg">
-        <CardHeader>
-          <CardTitle>{title}</CardTitle>
-          <CardAction>
-            <Link variant="ghost" href={cancelHref}>
-              <XIcon />
-            </Link>
-          </CardAction>
-        </CardHeader>
-
-        <CardContent>
-          <FieldGroup>
-            <FieldSet>
-              <ControlledInput
-                control={control}
-                name="title"
-                label="Title"
-                autoComplete="off"
-                icon={<TagIcon />}
-              />
-
-              <ControlledInput
-                control={control}
-                name="username"
-                label="Username"
-                autoComplete="off"
-                icon={<MailIcon />}
-              />
-
-              <ControlledInput
-                className="[-webkit-text-security:disc] focus:[-webkit-text-security:none]"
-                control={control}
-                name="password"
-                label="Password"
-                type="text"
-                autoComplete="off"
-                icon={<KeyIcon />}
-              />
-
-              <ControlledInput
-                control={control}
-                name="totp"
-                label="2FA token secret (TOTP)"
-                autoComplete="off"
-                icon={<LockIcon />}
-              />
-            </FieldSet>
-
-            <FieldSeparator />
-
-            <WebsiteFields
-              control={control}
-              register={register}
-              errors={errors}
-              setValue={setValue}
-            />
-
-            <FieldSeparator />
-
-            <FieldSet>
-              {/* TODO: textarea */}
-              <ControlledTextarea
-                control={control}
-                name="note"
-                label="Notes"
-                autoComplete="off"
-                icon={<NotebookPenIcon />}
-              />
-            </FieldSet>
-
-            <FieldSeparator />
-
-            <ExtraFields control={control} register={register} errors={errors} />
-
-            {serverError && <FieldError>{serverError}</FieldError>}
-          </FieldGroup>
-        </CardContent>
-
-        <CardFooter className="flex flex-row gap-4 justify-between">
-          <div>
-            {onDelete && (
-              <RemoveDialog
-                title="Delete item"
-                description="Are you sure you want to delete this item? This action cannot be undone."
-                removeTitle="Delete"
-                onRemove={onDelete}
-              >
-                <Button variant="ghost" type="button">
-                  <TrashIcon /> Delete
-                </Button>
-              </RemoveDialog>
-            )}
-          </div>
-          <div className="flex flex-row gap-4">
-            <Link variant="outline" href={cancelHref}>
-              Cancel
-            </Link>
-            <Button type="submit">{action}</Button>
-          </div>
-        </CardFooter>
-      </Card>
+      {formFields}
+      <div className="mt-6 flex flex-row gap-4 justify-between">
+        <div>
+          {onDelete && (
+            <RemoveDialog
+              title="Delete item"
+              description="Are you sure you want to delete this item? This action cannot be undone."
+              removeTitle="Delete"
+              onRemove={onDelete}
+            >
+              <Button variant="ghost" type="button">
+                <TrashIcon /> Delete
+              </Button>
+            </RemoveDialog>
+          )}
+        </div>
+        <div className="flex flex-row gap-4">
+          <Button variant="outline" type="button" onClick={onCancel}>
+            Cancel
+          </Button>
+          <Button type="submit">{action}</Button>
+        </div>
+      </div>
     </form>
   );
 }

@@ -1,13 +1,13 @@
-import { Redirect, Route, Switch } from "wouter";
+import { Redirect, Route, Switch, useParams } from "wouter";
 import Layout from "../layout/Layout";
 import Index from "@pages/Index";
 import SelectedElementProvider from "../providers/SelectedElementProvider";
+import EditingProvider from "../providers/EditingProvider";
+import CreateEntryProvider from "../providers/CreateEntryProvider";
 import { editSlug, entrySlug, newSlug } from "../data/routes";
-import EditItem from "@pages/EditItem";
 import NotFound from "@pages/NotFound";
 import { useContext } from "react";
 import { SessionContext, useAutoReconnect } from "@repo/client";
-import NewItem from "@pages/NewItem";
 import DisplayItem from "@pages/DisplayItem";
 import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
 import LoginRoutes, { loginRoutes } from "@/routes/LoginRoutes";
@@ -23,11 +23,14 @@ function DefaultLayoutRoutes() {
   );
 }
 
+function EditRedirect() {
+  const { entryId } = useParams();
+  return <Redirect to={`/${entrySlug}/${entryId}`} />;
+}
+
 function OverlayLayoutRoutes() {
   return (
     <Switch>
-      <Route path={`/${editSlug}/:entryId`} component={EditItem} />
-      <Route path={`/${newSlug}`} component={NewItem} />
       <Route path="/enroll-biometric" component={BiometricEnrollPage} />
     </Switch>
   );
@@ -39,22 +42,30 @@ function ProtectedRoutes() {
   if (!sessionId) return <Redirect to="/login" />;
 
   return (
-    <SelectedElementProvider>
-      <Switch>
-        {/* Default Layout */}
-        <Route path="/" component={DefaultLayoutRoutes} />
-        <Route path={`/${entrySlug}/:entryId`} component={DefaultLayoutRoutes} />
+    <EditingProvider>
+      <CreateEntryProvider>
+        <SelectedElementProvider>
+          <Switch>
+            {/* Default Layout */}
+            <Route path="/" component={DefaultLayoutRoutes} />
+            <Route path={`/${entrySlug}/:entryId`} component={DefaultLayoutRoutes} />
 
-        {/* Overlay Layout */}
-        <Route path={`/${editSlug}/:entryId`} component={OverlayLayoutRoutes} />
-        <Route path={`/${newSlug}`} component={OverlayLayoutRoutes} />
-        <Route path="/enroll-biometric" component={OverlayLayoutRoutes} />
+            {/* Redirect old routes */}
+            <Route path={`/${editSlug}/:entryId`} component={EditRedirect} />
+            <Route path={`/${newSlug}`}>
+              <Redirect to="/" />
+            </Route>
 
-        <Route>
-          <NotFound />
-        </Route>
-      </Switch>
-    </SelectedElementProvider>
+            {/* Overlay Layout */}
+            <Route path="/enroll-biometric" component={OverlayLayoutRoutes} />
+
+            <Route>
+              <NotFound />
+            </Route>
+          </Switch>
+        </SelectedElementProvider>
+      </CreateEntryProvider>
+    </EditingProvider>
   );
 }
 
