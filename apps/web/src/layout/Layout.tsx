@@ -159,7 +159,7 @@ export default function Layout({ children }: LayoutProps) {
           )}
         </header>
         <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
-          <section className="border-r p-4 overflow-y-scroll">
+          <section className="border-r p-4 overflow-y-scroll scroll-py-4">
             <ItemSidebar />
           </section>
           <MainContent>{children}</MainContent>

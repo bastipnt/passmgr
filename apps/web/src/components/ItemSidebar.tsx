@@ -29,12 +29,16 @@ import { useEditingContext } from "@/providers/EditingProvider";
 type SidebarItemProps = {
   item: DecryptedItem;
   active: boolean;
+  registerRef: (id: string, el: HTMLAnchorElement | null) => void;
 };
 
-function SidebarItem({ item, active }: SidebarItemProps) {
+function SidebarItem({ item, active, registerRef }: SidebarItemProps) {
   return (
     <Item variant={active ? "muted" : "outline"} asChild>
-      <Link href={`../${entrySlug}/${item.itemId}`}>
+      <Link
+        href={`../${entrySlug}/${item.itemId}`}
+        ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}
+      >
         <ItemMedia>
           <Avatar>
             <AvatarImage src={""} className="grayscale" />
@@ -76,6 +80,13 @@ export default function ItemSidebar() {
   const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
   const { isEditing } = useEditingContext();
   const prevQueryRef = useRef(query);
+  const itemRefs = useRef(new Map<string, HTMLAnchorElement>());
+  const shouldFocusRef = useRef(false);
+
+  const registerRef = useCallback((id: string, el: HTMLAnchorElement | null) => {
+    if (el) itemRefs.current.set(id, el);
+    else itemRefs.current.delete(id);
+  }, []);
 
   const navigateByOffset = useCallback(
     (offset: number) => {
@@ -83,10 +94,23 @@ export default function ItemSidebar() {
       const currentIndex = sortedItems.findIndex((item) => item.itemId === params?.itemId);
       const nextIndex = Math.max(0, Math.min(sortedItems.length - 1, currentIndex + offset));
       const nextItem = sortedItems[nextIndex];
-      if (nextItem) navigate(`/${entrySlug}/${nextItem.itemId}`);
+      if (nextItem) {
+        shouldFocusRef.current = true;
+        navigate(`/${entrySlug}/${nextItem.itemId}`);
+      }
     },
     [sortedItems, params?.itemId, navigate],
   );
+
+  useEffect(() => {
+    if (!shouldFocusRef.current || !params?.itemId) return;
+    const el = itemRefs.current.get(params.itemId);
+    if (el) {
+      el.focus({ preventScroll: true });
+      el.scrollIntoView({ block: "nearest" });
+      shouldFocusRef.current = false;
+    }
+  }, [params?.itemId]);
 
   useShortcut("ArrowDown", () => navigateByOffset(1), {
     description: "Next item",
@@ -157,6 +181,7 @@ export default function ItemSidebar() {
                   key={item.itemId}
                   item={item}
                   active={item.itemId === params?.itemId}
+                  registerRef={registerRef}
                 />
               ))}
             </Fragment>
