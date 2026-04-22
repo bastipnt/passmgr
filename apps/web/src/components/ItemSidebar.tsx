@@ -10,8 +10,8 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { Skeleton } from "@repo/ui/components/Skeleton";
+import { WebsiteAvatar } from "./WebsiteAvatar";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -40,10 +40,7 @@ function SidebarItem({ item, active, registerRef }: SidebarItemProps) {
         ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}
       >
         <ItemMedia>
-          <Avatar>
-            <AvatarImage src={""} className="grayscale" />
-            <AvatarFallback>{item.title.charAt(0)}</AvatarFallback>
-          </Avatar>
+          <WebsiteAvatar title={item.title} websites={item.websites} />
         </ItemMedia>
         <ItemContent className="gap-1">
           <ItemTitle>{item.title}</ItemTitle>

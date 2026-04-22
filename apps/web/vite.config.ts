@@ -14,7 +14,20 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
-  plugins: [react(), sqlocal()],
+  plugins: [
+    react(),
+    sqlocal({ coi: false }),
+    {
+      name: "coi-headers-credentialless",
+      configureServer(server) {
+        server.middlewares.use((_, res, next) => {
+          res.setHeader("Cross-Origin-Embedder-Policy", "credentialless");
+          res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+          next();
+        });
+      },
+    },
+  ],
   optimizeDeps: {
     exclude: ["@sqlite.org/sqlite-wasm"],
   },
