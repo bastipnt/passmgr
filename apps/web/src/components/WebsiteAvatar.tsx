@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { faviconUrl } from "@/lib/faviconUrl";
 
@@ -11,6 +11,12 @@ type Status = "loading" | "ok" | "fail";
 // `load` not `error`). Real favicons from DDG pass through at 16 or 32 px.
 function isDdgPlaceholder(img: HTMLImageElement) {
   return img.naturalWidth === 48 && img.naturalHeight === 48;
+}
+
+function hashHue(s: string) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 360;
 }
 
 export function WebsiteAvatar({
@@ -39,10 +45,16 @@ export function WebsiteAvatar({
     };
   }, [src]);
 
+  const hue = hashHue(title);
+  const fallbackStyle: CSSProperties = {
+    backgroundColor: `oklch(var(--avatar-fallback-l-bg) var(--avatar-fallback-c-bg) ${hue})`,
+    color: `oklch(var(--avatar-fallback-l-fg) var(--avatar-fallback-c-fg) ${hue})`,
+  };
+
   return (
     <Avatar>
       {status === "ok" && src && <AvatarImage src={src} />}
-      <AvatarFallback>{title.charAt(0)}</AvatarFallback>
+      <AvatarFallback style={fallbackStyle}>{title.charAt(0)}</AvatarFallback>
     </Avatar>
   );
 }

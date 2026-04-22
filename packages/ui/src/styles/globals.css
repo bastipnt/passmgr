@@ -42,6 +42,10 @@
   --sidebar-accent-foreground: oklch(0.216 0.006 56.043);
   --sidebar-border: oklch(0.923 0.003 48.717);
   --sidebar-ring: oklch(0.709 0.01 56.259);
+  --avatar-fallback-l-bg: 0.92;
+  --avatar-fallback-c-bg: 0.06;
+  --avatar-fallback-l-fg: 0.35;
+  --avatar-fallback-c-fg: 0.12;
 }
 
 .dark {
@@ -76,6 +80,10 @@
   --sidebar-accent-foreground: oklch(0.985 0.001 106.423);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.553 0.013 58.071);
+  --avatar-fallback-l-bg: 0.28;
+  --avatar-fallback-c-bg: 0.06;
+  --avatar-fallback-l-fg: 0.85;
+  --avatar-fallback-c-fg: 0.1;
 }
 
 @theme inline {
