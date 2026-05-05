@@ -5,7 +5,7 @@
   "description": "",
   "main": "index.ts",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "echo \"(no tests)\"",
     "lint": "oxlint --type-aware",
     "db:up": "docker compose up",
     "db:down": "docker compose down",

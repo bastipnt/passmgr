@@ -19,3 +19,6 @@ pre-push:
     typecheck:
       tags: style
       run: pnpm typecheck
+    test:
+      tags: test
+      run: pnpm test

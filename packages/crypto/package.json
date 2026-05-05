@@ -7,12 +7,14 @@
   "types": "index.ts",
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "lint": "oxlint --type-aware"
+    "lint": "oxlint --type-aware",
+    "test": "vitest run"
   },
   "devDependencies": {
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
-    "oxlint": "^1.60.0"
+    "oxlint": "^1.60.0",
+    "vitest": "^4.1.4"
   },
   "keywords": [],
   "author": "",
