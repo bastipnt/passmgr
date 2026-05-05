@@ -10,8 +10,11 @@ import {
 } from "@repo/ui/components/Empty";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
+import { useCreateEntryContext } from "@/providers/CreateEntryProvider";
 
 export default function Index() {
+  const { openCreateSheet } = useCreateEntryContext();
+
   return (
     <div className="h-full flex flex-col justify-center items-center">
       <Empty>
@@ -25,9 +28,9 @@ export default function Index() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-2">
-          <Link variant="default" href="/new">
+          <Button variant="default" onClick={() => openCreateSheet()}>
             Create Item
-          </Link>
+          </Button>
           <Button variant="outline">Import</Button>
         </EmptyContent>
         <Link href="/about" variant="link" className="text-muted-foreground" size="sm">
