@@ -13,11 +13,11 @@ type LoginAttempt = {
   serverLoginState: string;
 };
 
-export function sessionKey(sessionId: string) {
+function sessionKey(sessionId: string) {
   return `session:${sessionId}`;
 }
 
-export function loginKey(userId: string) {
+function loginKey(userId: string) {
   return `login:${userId}`;
 }
 

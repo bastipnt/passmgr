@@ -1,0 +1,73 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "apps/web/src/main.{ts,tsx}",
+    "apps/web/src/App.{ts,tsx}",
+    "apps/web/public/sw.js",
+    "apps/server/src/server.ts",
+    "apps/mobile/app/**/*.{ts,tsx}",
+    "packages/*/index.{ts,tsx}",
+    "packages/*/src/index.{ts,tsx}"
+  ],
+  "ignorePatterns": [
+    "**/*.generated.ts",
+    "**/*.d.ts",
+    "**/drizzle/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/.expo/**",
+    "**/.turbo/**",
+    "**/node_modules/**",
+    "packages/db/devResetDB.ts",
+    "packages/db/devSeed.ts",
+    "packages/ui/src/stories/**"
+  ],
+  "workspaces": {
+    "packages": ["apps/*", "packages/*", "infra/*"]
+  },
+  "publicPackages": [
+    "@repo/client",
+    "@repo/crypto",
+    "@repo/db",
+    "@repo/schema",
+    "@repo/store",
+    "@repo/ui",
+    "@repo/util"
+  ],
+  "boundaries": {
+    "zones": [
+      { "name": "web", "patterns": ["apps/web/**"] },
+      { "name": "mobile", "patterns": ["apps/mobile/**"] },
+      { "name": "server", "patterns": ["apps/server/**"] },
+      { "name": "client", "patterns": ["packages/client/**"] },
+      { "name": "store", "patterns": ["packages/store/**"] },
+      { "name": "ui", "patterns": ["packages/ui/**"] },
+      { "name": "crypto", "patterns": ["packages/crypto/**"] },
+      { "name": "schema", "patterns": ["packages/schema/**"] },
+      { "name": "db", "patterns": ["packages/db/**"] },
+      { "name": "util", "patterns": ["packages/util/**"] }
+    ],
+    "rules": [
+      { "from": "web", "allow": ["client", "store", "ui", "crypto", "schema", "util"] },
+      { "from": "mobile", "allow": ["client", "store", "ui", "crypto", "schema", "util"] },
+      { "from": "server", "allow": ["crypto", "schema", "db", "util"] },
+      { "from": "client", "allow": ["server", "store", "crypto", "schema", "ui", "util"] },
+      { "from": "store", "allow": ["crypto", "schema", "util"] },
+      { "from": "ui", "allow": ["util"] },
+      { "from": "crypto", "allow": ["schema", "util"] },
+      { "from": "schema", "allow": ["util"] },
+      { "from": "db", "allow": ["schema", "util"] },
+      { "from": "util", "allow": [] }
+    ]
+  },
+  "duplicates": {},
+  "rules": {
+    "boundary-violation": "error",
+    "circular-dependencies": "error",
+    "unused-files": "error",
+    "unused-exports": "warn",
+    "unused-types": "warn",
+    "unused-dependencies": "warn",
+    "unused-dev-dependencies": "off"
+  }
+}

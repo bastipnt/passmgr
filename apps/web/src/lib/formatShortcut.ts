@@ -1,5 +1,5 @@
-export const isMac =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
+// fallow-ignore-file unused-file
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
 export const modKey = isMac ? "⌘" : "Ctrl";
 
 const specialKeyMap: Record<string, string> = {

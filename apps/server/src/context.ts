@@ -8,7 +8,7 @@ interface CreateInnerContextOptions extends Partial<CreateFastifyContextOptions>
   session: Session | null;
 }
 
-export async function createContextInner(opts?: CreateInnerContextOptions) {
+async function createContextInner(opts?: CreateInnerContextOptions) {
   return {
     session: opts?.session,
   };

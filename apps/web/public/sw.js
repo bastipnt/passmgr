@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-file
 const CACHE_NAME = "pass-mgr-v1";
 
 self.addEventListener("install", () => {
@@ -36,6 +37,7 @@ self.addEventListener("fetch", (event) => {
       caches.match(request).then(
         (cached) =>
           cached ||
+          // fallow-ignore-next-line
           fetch(request).then((response) => {
             const clone = response.clone();
             void caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
