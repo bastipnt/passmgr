@@ -1,4 +1,12 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from "react";
 import { useLocation } from "wouter";
 import { encryptItem, useCreateItem } from "@repo/client";
 import { isDefined } from "@repo/util";
@@ -27,6 +35,14 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
   const { setIsEditing } = useEditingContext();
   const [, navigate] = useLocation();
 
+  const handleCreatingChange = useCallback(
+    (open: boolean) => {
+      setIsCreating(open);
+      setIsEditing(open);
+    },
+    [setIsEditing],
+  );
+
   const { createItem, createItemError } = useCreateItem({
     onSuccess: (itemId) => {
       handleCreatingChange(false);
@@ -34,11 +50,6 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
       navigate(`/${entrySlug}/${itemId}`);
     },
   });
-
-  function handleCreatingChange(open: boolean) {
-    setIsCreating(open);
-    setIsEditing(open);
-  }
 
   useEffect(() => {
     if (isDefined(createItemError)) toast.error("Error saving");
@@ -56,13 +67,18 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
     });
   }
 
-  function openCreateSheet(title?: string) {
-    setInitialTitle(title);
-    handleCreatingChange(true);
-  }
+  const openCreateSheet = useCallback(
+    (title?: string) => {
+      setInitialTitle(title);
+      handleCreatingChange(true);
+    },
+    [handleCreatingChange],
+  );
+
+  const value = useMemo(() => ({ openCreateSheet }), [openCreateSheet]);
 
   return (
-    <CreateEntryContext value={{ openCreateSheet }}>
+    <CreateEntryContext value={value}>
       {children}
       <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
         <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-lg">

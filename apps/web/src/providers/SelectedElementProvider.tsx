@@ -1,6 +1,5 @@
-import { createContext, useState, type ReactNode } from "react";
+import { createContext, useMemo, useState, type ReactNode } from "react";
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const SelectedElementContext = createContext<{
   entryId: string;
   setEntryId: (entryId: string) => void;
@@ -16,7 +15,7 @@ type SelectedElementProviderProps = {
 export default function SelectedElementProvider({ children }: SelectedElementProviderProps) {
   const [entryId, setEntryId] = useState("");
 
-  return (
-    <SelectedElementContext value={{ entryId, setEntryId }}>{children}</SelectedElementContext>
-  );
+  const value = useMemo(() => ({ entryId, setEntryId }), [entryId]);
+
+  return <SelectedElementContext value={value}>{children}</SelectedElementContext>;
 }

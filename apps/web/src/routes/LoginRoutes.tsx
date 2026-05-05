@@ -1,10 +1,11 @@
 import PublicLayout from "@/layout/PublicLayout";
-import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
-import LoginPage from "@pages/auth/LoginPage";
-import RegisterPage from "@pages/auth/RegisterPage";
 import { SessionContext, useAppConfig, useStore } from "@repo/client";
-import { useContext } from "react";
+import { Suspense, lazy, useContext } from "react";
 import { Redirect, Route, Switch, useRoute } from "wouter";
+
+const BiometricEnrollPage = lazy(() => import("@pages/auth/BiometricEnrollPage"));
+const LoginPage = lazy(() => import("@pages/auth/LoginPage"));
+const RegisterPage = lazy(() => import("@pages/auth/RegisterPage"));
 
 export const loginRoutes = {
   login: "/login",
@@ -27,15 +28,17 @@ export default function LoginRoutes() {
   return (
     // TODO: rename to LoginLayout???
     <PublicLayout>
-      <Switch>
-        <Route path={loginRoutes.login} component={LoginPage} />
-        <Route path={loginRoutes.enrollBiometric} component={BiometricEnrollPage} />
-        {registrationEnabled && <Route path={loginRoutes.register} component={RegisterPage} />}
+      <Suspense fallback={null}>
+        <Switch>
+          <Route path={loginRoutes.login} component={LoginPage} />
+          <Route path={loginRoutes.enrollBiometric} component={BiometricEnrollPage} />
+          {registrationEnabled && <Route path={loginRoutes.register} component={RegisterPage} />}
 
-        <Route>
-          <Redirect to={loginRoutes.login} />
-        </Route>
-      </Switch>
+          <Route>
+            <Redirect to={loginRoutes.login} />
+          </Route>
+        </Switch>
+      </Suspense>
     </PublicLayout>
   );
 }

@@ -34,7 +34,7 @@ function getProgressColor(progress: number) {
 }
 
 function CircleProgress({
-  progress = 30,
+  progress,
   strokeWidth = 8,
   children,
   size,

@@ -1,7 +1,6 @@
 import { secretsStore } from "@repo/store";
-import { createContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-// eslint-disable-next-line react-refresh/only-export-components
 export const SessionContext = createContext<{
   sessionId?: string;
 
@@ -59,63 +58,64 @@ export default function SessionProvider({ children }: SessionProviderProps) {
    * Called after a successful login
    * ⚠️ online only ⚠️
    */
-  async function loginSession(
-    newSessionId: string,
-    sessionKey: string,
-    salt: Uint8Array,
-    // userPasswordKeys: PasswordKeySchema,
-  ) {
-    await secretsStore.unlockSession(newSessionId, sessionKey, salt);
-    // in here we can not be offline, so we set isOffline -> false
-    // setIsOffline(false);
-    setSessionId(newSessionId);
-    setLoggedIn(true);
-  }
+  const loginSession = useCallback(
+    async (newSessionId: string, sessionKey: string, salt: Uint8Array) => {
+      await secretsStore.unlockSession(newSessionId, sessionKey, salt);
+      setSessionId(newSessionId);
+      setLoggedIn(true);
+    },
+    [],
+  );
 
-  function offlineLoginSession() {
+  const offlineLoginSession = useCallback(() => {
     setSessionId("offline");
     setLoggedIn(true);
-  }
+  }, []);
 
-  // TODO: why difference between unlock and offlineUnlock
-  function unlockVault(
-    passwordKek: Uint8Array,
-    encryptedVaultKeyB64: string,
-    vaultKeyEncryptionNonceB64: string,
-  ) {
-    secretsStore.unlockVault(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
-    setVaultUnlocked(true);
-  }
+  const unlockVault = useCallback(
+    (passwordKek: Uint8Array, encryptedVaultKeyB64: string, vaultKeyEncryptionNonceB64: string) => {
+      secretsStore.unlockVault(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
+      setVaultUnlocked(true);
+    },
+    [],
+  );
 
   /**
    * Unlock vault with a pre-decrypted key (e.g. from biometric).
    * When offline, also sets sessionId to "offline".
    */
-  function unlockWithVaultKey(vaultKey: Uint8Array, offline = false) {
+  const unlockWithVaultKey = useCallback((vaultKey: Uint8Array, offline = false) => {
     if (offline) setSessionId("offline");
     secretsStore.unlockWithVaultKey(vaultKey);
     setVaultUnlocked(true);
-  }
+  }, []);
 
-  async function signRequest(message: string) {
-    return await secretsStore.signRequest(message);
-  }
+  const signRequest = useCallback(async (message: string) => secretsStore.signRequest(message), []);
 
-  return (
-    <SessionContext
-      value={{
-        sessionId,
-        loggedIn,
-        vaultUnlocked,
-        isOffline,
-        loginSession,
-        offlineLoginSession,
-        unlockVault,
-        unlockWithVaultKey,
-        signRequest,
-      }}
-    >
-      {children}
-    </SessionContext>
+  const value = useMemo(
+    () => ({
+      sessionId,
+      loggedIn,
+      vaultUnlocked,
+      isOffline,
+      loginSession,
+      offlineLoginSession,
+      unlockVault,
+      unlockWithVaultKey,
+      signRequest,
+    }),
+    [
+      sessionId,
+      loggedIn,
+      vaultUnlocked,
+      isOffline,
+      loginSession,
+      offlineLoginSession,
+      unlockVault,
+      unlockWithVaultKey,
+      signRequest,
+    ],
   );
+
+  return <SessionContext value={value}>{children}</SessionContext>;
 }

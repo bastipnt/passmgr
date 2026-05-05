@@ -1,16 +1,18 @@
 import { Redirect, Route, Switch, useParams } from "wouter";
 import Layout from "../layout/Layout";
-import Index from "@pages/Index";
 import SelectedElementProvider from "../providers/SelectedElementProvider";
 import EditingProvider from "../providers/EditingProvider";
 import CreateEntryProvider from "../providers/CreateEntryProvider";
 import { editSlug, entrySlug, newSlug } from "../data/routes";
-import NotFound from "@pages/NotFound";
-import { useContext } from "react";
+import { Suspense, lazy, useContext } from "react";
 import { SessionContext, useAutoReconnect } from "@repo/client";
-import DisplayItem from "@pages/DisplayItem";
-import BiometricEnrollPage from "@pages/auth/BiometricEnrollPage";
-import LoginRoutes, { loginRoutes } from "@/routes/LoginRoutes";
+import { loginRoutes } from "@/routes/LoginRoutes";
+
+const Index = lazy(() => import("@pages/Index"));
+const DisplayItem = lazy(() => import("@pages/DisplayItem"));
+const NotFound = lazy(() => import("@pages/NotFound"));
+const BiometricEnrollPage = lazy(() => import("@pages/auth/BiometricEnrollPage"));
+const LoginRoutes = lazy(() => import("@/routes/LoginRoutes"));
 
 function DefaultLayoutRoutes() {
   return (
@@ -72,15 +74,17 @@ function ProtectedRoutes() {
 // TODO: error boundary???
 function Routes() {
   return (
-    <Switch>
-      {/* Login routes */}
-      {Object.values(loginRoutes).map((path) => (
-        <Route key={path} path={path} component={LoginRoutes} />
-      ))}
+    <Suspense fallback={null}>
+      <Switch>
+        {/* Login routes */}
+        {Object.values(loginRoutes).map((path) => (
+          <Route key={path} path={path} component={LoginRoutes} />
+        ))}
 
-      {/* Protected */}
-      <Route component={ProtectedRoutes} />
-    </Switch>
+        {/* Protected */}
+        <Route component={ProtectedRoutes} />
+      </Switch>
+    </Suspense>
   );
 }
 
