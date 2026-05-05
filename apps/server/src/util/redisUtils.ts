@@ -31,12 +31,7 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 export async function setSession(session: Session): Promise<string> {
   const sessionId = crypto.randomUUID();
 
-  await server.redis.set(
-    sessionKey(sessionId),
-    JSON.stringify(session),
-    "EX",
-    SESSION_TTL_SECONDS,
-  );
+  await server.redis.set(sessionKey(sessionId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS);
 
   return sessionId;
 }

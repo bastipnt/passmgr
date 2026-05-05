@@ -16,10 +16,7 @@ export function useRegistration() {
   const trpc = useTRPCClient();
   const [registrationError, setRegistrationError] = useState(false);
 
-  async function registerNewUser(
-    email: string,
-    password: string,
-  ): Promise<Uint8Array | undefined> {
+  async function registerNewUser(email: string, password: string): Promise<Uint8Array | undefined> {
     const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
       password,
     });

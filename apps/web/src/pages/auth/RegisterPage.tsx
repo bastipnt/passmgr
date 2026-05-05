@@ -50,10 +50,7 @@ export default function RegisterPage() {
     },
   });
 
-  const recoveryKeyB64 = useMemo(
-    () => (recoveryKey ? toBase64(recoveryKey) : ""),
-    [recoveryKey],
-  );
+  const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
 
   const onSubmit = async ({ password, email }: FormValues) => {
     setLoading(true);
@@ -87,8 +84,8 @@ export default function RegisterPage() {
           <DialogHeader>
             <DialogTitle>Save your recovery key</DialogTitle>
             <DialogDescription>
-              Store this key in a safe place. It is the only way to recover your vault if you
-              forget your password. It is shown once and never sent to the server.
+              Store this key in a safe place. It is the only way to recover your vault if you forget
+              your password. It is shown once and never sent to the server.
             </DialogDescription>
           </DialogHeader>
           <code className="bg-muted rounded p-2 break-all font-mono text-xs select-all">
