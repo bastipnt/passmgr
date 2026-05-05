@@ -153,7 +153,7 @@ function ExtraFields({ control }: ExtraFieldsProps) {
                 removeTitle="Delete"
                 onRemove={() => remove(index)}
               >
-                <Button variant="secondary" size="icon" className="[--radius:999rem]" type="button">
+                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
                   <TrashIcon />
                 </Button>
               </RemoveDialog>

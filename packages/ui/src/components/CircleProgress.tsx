@@ -60,6 +60,7 @@ function CircleProgress({
           strokeDasharray={CIRCUMFERENCE}
           strokeDashoffset={offset}
           strokeLinecap="round"
+          className="transition-[stroke-dashoffset] duration-1000 ease-linear"
         />
       </svg>
       <span className="relative">{children}</span>
