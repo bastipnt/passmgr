@@ -23,16 +23,16 @@
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
-    "@trpc/server": "^11.16.0",
+    "@trpc/server": "^11.17.0",
     "fastify": "^5.8.5",
     "ioredis": "^5.10.1",
-    "zod": "^4.3.6"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
     "fastify-cli": "^8.0.0",
     "fastify-tsconfig": "^3.0.0",
-    "oxlint": "^1.60.0",
-    "oxlint-tsgolint": "^0.21.1"
+    "oxlint": "^1.62.0",
+    "oxlint-tsgolint": "^0.22.1"
   }
 }

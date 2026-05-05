@@ -13,8 +13,8 @@
   "devDependencies": {
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
-    "oxlint": "^1.60.0",
-    "vitest": "^4.1.4"
+    "oxlint": "^1.62.0",
+    "vitest": "^4.1.5"
   },
   "keywords": [],
   "author": "",
