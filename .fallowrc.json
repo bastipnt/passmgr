@@ -34,6 +34,17 @@
     "@repo/ui",
     "@repo/util"
   ],
+  "ignoreDependencies": [
+    "@repo/client",
+    "@repo/crypto",
+    "@repo/db",
+    "@repo/schema",
+    "@repo/store",
+    "@repo/ui",
+    "@repo/util",
+    "@repo/typescript-config",
+    "server"
+  ],
   "boundaries": {
     "zones": [
       { "name": "web", "patterns": ["apps/web/**"] },
