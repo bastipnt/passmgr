@@ -75,7 +75,7 @@ function WebsiteFields({ control, setValue }: WebsiteFieldsProps) {
       <FieldGroup>
         {fields.map((field, index) => (
           <ButtonGroup key={field.id} className="w-full">
-            <ButtonGroup className="w-full">
+            <ButtonGroup className="w-full ml-6">
               <ControlledInput
                 control={control}
                 name={`websites.${index}.value`}
@@ -153,7 +153,7 @@ function ExtraFields({ control }: ExtraFieldsProps) {
                 removeTitle="Delete"
                 onRemove={() => remove(index)}
               >
-                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
+                <Button variant="secondary" size="icon" className="[--radius:999rem]" type="button">
                   <TrashIcon />
                 </Button>
               </RemoveDialog>
@@ -293,14 +293,14 @@ export default function LoginItemForm({
               removeTitle="Delete"
               onRemove={onDelete}
             >
-              <Button variant="ghost" type="button">
+              <Button variant="ghost-destructive" type="button" className="text-destructive">
                 <TrashIcon /> Delete
               </Button>
             </RemoveDialog>
           )}
         </div>
         <div className="flex flex-row gap-4">
-          <Button variant="outline" type="button" onClick={onCancel}>
+          <Button variant="secondary" type="button" onClick={onCancel}>
             Cancel
           </Button>
           <Button type="submit">{action}</Button>

@@ -1,12 +1,10 @@
 import preview from "../../.storybook/preview";
-import { Input } from "./Input";
+import { Textarea } from "./Textarea";
 
 const meta = preview.meta({
-  title: "Design System/Atoms/Input",
-  component: Input,
-  parameters: {
-    layout: "centered",
-  },
+  title: "Design System/Atoms/Textarea",
+  component: Textarea,
+  parameters: { layout: "centered" },
   tags: ["autodocs"],
   argTypes: {
     disabled: { control: "boolean" },
@@ -14,21 +12,17 @@ const meta = preview.meta({
 });
 
 export const Default = meta.story({
-  args: { placeholder: "Type here..." },
+  args: { placeholder: "Type your message..." },
 });
 
 export const WithValue = meta.story({
-  args: { defaultValue: "Hello" },
+  args: { defaultValue: "Hello there." },
 });
 
 export const Invalid = meta.story({
-  args: { defaultValue: "bad@", "aria-invalid": true },
+  args: { defaultValue: "oops", "aria-invalid": true },
 });
 
 export const Disabled = meta.story({
   args: { defaultValue: "Disabled", disabled: true },
-});
-
-export const Password = meta.story({
-  args: { type: "password", defaultValue: "secret" },
 });

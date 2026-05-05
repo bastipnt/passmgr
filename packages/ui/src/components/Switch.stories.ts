@@ -8,11 +8,19 @@ const meta = preview.meta({
     layout: "centered",
   },
   tags: ["autodocs"],
+  argTypes: {
+    size: { control: "select", options: ["default", "sm"] },
+    disabled: { control: "boolean" },
+  },
   args: {
-    className: "bg-black",
+    size: "default",
   },
 });
 
-export const Default = meta.story({
-  args: {},
-});
+export const Default = meta.story({});
+
+export const Checked = meta.story({ args: { defaultChecked: true } });
+
+export const Small = meta.story({ args: { size: "sm" } });
+
+export const Disabled = meta.story({ args: { disabled: true } });

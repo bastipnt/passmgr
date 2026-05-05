@@ -34,7 +34,7 @@ type SidebarItemProps = {
 
 function SidebarItem({ item, active, registerRef }: SidebarItemProps) {
   return (
-    <Item variant={active ? "muted" : "outline"} asChild>
+    <Item variant={active ? "active" : "outline"} asChild>
       <Link
         href={`../${entrySlug}/${item.itemId}`}
         ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}

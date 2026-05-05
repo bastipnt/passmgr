@@ -19,7 +19,7 @@ export default function ExistingUserButton({
 
   return (
     <StackedButton>
-      <Button onClick={toggleSwitchUser} variant="outline" className="h-auto">
+      <Button onClick={toggleSwitchUser} variant="secondary" className="h-auto">
         <Item variant="default" className="px-0">
           <ItemMedia>
             <Avatar>

@@ -287,7 +287,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
       )}
 
       <Sheet open={isEditSheetOpen} onOpenChange={handleEditSheetChange}>
-        <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-lg">
+        <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-3xl">
           <SheetHeader>
             <SheetTitle>Edit Login</SheetTitle>
           </SheetHeader>

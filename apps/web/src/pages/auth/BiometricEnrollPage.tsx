@@ -61,7 +61,7 @@ export default function BiometricEnrollPage() {
           {error && <FieldError errors={[{ message: "Using fingerprint to unlock failed" }]} />}
         </CardContent>
         <CardFooter className="flex flex-row gap-4 justify-end">
-          <Button type="button" variant="outline" onClick={onDismissEnroll} disabled={enrolling}>
+          <Button type="button" variant="secondary" onClick={onDismissEnroll} disabled={enrolling}>
             Skip
           </Button>
           <Button type="button" onClick={onEnroll} disabled={enrolling}>

@@ -20,6 +20,9 @@ importers:
       '@prettier/plugin-oxc':
         specifier: ^0.1.4
         version: 0.1.4
+      fallow:
+        specifier: ^2.63.0
+        version: 2.63.0
       prettier:
         specifier: ^3.8.3
         version: 3.8.3
@@ -491,6 +494,9 @@ importers:
       '@storybook/addon-docs':
         specifier: ^10.3.5
         version: 10.3.5(@types/react@19.2.14)(esbuild@0.27.7)(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(vite@8.0.8(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.3))
+      '@storybook/addon-themes':
+        specifier: ^10.3.5
+        version: 10.3.5(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))
       '@storybook/addon-vitest':
         specifier: ^10.3.5
         version: 10.3.5(@vitest/browser-playwright@4.1.4)(@vitest/browser@4.1.4)(@vitest/runner@4.1.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(vitest@4.1.4)
@@ -1671,6 +1677,46 @@ packages:
   '@expo/xcpretty@4.4.3':
     resolution: {integrity: sha512-wC562eD3gS6vO2tWHToFhlFnmHKfKHgF1oyvojeSkLK/ZYop1bMU+7cOMiF9Sq70CzcsLy/EMRy/uRc76QmNRw==}
     hasBin: true
+
+  '@fallow-cli/darwin-arm64@2.63.0':
+    resolution: {integrity: sha512-e8qVmPIYqufuCXLl+nC7Zn5QQ9finGbKlNuoWkLqhMYDebzE2X9vT6ahZEsM/58+MedA2hVonoYWh6XAFMdJPQ==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@fallow-cli/darwin-x64@2.63.0':
+    resolution: {integrity: sha512-M6hpadV7VzYtZPePPnGVzK/jJTVbke0+PnpUW4QEQUy0FD/V43+RMrWmhwSbOc4UZjRhcdZGq9GnlkG6WJn3EQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@fallow-cli/linux-arm64-gnu@2.63.0':
+    resolution: {integrity: sha512-ycBptRpO4yUgGX1KvZXcu9MWiDQDE3guSYQuzMhD1hC/eXn90rirnrv+ewq38SKCJ+x7CzAaeXEEX9NApsejTg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@fallow-cli/linux-arm64-musl@2.63.0':
+    resolution: {integrity: sha512-GkCc6txsi8UqNN64zif0BwBjj9wNQgbwmQsJD132+PxOuko52hVifkLoqLxKEN9s7iz+AQHqITB8E4eZ1nKtFg==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@fallow-cli/linux-x64-gnu@2.63.0':
+    resolution: {integrity: sha512-itrofEERla6AO2UpgV/YPCnm6mfHbnV6tv+TSpBM+BDuCZM/Q5lIG0fbiVv/FzrFKmfzVPujODfg1Od1QdcJMg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@fallow-cli/linux-x64-musl@2.63.0':
+    resolution: {integrity: sha512-ZnC2yOKQnmild0yZwDxoORQHETPGKeFJMv0Jbwz784SjqmyhO+ZAChHX3N7N34smF5Q8QvW+GvLJsKNvoRQHIQ==}
+    cpu: [x64]
+    os: [linux]
+
+  '@fallow-cli/win32-arm64-msvc@2.63.0':
+    resolution: {integrity: sha512-V9fbBcctT6ieG3jf9e6H9xKdbzKx5YG7kJkKFO5M/z6CQMrQL5AcZ+kKmBvL+QrEuDVI669e/3tdKtl9alnEDA==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@fallow-cli/win32-x64-msvc@2.63.0':
+    resolution: {integrity: sha512-JChdoy7SwBWmsL+l532j5lceoTQtP0hm1t0u/HqLPY/CAK7vM7Rz9ufzek1RAYpJhSJ+0dcIYLQiyWXLZ9RevQ==}
+    cpu: [x64]
+    os: [win32]
 
   '@fastify/ajv-compiler@4.0.5':
     resolution: {integrity: sha512-KoWKW+MhvfTRWL4qrhUwAAZoaChluo0m0vbiJlGMt2GXvL4LVPQEjt8kSpHI3IBq5Rez8fg+XeH3cneztq+C7A==}
@@ -3349,6 +3395,11 @@ packages:
     peerDependencies:
       storybook: ^10.3.5
 
+  '@storybook/addon-themes@10.3.5':
+    resolution: {integrity: sha512-Mv+C7GuZ0MhGRx5C+rv8sCEjgYsDTLBvq68101V0s8Vwh3gKd6W9cbS31HoOeLAiIMiPPZ8C1iWudA3Oumdtlw==}
+    peerDependencies:
+      storybook: ^10.3.5
+
   '@storybook/addon-vitest@10.3.5':
     resolution: {integrity: sha512-PQDeeMwoF55kvzlhFqVKOryBJskkVk71AbDh7F0y8PdRRxlGbTvIUkKXktHZWBdESo0dV6BkeVxGQ4ZpiFxirg==}
     peerDependencies:
@@ -4897,6 +4948,11 @@ packages:
   express@5.2.1:
     resolution: {integrity: sha512-hIS4idWWai69NezIdRt2xFVofaF4j+6INOpJlVOLDO8zXGpUVEVzIYk12UUi2JzjEzWL3IOAxcTubgz9Po0yXw==}
     engines: {node: '>= 18'}
+
+  fallow@2.63.0:
+    resolution: {integrity: sha512-2+6JbFK7xEct35u9t63nDx2RwvIYOh8Y5zfAtxQy4P4Z9f4FbzYDGFkoucXIo6eTPxn8dqo2iLSRSeOZtGs57Q==}
+    engines: {node: '>=16'}
+    hasBin: true
 
   fast-copy@4.0.3:
     resolution: {integrity: sha512-58apWr0GUiDFM8+3afrO6eYwJBn9ZAhDOzG3L+/9llab/haCARS2UIfffmOurYLwbgDRs8n0rfr6qAAPEAuAQw==}
@@ -7368,6 +7424,7 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   validate-npm-package-name@5.0.1:
@@ -9002,6 +9059,30 @@ snapshots:
       chalk: 4.1.2
       js-yaml: 4.1.1
 
+  '@fallow-cli/darwin-arm64@2.63.0':
+    optional: true
+
+  '@fallow-cli/darwin-x64@2.63.0':
+    optional: true
+
+  '@fallow-cli/linux-arm64-gnu@2.63.0':
+    optional: true
+
+  '@fallow-cli/linux-arm64-musl@2.63.0':
+    optional: true
+
+  '@fallow-cli/linux-x64-gnu@2.63.0':
+    optional: true
+
+  '@fallow-cli/linux-x64-musl@2.63.0':
+    optional: true
+
+  '@fallow-cli/win32-arm64-msvc@2.63.0':
+    optional: true
+
+  '@fallow-cli/win32-x64-msvc@2.63.0':
+    optional: true
+
   '@fastify/ajv-compiler@4.0.5':
     dependencies:
       ajv: 8.18.0
@@ -10517,9 +10598,7 @@ snapshots:
       metro-runtime: 0.84.3
     transitivePeerDependencies:
       - '@babel/core'
-      - bufferutil
       - supports-color
-      - utf-8-validate
 
   '@react-native/normalize-colors@0.74.89': {}
 
@@ -10702,6 +10781,11 @@ snapshots:
       - rollup
       - vite
       - webpack
+
+  '@storybook/addon-themes@10.3.5(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))':
+    dependencies:
+      storybook: 10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
+      ts-dedent: 2.2.0
 
   '@storybook/addon-vitest@10.3.5(@vitest/browser-playwright@4.1.4)(@vitest/browser@4.1.4)(@vitest/runner@4.1.4)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(storybook@10.3.5(@testing-library/dom@10.4.1)(prettier@3.8.3)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(vitest@4.1.4)':
     dependencies:
@@ -12275,6 +12359,19 @@ snapshots:
       vary: 1.1.2
     transitivePeerDependencies:
       - supports-color
+
+  fallow@2.63.0:
+    dependencies:
+      detect-libc: 2.1.2
+    optionalDependencies:
+      '@fallow-cli/darwin-arm64': 2.63.0
+      '@fallow-cli/darwin-x64': 2.63.0
+      '@fallow-cli/linux-arm64-gnu': 2.63.0
+      '@fallow-cli/linux-arm64-musl': 2.63.0
+      '@fallow-cli/linux-x64-gnu': 2.63.0
+      '@fallow-cli/linux-x64-musl': 2.63.0
+      '@fallow-cli/win32-arm64-msvc': 2.63.0
+      '@fallow-cli/win32-x64-msvc': 2.63.0
 
   fast-copy@4.0.3: {}
 

@@ -34,11 +34,13 @@ export default defineMain({
     // "../../../packages/ui/src/**/*.stories.@(js|jsx|mjs|ts|tsx)",
     // "../../../packages/ui/src/stories/**/*.mdx",
   ],
+  staticDirs: ["../src/assets"],
   addons: [
     getAbsolutePath("@chromatic-com/storybook"),
     getAbsolutePath("@storybook/addon-vitest"),
     getAbsolutePath("@storybook/addon-a11y"),
     getAbsolutePath("@storybook/addon-docs"),
+    getAbsolutePath("@storybook/addon-themes"),
   ],
   framework: getAbsolutePath("@storybook/react-vite"),
 

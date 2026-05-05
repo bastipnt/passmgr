@@ -48,7 +48,7 @@ export const Default = meta.story({
           <FieldError>Choose another username.</FieldError>
         </Field>
         <Field orientation="horizontal">
-          <Switch id="newsletter" className="bg-black" />
+          <Switch id="newsletter" />
           <FieldLabel htmlFor="newsletter">Subscribe to the newsletter</FieldLabel>
         </Field>
       </FieldGroup>

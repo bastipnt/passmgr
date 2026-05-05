@@ -70,7 +70,7 @@ export default function LoginPage() {
       {storedEmail &&
         (loginWithStoredEmail ? (
           <>
-            <Button variant="outline" onClick={() => setLoginWithStoredEmail((prev) => !prev)}>
+            <Button variant="secondary" onClick={() => setLoginWithStoredEmail((prev) => !prev)}>
               Login with a different account
             </Button>
 

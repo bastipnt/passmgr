@@ -14,26 +14,28 @@
     "typecheck": "turbo run typecheck",
     "typegen:css": "turbo run typegen:css",
     "storybook": "turbo run storybook",
-    "build:storybook": "turbo run build:storybook"
+    "build:storybook": "turbo run build:storybook",
+    "fallow": "fallow"
   },
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "@commitlint/types": "^20.5.0",
     "@prettier/plugin-oxc": "^0.1.4",
+    "fallow": "^2.63.0",
     "prettier": "^3.8.3",
     "prettier-plugin-css-order": "^2.2.0",
     "prettier-plugin-organize-imports": "^4.3.0",
     "turbo": "^2.9.6",
     "typescript": "6.0.3"
   },
-  "packageManager": "pnpm@10.33.0",
+  "packageManager": "pnpm@10.33.3",
   "engines": {
     "node": ">=18"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
-      "msw",
+      "fallow",
       "sharp"
     ],
     "ignoredBuiltDependencies": [
