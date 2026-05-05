@@ -5,6 +5,7 @@ import cors from "@fastify/cors";
 import { opaque } from "./opaque";
 import { createContext } from "./context";
 import fastifyRedis from "@fastify/redis";
+import rateLimit from "@fastify/rate-limit";
 
 await opaque.ready;
 
@@ -17,6 +18,16 @@ export const server = fastify({
 await server.register(fastifyRedis, {
   host: process.env.REDIS_HOST,
   port: Number(process.env.REDIS_PORT),
+});
+
+const AUTH_PATH_RE = /\/(login|register)\.[A-Za-z]+/;
+
+await server.register(rateLimit, {
+  redis: server.redis,
+  global: true,
+  timeWindow: "1 minute",
+  max: (req) => (AUTH_PATH_RE.test(req.url) ? 10 : 100),
+  keyGenerator: (req) => req.ip,
 });
 
 const allowedOrigins = new Set(["localhost"]);

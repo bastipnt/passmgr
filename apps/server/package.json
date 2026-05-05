@@ -16,6 +16,7 @@
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
     "@fastify/cors": "^11.2.0",
+    "@fastify/rate-limit": "^10.3.0",
     "@fastify/redis": "^7.2.0",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",

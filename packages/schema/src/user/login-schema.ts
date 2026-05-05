@@ -11,9 +11,10 @@ export const startLoginOutputSchema = z.object({
 });
 
 export const finishLoginInputSchema = z.object({
-  email: z.string(),
+  email: z.email(),
   finishLoginRequest: z.string(),
-  authSalt: z.string(),
+  // 32 bytes base64-encoded with padding
+  authSalt: z.base64().length(44),
 });
 
 export const finishLoginOutputSchema = z.object({
