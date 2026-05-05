@@ -1,17 +1,16 @@
 import { server } from "../server";
 
+const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
+const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
+
 type Session = {
   userId: string;
   rawAuthKey: string;
-  createdAt: string;
-  expiresAt: string;
 };
 
 type LoginAttempt = {
   userId: string;
   serverLoginState: string;
-  createdAt: string;
-  expiresAt: string;
 };
 
 export function sessionKey(sessionId: string) {
@@ -29,19 +28,15 @@ export async function getSession(sessionId: string): Promise<Session | undefined
   return JSON.parse(rawSession);
 }
 
-export async function setSession(
-  partialSession: Omit<Session, "createdAt" | "expiresAt">,
-): Promise<string> {
+export async function setSession(session: Session): Promise<string> {
   const sessionId = crypto.randomUUID();
 
-  const session: Session = {
-    ...partialSession,
-    createdAt: Date.now().toString(),
-    expiresAt: Date.now().toString(), // TODO: + 1 day??
-  };
-
-  const sessionString = JSON.stringify(session);
-  await server.redis.set(sessionKey(sessionId), sessionString);
+  await server.redis.set(
+    sessionKey(sessionId),
+    JSON.stringify(session),
+    "EX",
+    SESSION_TTL_SECONDS,
+  );
 
   return sessionId;
 }
@@ -53,17 +48,13 @@ export async function getLoginAttempt(userId: string): Promise<LoginAttempt | un
   return JSON.parse(rawLoginAttempt);
 }
 
-export async function setLoginAttempt(
-  partialLoginAttempt: Omit<LoginAttempt, "createdAt" | "expiresAt">,
-) {
-  const loginAttempt: LoginAttempt = {
-    ...partialLoginAttempt,
-    createdAt: Date.now().toString(),
-    expiresAt: Date.now().toString(), // TODO: + 1 day??
-  };
-
-  const loginAttemptString = JSON.stringify(loginAttempt);
-  await server.redis.set(loginKey(partialLoginAttempt.userId), loginAttemptString);
+export async function setLoginAttempt(loginAttempt: LoginAttempt) {
+  await server.redis.set(
+    loginKey(loginAttempt.userId),
+    JSON.stringify(loginAttempt),
+    "EX",
+    LOGIN_ATTEMPT_TTL_SECONDS,
+  );
 }
 
 export async function delLoginAttempt(userId: string) {

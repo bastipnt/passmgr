@@ -16,7 +16,10 @@ export function useRegistration() {
   const trpc = useTRPCClient();
   const [registrationError, setRegistrationError] = useState(false);
 
-  async function registerNewUser(email: string, password: string) {
+  async function registerNewUser(
+    email: string,
+    password: string,
+  ): Promise<Uint8Array | undefined> {
     const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
       password,
     });
@@ -28,8 +31,7 @@ export function useRegistration() {
         email,
         registrationRequest,
       }));
-    } catch (error) {
-      console.log(error);
+    } catch {
       setRegistrationError(true);
       return;
     }
@@ -48,14 +50,13 @@ export function useRegistration() {
         registrationRecord,
         userKeys,
       });
-    } catch (error) {
-      console.log(error);
+    } catch {
+      wipe(recoveryKey);
       setRegistrationError(true);
       return;
     }
 
-    // TODO: show to user
-    console.log({ recoveryKey });
+    return recoveryKey;
   }
 
   async function generateUserKeys(

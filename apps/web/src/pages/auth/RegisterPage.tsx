@@ -17,11 +17,22 @@ import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { useForm } from "@repo/ui";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { useState } from "react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@repo/ui/components/Dialog";
+import { useMemo, useState } from "react";
+import { toBase64, wipe } from "@repo/crypto";
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();
   const [loading, setLoading] = useState(false);
+  const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [copied, setCopied] = useState(false);
   const { registerNewUser, registrationError } = useRegistration();
 
   const userCredentialsSchema = z.object({
@@ -39,16 +50,61 @@ export default function RegisterPage() {
     },
   });
 
+  const recoveryKeyB64 = useMemo(
+    () => (recoveryKey ? toBase64(recoveryKey) : ""),
+    [recoveryKey],
+  );
+
   const onSubmit = async ({ password, email }: FormValues) => {
     setLoading(true);
-    await registerNewUser(email, password);
-
-    navigate("/login");
+    const key = await registerNewUser(email, password);
     setLoading(false);
+    if (key) setRecoveryKey(key);
+  };
+
+  const onCopy = async () => {
+    if (!recoveryKey) return;
+    await navigator.clipboard.writeText(recoveryKeyB64);
+    setCopied(true);
+  };
+
+  const onConfirm = () => {
+    if (recoveryKey) wipe(recoveryKey);
+    setRecoveryKey(null);
+    setCopied(false);
+    navigate("/login");
   };
 
   return (
     <section className="w-xs max-w-full">
+      <Dialog
+        open={recoveryKey !== null}
+        onOpenChange={(open) => {
+          if (!open && copied) onConfirm();
+        }}
+      >
+        <DialogContent showCloseButton={false}>
+          <DialogHeader>
+            <DialogTitle>Save your recovery key</DialogTitle>
+            <DialogDescription>
+              Store this key in a safe place. It is the only way to recover your vault if you
+              forget your password. It is shown once and never sent to the server.
+            </DialogDescription>
+          </DialogHeader>
+          <code className="bg-muted rounded p-2 break-all font-mono text-xs select-all">
+            {recoveryKeyB64}
+          </code>
+          <DialogFooter>
+            <Button variant="secondary" onClick={onCopy}>
+              {copied ? "Copied" : "Copy to clipboard"}
+            </Button>
+            <Button onClick={onConfirm} disabled={!copied}>
+              I saved it
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <form onSubmit={handleSubmit(onSubmit)}>
         <Card>
           <CardHeader>

@@ -13,8 +13,11 @@ import {
   startLoginOutputSchema,
 } from "@repo/schema";
 
-class LoginError extends Error {
-  override name: string = "LoginError";
+function unauthorized(): never {
+  throw new TRPCError({
+    code: "UNAUTHORIZED",
+    message: "invalid user credentials",
+  });
 }
 
 export const loginRouter = router({
@@ -30,11 +33,7 @@ export const loginRouter = router({
         where: { emailHash },
       });
 
-      if (!res)
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "invalid user credentials",
-        });
+      if (!res) unauthorized();
       const { registrationRecord, userId } = res;
 
       let serverLoginState, loginResponse;
@@ -46,9 +45,8 @@ export const loginRouter = router({
           registrationRecord,
           startLoginRequest,
         }));
-      } catch (error) {
-        console.log(error);
-        throw new LoginError();
+      } catch {
+        unauthorized();
       }
 
       await setLoginAttempt({ userId, serverLoginState });
@@ -68,15 +66,11 @@ export const loginRouter = router({
         where: { emailHash, deleted_at: { isNull: true } },
       });
 
-      if (!userQueryRes)
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "invalid user credentials",
-        });
+      if (!userQueryRes) unauthorized();
       const { userId } = userQueryRes;
 
       const loginAttempt = await getLoginAttempt(userId);
-      if (!loginAttempt) throw new LoginError();
+      if (!loginAttempt) unauthorized();
 
       const { serverLoginState } = loginAttempt;
 
@@ -87,9 +81,8 @@ export const loginRouter = router({
           finishLoginRequest,
           serverLoginState,
         }));
-      } catch (error) {
-        console.log(error);
-        throw new LoginError();
+      } catch {
+        unauthorized();
       }
 
       await delLoginAttempt(userId);
@@ -97,7 +90,6 @@ export const loginRouter = router({
       const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
       const authKey = await hkdf(sessionSecret, "sessionAuth", fromBase64(authSalt));
 
-      // TODO: make session disappear in redis after x time
       const sessionId = await setSession({
         userId,
         rawAuthKey: toBase64(authKey),
@@ -122,11 +114,7 @@ export const loginRouter = router({
         },
       });
 
-      if (!keyQueryRes)
-        throw new TRPCError({
-          code: "UNAUTHORIZED",
-          message: "invalid user credentials",
-        });
+      if (!keyQueryRes) unauthorized();
 
       return { sessionId, userPasswordKeys: keyQueryRes };
     }),

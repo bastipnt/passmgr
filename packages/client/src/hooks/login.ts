@@ -27,8 +27,7 @@ export function useLogin() {
         email,
         startLoginRequest,
       }));
-    } catch (error) {
-      console.log(error);
+    } catch {
       setLoginError(true);
       return;
     }
@@ -40,7 +39,6 @@ export function useLogin() {
     });
 
     if (!loginResult) {
-      console.log("Login failed");
       setLoginError(true);
       return;
     }
@@ -57,8 +55,7 @@ export function useLogin() {
         finishLoginRequest,
         authSalt: toBase64(authSalt),
       }));
-    } catch (error) {
-      console.log(error);
+    } catch {
       setLoginError(true);
       return;
     }
