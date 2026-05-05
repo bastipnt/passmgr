@@ -21,9 +21,11 @@
   "license": "ISC",
   "packageManager": "pnpm@10.29.2",
   "dependencies": {
-    "otplib": "^13.4.0",
     "@noble/ciphers": "^2.2.0",
-    "@noble/hashes": "^2.2.0"
+    "@noble/hashes": "^2.2.0",
+    "@otplib/core": "^13.4.0",
+    "@otplib/totp": "^13.4.0",
+    "otplib": "^13.4.0"
   },
   "exports": {
     ".": "./index.ts",

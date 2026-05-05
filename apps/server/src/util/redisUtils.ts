@@ -1,4 +1,4 @@
-import { server } from "../server";
+import { redis } from "../redis";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
@@ -22,7 +22,7 @@ function loginKey(userId: string) {
 }
 
 export async function getSession(sessionId: string): Promise<Session | undefined> {
-  const rawSession = await server.redis.get(sessionKey(sessionId));
+  const rawSession = await redis.get(sessionKey(sessionId));
   if (rawSession === null) return undefined;
 
   return JSON.parse(rawSession);
@@ -31,20 +31,20 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 export async function setSession(session: Session): Promise<string> {
   const sessionId = crypto.randomUUID();
 
-  await server.redis.set(sessionKey(sessionId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS);
+  await redis.set(sessionKey(sessionId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS);
 
   return sessionId;
 }
 
 export async function getLoginAttempt(userId: string): Promise<LoginAttempt | undefined> {
-  const rawLoginAttempt = await server.redis.get(loginKey(userId));
+  const rawLoginAttempt = await redis.get(loginKey(userId));
   if (rawLoginAttempt === null) return undefined;
 
   return JSON.parse(rawLoginAttempt);
 }
 
 export async function setLoginAttempt(loginAttempt: LoginAttempt) {
-  await server.redis.set(
+  await redis.set(
     loginKey(loginAttempt.userId),
     JSON.stringify(loginAttempt),
     "EX",
@@ -53,5 +53,5 @@ export async function setLoginAttempt(loginAttempt: LoginAttempt) {
 }
 
 export async function delLoginAttempt(userId: string) {
-  await server.redis.del(loginKey(userId));
+  await redis.del(loginKey(userId));
 }
