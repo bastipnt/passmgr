@@ -1,6 +1,6 @@
 import { createContext, useMemo, useState, type ReactNode } from "react";
 
-export const SelectedElementContext = createContext<{
+const SelectedElementContext = createContext<{
   entryId: string;
   setEntryId: (entryId: string) => void;
 }>({
