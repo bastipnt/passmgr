@@ -1,3 +1,4 @@
+// fallow-ignore-file unused-file
 import { Link as WouterLink, type LinkProps as WouterLinkProps } from "wouter";
 import { Button, buttonVariants } from "@repo/ui/components/Button";
 import { type VariantProps } from "class-variance-authority";

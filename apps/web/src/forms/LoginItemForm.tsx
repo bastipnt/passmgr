@@ -18,7 +18,6 @@ import { useEffect } from "react";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import {
   EarthIcon,
-  KeyIcon,
   LockIcon,
   MailIcon,
   NotebookPenIcon,
@@ -40,6 +39,7 @@ import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea"
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
 import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import PasswordField from "@features/password-generation/components/PasswordField";
 
 function normalizeWebsiteUrl(value: string) {
   return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
@@ -238,15 +238,7 @@ export default function LoginItemForm({
           icon={<MailIcon />}
         />
 
-        <ControlledInput
-          className="[-webkit-text-security:disc] focus:[-webkit-text-security:none]"
-          control={control}
-          name="password"
-          label="Password"
-          type="text"
-          autoComplete="off"
-          icon={<KeyIcon />}
-        />
+        <PasswordField control={control} setValue={setValue} />
 
         <ControlledInput
           control={control}

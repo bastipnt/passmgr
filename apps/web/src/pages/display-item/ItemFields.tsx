@@ -5,6 +5,7 @@ import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
+import { getStrengthFromString } from "@repo/crypto";
 import type { LoginItem } from "@repo/schema";
 
 type Totp = {
@@ -38,6 +39,7 @@ export function ItemFields({ data, totp, onCopy }: ItemFieldsProps) {
           onClick={({ type }) => type === "copy" && onCopy(data.password, "Password")}
           icon={<KeyIcon />}
           variant={data.password ? "password" : "noAction"}
+          strength={data.password ? getStrengthFromString(data.password) : undefined}
         />
 
         {isDefined(data.totp) && totp.token && (

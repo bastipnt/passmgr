@@ -13,3 +13,4 @@ export * from "./src/encryption";
 export * from "./src/hash";
 export * from "./src/totp";
 export * from "./src/biometric";
+export * from "./src/password-generator";

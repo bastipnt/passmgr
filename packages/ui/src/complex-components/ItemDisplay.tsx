@@ -10,7 +10,9 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { StackedButton } from "@repo/ui/components/StackedButton";
-import { BadgeCheckIcon, EyeIcon, EyeOffIcon, NotebookIcon } from "lucide-react";
+import { cn } from "@repo/ui/lib/utils";
+import type { PasswordStrength, PasswordStrengthLevel } from "@repo/util";
+import { BadgeCheckIcon, EyeIcon, EyeOffIcon, NotebookIcon, ShieldAlertIcon } from "lucide-react";
 import { useState, type ReactNode } from "react";
 
 const HIDDEN_VALUE = "••••••••••••" as const;
@@ -23,6 +25,24 @@ type OnClickEvent = {
 const hiddenVariants = ["password", "hidden"] as const;
 const itemDisplayVariants = ["default", "noAction", ...hiddenVariants] as const;
 
+const STRENGTH_BADGE_CLASS: Record<PasswordStrengthLevel, string> = {
+  weak: "text-destructive",
+  fair: "text-amber-500",
+  strong: "text-emerald-500",
+  "very-strong": "text-emerald-600",
+};
+
+function StrengthBadge({ strength }: { strength: PasswordStrength }) {
+  const isStrong = strength.level === "strong" || strength.level === "very-strong";
+  const Icon = isStrong ? BadgeCheckIcon : ShieldAlertIcon;
+  return (
+    <Badge variant="ghost" className={cn("mr-2 py-0", STRENGTH_BADGE_CLASS[strength.level])}>
+      <Icon data-icon="inline-end" />
+      {strength.label}
+    </Badge>
+  );
+}
+
 type ItemDisplayProps = {
   title?: string;
   value?: ReactNode;
@@ -30,6 +50,7 @@ type ItemDisplayProps = {
   icon?: ReactNode;
   variant?: (typeof itemDisplayVariants)[number];
   actions?: ReactNode;
+  strength?: PasswordStrength;
 };
 
 function ItemDisplay({
@@ -39,6 +60,7 @@ function ItemDisplay({
   actions,
   value = "-",
   variant = "default",
+  strength,
 }: ItemDisplayProps) {
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
@@ -49,12 +71,7 @@ function ItemDisplay({
       <ItemContent className="w-full overflow-hidden">
         <ItemTitle>
           {title}
-          {variant === "password" && (
-            <Badge variant="link" className="mr-2 py-0">
-              <BadgeCheckIcon data-icon="inline-end" />
-              Strong
-            </Badge>
-          )}
+          {variant === "password" && strength && <StrengthBadge strength={strength} />}
         </ItemTitle>
         <ItemDescription className="text-ellipsis overflow-hidden">
           {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
