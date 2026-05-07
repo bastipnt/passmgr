@@ -109,8 +109,12 @@ function MainContent({ children }: { children: ReactNode }) {
   const { query, sortedItems } = useSortedItems();
   const noResults = query.trim().length > 0 && sortedItems.length === 0;
 
-  return (
-    <section className="overflow-y-scroll">{noResults ? <NoSearchResults /> : children}</section>
+  return noResults ? (
+    <section className="overflow-y-scroll">
+      <NoSearchResults />
+    </section>
+  ) : (
+    children
   );
 }
 
@@ -139,7 +143,7 @@ export default function Layout({ children }: LayoutProps) {
 
   return (
     <SortedItemsProvider>
-      <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-[minmax(10vw,300px)_1fr]">
+      <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-1 sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <SearchInput />
           <Button
@@ -158,8 +162,8 @@ export default function Layout({ children }: LayoutProps) {
             </Button>
           )}
         </header>
-        <main className="grid grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
-          <section className="border-r p-4 overflow-y-scroll scroll-py-4">
+        <main className="grid sm:grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
+          <section className="sm:border-r p-4 overflow-y-scroll scroll-py-4">
             <ItemSidebar />
           </section>
           <MainContent>{children}</MainContent>

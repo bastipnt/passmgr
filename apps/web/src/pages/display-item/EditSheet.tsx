@@ -1,6 +1,7 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@repo/ui/components/Sheet";
 import LoginItemForm from "@/forms/LoginItemForm";
 import type { LoginItem } from "@repo/schema";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type EditSheetProps = {
   open: boolean;
@@ -19,9 +20,14 @@ export function EditSheet({
   onSubmit,
   onDelete,
 }: EditSheetProps) {
+  const isMobile = useIsMobile();
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-3xl">
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className="overflow-y-auto data-[side=right]:sm:max-w-3xl data-[side=bottom]:max-h-[90vh]"
+      >
         <SheetHeader>
           <SheetTitle>Edit Login</SheetTitle>
         </SheetHeader>

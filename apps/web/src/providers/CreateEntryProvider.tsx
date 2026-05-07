@@ -16,6 +16,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@repo/ui/component
 import LoginItemForm from "@/forms/LoginItemForm";
 import { entrySlug } from "@/data/routes";
 import { useEditingContext } from "@/providers/EditingProvider";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type CreateEntryContextValue = {
   openCreateSheet: (title?: string) => void;
@@ -34,6 +35,7 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
   const [initialTitle, setInitialTitle] = useState<string | undefined>();
   const { setIsEditing } = useEditingContext();
   const [, navigate] = useLocation();
+  const isMobile = useIsMobile();
 
   const handleCreatingChange = useCallback(
     (open: boolean) => {
@@ -81,7 +83,10 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
     <CreateEntryContext value={value}>
       {children}
       <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
-        <SheetContent className="overflow-y-auto data-[side=right]:sm:max-w-lg">
+        <SheetContent
+          side={isMobile ? "bottom" : "right"}
+          className="overflow-y-auto data-[side=right]:sm:max-w-lg data-[side=bottom]:max-h-[90vh]"
+        >
           <SheetHeader>
             <SheetTitle>New Login</SheetTitle>
           </SheetHeader>

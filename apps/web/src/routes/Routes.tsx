@@ -7,6 +7,8 @@ import { editSlug, entrySlug, newSlug } from "../data/routes";
 import { Suspense, lazy, useContext } from "react";
 import { SessionContext, useAutoReconnect } from "@repo/client";
 import { loginRoutes } from "@/routes/LoginRoutes";
+import { useIsMobile } from "@/hooks/use-is-mobile";
+import { MobileItemSheet } from "@pages/MobileItemSheet";
 
 const Index = lazy(() => import("@pages/Index"));
 const DisplayItem = lazy(() => import("@pages/DisplayItem"));
@@ -15,12 +17,14 @@ const BiometricEnrollPage = lazy(() => import("@pages/auth/BiometricEnrollPage")
 const LoginRoutes = lazy(() => import("@/routes/LoginRoutes"));
 
 function DefaultLayoutRoutes() {
+  const isMobile = useIsMobile();
   return (
     <Layout>
       <Switch>
-        <Route path="/" component={Index} />
-        <Route path={`/${entrySlug}/:entryId`} component={DisplayItem} />
+        <Route path="/" component={isMobile ? undefined : Index} />
+        <Route path={`/${entrySlug}/:entryId`} component={isMobile ? undefined : DisplayItem} />
       </Switch>
+      {isMobile && <MobileItemSheet />}
     </Layout>
   );
 }

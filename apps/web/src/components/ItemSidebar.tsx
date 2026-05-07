@@ -25,6 +25,7 @@ import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedIt
 import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
 import { useGetItems, useShortcut } from "@repo/client";
 import { useEditingContext } from "@/providers/EditingProvider";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type SidebarItemProps = {
   item: DecryptedItem;
@@ -76,6 +77,7 @@ export default function ItemSidebar() {
   const { ready } = useGetItems();
   const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
   const { isEditing } = useEditingContext();
+  const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const itemRefs = useRef(new Map<string, HTMLAnchorElement>());
   const shouldFocusRef = useRef(false);
@@ -122,20 +124,20 @@ export default function ItemSidebar() {
   });
 
   useEffect(() => {
-    if (ready && !params?.itemId && sortedItems.length > 0) {
+    if (!isMobile && ready && !params?.itemId && sortedItems.length > 0) {
       navigate(`/${entrySlug}/${sortedItems[0].itemId}`, { replace: true });
     }
-  }, [ready, params?.itemId, sortedItems, navigate]);
+  }, [isMobile, ready, params?.itemId, sortedItems, navigate]);
 
   // Auto-navigate to first filtered result when search query changes
   useEffect(() => {
-    if (prevQueryRef.current !== query) {
+    if (!isMobile && prevQueryRef.current !== query) {
       prevQueryRef.current = query;
       if (sortedItems.length > 0) {
         navigate(`/${entrySlug}/${sortedItems[0].itemId}`, { replace: true });
       }
     }
-  }, [query, sortedItems, navigate]);
+  }, [isMobile, query, sortedItems, navigate]);
 
   if (!ready) return <ItemSidebarSkeleton />;
 
@@ -143,7 +145,7 @@ export default function ItemSidebar() {
   const noResults = hasQuery && sortedItems.length === 0;
 
   return (
-    <div className="flex max-w-sm flex-col gap-2">
+    <div className="flex sm:max-w-sm flex-col gap-2">
       <div className="flex items-center justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

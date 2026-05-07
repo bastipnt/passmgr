@@ -106,7 +106,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 p-8 items-start gap-4">
+    <section className="overflow-y-scroll grid grid-cols-1 p-8 items-start gap-4">
       <HeaderActions
         title={data.title}
         isOffline={isOffline}
@@ -124,7 +124,7 @@ function DisplayItemInner({ entryId }: DisplayItemProps) {
         onSubmit={handleSubmit}
         onDelete={() => deleteItem(entryId)}
       />
-    </div>
+    </section>
   );
 }
 

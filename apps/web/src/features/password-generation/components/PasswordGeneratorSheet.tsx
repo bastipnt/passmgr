@@ -34,6 +34,7 @@ import {
 } from "@features/password-generation/generatorOptions";
 import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
 import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
+import { useIsMobile } from "@/hooks/use-is-mobile";
 
 type PasswordGeneratorSheetProps = {
   children: ReactNode;
@@ -48,6 +49,7 @@ export default function PasswordGeneratorSheet({ children, onUse }: PasswordGene
   const [generated, setGenerated] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const isMobile = useIsMobile();
 
   const noCharset = !pwOpts.uppercase && !pwOpts.lowercase && !pwOpts.digits && !pwOpts.symbols;
 
@@ -95,7 +97,10 @@ export default function PasswordGeneratorSheet({ children, onUse }: PasswordGene
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>{children}</SheetTrigger>
-      <SheetContent side="right" className="flex flex-col gap-0">
+      <SheetContent
+        side={isMobile ? "bottom" : "right"}
+        className="overflow-y-auto flex flex-col gap-0 data-[side=bottom]:max-h-[90vh]"
+      >
         <SheetHeader>
           <SheetTitle>Generate password</SheetTitle>
           <SheetDescription>
