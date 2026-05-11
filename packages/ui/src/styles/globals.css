@@ -201,3 +201,20 @@
     }
   }
 }
+
+@utility popup-nested {
+  &::after {
+    @apply content-[''] inset-0 absolute rounded-[inherit] opacity-0 pointer-events-none transition-opacity bg-background/10 backdrop-blur-xs;
+  }
+
+  &[data-nested-dialog-open],
+  &[data-nested-drawer-open],
+  body:has([data-slot="dialog-content"][data-open]) &[data-slot="drawer-popup"][data-open] {
+    pointer-events: none;
+
+    &::after {
+      @apply z-20;
+      opacity: calc(1 - var(--stack-progress));
+    }
+  }
+}

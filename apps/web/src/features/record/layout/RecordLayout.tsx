@@ -17,7 +17,7 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
-import ItemSidebar from "@components/ItemSidebar";
+import ItemSidebar from "@components/Sidebar";
 import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
 import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { SessionContext, useShortcut } from "@repo/client";
@@ -30,7 +30,7 @@ import { modKey } from "@/lib/formatShortcut";
 import { useEditingContext } from "@/providers/EditingProvider";
 import { useCreateEntryContext } from "@/providers/CreateEntryProvider";
 
-type LayoutProps = {
+type RecordLayoutProps = {
   children: ReactNode;
 };
 
@@ -118,7 +118,7 @@ function MainContent({ children }: { children: ReactNode }) {
   );
 }
 
-export default function Layout({ children }: LayoutProps) {
+export default function RecordLayout({ children }: RecordLayoutProps) {
   const { isOffline } = useContext(SessionContext);
   const { isEditing } = useEditingContext();
   const { openCreateSheet } = useCreateEntryContext();

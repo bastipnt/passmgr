@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -12,11 +13,22 @@ import { encryptItem, useCreateItem } from "@repo/client";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@repo/ui/components/Sheet";
-import LoginItemForm from "@/forms/LoginItemForm";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@repo/ui/components/Sheet";
 import { entrySlug } from "@/data/routes";
 import { useEditingContext } from "@/providers/EditingProvider";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import LoginRecordForm, {
+  type LoginRecordFormHandle,
+} from "@features/login-record/forms/LoginRecordForm";
+import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
+import { Button } from "@repo/ui/components/Button";
+import { XIcon } from "lucide-react";
 
 type CreateEntryContextValue = {
   openCreateSheet: (title?: string) => void;
@@ -36,6 +48,7 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
   const { setIsEditing } = useEditingContext();
   const [, navigate] = useLocation();
   const isMobile = useIsMobile();
+  const formRef = useRef<LoginRecordFormHandle>(null);
 
   const handleCreatingChange = useCallback(
     (open: boolean) => {
@@ -79,28 +92,76 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
 
   const value = useMemo(() => ({ openCreateSheet }), [openCreateSheet]);
 
+  function LoginRecordFormWrapper() {
+    return (
+      <LoginRecordForm
+        onSubmit={handleSubmit}
+        onCancel={() => handleCreatingChange(false)}
+        serverError={createItemError?.message}
+        defaultValues={initialTitle ? { title: initialTitle } : undefined}
+        action="Create"
+        ref={formRef}
+      />
+    );
+  }
+
+  function FormActions() {
+    return (
+      <div className="flex flex-row gap-4 justify-between">
+        {isMobile && (
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full"
+            onClick={() => setIsCreating(false)}
+          >
+            <XIcon />
+          </Button>
+        )}
+
+        <div className="flex flex-row gap-4">
+          {!isMobile && (
+            <Button variant="secondary" type="button" onClick={() => setIsCreating(false)}>
+              Cancel
+            </Button>
+          )}
+          <Button onClick={() => formRef.current?.triggerSubmit()}>Save</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <CreateEntryContext value={value}>
       {children}
-      <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
-        <SheetContent
-          side={isMobile ? "bottom" : "right"}
-          className="overflow-y-auto data-[side=right]:sm:max-w-lg data-[side=bottom]:max-h-[90vh]"
-        >
-          <SheetHeader>
-            <SheetTitle>New Login</SheetTitle>
-          </SheetHeader>
-          <div className="px-4 pb-4">
-            <LoginItemForm
-              onSubmit={handleSubmit}
-              onCancel={() => handleCreatingChange(false)}
-              serverError={createItemError?.message}
-              defaultValues={initialTitle ? { title: initialTitle } : undefined}
-              action="Create"
-            />
-          </div>
-        </SheetContent>
-      </Sheet>
+      {isMobile ? (
+        <Drawer open={isCreating} onOpenChange={handleCreatingChange}>
+          <DrawerPopup>
+            <DrawerActions>
+              <FormActions />
+            </DrawerActions>
+            <DrawerContent>
+              <LoginRecordFormWrapper />
+            </DrawerContent>
+          </DrawerPopup>
+        </Drawer>
+      ) : (
+        <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
+          <SheetContent side="right" className="sm:max-w-3xl">
+            <SheetHeader>
+              <SheetTitle>New Login</SheetTitle>
+            </SheetHeader>
+
+            <div className="p-4">
+              <LoginRecordFormWrapper />
+            </div>
+
+            <SheetFooter>
+              <FormActions />
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      )}
     </CreateEntryContext>
   );
 }

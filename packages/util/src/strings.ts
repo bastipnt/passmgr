@@ -23,3 +23,7 @@ export function capitalize(input: string): string {
   if (isEmpty(input)) return input;
   return input.charAt(0).toUpperCase() + input.slice(1);
 }
+
+export function normalizeWebsiteUrl(value: string) {
+  return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+}

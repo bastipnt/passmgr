@@ -2,7 +2,7 @@ import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { type LoginItem as FormValues } from "@repo/schema";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
-import PasswordGeneratorSheet from "@features/password-generation/components/PasswordGeneratorSheet";
+import PasswordGenerator from "@features/password-generation/pages/PasswordGenerator";
 import { DicesIcon, KeyIcon } from "lucide-react";
 import { PasswordStrengthBar } from "@features/password-generation/components/PasswordStrengthBar";
 import { getStrengthFromString } from "@repo/crypto";
@@ -28,7 +28,7 @@ export default function PasswordField({ control, setValue }: PasswordFieldProps)
         icon={<KeyIcon />}
         addon={
           <InputGroupAddon align="inline-end">
-            <PasswordGeneratorSheet
+            <PasswordGenerator
               onUse={(pwd) =>
                 setValue("password", pwd, { shouldDirty: true, shouldValidate: true })
               }
@@ -36,7 +36,7 @@ export default function PasswordField({ control, setValue }: PasswordFieldProps)
               <InputGroupButton size="icon-xs" title="Generate password">
                 <DicesIcon />
               </InputGroupButton>
-            </PasswordGeneratorSheet>
+            </PasswordGenerator>
           </InputGroupAddon>
         }
       />

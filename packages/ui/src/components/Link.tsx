@@ -25,16 +25,22 @@ export default function Link({
   const isExternal = target === "_blank";
 
   return (
-    <Button asChild variant={variant} size={size} className={className}>
-      {isExternal ? (
-        <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
-          {children} <ArrowUpRightIcon />
-        </a>
-      ) : (
-        <WouterLink href={href} target={target} {...props}>
-          {children}
-        </WouterLink>
-      )}
-    </Button>
+    <Button
+      variant={variant}
+      size={size}
+      className={className}
+      nativeButton={false}
+      render={
+        isExternal ? (
+          <a href={href} target="_blank" rel="noopener noreferrer" {...props}>
+            {children} <ArrowUpRightIcon />
+          </a>
+        ) : (
+          <WouterLink href={href} target={target} {...props}>
+            {children}
+          </WouterLink>
+        )
+      }
+    />
   );
 }

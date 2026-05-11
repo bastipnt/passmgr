@@ -1,0 +1,55 @@
+@reference "../styles/globals.css";
+
+.backdrop {
+  --duration: 200ms;
+  --backdrop-opacity: 1;
+
+  @apply fixed inset-0 bg-black/10;
+  opacity: calc(var(--backdrop-opacity) - var(--drawer-swipe-progress));
+  transition: opacity var(--duration) ease-in-out;
+
+  @supports (backdrop-filter: blur(0)) {
+    @apply backdrop-blur-xs;
+  }
+
+  /* iOS 26+: ensure the backdrop covers the entire visible viewport. */
+  @supports (-webkit-touch-callout: none) {
+    position: absolute;
+  }
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+}
+
+.popup {
+  --duration: 200ms;
+  --stack-step: 0.05;
+  --stack-move: 1rem;
+
+  --stack-scale: max(0, calc(1 - (var(--nested-dialogs) * var(--stack-step))));
+  --stack-translate-y: calc(0px + var(--stack-move) * var(--nested-dialogs));
+
+  @apply popup-nested;
+
+  @apply fixed top-1/2 left-1/2 grid w-full max-w-[calc(100%-2rem)] gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm -mt-8;
+
+  transform: translate(-50%, -50%) scale(var(--stack-scale));
+  translate: 0 var(--stack-translate-y);
+
+  transition: all var(--duration) ease-in-out;
+
+  will-change: transform;
+  background-clip: padding-box;
+
+  &[data-nested-dialog-open] {
+    overflow: hidden;
+  }
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translate(-50%, -50%) scale(0.9);
+    opacity: 0;
+  }
+}

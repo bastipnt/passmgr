@@ -30,8 +30,10 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
           min={3}
           max={10}
           step={1}
-          value={[phOpts.wordCount]}
-          onValueChange={([v]) => setPhOpts((o) => ({ ...o, wordCount: v ?? o.wordCount }))}
+          value={phOpts.wordCount}
+          onValueChange={(v) =>
+            setPhOpts((o) => ({ ...o, wordCount: (v as number) ?? o.wordCount }))
+          }
         />
       </Field>
 
@@ -40,7 +42,7 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
 
         <Select
           value={phOpts.separator}
-          onValueChange={(value) => setPhOpts((o) => ({ ...o, separator: value }))}
+          onValueChange={(value) => setPhOpts((o) => ({ ...o, separator: value ?? "" }))}
         >
           <SelectTrigger>
             <SelectValue />

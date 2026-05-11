@@ -9,7 +9,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@repo/ui/components/Dialog";
-import type { ReactNode } from "react";
+import type { ReactElement } from "react";
 
 type RemoveDialogBaseProps = {
   title: string;
@@ -19,7 +19,7 @@ type RemoveDialogBaseProps = {
 };
 
 type UncontrolledRemoveDialogProps = RemoveDialogBaseProps & {
-  children: ReactNode;
+  children: ReactElement;
   open?: never;
   onOpenChange?: never;
 };
@@ -43,7 +43,7 @@ export default function RemoveDialog({
 }: RemoveDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {children && <DialogTrigger asChild>{children}</DialogTrigger>}
+      {children && <DialogTrigger render={children} />}
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -51,9 +51,7 @@ export default function RemoveDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose asChild>
-            <Button variant="secondary">Close</Button>
-          </DialogClose>
+          <DialogClose render={<Button variant="secondary">Close</Button>} />
           <Button variant="destructive" onClick={onRemove}>
             {removeTitle}
           </Button>

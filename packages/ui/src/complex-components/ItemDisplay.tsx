@@ -73,9 +73,13 @@ function ItemDisplay({
           {title}
           {variant === "password" && strength && <StrengthBadge strength={strength} />}
         </ItemTitle>
-        <ItemDescription className="text-ellipsis overflow-hidden">
-          {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
-        </ItemDescription>
+        {typeof value === "string" ? (
+          <ItemDescription className="text-ellipsis overflow-hidden">
+            {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
+          </ItemDescription>
+        ) : (
+          <div data-slot="item-description">{value}</div>
+        )}
       </ItemContent>
       {actions && <ItemActions>{actions}</ItemActions>}
     </>
@@ -103,22 +107,22 @@ function ItemDisplay({
   return (
     <Item
       className="last:rounded-b-lg first:rounded-t-lg rounded-none group"
-      asChild={!(variant === "noAction")}
-    >
-      {usesHiddenValue ? (
-        <StackedButton>
-          {CopyButton}
+      render={
+        usesHiddenValue ? (
+          <StackedButton>
+            {CopyButton}
 
-          <Button variant="ghost" onClick={toggleHide}>
-            {valueHidden ? <EyeIcon /> : <EyeOffIcon />}
-          </Button>
-        </StackedButton>
-      ) : variant === "noAction" ? (
-        ItemInner
-      ) : (
-        CopyButton
-      )}
-    </Item>
+            <Button variant="ghost" onClick={toggleHide}>
+              {valueHidden ? <EyeIcon /> : <EyeOffIcon />}
+            </Button>
+          </StackedButton>
+        ) : variant === "noAction" ? (
+          <div>{ItemInner}</div>
+        ) : (
+          CopyButton
+        )
+      }
+    />
   );
 }
 

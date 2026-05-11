@@ -1,0 +1,62 @@
+import { useParams } from "wouter";
+import { useTotp } from "@/hooks/totp-hook";
+import { type LoginItem } from "@repo/schema";
+import { LoginRecordFields } from "@features/login-record/components/LoginRecordFields";
+import { Fallback } from "@features/record/components/Fallback";
+import { useRecordActions } from "@features/record/hooks/actionsHook";
+import EditRecord from "@features/record/components/EditRecord";
+
+type RecordProps = {
+  entryId: string;
+};
+
+// TODO: rename entryId
+function RecordInner({ entryId }: RecordProps) {
+  const {
+    handleEditSheetChange,
+    deleteItem,
+    copyField,
+    handleSubmit,
+    data,
+    ready,
+    isEditing,
+    updateItemError,
+  } = useRecordActions({
+    entryId,
+  });
+  const { progress, seconds, token } = useTotp(data?.totp);
+
+  if (!ready || !data) return <Fallback />;
+
+  const defaultValues: Partial<LoginItem> = {
+    title: data.title,
+    username: data.username,
+    password: data.password,
+    totp: data.totp,
+    websites: data.websites,
+    note: data.note,
+    extraFields: data.extraFields,
+  };
+
+  return (
+    <div className="grid grid-cols-1 items-start gap-4">
+      <LoginRecordFields data={data} totp={{ token, progress, seconds }} onCopy={copyField} />
+
+      <EditRecord
+        open={isEditing}
+        onOpenChange={handleEditSheetChange}
+        defaultValues={defaultValues}
+        serverError={updateItemError?.message}
+        onSubmit={handleSubmit}
+        onDelete={() => deleteItem(entryId)}
+      />
+    </div>
+  );
+}
+
+export default function Record() {
+  const { entryId } = useParams();
+  if (!entryId) return <Fallback />;
+
+  return <RecordInner entryId={entryId} />;
+}

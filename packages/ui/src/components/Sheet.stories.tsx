@@ -34,7 +34,7 @@ const meta = preview.meta({
 export const Default = meta.story({
   render: (args) => (
     <Sheet>
-      <SheetTrigger asChild>
+      <SheetTrigger>
         <Button variant="secondary">Open sheet</Button>
       </SheetTrigger>
       {/* @ts-expect-error takes types from Sheet, but side is defined on SheetContent */}
@@ -44,7 +44,7 @@ export const Default = meta.story({
           <SheetDescription>Make changes and save when done.</SheetDescription>
         </SheetHeader>
         <SheetFooter>
-          <SheetClose asChild>
+          <SheetClose>
             <Button>Save</Button>
           </SheetClose>
         </SheetFooter>

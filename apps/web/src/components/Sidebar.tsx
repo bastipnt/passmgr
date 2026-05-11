@@ -35,19 +35,22 @@ type SidebarItemProps = {
 
 function SidebarItem({ item, active, registerRef }: SidebarItemProps) {
   return (
-    <Item variant={active ? "active" : "outline"} asChild>
-      <Link
-        href={`../${entrySlug}/${item.itemId}`}
-        ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}
-      >
-        <ItemMedia>
-          <WebsiteAvatar title={item.title} websites={item.websites} />
-        </ItemMedia>
-        <ItemContent className="gap-1">
-          <ItemTitle>{item.title}</ItemTitle>
-          <ItemDescription className="line-clamp-1">{item.username || "-"}</ItemDescription>
-        </ItemContent>
-      </Link>
+    <Item
+      variant={active ? "active" : "outline"}
+      render={
+        <Link
+          href={`../${entrySlug}/${item.itemId}`}
+          ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}
+        />
+      }
+    >
+      <ItemMedia>
+        <WebsiteAvatar title={item.title} websites={item.websites} />
+      </ItemMedia>
+      <ItemContent className="gap-1">
+        <ItemTitle>{item.title}</ItemTitle>
+        <ItemDescription className="line-clamp-1">{item.username || "-"}</ItemDescription>
+      </ItemContent>
     </Item>
   );
 }
@@ -148,11 +151,13 @@ export default function ItemSidebar() {
     <div className="flex sm:max-w-sm flex-col gap-2">
       <div className="flex items-center justify-end">
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <ArrowUpDownIcon className="size-4" />
-            </Button>
-          </DropdownMenuTrigger>
+          <DropdownMenuTrigger
+            render={
+              <Button variant="ghost" size="icon" className="size-8">
+                <ArrowUpDownIcon className="size-4" />
+              </Button>
+            }
+          />
           <DropdownMenuContent align="end">
             <DropdownMenuRadioGroup value={sort} onValueChange={handleSortChange}>
               {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([value, label]) => (

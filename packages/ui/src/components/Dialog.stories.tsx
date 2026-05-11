@@ -30,7 +30,7 @@ const meta = preview.meta({
 export const Default = meta.story({
   render: () => (
     <Dialog>
-      <DialogTrigger asChild>
+      <DialogTrigger>
         <Button>Open dialog</Button>
       </DialogTrigger>
       <DialogContent>
@@ -41,7 +41,7 @@ export const Default = meta.story({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter>
-          <DialogClose asChild>
+          <DialogClose>
             <Button variant="secondary">Cancel</Button>
           </DialogClose>
           <Button variant="destructive">Delete</Button>

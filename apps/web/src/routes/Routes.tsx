@@ -1,5 +1,5 @@
 import { Redirect, Route, Switch, useParams } from "wouter";
-import Layout from "../layout/Layout";
+import RecordLayout from "../features/record/layout/RecordLayout";
 import SelectedElementProvider from "../providers/SelectedElementProvider";
 import EditingProvider from "../providers/EditingProvider";
 import CreateEntryProvider from "../providers/CreateEntryProvider";
@@ -8,10 +8,11 @@ import { Suspense, lazy, useContext } from "react";
 import { SessionContext, useAutoReconnect } from "@repo/client";
 import { loginRoutes } from "@/routes/LoginRoutes";
 import { useIsMobile } from "@/hooks/use-is-mobile";
-import { MobileItemSheet } from "@pages/MobileItemSheet";
+import { RecordMobileDrawer } from "@features/record/pages/RecordMobileDrawer";
+import { DrawerProvider } from "@repo/ui/components/Drawer";
 
 const Index = lazy(() => import("@pages/Index"));
-const DisplayItem = lazy(() => import("@pages/DisplayItem"));
+const RecordPage = lazy(() => import("@features/record/pages/RecordPage"));
 const NotFound = lazy(() => import("@pages/NotFound"));
 const BiometricEnrollPage = lazy(() => import("@pages/auth/BiometricEnrollPage"));
 const LoginRoutes = lazy(() => import("@/routes/LoginRoutes"));
@@ -19,13 +20,13 @@ const LoginRoutes = lazy(() => import("@/routes/LoginRoutes"));
 function DefaultLayoutRoutes() {
   const isMobile = useIsMobile();
   return (
-    <Layout>
+    <RecordLayout>
       <Switch>
         <Route path="/" component={isMobile ? undefined : Index} />
-        <Route path={`/${entrySlug}/:entryId`} component={isMobile ? undefined : DisplayItem} />
+        <Route path={`/${entrySlug}/:entryId`} component={isMobile ? undefined : RecordPage} />
       </Switch>
-      {isMobile && <MobileItemSheet />}
-    </Layout>
+      {isMobile && <RecordMobileDrawer />}
+    </RecordLayout>
   );
 }
 
@@ -48,30 +49,32 @@ function ProtectedRoutes() {
   if (!sessionId) return <Redirect to="/login" />;
 
   return (
-    <EditingProvider>
-      <CreateEntryProvider>
-        <SelectedElementProvider>
-          <Switch>
-            {/* Default Layout */}
-            <Route path="/" component={DefaultLayoutRoutes} />
-            <Route path={`/${entrySlug}/:entryId`} component={DefaultLayoutRoutes} />
+    <DrawerProvider>
+      <EditingProvider>
+        <CreateEntryProvider>
+          <SelectedElementProvider>
+            <Switch>
+              {/* Default Layout */}
+              <Route path="/" component={DefaultLayoutRoutes} />
+              <Route path={`/${entrySlug}/:entryId`} component={DefaultLayoutRoutes} />
 
-            {/* Redirect old routes */}
-            <Route path={`/${editSlug}/:entryId`} component={EditRedirect} />
-            <Route path={`/${newSlug}`}>
-              <Redirect to="/" />
-            </Route>
+              {/* Redirect old routes */}
+              <Route path={`/${editSlug}/:entryId`} component={EditRedirect} />
+              <Route path={`/${newSlug}`}>
+                <Redirect to="/" />
+              </Route>
 
-            {/* Overlay Layout */}
-            <Route path="/enroll-biometric" component={OverlayLayoutRoutes} />
+              {/* Overlay Layout */}
+              <Route path="/enroll-biometric" component={OverlayLayoutRoutes} />
 
-            <Route>
-              <NotFound />
-            </Route>
-          </Switch>
-        </SelectedElementProvider>
-      </CreateEntryProvider>
-    </EditingProvider>
+              <Route>
+                <NotFound />
+              </Route>
+            </Switch>
+          </SelectedElementProvider>
+        </CreateEntryProvider>
+      </EditingProvider>
+    </DrawerProvider>
   );
 }
 

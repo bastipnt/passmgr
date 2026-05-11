@@ -23,8 +23,8 @@ export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptio
           min={8}
           max={128}
           step={1}
-          value={[pwOpts.length]}
-          onValueChange={([v]) => setPwOpts((o) => ({ ...o, length: v ?? o.length }))}
+          value={pwOpts.length}
+          onValueChange={(v) => setPwOpts((o) => ({ ...o, length: (v as number) ?? o.length }))}
         />
       </Field>
 

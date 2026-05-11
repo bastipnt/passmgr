@@ -1,0 +1,135 @@
+@reference "../styles/globals.css";
+
+.backdrop {
+  --duration: 200ms;
+  --backdrop-opacity: 1;
+
+  @apply fixed inset-0 bg-black/10;
+  opacity: calc(var(--backdrop-opacity) - var(--drawer-swipe-progress));
+  transition: opacity var(--duration) ease-in-out;
+
+  @supports (backdrop-filter: blur(0)) {
+    @apply backdrop-blur-xs;
+  }
+
+  /* iOS 26+: ensure the backdrop covers the entire visible viewport. */
+  @supports (-webkit-touch-callout: none) {
+    position: absolute;
+  }
+
+  &[data-starting-style] {
+    opacity: 0;
+  }
+
+  &[data-ending-style] {
+    opacity: 0;
+    transition-duration: calc(var(--drawer-swipe-strength) * var(--duration));
+  }
+
+  &[data-swiping] {
+    transition-duration: 0s;
+  }
+}
+
+.popup {
+  --duration: 200ms;
+  --bleed: 3rem;
+  --peek: 1rem;
+  --stack-progress: clamp(0, var(--drawer-swipe-progress), 1);
+  --stack-step: 0.05;
+  --stack-peek-offset: max(
+    0px,
+    calc((var(--nested-drawers) - var(--stack-progress)) * var(--peek))
+  );
+  --stack-scale-base: max(0, calc(1 - (var(--nested-drawers) * var(--stack-step))));
+  --stack-scale: calc(var(--stack-scale-base) + (var(--stack-step) * var(--stack-progress)));
+  --stack-shrink: calc(1 - var(--stack-scale));
+  --stack-height: max(
+    0px,
+    calc(var(--drawer-frontmost-height, var(--drawer-height)) - var(--bleed))
+  );
+
+  @apply popup-nested;
+
+  @apply fixed bg-popover text-popover-foreground shadow-lg overflow-hidden;
+  transition: all var(--duration) ease-in-out;
+  will-change: transform;
+  background-clip: padding-box;
+
+  &[data-swiping] {
+    user-select: none;
+  }
+
+  &[data-nested-drawer-swiping] {
+    transition-duration: 0s;
+  }
+
+  &[data-nested-drawer-open] {
+    overflow: hidden;
+  }
+
+  &[data-side="top"] {
+    @apply w-full;
+  }
+
+  &[data-side="right"] {
+    @apply h-full w-3/4 border-l;
+  }
+
+  &[data-side="left"] {
+    @apply h-full w-3/4 border-r;
+  }
+
+  &[data-side="bottom"] {
+    --translate-y: calc(
+      var(--drawer-swipe-movement-y) - var(--stack-peek-offset) -
+        (var(--stack-shrink) * var(--stack-height))
+    );
+
+    @apply w-full border-t rounded-t-xl;
+    transform: translateY(var(--translate-y)) scale(var(--stack-scale));
+    transform-origin: 50% calc(100% - var(--bleed));
+    margin-bottom: calc(-1 * var(--bleed));
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + var(--bleed));
+    height: calc(90vh + var(--bleed));
+
+    &[data-swiping] {
+      transition-duration: 0s;
+    }
+
+    &[data-nested-drawer-open] {
+      height: calc(var(--stack-height) + var(--bleed));
+    }
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      transform: translateY(calc(100% - var(--bleed) + 2px));
+    }
+
+    &[data-ending-style] {
+      transition-duration: calc(var(--drawer-swipe-strength) * var(--duration));
+    }
+  }
+}
+
+.indent {
+  --indent-progress: var(--drawer-swipe-progress);
+  --indent-radius: calc(1rem * (1 - var(--indent-progress)));
+  --indent-transition: calc(1 - clamp(0, calc(var(--drawer-swipe-progress) * 100000), 1));
+  --indent-scale: calc(0.98 + (0.02 * var(--indent-progress)));
+  --indent-translate-y: calc(0.5rem * (1 - var(--indent-progress)));
+
+  @apply relative bg-background;
+  transform-origin: center top;
+  transition:
+    transform calc(400ms * var(--indent-transition)),
+    transform calc(250ms * var(--indent-transition));
+  will-change: transform;
+  contain: layout;
+
+  &[data-active] {
+    transform: translateY(var(--indent-translate-y)) scale(var(--indent-scale));
+    border-top-right-radius: var(--indent-radius);
+    border-top-left-radius: var(--indent-radius);
+  }
+}

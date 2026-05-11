@@ -14,13 +14,13 @@ type Totp = {
   seconds: number | undefined;
 };
 
-type ItemFieldsProps = {
+type LoginRecordFieldsProps = {
   data: LoginItem;
   totp: Totp;
   onCopy: (value: string | undefined, label: string) => void;
 };
 
-export function ItemFields({ data, totp, onCopy }: ItemFieldsProps) {
+export function LoginRecordFields({ data, totp, onCopy }: LoginRecordFieldsProps) {
   return (
     <>
       <ItemDisplayGroup>

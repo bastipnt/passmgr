@@ -1,0 +1,62 @@
+@reference "../styles/globals.css";
+
+.backdrop {
+  @apply fixed inset-0 bg-black/10 transition-opacity duration-150;
+
+  @supports (backdrop-filter: blur(0)) {
+    @apply backdrop-blur-xs;
+  }
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+}
+
+.popup {
+  @apply popup-nested;
+  @apply fixed flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out overflow-hidden;
+
+  background-clip: padding-box;
+
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+  }
+
+  &[data-side="top"] {
+    @apply inset-x-0 top-0 h-auto border-b;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      @apply -translate-y-10;
+    }
+  }
+
+  &[data-side="bottom"] {
+    @apply inset-x-0 bottom-0 h-auto border-t;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      @apply translate-y-10;
+    }
+  }
+
+  &[data-side="left"] {
+    @apply inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      @apply -translate-x-10;
+    }
+  }
+
+  &[data-side="right"] {
+    @apply inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm;
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      @apply translate-x-10;
+    }
+  }
+}

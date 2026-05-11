@@ -12,6 +12,7 @@
   "ignorePatterns": [
     "**/*.generated.ts",
     "**/*.d.ts",
+    "**/*.module.css",
     "**/drizzle/**",
     "**/dist/**",
     "**/build/**",

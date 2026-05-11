@@ -27,7 +27,7 @@ const meta = preview.meta({
 export const Default = meta.story({
   render: () => (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger>
         <Button variant="secondary">Open menu</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -53,7 +53,7 @@ export const Default = meta.story({
 export const WithCheckboxes = meta.story({
   render: () => (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger>
         <Button variant="secondary">View</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -70,7 +70,7 @@ export const WithCheckboxes = meta.story({
 export const WithRadioGroup = meta.story({
   render: () => (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger>
         <Button variant="secondary">Sort</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
@@ -88,7 +88,7 @@ export const WithRadioGroup = meta.story({
 export const WithSubmenu = meta.story({
   render: () => (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger>
         <Button variant="secondary">Open</Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
