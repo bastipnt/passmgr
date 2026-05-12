@@ -122,6 +122,9 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
   );
 }
 
+const createHandle = DialogPrimitive.createHandle;
+type DialogHandle<T> = DialogPrimitive.Handle<T>;
+
 export {
   Dialog,
   DialogClose,
@@ -133,4 +136,6 @@ export {
   DialogPortal,
   DialogTitle,
   DialogTrigger,
+  createHandle,
+  type DialogHandle,
 };

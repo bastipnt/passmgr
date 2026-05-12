@@ -23,7 +23,6 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-  SheetTrigger,
 } from "@repo/ui/components/Sheet";
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import {
@@ -40,15 +39,15 @@ import {
   DrawerContent,
   DrawerPopup,
   DrawerTitle,
-  DrawerTrigger,
 } from "@repo/ui/components/Drawer";
+import type { DialogHandle } from "@repo/ui/components/Dialog";
 
 type PasswordGeneratorProps = {
-  children: ReactElement;
+  handle: DialogHandle<unknown>;
   onUse: (password: string) => void;
 };
 
-export default function PasswordGenerator({ children, onUse }: PasswordGeneratorProps) {
+export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorProps) {
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<Mode>("password");
   const [pwOpts, setPwOpts] = useState<PasswordOptions>(PASSWORD_DEFAULTS);
@@ -99,10 +98,6 @@ export default function PasswordGenerator({ children, onUse }: PasswordGenerator
     if (!generated || noCharset) return;
     onUse(generated);
     setOpen(false);
-  }
-
-  function Trigger({ children }: { children: ReactElement }) {
-    return isMobile ? <DrawerTrigger render={children} /> : <SheetTrigger render={children} />;
   }
 
   function Header() {
@@ -190,8 +185,7 @@ export default function PasswordGenerator({ children, onUse }: PasswordGenerator
   }
 
   return isMobile ? (
-    <Drawer open={open} onOpenChange={setOpen}>
-      <Trigger>{children}</Trigger>
+    <Drawer open={open} onOpenChange={setOpen} handle={handle}>
       <DrawerPopup>
         <DrawerActions className="space-y-4">
           <Actions />
@@ -203,8 +197,7 @@ export default function PasswordGenerator({ children, onUse }: PasswordGenerator
       </DrawerPopup>
     </Drawer>
   ) : (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <Trigger>{children}</Trigger>
+    <Sheet open={open} onOpenChange={setOpen} handle={handle}>
       <SheetContent side="right">
         <Header />
         <div className="p-4 flex-1">

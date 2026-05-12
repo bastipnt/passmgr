@@ -6,6 +6,7 @@ import PasswordGenerator from "@features/password-generation/pages/PasswordGener
 import { DicesIcon, KeyIcon } from "lucide-react";
 import { PasswordStrengthBar } from "@features/password-generation/components/PasswordStrengthBar";
 import { getStrengthFromString } from "@repo/crypto";
+import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 
 type PasswordFieldProps = {
   control: Control<FormValues>;
@@ -15,6 +16,7 @@ type PasswordFieldProps = {
 export default function PasswordField({ control, setValue }: PasswordFieldProps) {
   const password = useWatch({ control, name: "password" }) ?? "";
   const strength = password ? getStrengthFromString(password) : null;
+  const pwGeneratorHandle = createHandle();
 
   return (
     <div className="flex flex-col gap-1.5">
@@ -28,15 +30,14 @@ export default function PasswordField({ control, setValue }: PasswordFieldProps)
         icon={<KeyIcon />}
         addon={
           <InputGroupAddon align="inline-end">
-            <PasswordGenerator
-              onUse={(pwd) =>
-                setValue("password", pwd, { shouldDirty: true, shouldValidate: true })
+            <DialogTrigger
+              handle={pwGeneratorHandle}
+              render={
+                <InputGroupButton size="icon-xs" title="Generate password">
+                  <DicesIcon />
+                </InputGroupButton>
               }
-            >
-              <InputGroupButton size="icon-xs" title="Generate password">
-                <DicesIcon />
-              </InputGroupButton>
-            </PasswordGenerator>
+            />
           </InputGroupAddon>
         }
       />
@@ -48,6 +49,10 @@ export default function PasswordField({ control, setValue }: PasswordFieldProps)
           bits={strength.bits}
         />
       )}
+      <PasswordGenerator
+        handle={pwGeneratorHandle}
+        onUse={(pwd) => setValue("password", pwd, { shouldDirty: true, shouldValidate: true })}
+      />
     </div>
   );
 }
