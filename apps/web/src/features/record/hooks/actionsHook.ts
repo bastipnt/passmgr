@@ -10,7 +10,7 @@ import {
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useLocation } from "wouter";
 
 export function useRecordActions({ entryId }: { entryId: string }) {
@@ -18,8 +18,10 @@ export function useRecordActions({ entryId }: { entryId: string }) {
   const { item: data, ready } = useGetItem(entryId);
   const [, navigate] = useLocation();
   const { isEditing, setIsEditing } = useEditingContext();
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
 
   function handleEditSheetChange(open: boolean) {
+    setIsEditSheetOpen(open);
     setIsEditing(open);
   }
 
@@ -88,6 +90,7 @@ export function useRecordActions({ entryId }: { entryId: string }) {
     data,
     ready,
     isEditing,
+    isEditSheetOpen,
     updateItemError,
   };
 }

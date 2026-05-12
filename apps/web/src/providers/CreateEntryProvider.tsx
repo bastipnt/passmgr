@@ -147,7 +147,7 @@ export default function CreateEntryProvider({ children }: { children: ReactNode 
         </Drawer>
       ) : (
         <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
-          <SheetContent side="right" className="sm:max-w-3xl">
+          <SheetContent side="right" className="sm:max-w-3xl!">
             <SheetHeader>
               <SheetTitle>New Login</SheetTitle>
             </SheetHeader>

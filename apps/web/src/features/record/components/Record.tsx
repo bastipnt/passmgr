@@ -18,7 +18,7 @@ function RecordInner({ entryId }: RecordProps) {
     handleSubmit,
     data,
     ready,
-    isEditing,
+    isEditSheetOpen,
     updateItemError,
   } = useRecordActions({
     entryId,
@@ -41,7 +41,7 @@ function RecordInner({ entryId }: RecordProps) {
       <LoginRecordFields data={data} onCopy={copyField} />
 
       <EditRecord
-        open={isEditing}
+        open={isEditSheetOpen}
         onOpenChange={handleEditSheetChange}
         defaultValues={defaultValues}
         serverError={updateItemError?.message}
