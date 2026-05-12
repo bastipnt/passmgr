@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import {
   EFF_WORDLIST_SIZE,
@@ -46,6 +46,8 @@ type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;
   onUse: (password: string) => void;
 };
+
+const TITLE = "Generate password";
 
 export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorProps) {
   const [open, setOpen] = useState(false);
@@ -100,112 +102,90 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
     setOpen(false);
   }
 
-  function Header() {
-    const title = "Generate password";
+  const modeSwitch = (
+    <ButtonGroup className="w-full">
+      <Button
+        variant={mode === "password" ? "default" : "secondary"}
+        className="flex-1"
+        onClick={() => setMode("password")}
+      >
+        Password
+      </Button>
+      <Button
+        variant={mode === "passphrase" ? "default" : "secondary"}
+        className="flex-1"
+        onClick={() => setMode("passphrase")}
+      >
+        Passphrase
+      </Button>
+    </ButtonGroup>
+  );
 
-    function ModeSwitch() {
-      return (
-        <ButtonGroup className="w-full">
-          <Button
-            variant={mode === "password" ? "default" : "secondary"}
-            className="flex-1"
-            onClick={() => setMode("password")}
-          >
-            Password
-          </Button>
-          <Button
-            variant={mode === "passphrase" ? "default" : "secondary"}
-            className="flex-1"
-            onClick={() => setMode("passphrase")}
-          >
-            Passphrase
-          </Button>
-        </ButtonGroup>
-      );
-    }
-
-    return isMobile ? (
-      <div className="space-y-4">
-        <DrawerTitle>{title}</DrawerTitle>
-        <ModeSwitch />
-      </div>
-    ) : (
-      <SheetHeader className="space-y-4">
-        <SheetTitle>{title}</SheetTitle>
-        <ModeSwitch />
-      </SheetHeader>
-    );
-  }
-
-  function Actions() {
-    return (
-      <div className="flex flex-row gap-2">
-        {isMobile && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full mr-auto"
-            onClick={() => setOpen(false)}
-          >
-            <XIcon />
-          </Button>
-        )}
-        <Button variant="outline" onClick={handleCopy} disabled={!generated}>
-          {copied ? <CheckIcon /> : <CopyIcon />}
-          {copied ? "Copied" : "Copy"}
+  const actions = (
+    <div className="flex flex-row gap-2">
+      {isMobile && (
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full mr-auto"
+          onClick={() => setOpen(false)}
+        >
+          <XIcon />
         </Button>
-        <Button variant="outline" onClick={regenerate}>
-          <RefreshCwIcon />
-          Regenerate
-        </Button>
-        <Button className="sm:ml-auto" onClick={handleUse} disabled={!generated || noCharset}>
-          Use
-        </Button>
-      </div>
-    );
-  }
+      )}
+      <Button variant="outline" onClick={handleCopy} disabled={!generated}>
+        {copied ? <CheckIcon /> : <CopyIcon />}
+        {copied ? "Copied" : "Copy"}
+      </Button>
+      <Button variant="outline" onClick={regenerate}>
+        <RefreshCwIcon />
+        Regenerate
+      </Button>
+      <Button className="sm:ml-auto" onClick={handleUse} disabled={!generated || noCharset}>
+        Use
+      </Button>
+    </div>
+  );
 
-  function Content() {
-    return (
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col gap-1.5">
-          <div className="bg-muted/50 border-input min-h-9 rounded-md border px-2.5 py-2 font-mono text-sm break-all">
-            {generated || (error ? <span className="text-destructive">{error}</span> : "")}
-          </div>
-          <PasswordStrengthBar level={strength.level} label={strength.label} bits={strength.bits} />
+  const content = (
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-1.5">
+        <div className="bg-muted/50 border-input min-h-9 rounded-md border px-2.5 py-2 font-mono text-sm break-all">
+          {generated || (error ? <span className="text-destructive">{error}</span> : "")}
         </div>
-
-        {mode === "password" ? (
-          <PasswordOptionsForm pwOpts={pwOpts} setPwOpts={setPwOpts} />
-        ) : (
-          <PassphraseOptionsForm phOpts={phOpts} setPhOpts={setPhOpts} />
-        )}
+        <PasswordStrengthBar level={strength.level} label={strength.label} bits={strength.bits} />
       </div>
-    );
-  }
+
+      {mode === "password" ? (
+        <PasswordOptionsForm pwOpts={pwOpts} setPwOpts={setPwOpts} />
+      ) : (
+        <PassphraseOptionsForm phOpts={phOpts} setPhOpts={setPhOpts} />
+      )}
+    </div>
+  );
 
   return isMobile ? (
     <Drawer open={open} onOpenChange={setOpen} handle={handle}>
       <DrawerPopup>
         <DrawerActions className="space-y-4">
-          <Actions />
-          <Header />
+          {actions}
+          <div className="space-y-4">
+            <DrawerTitle>{TITLE}</DrawerTitle>
+            {modeSwitch}
+          </div>
         </DrawerActions>
-        <DrawerContent>
-          <Content />
-        </DrawerContent>
+        <DrawerContent>{content}</DrawerContent>
       </DrawerPopup>
     </Drawer>
   ) : (
     <Sheet open={open} onOpenChange={setOpen} handle={handle}>
       <SheetContent side="right">
-        <Header />
-        <div className="p-4 flex-1">
-          <Content />
-        </div>
-        <SheetFooter>
-          <Actions />
-        </SheetFooter>
+        <SheetHeader className="space-y-4">
+          <SheetTitle>{TITLE}</SheetTitle>
+          {modeSwitch}
+        </SheetHeader>
+        <div className="p-4 flex-1">{content}</div>
+        <SheetFooter>{actions}</SheetFooter>
       </SheetContent>
     </Sheet>
   );
