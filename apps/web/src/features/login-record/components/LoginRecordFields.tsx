@@ -1,26 +1,19 @@
 import { Fragment } from "react";
 import { EarthIcon, KeyIcon, LockIcon, MailIcon, NotebookPenIcon, TextIcon } from "lucide-react";
 import { Separator } from "@repo/ui/components/Separator";
-import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
 import { getStrengthFromString } from "@repo/crypto";
 import type { LoginItem } from "@repo/schema";
-
-type Totp = {
-  token: string | undefined;
-  progress: number | undefined;
-  seconds: number | undefined;
-};
+import TotpField from "@features/login-record/components/TotpField";
 
 type LoginRecordFieldsProps = {
   data: LoginItem;
-  totp: Totp;
   onCopy: (value: string | undefined, label: string) => void;
 };
 
-export function LoginRecordFields({ data, totp, onCopy }: LoginRecordFieldsProps) {
+export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
   return (
     <>
       <ItemDisplayGroup>
@@ -42,19 +35,11 @@ export function LoginRecordFields({ data, totp, onCopy }: LoginRecordFieldsProps
           strength={data.password ? getStrengthFromString(data.password) : undefined}
         />
 
-        {isDefined(data.totp) && totp.token && (
+        {isDefined(data.totp) && (
           <>
             <Separator />
 
-            <ItemDisplay
-              title="2FA token (TOTP)"
-              value={totp.token}
-              onClick={() => onCopy(totp.token, "2FA token")}
-              icon={<LockIcon />}
-              actions={
-                <CircleProgress progress={totp.progress ?? 0}>{totp.seconds}</CircleProgress>
-              }
-            />
+            <TotpField onCopy={onCopy} totpData={data.totp} />
           </>
         )}
       </ItemDisplayGroup>
