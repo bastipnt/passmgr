@@ -24,8 +24,8 @@ import { ArrowUpDownIcon } from "lucide-react";
 import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedItemsProvider";
 import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
 import { useGetItems, useShortcut } from "@repo/client";
-import { useEditingContext } from "@/providers/EditingProvider";
 import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
 
 type SidebarItemProps = {
   item: DecryptedItem;

@@ -1,4 +1,4 @@
-import { useEditingContext } from "@/providers/EditingProvider";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
 import {
   encryptItem,
   SessionContext,
@@ -10,15 +10,14 @@ import {
 import { CURRENT_CRYPTO_VERSION, type LoginItem } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect } from "react";
 import { useLocation } from "wouter";
 
 export function useRecordActions({ entryId }: { entryId: string }) {
   const { isOffline } = useContext(SessionContext);
   const { item: data, ready } = useGetItem(entryId);
   const [, navigate] = useLocation();
-  const { isEditing, setIsEditing } = useEditingContext();
-  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
+  const { isEditing, setIsEditing, isEditSheetOpen, setIsEditSheetOpen } = useEditingContext();
 
   function handleEditSheetChange(open: boolean) {
     setIsEditSheetOpen(open);

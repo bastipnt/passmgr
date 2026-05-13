@@ -1,12 +1,13 @@
 import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { useContext, useState } from "react";
-import LoginForm, { type LoginFormValues } from "@pages/auth/components/LoginForm";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import type { VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
-import ExistingUserButton from "@pages/auth/components/ExistingUserButton";
-import { BiometricLoginCard } from "@pages/auth/components/BiometricLoginCard";
+import type { LoginFormValues } from "@features/auth/components/LoginForm";
+import { BiometricLoginCard } from "@features/auth/components/BiometricLoginCard";
+import LoginForm from "@features/auth/components/LoginForm";
+import ExistingUserButton from "@features/auth/components/ExistingUserButton";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError } = useLogin();

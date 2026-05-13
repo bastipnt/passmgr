@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from "react";
-import { useLocation, useParams, useRoute } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { entrySlug } from "../../../data/routes";
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import { RecordActions } from "@features/record/components/RecordActions";
@@ -32,10 +32,10 @@ function Actions({ entryId, setOpen }: ActionsProps) {
 }
 
 export function RecordMobileDrawer() {
-  const [match] = useRoute(`/${entrySlug}/:entryId`);
+  const [match, params] = useRoute(`/${entrySlug}/:entryId`);
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(match);
-  const { entryId } = useParams();
+  const entryId = params?.entryId;
 
   useEffect(() => {
     setOpen(match);
@@ -52,7 +52,7 @@ export function RecordMobileDrawer() {
       <DrawerPopup>
         {entryId && <Actions entryId={entryId} setOpen={setOpen} />}
         <DrawerContent>
-          <Suspense fallback={null}>{match && <Record />}</Suspense>
+          <Suspense fallback={null}>{entryId && <Record entryId={entryId} />}</Suspense>
         </DrawerContent>
       </DrawerPopup>
     </Drawer>

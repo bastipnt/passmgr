@@ -1,12 +1,5 @@
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import {
-  Item,
-  ItemContent,
-  ItemMedia,
-  ItemTitle,
-  ItemDescription,
-  ItemGroup,
-} from "@repo/ui/components/Item";
+import { Item, ItemContent, ItemMedia, ItemGroup } from "@repo/ui/components/Item";
 
 export function Fallback() {
   return (
@@ -22,13 +15,9 @@ export function Fallback() {
             <ItemMedia variant="icon">
               <Skeleton className="size-4" />
             </ItemMedia>
-            <ItemContent>
-              <ItemTitle>
-                <Skeleton className="h-3.5 w-20" />
-              </ItemTitle>
-              <ItemDescription>
-                <Skeleton className="h-3.5 w-36" />
-              </ItemDescription>
+            <ItemContent className="gap-1">
+              <Skeleton className="h-3.5 w-20" />
+              <Skeleton className="h-3.5 w-36" />
             </ItemContent>
           </Item>
         ))}

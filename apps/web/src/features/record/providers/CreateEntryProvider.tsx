@@ -21,7 +21,6 @@ import {
   SheetTitle,
 } from "@repo/ui/components/Sheet";
 import { entrySlug } from "@/data/routes";
-import { useEditingContext } from "@/providers/EditingProvider";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import LoginRecordForm, {
   type LoginRecordFormHandle,
@@ -29,6 +28,7 @@ import LoginRecordForm, {
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import { Button } from "@repo/ui/components/Button";
 import { XIcon } from "lucide-react";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
 
 type CreateEntryContextValue = {
   openCreateSheet: (title?: string) => void;

@@ -10,7 +10,7 @@ import {
 } from "@repo/ui/components/Empty";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
-import { useCreateEntryContext } from "@/providers/CreateEntryProvider";
+import { useCreateEntryContext } from "@features/record/providers/CreateEntryProvider";
 
 export default function Index() {
   const { openCreateSheet } = useCreateEntryContext();

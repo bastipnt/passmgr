@@ -1,5 +1,4 @@
 import type { FallbackProps } from "react-error-boundary";
-import PublicLayout from "../layout/PublicLayout";
 import { isDefined } from "@repo/util";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -17,7 +16,7 @@ export default function ErrorFallback({ resetErrorBoundary, error }: FallbackPro
       ? (error as { message: string }).message
       : "";
   return (
-    <PublicLayout>
+    <main className="flex flex-col justify-center items-center min-h-screen">
       <section role="alert" className="w-lg">
         <Card>
           <CardHeader>
@@ -31,6 +30,6 @@ export default function ErrorFallback({ resetErrorBoundary, error }: FallbackPro
           </CardFooter>
         </Card>
       </section>
-    </PublicLayout>
+    </main>
   );
 }

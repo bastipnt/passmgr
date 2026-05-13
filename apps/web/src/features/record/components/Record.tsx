@@ -52,8 +52,9 @@ function RecordInner({ entryId }: RecordProps) {
   );
 }
 
-export default function Record() {
-  const { entryId } = useParams();
+export default function Record({ entryId: entryIdProp }: { entryId?: string } = {}) {
+  const params = useParams();
+  const entryId = entryIdProp ?? params.entryId;
   if (!entryId) return <Fallback />;
 
   return <RecordInner entryId={entryId} />;

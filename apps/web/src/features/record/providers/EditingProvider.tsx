@@ -3,6 +3,8 @@ import { createContext, useContext, useState, type ReactNode } from "react";
 type EditingContextValue = {
   isEditing: boolean;
   setIsEditing: (editing: boolean) => void;
+  isEditSheetOpen: boolean;
+  setIsEditSheetOpen: (open: boolean) => void;
 };
 
 const EditingContext = createContext<EditingContextValue | null>(null);
@@ -19,6 +21,11 @@ type EditingProviderProps = {
 
 export default function EditingProvider({ children }: EditingProviderProps) {
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditSheetOpen, setIsEditSheetOpen] = useState(false);
 
-  return <EditingContext value={{ isEditing, setIsEditing }}>{children}</EditingContext>;
+  return (
+    <EditingContext value={{ isEditing, setIsEditing, isEditSheetOpen, setIsEditSheetOpen }}>
+      {children}
+    </EditingContext>
+  );
 }

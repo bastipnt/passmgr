@@ -25,10 +25,9 @@ import {
   SortedItemsProvider,
   useSortedItems,
 } from "@repo/client/src/providers/SortedItemsProvider";
-
 import { modKey } from "@/lib/formatShortcut";
-import { useEditingContext } from "@/providers/EditingProvider";
-import { useCreateEntryContext } from "@/providers/CreateEntryProvider";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
+import { useCreateEntryContext } from "@features/record/providers/CreateEntryProvider";
 
 type RecordLayoutProps = {
   children: ReactNode;
