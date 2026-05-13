@@ -1,8 +1,6 @@
 services:
   web:
-    build:
-      context: .
-      dockerfile: Dockerfile.web
+    image: ghcr.io/${GHCR_OWNER}/pass-mgr-web:${IMAGE_TAG:-latest}
     ports:
       - "${WEB_PORT:-8080}:8080"
     depends_on:
@@ -10,9 +8,7 @@ services:
     restart: unless-stopped
 
   server:
-    build:
-      context: .
-      dockerfile: Dockerfile.server
+    image: ghcr.io/${GHCR_OWNER}/pass-mgr-server:${IMAGE_TAG:-latest}
     environment:
       - DATABASE_URL=postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
       - REDIS_HOST=redis
