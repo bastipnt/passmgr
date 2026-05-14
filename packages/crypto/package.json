@@ -2,7 +2,7 @@
   "name": "@repo/crypto",
   "version": "1.0.0",
   "type": "module",
-  "description": "End-to-end encryption for pass-mgr",
+  "description": "End-to-end encryption for passmgr",
   "main": "index.ts",
   "types": "index.ts",
   "scripts": {

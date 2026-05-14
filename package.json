@@ -1,5 +1,5 @@
 {
-  "name": "pass-mgr",
+  "name": "passmgr",
   "private": true,
   "scripts": {
     "build": "turbo run build",

@@ -1,5 +1,5 @@
 [allowlist]
-description = "Global allowlist for pass-mgr (password manager with crypto code)"
+description = "Global allowlist for passmgr (password manager with crypto code)"
 
 paths = [
   '''packages/db/drizzle/.*\.sql''',
