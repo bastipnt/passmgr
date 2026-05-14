@@ -7,7 +7,7 @@ const port = Number(process.env.PORT ?? 3000);
 void (async () => {
   try {
     await server.listen({ port, host });
-    console.log(`Server is running at http://${host}:${port}`);
+    server.log.info({ host, port }, "server.listen");
   } catch (err) {
     server.log.error(err);
     process.exit(1);

@@ -13,7 +13,10 @@ import {
   startLoginOutputSchema,
 } from "@repo/schema";
 
-function unauthorized(): never {
+type LoginLog = { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void };
+
+function denyLogin(log: LoginLog | undefined, stage: string, reason: string, emailHash: string): never {
+  log?.warn({ stage, reason, emailHash }, "auth.login.failure");
   throw new TRPCError({
     code: "UNAUTHORIZED",
     message: "invalid user credentials",
@@ -24,7 +27,8 @@ export const loginRouter = router({
   startLogin: loggedProcedure
     .input(startLoginInputSchema)
     .output(startLoginOutputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const log = ctx.req?.log;
       const { startLoginRequest, email } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
@@ -33,7 +37,7 @@ export const loginRouter = router({
         where: { emailHash },
       });
 
-      if (!res) unauthorized();
+      if (!res) denyLogin(log, "startLogin", "user_not_found", emailHash);
       const { registrationRecord, userId } = res;
 
       let serverLoginState, loginResponse;
@@ -46,7 +50,7 @@ export const loginRouter = router({
           startLoginRequest,
         }));
       } catch {
-        unauthorized();
+        denyLogin(log, "startLogin", "opaque_start_failed", emailHash);
       }
 
       await setLoginAttempt({ userId, serverLoginState });
@@ -57,7 +61,8 @@ export const loginRouter = router({
   finishLogin: loggedProcedure
     .input(finishLoginInputSchema)
     .output(finishLoginOutputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
+      const log = ctx.req?.log;
       const { finishLoginRequest, email, authSalt } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
@@ -66,11 +71,11 @@ export const loginRouter = router({
         where: { emailHash, deleted_at: { isNull: true } },
       });
 
-      if (!userQueryRes) unauthorized();
+      if (!userQueryRes) denyLogin(log, "finishLogin", "user_not_found", emailHash);
       const { userId } = userQueryRes;
 
       const loginAttempt = await getLoginAttempt(userId);
-      if (!loginAttempt) unauthorized();
+      if (!loginAttempt) denyLogin(log, "finishLogin", "no_login_attempt", emailHash);
 
       const { serverLoginState } = loginAttempt;
 
@@ -82,7 +87,7 @@ export const loginRouter = router({
           serverLoginState,
         }));
       } catch {
-        unauthorized();
+        denyLogin(log, "finishLogin", "opaque_finish_failed", emailHash);
       }
 
       await delLoginAttempt(userId);
@@ -114,8 +119,9 @@ export const loginRouter = router({
         },
       });
 
-      if (!keyQueryRes) unauthorized();
+      if (!keyQueryRes) denyLogin(log, "finishLogin", "no_keys", emailHash);
 
+      log?.info({ emailHash }, "auth.login.success");
       return { sessionId, userPasswordKeys: keyQueryRes };
     }),
 });

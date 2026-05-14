@@ -39,8 +39,9 @@ export const registrationRouter = router({
 
   finishRegistration: loggedProcedure
     .input(finishRegistrationInputSchema)
-    .mutation(async ({ input }) => {
+    .mutation(async ({ input, ctx }) => {
       assertRegistrationEnabled();
+      const log = ctx.req?.log;
       const { email, registrationRecord, userKeys } = input;
 
       const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(
@@ -64,9 +65,13 @@ export const registrationRouter = router({
 
       // fails if there is already a user with that email
       const firstUser = dbUsers[0];
-      if (!firstUser) return;
+      if (!firstUser) {
+        log?.warn({ emailHash }, "auth.register.duplicate");
+        return;
+      }
 
       const { userId } = firstUser;
       await db.insert(keysTable).values({ userId, ...userKeys });
+      log?.info({ emailHash }, "auth.register.success");
     }),
 });

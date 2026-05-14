@@ -2,7 +2,7 @@ import { TRPCError } from "@trpc/server";
 import { getSession } from "../util/redisUtils";
 import { getMessage, verifyHmac } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
-import { loggedProcedure } from "../logger";
+import { loggedProcedure, shortHash } from "../logger";
 
 function checkTimestamp(timestamp: string): boolean {
   const now = Date.now();
@@ -11,33 +11,53 @@ function checkTimestamp(timestamp: string): boolean {
   else return true;
 }
 
+type AuthFailReason =
+  | "missing_session_id"
+  | "session_not_found"
+  | "missing_auth_headers"
+  | "stale_timestamp"
+  | "invalid_signature";
+
+async function denyAuth(
+  log: { warn: (obj: object, msg: string) => void } | undefined,
+  path: string,
+  reason: AuthFailReason,
+  sessionId?: string,
+): Promise<never> {
+  const sidHash = sessionId ? await shortHash(sessionId) : undefined;
+  log?.warn({ reason, path, sidHash }, "auth.unauthorized");
+  throw new TRPCError({ code: "UNAUTHORIZED" });
+}
+
 // TODO: verify signature here?
 export const protectedSubscriptionProcedure = loggedProcedure.use(async (opts) => {
-  const { ctx } = opts;
+  const { ctx, path } = opts;
+  const log = ctx.req?.log;
 
   const sessionId = ctx.session?.sessionId;
-  if (!sessionId) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!sessionId) return denyAuth(log, path, "missing_session_id");
 
   const session = await getSession(sessionId);
-  if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!session) return denyAuth(log, path, "session_not_found", sessionId);
 
   return opts.next({ ctx: { userId: session.userId } });
 });
 
 export const protectedProcedure = loggedProcedure.use(async (opts) => {
   const { ctx, type, path, getRawInput } = opts;
+  const log = ctx.req?.log;
 
   if (!ctx.session || !ctx.session.sessionId || !ctx.session.timestamp || !ctx.session.signature) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
+    return denyAuth(log, path, "missing_auth_headers", ctx.session?.sessionId);
   }
 
   const { sessionId, timestamp, signature } = ctx.session;
 
   // Reject replayed requests (> 5min)
-  if (!checkTimestamp(timestamp)) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!checkTimestamp(timestamp)) return denyAuth(log, path, "stale_timestamp", sessionId);
 
   const session = await getSession(sessionId);
-  if (!session) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!session) return denyAuth(log, path, "session_not_found", sessionId);
 
   const { rawAuthKey, userId } = session;
 
@@ -47,7 +67,7 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   const message = getMessage(type, path, timestamp, input as unknown as Record<string, string>);
 
   const valid = await verifyHmac(fromBase64(rawAuthKey), fromBase64(signature), message);
-  if (!valid) throw new TRPCError({ code: "UNAUTHORIZED" });
+  if (!valid) return denyAuth(log, path, "invalid_signature", sessionId);
 
   return opts.next({
     ctx: {

@@ -30,4 +30,4 @@ export async function createContext(opts: CreateFastifyContextOptions) {
   };
 }
 
-export type Context = Awaited<ReturnType<typeof createContextInner>>;
+export type Context = Awaited<ReturnType<typeof createContext>>;

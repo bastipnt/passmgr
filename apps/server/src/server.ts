@@ -10,9 +10,31 @@ import { redis } from "./redis";
 
 await opaque.ready;
 
+const isDev = process.env.NODE_ENV !== "production";
+
 export const server = fastify({
   routerOptions: {
     maxParamLength: 5000,
+  },
+  logger: {
+    level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
+    redact: {
+      paths: [
+        'req.headers["x-signature"]',
+        "req.headers.authorization",
+        "req.headers.cookie",
+        "*.email",
+        "*.startLoginRequest",
+        "*.finishLoginRequest",
+        "*.startRegistrationRequest",
+        "*.registrationRecord",
+        "*.recoveryKey",
+        "*.passwordKekSalt",
+        "*.userKeys",
+      ],
+      censor: "[REDACTED]",
+    },
+    ...(isDev && { transport: { target: "pino-pretty", options: { colorize: true } } }),
   },
 });
 
@@ -62,10 +84,10 @@ await server.register(fastifyTRPCPlugin, {
   trpcOptions: {
     router: appRouter,
     createContext,
-    onError({ path, error }) {
+    onError({ path, error, ctx }) {
       if (path === "favicon.ico") return;
-      // report to error monitoring
-      console.error(`Error in tRPC handler on path '${path}':`, error);
+      const log = ctx?.req?.log ?? server.log;
+      log.error({ path, code: error.code, err: error }, "trpc.error");
     },
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
