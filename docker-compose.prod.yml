@@ -16,6 +16,7 @@ services:
       - OPAQUE_SERVER_SETUP=${OPAQUE_SERVER_SETUP}
       - CORS_ORIGIN=${CORS_ORIGIN}
       - REGISTRATION_DISABLED=${REGISTRATION_DISABLED:-true}
+      - PREFIX=/trpc
     depends_on:
       postgres:
         condition: service_healthy
