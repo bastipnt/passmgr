@@ -71,7 +71,7 @@ jobs:
           script: |
             set -e
             cd "$DEPLOY_PATH"
-            export IMAGE_TAG="$GITHUB_REF_NAME"
+            export IMAGE_TAG="${GITHUB_REF_NAME#v}"
             docker compose -f docker-compose.prod.yml --env-file .env.production pull
             docker compose -f docker-compose.prod.yml --env-file .env.production up -d
             docker image prune -f
