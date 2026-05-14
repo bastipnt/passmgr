@@ -10,9 +10,7 @@ concurrency:
 
 jobs:
   build:
-    runs-on: docker
-    container:
-      image: catthehacker/ubuntu:act-latest
+    runs-on: codeberg-medium
     strategy:
       fail-fast: true
       matrix:
@@ -24,14 +22,6 @@ jobs:
     steps:
       - uses: https://code.forgejo.org/actions/checkout@v4
 
-      - uses: https://github.com/docker/setup-buildx-action@v3
-
-      - uses: https://github.com/docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ secrets.GHCR_USERNAME }}
-          password: ${{ secrets.GHCR_TOKEN }}
-
       - id: meta
         uses: https://github.com/docker/metadata-action@v5
         with:
@@ -41,22 +31,32 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
 
-      - uses: https://github.com/docker/build-push-action@v6
-        with:
-          context: .
-          file: ${{ matrix.dockerfile }}
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=registry,ref=ghcr.io/${{ secrets.GHCR_NAMESPACE }}/passmgr-${{ matrix.name }}:buildcache
-          cache-to: type=registry,ref=ghcr.io/${{ secrets.GHCR_NAMESPACE }}/passmgr-${{ matrix.name }}:buildcache,mode=max
-          platforms: linux/amd64
+      - name: Install buildah
+        run: apt-get update && apt-get install -y buildah ca-certificates
+
+      - name: Registry login
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+        run: buildah login -u "$GHCR_USERNAME" -p "$GHCR_TOKEN" ghcr.io
+
+      - name: Build and push
+        env:
+          IMAGE: ghcr.io/${{ secrets.GHCR_NAMESPACE }}/passmgr-${{ matrix.name }}
+          DOCKERFILE: ${{ matrix.dockerfile }}
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          set -euo pipefail
+          buildah bud --platform linux/amd64 -f "$DOCKERFILE" -t "$IMAGE:build" .
+          while IFS= read -r tag; do
+            [ -z "$tag" ] && continue
+            buildah tag "$IMAGE:build" "$tag"
+            buildah push "$tag"
+          done <<< "$TAGS"
 
   deploy:
     needs: build
-    runs-on: docker
-    container:
-      image: catthehacker/ubuntu:act-latest
+    runs-on: codeberg-medium
     env:
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
     steps:
