@@ -13,9 +13,17 @@ import {
   startLoginOutputSchema,
 } from "@repo/schema";
 
-type LoginLog = { warn: (obj: object, msg: string) => void; info: (obj: object, msg: string) => void };
+type LoginLog = {
+  warn: (obj: object, msg: string) => void;
+  info: (obj: object, msg: string) => void;
+};
 
-function denyLogin(log: LoginLog | undefined, stage: string, reason: string, emailHash: string): never {
+function denyLogin(
+  log: LoginLog | undefined,
+  stage: string,
+  reason: string,
+  emailHash: string,
+): never {
   log?.warn({ stage, reason, emailHash }, "auth.login.failure");
   throw new TRPCError({
     code: "UNAUTHORIZED",
