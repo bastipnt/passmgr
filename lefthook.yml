@@ -2,23 +2,27 @@ commit-msg:
   commands:
     lint-commit-msg:
       run: pnpm commitlint --edit
+
 pre-commit:
   commands:
     gitleaks:
       tags: security audit
       run: gitleaks protect --staged --no-banner -v
+    format:
+      tags: style
+      glob: "*.{ts,tsx,md}"
+      run: pnpm prettier --write {staged_files}
+      stage_fixed: true
+
 pre-push:
-  parallel: true
+  piped: true
   commands:
-    lint:
+    1_lint:
       tags: style
       run: pnpm lint
-    check-format:
-      tags: style
-      run: pnpm format
-    typecheck:
+    2_typecheck:
       tags: style
       run: pnpm typecheck
-    test:
+    3_test:
       tags: test
       run: pnpm test

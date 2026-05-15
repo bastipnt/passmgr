@@ -24,10 +24,7 @@ export async function clearRecordsTable(db: SQLocal) {
   await db.sql`DELETE FROM records`;
 }
 
-export async function upsertRecords(
-  records: EncryptedRecordSchema[],
-  db: SQLocal,
-): Promise<void> {
+export async function upsertRecords(records: EncryptedRecordSchema[], db: SQLocal): Promise<void> {
   if (records.length === 0) return;
 
   await db.transaction(async (tx) => {

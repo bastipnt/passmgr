@@ -21,10 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { ArrowUpDownIcon } from "lucide-react";
-import {
-  useSortedRecords,
-  SORT_LABELS,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords, SORT_LABELS } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
 import { useGetRecords, useShortcut } from "@repo/client";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -96,7 +93,9 @@ export default function RecordSidebar() {
   const navigateByOffset = useCallback(
     (offset: number) => {
       if (sortedRecords.length === 0) return;
-      const currentIndex = sortedRecords.findIndex((record) => record.recordId === params?.recordId);
+      const currentIndex = sortedRecords.findIndex(
+        (record) => record.recordId === params?.recordId,
+      );
       const nextIndex = Math.max(0, Math.min(sortedRecords.length - 1, currentIndex + offset));
       const nextRecord = sortedRecords[nextIndex];
       if (nextRecord) {

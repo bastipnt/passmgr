@@ -210,7 +210,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [filtered, sort, hasQuery],
   );
   const groups = useMemo(
-    () => (hasQuery ? [{ label: null, records: sortedRecords }] : groupRecords(sortedRecords, sort)),
+    () =>
+      hasQuery ? [{ label: null, records: sortedRecords }] : groupRecords(sortedRecords, sort),
     [sortedRecords, sort, hasQuery],
   );
 
