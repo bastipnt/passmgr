@@ -20,7 +20,7 @@ jobs:
 
       - uses: https://code.forgejo.org/actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 25
           cache: pnpm
 
       - uses: https://github.com/oven-sh/setup-bun@v2
