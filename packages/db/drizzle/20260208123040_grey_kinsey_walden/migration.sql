@@ -1,1 +1,0 @@
-CREATE INDEX "login_user_id_idx" ON "logins" ("userId");

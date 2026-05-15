@@ -62,7 +62,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
     const vault = new Vault();
     const syncManager = new SyncManager(vault, async (lastSyncedAt) => {
       if (!navigator.onLine) throw new Error("offline");
-      return await trpc.entry.sync.query({ lastSyncedAt });
+      return await trpc.record.sync.query({ lastSyncedAt });
     });
     storeRef.current = { vault, syncManager };
   }
@@ -88,7 +88,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
     let disposed = false;
 
     function subscribe() {
-      currentSubscription = trpc.entry.onItemChange.subscribe(undefined, {
+      currentSubscription = trpc.record.onRecordChange.subscribe(undefined, {
         onData: (event) => {
           retryDelay = 5_000;
           if (event.data.type === "changed") {

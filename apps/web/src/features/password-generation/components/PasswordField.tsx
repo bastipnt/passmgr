@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
-import { type LoginItem as FormValues } from "@repo/schema";
+import { type LoginRecord as FormValues } from "@repo/schema";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
 import PasswordGenerator from "@features/password-generation/pages/PasswordGenerator";

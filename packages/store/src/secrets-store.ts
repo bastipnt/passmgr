@@ -1,4 +1,5 @@
-import { decryptXChaCha, encryptXChaCha, fromString, hkdf, signHmac, wipe } from "@repo/crypto";
+import { decryptXChaCha, encryptXChaCha, hkdf, signHmac, wipe } from "@repo/crypto";
+import { fromString } from "@repo/util";
 
 class SessionLockedError extends Error {
   override message: string = "SessionLockedError";
@@ -88,12 +89,12 @@ class SecretsStore {
     return await signHmac(this.authKey, message);
   }
 
-  encryptItem(data: string): [encryptedData: string, nonce: string] {
+  encryptRecord(data: string): [encryptedData: string, nonce: string] {
     if (!this.vaultKey) throw new SessionLockedError();
     return encryptXChaCha(this.vaultKey, data);
   }
 
-  decryptItem(encryptedData: string, nonce: string): Uint8Array {
+  decryptRecord(encryptedData: string, nonce: string): Uint8Array {
     if (!this.vaultKey) throw new SessionLockedError();
     return decryptXChaCha(this.vaultKey, encryptedData, nonce);
   }

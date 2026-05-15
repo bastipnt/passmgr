@@ -1,13 +1,13 @@
 import { SQLocal } from "sqlocal";
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { EncryptedItemSchema, VaultKeyMaterial } from "@repo/schema";
+import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
 import {
-  clearItemsTable,
-  CREATE_ITEMS_SCHEMA_SQL,
-  getAllItemsLatest,
-  getByItemId,
-  upsertItems,
-} from "./schema/items-schema";
+  clearRecordsTable,
+  CREATE_RECORDS_SCHEMA_SQL,
+  getAllRecordsLatest,
+  getByRecordId,
+  upsertRecords,
+} from "./schema/records-schema";
 import {
   clearBiometricKey,
   clearKeysTable,
@@ -25,7 +25,7 @@ import {
 } from "./schema/sync-schema";
 
 const SCHEMA_SQL = /* sql */ `
-  ${CREATE_ITEMS_SCHEMA_SQL}
+  ${CREATE_RECORDS_SCHEMA_SQL}
   ${CREATE_KEYS_SCHEMA_SQL}
   ${CREATE_SYNC_META_SCHEMA_SQL}
 `;
@@ -51,22 +51,22 @@ export class Vault {
   }
 
   /**
-   * ITEMS
+   * RECORDS
    */
 
-  async upsertItems(items: EncryptedItemSchema[]): Promise<void> {
+  async upsertRecords(records: EncryptedRecordSchema[]): Promise<void> {
     await this.ready();
-    await upsertItems(items, this.db);
+    await upsertRecords(records, this.db);
   }
 
-  async getAllLatest(): Promise<EncryptedItemSchema[]> {
+  async getAllLatest(): Promise<EncryptedRecordSchema[]> {
     await this.ready();
-    return await getAllItemsLatest(this.db);
+    return await getAllRecordsLatest(this.db);
   }
 
-  async getByItemId(itemId: string): Promise<EncryptedItemSchema | undefined> {
+  async getByRecordId(recordId: string): Promise<EncryptedRecordSchema | undefined> {
     await this.ready();
-    return await getByItemId(itemId, this.db);
+    return await getByRecordId(recordId, this.db);
   }
 
   /**
@@ -122,7 +122,7 @@ export class Vault {
 
   async clear(): Promise<void> {
     await this.ready();
-    await clearItemsTable(this.db);
+    await clearRecordsTable(this.db);
     await clearKeysTable(this.db);
     await clearSyncTable(this.db);
   }

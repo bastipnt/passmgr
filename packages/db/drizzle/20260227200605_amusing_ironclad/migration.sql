@@ -1,1 +1,0 @@
-ALTER TABLE "keys" DROP CONSTRAINT "keys_userId_key";

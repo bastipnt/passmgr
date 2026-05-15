@@ -15,7 +15,7 @@ import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import { LockIcon, PlusIcon, TextIcon, TrashIcon } from "lucide-react";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
-import { type LoginItem as FormValues } from "@repo/schema";
+import { type LoginRecord as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 
 type ExtraFormFieldsProps = {

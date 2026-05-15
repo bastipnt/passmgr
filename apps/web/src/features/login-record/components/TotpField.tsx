@@ -1,4 +1,4 @@
-import { useTotp } from "@/hooks/totp-hook";
+import { useTotp } from "@/hooks/use-totp";
 import { ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import { CircleProgress } from "@repo/ui/components/CircleProgress";
 import { LockIcon } from "lucide-react";

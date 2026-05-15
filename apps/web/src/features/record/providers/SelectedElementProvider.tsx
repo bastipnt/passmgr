@@ -1,11 +1,11 @@
 import { createContext, useMemo, useState, type ReactNode } from "react";
 
 const SelectedElementContext = createContext<{
-  entryId: string;
-  setEntryId: (entryId: string) => void;
+  recordId: string;
+  setRecordId: (recordId: string) => void;
 }>({
-  entryId: "",
-  setEntryId: () => {},
+  recordId: "",
+  setRecordId: () => {},
 });
 
 type SelectedElementProviderProps = {
@@ -13,9 +13,9 @@ type SelectedElementProviderProps = {
 };
 
 export default function SelectedElementProvider({ children }: SelectedElementProviderProps) {
-  const [entryId, setEntryId] = useState("");
+  const [recordId, setRecordId] = useState("");
 
-  const value = useMemo(() => ({ entryId, setEntryId }), [entryId]);
+  const value = useMemo(() => ({ recordId, setRecordId }), [recordId]);
 
   return <SelectedElementContext value={value}>{children}</SelectedElementContext>;
 }

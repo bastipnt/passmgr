@@ -1,8 +1,8 @@
-import { entrySlug } from "@/data/routes";
+import { recordSlug } from "@/data/routes";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import RecordLayout from "@features/record/layout/RecordLayout";
 import { RecordMobileDrawer } from "@features/record/pages/RecordMobileDrawer";
-import CreateEntryProvider from "@features/record/providers/CreateEntryProvider";
+import CreateRecordProvider from "@features/record/providers/CreateRecordProvider";
 import EditingProvider from "@features/record/providers/EditingProvider";
 import SelectedElementProvider from "@features/record/providers/SelectedElementProvider";
 import { SessionContext, useAutoReconnect } from "@repo/client";
@@ -23,13 +23,13 @@ export default function RecordRoutes() {
 
   return (
     <EditingProvider>
-      <CreateEntryProvider>
+      <CreateRecordProvider>
         <SelectedElementProvider>
           <RecordLayout>
             <Switch>
               <Route path="/" component={isMobile ? undefined : Index} />
               <Route
-                path={`/${entrySlug}/:entryId`}
+                path={`/${recordSlug}/:recordId`}
                 component={isMobile ? undefined : RecordPage}
               />
 
@@ -40,7 +40,7 @@ export default function RecordRoutes() {
             {isMobile && <RecordMobileDrawer />}
           </RecordLayout>
         </SelectedElementProvider>
-      </CreateEntryProvider>
+      </CreateRecordProvider>
     </EditingProvider>
   );
 }

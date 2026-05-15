@@ -26,7 +26,8 @@ import {
   DialogTitle,
 } from "@repo/ui/components/Dialog";
 import { useMemo, useState } from "react";
-import { toBase64, wipe } from "@repo/crypto";
+import { wipe } from "@repo/crypto";
+import { toBase64 } from "@repo/util";
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();

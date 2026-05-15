@@ -1,7 +1,7 @@
 import { Link, useRoute, useLocation } from "wouter";
 import { Fragment, useCallback, useEffect, useRef } from "react";
-import { entrySlug } from "../data/routes";
-import type { DecryptedItem } from "@repo/schema";
+import { recordSlug } from "../data/routes";
+import type { DecryptedRecord } from "@repo/schema";
 import {
   Item,
   ItemContent,
@@ -21,41 +21,44 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { ArrowUpDownIcon } from "lucide-react";
-import { useSortedItems, SORT_LABELS } from "@repo/client/src/providers/SortedItemsProvider";
-import type { SortOption } from "@repo/client/src/providers/SortedItemsProvider";
-import { useGetItems, useShortcut } from "@repo/client";
+import {
+  useSortedRecords,
+  SORT_LABELS,
+} from "@repo/client/src/providers/SortedRecordsProvider";
+import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
+import { useGetRecords, useShortcut } from "@repo/client";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import { useEditingContext } from "@features/record/providers/EditingProvider";
 
-type SidebarItemProps = {
-  item: DecryptedItem;
+type SidebarRecordProps = {
+  record: DecryptedRecord;
   active: boolean;
   registerRef: (id: string, el: HTMLAnchorElement | null) => void;
 };
 
-function SidebarItem({ item, active, registerRef }: SidebarItemProps) {
+function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
   return (
     <Item
       variant={active ? "active" : "outline"}
       render={
         <Link
-          href={`../${entrySlug}/${item.itemId}`}
-          ref={(el: HTMLAnchorElement | null) => registerRef(item.itemId, el)}
+          href={`../${recordSlug}/${record.recordId}`}
+          ref={(el: HTMLAnchorElement | null) => registerRef(record.recordId, el)}
         />
       }
     >
       <ItemMedia>
-        <WebsiteAvatar title={item.title} websites={item.websites} />
+        <WebsiteAvatar title={record.title} websites={record.websites} />
       </ItemMedia>
       <ItemContent className="gap-1">
-        <ItemTitle>{item.title}</ItemTitle>
-        <ItemDescription className="line-clamp-1">{item.username || "-"}</ItemDescription>
+        <ItemTitle>{record.title}</ItemTitle>
+        <ItemDescription className="line-clamp-1">{record.username || "-"}</ItemDescription>
       </ItemContent>
     </Item>
   );
 }
 
-function ItemSidebarSkeleton() {
+function RecordSidebarSkeleton() {
   return (
     <ItemGroup className="max-w-sm">
       {Array.from({ length: 5 }).map((_, i) => (
@@ -74,78 +77,78 @@ function ItemSidebarSkeleton() {
   );
 }
 
-export default function ItemSidebar() {
-  const [_, params] = useRoute(`/${entrySlug}/:itemId`);
+export default function RecordSidebar() {
+  const [_, params] = useRoute(`/${recordSlug}/:recordId`);
   const [, navigate] = useLocation();
-  const { ready } = useGetItems();
-  const { query, sort, sortedItems, groups, handleSortChange } = useSortedItems();
+  const { ready } = useGetRecords();
+  const { query, sort, sortedRecords, groups, handleSortChange } = useSortedRecords();
   const { isEditing } = useEditingContext();
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
-  const itemRefs = useRef(new Map<string, HTMLAnchorElement>());
+  const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
   const shouldFocusRef = useRef(false);
 
   const registerRef = useCallback((id: string, el: HTMLAnchorElement | null) => {
-    if (el) itemRefs.current.set(id, el);
-    else itemRefs.current.delete(id);
+    if (el) recordRefs.current.set(id, el);
+    else recordRefs.current.delete(id);
   }, []);
 
   const navigateByOffset = useCallback(
     (offset: number) => {
-      if (sortedItems.length === 0) return;
-      const currentIndex = sortedItems.findIndex((item) => item.itemId === params?.itemId);
-      const nextIndex = Math.max(0, Math.min(sortedItems.length - 1, currentIndex + offset));
-      const nextItem = sortedItems[nextIndex];
-      if (nextItem) {
+      if (sortedRecords.length === 0) return;
+      const currentIndex = sortedRecords.findIndex((record) => record.recordId === params?.recordId);
+      const nextIndex = Math.max(0, Math.min(sortedRecords.length - 1, currentIndex + offset));
+      const nextRecord = sortedRecords[nextIndex];
+      if (nextRecord) {
         shouldFocusRef.current = true;
-        navigate(`/${entrySlug}/${nextItem.itemId}`);
+        navigate(`/${recordSlug}/${nextRecord.recordId}`);
       }
     },
-    [sortedItems, params?.itemId, navigate],
+    [sortedRecords, params?.recordId, navigate],
   );
 
   useEffect(() => {
-    if (!shouldFocusRef.current || !params?.itemId) return;
-    const el = itemRefs.current.get(params.itemId);
+    if (!shouldFocusRef.current || !params?.recordId) return;
+    const el = recordRefs.current.get(params.recordId);
     if (el) {
       el.focus({ preventScroll: true });
       el.scrollIntoView({ block: "nearest" });
       shouldFocusRef.current = false;
     }
-  }, [params?.itemId]);
+  }, [params?.recordId]);
 
   useShortcut("ArrowDown", () => navigateByOffset(1), {
-    description: "Next item",
-    enabled: ready && sortedItems.length > 0 && !isEditing,
+    description: "Next record",
+    enabled: ready && sortedRecords.length > 0 && !isEditing,
     allowInInput: true,
   });
 
   useShortcut("ArrowUp", () => navigateByOffset(-1), {
-    description: "Previous item",
-    enabled: ready && sortedItems.length > 0 && !isEditing,
+    description: "Previous record",
+    enabled: ready && sortedRecords.length > 0 && !isEditing,
     allowInInput: true,
   });
 
   useEffect(() => {
-    if (!isMobile && ready && !params?.itemId && sortedItems.length > 0) {
-      navigate(`/${entrySlug}/${sortedItems[0].itemId}`, { replace: true });
+    if (!isMobile && ready && !params?.recordId && sortedRecords.length > 0) {
+      navigate(`/${recordSlug}/${sortedRecords[0].recordId}`, { replace: true });
     }
-  }, [isMobile, ready, params?.itemId, sortedItems, navigate]);
+  }, [isMobile, ready, params?.recordId, sortedRecords, navigate]);
 
   // Auto-navigate to first filtered result when search query changes
   useEffect(() => {
     if (!isMobile && prevQueryRef.current !== query) {
       prevQueryRef.current = query;
-      if (sortedItems.length > 0) {
-        navigate(`/${entrySlug}/${sortedItems[0].itemId}`, { replace: true });
+      if (sortedRecords.length > 0) {
+        navigate(`/${recordSlug}/${sortedRecords[0].recordId}`, { replace: true });
       }
     }
-  }, [isMobile, query, sortedItems, navigate]);
+  }, [isMobile, query, sortedRecords, navigate]);
 
-  if (!ready) return <ItemSidebarSkeleton />;
+  if (!ready) return <RecordSidebarSkeleton />;
 
   const hasQuery = query.trim().length > 0;
-  const noResults = hasQuery && sortedItems.length === 0;
+  const noResults = hasQuery && sortedRecords.length === 0;
 
   return (
     <div className="flex sm:max-w-sm flex-col gap-2">
@@ -180,11 +183,11 @@ export default function ItemSidebar() {
                   {group.label}
                 </p>
               )}
-              {group.items.map((item) => (
-                <SidebarItem
-                  key={item.itemId}
-                  item={item}
-                  active={item.itemId === params?.itemId}
+              {group.records.map((record) => (
+                <SidebarRecord
+                  key={record.recordId}
+                  record={record}
+                  active={record.recordId === params?.recordId}
                   registerRef={registerRef}
                 />
               ))}

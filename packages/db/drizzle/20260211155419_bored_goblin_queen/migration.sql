@@ -1,1 +1,0 @@
-ALTER TABLE "logins" ADD CONSTRAINT "logins_userId_key" UNIQUE("userId");

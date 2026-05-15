@@ -1,22 +1,22 @@
 export { generateAuthHeaders } from "./src/util/headers";
 export { useTRPCClient, useTRPC } from "./src/util/trpc";
-export * from "./src/util/decrypt-item";
-export * from "./src/util/encrypt-item";
+export * from "./src/util/decrypt-record";
+export * from "./src/util/encrypt-record";
 
-export * from "./src/hooks/app-config";
-export * from "./src/hooks/register";
-export * from "./src/hooks/login";
-export * from "./src/hooks/unlock";
-export * from "./src/hooks/create-item";
-export * from "./src/hooks/update-item";
-export * from "./src/hooks/delete-item";
-export * from "./src/hooks/get-items";
-export * from "./src/hooks/auto-reconnect";
+export * from "./src/hooks/use-app-config";
+export * from "./src/hooks/use-register";
+export * from "./src/hooks/use-login";
+export * from "./src/hooks/use-unlock";
+export * from "./src/hooks/use-create-record";
+export * from "./src/hooks/use-update-record";
+export * from "./src/hooks/use-delete-record";
+export * from "./src/hooks/use-records";
+export * from "./src/hooks/use-auto-reconnect";
 
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export { default as SessionProvider, SessionContext } from "./src/providers/SessionProvider";
 export * from "./src/providers/StoreProvider";
-export * from "./src/providers/ItemsProvider";
+export * from "./src/providers/RecordsProvider";
 export { default as ShortcutProvider, useShortcutContext } from "./src/providers/ShortcutProvider";
 export type { ShortcutEntry } from "./src/providers/ShortcutProvider";
 export { useShortcut } from "./src/hooks/use-shortcut";

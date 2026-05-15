@@ -4,7 +4,7 @@ import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react";
 import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
-import { loginItemSchema, type LoginItem as FormValues } from "@repo/schema";
+import { loginRecordSchema, type LoginRecord as FormValues } from "@repo/schema";
 import PasswordField from "@features/password-generation/components/PasswordField";
 import WebsiteFormFields from "@features/login-record/forms/WebsiteFormFields";
 import { normalizeWebsiteUrl } from "@repo/util";
@@ -15,7 +15,7 @@ export type LoginRecordFormHandle = {
   triggerSubmit: () => void;
 };
 
-type PassItemProps = {
+type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
   onDelete?: () => void;
   action: string;
@@ -30,7 +30,7 @@ export default function LoginRecordForm({
   serverError,
   defaultValues,
   ref,
-}: PassItemProps) {
+}: LoginRecordFormProps) {
   const {
     register,
     handleSubmit,
@@ -38,7 +38,7 @@ export default function LoginRecordForm({
     control,
     setValue,
   } = useForm<FormValues>({
-    resolver: zodResolver(loginItemSchema),
+    resolver: zodResolver(loginRecordSchema),
     defaultValues,
   });
 

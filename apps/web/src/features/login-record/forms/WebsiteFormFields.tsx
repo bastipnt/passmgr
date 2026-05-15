@@ -5,7 +5,7 @@ import {
   type UseFormRegister,
   type UseFormSetValue,
 } from "react-hook-form";
-import { type LoginItem as FormValues } from "@repo/schema";
+import { type LoginRecord as FormValues } from "@repo/schema";
 import { useEffect } from "react";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";

@@ -10,10 +10,10 @@ import {
 } from "@repo/ui/components/Empty";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
-import { useCreateEntryContext } from "@features/record/providers/CreateEntryProvider";
+import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 
 export default function Index() {
-  const { openCreateSheet } = useCreateEntryContext();
+  const { openCreateSheet } = useCreateRecordContext();
 
   return (
     <div className="h-full flex flex-col justify-center items-center">
@@ -22,14 +22,14 @@ export default function Index() {
           <EmptyMedia variant="icon">
             <TiFolderAdd />
           </EmptyMedia>
-          <EmptyTitle>No Items Yet</EmptyTitle>
+          <EmptyTitle>No Records Yet</EmptyTitle>
           <EmptyDescription>
-            You haven&apos;t created any items yet. Get started by creating your first item.
+            You haven&apos;t created any records yet. Get started by creating your first record.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-2">
           <Button variant="default" onClick={() => openCreateSheet()}>
-            Create Item
+            Create Record
           </Button>
           <Button variant="outline">Import</Button>
         </EmptyContent>

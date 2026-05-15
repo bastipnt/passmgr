@@ -1,1 +1,0 @@
-ALTER TABLE "keys" ALTER COLUMN "passwordKekParams" SET NOT NULL;

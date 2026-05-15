@@ -8,7 +8,7 @@ import {
   httpSubscriptionLink,
   type TRPCClient,
 } from "@trpc/client";
-import type { AppRouter } from "server";
+import type { AppRouter } from "@repo/types";
 import { generateAuthHeaders } from "../util/headers";
 
 function makeQueryClient() {

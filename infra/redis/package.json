@@ -1,5 +1,5 @@
 {
-  "name": "@infra/redis",
+  "name": "@repo/redis",
   "version": "0.0.0",
   "private": true,
   "scripts": {

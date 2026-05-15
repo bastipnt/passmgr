@@ -12,6 +12,7 @@
     "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/store": "workspace:*",
+    "@repo/types": "workspace:*",
     "@repo/util": "workspace:*",
     "@serenity-kit/opaque": "^1.1.0",
     "@tanstack/react-query": "^5.100.9",
@@ -19,7 +20,6 @@
     "@trpc/tanstack-react-query": "^11.17.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
-    "server": "workspace:*",
     "tinykeys": "^3.0.0"
   },
   "devDependencies": {

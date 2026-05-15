@@ -5,7 +5,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@repo/ui/components/Sheet";
-import type { LoginItem } from "@repo/schema";
+import type { LoginRecord } from "@repo/schema";
 import { useIsMobile } from "@/hooks/use-is-mobile";
 import LoginRecordForm, {
   type LoginRecordFormHandle,
@@ -19,9 +19,9 @@ import { useRef } from "react";
 type EditRecordProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  defaultValues: Partial<LoginItem>;
+  defaultValues: Partial<LoginRecord>;
   serverError: string | undefined;
-  onSubmit: (values: LoginItem) => void;
+  onSubmit: (values: LoginRecord) => void;
   onDelete: () => void;
 };
 
@@ -53,8 +53,8 @@ export default function EditRecord({
   function DeleteAction() {
     return (
       <RemoveDialog
-        title="Delete item"
-        description="Are you sure you want to delete this item? This action cannot be undone."
+        title="Delete record"
+        description="Are you sure you want to delete this record? This action cannot be undone."
         removeTitle="Delete"
         onRemove={onDelete}
       >

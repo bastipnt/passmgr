@@ -1,0 +1,293 @@
+import type { LoginRecord } from "../login-record-schema";
+
+export const exampleLoginRecords: LoginRecord[] = [
+  {
+    title: "Pass Mgr",
+    username: "lin@example.com",
+    password: "super-secret", // TODO: decrypted here?
+    category: "login", // TODO: define categories,
+    totp: "HXJVNAVLL3MEVIQ5LJBPOU6VD245QV5Z",
+    websites: [{ value: "cool-website.example" }, { value: "wow.example" }],
+    extraFields: [
+      { title: "Extra key", type: "secret", value: "super-secret-key" },
+      { title: "Question", type: "text", value: "Your first pet name?" },
+    ],
+    note: "This is my login for the password manager.",
+  },
+  {
+    title: "Nebula Notes",
+    username: "stella.orbit",
+    password: "Galaxies!42&Drift",
+    category: "login",
+    totp: "JBSWY3DPEHPK3PXPZXM6TQOJQ4R7Y6KL",
+    websites: [{ value: "nebula-notes.app" }, { value: "cloud.nebula.app" }],
+    extraFields: [
+      { title: "Recovery Code", type: "secret", value: "NN-4839-ALPHA-7781" },
+      { title: "Workspace ID", type: "text", value: "orbit-labs-01" },
+    ],
+    note: "Shared research vault for astronomy collaboration.",
+  },
+  {
+    title: "Retro Arcade Hub",
+    username: "pixelPirate77",
+    password: "8Bit$Forever1989",
+    category: "login",
+    totp: "KRSXG5DSNFXGOIDBNVSW45TFOQ======",
+    websites: [{ value: "retroarcade.gg" }],
+    extraFields: [
+      { title: "Favorite Game", type: "text", value: "Galactic Blaster X" },
+      { title: "API Token", type: "secret", value: "arcade-api-992244" },
+    ],
+    note: "High score leaderboard admin account.",
+  },
+  {
+    title: "GreenThumb Portal",
+    username: "fern.fable",
+    password: "Root&Bloom#2026",
+    category: "login",
+    totp: "MFRGGZDFMZTWQ2LKNNWG23TPOI======",
+    websites: [{ value: "greenthumb.community" }],
+    extraFields: [
+      { title: "Membership Tier", type: "text", value: "Evergreen Plus" },
+      { title: "Backup Seed", type: "secret", value: "soil-sun-rain-growth" },
+    ],
+    note: "Urban gardening community dashboard.",
+  },
+  {
+    title: "Cipher Café",
+    username: "espresso.encrypt",
+    password: "Latte!AES256#",
+    category: "login",
+    totp: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======",
+    websites: [{ value: "ciphercafe.io" }, { value: "barista.ciphercafe.io" }],
+    extraFields: [
+      { title: "Loyalty ID", type: "text", value: "CAFÉ-88421" },
+      { title: "Private Key", type: "secret", value: "-----BEGIN MOCK KEY-----" },
+    ],
+    note: "Crypto-themed coworking space account.",
+  },
+  {
+    title: "Skyline Drones",
+    username: "altitude.admin",
+    password: "Prop3ller$SkyHigh",
+    category: "login",
+    totp: "PZXW6YTBON2HK3TPOJQXE5LSON======",
+    websites: [{ value: "skyline-drones.tech" }],
+    extraFields: [
+      { title: "Fleet ID", type: "text", value: "DRN-4471-SKY" },
+      { title: "Control Override", type: "secret", value: "override-7788-delta" },
+    ],
+    note: "Main control dashboard for drone fleet.",
+  },
+  {
+    title: "Mythic Library",
+    username: "atlas.reader",
+    password: "Scrolls&Secrets!9",
+    category: "login",
+    totp: "QZXW6YTBON2HK3TPOJQXE5LSNZ======",
+    websites: [{ value: "mythiclibrary.org" }],
+    extraFields: [
+      { title: "Library Card", type: "text", value: "ML-2026-7782" },
+      { title: "Archive Passphrase", type: "secret", value: "phoenix-rises-ancient" },
+    ],
+    note: "Digital archive access for rare manuscripts.",
+  },
+  {
+    title: "Quantum Cloud",
+    username: "qubit.operator",
+    password: "Entangle#Future88",
+    category: "login",
+    totp: "RZXW6YTBOI2HK3TPOJQXE5LSNZ======",
+    websites: [{ value: "quantumcloud.dev" }, { value: "console.quantumcloud.dev" }],
+    extraFields: [
+      { title: "Cluster Region", type: "text", value: "eu-central-q1" },
+      { title: "Service Account Key", type: "secret", value: "qc-service-445566" },
+    ],
+    note: "Experimental quantum compute environment.",
+  },
+  {
+    title: "No 2FA Account",
+    username: "legacy.user",
+    password: "OldSystem#123",
+    category: "login",
+    // Edge case: missing TOTP entirely
+    websites: [{ value: "intranet.local" }],
+    extraFields: [{ title: "Migration Status", type: "text", value: "Pending 2FA rollout" }],
+    note: "Legacy system that does not yet support two-factor authentication.",
+  },
+  {
+    title: "Broken TOTP Seed",
+    username: "validator.test",
+    password: "Test!InvalidTOTP",
+    category: "login",
+    // Edge case: invalid Base32 (contains invalid characters like 1, 8, 9)
+    totp: "INVALID189TOKEN###",
+    websites: [{ value: "broken-2fa.example" }],
+    extraFields: [{ title: "QA Ticket", type: "text", value: "BUG-2245" }],
+    note: "This entry intentionally contains an invalid Base32 TOTP secret.",
+  },
+  {
+    title: "🌍 Unicode Portal Δ",
+    username: "søren.测试.🚀",
+    password: "Pāsswørd🔥安全",
+    category: "login",
+    totp: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+    websites: [{ value: "https://例子.测试" }],
+    extraFields: [
+      { title: "Emoji Field 😅", type: "text", value: "🚀🌈✨" },
+      { title: "Secret Phrase", type: "secret", value: "π≈3.14159" },
+    ],
+    note: "Testing full Unicode support across username, password, fields, and domain.",
+  },
+  {
+    title: "Very Long Note Entry",
+    username: "documentation.bot",
+    password: "LongNote#2026",
+    category: "login",
+    totp: "KRSXG5DSNFXGOIDBNVSW45TFOQ======",
+    websites: [{ value: "docs.internal.example" }],
+    extraFields: [],
+    note:
+      "This note is intentionally extremely long to test UI overflow behavior, scrolling, database limits, export formatting, and potential truncation issues. " +
+      "It repeats content to simulate large encrypted payloads. " +
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. " +
+      "Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. " +
+      "Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.",
+  },
+  {
+    title: "Duplicate Websites Test",
+    username: "dup.checker",
+    password: "Dup3Check!Pass",
+    category: "login",
+    totp: "MFRGGZDFMZTWQ2LKNNWG23TPOI======",
+    // Edge case: duplicate + weird formatting
+    websites: [
+      { value: "duplicate.example" },
+      { value: "duplicate.example" },
+      { value: "https://duplicate.example/login" },
+    ],
+    extraFields: [{ title: "Environment", type: "text", value: "staging" }],
+    note: "Tests deduplication logic and normalization.",
+  },
+  {
+    title: "Empty Everything",
+    username: "",
+    password: "",
+    category: "login",
+    // Edge case: valid TOTP but empty credentials
+    totp: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======",
+    websites: [],
+    extraFields: [],
+    note: "",
+  },
+  {
+    title: "Tracker Admin Console",
+    username: "fingerprint.collector",
+    password: "CanvasHash!Entropy99",
+    category: "login",
+    totp: "PZXW6YTBON2HK3TPOJQXE5LSON======",
+    websites: [{ value: "metrics.shadowtrack.io" }, { value: "cdn.shadowtrack.io" }],
+    extraFields: [
+      { title: "Fingerprinting Mode", type: "text", value: "aggressive" },
+      { title: "Device Hash Salt", type: "secret", value: "canvas-audio-webgl-seed" },
+      { title: "WebGL Vendor Override", type: "text", value: "enabled" },
+    ],
+    note: "Admin dashboard for cross-device fingerprint correlation. (Perfect for your thesis demo 😈)",
+  },
+  // multiple TOTP
+  {
+    title: "Dual 2FA Admin",
+    username: "multi.factor.admin",
+    password: "Primary!Device#1",
+    category: "login",
+    totp: "JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP",
+    websites: [{ value: "secure-admin.portal" }],
+    extraFields: [
+      { title: "Backup TOTP", type: "secret", value: "KRSXG5DSNFXGOIDBNVSW45TFOQ======" },
+      { title: "Hardware Key ID", type: "text", value: "YUBI-7788-ALPHA" },
+    ],
+    note: "Primary TOTP in root field, backup stored in extraFields.",
+  },
+  {
+    title: "Triple Device 2FA",
+    username: "redundancy.user",
+    password: "Fail0ver!Ready",
+    category: "login",
+    totp: "MFRGGZDFMZTWQ2LKNNWG23TPOI======",
+    websites: [{ value: "ha-cluster.example" }],
+    extraFields: [
+      { title: "Tablet TOTP", type: "secret", value: "ONSWG4TFOQXHI2DFEB3GK3TQOQ======" },
+      { title: "Old Phone TOTP", type: "secret", value: "PZXW6YTBON2HK3TPOJQXE5LSON======" },
+    ],
+    note: "Simulates multi-device 2FA storage.",
+  },
+  // Malformed Structure Entries
+  // {
+  //   id: crypto.randomUUID(),
+  //   title: 404, // wrong type
+  //   username: "wrong.types",
+  //   password: 12345678, // numeric password
+  //   category: "login",
+  //   totp: null, // null instead of string
+  //   websites: "not-an-array", // invalid structure
+  //   extraFields: [{ title: "ShouldBreak", type: "unknown", value: true }],
+  //   note: false,
+  // },
+  // {
+  //   id: crypto.randomUUID(),
+  //   title: "Null Field Test",
+  //   username: null,
+  //   password: null,
+  //   category: "login",
+  //   totp: "INVALIDBASE32!!!",
+  //   websites: [{ value: null }],
+  //   extraFields: null,
+  //   note: null,
+  // },
+  // Import / Export Attack Simulation
+  {
+    title: "=CMD|' /C calc'!A0",
+    username: "excel.injection",
+    password: "CSV!Injection#1",
+    category: "login",
+    totp: "QZXW6YTBON2HK3TPOJQXE5LSNZ======",
+    websites: [{ value: "spreadsheet-export.example" }],
+    extraFields: [
+      { title: "Formula Field", type: "text", value: '=HYPERLINK("http://malicious.example")' },
+    ],
+    note: "Tests CSV/Excel formula injection handling.",
+  },
+  {
+    title: "<script>alert('xss')</script>",
+    username: "html.injector",
+    password: "DOMPurify!Now",
+    category: "login",
+    totp: "RZXW6YTBOI2HK3TPOJQXE5LSNZ======",
+    websites: [{ value: "ui-render.example" }],
+    extraFields: [{ title: "HTML Payload", type: "text", value: "<img src=x onerror=alert(1)>" }],
+    note: "<b>Rich text?</b> Or escaped safely?",
+  },
+  // Phishing Clone Simulation
+  {
+    title: "PayPaI Account", // capital i instead of l
+    username: "user@secure-paypaI.com",
+    password: "PhishMeNot!22",
+    category: "login",
+    totp: "JBSWY3DPEHPK3PXPZXM6TQOJQ4R7Y6KL",
+    websites: [{ value: "secure-paypaI.com" }],
+    extraFields: [
+      { title: "Security Alert", type: "text", value: "Your account will be suspended!" },
+    ],
+    note: "Tests homograph / visual phishing detection.",
+  },
+  {
+    title: "Micr0soft 365",
+    username: "admin@micr0soft-support.com",
+    password: "ResetImmediately#",
+    category: "login",
+    totp: "KRSXG5DSNFXGOIDBNVSW45TFOQ======",
+    websites: [{ value: "micr0soft-support.com" }],
+    extraFields: [{ title: "Ticket ID", type: "text", value: "SUP-URGENT-4451" }],
+    note: "Fake IT support portal clone.",
+  },
+];

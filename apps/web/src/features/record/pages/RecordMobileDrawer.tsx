@@ -1,20 +1,20 @@
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
-import { entrySlug } from "../../../data/routes";
+import { recordSlug } from "../../../data/routes";
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import { RecordActions } from "@features/record/components/RecordActions";
-import { useRecordActions } from "@features/record/hooks/actionsHook";
+import { useRecordActions } from "@features/record/hooks/use-record-actions";
 
 const Record = lazy(() => import("@features/record/components/Record"));
 
 type ActionsProps = {
-  entryId: string;
+  recordId: string;
   setOpen: (o: boolean) => void;
 };
 
-function Actions({ entryId, setOpen }: ActionsProps) {
-  const { handleEditSheetChange, deleteItem, data, ready } = useRecordActions({
-    entryId,
+function Actions({ recordId, setOpen }: ActionsProps) {
+  const { handleEditSheetChange, deleteRecord, data, ready } = useRecordActions({
+    recordId,
   });
 
   if (!ready || !data) return null;
@@ -24,7 +24,7 @@ function Actions({ entryId, setOpen }: ActionsProps) {
       <RecordActions
         title={data.title}
         onEdit={() => handleEditSheetChange(true)}
-        onDelete={() => deleteItem(entryId)}
+        onDelete={() => deleteRecord(recordId)}
         onSetOpen={setOpen}
       />
     </DrawerActions>
@@ -32,10 +32,10 @@ function Actions({ entryId, setOpen }: ActionsProps) {
 }
 
 export function RecordMobileDrawer() {
-  const [match, params] = useRoute(`/${entrySlug}/:entryId`);
+  const [match, params] = useRoute(`/${recordSlug}/:recordId`);
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(match);
-  const entryId = params?.entryId;
+  const recordId = params?.recordId;
 
   useEffect(() => {
     setOpen(match);
@@ -50,9 +50,9 @@ export function RecordMobileDrawer() {
       }}
     >
       <DrawerPopup>
-        {entryId && <Actions entryId={entryId} setOpen={setOpen} />}
+        {recordId && <Actions recordId={recordId} setOpen={setOpen} />}
         <DrawerContent>
-          <Suspense fallback={null}>{entryId && <Record entryId={entryId} />}</Suspense>
+          <Suspense fallback={null}>{recordId && <Record recordId={recordId} />}</Suspense>
         </DrawerContent>
       </DrawerPopup>
     </Drawer>

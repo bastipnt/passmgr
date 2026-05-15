@@ -11,15 +11,15 @@ type User = {
 const users: Record<string, User> = {};
 
 export const userRouter = router({
-  getAllUsers: loggedProcedure.query(() => {
+  all: loggedProcedure.query(() => {
     return {
       message: "Hello there",
     };
   }),
-  getUserById: publicProcedure.input(z.string()).query((opts) => {
+  getById: publicProcedure.input(z.string()).query((opts) => {
     return users[opts.input]; // input type is string
   }),
-  createUser: publicProcedure
+  create: publicProcedure
     .input(
       z.object({
         name: z.string().min(3),

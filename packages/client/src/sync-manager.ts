@@ -1,8 +1,8 @@
-import type { EncryptedItemSchema } from "@repo/schema";
+import type { EncryptedRecordSchema } from "@repo/schema";
 import type { Vault } from "@repo/store";
 
 export type SyncFetcher = (lastSyncedAt?: string) => Promise<{
-  items: EncryptedItemSchema[];
+  records: EncryptedRecordSchema[];
   serverTimestamp: string;
 }>;
 
@@ -33,10 +33,10 @@ export class SyncManager {
 
     try {
       const lastSyncedAt = (await this.store.getLastSyncTimestamp()) ?? undefined;
-      const { items, serverTimestamp } = await this.fetcher(lastSyncedAt);
+      const { records, serverTimestamp } = await this.fetcher(lastSyncedAt);
 
-      if (items.length > 0) {
-        await this.store.upsertItems(items);
+      if (records.length > 0) {
+        await this.store.upsertRecords(records);
       }
       await this.store.setLastSyncTimestamp(serverTimestamp);
 

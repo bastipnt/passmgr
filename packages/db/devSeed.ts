@@ -5,7 +5,7 @@ config();
 config({ path: "../../apps/server/.env" });
 import * as opaque from "@serenity-kit/opaque";
 import { reset } from "drizzle-seed";
-import { db, schema, usersTable, keysTable, itemsTable } from ".";
+import { db, schema, usersTable, keysTable, recordsTable } from ".";
 import {
   encryptEmail,
   encryptXChaCha,
@@ -14,10 +14,9 @@ import {
   genSalt,
   hashEmail,
   hkdf,
-  fromString,
 } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
-import { exampleLoginItems, type ItemSchema } from "@repo/schema";
+import { fromString, toBase64 } from "@repo/util";
+import { exampleLoginRecords, type RecordSchema } from "@repo/schema";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
@@ -103,16 +102,16 @@ async function seed() {
     vaultKeyEncryptionNonceRecovery,
   });
 
-  // 7. Encrypt and insert seed items
-  console.log(`Inserting ${exampleLoginItems.length} seed items...`);
+  // 7. Encrypt and insert seed records
+  console.log(`Inserting ${exampleLoginRecords.length} seed records...`);
 
   const now = new Date();
-  const itemRows = exampleLoginItems.map((loginItem, i) => {
-    const payload: ItemSchema = { schemaVersion: 1, ...loginItem };
+  const recordRows = exampleLoginRecords.map((loginRecord, i) => {
+    const payload: RecordSchema = { schemaVersion: 1, ...loginRecord };
     const [encryptedData, encryptionNonce] = encryptXChaCha(vaultKey, JSON.stringify(payload));
 
     return {
-      itemId: crypto.randomUUID(),
+      recordId: crypto.randomUUID(),
       userId,
       encryptedData,
       encryptionNonce,
@@ -122,9 +121,9 @@ async function seed() {
     };
   });
 
-  await db.insert(itemsTable).values(itemRows);
+  await db.insert(recordsTable).values(recordRows);
 
-  console.log(`Done! Seeded user ${EMAIL} with ${itemRows.length} items.`);
+  console.log(`Done! Seeded user ${EMAIL} with ${recordRows.length} records.`);
   process.exit(0);
 }
 

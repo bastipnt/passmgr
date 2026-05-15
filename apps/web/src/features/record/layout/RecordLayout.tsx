@@ -17,24 +17,24 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
-import ItemSidebar from "@components/Sidebar";
+import RecordSidebar from "@components/Sidebar";
 import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
 import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { SessionContext, useShortcut } from "@repo/client";
 import {
-  SortedItemsProvider,
-  useSortedItems,
-} from "@repo/client/src/providers/SortedItemsProvider";
+  SortedRecordsProvider,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
 import { modKey } from "@/lib/formatShortcut";
 import { useEditingContext } from "@features/record/providers/EditingProvider";
-import { useCreateEntryContext } from "@features/record/providers/CreateEntryProvider";
+import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 
 type RecordLayoutProps = {
   children: ReactNode;
 };
 
 function SearchInput() {
-  const { query, setQuery } = useSortedItems();
+  const { query, setQuery } = useSortedRecords();
   const inputRef = useRef<HTMLInputElement>(null);
   const { isEditing } = useEditingContext();
 
@@ -75,8 +75,8 @@ function SearchInput() {
 }
 
 function NoSearchResults() {
-  const { query, setQuery } = useSortedItems();
-  const { openCreateSheet } = useCreateEntryContext();
+  const { query, setQuery } = useSortedRecords();
+  const { openCreateSheet } = useCreateRecordContext();
 
   return (
     <div className="h-full flex flex-col justify-center items-center">
@@ -86,7 +86,7 @@ function NoSearchResults() {
             <SearchXIcon />
           </EmptyMedia>
           <EmptyTitle>No Results</EmptyTitle>
-          <EmptyDescription>No items matched your search.</EmptyDescription>
+          <EmptyDescription>No records matched your search.</EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center">
           <Button
@@ -96,7 +96,7 @@ function NoSearchResults() {
               setQuery("");
             }}
           >
-            Create a new entry for &ldquo;{query.trim()}&rdquo;
+            Create a new record for &ldquo;{query.trim()}&rdquo;
           </Button>
         </EmptyContent>
       </Empty>
@@ -105,8 +105,8 @@ function NoSearchResults() {
 }
 
 function MainContent({ children }: { children: ReactNode }) {
-  const { query, sortedItems } = useSortedItems();
-  const noResults = query.trim().length > 0 && sortedItems.length === 0;
+  const { query, sortedRecords } = useSortedRecords();
+  const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
   return noResults ? (
     <section className="overflow-y-scroll">
@@ -120,11 +120,11 @@ function MainContent({ children }: { children: ReactNode }) {
 export default function RecordLayout({ children }: RecordLayoutProps) {
   const { isOffline } = useContext(SessionContext);
   const { isEditing } = useEditingContext();
-  const { openCreateSheet } = useCreateEntryContext();
+  const { openCreateSheet } = useCreateRecordContext();
   const [helpOpen, setHelpOpen] = useState(false);
 
   useShortcut("$mod+Shift+n", () => openCreateSheet(), {
-    description: "Create new item",
+    description: "Create new record",
     enabled: !isOffline && !isEditing,
   });
 
@@ -141,7 +141,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   });
 
   return (
-    <SortedItemsProvider>
+    <SortedRecordsProvider>
       <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-1 sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
         <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
           <SearchInput />
@@ -157,18 +157,18 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           {!isOffline && (
             <Button variant="default" onClick={() => openCreateSheet()}>
               <PlusIcon />
-              New Item
+              New Record
             </Button>
           )}
         </header>
         <main className="grid sm:grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
           <section className="sm:border-r p-4 overflow-y-scroll scroll-py-4">
-            <ItemSidebar />
+            <RecordSidebar />
           </section>
           <MainContent>{children}</MainContent>
         </main>
       </div>
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
-    </SortedItemsProvider>
+    </SortedRecordsProvider>
   );
 }

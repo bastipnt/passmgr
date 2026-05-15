@@ -1,32 +1,31 @@
 import { useParams } from "wouter";
-import { type LoginItem } from "@repo/schema";
+import { type LoginRecord } from "@repo/schema";
 import { LoginRecordFields } from "@features/login-record/components/LoginRecordFields";
 import { Fallback } from "@features/record/components/Fallback";
-import { useRecordActions } from "@features/record/hooks/actionsHook";
+import { useRecordActions } from "@features/record/hooks/use-record-actions";
 import EditRecord from "@features/record/components/EditRecord";
 
 type RecordProps = {
-  entryId: string;
+  recordId: string;
 };
 
-// TODO: rename entryId
-function RecordInner({ entryId }: RecordProps) {
+function RecordInner({ recordId }: RecordProps) {
   const {
     handleEditSheetChange,
-    deleteItem,
+    deleteRecord,
     copyField,
     handleSubmit,
     data,
     ready,
     isEditSheetOpen,
-    updateItemError,
+    updateRecordError,
   } = useRecordActions({
-    entryId,
+    recordId,
   });
 
   if (!ready || !data) return <Fallback />;
 
-  const defaultValues: Partial<LoginItem> = {
+  const defaultValues: Partial<LoginRecord> = {
     title: data.title,
     username: data.username,
     password: data.password,
@@ -44,18 +43,18 @@ function RecordInner({ entryId }: RecordProps) {
         open={isEditSheetOpen}
         onOpenChange={handleEditSheetChange}
         defaultValues={defaultValues}
-        serverError={updateItemError?.message}
+        serverError={updateRecordError?.message}
         onSubmit={handleSubmit}
-        onDelete={() => deleteItem(entryId)}
+        onDelete={() => deleteRecord(recordId)}
       />
     </div>
   );
 }
 
-export default function Record({ entryId: entryIdProp }: { entryId?: string } = {}) {
+export default function Record({ recordId: recordIdProp }: { recordId?: string } = {}) {
   const params = useParams();
-  const entryId = entryIdProp ?? params.entryId;
-  if (!entryId) return <Fallback />;
+  const recordId = recordIdProp ?? params.recordId;
+  if (!recordId) return <Fallback />;
 
-  return <RecordInner entryId={entryId} />;
+  return <RecordInner recordId={recordId} />;
 }

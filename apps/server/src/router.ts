@@ -1,14 +1,14 @@
-import { appConfigRouter } from "./appConfigRouter";
-import { loginRouter } from "./auth/loginRouter";
-import { registrationRouter } from "./auth/registrationRouter";
-import { entryRouter } from "./entry/router";
+import { appConfigRouter } from "./app-config-router";
+import { loginRouter } from "./auth/login-router";
+import { registrationRouter } from "./auth/registration-router";
+import { recordRouter } from "./record/router";
 import { router } from "./trpc";
 import { userRouter } from "./user/router";
 
 export const appRouter = router({
   appConfig: appConfigRouter,
   user: userRouter,
-  entry: entryRouter,
+  record: recordRouter,
   login: loginRouter,
   register: registrationRouter,
 });

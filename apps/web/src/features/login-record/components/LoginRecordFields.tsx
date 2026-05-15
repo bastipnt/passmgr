@@ -5,11 +5,11 @@ import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemD
 import Link from "@repo/ui/components/Link";
 import { isDefined } from "@repo/util";
 import { getStrengthFromString } from "@repo/crypto";
-import type { LoginItem } from "@repo/schema";
+import type { LoginRecord } from "@repo/schema";
 import TotpField from "@features/login-record/components/TotpField";
 
 type LoginRecordFieldsProps = {
-  data: LoginItem;
+  data: LoginRecord;
   onCopy: (value: string | undefined, label: string) => void;
 };
 

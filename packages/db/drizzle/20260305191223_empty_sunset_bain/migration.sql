@@ -1,1 +1,0 @@
-CREATE INDEX "items_user_item_version_idx" ON "items" ("userId","itemId","version");

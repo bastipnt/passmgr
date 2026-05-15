@@ -6,8 +6,6 @@ export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
 export * from "./src/schema/users";
 export * from "./src/schema/keys";
-export * from "./src/schema/items";
+export * from "./src/schema/records";
 
 export { schema };
-
-export { eq } from "drizzle-orm";

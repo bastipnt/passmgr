@@ -217,9 +217,6 @@ importers:
       react-icons:
         specifier: ^5.6.0
         version: 5.6.0(react@19.2.5)
-      server:
-        specifier: workspace:*
-        version: link:../server
       sqlocal:
         specifier: ^0.18.0
         version: 0.18.0(react@19.2.5)(vite@8.0.10(@types/node@25.6.0)(esbuild@0.27.7)(jiti@2.6.1)(terser@5.46.2)(tsx@4.21.0)(yaml@2.8.4))
@@ -277,6 +274,9 @@ importers:
       '@repo/store':
         specifier: workspace:*
         version: link:../store
+      '@repo/types':
+        specifier: workspace:*
+        version: link:../types
       '@repo/util':
         specifier: workspace:*
         version: link:../util
@@ -298,9 +298,6 @@ importers:
       react-dom:
         specifier: ^19.2.5
         version: 19.2.5(react@19.2.5)
-      server:
-        specifier: workspace:*
-        version: link:../../apps/server
       tinykeys:
         specifier: ^3.0.0
         version: 3.0.0
@@ -407,6 +404,19 @@ importers:
       '@repo/util':
         specifier: workspace:*
         version: link:../util
+
+  packages/types:
+    dependencies:
+      server:
+        specifier: workspace:*
+        version: link:../../apps/server
+    devDependencies:
+      oxlint:
+        specifier: ^1.62.0
+        version: 1.62.0(oxlint-tsgolint@0.22.1)
+      typescript:
+        specifier: ~6.0.3
+        version: 6.0.3
 
   packages/typescript-config: {}
 
