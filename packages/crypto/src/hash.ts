@@ -103,25 +103,28 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
  *
  * @returns PRK, params and salt
  */
-export async function genPasswordKek(password: string): Promise<{
+/**
+ * | Parameter       | Value     |
+ * | --------------- | --------- |
+ * | Memory (m)      | 64–256 MB |
+ * | Iterations (t)  | 3         |
+ * | Parallelism (p) | 1–4       |
+ * | Output length   | 32 bytes  |
+ * | Variant         | Argon2id  |
+ *
+ * TODO: version parameters and adjust to client
+ */
+const DEFAULT_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
+
+export async function genPasswordKek(
+  password: string,
+  passwordKekParams: ArgonOpts = DEFAULT_PASSWORD_KEK_PARAMS,
+): Promise<{
   passwordKek: Uint8Array;
   passwordKekParams: ArgonOpts;
   passwordKekSaltData: Uint8Array;
 }> {
   const passwordKekSaltData = genSalt();
-
-  /**
-   * | Parameter       | Value     |
-   * | --------------- | --------- |
-   * | Memory (m)      | 64–256 MB |
-   * | Iterations (t)  | 3         |
-   * | Parallelism (p) | 1–4       |
-   * | Output length   | 32 bytes  |
-   * | Variant         | Argon2id  |
-   *
-   * TODO: version parameters and adjust to client
-   */
-  const passwordKekParams: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
 
   const passwordKek = await argon2idAsync(password, passwordKekSaltData, {
     ...passwordKekParams,

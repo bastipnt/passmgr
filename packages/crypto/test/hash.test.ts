@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { fromString } from "@repo/util";
-import { hkdf, signHmac, verifyHmac } from "../src/hash";
+import { genPasswordKek, hashEmail, hkdf, retrievePRK, signHmac, verifyHmac } from "../src/hash";
+import { hkdfInfo } from "../src/util/constants";
 import { wipe } from "../src/util/secrets-utils";
 
 describe("hkdf", () => {
@@ -25,12 +26,29 @@ describe("hkdf", () => {
     expect(a).not.toEqual(b);
   });
 
+  it("produces a distinct key for every hkdfInfo label", async () => {
+    const key = fromString("ikm");
+    const labels = Object.keys(hkdfInfo) as (keyof typeof hkdfInfo)[];
+    const outputs = await Promise.all(labels.map((l) => hkdf(key, l)));
+    const seen = new Set<string>();
+    for (const out of outputs) {
+      seen.add(Array.from(out).join(","));
+    }
+    expect(seen.size).toBe(labels.length);
+  });
+
   it("differs when salt changes", async () => {
     const key = fromString("ikm");
     const salt1 = new Uint8Array(32).fill(1);
     const salt2 = new Uint8Array(32).fill(2);
     const a = await hkdf(key, "sessionAuth", salt1);
     const b = await hkdf(key, "sessionAuth", salt2);
+    expect(a).not.toEqual(b);
+  });
+
+  it("differs when input key material changes", async () => {
+    const a = await hkdf(fromString("ikm-a"), "sessionAuth");
+    const b = await hkdf(fromString("ikm-b"), "sessionAuth");
     expect(a).not.toEqual(b);
   });
 });
@@ -64,6 +82,97 @@ describe("hmac sign/verify", () => {
     const msg = "msg";
     const sig = await signHmac(key1, msg);
     expect(await verifyHmac(key2, sig, msg)).toBe(false);
+  });
+});
+
+describe("hashEmail", () => {
+  it("normalizes email before hashing (trim + lowercase)", async () => {
+    const serverKey = new Uint8Array(32).fill(50);
+    const a = await hashEmail(serverKey, "  Alice@Example.COM ");
+    const b = await hashEmail(serverKey, "alice@example.com");
+    expect(a).toEqual(b);
+  });
+
+  it("differs across server keys (keyed hash)", async () => {
+    const a = await hashEmail(new Uint8Array(32).fill(60), "alice@example.com");
+    const b = await hashEmail(new Uint8Array(32).fill(61), "alice@example.com");
+    expect(a).not.toEqual(b);
+  });
+
+  it("differs across emails for the same server key", async () => {
+    const serverKey = new Uint8Array(32).fill(70);
+    const a = await hashEmail(serverKey, "alice@example.com");
+    const b = await hashEmail(serverKey, "bob@example.com");
+    expect(a).not.toEqual(b);
+  });
+
+  it("returns a 32-byte digest", async () => {
+    const out = await hashEmail(new Uint8Array(32).fill(80), "x@y.z");
+    expect(out.length).toBe(32);
+  });
+});
+
+describe("genPasswordKek / retrievePRK", () => {
+  // Fast params for tests — real prod params validated by the smoke test below.
+  const FAST_PARAMS = { t: 1, m: 8, p: 1 } as const;
+  // Argon2id with prod params (t:3, m:128MiB, p:1) takes a few seconds.
+  const ARGON_TIMEOUT_MS = 60_000;
+
+  it(
+    "uses prod defaults (t:3, m:128MiB, p:1) when no params given",
+    async () => {
+      const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
+        "correct horse battery staple",
+      );
+      expect(passwordKek.length).toBe(32);
+      expect(passwordKekSaltData.length).toBe(32);
+      expect(passwordKekParams).toEqual({ t: 3, m: 128 * 1024, p: 1 });
+    },
+    ARGON_TIMEOUT_MS,
+  );
+
+  it("derives a 32-byte KEK from a password and a random salt", async () => {
+    const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
+      "correct horse battery staple",
+      FAST_PARAMS,
+    );
+    expect(passwordKek.length).toBe(32);
+    expect(passwordKekSaltData.length).toBe(32);
+    expect(passwordKekParams).toEqual(FAST_PARAMS);
+  });
+
+  it("retrievePRK matches genPasswordKek with the same salt + params", async () => {
+    const password = "correct horse battery staple";
+    const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
+      password,
+      FAST_PARAMS,
+    );
+    const prk = await retrievePRK(password, passwordKekSaltData, passwordKekParams);
+    expect(prk).toEqual(passwordKek);
+  });
+
+  it("retrievePRK differs for a wrong password", async () => {
+    const password = "right";
+    const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
+      password,
+      FAST_PARAMS,
+    );
+    const prk = await retrievePRK("wrong", passwordKekSaltData, passwordKekParams);
+    expect(prk).not.toEqual(passwordKek);
+  });
+
+  it("retrievePRK differs for a wrong salt", async () => {
+    const password = "p";
+    const { passwordKek, passwordKekParams } = await genPasswordKek(password, FAST_PARAMS);
+    const prk = await retrievePRK(password, new Uint8Array(32).fill(0), passwordKekParams);
+    expect(prk).not.toEqual(passwordKek);
+  });
+
+  it("genPasswordKek picks a fresh random salt each call", async () => {
+    const a = await genPasswordKek("p", FAST_PARAMS);
+    const b = await genPasswordKek("p", FAST_PARAMS);
+    expect(a.passwordKekSaltData).not.toEqual(b.passwordKekSaltData);
+    expect(a.passwordKek).not.toEqual(b.passwordKek);
   });
 });
 

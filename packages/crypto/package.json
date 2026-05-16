@@ -8,11 +8,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "devDependencies": {
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
+    "@vitest/coverage-v8": "^4.1.5",
+    "fast-check": "^4.8.0",
     "oxlint": "^1.62.0",
     "vitest": "^4.1.5"
   },

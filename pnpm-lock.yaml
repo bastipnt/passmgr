@@ -342,6 +342,12 @@ importers:
       '@repo/util':
         specifier: workspace:*
         version: link:../util
+      '@vitest/coverage-v8':
+        specifier: ^4.1.5
+        version: 4.1.5(@vitest/browser@4.1.5)(vitest@4.1.5)
+      fast-check:
+        specifier: ^4.8.0
+        version: 4.8.0
       oxlint:
         specifier: ^1.62.0
         version: 1.62.0(oxlint-tsgolint@0.22.1)
@@ -4491,6 +4497,10 @@ packages:
     engines: {node: '>=16'}
     hasBin: true
 
+  fast-check@4.8.0:
+    resolution: {integrity: sha512-GOJ158CUMnN6cSahsv4+ExARvIDuzzinFjkp0E9WtiBa5zcVeLozVkWaE4IzFcc+Y48Wp1EDlUZsXRyAztQcSg==}
+    engines: {node: '>=12.17.0'}
+
   fast-copy@3.0.2:
     resolution: {integrity: sha512-dl0O9Vhju8IrcLndv2eU4ldt1ftXMqqfgN4H1cpmGV7P6jeB9FwpN9a2c8DPGE1Ys88rNUJVYDHq73CGAGOPfQ==}
 
@@ -6068,6 +6078,9 @@ packages:
 
   pure-rand@6.1.0:
     resolution: {integrity: sha512-bVWawvoZoBYpp6yIoQtQXHZjmz35RSVHnUOTefl8Vcjr8snTPY1wnpSPMWekcFwbxI6gtmT7rSYPFvz71ldiOA==}
+
+  pure-rand@8.4.0:
+    resolution: {integrity: sha512-IoM8YF/jY0hiugFo/wOWqfmarlE6J0wc6fDK1PhftMk7MGhVZl88sZimmqBBFomLOCSmcCCpsfj7wXASCpvK9A==}
 
   qs@6.15.1:
     resolution: {integrity: sha512-6YHEFRL9mfgcAvql/XhwTvf5jKcOiiupt2FiJxHkiX1z4j7WL8J/jRHYLluORvc1XxB5rV20KoeK00gVJamspg==}
@@ -11390,6 +11403,10 @@ snapshots:
       '@fallow-cli/win32-arm64-msvc': 2.63.0
       '@fallow-cli/win32-x64-msvc': 2.63.0
 
+  fast-check@4.8.0:
+    dependencies:
+      pure-rand: 8.4.0
+
   fast-copy@3.0.2: {}
 
   fast-copy@4.0.3: {}
@@ -13176,6 +13193,8 @@ snapshots:
       once: 1.4.0
 
   pure-rand@6.1.0: {}
+
+  pure-rand@8.4.0: {}
 
   qs@6.15.1:
     dependencies:
