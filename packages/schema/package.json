@@ -6,12 +6,16 @@
   "scripts": {
     "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
-    "test": "echo \"(no tests)\""
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "oxlint": "^1.62.0"
+    "@vitest/coverage-v8": "^4.1.5",
+    "fast-check": "^4.8.0",
+    "oxlint": "^1.62.0",
+    "vitest": "^4.1.5"
   }
 }
