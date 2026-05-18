@@ -114,11 +114,21 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
  *
  * TODO: version parameters and adjust to client
  */
-const DEFAULT_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
+const PROD_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
+
+let activePasswordKekParams: ArgonOpts = PROD_PASSWORD_KEK_PARAMS;
+
+export function setPasswordKekParams(params: ArgonOpts): void {
+  activePasswordKekParams = params;
+}
+
+export function getPasswordKekParams(): ArgonOpts {
+  return activePasswordKekParams;
+}
 
 export async function genPasswordKek(
   password: string,
-  passwordKekParams: ArgonOpts = DEFAULT_PASSWORD_KEK_PARAMS,
+  passwordKekParams: ArgonOpts = activePasswordKekParams,
 ): Promise<{
   passwordKek: Uint8Array;
   passwordKekParams: ArgonOpts;

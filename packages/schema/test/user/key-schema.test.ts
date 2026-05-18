@@ -1,6 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import fc from "fast-check";
-import { passwordKeySchema, recoveryKeySchema, userKeySchema } from "../../src/user/key-schema";
+import {
+  getArgonBounds,
+  passwordKeySchema,
+  recoveryKeySchema,
+  setArgonBounds,
+  userKeySchema,
+} from "../../src/user/key-schema";
 
 function b64(bytes: number): string {
   return Buffer.from(new Uint8Array(bytes)).toString("base64");
@@ -151,5 +157,31 @@ describe("userKeySchema (merged password + recovery)", () => {
     const incomplete = { ...VALID_USER_KEY };
     delete (incomplete as Record<string, unknown>)[key];
     expect(() => userKeySchema.parse(incomplete)).toThrow();
+  });
+});
+
+describe("argon bounds setter (for test setup)", () => {
+  const PROD = {
+    tMin: 3,
+    tMax: 4,
+    mMin: 64 * 1024,
+    mMax: 256 * 1024,
+    mMultipleOf: 64 * 1024,
+    pMin: 1,
+    pMax: 4,
+  };
+  afterAll(() => setArgonBounds(PROD));
+
+  it("getArgonBounds returns the prod defaults", () => {
+    setArgonBounds(PROD);
+    expect(getArgonBounds()).toEqual(PROD);
+  });
+
+  it("relaxing bounds lets previously-invalid params parse", () => {
+    setArgonBounds({ tMin: 1, mMin: 8, mMultipleOf: 1 });
+    const fast = { t: 1, m: 8, p: 1 };
+    expect(() =>
+      passwordKeySchema.parse({ ...VALID_PASSWORD_KEY, passwordKekParams: fast }),
+    ).not.toThrow();
   });
 });

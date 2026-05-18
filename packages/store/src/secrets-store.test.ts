@@ -1,22 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 
-vi.mock("@repo/crypto", async () => {
-  const actual = await vi.importActual<typeof import("@repo/crypto")>("@repo/crypto");
-  return {
-    ...actual,
-    wipe: vi.fn(actual.wipe),
-  };
-});
-
-import { encryptXChaCha, genKey, hkdf, verifyHmac, wipe } from "@repo/crypto";
+import { encryptXChaCha, genKey, hkdf, verifyHmac } from "@repo/crypto";
 import { fromString } from "@repo/util";
 import { secretsStore } from "./secrets-store";
 
-const wipeMock = vi.mocked(wipe);
-
 beforeEach(() => {
   secretsStore.lock();
-  wipeMock.mockClear();
 });
 
 describe("unlockSession", () => {
@@ -55,7 +44,6 @@ describe("unlockVault", () => {
     expect(secretsStore.isVaultUnlocked).toBe(true);
     // passwordKek buffer was wiped in place
     expect(Array.from(kekCopy).every((b) => b === 0)).toBe(true);
-    expect(wipeMock).toHaveBeenCalledWith(kekCopy);
   });
 
   it("throws when the passwordKek is tampered (single byte flip)", () => {
@@ -134,14 +122,25 @@ describe("lock", () => {
     await secretsStore.unlockSession("sid", "session-key", authSalt);
     secretsStore.unlockWithVaultKey(vaultKey);
 
-    wipeMock.mockClear();
+    // Grab live references to every internal buffer before lock().
+    const internal = secretsStore._peekBuffers();
+    expect(internal.sessionSecret).toBeDefined();
+    expect(internal.authKey).toBeDefined();
+    expect(internal.authSalt).toBeDefined();
+    expect(internal.vaultKey).toBeDefined();
+
     secretsStore.lock();
 
-    // 4 buffers: sessionSecret, authKey, authSalt, vaultKey
-    expect(wipeMock).toHaveBeenCalledTimes(4);
-    // the original input buffers we still hold references to must be zeroed
-    expect(Array.from(authSalt).every((b) => b === 0)).toBe(true);
-    expect(Array.from(vaultKey).every((b) => b === 0)).toBe(true);
+    // Every internal buffer must be zeroed in place.
+    expect(internal.sessionSecret!.every((b) => b === 0)).toBe(true);
+    expect(internal.authKey!.every((b) => b === 0)).toBe(true);
+    expect(internal.authSalt!.every((b) => b === 0)).toBe(true);
+    expect(internal.vaultKey!.every((b) => b === 0)).toBe(true);
+
+    // The input buffers we still hold references to are the same memory and
+    // are therefore zeroed too.
+    expect(authSalt.every((b) => b === 0)).toBe(true);
+    expect(vaultKey.every((b) => b === 0)).toBe(true);
   });
 
   it("is idempotent (calling lock twice does not throw)", () => {

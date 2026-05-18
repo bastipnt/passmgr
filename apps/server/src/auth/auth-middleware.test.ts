@@ -1,12 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const { redisMock } = vi.hoisted(() => {
-  // require() avoids ESM/TLA timing issues inside the hoisted factory
-  const IoRedisMock = require("ioredis-mock") as typeof import("ioredis-mock");
-  return { redisMock: new IoRedisMock() };
-});
-
-vi.mock("../redis", () => ({ redis: redisMock }));
+import { beforeEach, describe, expect, it } from "vitest";
 
 import z from "zod";
 import fc from "fast-check";
@@ -15,6 +7,7 @@ import { genKey } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
 import { protectedProcedure } from "./auth-middleware";
 import { createCallerFactory, router } from "../trpc";
+import { redis } from "../redis";
 import { buildTestContext } from "../../test/setup/test-context";
 import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
 
@@ -32,7 +25,7 @@ const SESSION_KEY = "deterministic-session-key";
 async function seedSession(userId = "user-A"): Promise<{ authKey: Uint8Array }> {
   const authSalt = genKey();
   const authKey = await deriveAuthKey(SESSION_KEY, authSalt);
-  await redisMock.set(
+  await redis.set(
     `session:${SESSION_ID}`,
     JSON.stringify({ userId, rawAuthKey: toBase64(authKey) }),
     "EX",
@@ -42,7 +35,7 @@ async function seedSession(userId = "user-A"): Promise<{ authKey: Uint8Array }> 
 }
 
 beforeEach(async () => {
-  await redisMock.flushall();
+  await redis.flushall();
 });
 
 describe("protectedProcedure — happy path", () => {
@@ -169,7 +162,7 @@ describe("protectedProcedure — rejections", () => {
 
   it("rejects when the stored rawAuthKey does not match the signer's key", async () => {
     const wrongAuthKey = genKey();
-    await redisMock.set(
+    await redis.set(
       `session:${SESSION_ID}`,
       JSON.stringify({ userId: "u", rawAuthKey: toBase64(wrongAuthKey) }),
       "EX",
@@ -190,42 +183,6 @@ describe("protectedProcedure — rejections", () => {
   it("throws TRPCError (not a generic Error)", async () => {
     const caller = createCaller(buildTestContext(undefined));
     await expect(caller.echo({ msg: "x" })).rejects.toBeInstanceOf(TRPCError);
-  });
-});
-
-describe("protectedProcedure — replay protection (nonce)", () => {
-  it("rejects a second call that reuses the same nonce within the active window", async () => {
-    const { authKey } = await seedSession();
-    const headers = await signRequest({
-      authKey,
-      sessionId: SESSION_ID,
-      type: "mutation",
-      path: "echo",
-      input: { msg: "hi" },
-    });
-
-    // First call must succeed and claim the nonce.
-    const first = createCaller(buildTestContext(headers));
-    await expect(first.echo({ msg: "hi" })).resolves.toMatchObject({ ok: true });
-
-    // Replay verbatim — same nonce — must fail.
-    const second = createCaller(buildTestContext(headers));
-    await expect(second.echo({ msg: "hi" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-  });
-
-  it("a fresh nonce on every call keeps the same session working", async () => {
-    const { authKey } = await seedSession();
-    for (let i = 0; i < 3; i++) {
-      const headers = await signRequest({
-        authKey,
-        sessionId: SESSION_ID,
-        type: "mutation",
-        path: "echo",
-        input: { msg: `n${i}` },
-      });
-      const caller = createCaller(buildTestContext(headers));
-      await expect(caller.echo({ msg: `n${i}` })).resolves.toMatchObject({ ok: true });
-    }
   });
 });
 

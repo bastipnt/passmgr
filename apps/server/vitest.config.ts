@@ -13,17 +13,15 @@ export default defineConfig({
     testTimeout: 60_000,
     hookTimeout: 120_000,
     globalSetup: ["./test/setup/global-setup.ts"],
+    setupFiles: ["./test/setup/argon2-fast.ts"],
+    // Coverage for the server is enforced by the integration suite
+    // (vitest.integration.config.ts); the slimmed unit suite only exercises
+    // narrow edge-case branches and would never meet a breadth threshold.
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/**/*.ts"],
       exclude: ["src/server.ts", "src/events/**"],
-      thresholds: {
-        "src/auth/**": { lines: 95, branches: 95, functions: 95 },
-        lines: 80,
-        branches: 75,
-        functions: 80,
-      },
     },
   },
 });

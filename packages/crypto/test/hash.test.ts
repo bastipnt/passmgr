@@ -1,6 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it } from "vitest";
 import { fromString } from "@repo/util";
-import { genPasswordKek, hashEmail, hkdf, retrievePRK, signHmac, verifyHmac } from "../src/hash";
+import {
+  genPasswordKek,
+  getPasswordKekParams,
+  hashEmail,
+  hkdf,
+  retrievePRK,
+  setPasswordKekParams,
+  signHmac,
+  verifyHmac,
+} from "../src/hash";
 import { hkdfInfo } from "../src/util/constants";
 import { wipe } from "../src/util/secrets-utils";
 
@@ -181,5 +190,23 @@ describe("wipe", () => {
     const buf = new Uint8Array([1, 2, 3, 4]);
     wipe(buf);
     expect(Array.from(buf)).toEqual([0, 0, 0, 0]);
+  });
+});
+
+describe("setPasswordKekParams / getPasswordKekParams", () => {
+  const PROD = { t: 3, m: 128 * 1024, p: 1 };
+  afterAll(() => setPasswordKekParams(PROD));
+
+  it("getPasswordKekParams returns the prod default until the setter is called", () => {
+    setPasswordKekParams(PROD);
+    expect(getPasswordKekParams()).toEqual(PROD);
+  });
+
+  it("setPasswordKekParams swaps the active default used by genPasswordKek", async () => {
+    const fast = { t: 1, m: 8, p: 1 };
+    setPasswordKekParams(fast);
+    expect(getPasswordKekParams()).toEqual(fast);
+    const { passwordKekParams } = await genPasswordKek("p");
+    expect(passwordKekParams).toEqual(fast);
   });
 });

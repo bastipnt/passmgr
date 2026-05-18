@@ -110,6 +110,22 @@ class SecretsStore {
 
     return await hkdf(this.sessionSecret, "sessionAuth", this.authSalt);
   }
+
+  // Test-only: hand out live references to internal buffers so tests can
+  // assert `lock()` zeros them in place. Not part of the public API.
+  _peekBuffers(): {
+    sessionSecret?: Uint8Array;
+    authKey?: Uint8Array;
+    authSalt?: Uint8Array;
+    vaultKey?: Uint8Array;
+  } {
+    return {
+      sessionSecret: this.sessionSecret,
+      authKey: this.authKey,
+      authSalt: this.authSalt,
+      vaultKey: this.vaultKey,
+    };
+  }
 }
 
 export const secretsStore = new SecretsStore();

@@ -108,6 +108,10 @@ describe("opaque-flow — register + login round-trip (real crypto, real contain
 
     expect(Array.from(decryptedViaPassword)).toEqual(Array.from(vaultKey));
     expect(Array.from(decryptedViaRecovery)).toEqual(Array.from(vaultKey));
+
+    // The two stored encrypted-vaultKey rows must use distinct nonces — same vaultKey
+    // encrypted twice with different KEKs must never reuse a nonce.
+    expect(stored!.vaultKeyEncryptionNonce).not.toBe(stored!.vaultKeyEncryptionNonceRecovery);
   });
 
   it("wrong password yields a different passwordKek that fails AEAD verification", async () => {

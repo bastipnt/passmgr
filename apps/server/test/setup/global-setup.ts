@@ -3,19 +3,24 @@ import * as path from "node:path";
 import { Client } from "pg";
 import * as opaque from "@serenity-kit/opaque";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { GenericContainer, type StartedTestContainer } from "testcontainers";
 
-let container: StartedPostgreSqlContainer | undefined;
+let pgContainer: StartedPostgreSqlContainer | undefined;
+let redisContainer: StartedTestContainer | undefined;
 
 export async function setup() {
-  // 1) OPAQUE setup secret — registration/login routers read this at module load.
   await opaque.ready;
   process.env.OPAQUE_SERVER_SETUP = opaque.server.createSetup();
 
-  // 2) Spin up Postgres 16. Reused across all test files in this vitest run.
-  container = await new PostgreSqlContainer("postgres:16-alpine").start();
-  process.env.DATABASE_URL = container.getConnectionUri();
+  [pgContainer, redisContainer] = await Promise.all([
+    new PostgreSqlContainer("postgres:16-alpine").start(),
+    new GenericContainer("redis:7-alpine").withExposedPorts(6379).start(),
+  ]);
 
-  // 3) Apply Drizzle migrations against the container.
+  process.env.DATABASE_URL = pgContainer.getConnectionUri();
+  process.env.REDIS_HOST = redisContainer.getHost();
+  process.env.REDIS_PORT = String(redisContainer.getMappedPort(6379));
+
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
   try {
@@ -39,5 +44,5 @@ export async function setup() {
 }
 
 export async function teardown() {
-  await container?.stop();
+  await Promise.all([pgContainer?.stop(), redisContainer?.stop()]);
 }

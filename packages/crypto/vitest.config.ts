@@ -14,6 +14,11 @@ export default defineConfig({
         "src/services/**",
         "src/workers/**",
       ],
+      thresholds: {
+        lines: 95,
+        branches: 95,
+        functions: 95,
+      },
     },
   },
 });
