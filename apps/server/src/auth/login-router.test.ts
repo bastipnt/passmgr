@@ -14,7 +14,7 @@ vi.mock("@repo/crypto", () =>
 import * as opaque from "@serenity-kit/opaque";
 import { db, usersTable } from "@repo/db";
 import { genKey } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
+import { toBase64, UUIDV4_RE } from "@repo/util";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "../router";
 import { buildTestContext } from "../../test/setup/test-context";
@@ -22,8 +22,6 @@ import { truncateAll } from "../../test/setup/db-helpers";
 import { buildUserKeys } from "../../test/setup/user-keys";
 
 const createCaller = createCallerFactory(appRouter);
-
-const UUIDV4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 async function register(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));

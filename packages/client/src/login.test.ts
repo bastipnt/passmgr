@@ -12,7 +12,7 @@ vi.mock("@repo/crypto", () =>
 
 import * as opaque from "@serenity-kit/opaque";
 import { hkdf, signHmac, verifyHmac } from "@repo/crypto";
-import { fromString } from "@repo/util";
+import { fromString, UUIDV4_RE } from "@repo/util";
 import { createCallerFactory } from "server/src/trpc";
 import { appRouter } from "server/src/router";
 import { buildTestContext } from "server/test/setup/test-context";
@@ -25,8 +25,6 @@ import {
 } from "./login";
 import { generateUserKeys } from "./register";
 import { callerToTrpc, withThrow } from "../test/fixtures/trpc-from-caller";
-
-const UUIDV4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 const createCaller = createCallerFactory(appRouter);
 

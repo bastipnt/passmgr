@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { getSession } from "../util/redis-utils";
+import { claimNonce, getSession } from "../util/redis-utils";
 import { getMessage, verifyHmac } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
 import { loggedProcedure, shortHash } from "../logger";
@@ -16,7 +16,8 @@ type AuthFailReason =
   | "session_not_found"
   | "missing_auth_headers"
   | "stale_timestamp"
-  | "invalid_signature";
+  | "invalid_signature"
+  | "replay_detected";
 
 async function denyAuth(
   log: { warn: (obj: object, msg: string) => void } | undefined,
@@ -47,11 +48,17 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   const { ctx, type, path, getRawInput } = opts;
   const log = ctx.req?.log;
 
-  if (!ctx.session || !ctx.session.sessionId || !ctx.session.timestamp || !ctx.session.signature) {
+  if (
+    !ctx.session ||
+    !ctx.session.sessionId ||
+    !ctx.session.timestamp ||
+    !ctx.session.signature ||
+    !ctx.session.nonce
+  ) {
     return denyAuth(log, path, "missing_auth_headers", ctx.session?.sessionId);
   }
 
-  const { sessionId, timestamp, signature } = ctx.session;
+  const { sessionId, timestamp, signature, nonce } = ctx.session;
 
   // Reject replayed requests (> 5min)
   if (!checkTimestamp(timestamp)) return denyAuth(log, path, "stale_timestamp", sessionId);
@@ -64,10 +71,21 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   // TODO: check input??
   const input = await getRawInput();
 
-  const message = getMessage(type, path, timestamp, input as unknown as Record<string, string>);
+  const message = getMessage(
+    type,
+    path,
+    timestamp,
+    nonce,
+    input as unknown as Record<string, string>,
+  );
 
   const valid = await verifyHmac(fromBase64(rawAuthKey), fromBase64(signature), message);
   if (!valid) return denyAuth(log, path, "invalid_signature", sessionId);
+
+  // Atomic claim — fails iff the nonce was already accepted within the active
+  // window, which means this is a replay of a previously-valid request.
+  const claimed = await claimNonce(nonce);
+  if (!claimed) return denyAuth(log, path, "replay_detected", sessionId);
 
   return opts.next({
     ctx: {

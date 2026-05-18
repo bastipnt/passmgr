@@ -4,10 +4,13 @@ import { getMessage } from "../src/util/general";
 import {
   hkdfInfo,
   SESSION_ID_HEADER,
+  SESSION_NONCE_HEADER,
   SESSION_SALT_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "../src/util/constants";
+
+const NONCE = "00000000-0000-4000-8000-000000000000";
 
 describe("normalize", () => {
   it("trims whitespace from both ends", () => {
@@ -33,49 +36,61 @@ describe("normalize", () => {
 });
 
 describe("getMessage", () => {
-  it("composes type, path, timestamp, and body separated by newlines", () => {
-    const msg = getMessage("mutation", "/entry.update", "1700000000", { id: "abc" });
-    expect(msg).toBe('mutation\n/entry.update\n1700000000\n{"id":"abc"}');
+  it("composes type, path, timestamp, nonce, and body separated by newlines", () => {
+    const msg = getMessage("mutation", "/entry.update", "1700000000", NONCE, { id: "abc" });
+    expect(msg).toBe(`mutation\n/entry.update\n1700000000\n${NONCE}\n{"id":"abc"}`);
   });
 
   it("is deterministic for identical inputs", () => {
-    const a = getMessage("mutation", "/x", "1", { k: "v" });
-    const b = getMessage("mutation", "/x", "1", { k: "v" });
+    const a = getMessage("mutation", "/x", "1", NONCE, { k: "v" });
+    const b = getMessage("mutation", "/x", "1", NONCE, { k: "v" });
     expect(a).toBe(b);
   });
 
   it("changes when type changes", () => {
-    const a = getMessage("query", "/x", "1", { k: "v" });
-    const b = getMessage("mutation", "/x", "1", { k: "v" });
+    const a = getMessage("query", "/x", "1", NONCE, { k: "v" });
+    const b = getMessage("mutation", "/x", "1", NONCE, { k: "v" });
     expect(a).not.toBe(b);
   });
 
   it("changes when path changes", () => {
-    const a = getMessage("query", "/a", "1", { k: "v" });
-    const b = getMessage("query", "/b", "1", { k: "v" });
+    const a = getMessage("query", "/a", "1", NONCE, { k: "v" });
+    const b = getMessage("query", "/b", "1", NONCE, { k: "v" });
     expect(a).not.toBe(b);
   });
 
   it("changes when timestamp changes", () => {
-    const a = getMessage("query", "/x", "1", { k: "v" });
-    const b = getMessage("query", "/x", "2", { k: "v" });
+    const a = getMessage("query", "/x", "1", NONCE, { k: "v" });
+    const b = getMessage("query", "/x", "2", NONCE, { k: "v" });
+    expect(a).not.toBe(b);
+  });
+
+  it("changes when nonce changes", () => {
+    const a = getMessage("query", "/x", "1", NONCE, { k: "v" });
+    const b = getMessage("query", "/x", "1", "different-nonce", { k: "v" });
     expect(a).not.toBe(b);
   });
 
   it("changes when body changes", () => {
-    const a = getMessage("query", "/x", "1", { k: "v" });
-    const b = getMessage("query", "/x", "1", { k: "w" });
+    const a = getMessage("query", "/x", "1", NONCE, { k: "v" });
+    const b = getMessage("query", "/x", "1", NONCE, { k: "w" });
     expect(a).not.toBe(b);
   });
 
   it("handles an empty body object", () => {
-    expect(getMessage("query", "/x", "1", {})).toBe("query\n/x\n1\n{}");
+    expect(getMessage("query", "/x", "1", NONCE, {})).toBe(`query\n/x\n1\n${NONCE}\n{}`);
   });
 
   it('falls back to "" when body is nullish', () => {
     // The TS signature requires a Record, but the runtime guards against a missing body.
-    const msg = getMessage("query", "/x", "1", undefined as unknown as Record<string, string>);
-    expect(msg).toBe('query\n/x\n1\n""');
+    const msg = getMessage(
+      "query",
+      "/x",
+      "1",
+      NONCE,
+      undefined as unknown as Record<string, string>,
+    );
+    expect(msg).toBe(`query\n/x\n1\n${NONCE}\n""`);
   });
 });
 
@@ -85,6 +100,7 @@ describe("constants", () => {
     expect(SESSION_TIMESTAMP_HEADER).toBe("x-timestamp");
     expect(SESSION_SIGNATURE_HEADER).toBe("x-signature");
     expect(SESSION_SALT_HEADER).toBe("x-salt");
+    expect(SESSION_NONCE_HEADER).toBe("x-nonce");
   });
 
   it("encodes hkdfInfo labels as UTF-8 bytes matching their string form", () => {

@@ -2,6 +2,7 @@ import { redis } from "../redis";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
+const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
 
 type Session = {
   userId: string;
@@ -54,4 +55,18 @@ export async function setLoginAttempt(loginAttempt: LoginAttempt) {
 
 export async function delLoginAttempt(userId: string) {
   await redis.del(loginKey(userId));
+}
+
+function nonceKey(nonce: string) {
+  return `nonce:${nonce}`;
+}
+
+/**
+ * Atomically claim a per-request nonce. Returns `true` when this is the first
+ * time the nonce has been seen (caller may proceed) and `false` when the nonce
+ * has already been used inside the active window (caller must reject as replay).
+ */
+export async function claimNonce(nonce: string): Promise<boolean> {
+  const result = await redis.set(nonceKey(nonce), "1", "EX", NONCE_TTL_SECONDS, "NX");
+  return result === "OK";
 }

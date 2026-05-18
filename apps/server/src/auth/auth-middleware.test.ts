@@ -72,9 +72,10 @@ describe("protectedProcedure — rejections", () => {
   });
 
   it.each([
-    ["sessionId", { timestamp: "1", signature: "x" }],
-    ["timestamp", { sessionId: SESSION_ID, signature: "x" }],
-    ["signature", { sessionId: SESSION_ID, timestamp: "1" }],
+    ["sessionId", { timestamp: "1", signature: "x", nonce: "n" }],
+    ["timestamp", { sessionId: SESSION_ID, signature: "x", nonce: "n" }],
+    ["signature", { sessionId: SESSION_ID, timestamp: "1", nonce: "n" }],
+    ["nonce", { sessionId: SESSION_ID, timestamp: "1", signature: "x" }],
   ])("rejects when %s header is missing", async (_name, headers) => {
     const caller = createCaller(buildTestContext(headers));
     await expectUnauthorized(() => caller.echo({ msg: "x" }));
@@ -189,6 +190,42 @@ describe("protectedProcedure — rejections", () => {
   it("throws TRPCError (not a generic Error)", async () => {
     const caller = createCaller(buildTestContext(undefined));
     await expect(caller.echo({ msg: "x" })).rejects.toBeInstanceOf(TRPCError);
+  });
+});
+
+describe("protectedProcedure — replay protection (nonce)", () => {
+  it("rejects a second call that reuses the same nonce within the active window", async () => {
+    const { authKey } = await seedSession();
+    const headers = await signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "mutation",
+      path: "echo",
+      input: { msg: "hi" },
+    });
+
+    // First call must succeed and claim the nonce.
+    const first = createCaller(buildTestContext(headers));
+    await expect(first.echo({ msg: "hi" })).resolves.toMatchObject({ ok: true });
+
+    // Replay verbatim — same nonce — must fail.
+    const second = createCaller(buildTestContext(headers));
+    await expect(second.echo({ msg: "hi" })).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("a fresh nonce on every call keeps the same session working", async () => {
+    const { authKey } = await seedSession();
+    for (let i = 0; i < 3; i++) {
+      const headers = await signRequest({
+        authKey,
+        sessionId: SESSION_ID,
+        type: "mutation",
+        path: "echo",
+        input: { msg: `n${i}` },
+      });
+      const caller = createCaller(buildTestContext(headers));
+      await expect(caller.echo({ msg: `n${i}` })).resolves.toMatchObject({ ok: true });
+    }
   });
 });
 

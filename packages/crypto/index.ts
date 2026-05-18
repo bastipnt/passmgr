@@ -4,6 +4,7 @@ export * from "./src/util/secrets-utils";
 export {
   hkdfInfo,
   SESSION_ID_HEADER,
+  SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "./src/util/constants";

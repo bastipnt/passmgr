@@ -13,6 +13,7 @@
     "format:fix-selected": "pnpm run format -- --ignore-unknown",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "test:integration": "turbo run test:integration",
     "typegen:css": "turbo run typegen:css",
     "storybook": "turbo run storybook",
     "build:storybook": "turbo run build:storybook",

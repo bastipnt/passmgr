@@ -4,6 +4,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+    exclude: ["test/integration/**", "**/node_modules/**", "**/dist/**"],
     // testcontainers + opaque WASM init need process isolation
     pool: "forks",
     // All server-side suites share one Postgres container; run files sequentially
