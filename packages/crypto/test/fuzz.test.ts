@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 import { decryptXChaCha, encryptXChaCha } from "../src/encryption";
 import { hkdf, signHmac, verifyHmac } from "../src/hash";
 import { generatePassword } from "../src/password-generator";
-import { fromString } from "@repo/util";
+import { genKey } from "../src/util/secrets-utils";
+import { fromBase64, fromString } from "@repo/util";
 
 const SHORT_RUNS = { numRuns: 50 };
 const TINY_RUNS = { numRuns: 30 };
@@ -236,5 +237,28 @@ describe("fuzz: signHmac determinism over fromString", () => {
       }),
       TINY_RUNS,
     );
+  });
+});
+
+describe("ciphertext entropy: xchacha20-poly1305", () => {
+  it("byte distribution over 10k ciphertexts is indistinguishable from uniform", () => {
+    const key = genKey();
+    const counts = new Uint32Array(256);
+    let total = 0;
+    for (let i = 0; i < 10_000; i++) {
+      const [ct] = encryptXChaCha(key, `msg-${i}`);
+      const bytes = fromBase64(ct);
+      for (const b of bytes) counts[b]!++;
+      total += bytes.length;
+    }
+    const expected = total / 256;
+    let chiSq = 0;
+    for (let i = 0; i < 256; i++) {
+      const diff = counts[i]! - expected;
+      chiSq += (diff * diff) / expected;
+    }
+    // df=255, p=0.001 critical value ≈ 330. A stuck bit or biased
+    // PRNG fails hard; sound AEAD output stays well under.
+    expect(chiSq).toBeLessThan(330);
   });
 });
