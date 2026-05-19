@@ -1,6 +1,9 @@
 import { defineConfig } from "vitest/config";
 
 export default defineConfig({
+  // Pin to this package so `include` resolves correctly when the config
+  // is loaded from a different CWD (e.g. Stryker invoking it from repo root).
+  root: import.meta.dirname,
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],

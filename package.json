@@ -19,6 +19,10 @@
     "typegen:css": "turbo run typegen:css",
     "storybook": "turbo run storybook",
     "build:storybook": "turbo run build:storybook",
+    "stryker:crypto": "stryker run stryker.crypto.config.mjs",
+    "stryker:store": "stryker run stryker.store.config.mjs",
+    "stryker:server-auth": "stryker run stryker.server-auth.config.mjs",
+    "stryker:client": "stryker run stryker.client.config.mjs",
     "fallow": "fallow"
   },
   "devDependencies": {
@@ -26,6 +30,8 @@
     "@commitlint/config-conventional": "^20.5.3",
     "@commitlint/types": "^20.5.0",
     "@prettier/plugin-oxc": "^0.1.4",
+    "@stryker-mutator/core": "^9.6.1",
+    "@stryker-mutator/vitest-runner": "^9.6.1",
     "fallow": "^2.63.0",
     "prettier": "^3.8.3",
     "prettier-plugin-css-order": "^2.2.0",
