@@ -4,4 +4,5 @@ export default [
   "packages/client",
   "packages/store",
   "apps/server",
+  "apps/web",
 ];

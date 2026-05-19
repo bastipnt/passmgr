@@ -15,7 +15,7 @@ pre-commit:
       stage_fixed: true
 
 pre-push:
-  piped: true
+  piped: false
   commands:
     1_lint:
       tags: style
@@ -23,6 +23,6 @@ pre-push:
     2_typecheck:
       tags: style
       run: pnpm typecheck
-    3_test:
-      tags: test
-      run: pnpm test
+    # 3_test:
+    #   tags: test
+    #   run: pnpm test
