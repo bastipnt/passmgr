@@ -14,6 +14,8 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "test:integration": "turbo run test:integration",
+    "e2e": "turbo run e2e",
+    "e2e:ui": "turbo run e2e:ui",
     "typegen:css": "turbo run typegen:css",
     "storybook": "turbo run storybook",
     "build:storybook": "turbo run build:storybook",

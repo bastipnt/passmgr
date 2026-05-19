@@ -1,0 +1,56 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        VITE_SERVER_URL: /trpc
+    image: passmgr-web:test
+    ports:
+      - "${WEB_PORT:-8080}:8080"
+    volumes:
+      - ./Caddyfile.test:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - server
+
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: passmgr-server:test
+    ports:
+      - "${SERVER_PORT:-3000}:3000"
+    environment:
+      DATABASE_URL: postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OPAQUE_SERVER_SETUP: ${OPAQUE_SERVER_SETUP}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
+      REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
+      RATE_LIMIT_DISABLED: "true"
+      PREFIX: /trpc
+    healthcheck:
+      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/trpc/appConfig.getConfig').then(r=>{if(!r.ok)process.exit(1)})\""]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: passmgr
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-passmgr}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U passmgr"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine

@@ -80,3 +80,7 @@ storybook-static
 .fallow/
 .playwright-mcp
 .playwright
+
+# Playwright
+playwright-report/
+test-results/

@@ -17,6 +17,11 @@
     },
     "test": {},
     "test:integration": {},
+    "e2e": {
+      "cache": false,
+      "dependsOn": ["^build"],
+      "env": ["OPAQUE_SERVER_SETUP", "POSTGRES_PASSWORD", "WEB_PORT", "SERVER_PORT"]
+    },
     "dev": {
       "cache": false,
       "persistent": true,

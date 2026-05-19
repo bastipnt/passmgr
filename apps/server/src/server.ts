@@ -42,13 +42,15 @@ await server.register(fastifyRedis, { client: redis });
 
 const AUTH_PATH_RE = /\/(login|register)\.[A-Za-z]+/;
 
-await server.register(rateLimit, {
-  redis,
-  global: true,
-  timeWindow: "1 minute",
-  max: (req) => (AUTH_PATH_RE.test(req.url) ? 10 : 100),
-  keyGenerator: (req) => req.ip,
-});
+if (process.env.RATE_LIMIT_DISABLED !== "true") {
+  await server.register(rateLimit, {
+    redis,
+    global: true,
+    timeWindow: "1 minute",
+    max: (req) => (AUTH_PATH_RE.test(req.url) ? 10 : 100),
+    keyGenerator: (req) => req.ip,
+  });
+}
 
 const allowedOrigins = new Set(["localhost"]);
 if (process.env.CORS_ORIGIN) {
