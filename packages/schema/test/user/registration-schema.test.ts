@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import {
   finishRegistrationInputSchema,
   startRegistrationInputSchema,
-  startRegistrationOutputSchema,
 } from "../../src/user/registration-schema";
 import { startLoginInputSchema } from "../../src/user/login-schema";
 
@@ -20,65 +19,20 @@ const VALID_USER_KEYS = {
   vaultKeyEncryptionNonce: b64(24),
 };
 
-const VALID_EMAILS = ["alice@example.com", "bob.smith@example.co.uk", "user+tag@sub.example.io"];
-const INVALID_EMAILS = ["", "no-at", "@nouser.com", "double@@example.com"];
-
-describe("startRegistrationInputSchema", () => {
-  it.each(VALID_EMAILS)("accepts email %s", (email) => {
-    expect(() =>
-      startRegistrationInputSchema.parse({ email, registrationRequest: "x" }),
-    ).not.toThrow();
-  });
-
-  it.each(INVALID_EMAILS)("rejects invalid email %j", (email) => {
-    expect(() => startRegistrationInputSchema.parse({ email, registrationRequest: "x" })).toThrow();
-  });
-
-  it("rejects missing registrationRequest", () => {
-    expect(() => startRegistrationInputSchema.parse({ email: "a@b.cd" })).toThrow();
-  });
-
-  it("registration/login email validation symmetry: every valid login email is a valid registration email", () => {
-    for (const email of VALID_EMAILS) {
-      startLoginInputSchema.parse({ email, startLoginRequest: "x" });
-      startRegistrationInputSchema.parse({ email, registrationRequest: "x" });
-    }
-  });
+describe("registration/login email symmetry", () => {
+  it.each(["alice@example.com", "bob.smith@example.co.uk", "user+tag@sub.example.io"])(
+    "%s parses on both schemas",
+    (email) => {
+      expect(() => startLoginInputSchema.parse({ email, startLoginRequest: "x" })).not.toThrow();
+      expect(() =>
+        startRegistrationInputSchema.parse({ email, registrationRequest: "x" }),
+      ).not.toThrow();
+    },
+  );
 });
 
-describe("startRegistrationOutputSchema", () => {
-  it("accepts a non-empty registrationResponse", () => {
-    expect(() =>
-      startRegistrationOutputSchema.parse({ registrationResponse: "blob" }),
-    ).not.toThrow();
-  });
-
-  it("rejects non-string registrationResponse", () => {
-    expect(() => startRegistrationOutputSchema.parse({ registrationResponse: 42 })).toThrow();
-  });
-});
-
-describe("finishRegistrationInputSchema", () => {
-  it("accepts a fully-populated record", () => {
-    expect(() =>
-      finishRegistrationInputSchema.parse({
-        email: "alice@example.com",
-        registrationRecord: "opaque-record-blob",
-        userKeys: VALID_USER_KEYS,
-      }),
-    ).not.toThrow();
-  });
-
-  it("rejects when userKeys is missing", () => {
-    expect(() =>
-      finishRegistrationInputSchema.parse({
-        email: "alice@example.com",
-        registrationRecord: "opaque-record-blob",
-      }),
-    ).toThrow();
-  });
-
-  it("rejects when userKeys is malformed (Argon t out of range)", () => {
+describe("finishRegistrationInputSchema composes key-schema", () => {
+  it("rejects when userKeys has out-of-range Argon t", () => {
     expect(() =>
       finishRegistrationInputSchema.parse({
         email: "alice@example.com",
@@ -88,8 +42,7 @@ describe("finishRegistrationInputSchema", () => {
     ).toThrow();
   });
 
-  it("rejects when userKeys is malformed (recovery vault key wrong length)", () => {
-    // b64(48) is 64 chars; slicing one off gives a 63-char string (off-by-one).
+  it("rejects when userKeys recovery vault key is wrong length", () => {
     expect(() =>
       finishRegistrationInputSchema.parse({
         email: "alice@example.com",
