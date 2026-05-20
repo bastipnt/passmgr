@@ -26,13 +26,13 @@
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "1.0.0-beta.15-859cf75"
+    "drizzle-orm": "1.0.0-rc.3"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.0.0",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "^4.1.6",
-    "drizzle-kit": "1.0.0-beta.15-859cf75",
+    "drizzle-kit": "1.0.0-rc.3",
     "drizzle-seed": "1.0.0-beta.15-859cf75",
     "oxlint": "^1.65.0",
     "pg": "^8.20.0",
