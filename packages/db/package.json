@@ -30,7 +30,7 @@
     "@types/pg": "^8.20.0",
     "drizzle-kit": "1.0.0-beta.15-859cf75",
     "drizzle-seed": "1.0.0-beta.15-859cf75",
-    "oxlint": "^1.62.0",
-    "tsx": "^4.21.0"
+    "oxlint": "^1.65.0",
+    "tsx": "^4.22.2"
   }
 }
