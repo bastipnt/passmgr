@@ -1,0 +1,94 @@
+name: Security
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 4 * * 1"
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+concurrency:
+  group: security-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kingfisher:
+    name: kingfisher
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install kingfisher
+        run: |
+          KF_VERSION=$(curl -fsSL https://api.github.com/repos/mongodb/kingfisher/releases/latest | jq -r .tag_name)
+          curl -fsSL "https://github.com/mongodb/kingfisher/releases/download/${KF_VERSION}/kingfisher-linux-x64.tgz" -o kf.tgz
+          tar -xzf kf.tgz
+          sudo mv kingfisher /usr/local/bin/
+          kingfisher --version
+
+      - name: Scan repo
+        run: |
+          set +e
+          kingfisher scan . \
+            --format sarif \
+            --output kingfisher.sarif \
+            --no-update-check
+          EXIT=$?
+          set -e
+          if [ "$EXIT" = "205" ]; then
+            echo "::error::Validated live secret detected"
+            exit 1
+          fi
+
+      - name: Upload SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: kingfisher.sarif
+          category: kingfisher
+
+  codeql:
+    name: codeql
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          queries: security-extended
+
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"
+
+  semgrep:
+    name: semgrep
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep
+    steps:
+      - uses: actions/checkout@v5
+
+      - run: semgrep ci --config p/owasp-top-ten --config p/javascript --config p/typescript --error
+
+  osv-scanner:
+    name: osv-scanner
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: google/osv-scanner-action/osv-scanner-action@v2
+        with:
+          scan-args: |-
+            --lockfile=./pnpm-lock.yaml
+            --fail-on-severity=HIGH
