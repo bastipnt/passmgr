@@ -16,7 +16,7 @@
     "@repo/util": "workspace:*",
     "@vitest/coverage-v8": "^4.1.6",
     "fast-check": "^4.8.0",
-    "oxlint": "^1.65.0",
+    "oxlint": "^1.66.0",
     "vitest": "^4.1.6"
   },
   "keywords": [],
