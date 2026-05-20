@@ -5,7 +5,6 @@ import RegisterPage from "./RegisterPage";
 
 const registerNewUser = vi.fn();
 const navigate = vi.fn();
-const wipe = vi.fn();
 const writeText = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@repo/client", () => ({
@@ -13,10 +12,6 @@ vi.mock("@repo/client", () => ({
     registerNewUser,
     registrationError: mockRegistrationError,
   }),
-}));
-
-vi.mock("@repo/crypto", () => ({
-  wipe: (...args: unknown[]) => wipe(...args),
 }));
 
 vi.mock("wouter", async () => {
@@ -44,7 +39,6 @@ describe("RegisterPage", () => {
   beforeEach(() => {
     registerNewUser.mockReset();
     navigate.mockReset();
-    wipe.mockReset();
     writeText.mockClear();
     mockRegistrationError = false;
   });
@@ -96,8 +90,7 @@ describe("RegisterPage", () => {
     await userEvent.click(screen.getByRole("button", { name: /i saved it/i }));
 
     await waitFor(() => {
-      expect(wipe).toHaveBeenCalledTimes(1);
-      expect(wipe.mock.calls[0]?.[0]).toBe(key);
+      expect(key.every((b) => b === 0)).toBe(true);
       expect(navigate).toHaveBeenCalledWith("/login");
     });
   });

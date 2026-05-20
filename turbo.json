@@ -16,7 +16,9 @@
       "cache": false
     },
     "test": {},
+    "test:coverage": {},
     "test:integration": {},
+    "test:integration:coverage": {},
     "e2e": {
       "cache": false,
       "dependsOn": ["^build"],
