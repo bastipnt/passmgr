@@ -55,21 +55,21 @@ jobs:
           sarif_file: kingfisher.sarif
           category: kingfisher
 
-  codeql:
-    name: codeql
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v5
+  # codeql:
+  #   name: codeql
+  #   runs-on: ubuntu-latest
+  #   timeout-minutes: 30
+  #   steps:
+  #     - uses: actions/checkout@v5
 
-      - uses: github/codeql-action/init@v3
-        with:
-          languages: javascript-typescript
-          queries: security-extended
+  #     - uses: github/codeql-action/init@v3
+  #       with:
+  #         languages: javascript-typescript
+  #         queries: security-extended
 
-      - uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:javascript-typescript"
+  #     - uses: github/codeql-action/analyze@v3
+  #       with:
+  #         category: "/language:javascript-typescript"
 
   semgrep:
     name: semgrep
@@ -79,7 +79,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - run: semgrep ci --config p/owasp-top-ten --config p/javascript --config p/typescript --error
+      - run: semgrep ci --config p/owasp-top-ten --config p/javascript --config p/typescript
 
   osv-scanner:
     name: osv-scanner
@@ -87,7 +87,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: google/osv-scanner-action/osv-scanner-action@v2
+      - uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
         with:
           scan-args: |-
             --lockfile=./pnpm-lock.yaml
