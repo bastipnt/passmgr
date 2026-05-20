@@ -424,9 +424,15 @@ importers:
         specifier: 1.0.0-beta.15-859cf75
         version: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.20.0)(zod@4.4.3)
     devDependencies:
+      '@testcontainers/postgresql':
+        specifier: ^11.14.0
+        version: 11.14.0
       '@types/pg':
         specifier: ^8.20.0
         version: 8.20.0
+      '@vitest/coverage-v8':
+        specifier: ^4.1.6
+        version: 4.1.6(@vitest/browser@4.1.6)(vitest@4.1.6)
       drizzle-kit:
         specifier: 1.0.0-beta.15-859cf75
         version: 1.0.0-beta.15-859cf75
@@ -436,9 +442,18 @@ importers:
       oxlint:
         specifier: ^1.65.0
         version: 1.65.0(oxlint-tsgolint@0.23.0)
+      pg:
+        specifier: ^8.20.0
+        version: 8.20.0
+      testcontainers:
+        specifier: ^11.14.0
+        version: 11.14.0
       tsx:
         specifier: ^4.22.2
         version: 4.22.2
+      vitest:
+        specifier: ^4.1.6
+        version: 4.1.6(@types/node@25.9.0)(@vitest/browser-playwright@4.1.6)(@vitest/coverage-v8@4.1.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.13(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.22.2)(yaml@2.9.0))
 
   packages/schema:
     dependencies:
@@ -15084,15 +15099,13 @@ snapshots:
   pg-cloudflare@1.4.0:
     optional: true
 
-  pg-connection-string@2.13.0:
-    optional: true
+  pg-connection-string@2.13.0: {}
 
   pg-int8@1.0.1: {}
 
   pg-pool@3.14.0(pg@8.20.0):
     dependencies:
       pg: 8.20.0
-    optional: true
 
   pg-protocol@1.14.0: {}
 
@@ -15113,12 +15126,10 @@ snapshots:
       pgpass: 1.0.5
     optionalDependencies:
       pg-cloudflare: 1.4.0
-    optional: true
 
   pgpass@1.0.5:
     dependencies:
       split2: 4.2.0
-    optional: true
 
   picocolors@1.1.1: {}
 

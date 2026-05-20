@@ -1,6 +1,7 @@
 import type { InferSelectModel } from "drizzle-orm";
 import { index, json, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
+import { usersTable } from "./users";
 import type { ArgonParams } from "@repo/schema";
 
 export const keysTable = pgTable(
@@ -10,7 +11,9 @@ export const keysTable = pgTable(
       .$defaultFn(() => crypto.randomUUID())
       .primaryKey(),
 
-    userId: varchar().notNull(),
+    userId: varchar()
+      .notNull()
+      .references(() => usersTable.userId, { onDelete: "cascade" }),
 
     recoveryKekSalt: varchar().notNull().unique(),
 

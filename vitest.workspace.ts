@@ -3,6 +3,7 @@ export default [
   "packages/schema",
   "packages/client",
   "packages/store",
+  "packages/db",
   "apps/server",
   "apps/web",
 ];

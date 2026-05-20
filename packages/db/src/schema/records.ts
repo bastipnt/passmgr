@@ -1,5 +1,6 @@
 import { index, integer, pgTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
+import { usersTable } from "./users";
 import type { InferSelectModel } from "drizzle-orm";
 
 export const recordsTable = pgTable(
@@ -9,7 +10,9 @@ export const recordsTable = pgTable(
       .$defaultFn(() => crypto.randomUUID())
       .primaryKey(),
     recordId: varchar().notNull(),
-    userId: varchar().notNull(),
+    userId: varchar()
+      .notNull()
+      .references(() => usersTable.userId, { onDelete: "cascade" }),
     encryptedData: varchar().notNull(),
     encryptionNonce: varchar().notNull(),
     cryptoVersion: integer().notNull().default(1),

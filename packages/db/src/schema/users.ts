@@ -1,7 +1,6 @@
-import { defineRelationsPart, type InferSelectModel } from "drizzle-orm";
+import type { InferSelectModel } from "drizzle-orm";
 import { boolean, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
-import { keysTable } from "./keys";
 
 export const usersTable = pgTable("users", {
   userId: varchar()
@@ -30,15 +29,3 @@ export const usersTable = pgTable("users", {
 });
 
 export type UserType = InferSelectModel<typeof usersTable>;
-
-export const usersKeysRelations = defineRelationsPart({ usersTable, keysTable }, (r) => ({
-  usersTable: {
-    key: r.one.keysTable({
-      from: r.usersTable.userId,
-      to: r.keysTable.userId,
-      where: {
-        valid_to: { isNull: true },
-      },
-    }),
-  },
-}));

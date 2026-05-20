@@ -1,0 +1,2 @@
+ALTER TABLE "keys" ADD CONSTRAINT "keys_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "records" ADD CONSTRAINT "records_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;
