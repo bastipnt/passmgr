@@ -26,7 +26,7 @@
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "1.0.0-beta.15-859cf75"
+    "drizzle-orm": "1.0.0-beta.20"
   },
   "devDependencies": {
     "@testcontainers/postgresql": "^12.0.0",
