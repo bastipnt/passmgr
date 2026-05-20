@@ -35,9 +35,9 @@
     "drizzle-kit": "1.0.0-beta.15-859cf75",
     "drizzle-seed": "1.0.0-beta.15-859cf75",
     "oxlint": "^1.65.0",
-    "pg": "^8.20.0",
+    "pg": "^8.21.0",
     "testcontainers": "^11.14.0",
-    "tsx": "^4.22.2",
+    "tsx": "^4.22.3",
     "vitest": "^4.1.6"
   }
 }
