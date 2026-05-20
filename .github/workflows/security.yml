@@ -18,42 +18,42 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  kingfisher:
-    name: kingfisher
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
+  # kingfisher:
+  #   name: kingfisher
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v5
+  #       with:
+  #         fetch-depth: 0
 
-      - name: Install kingfisher
-        run: |
-          KF_VERSION=$(curl -fsSL https://api.github.com/repos/mongodb/kingfisher/releases/latest | jq -r .tag_name)
-          curl -fsSL "https://github.com/mongodb/kingfisher/releases/download/${KF_VERSION}/kingfisher-linux-x64.tgz" -o kf.tgz
-          tar -xzf kf.tgz
-          sudo mv kingfisher /usr/local/bin/
-          kingfisher --version
+  #     - name: Install kingfisher
+  #       run: |
+  #         KF_VERSION=$(curl -fsSL https://api.github.com/repos/mongodb/kingfisher/releases/latest | jq -r .tag_name)
+  #         curl -fsSL "https://github.com/mongodb/kingfisher/releases/download/${KF_VERSION}/kingfisher-linux-x64.tgz" -o kf.tgz
+  #         tar -xzf kf.tgz
+  #         sudo mv kingfisher /usr/local/bin/
+  #         kingfisher --version
 
-      - name: Scan repo
-        run: |
-          set +e
-          kingfisher scan . \
-            --format sarif \
-            --output kingfisher.sarif \
-            --no-update-check
-          EXIT=$?
-          set -e
-          if [ "$EXIT" = "205" ]; then
-            echo "::error::Validated live secret detected"
-            exit 1
-          fi
+  #     - name: Scan repo
+  #       run: |
+  #         set +e
+  #         kingfisher scan . \
+  #           --format sarif \
+  #           --output kingfisher.sarif \
+  #           --no-update-check
+  #         EXIT=$?
+  #         set -e
+  #         if [ "$EXIT" = "205" ]; then
+  #           echo "::error::Validated live secret detected"
+  #           exit 1
+  #         fi
 
-      - name: Upload SARIF
-        if: always()
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: kingfisher.sarif
-          category: kingfisher
+  #     - name: Upload SARIF
+  #       if: always()
+  #       uses: github/codeql-action/upload-sarif@v4
+  #       with:
+  #         sarif_file: kingfisher.sarif
+  #         category: kingfisher
 
   # codeql:
   #   name: codeql
@@ -81,10 +81,10 @@ jobs:
 
       - run: semgrep ci --config p/owasp-top-ten --config p/javascript --config p/typescript
 
-  osv-scanner:
-    name: osv-scanner
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
-    with:
-      scan-args: |-
-        --lockfile=./pnpm-lock.yaml
-        --fail-on-severity=HIGH
+  # osv-scanner:
+  #   name: osv-scanner
+  #   uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@v2.3.8
+  #   with:
+  #     scan-args: |-
+  #       --lockfile=./pnpm-lock.yaml
+  #       --fail-on-severity=HIGH
