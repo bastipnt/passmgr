@@ -3,7 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
-import * as opaque from "@serenity-kit/opaque";
+import { OpaqueID, getOpaqueConfig } from "@cloudflare/opaque-ts";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const repoRoot = resolve(__dirname, "../../..");
@@ -43,15 +43,24 @@ async function waitForUrl(url: string, timeoutMs: number) {
 }
 
 export default async function globalSetup() {
-  await opaque.ready;
-  const opaqueServerSetup = opaque.server.createSetup();
+  const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
+  const oprfSeed = crypto.getRandomValues(new Uint8Array(cfg.hash.Nh));
+  const ake = await cfg.ake.generateAuthKeyPair();
+  const opaqueOprfSeed = Buffer.from(oprfSeed).toString("base64");
+  const opaqueAkePrivateKey = Buffer.from(Uint8Array.from(ake.private_key)).toString("base64");
+  // Stable secret used only for email HMAC/encryption — independent of OPAQUE.
+  const opaqueServerSetup = randomBytes(32).toString("base64");
   const postgresPassword = randomBytes(24).toString("base64url");
 
   writeFileSync(
     envLocalFile,
-    [`OPAQUE_SERVER_SETUP=${opaqueServerSetup}`, `POSTGRES_PASSWORD=${postgresPassword}`, ""].join(
-      "\n",
-    ),
+    [
+      `OPAQUE_OPRF_SEED=${opaqueOprfSeed}`,
+      `OPAQUE_AKE_PRIVATE_KEY=${opaqueAkePrivateKey}`,
+      `OPAQUE_SERVER_SETUP=${opaqueServerSetup}`,
+      `POSTGRES_PASSWORD=${postgresPassword}`,
+      "",
+    ].join("\n"),
   );
 
   try {
@@ -66,7 +75,9 @@ export default async function globalSetup() {
   await waitForUrl(`http://localhost:${WEB_PORT}/trpc/appConfig.getConfig`, 60_000);
 
   const env = readFileSync(envLocalFile, "utf8");
-  if (!env.includes("OPAQUE_SERVER_SETUP=")) {
-    throw new Error("OPAQUE_SERVER_SETUP missing from .env.test.local");
+  for (const key of ["OPAQUE_OPRF_SEED", "OPAQUE_AKE_PRIVATE_KEY", "OPAQUE_SERVER_SETUP"]) {
+    if (!env.includes(`${key}=`)) {
+      throw new Error(`${key} missing from .env.test.local`);
+    }
   }
 }

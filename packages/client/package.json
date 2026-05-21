@@ -14,7 +14,6 @@
     "@repo/types": "workspace:*",
     "@repo/util": "workspace:*",
     "@cloudflare/opaque-ts": "^0.7.5",
-    "@serenity-kit/opaque": "^1.1.0",
     "@tanstack/react-query": "^5.100.11",
     "@trpc/client": "^11.17.0",
     "@trpc/tanstack-react-query": "^11.17.0",

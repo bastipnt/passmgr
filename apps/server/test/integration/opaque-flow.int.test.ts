@@ -1,5 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import * as opaque from "@serenity-kit/opaque";
+import { beforeEach, describe, expect, it } from "vitest";
 import { db, usersTable } from "@repo/db";
 import {
   decryptXChaCha,
@@ -15,6 +14,7 @@ import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { createCaller, loginAndGetAuthKey } from "./_helpers";
 import { buildTestContext } from "../setup/test-context";
+import { clientStartRegistration } from "../setup/opaque-client";
 
 /**
  * Register a user the same way the client does, but keep `vaultKey` + `recoveryKey`
@@ -23,18 +23,12 @@ import { buildTestContext } from "../setup/test-context";
 async function registerCapturingVaultKey(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));
 
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password,
-  });
+  const started = await clientStartRegistration(password);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
-    registrationRequest,
+    registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
+  const { registrationRecord } = await started.finish(registrationResponse, email);
 
   const recoveryKey = genKey();
   const recoveryKekSaltData = genSalt();
@@ -63,10 +57,6 @@ async function registerCapturingVaultKey(email: string, password: string) {
 
   return { vaultKey, recoveryKey };
 }
-
-beforeAll(async () => {
-  await opaque.ready;
-});
 
 beforeEach(async () => {
   await truncateAll();

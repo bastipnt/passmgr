@@ -1,4 +1,3 @@
-import * as opaque from "@serenity-kit/opaque";
 import { genKey } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
 import { createCallerFactory } from "../../src/trpc";
@@ -6,6 +5,7 @@ import { appRouter } from "../../src/router";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
 import { deriveAuthKey, signRequest } from "../setup/signed-request";
+import { clientStartLogin, clientStartRegistration } from "../setup/opaque-client";
 
 export const createCaller = createCallerFactory(appRouter);
 
@@ -14,18 +14,12 @@ export async function register(
   password: string,
 ): Promise<{ recoveryKey: Uint8Array }> {
   const caller = createCaller(buildTestContext(undefined));
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password,
-  });
+  const started = await clientStartRegistration(password);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
-    registrationRequest,
+    registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
+  const { registrationRecord } = await started.finish(registrationResponse, email);
   const { recoveryKey, ...userKeys } = await buildUserKeys(password);
   await caller.register.finishRegistration({ email, registrationRecord, userKeys });
   return { recoveryKey };
@@ -36,10 +30,13 @@ export async function loginAndGetAuthKey(
   password: string,
 ): Promise<{ sessionId: string; authKey: Uint8Array }> {
   const caller = createCaller(buildTestContext(undefined));
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
-  const { loginResponse } = await caller.login.startLogin({ email, startLoginRequest });
-  const result = opaque.client.finishLogin({ clientLoginState, loginResponse, password });
-  if (!result) throw new Error("OPAQUE finishLogin returned null");
+  const started = await clientStartLogin(password);
+  const { loginResponse } = await caller.login.startLogin({
+    email,
+    startLoginRequest: started.startLoginRequest,
+  });
+  const result = await started.finish(loginResponse, email);
+  if (!result) throw new Error("OPAQUE authFinish failed");
   const authSalt = genKey();
   const finished = await caller.login.finishLogin({
     email,

@@ -1,15 +1,10 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import * as opaque from "@serenity-kit/opaque";
+import { beforeEach, describe, expect, it } from "vitest";
 import { db, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
 import { fromString, toBase64 } from "@repo/util";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { register } from "./_helpers";
-
-beforeAll(async () => {
-  await opaque.ready;
-});
 
 beforeEach(async () => {
   await truncateAll();

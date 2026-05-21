@@ -1,5 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import * as opaque from "@serenity-kit/opaque";
+import { beforeEach, describe, expect, it } from "vitest";
 import { toBase64 } from "@repo/util";
 import { registerNewUser } from "../../../../packages/client/src/register";
 import { loginUser } from "../../../../packages/client/src/login";
@@ -70,10 +69,6 @@ function captureClient(): {
 
   return { trpc, captured };
 }
-
-beforeAll(async () => {
-  await opaque.ready;
-});
 
 beforeEach(async () => {
   await truncateAll();

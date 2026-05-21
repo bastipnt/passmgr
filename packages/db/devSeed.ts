@@ -1,9 +1,16 @@
 import { config } from "dotenv";
 
-// Load DB env (DATABASE_URL) and server env (OPAQUE_SERVER_SETUP)
+// Load DB env (DATABASE_URL) and server env (OPAQUE_* vars).
 config();
 config({ path: "../../apps/server/.env" });
-import * as opaque from "@serenity-kit/opaque";
+
+import {
+  OpaqueClient,
+  OpaqueID,
+  OpaqueServer,
+  getOpaqueConfig,
+  type AKEExportKeyPair,
+} from "@cloudflare/opaque-ts";
 import { reset } from "drizzle-seed";
 import { db, schema, usersTable, keysTable, recordsTable } from ".";
 import {
@@ -15,21 +22,23 @@ import {
   hashEmail,
   hkdf,
 } from "@repo/crypto";
-import { fromString, toBase64 } from "@repo/util";
+import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { exampleLoginRecords, type RecordSchema } from "@repo/schema";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
+const SERVER_IDENTITY = "passmgr";
 
 async function seed() {
-  await opaque.ready;
-
-  const serverSetup = process.env.OPAQUE_SERVER_SETUP;
-  if (!serverSetup) {
-    console.error("OPAQUE_SERVER_SETUP env var is required. Copy it from apps/server/.env");
+  const { OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY, OPAQUE_SERVER_SETUP } = process.env;
+  if (!OPAQUE_OPRF_SEED || !OPAQUE_AKE_PRIVATE_KEY || !OPAQUE_SERVER_SETUP) {
+    console.error(
+      "OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY and OPAQUE_SERVER_SETUP env vars are required. Copy them from apps/server/.env (generate via bun apps/server/scripts/opaque-cf-bootstrap.ts).",
+    );
     process.exit(1);
   }
-  const serverKey = fromString(serverSetup);
+
+  const serverKey = fromString(OPAQUE_SERVER_SETUP);
 
   // 1. Reset database
   console.log("Resetting database...");
@@ -37,21 +46,24 @@ async function seed() {
 
   // 2. OPAQUE registration (client + server in one process)
   console.log("Registering user...");
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password: PASSWORD,
-  });
+  const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
+  const akePrivBytes = fromBase64(OPAQUE_AKE_PRIVATE_KEY);
+  const akePublic = cfg.ake.recoverPublicKey(akePrivBytes);
+  const akeKeypair: AKEExportKeyPair = {
+    private_key: Array.from(akePrivBytes),
+    public_key: Array.from(akePublic.public_key),
+  };
+  const oprfSeed = Array.from(fromBase64(OPAQUE_OPRF_SEED));
+  const opaqueServer = new OpaqueServer(cfg, oprfSeed, akeKeypair, SERVER_IDENTITY);
 
-  const { registrationResponse } = opaque.server.createRegistrationResponse({
-    serverSetup,
-    userIdentifier: EMAIL,
-    registrationRequest,
-  });
-
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password: PASSWORD,
-  });
+  const client = new OpaqueClient(cfg);
+  const req = await client.registerInit(PASSWORD);
+  if (req instanceof Error) throw req;
+  const resp = await opaqueServer.registerInit(req, EMAIL);
+  if (resp instanceof Error) throw resp;
+  const finished = await client.registerFinish(resp, SERVER_IDENTITY, EMAIL);
+  if (finished instanceof Error) throw finished;
+  const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 
   // 3. Generate key hierarchy
   const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(PASSWORD);

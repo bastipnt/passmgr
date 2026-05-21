@@ -1,15 +1,10 @@
-import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import * as opaque from "@serenity-kit/opaque";
+import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";
-
-beforeAll(async () => {
-  await opaque.ready;
-});
 
 beforeEach(async () => {
   await truncateAll();
