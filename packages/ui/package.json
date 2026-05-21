@@ -30,7 +30,7 @@
     "@vitejs/plugin-react": "^6.0.2",
     "@vitest/browser-playwright": "^4.1.6",
     "@vitest/coverage-v8": "^4.1.6",
-    "oxlint": "^1.65.0",
+    "oxlint": "^1.66.0",
     "oxlint-tsgolint": "^0.23.0",
     "playwright": "^1.60.0",
     "postcss-load-config": "^6.0.1",
@@ -42,7 +42,7 @@
     "vitest": "^4.1.6"
   },
   "dependencies": {
-    "@base-ui/react": "^1.4.1",
+    "@base-ui/react": "^1.5.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@repo/util": "workspace:*",
     "class-variance-authority": "^0.7.1",

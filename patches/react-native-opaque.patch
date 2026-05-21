@@ -1,0 +1,32 @@
+diff --git a/react-native-opaque.podspec b/react-native-opaque.podspec
+index f9dcff77f1573283f39f7931f70a28dcab59fc6a..84cec815ed266086b12d7bd6e03b6d73f38f99fb 100644
+--- a/react-native-opaque.podspec
++++ b/react-native-opaque.podspec
+@@ -29,22 +29,10 @@ Pod::Spec.new do |s|
+ 
+   s.dependency "React-Core"
+ 
+-  # Don't install the dependencies when we run `pod install` in the old architecture.
+-  if ENV['RCT_NEW_ARCH_ENABLED'] == '1' then
+-    s.compiler_flags = folly_compiler_flags + " -DRCT_NEW_ARCH_ENABLED=1"
+-    s.pod_target_xcconfig    = {
+-        "HEADER_SEARCH_PATHS" => "\"$(PODS_ROOT)/boost\"",
+-        "OTHER_CPLUSPLUSFLAGS" => "-DFOLLY_NO_CONFIG -DFOLLY_MOBILE=1 -DFOLLY_USE_LIBCPP=1",
+-        "CLANG_CXX_LANGUAGE_STANDARD" => "c++17",
+-        **rustlib_xcconfig
+-    }
+-    s.dependency "React-Codegen"
+-    s.dependency "RCT-Folly"
+-    s.dependency "RCTRequired"
+-    s.dependency "RCTTypeSafety"
+-    s.dependency "ReactCommon/turbomodule/core"
+-  else
+-    s.pod_target_xcconfig = rustlib_xcconfig
+-  end
++  # Patched: react-native-opaque uses the legacy RCTCxxBridge JSI install
++  # path; it does not actually need Turbo Modules / Fabric / RCT-Folly.
++  # Modern RN (0.83+) always reports new arch enabled, but those pods are
++  # gone. React-Core already provides JSI, which is all this module uses.
++  s.pod_target_xcconfig = rustlib_xcconfig
+ 
+ end

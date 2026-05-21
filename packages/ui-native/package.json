@@ -1,0 +1,27 @@
+{
+  "name": "@repo/ui-native",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "index.ts",
+  "private": true,
+  "scripts": {
+    "lint": "oxlint --type-aware",
+    "typecheck": "tsc --noEmit"
+  },
+  "peerDependencies": {
+    "expo-router": "*",
+    "react": "^19",
+    "react-native": "*"
+  },
+  "dependencies": {
+    "react-hook-form": "^7.76.0"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "@types/react": "^19.2.14",
+    "oxlint": "^1.66.0",
+    "react": "^19.2.6",
+    "react-native": "0.85.3",
+    "typescript": "^6.0.3"
+  }
+}

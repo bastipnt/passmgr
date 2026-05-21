@@ -12,7 +12,7 @@ function App() {
       <ThemeProvider storageKey="pass-mgr-theme">
         <SessionProvider>
           <ShortcutProvider>
-            <ClientProvider>
+            <ClientProvider serverUrl={import.meta.env.VITE_SERVER_URL}>
               <StoreProvider>
                 <RecordsProvider>
                   <Toaster />

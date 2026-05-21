@@ -42,6 +42,8 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   const [isOffline, setIsOffline] = useState(false);
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
+
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 

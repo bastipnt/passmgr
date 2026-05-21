@@ -7,6 +7,7 @@ export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-register";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-unlock";
+export * from "./src/hooks/use-unlock-simple";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-update-record";
 export * from "./src/hooks/use-delete-record";

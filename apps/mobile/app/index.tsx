@@ -1,21 +1,8 @@
-import { Text, View, StyleSheet } from "react-native";
+import { useContext } from "react";
+import { Redirect } from "expo-router";
+import { SessionContext } from "@repo/client";
 
 export default function Index() {
-  return (
-    <View style={styles.container}>
-      <Text style={styles.text}>Home screen</Text>
-    </View>
-  );
+  const { loggedIn } = useContext(SessionContext);
+  return <Redirect href={loggedIn ? "/(app)" : "/(auth)/login"} />;
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#25292e",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  text: {
-    color: "#fff",
-  },
-});

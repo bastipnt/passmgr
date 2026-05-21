@@ -41,11 +41,11 @@ function getQueryClient() {
 
 type ClientProviderProps = {
   children: ReactNode;
+  serverUrl: string;
 };
 
-export default function ClientProvider({ children }: ClientProviderProps) {
+export default function ClientProvider({ children, serverUrl }: ClientProviderProps) {
   const queryClient = getQueryClient();
-  console.log("server url", import.meta.env.VITE_SERVER_URL);
 
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
     createTRPCClient<AppRouter>({
@@ -53,14 +53,14 @@ export default function ClientProvider({ children }: ClientProviderProps) {
         splitLink({
           condition: (op) => op.type === "subscription",
           true: httpSubscriptionLink({
-            url: import.meta.env.VITE_SERVER_URL,
+            url: serverUrl,
             connectionParams: async () => {
               const { secretsStore } = await import("@repo/store");
               return { sessionId: secretsStore.sessionId ?? "" };
             },
           }),
           false: httpLink({
-            url: import.meta.env.VITE_SERVER_URL,
+            url: serverUrl,
             async headers({ op }) {
               return await generateAuthHeaders(op);
             },
