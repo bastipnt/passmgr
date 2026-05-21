@@ -537,6 +537,18 @@ importers:
         specifier: ^4.1.6
         version: 4.1.6(@types/node@25.9.0)(@vitest/browser-playwright@4.1.6)(@vitest/coverage-v8@4.1.6)(jsdom@29.1.1(@noble/hashes@2.2.0))(msw@2.14.6(@types/node@25.9.0)(typescript@6.0.3))(vite@8.0.13(@types/node@25.9.0)(esbuild@0.28.0)(jiti@2.7.0)(terser@5.47.1)(tsx@4.22.3)(yaml@2.9.0))
 
+  packages/tokens:
+    devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      oxlint:
+        specifier: ^1.66.0
+        version: 1.66.0(oxlint-tsgolint@0.23.0)
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
   packages/types:
     dependencies:
       server:
@@ -681,6 +693,9 @@ importers:
 
   packages/ui-native:
     dependencies:
+      '@repo/tokens':
+        specifier: workspace:*
+        version: link:../tokens
       expo-router:
         specifier: '*'
         version: 56.2.1(8b39825ab84547026a04faf76419deb6)

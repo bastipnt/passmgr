@@ -1,0 +1,15 @@
+{
+  "name": "@repo/tokens",
+  "version": "0.0.1",
+  "type": "module",
+  "main": "index.ts",
+  "scripts": {
+    "lint": "oxlint --type-aware",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "oxlint": "^1.66.0",
+    "typescript": "^6.0.3"
+  }
+}
