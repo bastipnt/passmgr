@@ -3,6 +3,8 @@ install();
 
 import "react-native-get-random-values";
 
+import "@repo/ui-native/styles/nativewind.css";
+
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { ClientProvider, SessionProvider } from "@repo/client";

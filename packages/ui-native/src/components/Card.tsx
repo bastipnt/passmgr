@@ -1,81 +1,76 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, View, type ViewProps } from "react-native";
-import { colors, fontSize, radius, spacing } from "../theme/tokens";
+import { type ViewProps } from "react-native";
+import { cn } from "../lib/cn";
+import { Text, View } from "../lib/styled";
 
-export function Card({ children, style, ...rest }: ViewProps) {
+export function Card({ children, className, style, ...rest }: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.card, style]} {...rest}>
+    <View
+      className={cn("bg-background rounded-lg border border-border p-4 gap-3", className)}
+      style={style}
+      {...rest}
+    >
       {children}
     </View>
   );
 }
 
-export function CardHeader({ children, style, ...rest }: ViewProps) {
+export function CardHeader({
+  children,
+  className,
+  style,
+  ...rest
+}: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.header, style]} {...rest}>
+    <View
+      className={cn("flex-row justify-between items-center", className)}
+      style={style}
+      {...rest}
+    >
       {children}
     </View>
   );
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
-  return <Text style={styles.title}>{children}</Text>;
+  return <Text className="text-xl font-bold text-text-primary">{children}</Text>;
 }
 
-export function CardAction({ children, style, ...rest }: ViewProps) {
+export function CardAction({
+  children,
+  className,
+  style,
+  ...rest
+}: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.action, style]} {...rest}>
+    <View className={cn("flex-row items-center gap-1", className)} style={style} {...rest}>
       {children}
     </View>
   );
 }
 
-export function CardContent({ children, style, ...rest }: ViewProps) {
+export function CardContent({
+  children,
+  className,
+  style,
+  ...rest
+}: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.content, style]} {...rest}>
+    <View className={cn("gap-3", className)} style={style} {...rest}>
       {children}
     </View>
   );
 }
 
-export function CardFooter({ children, style, ...rest }: ViewProps) {
+export function CardFooter({
+  children,
+  className,
+  style,
+  ...rest
+}: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.footer, style]} {...rest}>
+    <View className={cn("flex-row justify-end gap-3", className)} style={style} {...rest}>
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  card: {
-    backgroundColor: colors.background,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  header: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: fontSize.xl,
-    fontWeight: "700",
-    color: colors.textPrimary,
-  },
-  action: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.xs,
-  },
-  content: {
-    gap: spacing.md,
-  },
-  footer: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.md,
-  },
-});

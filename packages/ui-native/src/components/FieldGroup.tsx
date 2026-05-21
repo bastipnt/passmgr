@@ -1,16 +1,16 @@
-import { StyleSheet, View, type ViewProps } from "react-native";
-import { spacing } from "../theme/tokens";
+import { type ViewProps } from "react-native";
+import { cn } from "../lib/cn";
+import { View } from "../lib/styled";
 
-export function FieldGroup({ children, style, ...rest }: ViewProps) {
+export function FieldGroup({
+  children,
+  className,
+  style,
+  ...rest
+}: ViewProps & { className?: string }) {
   return (
-    <View style={[styles.group, style]} {...rest}>
+    <View className={cn("gap-3", className)} style={style} {...rest}>
       {children}
     </View>
   );
 }
-
-const styles = StyleSheet.create({
-  group: {
-    gap: spacing.md,
-  },
-});

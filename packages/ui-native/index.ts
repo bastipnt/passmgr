@@ -26,6 +26,8 @@ export { Spinner } from "./src/components/Spinner";
 export { Link } from "./src/components/Link";
 export type { LinkProps } from "./src/components/Link";
 
+export { cn } from "./src/lib/cn";
+
 export { colors, spacing, radius, fontSize } from "./src/theme/tokens";
 
 export { useForm } from "react-hook-form";

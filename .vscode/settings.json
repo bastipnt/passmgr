@@ -8,7 +8,7 @@
   // "eslint.lintTask.enable": true,
   "prettier.prettierPath": "./node_modules/prettier",
   "prettier.requireConfig": true,
-  "typescript.tsdk": "node_modules/typescript/lib",
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
   "cSpell.words": ["fastify", "oxlint", "oxlintrc", "trpc"],
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit"
@@ -33,5 +33,6 @@
     "*.css": "tailwindcss"
   },
   "tailwindCSS.classFunctions": ["cn", "cva"],
-  "typescript.preferences.importModuleSpecifier": "non-relative"
+  "js/ts.preferences.importModuleSpecifier": "non-relative",
+  "tailwindCSS.classAttributes": ["class", "className", "headerClassName"]
 }

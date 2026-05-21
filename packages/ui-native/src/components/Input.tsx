@@ -1,27 +1,30 @@
 import { useState } from "react";
-import { StyleSheet, Text, TextInput, View, type TextInputProps } from "react-native";
+import { type TextInputProps } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { colors, fontSize, radius, spacing } from "../theme/tokens";
+import { cn } from "../lib/cn";
+import { Text, TextInput, View } from "../lib/styled";
 
 export type InputProps = TextInputProps & {
   label?: string;
   error?: string;
+  className?: string;
 };
 
-export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputProps) {
+export function Input({ label, error, className, style, onFocus, onBlur, ...rest }: InputProps) {
   const [focused, setFocused] = useState(false);
 
   return (
-    <View style={styles.wrapper}>
-      {label && <Text style={styles.label}>{label}</Text>}
+    <View className="gap-1">
+      {label && <Text className="text-sm font-medium text-text-primary">{label}</Text>}
       <TextInput
-        placeholderTextColor={colors.muted}
-        style={[
-          styles.input,
-          focused && styles.inputFocused,
-          error ? styles.inputError : null,
-          style,
-        ]}
+        placeholderTextColor="#9ca3af"
+        className={cn(
+          "border border-border rounded-md px-3 py-2 min-h-[44] text-base text-text-primary bg-background",
+          focused && "border-border-focus",
+          error && "border-danger",
+          className,
+        )}
+        style={style}
         onFocus={(e) => {
           setFocused(true);
           onFocus?.(e);
@@ -32,7 +35,7 @@ export function Input({ label, error, style, onFocus, onBlur, ...rest }: InputPr
         }}
         {...rest}
       />
-      {error && <Text style={styles.error}>{error}</Text>}
+      {error && <Text className="text-xs text-danger">{error}</Text>}
     </View>
   );
 }
@@ -66,35 +69,3 @@ export function ControlledInput<TFieldValues extends FieldValues>({
     />
   );
 }
-
-const styles = StyleSheet.create({
-  wrapper: {
-    gap: spacing.xs,
-  },
-  label: {
-    fontSize: fontSize.sm,
-    fontWeight: "500",
-    color: colors.textPrimary,
-  },
-  input: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
-    minHeight: 44,
-    fontSize: fontSize.md,
-    color: colors.textPrimary,
-    backgroundColor: colors.background,
-  },
-  inputFocused: {
-    borderColor: colors.borderFocus,
-  },
-  inputError: {
-    borderColor: colors.danger,
-  },
-  error: {
-    fontSize: fontSize.xs,
-    color: colors.danger,
-  },
-});

@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
+import { Pressable, Text, View } from "../lib/styled";
 import { Input, type InputProps } from "./Input";
-import { colors, fontSize, spacing } from "../theme/tokens";
 
 export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omit<
   InputProps,
@@ -24,8 +23,8 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <View style={styles.row}>
-          <View style={styles.input}>
+        <View className="flex-row items-end gap-2">
+          <View className="flex-1">
             <Input
               value={(field.value as string | undefined) ?? ""}
               onChangeText={field.onChange}
@@ -41,32 +40,12 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
             accessibilityRole="button"
             accessibilityLabel={visible ? "Hide password" : "Show password"}
             onPress={() => setVisible((v) => !v)}
-            style={styles.toggle}
+            className="px-2 py-3"
           >
-            <Text style={styles.toggleText}>{visible ? "Hide" : "Show"}</Text>
+            <Text className="text-sm text-primary font-medium">{visible ? "Hide" : "Show"}</Text>
           </Pressable>
         </View>
       )}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    gap: spacing.sm,
-  },
-  input: {
-    flex: 1,
-  },
-  toggle: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.md,
-  },
-  toggleText: {
-    fontSize: fontSize.sm,
-    color: colors.primary,
-    fontWeight: "500",
-  },
-});
