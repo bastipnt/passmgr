@@ -41,14 +41,14 @@ export default function LoginScreen() {
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);
-    const unlockInfo = await loginUser(email, password);
-    if (!unlockInfo) {
+    try {
+      const unlockInfo = await loginUser(email, password);
+      if (!unlockInfo) return;
+      await unlock(unlockInfo);
+      router.replace("/(app)");
+    } finally {
       setLoading(false);
-      return;
     }
-    await unlock(unlockInfo);
-    setLoading(false);
-    router.replace("/(app)");
   };
 
   return (

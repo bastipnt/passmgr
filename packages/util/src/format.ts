@@ -29,14 +29,25 @@ export function fromString(input?: string): Uint8Array {
  */
 export function fromBase64(input: string): Uint8Array {
   if (!checkIfBase64(input)) throw new EncodingError();
-  return Uint8Array.fromBase64(input);
+  if (typeof Uint8Array.fromBase64 === "function") {
+    return Uint8Array.fromBase64(input);
+  }
+  // Hermes (React Native) lacks the TC39 base64 proposal — fall back to atob.
+  const bin = atob(input);
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
 }
 
 /**
  * Convert Uint8Array to base64 string
  */
 export function toBase64(input: Uint8Array): string {
-  return input.toBase64();
+  if (typeof input.toBase64 === "function") return input.toBase64();
+  // Hermes (React Native) fallback via btoa.
+  let s = "";
+  for (let i = 0; i < input.length; i++) s += String.fromCharCode(input[i]!);
+  return btoa(s);
 }
 
 /**

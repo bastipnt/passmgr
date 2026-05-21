@@ -25,6 +25,7 @@
     "@repo/db": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
+    "@cloudflare/opaque-ts": "^0.7.5",
     "@serenity-kit/opaque": "^1.1.0",
     "@trpc/server": "^11.17.0",
     "fastify": "^5.8.5",

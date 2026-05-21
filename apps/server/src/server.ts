@@ -2,13 +2,11 @@ import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/a
 import fastify from "fastify";
 import { appRouter, type AppRouter } from "./router";
 import cors from "@fastify/cors";
-import { opaque } from "./opaque";
+import "./opaque";
 import { createContext } from "./context";
 import fastifyRedis from "@fastify/redis";
 import rateLimit from "@fastify/rate-limit";
 import { redis } from "./redis";
-
-await opaque.ready;
 
 const isDev = process.env.NODE_ENV !== "production";
 

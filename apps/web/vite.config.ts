@@ -7,6 +7,7 @@ import sqlocal from "sqlocal/vite";
 // https://vite.dev/config/
 export default defineConfig({
   resolve: {
+    dedupe: ["react", "react-dom"],
     alias: {
       "@pages": path.resolve(__dirname, "./src/pages"),
       "@components": path.resolve(__dirname, "./src/components"),

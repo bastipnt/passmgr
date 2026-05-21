@@ -3,7 +3,7 @@ import { hkdf as hkdf_, hmac, sha256 } from "@noble/hashes/webcrypto.js";
 import { fromString } from "@repo/util";
 import { normalize } from "./util/string-utils";
 import { genSalt } from "./util/secrets-utils";
-import { argon2idAsync, type ArgonOpts } from "@noble/hashes/argon2.js";
+import { argon2idAsync, type ArgonOpts } from "./util/argon2-impl";
 
 /**
  * -------------------------- Key Derivation Functions (KDF) ---------------------------------------

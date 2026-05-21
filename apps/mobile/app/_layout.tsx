@@ -1,3 +1,6 @@
+import { install } from "react-native-quick-crypto";
+install();
+
 import "react-native-get-random-values";
 
 import { Stack } from "expo-router";

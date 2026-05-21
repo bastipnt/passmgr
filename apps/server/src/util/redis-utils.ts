@@ -11,7 +11,9 @@ type Session = {
 
 type LoginAttempt = {
   userId: string;
-  serverLoginState: string;
+  // Base64-encoded ExpectedAuthResult from @cloudflare/opaque-ts authInit.
+  // Threaded from startLogin to finishLogin (5min TTL = OPAQUE replay window).
+  expected: string;
 };
 
 function sessionKey(sessionId: string) {

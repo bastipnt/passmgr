@@ -1,5 +1,6 @@
+import { KE1, KE3, RegistrationRecord, ExpectedAuthResult } from "@cloudflare/opaque-ts";
 import { loggedProcedure } from "../logger";
-import { opaque, serverKey, serverSetup } from "../opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { db } from "@repo/db";
 import { TRPCError } from "@trpc/server";
@@ -48,20 +49,27 @@ export const loginRouter = router({
       if (!res) denyLogin(log, "startLogin", "user_not_found", emailHash);
       const { registrationRecord, userId } = res;
 
-      let serverLoginState, loginResponse;
-
+      let ke1: KE1;
+      let record: RegistrationRecord;
       try {
-        ({ serverLoginState, loginResponse } = opaque.server.startLogin({
-          serverSetup,
-          userIdentifier: email,
-          registrationRecord,
-          startLoginRequest,
-        }));
+        ke1 = KE1.deserialize(opaqueConfig, b64ToBytes(startLoginRequest));
+        record = RegistrationRecord.deserialize(opaqueConfig, b64ToBytes(registrationRecord));
       } catch {
+        denyLogin(log, "startLogin", "decode_failed", emailHash);
+      }
+
+      // credential_identifier = email (mirrors prior serenity userIdentifier).
+      // client_identity = email is mixed into MAC transcripts — must match what
+      // the client passes to authFinish.
+      const initResult = await opaqueServer.authInit(ke1, record, email, email);
+      if (initResult instanceof Error) {
         denyLogin(log, "startLogin", "opaque_start_failed", emailHash);
       }
 
-      await setLoginAttempt({ userId, serverLoginState });
+      const loginResponse = bytesToB64(initResult.ke2.serialize());
+      const expected = bytesToB64(initResult.expected.serialize());
+
+      await setLoginAttempt({ userId, expected });
 
       return { loginResponse };
     }),
@@ -85,18 +93,21 @@ export const loginRouter = router({
       const loginAttempt = await getLoginAttempt(userId);
       if (!loginAttempt) denyLogin(log, "finishLogin", "no_login_attempt", emailHash);
 
-      const { serverLoginState } = loginAttempt;
-
-      let sessionKey: string;
-
+      let ke3: KE3;
+      let expected: ExpectedAuthResult;
       try {
-        ({ sessionKey } = opaque.server.finishLogin({
-          finishLoginRequest,
-          serverLoginState,
-        }));
+        ke3 = KE3.deserialize(opaqueConfig, b64ToBytes(finishLoginRequest));
+        expected = ExpectedAuthResult.deserialize(opaqueConfig, b64ToBytes(loginAttempt.expected));
       } catch {
+        denyLogin(log, "finishLogin", "decode_failed", emailHash);
+      }
+
+      const finResult = opaqueServer.authFinish(ke3, expected);
+      if (finResult instanceof Error) {
         denyLogin(log, "finishLogin", "opaque_finish_failed", emailHash);
       }
+
+      const sessionKey = bytesToB64(finResult.session_key);
 
       await delLoginAttempt(userId);
 
@@ -108,11 +119,9 @@ export const loginRouter = router({
         rawAuthKey: toBase64(authKey),
       });
 
-      // cleanup of keys
       wipe(sessionSecret);
       wipe(authKey);
 
-      // TODO: global constraint deleted_at is null?
       const keyQueryRes = await db.query.keysTable.findFirst({
         columns: {
           passwordKekParams: true,

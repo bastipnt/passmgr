@@ -1,7 +1,13 @@
-import * as opaque from "@serenity-kit/opaque";
+import {
+  OpaqueClient,
+  OpaqueID,
+  getOpaqueConfig,
+  KE2,
+  type AuthClient,
+} from "@cloudflare/opaque-ts";
 import type { TRPCClient } from "@trpc/client";
 import { genSalt } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import type { AppRouter } from "@repo/types";
 import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 
@@ -25,17 +31,30 @@ export class OpaqueLoginFailedError extends Error {
   override message = "OpaqueLoginFailedError";
 }
 
-/**
- * Drive a full OPAQUE login handshake. On success the session is unlocked via `loginSession`
- * and the VaultUnlockInfo is returned for the (off-main-thread) Argon2id vault unlock step.
- */
+const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
+// Must match OPAQUE_SERVER_IDENTITY on the server (default "passmgr").
+const SERVER_IDENTITY = "passmgr";
+
+function bytesToB64(bytes: number[]): string {
+  return toBase64(Uint8Array.from(bytes));
+}
+
+function b64ToBytes(s: string): number[] {
+  return Array.from(fromBase64(s));
+}
+
 export async function loginUser(
   trpc: LoginTRPCClient,
   loginSession: LoginSessionFn,
   email: string,
   password: string,
 ): Promise<VaultUnlockInfo> {
-  const { clientLoginState, startLoginRequest } = opaque.client.startLogin({ password });
+  const client: AuthClient = new OpaqueClient(config);
+
+  const ke1 = await client.authInit(password);
+  if (ke1 instanceof Error) throw new OpaqueLoginFailedError();
+
+  const startLoginRequest = bytesToB64(ke1.serialize());
 
   let loginResponse: string;
   try {
@@ -44,15 +63,19 @@ export async function loginUser(
     throw new LoginStartFailedError();
   }
 
-  const loginResult = opaque.client.finishLogin({
-    clientLoginState,
-    loginResponse,
-    password,
-  });
+  let ke2: KE2;
+  try {
+    ke2 = KE2.deserialize(config, b64ToBytes(loginResponse));
+  } catch {
+    throw new OpaqueLoginFailedError();
+  }
 
-  if (!loginResult) throw new OpaqueLoginFailedError();
+  const finished = await client.authFinish(ke2, SERVER_IDENTITY, email);
+  if (finished instanceof Error) throw new OpaqueLoginFailedError();
 
-  const { finishLoginRequest, sessionKey } = loginResult;
+  const { ke3, session_key } = finished;
+  const finishLoginRequest = bytesToB64(ke3.serialize());
+  const sessionKey = bytesToB64(session_key);
   const authSalt = genSalt();
 
   let sessionId: string;

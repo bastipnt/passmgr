@@ -1,6 +1,7 @@
+import { RegistrationRequest } from "@cloudflare/opaque-ts";
 import { TRPCError } from "@trpc/server";
 import { loggedProcedure } from "../logger";
-import { opaque, serverKey, serverSetup } from "../opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { db, keysTable, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
@@ -28,13 +29,20 @@ export const registrationRouter = router({
       assertRegistrationEnabled();
       const { email, registrationRequest } = input;
 
-      const { registrationResponse } = opaque.server.createRegistrationResponse({
-        serverSetup,
-        userIdentifier: email,
-        registrationRequest,
-      });
+      let req: RegistrationRequest;
+      try {
+        req = RegistrationRequest.deserialize(opaqueConfig, b64ToBytes(registrationRequest));
+      } catch {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "invalid registration request" });
+      }
 
-      return { registrationResponse };
+      // credential_identifier = email matches the prior serenity userIdentifier.
+      const resp = await opaqueServer.registerInit(req, email);
+      if (resp instanceof Error) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "registration failed" });
+      }
+
+      return { registrationResponse: bytesToB64(resp.serialize()) };
     }),
 
   finishRegistration: loggedProcedure
@@ -50,7 +58,6 @@ export const registrationRouter = router({
       );
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      // If user is already registered this will return an empty array
       const dbUsers = await db
         .insert(usersTable)
         .values({
@@ -63,7 +70,6 @@ export const registrationRouter = router({
         .onConflictDoNothing({ target: usersTable.emailHash })
         .returning({ userId: usersTable.userId });
 
-      // fails if there is already a user with that email
       const firstUser = dbUsers[0];
       if (!firstUser) {
         log?.warn({ emailHash }, "auth.register.duplicate");

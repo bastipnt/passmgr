@@ -1,7 +1,13 @@
-import * as opaque from "@serenity-kit/opaque";
+import {
+  OpaqueClient,
+  OpaqueID,
+  RegistrationResponse,
+  getOpaqueConfig,
+  type RegistrationClient,
+} from "@cloudflare/opaque-ts";
 import type { TRPCClient } from "@trpc/client";
 import { encryptXChaCha, genKey, genPasswordKek, genSalt, hkdf, wipe } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import type { AppRouter } from "@repo/types";
 import type { UserKeySchema } from "@repo/schema";
 
@@ -13,6 +19,18 @@ export class RegistrationStartFailedError extends Error {
 
 export class RegistrationFinishFailedError extends Error {
   override message = "RegistrationFinishFailedError";
+}
+
+const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
+// Must match OPAQUE_SERVER_IDENTITY on the server (default "passmgr").
+const SERVER_IDENTITY = "passmgr";
+
+function bytesToB64(bytes: number[]): string {
+  return toBase64(Uint8Array.from(bytes));
+}
+
+function b64ToBytes(s: string): number[] {
+  return Array.from(fromBase64(s));
 }
 
 /**
@@ -28,9 +46,12 @@ export async function registerNewUser(
   email: string,
   password: string,
 ): Promise<Uint8Array> {
-  const { clientRegistrationState, registrationRequest } = opaque.client.startRegistration({
-    password,
-  });
+  const client: RegistrationClient = new OpaqueClient(config);
+
+  const req = await client.registerInit(password);
+  if (req instanceof Error) throw new RegistrationStartFailedError();
+
+  const registrationRequest = bytesToB64(req.serialize());
 
   let registrationResponse: string;
   try {
@@ -42,11 +63,19 @@ export async function registerNewUser(
     throw new RegistrationStartFailedError();
   }
 
-  const { registrationRecord } = opaque.client.finishRegistration({
-    clientRegistrationState,
-    registrationResponse,
-    password,
-  });
+  let resp: RegistrationResponse;
+  try {
+    resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
+  } catch {
+    throw new RegistrationStartFailedError();
+  }
+
+  // server_identity / client_identity bind the envelope MAC. Must match the
+  // server's authInit call at login time.
+  const finished = await client.registerFinish(resp, SERVER_IDENTITY, email);
+  if (finished instanceof Error) throw new RegistrationFinishFailedError();
+
+  const registrationRecord = bytesToB64(finished.record.serialize());
 
   const { recoveryKey, ...userKeys } = await generateUserKeys(password);
 
