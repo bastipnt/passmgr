@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
-import { ActivityIndicator, type PressableProps } from "react-native";
-import { colors } from "../theme/tokens";
-import { cn } from "../lib/cn";
-import { Pressable, Text, View } from "../lib/styled";
+import { Pressable, type PressableProps } from "react-native";
+import { Spinner, Text, XStack } from "tamagui";
 
 type Variant = "primary" | "secondary" | "link";
 
@@ -18,47 +16,67 @@ export function Button({
   variant = "primary",
   loading = false,
   disabled,
-  className,
+  className: _className,
+  style,
   ...rest
 }: ButtonProps) {
   const isDisabled = disabled || loading;
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      disabled={isDisabled}
-      className={cn(
-        "rounded-md py-3 px-4 min-h-[44] justify-center items-center",
-        variant === "primary" && "bg-primary active:bg-primary-pressed",
-        variant === "secondary" && "border border-border active:bg-muted",
-        variant === "link" && "py-1 active:opacity-60",
-        isDisabled && "opacity-50",
-        className,
-      )}
-      {...rest}
-    >
-      <View className="flex-row items-center gap-2">
-        {typeof children === "string" ? (
-          <Text
-            className={cn(
-              "text-base font-semibold",
-              variant === "primary" && "text-primary-foreground",
-              variant === "secondary" && "text-foreground",
-              variant === "link" && "text-primary font-medium",
-            )}
+    <Pressable accessibilityRole="button" disabled={isDisabled} style={style} {...rest}>
+      {({ pressed }) => {
+        const backgroundColor =
+          variant === "primary"
+            ? pressed
+              ? "$primaryPressed"
+              : "$primary"
+            : variant === "secondary" && pressed
+              ? "$muted"
+              : "transparent";
+
+        const textColor =
+          variant === "primary"
+            ? "$primaryForeground"
+            : variant === "link"
+              ? "$primary"
+              : "$foreground";
+
+        const opacity = isDisabled ? 0.5 : variant === "link" && pressed ? 0.6 : 1;
+
+        return (
+          <XStack
+            alignItems="center"
+            justifyContent="center"
+            gap="$sm"
+            borderRadius="$md"
+            paddingVertical={variant === "link" ? "$xs" : "$md"}
+            paddingHorizontal={variant === "link" ? 0 : "$lg"}
+            minHeight={variant === "link" ? undefined : 44}
+            backgroundColor={backgroundColor}
+            borderColor={variant === "secondary" ? "$border" : undefined}
+            borderWidth={variant === "secondary" ? 1 : 0}
+            opacity={opacity}
           >
-            {children}
-          </Text>
-        ) : (
-          children
-        )}
-        {loading && (
-          <ActivityIndicator
-            size="small"
-            color={variant === "primary" ? colors.light.primaryForeground : colors.light.primary}
-          />
-        )}
-      </View>
+            {typeof children === "string" ? (
+              <Text
+                fontSize="$md"
+                fontWeight={variant === "link" ? "500" : "600"}
+                color={textColor}
+              >
+                {children}
+              </Text>
+            ) : (
+              children
+            )}
+            {loading && (
+              <Spinner
+                size="small"
+                color={variant === "primary" ? "$primaryForeground" : "$primary"}
+              />
+            )}
+          </XStack>
+        );
+      }}
     </Pressable>
   );
 }

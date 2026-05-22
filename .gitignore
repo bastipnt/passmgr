@@ -80,6 +80,7 @@ storybook-static
 .fallow/
 .playwright-mcp
 .playwright
+.tamagui
 
 # Playwright
 playwright-report/

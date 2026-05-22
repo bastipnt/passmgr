@@ -1,5 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
-const { withNativewind } = require("nativewind/metro");
+const { withTamagui } = require("@tamagui/metro-plugin");
 const path = require("node:path");
 
 const projectRoot = __dirname;
@@ -66,4 +66,7 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withNativewind(config);
+module.exports = withTamagui(config, {
+  components: ["tamagui"],
+  config: "../../packages/ui-native/src/tamagui.config.ts",
+});

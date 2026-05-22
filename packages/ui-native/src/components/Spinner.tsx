@@ -1,6 +1,7 @@
 import { ActivityIndicator, type ActivityIndicatorProps } from "react-native";
-import { colors } from "../theme/tokens";
+import { useTheme } from "tamagui";
 
 export function Spinner(props: ActivityIndicatorProps) {
-  return <ActivityIndicator color={colors.light.primary} {...props} />;
+  const theme = useTheme();
+  return <ActivityIndicator color={theme.primary?.val} {...props} />;
 }

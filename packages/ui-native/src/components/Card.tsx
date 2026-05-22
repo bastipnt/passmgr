@@ -1,76 +1,56 @@
 import type { ReactNode } from "react";
 import { type ViewProps } from "react-native";
-import { cn } from "../lib/cn";
-import { Text, View } from "../lib/styled";
+import { Text, XStack, YStack } from "tamagui";
 
-export function Card({ children, className, style, ...rest }: ViewProps & { className?: string }) {
+type CardSlotProps = ViewProps & { className?: string };
+
+export function Card({ children }: CardSlotProps) {
   return (
-    <View
-      className={cn("bg-background rounded-lg border border-border p-4 gap-3", className)}
-      style={style}
-      {...rest}
+    <YStack
+      backgroundColor="$background"
+      borderRadius="$lg"
+      borderWidth={1}
+      borderColor="$border"
+      padding="$lg"
+      gap="$md"
     >
       {children}
-    </View>
+    </YStack>
   );
 }
 
-export function CardHeader({
-  children,
-  className,
-  style,
-  ...rest
-}: ViewProps & { className?: string }) {
+export function CardHeader({ children }: CardSlotProps) {
   return (
-    <View
-      className={cn("flex-row justify-between items-center", className)}
-      style={style}
-      {...rest}
-    >
+    <XStack justifyContent="space-between" alignItems="center">
       {children}
-    </View>
+    </XStack>
   );
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
-  return <Text className="text-xl font-bold text-foreground">{children}</Text>;
-}
-
-export function CardAction({
-  children,
-  className,
-  style,
-  ...rest
-}: ViewProps & { className?: string }) {
   return (
-    <View className={cn("flex-row items-center gap-1", className)} style={style} {...rest}>
+    <Text fontSize="$xl" fontWeight="700" color="$foreground">
       {children}
-    </View>
+    </Text>
   );
 }
 
-export function CardContent({
-  children,
-  className,
-  style,
-  ...rest
-}: ViewProps & { className?: string }) {
+export function CardAction({ children }: CardSlotProps) {
   return (
-    <View className={cn("gap-3", className)} style={style} {...rest}>
+    <XStack alignItems="center" gap="$xs">
       {children}
-    </View>
+    </XStack>
   );
 }
 
-export function CardFooter({
-  children,
-  className,
-  style,
-  ...rest
-}: ViewProps & { className?: string }) {
+export function CardContent({ children }: CardSlotProps) {
+  return <YStack gap="$md">{children}</YStack>;
+}
+
+export function CardFooter({ children }: CardSlotProps) {
   return (
-    <View className={cn("flex-row justify-end gap-3", className)} style={style} {...rest}>
+    <XStack justifyContent="flex-end" gap="$md">
       {children}
-    </View>
+    </XStack>
   );
 }

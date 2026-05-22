@@ -1,4 +1,4 @@
-import { Text, View } from "../lib/styled";
+import { Text, YStack } from "tamagui";
 
 export type FieldErrorProps = {
   errors: { message: string }[];
@@ -8,12 +8,12 @@ export function FieldError({ errors }: FieldErrorProps) {
   if (errors.length === 0) return null;
 
   return (
-    <View className="gap-1 mt-1">
+    <YStack gap="$xs" marginTop="$xs">
       {errors.map((e, i) => (
-        <Text key={i} className="text-sm text-destructive">
+        <Text key={i} fontSize="$sm" color="$destructive">
           {e.message}
         </Text>
       ))}
-    </View>
+    </YStack>
   );
 }
