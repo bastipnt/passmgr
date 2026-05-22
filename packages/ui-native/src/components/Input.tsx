@@ -15,13 +15,13 @@ export function Input({ label, error, className, style, onFocus, onBlur, ...rest
 
   return (
     <View className="gap-1">
-      {label && <Text className="text-sm font-medium text-text-primary">{label}</Text>}
+      {label && <Text className="text-sm font-medium text-foreground">{label}</Text>}
       <TextInput
         placeholderTextColor="#9ca3af"
         className={cn(
-          "border border-border rounded-md px-3 py-2 min-h-[44] text-base text-text-primary bg-background",
-          focused && "border-border-focus",
-          error && "border-danger",
+          "border border-border rounded-md px-3 py-2 min-h-[44] text-base text-foreground bg-background",
+          focused && "border-ring",
+          error && "border-destructive",
           className,
         )}
         style={style}
@@ -35,7 +35,7 @@ export function Input({ label, error, className, style, onFocus, onBlur, ...rest
         }}
         {...rest}
       />
-      {error && <Text className="text-xs text-danger">{error}</Text>}
+      {error && <Text className="text-xs text-destructive">{error}</Text>}
     </View>
   );
 }

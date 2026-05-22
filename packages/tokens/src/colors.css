@@ -1,0 +1,71 @@
+/* Computed from the web's OKLCH palette — hex equivalents for cross-platform use */
+
+:root {
+  --background: #e0e4f9;
+  --foreground: #000000;
+  --card: #f3f5ff;
+  --card-foreground: #000000;
+  --popover: #f3f5ff;
+  --popover-foreground: #000000;
+  --muted: #d0d3e8;
+  --muted-foreground: #242535;
+  --primary: #4b36d6;
+  --primary-foreground: #ffffff;
+  --primary-pressed: #3c16be;
+  --secondary: #c0c3d8;
+  --secondary-foreground: #000000;
+  --accent: #d0d3e8;
+  --accent-foreground: #000000;
+  --destructive: #de4047;
+  --border: #9194a8;
+  --input: #9194a8;
+  --ring: #34259b;
+}
+
+/* Web dark mode: explicit .dark class applied by ThemeProvider */
+.dark {
+  --background: #242535;
+  --foreground: #d0d3e8;
+  --card: #303242;
+  --card-foreground: #d0d3e8;
+  --popover: #303242;
+  --popover-foreground: #d0d3e8;
+  --muted: #575a6c;
+  --muted-foreground: #b0b3c8;
+  --primary: #6565de;
+  --primary-foreground: #ffffff;
+  --primary-pressed: #5350c6;
+  --secondary: #181a28;
+  --secondary-foreground: #d0d3e8;
+  --accent: #3d3f50;
+  --accent-foreground: #d0d3e8;
+  --destructive: #de4047;
+  --border: #575a6c;
+  --input: #575a6c;
+  --ring: #9299ff;
+}
+
+/* Mobile/system dark mode: device color scheme preference (used by NativeWind) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #242535;
+    --foreground: #d0d3e8;
+    --card: #303242;
+    --card-foreground: #d0d3e8;
+    --popover: #303242;
+    --popover-foreground: #d0d3e8;
+    --muted: #575a6c;
+    --muted-foreground: #b0b3c8;
+    --primary: #6565de;
+    --primary-foreground: #ffffff;
+    --primary-pressed: #5350c6;
+    --secondary: #181a28;
+    --secondary-foreground: #d0d3e8;
+    --accent: #3d3f50;
+    --accent-foreground: #d0d3e8;
+    --destructive: #de4047;
+    --border: #575a6c;
+    --input: #575a6c;
+    --ring: #9299ff;
+  }
+}

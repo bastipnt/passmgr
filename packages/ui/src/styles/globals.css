@@ -1,3 +1,4 @@
+@import "@repo/tokens/colors.css";
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
@@ -9,54 +10,16 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* Web-specific vars not in the shared token palette */
 :root {
-  /* --basee: #d76ec2; */
-  --base: oklch(47.167% 0.22913 278.912);
-
-  --background: oklch(from var(--base) calc(l + 0.45) calc(c - 0.2) h);
-  --foreground: oklch(from var(--base) calc(l - 0.7) calc(c - 0.2) h);
-
-  --card: oklch(from var(--background) calc(l + 0.05) c h);
-  --card-foreground: var(--foreground);
-
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-
-  --muted: oklch(from var(--background) calc(l - 0.05) c h);
-  --muted-foreground: oklch(from var(--muted) calc(l - 0.6) c h);
-
-  --primary: var(--base);
-  --primary-foreground: oklch(from var(--primary) calc(l + 0.7) c h);
-
-  --secondary: oklch(from var(--background) calc(l - 0.1) c h);
-  --secondary-foreground: var(--foreground);
-
-  --accent: oklch(from var(--base) calc(l + 0.4) calc(c - 0.2) h);
-  --accent-foreground: var(--foreground);
-
-  --destructive: #de4047;
-
-  --border: oklch(from var(--primary) calc(l + 0.2) calc(c - 0.2) h);
-  --input: var(--border);
-  --ring: oklch(from var(--primary) calc(l - 0.1) calc(c - 0.05) h);
-
-  /* --chart-1: oklch(0.85 0.13 181);
-  --chart-2: oklch(0.78 0.13 182);
-  --chart-3: oklch(0.7 0.12 183);
-  --chart-4: oklch(78.745% 0.08516 326.299);
-  --chart-5: oklch(0.51 0.09 186); */
-
   --radius: 0.625rem;
 
   --sidebar: var(--background);
   --sidebar-foreground: var(--foreground);
-
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-
   --sidebar-accent: var(--accent);
   --sidebar-accent-foreground: var(--accent-foreground);
-
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
@@ -67,50 +30,14 @@
 }
 
 .dark {
-  --background: oklch(from var(--base) calc(l - 0.2) calc(c - 0.2) h);
-  --foreground: oklch(from var(--base) calc(l + 0.4) calc(c - 0.2) h);
-
-  --card: oklch(from var(--background) calc(l + 0.05) c h);
-  --card-foreground: var(--foreground);
-
-  --popover: var(--card);
-  --popover-foreground: var(--foreground);
-
-  --muted: oklch(from var(--background) calc(l + 0.2) c h);
-  --muted-foreground: oklch(from var(--muted) calc(l + 0.3) c h);
-
-  --primary: oklch(from var(--base) calc(l + 0.1) calc(c - 0.05) h);
-  --primary-foreground: oklch(from var(--primary) calc(l + 0.7) c h);
-
-  --secondary: oklch(from var(--background) calc(l - 0.05) c h);
-  --secondary-foreground: var(--foreground);
-
-  --accent: oklch(from var(--base) calc(l - 0.1) calc(c - 0.2) h);
-  --accent-foreground: var(--foreground);
-
-  --destructive: #de4047;
-
-  --border: oklch(from var(--background) calc(l + 0.2) c h);
-  --input: var(--border);
-  --ring: oklch(from var(--primary) calc(l + 0.15) calc(c + 0.05) h);
-
-  /* --chart-1: oklch(0.85 0.13 181);
-  --chart-2: oklch(0.78 0.13 182);
-  --chart-3: oklch(0.7 0.12 183);
-  --chart-4: oklch(78.745% 0.08516 326.299);
-  --chart-5: oklch(0.51 0.09 186); */
-
   --radius: 0.625rem;
 
   --sidebar: var(--background);
   --sidebar-foreground: var(--foreground);
-
   --sidebar-primary: var(--primary);
   --sidebar-primary-foreground: var(--primary-foreground);
-
   --sidebar-accent: var(--accent);
   --sidebar-accent-foreground: var(--accent-foreground);
-
   --sidebar-border: var(--border);
   --sidebar-ring: var(--ring);
 
@@ -130,17 +57,10 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  /* --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1); */
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
-
   --color-destructive: var(--destructive);
-
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -170,8 +90,6 @@
   }
   body {
     @apply font-sans bg-background text-foreground antialiased;
-    /* @apply bg-linear-to-br/oklch from-primary/20 to-background; */
-    /* background-image: url("../assets/background.jpeg"); */
     background-position: center;
     background-size: cover;
     background-repeat: no-repeat;
@@ -192,7 +110,6 @@
 
       @apply top-0 left-0 right-0 bottom-0 absolute pointer-events-none;
 
-      /* Specular */
       box-shadow:
         inset 1px 1px 1px oklch(from var(--specular) L C H / 0.2),
         inset 0 0 5px oklch(from var(--specular) L C H / 0.2);

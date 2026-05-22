@@ -31,21 +31,21 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: spacing.xl,
     justifyContent: "center",
-    backgroundColor: colors.background,
+    backgroundColor: colors.light.background,
     gap: spacing.md,
   },
   title: {
     fontSize: fontSize.xl,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: colors.light.foreground,
   },
   subtitle: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    color: colors.light.mutedForeground,
   },
   hint: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    color: colors.light.mutedForeground,
   },
   spacer: {
     height: spacing.lg,

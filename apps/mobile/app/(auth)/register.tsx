@@ -171,7 +171,7 @@ const styles = StyleSheet.create({
     padding: spacing.lg,
   },
   modalCard: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.light.background,
     borderRadius: radius.lg,
     padding: spacing.lg,
     gap: spacing.md,
@@ -179,18 +179,18 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: fontSize.xl,
     fontWeight: "700",
-    color: colors.textPrimary,
+    color: colors.light.foreground,
   },
   modalDescription: {
     fontSize: fontSize.sm,
-    color: colors.textSecondary,
+    color: colors.light.mutedForeground,
     lineHeight: 20,
   },
   recoveryCode: {
     fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
     fontSize: fontSize.xs,
-    color: colors.textPrimary,
-    backgroundColor: colors.surface,
+    color: colors.light.foreground,
+    backgroundColor: colors.light.muted,
     padding: spacing.md,
     borderRadius: radius.sm,
   },

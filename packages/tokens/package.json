@@ -3,6 +3,10 @@
   "version": "0.0.1",
   "type": "module",
   "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./colors.css": "./src/colors.css"
+  },
   "scripts": {
     "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"

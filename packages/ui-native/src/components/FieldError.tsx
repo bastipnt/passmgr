@@ -10,7 +10,7 @@ export function FieldError({ errors }: FieldErrorProps) {
   return (
     <View className="gap-1 mt-1">
       {errors.map((e, i) => (
-        <Text key={i} className="text-sm text-danger">
+        <Text key={i} className="text-sm text-destructive">
           {e.message}
         </Text>
       ))}

@@ -33,7 +33,7 @@ export function CardHeader({
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
-  return <Text className="text-xl font-bold text-text-primary">{children}</Text>;
+  return <Text className="text-xl font-bold text-foreground">{children}</Text>;
 }
 
 export function CardAction({

@@ -1,1 +1,1 @@
-export { spacing, radius, fontSize } from "./src/index";
+export { colors, spacing, radius, fontSize } from "./src/index";

@@ -594,6 +594,9 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
+      '@repo/tokens':
+        specifier: workspace:*
+        version: link:../tokens
       '@repo/util':
         specifier: workspace:*
         version: link:../util

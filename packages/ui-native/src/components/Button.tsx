@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ActivityIndicator, type PressableProps } from "react-native";
+import { colors } from "../theme/tokens";
 import { cn } from "../lib/cn";
 import { Pressable, Text, View } from "../lib/styled";
 
@@ -29,7 +30,7 @@ export function Button({
       className={cn(
         "rounded-md py-3 px-4 min-h-[44] justify-center items-center",
         variant === "primary" && "bg-primary active:bg-primary-pressed",
-        variant === "secondary" && "border border-border active:bg-surface",
+        variant === "secondary" && "border border-border active:bg-muted",
         variant === "link" && "py-1 active:opacity-60",
         isDisabled && "opacity-50",
         className,
@@ -41,8 +42,8 @@ export function Button({
           <Text
             className={cn(
               "text-base font-semibold",
-              variant === "primary" && "text-text-inverse",
-              variant === "secondary" && "text-text-primary",
+              variant === "primary" && "text-primary-foreground",
+              variant === "secondary" && "text-foreground",
               variant === "link" && "text-primary font-medium",
             )}
           >
@@ -52,7 +53,10 @@ export function Button({
           children
         )}
         {loading && (
-          <ActivityIndicator size="small" color={variant === "primary" ? "#ffffff" : "#0a84ff"} />
+          <ActivityIndicator
+            size="small"
+            color={variant === "primary" ? colors.light.primaryForeground : colors.light.primary}
+          />
         )}
       </View>
     </Pressable>
