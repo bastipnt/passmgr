@@ -3,26 +3,18 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": [
-        "./*"
-      ],
-      "@repo/crypto/services/argon2-worker-service": [
-        "./stubs/crypto-worker-service.d.ts"
-      ],
-      "@repo/crypto/services/decrypt-worker-service": [
-        "./stubs/crypto-worker-service.d.ts"
-      ]
+      "@/*": ["./src/*"],
+      "@repo/crypto/services/argon2-worker-service": ["./stubs/crypto-worker-service.d.ts"],
+      "@repo/crypto/services/decrypt-worker-service": ["./stubs/crypto-worker-service.d.ts"]
     }
   },
   "include": [
-    "app/**/*.ts",
-    "app/**/*.tsx",
+    "src/**/*.ts",
+    "src/**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "types.d.ts",
     "nativewind-env.d.ts"
   ],
-  "exclude": [
-    "node_modules"
-  ]
+  "exclude": ["node_modules"]
 }

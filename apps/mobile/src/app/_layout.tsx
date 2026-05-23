@@ -7,7 +7,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { useColorScheme } from "react-native";
 import { TamaguiProvider } from "tamagui";
-import { ClientProvider, SessionProvider } from "@repo/client";
+import { ClientProvider, SessionProvider, StoreProvider } from "@repo/client";
 import { tamaguiConfig } from "@repo/ui-native";
 import "react-native-reanimated";
 
@@ -22,12 +22,14 @@ export default function RootLayout() {
     >
       <SessionProvider>
         <ClientProvider serverUrl={serverUrl}>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="(auth)" />
-            <Stack.Screen name="(app)" />
-          </Stack>
-          <StatusBar style="auto" />
+          <StoreProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="(auth)" />
+              <Stack.Screen name="(app)" />
+            </Stack>
+            <StatusBar style="auto" />
+          </StoreProvider>
         </ClientProvider>
       </SessionProvider>
     </TamaguiProvider>
