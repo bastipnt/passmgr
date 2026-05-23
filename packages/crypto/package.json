@@ -32,6 +32,9 @@
   },
   "exports": {
     ".": "./index.ts",
-    "./services/*": "./src/services/*.ts"
+    "./services/*": {
+      "react-native": "./src/services/*.native.ts",
+      "default": "./src/services/*.ts"
+    }
   }
 }

@@ -3,9 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "paths": {
-      "@/*": ["./src/*"],
-      "@repo/crypto/services/argon2-worker-service": ["./stubs/crypto-worker-service.d.ts"],
-      "@repo/crypto/services/decrypt-worker-service": ["./stubs/crypto-worker-service.d.ts"]
+      "@/*": ["./src/*"]
     }
   },
   "include": [

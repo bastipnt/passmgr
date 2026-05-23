@@ -2,20 +2,10 @@
  * Ambient type declarations for the mobile app.
  *
  * The cross-platform `@repo/client` barrel re-exports modules that depend on
- * web-only constructs (Vite `?worker` imports, `tinykeys`). Those modules are
- * never imported at runtime on mobile, but `tsc` still walks the dep graph and
- * fails without these shims.
+ * web-only constructs (e.g. `tinykeys`). Those modules are never imported at
+ * runtime on mobile, but `tsc` still walks the dep graph and fails without
+ * these shims.
  */
-
-declare module "*?worker" {
-  const workerConstructor: new () => Worker;
-  export default workerConstructor;
-}
-
-declare module "*.worker.ts?worker" {
-  const workerConstructor: new () => Worker;
-  export default workerConstructor;
-}
 
 /**
  * ES2024 Uint8Array base64 helpers — supported at runtime by the JS engine

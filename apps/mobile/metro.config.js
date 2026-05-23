@@ -4,7 +4,6 @@ const path = require("node:path");
 
 const projectRoot = __dirname;
 const workspaceRoot = path.resolve(projectRoot, "../..");
-const workerStub = path.resolve(projectRoot, "metro/worker-stub.js");
 const sqlocalStub = path.resolve(projectRoot, "metro/sqlocal-stub.js");
 
 const config = getDefaultConfig(projectRoot);
@@ -23,10 +22,11 @@ config.resolver.disableHierarchicalLookup = true;
 config.resolver.unstable_enablePackageExports = true;
 
 // Module aliases:
-// - Vite-style `?worker` imports (from @repo/crypto web workers) → runtime stub.
-//   Auth-only flow never instantiates these workers.
 // - `sqlocal` (browser SQLite WASM) → runtime stub. Mobile vault persistence
-//   will use expo-sqlite in a follow-up milestone.
+//   uses expo-sqlite instead.
+// Note: @repo/crypto worker services resolve to their `.native.ts` (main-thread)
+// variants via the package's `react-native` export condition, so the Vite
+// `?worker` imports never reach Metro on mobile.
 // Note: @serenity-kit/opaque alias removed — OPAQUE now uses
 // @cloudflare/opaque-ts (pure TS) which runs natively in RN provided a
 // crypto.subtle polyfill (e.g. react-native-quick-crypto) is loaded at entry.
@@ -42,9 +42,6 @@ const cfNobleHashesDir = path.resolve(
 
 const upstreamResolveRequest = config.resolver.resolveRequest;
 config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (moduleName.endsWith("?worker")) {
-    return { type: "sourceFile", filePath: workerStub };
-  }
   if (moduleName === "sqlocal" || moduleName.startsWith("sqlocal/")) {
     return { type: "sourceFile", filePath: sqlocalStub };
   }
