@@ -185,7 +185,7 @@ type SortedRecordsContextValue = {
   sort: SortOption;
   handleSortChange: (value: string) => void;
   sortedRecords: DecryptedRecord[];
-  groups: RecordGroup[];
+  recordGroups: RecordGroup[];
 };
 
 const SortedRecordsContext = createContext<SortedRecordsContextValue | null>(null);
@@ -212,7 +212,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     () => (hasQuery ? filtered : sortRecords(filtered, sort)),
     [filtered, sort, hasQuery],
   );
-  const groups = useMemo(
+  const recordGroups = useMemo(
     () =>
       hasQuery ? [{ label: null, records: sortedRecords }] : groupRecords(sortedRecords, sort),
     [sortedRecords, sort, hasQuery],
@@ -225,8 +225,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   }
 
   const value = useMemo(
-    () => ({ query, setQuery, sort, handleSortChange, sortedRecords, groups }),
-    [query, sort, sortedRecords, groups],
+    () => ({ query, setQuery, sort, handleSortChange, sortedRecords, recordGroups }),
+    [query, sort, sortedRecords, recordGroups],
   );
 
   return <SortedRecordsContext value={value}>{children}</SortedRecordsContext>;

@@ -1,6 +1,6 @@
 import { RecordGroup, useSortedRecords } from "@repo/client";
 import { DecryptedRecord } from "@repo/schema";
-import { Avatar, ListItem, Text, View, YGroup } from "tamagui";
+import { Avatar, ListItem, ScrollView, Text, YGroup } from "tamagui";
 
 type RecordLIProps = {
   record: DecryptedRecord;
@@ -34,7 +34,7 @@ type RecordGroupProps = {
 function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
   return (
     <YGroup.Item>
-      <Text>{recordGroup.label}</Text>
+      <Text p="$2">{recordGroup.label}</Text>
       <YGroup>
         {recordGroup.records.map((record) => (
           <RecordLI
@@ -49,13 +49,12 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
 }
 
 export function RecordsList() {
-  // TODO: rename to recordGroups
-  const { query, sort, sortedRecords, groups, handleSortChange } = useSortedRecords();
+  const { recordGroups } = useSortedRecords();
 
   return (
-    <View>
+    <ScrollView>
       <YGroup>
-        {groups.map((recordGroup) => (
+        {recordGroups.map((recordGroup) => (
           <RecordGroupLI
             key={recordGroup.label ?? "all"}
             recordGroup={recordGroup}
@@ -63,6 +62,6 @@ export function RecordsList() {
           />
         ))}
       </YGroup>
-    </View>
+    </ScrollView>
   );
 }

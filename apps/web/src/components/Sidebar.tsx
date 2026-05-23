@@ -78,7 +78,7 @@ export default function RecordSidebar() {
   const [_, params] = useRoute(`/${recordSlug}/:recordId`);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, sort, sortedRecords, groups, handleSortChange } = useSortedRecords();
+  const { query, sort, sortedRecords, recordGroups, handleSortChange } = useSortedRecords();
   const { isEditing } = useEditingContext();
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
@@ -175,14 +175,14 @@ export default function RecordSidebar() {
         <p className="text-sm text-muted-foreground px-1 py-4">No results</p>
       ) : (
         <ItemGroup>
-          {groups.map((group) => (
-            <Fragment key={group.label ?? "all"}>
-              {group.label && (
+          {recordGroups.map((recordGroup) => (
+            <Fragment key={recordGroup.label ?? "all"}>
+              {recordGroup.label && (
                 <p className="text-xs text-muted-foreground font-medium px-1 pt-2 first:pt-0">
-                  {group.label}
+                  {recordGroup.label}
                 </p>
               )}
-              {group.records.map((record) => (
+              {recordGroup.records.map((record) => (
                 <SidebarRecord
                   key={record.recordId}
                   record={record}
