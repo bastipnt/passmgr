@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Pressable } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { Text, XStack, YStack } from "tamagui";
+import { XStack, YStack } from "tamagui";
 import { Input, type InputProps } from "./Input";
+import { Button } from "../Button";
 
 export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omit<
   InputProps,
@@ -24,7 +24,7 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <XStack alignItems="flex-end" gap="$sm">
+        <XStack items="flex-end" gap="$4">
           <YStack flex={1}>
             <Input
               value={(field.value as string | undefined) ?? ""}
@@ -37,16 +37,13 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
               {...rest}
             />
           </YStack>
-          <Pressable
-            accessibilityRole="button"
+          <Button
             accessibilityLabel={visible ? "Hide password" : "Show password"}
             onPress={() => setVisible((v) => !v)}
-            style={{ paddingHorizontal: 8, paddingVertical: 12 }}
+            variant="outlined"
           >
-            <Text fontSize="$sm" color="$primary" fontWeight="500">
-              {visible ? "Hide" : "Show"}
-            </Text>
-          </Pressable>
+            {visible ? "Hide" : "Show"}
+          </Button>
         </XStack>
       )}
     />

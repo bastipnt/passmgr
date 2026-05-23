@@ -1,6 +1,6 @@
 import { type TextInputProps } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { Input as TInput, Text, YStack } from "tamagui";
+import { Label, Input as TInput, Text, YStack } from "tamagui";
 
 export type InputProps = TextInputProps & {
   label?: string;
@@ -10,28 +10,16 @@ export type InputProps = TextInputProps & {
 
 export function Input({ label, error, className: _className, style: _style, ...rest }: InputProps) {
   return (
-    <YStack gap="$xs">
-      {label && (
-        <Text fontSize="$sm" fontWeight="500" color="$foreground">
-          {label}
-        </Text>
-      )}
+    <YStack>
+      {label && <Label>{label}</Label>}
       <TInput
-        borderWidth={1}
-        borderRadius="$md"
-        paddingHorizontal="$md"
-        paddingVertical="$sm"
-        minHeight={44}
-        fontSize="$md"
-        color="$foreground"
-        backgroundColor="$background"
-        borderColor={error ? "$destructive" : "$border"}
-        focusStyle={error ? undefined : { borderColor: "$ring" }}
-        placeholderTextColor="$mutedForeground"
+        borderColor={error ? "$destructive" : "$borderColor"}
+        focusStyle={error ? undefined : { borderColor: "$borderColorFocus" }}
+        placeholderTextColor="$color005"
         {...(rest as Record<string, unknown>)}
       />
       {error && (
-        <Text fontSize="$xs" color="$destructive">
+        <Text theme="error" fontSize="$xs" color="$destructive">
           {error}
         </Text>
       )}

@@ -1,13 +1,5 @@
 import { useMemo, useState } from "react";
-import {
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Modal, Platform, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { useRegistration } from "@repo/client";
@@ -25,15 +17,14 @@ import {
   ControlledPasswordInput,
   FieldError,
   FieldGroup,
+  KeyboardAvoidingView,
   Link,
-  colors,
-  fontSize,
-  radius,
-  spacing,
+  Spinner,
   useForm,
 } from "@repo/ui-native";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
+import { Text, View } from "tamagui";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -77,25 +68,20 @@ export default function RegisterScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
-    >
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <Modal visible={recoveryKey !== null} transparent animationType="fade">
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.modalTitle}>Save your recovery key</Text>
-            <Text style={styles.modalDescription}>
+        <View>
+          <View>
+            <Text>Save your recovery key</Text>
+            <Text>
               Store this key in a safe place. It is the only way to recover your vault if you forget
               your password. It is shown once and never sent to the server.
             </Text>
             <Pressable onLongPress={onCopy}>
-              <Text selectable style={styles.recoveryCode}>
-                {recoveryKeyB64}
-              </Text>
+              <Text selectable>{recoveryKeyB64}</Text>
             </Pressable>
-            <View style={styles.modalActions}>
-              <Button variant="secondary" onPress={onCopy}>
+            <View>
+              <Button variant="outlined" onPress={onCopy}>
                 {copied ? "Copied" : "Copy to clipboard"}
               </Button>
               <Button onPress={onConfirm} disabled={!copied}>
@@ -106,7 +92,7 @@ export default function RegisterScreen() {
         </View>
       </Modal>
 
-      <View style={styles.inner}>
+      <View flex={1} justify="center" content="center" p="$4">
         <Card>
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
@@ -144,8 +130,9 @@ export default function RegisterScreen() {
           </CardContent>
 
           <CardFooter>
-            <Button onPress={handleSubmit(onSubmit)} loading={loading}>
+            <Button onPress={handleSubmit(onSubmit)}>
               Sign Up
+              {loading && <Spinner />}
             </Button>
           </CardFooter>
         </Card>
@@ -153,50 +140,3 @@ export default function RegisterScreen() {
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  inner: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  modalCard: {
-    backgroundColor: colors.light.background,
-    borderRadius: radius.lg,
-    padding: spacing.lg,
-    gap: spacing.md,
-  },
-  modalTitle: {
-    fontSize: fontSize.xl,
-    fontWeight: "700",
-    color: colors.light.foreground,
-  },
-  modalDescription: {
-    fontSize: fontSize.sm,
-    color: colors.light.mutedForeground,
-    lineHeight: 20,
-  },
-  recoveryCode: {
-    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
-    fontSize: fontSize.xs,
-    color: colors.light.foreground,
-    backgroundColor: colors.light.muted,
-    padding: spacing.md,
-    borderRadius: radius.sm,
-  },
-  modalActions: {
-    flexDirection: "row",
-    justifyContent: "flex-end",
-    gap: spacing.md,
-  },
-});

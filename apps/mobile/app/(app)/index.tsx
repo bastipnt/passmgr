@@ -15,7 +15,7 @@ export default function HomeScreen() {
       </Text>
       <View style={styles.spacer} />
       <Button
-        variant="secondary"
+        variant="outlined"
         onPress={() => {
           // TODO: real logout. For v1 user can kill the app.
         }}

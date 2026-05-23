@@ -1,35 +1,29 @@
-import type { ReactNode } from "react";
-import { type ViewProps } from "react-native";
-import { Text, XStack, YStack } from "tamagui";
+import { ReactNode } from "react";
+import { Card as CardPrimitive, CardProps, Text, XStack, YStack } from "tamagui";
 
-type CardSlotProps = ViewProps & { className?: string };
+type CardSlotProps = CardProps & { className?: string };
 
 export function Card({ children }: CardSlotProps) {
   return (
-    <YStack
-      backgroundColor="$background"
-      borderRadius="$lg"
-      borderWidth={1}
-      borderColor="$border"
-      padding="$lg"
-      gap="$md"
-    >
+    <CardPrimitive borderWidth={1} borderColor="$borderColor" padding="$1" gap="$1">
       {children}
-    </YStack>
+    </CardPrimitive>
   );
 }
 
 export function CardHeader({ children }: CardSlotProps) {
   return (
-    <XStack justifyContent="space-between" alignItems="center">
-      {children}
-    </XStack>
+    <CardPrimitive.Header>
+      <XStack content="space-between" items="center" gap="$4">
+        {children}
+      </XStack>
+    </CardPrimitive.Header>
   );
 }
 
 export function CardTitle({ children }: { children: ReactNode }) {
   return (
-    <Text fontSize="$xl" fontWeight="700" color="$foreground">
+    <Text fontSize="$xl" fontWeight="700" flex={1}>
       {children}
     </Text>
   );
@@ -37,20 +31,26 @@ export function CardTitle({ children }: { children: ReactNode }) {
 
 export function CardAction({ children }: CardSlotProps) {
   return (
-    <XStack alignItems="center" gap="$xs">
+    <XStack items="center" gap="$4">
       {children}
     </XStack>
   );
 }
 
 export function CardContent({ children }: CardSlotProps) {
-  return <YStack gap="$md">{children}</YStack>;
+  return (
+    <YStack gap="$4" p="$4">
+      {children}
+    </YStack>
+  );
 }
 
 export function CardFooter({ children }: CardSlotProps) {
   return (
-    <XStack justifyContent="flex-end" gap="$md">
-      {children}
-    </XStack>
+    <CardPrimitive.Footer>
+      <XStack flex={1} justify="flex-end" gap="$4" p="$4">
+        {children}
+      </XStack>
+    </CardPrimitive.Footer>
   );
 }

@@ -8,7 +8,7 @@ export type LinkProps = ExpoLinkProps & {
 export function Link({ children, ...rest }: LinkProps) {
   return (
     <ExpoLink {...rest}>
-      <Text color="$primary" fontSize="$sm" fontWeight="500">
+      <Text color="$accent10" fontSize="$true" fontWeight="500">
         {children}
       </Text>
     </ExpoLink>

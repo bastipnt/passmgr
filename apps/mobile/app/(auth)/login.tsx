@@ -1,9 +1,11 @@
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, StyleSheet, View } from "react-native";
+import { Platform } from "react-native";
 import { useRouter } from "expo-router";
 import { useLogin, useUnlockSimple } from "@repo/client";
+import { zodResolver } from "@hookform/resolvers/zod";
+import z from "zod";
+import { Button, Form, View } from "tamagui";
 import {
-  Button,
   Card,
   CardAction,
   CardContent,
@@ -14,12 +16,11 @@ import {
   ControlledPasswordInput,
   FieldError,
   FieldGroup,
+  KeyboardAvoidingView,
   Link,
-  spacing,
+  Spinner,
   useForm,
 } from "@repo/ui-native";
-import { zodResolver } from "@hookform/resolvers/zod";
-import z from "zod";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -52,62 +53,52 @@ export default function LoginScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      style={styles.container}
-    >
-      <View style={styles.inner}>
-        <Card>
-          <CardHeader>
-            <CardTitle>Login</CardTitle>
-            <CardAction>
-              <Link href="/(auth)/register">Sign Up</Link>
-            </CardAction>
-          </CardHeader>
+    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} flex={1}>
+      <View flex={1} justify="center" content="center" p="$4">
+        <Form>
+          <Card>
+            <CardHeader>
+              <CardTitle>Login</CardTitle>
+              <CardAction>
+                <Link href="/(auth)/register">Sign Up</Link>
+              </CardAction>
+            </CardHeader>
 
-          <CardContent>
-            <FieldGroup>
-              <ControlledInput
-                control={control}
-                name="email"
-                label="Email"
-                autoCapitalize="none"
-                autoComplete="username"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="password"
-                label="Password"
-                textContentType="password"
-              />
-            </FieldGroup>
+            <CardContent>
+              <FieldGroup>
+                <ControlledInput
+                  control={control}
+                  name="email"
+                  label="Email"
+                  autoCapitalize="none"
+                  autoComplete="username"
+                  keyboardType="email-address"
+                  textContentType="emailAddress"
+                />
+                <ControlledPasswordInput
+                  control={control}
+                  name="password"
+                  label="Password"
+                  textContentType="password"
+                />
+              </FieldGroup>
 
-            {(loginError || unlockError) && (
-              <FieldError errors={[{ message: "Login error please try again" }]} />
-            )}
-          </CardContent>
+              {(loginError || unlockError) && (
+                <FieldError errors={[{ message: "Login error please try again" }]} />
+              )}
+            </CardContent>
 
-          <CardFooter>
-            <Button onPress={handleSubmit(onSubmit)} loading={loading}>
-              Login
-            </Button>
-          </CardFooter>
-        </Card>
+            <CardFooter>
+              <Form.Trigger asChild>
+                <Button onPress={handleSubmit(onSubmit)}>
+                  Login
+                  {loading && <Spinner />}
+                </Button>
+              </Form.Trigger>
+            </CardFooter>
+          </Card>
+        </Form>
       </View>
     </KeyboardAvoidingView>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#ffffff",
-  },
-  inner: {
-    flex: 1,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-});

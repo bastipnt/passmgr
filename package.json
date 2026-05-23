@@ -53,9 +53,6 @@
       "sharp",
       "ssh2"
     ],
-    "ignoredBuiltDependencies": [
-      "esbuild"
-    ],
     "overrides": {
       "zod": "^4.4.3",
       "react": "^19.2.6",
