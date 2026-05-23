@@ -10,27 +10,31 @@
   },
   "peerDependencies": {
     "expo-router": "*",
-    "react": "^19",
-    "react-native": "*"
+    "react": "catalog:",
+    "react-hook-form": "catalog:",
+    "react-native": "catalog:",
+    "react-native-reanimated": "catalog:",
+    "react-native-safe-area-context": "catalog:",
+    "tamagui": "catalog:"
   },
   "dependencies": {
     "@repo/tokens": "workspace:*",
     "@tamagui/config": "^2.0.0",
-    "@tamagui/themes": "^2.0.0",
-    "react-hook-form": "^7.76.0",
-    "react-native-reanimated": "~4.2.1",
-    "react-native-safe-area-context": "~5.6.2",
-    "tamagui": "2.0.0"
+    "@tamagui/themes": "^2.0.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@tamagui/babel-plugin": "2.0.0-rc.42",
-    "@tamagui/metro-plugin": "2.0.0-rc.42",
-    "@types/react": "^19.2.14",
-    "oxlint": "^1.66.0",
-    "react": "^19.2.6",
-    "react-native": "0.85.3",
-    "typescript": "^6.0.3"
+    "@tamagui/babel-plugin": "catalog:",
+    "@tamagui/metro-plugin": "catalog:",
+    "@types/react": "catalog:",
+    "oxlint": "catalog:",
+    "react": "catalog:",
+    "react-hook-form": "catalog:",
+    "react-native": "catalog:",
+    "react-native-reanimated": "catalog:",
+    "react-native-safe-area-context": "catalog:",
+    "tamagui": "catalog:",
+    "typescript": "catalog:"
   },
   "exports": {
     ".": "./index.ts"

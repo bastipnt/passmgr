@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "oxlint": "^1.66.0",
-    "typescript": "^6.0.3"
+    "oxlint": "catalog:",
+    "typescript": "catalog:"
   }
 }

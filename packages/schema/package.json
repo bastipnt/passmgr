@@ -9,12 +9,13 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
-  "dependencies": {
-    "zod": "^4.4.3"
+  "peerDependencies": {
+    "zod": "catalog:"
   },
   "devDependencies": {
-    "@vitest/coverage-v8": "^4.1.6",
-    "oxlint": "^1.66.0",
-    "vitest": "^4.1.6"
+    "@vitest/coverage-v8": "catalog:",
+    "oxlint": "catalog:",
+    "vitest": "catalog:",
+    "zod": "catalog:"
   }
 }

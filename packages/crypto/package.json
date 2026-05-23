@@ -14,10 +14,10 @@
   "devDependencies": {
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
-    "@vitest/coverage-v8": "^4.1.6",
-    "fast-check": "^4.8.0",
-    "oxlint": "^1.66.0",
-    "vitest": "^4.1.6"
+    "@vitest/coverage-v8": "catalog:",
+    "fast-check": "catalog:",
+    "oxlint": "catalog:",
+    "vitest": "catalog:"
   },
   "keywords": [],
   "author": "",
