@@ -1,50 +1,48 @@
-# Welcome to your Expo app 👋
+# @repo/mobile
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Mobile client for [passmgr](../../README.md). React Native + Expo.
 
-## Get started
+> ⚠️ **Auth flow only.** Vault, records, and biometric unlock are not implemented yet. The home screen explicitly says "Auth flow works" — that's the honest scope today.
 
-1. Install dependencies
+## Stack
 
-   ```bash
-   npm install
-   ```
+- **React Native 0.83** + **Expo 55**
+- **Tamagui** for component styling (migrated from NativeWind-only — see recent commits)
+- **NativeWind** still used in places
+- **tRPC** client via `@repo/client` (shared with web)
+- Components from `@repo/ui-native`
 
-2. Start the app
+## Current state
 
-   ```bash
-   npx expo start
-   ```
+- Registration flow works (OPAQUE)
+- Login flow works (OPAQUE)
+- Home screen after login is a placeholder
 
-In the output, you'll find options to open the app in a
+## Not yet implemented
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+- Vault list / view / add / edit / delete
+- Biometric unlock (Face ID / Touch ID / Android Biometric)
+- Logout (current TODO: "for v1 user can kill the app")
+- Record sync
+- Idle lock
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Dev
 
 ```bash
-npm run reset-project
+pnpm --filter mobile start
 ```
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+This launches Expo's dev server. From there:
 
-## Learn more
+- Press `i` for iOS simulator
+- Press `a` for Android emulator
+- Scan the QR with the Expo Go app for a device build (Expo Go's sandbox limitations apply)
 
-To learn more about developing your project with Expo, look at the following resources:
+For full native-module support you'll need a development build — see [Expo's dev-build docs](https://docs.expo.dev/develop/development-builds/introduction/).
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+### Pointing at a local server
 
-## Join the community
+The mobile app talks to the server in `apps/server`. Make sure:
 
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+1. The server is running (`pnpm --filter server dev`)
+2. The tRPC base URL is reachable from the device/simulator (localhost works from a simulator; a real device needs your machine's LAN IP)

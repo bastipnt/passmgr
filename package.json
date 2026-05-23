@@ -1,6 +1,18 @@
 {
   "name": "passmgr",
+  "version": "0.0.0",
   "private": true,
+  "description": "Cross-platform password manager built on OPAQUE zero-knowledge auth. Early prototype, not production-ready.",
+  "license": "AGPL-3.0-only",
+  "author": "Basti <bastipnt@posteo.org>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/bastipnt/passmgr.git"
+  },
+  "bugs": {
+    "url": "https://github.com/bastipnt/passmgr/issues"
+  },
+  "homepage": "https://github.com/bastipnt/passmgr#readme",
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",

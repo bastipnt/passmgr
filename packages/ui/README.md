@@ -1,15 +1,27 @@
-# UI Package
+# @repo/ui
 
-## Used in apps
+Web component library for [passmgr](../../README.md). shadcn-based, built on Tailwind v4.
 
-- web
+## Consumers
 
-## This package includes
+- `apps/web`
 
-- Components for the frontend
+## What's in here
 
-## TODO
+- Primitive components (Button, Input, Card, Dialog, ...) following the shadcn pattern — copy-in, not opaque dependency
+- `cn()` helper exported from `@repo/ui/theme` for conditional class composition
+- Re-export of `react-hook-form` so consumers don't pull it directly
+- Form components wired into `react-hook-form` + `@repo/schema`
 
-- evaluate storybook
-- change to base ui
-- simplify components
+## Conventions
+
+- All components consume color via design tokens from `@repo/tokens` (e.g. `primary-500`, `surface-3`).
+- Conditional class names: `cn()`, not template strings.
+- Keep components dumb. Business logic belongs in app code or `@repo/client`.
+
+## Storybook
+
+```bash
+pnpm storybook
+pnpm build:storybook
+```

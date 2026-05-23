@@ -1,20 +1,25 @@
-# Schema Package
+# @repo/schema
 
-## Used in apps
+Zod schemas shared between client and server for [passmgr](../../README.md). Single source of truth for any payload that crosses the network boundary.
 
-- web
-- server
+## Consumers
 
-## This package includes
+- `apps/web`
+- `apps/server`
+- `apps/mobile` (via `@repo/client`)
 
-- shared data schemas
-  - user schemas
-    - keys
-    - logins
-    - registrations
-  - login item
-  - encrypted login item `item-payload` # TODO: rename
+## What's in here
 
-## TODO
+- **User schemas**
+  - Registration request / response / record
+  - Login start / finish
+  - Key material (encrypted vault key, recovery wrap)
+- **Vault entries**
+  - Login item (decrypted shape)
+  - Encrypted login item payload (the ciphertext shape that hits the wire / DB)
 
-- rename item-payload to encrypted login item
+## Conventions
+
+- If a schema is used on both sides of tRPC, it belongs here — not in `apps/*`.
+- Re-export via the package barrel `index.ts` so consumers import from `@repo/schema`, not deep paths.
+- Zod version is pinned via the root `pnpm.overrides` to keep all consumers in sync.

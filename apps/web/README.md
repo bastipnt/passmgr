@@ -1,73 +1,44 @@
-# React + TypeScript + Vite
+# @repo/web
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Web client for [passmgr](../../README.md). React 19 + Vite + Tailwind v4.
 
-Currently, two official plugins are available:
+## Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** + **Vite** (overridden globally to `rolldown-vite` via pnpm overrides)
+- **Tailwind CSS v4** for styling, with design tokens from `@repo/tokens`
+- **wouter** for routing
+- **tRPC** client via `@repo/client` (handles HMAC request signing transparently)
+- **react-hook-form** + Zod schemas from `@repo/schema`
 
-## React Compiler
+## Current features
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Register (OPAQUE flow, generates recovery key locally — never sent to server)
+- Login (OPAQUE flow, derives `sessionKey` → `sessionSecret` + `authKey`)
+- Vault: list, view, add, edit, delete entries
+- Real-time record sync via tRPC subscriptions
 
-## Expanding the ESLint configuration
+## Known gaps
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+- No idle lock or auto-relock
+- No password recovery UI (recovery key works at the protocol layer, just no flow to consume it)
+- No tab-visibility / lock-on-blur
 
-```js
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
+## Dev
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+```bash
+pnpm --filter web dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Dev server runs on Vite's default port (5173).
 
-```js
-// eslint.config.js
-import reactX from "eslint-plugin-react-x";
-import reactDom from "eslint-plugin-react-dom";
+### Styling conventions
 
-export default defineConfig([
-  globalIgnores(["dist"]),
-  {
-    files: ["**/*.{ts,tsx}"],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs["recommended-typescript"],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ["./tsconfig.node.json", "./tsconfig.app.json"],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+- Use Tailwind utilities first.
+- For conditional classes use `cn()` from `@repo/ui/theme`.
+- Color via tokens (`primary-500`, `surface-3`, `text-primary`) — avoid raw hex.
+
+## Build
+
+```bash
+pnpm --filter web build
 ```

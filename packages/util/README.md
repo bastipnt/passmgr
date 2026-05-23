@@ -1,14 +1,20 @@
-# Util Package
+# @repo/util
 
-## Used in apps
+Small, generic utilities shared across the [passmgr](../../README.md) monorepo. No domain logic.
 
-- web
-- server
+## Consumers
 
-## This package includes
+- `apps/web`
+- `apps/server`
+- `apps/mobile` (transitively)
 
-- shared utility functions
+## What's in here
 
-## TODO
+- Base64 / base64url encoding + decoding
+- String / byte conversion helpers (`utf8ToBytes`, `bytesToUtf8`, ...)
+- Misc type guards
 
-- check if something is missing here or should be somewhere else
+## Conventions
+
+- Pure functions only. No I/O, no state.
+- If a helper grows domain-specific (touches crypto, schema, DB), move it to the right package instead.

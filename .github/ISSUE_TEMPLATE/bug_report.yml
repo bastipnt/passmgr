@@ -1,0 +1,94 @@
+name: Bug report
+description: Report something that does not work as expected.
+title: "[bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to file a report.
+
+        > [!IMPORTANT]
+        > passmgr is in early prototype state. Do not store real passwords with it yet.
+        > For security vulnerabilities, **do not file a public issue** — see [SECURITY.md](../../SECURITY.md).
+
+  - type: checkboxes
+    id: acknowledgment
+    attributes:
+      label: Acknowledgment
+      options:
+        - label: I understand passmgr is alpha software and not production-ready.
+          required: true
+        - label: I have searched existing issues and this is not a duplicate.
+          required: true
+        - label: This is not a security vulnerability (those go to SECURITY.md privately).
+          required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What is the bug?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: A minimal sequence of steps that reliably produces the bug.
+      placeholder: |
+        1. Run `pnpm dev`
+        2. Open http://localhost:5173
+        3. ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include error messages and stack traces if any.
+    validations:
+      required: true
+
+  - type: input
+    id: component
+    attributes:
+      label: Affected component
+      placeholder: "apps/web, apps/server, apps/mobile, packages/crypto, ..."
+    validations:
+      required: true
+
+  - type: input
+    id: commit
+    attributes:
+      label: Commit hash / version
+      placeholder: "e.g. 1d1d197 or v0.1.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      placeholder: |
+        OS: macOS 15.2
+        Browser: Firefox 134
+        Node: 22.x
+        pnpm: 10.33.3
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Paste relevant logs in a code block, or drop in screenshots.
