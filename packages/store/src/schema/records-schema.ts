@@ -1,5 +1,5 @@
-import type { SQLocal } from "sqlocal";
 import type { EncryptedRecordSchema } from "@repo/schema";
+import type { SqlDriver } from "../driver";
 
 export const CREATE_RECORDS_SCHEMA_SQL = /* sql */ `
   CREATE TABLE IF NOT EXISTS records (
@@ -20,31 +20,43 @@ export const CREATE_RECORDS_SCHEMA_SQL = /* sql */ `
   );
 `;
 
-export async function clearRecordsTable(db: SQLocal) {
-  await db.sql`DELETE FROM records`;
+export async function clearRecordsTable(db: SqlDriver) {
+  await db.run(`DELETE FROM records`);
 }
 
-export async function upsertRecords(records: EncryptedRecordSchema[], db: SQLocal): Promise<void> {
+export async function upsertRecords(
+  records: EncryptedRecordSchema[],
+  db: SqlDriver,
+): Promise<void> {
   if (records.length === 0) return;
 
   await db.transaction(async (tx) => {
     for (const record of records) {
-      await tx.sql`
-        INSERT OR REPLACE INTO records (
-          recordId, encryptedData, encryptionNonce, cryptoVersion,
-          version, clientUpdatedAt, created_at, updated_at, deleted_at
-        ) VALUES (
-          ${record.recordId}, ${record.encryptedData}, ${record.encryptionNonce}, ${record.cryptoVersion},
-          ${record.version}, ${record.clientUpdatedAt}, ${record.created_at}, ${record.updated_at},
-          ${record.deleted_at}
-        )
-      `;
+      await tx.run(
+        /* sql */ `
+          INSERT OR REPLACE INTO records (
+            recordId, encryptedData, encryptionNonce, cryptoVersion,
+            version, clientUpdatedAt, created_at, updated_at, deleted_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `,
+        [
+          record.recordId,
+          record.encryptedData,
+          record.encryptionNonce,
+          record.cryptoVersion,
+          record.version,
+          record.clientUpdatedAt,
+          record.created_at,
+          record.updated_at,
+          record.deleted_at,
+        ],
+      );
     }
   });
 }
 
-export async function getAllRecordsLatest(db: SQLocal): Promise<EncryptedRecordSchema[]> {
-  return await db.sql<EncryptedRecordSchema> /* sql */ `
+export async function getAllRecordsLatest(db: SqlDriver): Promise<EncryptedRecordSchema[]> {
+  return await db.all<EncryptedRecordSchema>(/* sql */ `
     SELECT r.*
     FROM records r
     INNER JOIN (
@@ -53,18 +65,21 @@ export async function getAllRecordsLatest(db: SQLocal): Promise<EncryptedRecordS
       GROUP BY recordId
     ) latest ON r.recordId = latest.recordId AND r.version = latest.maxVersion
     WHERE r.deleted_at IS NULL
-  `;
+  `);
 }
 
 export async function getByRecordId(
   recordId: string,
-  db: SQLocal,
+  db: SqlDriver,
 ): Promise<EncryptedRecordSchema | undefined> {
-  const rows = await db.sql<EncryptedRecordSchema> /* sql */ `
-    SELECT * FROM records
-    WHERE recordId = ${recordId}
-    ORDER BY version DESC
-    LIMIT 1
-  `;
+  const rows = await db.all<EncryptedRecordSchema>(
+    /* sql */ `
+      SELECT * FROM records
+      WHERE recordId = ?
+      ORDER BY version DESC
+      LIMIT 1
+    `,
+    [recordId],
+  );
   return rows[0];
 }

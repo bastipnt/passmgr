@@ -1,4 +1,4 @@
-import type { SQLocal } from "sqlocal";
+import type { SqlDriver } from "../driver";
 
 export const CREATE_SYNC_META_SCHEMA_SQL = /* sql */ `
   CREATE TABLE IF NOT EXISTS sync_meta (
@@ -7,19 +7,20 @@ export const CREATE_SYNC_META_SCHEMA_SQL = /* sql */ `
   );
 `;
 
-export async function clearSyncTable(db: SQLocal) {
-  await db.sql`DELETE FROM sync_meta`;
+export async function clearSyncTable(db: SqlDriver) {
+  await db.run(`DELETE FROM sync_meta`);
 }
 
-export async function getLastSyncTimestamp(db: SQLocal): Promise<string | null> {
-  const rows = await db.sql<{ value: string }> /* sql */ `
+export async function getLastSyncTimestamp(db: SqlDriver): Promise<string | null> {
+  const rows = await db.all<{ value: string }>(/* sql */ `
     SELECT value FROM sync_meta WHERE key = 'lastSyncedAt'
-  `;
+  `);
   return rows[0]?.value ?? null;
 }
 
-export async function setLastSyncTimestamp(ts: string, db: SQLocal): Promise<void> {
-  await db.sql`
-    INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('lastSyncedAt', ${ts})
-  `;
+export async function setLastSyncTimestamp(ts: string, db: SqlDriver): Promise<void> {
+  await db.run(
+    /* sql */ `INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('lastSyncedAt', ?)`,
+    [ts],
+  );
 }

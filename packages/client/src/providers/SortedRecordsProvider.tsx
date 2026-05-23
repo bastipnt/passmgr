@@ -1,6 +1,8 @@
 import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { DecryptedRecord } from "@repo/schema";
 import { useGetRecords } from "../hooks/use-records";
+import { usePreferences } from "./PreferencesProvider";
+import type { PreferencesStore } from "../preferences/PreferencesStore";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
@@ -15,8 +17,8 @@ export const SORT_LABELS: Record<SortOption, string> = {
 
 const STORAGE_KEY = "pass-mgr-sort";
 
-function getInitialSort(): SortOption {
-  const stored = localStorage.getItem(STORAGE_KEY);
+function getInitialSort(preferences: PreferencesStore): SortOption {
+  const stored = preferences.get(STORAGE_KEY);
   if (stored && stored in SORT_LABELS) return stored as SortOption;
   return "most-recent";
 }
@@ -200,8 +202,9 @@ type SortedRecordsProviderProps = {
 
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
+  const preferences = usePreferences();
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortOption>(getInitialSort);
+  const [sort, setSort] = useState<SortOption>(() => getInitialSort(preferences));
 
   const hasQuery = query.trim().length > 0;
   const filtered = useMemo(() => filterBySearch(records, query), [records, query]);
@@ -218,7 +221,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   function handleSortChange(value: string) {
     const next = value as SortOption;
     setSort(next);
-    localStorage.setItem(STORAGE_KEY, next);
+    preferences.set(STORAGE_KEY, next);
   }
 
   const value = useMemo(

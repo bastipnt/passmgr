@@ -1,6 +1,6 @@
-import { SQLocal } from "sqlocal";
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
+import type { SqlDriver } from "./driver";
 import {
   clearRecordsTable,
   CREATE_RECORDS_SCHEMA_SQL,
@@ -24,26 +24,25 @@ import {
   setLastSyncTimestamp,
 } from "./schema/sync-schema";
 
-const SCHEMA_SQL = /* sql */ `
-  ${CREATE_RECORDS_SCHEMA_SQL}
-  ${CREATE_KEYS_SCHEMA_SQL}
-  ${CREATE_SYNC_META_SCHEMA_SQL}
-`;
+const SCHEMA_STATEMENTS = [
+  CREATE_RECORDS_SCHEMA_SQL,
+  CREATE_KEYS_SCHEMA_SQL,
+  CREATE_SYNC_META_SCHEMA_SQL,
+];
 
 export class Vault {
-  private db: SQLocal;
+  private db: SqlDriver;
   private initialized: Promise<void>;
 
-  constructor(databasePath = "pass-mgr.sqlite3") {
-    this.db = new SQLocal({
-      databasePath,
-    });
-
+  constructor(driver: SqlDriver) {
+    this.db = driver;
     this.initialized = this.init();
   }
 
   private async init(): Promise<void> {
-    await this.db.exec(SCHEMA_SQL, []);
+    for (const stmt of SCHEMA_STATEMENTS) {
+      await this.db.run(stmt);
+    }
   }
 
   private async ready(): Promise<void> {

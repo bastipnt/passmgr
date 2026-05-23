@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { SyncManager } from "../sync-manager";
 import { SessionContext } from "./SessionProvider";
+import { usePreferences } from "./PreferencesProvider";
 import { useTRPCClient } from "../util/trpc";
 import { Vault } from "@repo/store";
 import type { BiometricKeyMaterial } from "@repo/crypto";
@@ -31,12 +32,14 @@ export function useStore(): StoreContextValue {
 }
 
 type StoreProviderProps = {
+  vault: Vault;
   children: ReactNode;
 };
 
-export function StoreProvider({ children }: StoreProviderProps) {
+export function StoreProvider({ vault, children }: StoreProviderProps) {
   const { loggedIn, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
+  const preferences = usePreferences();
 
   const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
@@ -44,7 +47,7 @@ export function StoreProvider({ children }: StoreProviderProps) {
   );
 
   const [biometricDismissed, setBiometricDismissed_] = useState(
-    Number(localStorage.getItem(BIOMETRIC_DISMISSED)) === 1,
+    Number(preferences.get(BIOMETRIC_DISMISSED)) === 1,
   );
 
   const needsBiometricEnroll = !biometricDismissed && biometricKeyMaterial === null;
@@ -52,22 +55,19 @@ export function StoreProvider({ children }: StoreProviderProps) {
   function setBiometricDismissed(dismissed: boolean) {
     setBiometricDismissed_(dismissed);
 
-    if (dismissed) localStorage.setItem(BIOMETRIC_DISMISSED, "1");
-    else localStorage.removeItem(BIOMETRIC_DISMISSED);
+    if (dismissed) preferences.set(BIOMETRIC_DISMISSED, "1");
+    else preferences.remove(BIOMETRIC_DISMISSED);
   }
 
-  const storeRef = useRef<{ vault: Vault; syncManager: SyncManager } | null>(null);
-
-  if (!storeRef.current) {
-    const vault = new Vault();
-    const syncManager = new SyncManager(vault, async (lastSyncedAt) => {
-      if (!navigator.onLine) throw new Error("offline");
+  const syncManagerRef = useRef<SyncManager | null>(null);
+  if (!syncManagerRef.current) {
+    syncManagerRef.current = new SyncManager(vault, async (lastSyncedAt) => {
+      if (typeof navigator !== "undefined" && navigator.onLine === false)
+        throw new Error("offline");
       return await trpc.record.sync.query({ lastSyncedAt });
     });
-    storeRef.current = { vault, syncManager };
   }
-
-  const { vault, syncManager } = storeRef.current;
+  const syncManager = syncManagerRef.current;
 
   // Load vault key material on mount to check if offline unlock is available
   useEffect(() => {
@@ -80,7 +80,8 @@ export function StoreProvider({ children }: StoreProviderProps) {
     if (!loggedIn || isOffline) return;
 
     const onOnline = () => void syncManager.sync();
-    window.addEventListener("online", onOnline);
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function")
+      window.addEventListener("online", onOnline);
 
     let retryDelay = 5_000;
     let retryTimer: ReturnType<typeof setTimeout> | null = null;
@@ -116,20 +117,22 @@ export function StoreProvider({ children }: StoreProviderProps) {
       disposed = true;
       currentSubscription?.unsubscribe();
       if (retryTimer) clearTimeout(retryTimer);
-      window.removeEventListener("online", onOnline);
+      if (typeof window !== "undefined" && typeof window.removeEventListener === "function")
+        window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
   }, [loggedIn, isOffline, syncManager, trpc]);
 
   async function removeVault() {
     await vault.clear();
-    localStorage.removeItem(BIOMETRIC_DISMISSED);
+    preferences.remove(BIOMETRIC_DISMISSED);
     setVaultKeyMaterial(null);
     setBiometricKeyMaterial(null);
   }
 
   const value: StoreContextValue = {
-    ...storeRef.current,
+    vault,
+    syncManager,
 
     vaultKeyMaterial,
     biometricKeyMaterial,

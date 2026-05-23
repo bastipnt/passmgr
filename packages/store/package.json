@@ -3,6 +3,11 @@
   "version": "0.0.1",
   "type": "module",
   "main": "index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./drivers/web": "./src/drivers/web.ts",
+    "./drivers/native": "./src/drivers/native.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
@@ -12,6 +17,18 @@
     "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*"
+  },
+  "peerDependencies": {
+    "expo-sqlite": "*",
+    "sqlocal": "*"
+  },
+  "peerDependenciesMeta": {
+    "expo-sqlite": {
+      "optional": true
+    },
+    "sqlocal": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.6",

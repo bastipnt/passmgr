@@ -21,7 +21,11 @@ export * from "./src/hooks/use-shortcut";
 export * from "./src/providers/StoreProvider";
 export * from "./src/providers/RecordsProvider";
 export * from "./src/providers/SortedRecordsProvider";
+export * from "./src/providers/PreferencesProvider";
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export { default as SessionProvider, SessionContext } from "./src/providers/SessionProvider";
 export { default as ShortcutProvider, useShortcutContext } from "./src/providers/ShortcutProvider";
 export type { ShortcutEntry } from "./src/providers/ShortcutProvider";
+
+// Preferences
+export * from "./src/preferences/PreferencesStore";
