@@ -5,6 +5,7 @@ packages:
 
 catalog:
   "@cloudflare/opaque-ts": ^0.7.5
+  "@expo/vector-icons": ^15.1.1
   "@hookform/resolvers": ^5.2.2
   "@tailwindcss/postcss": ^4.3.0
   "@tailwindcss/vite": ^4.3.0
@@ -23,6 +24,22 @@ catalog:
   drizzle-kit: 1.0.0-beta.15-859cf75
   drizzle-orm: 1.0.0-beta.15-859cf75
   drizzle-seed: 1.0.0-beta.15-859cf75
+  # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
+  # pin the transitive copies these drag in (catalog only governs direct deps).
+  expo: ~55.0.25
+  expo-clipboard: ~55.0.13
+  expo-constants: ~55.0.16
+  expo-dev-client: ~55.0.35
+  expo-font: ~55.0.8
+  expo-haptics: ~55.0.14
+  expo-image: ~55.0.10
+  expo-linking: ~55.0.15
+  expo-router: ~55.0.15
+  expo-splash-screen: ^55.0.21
+  expo-sqlite: ~55.0.16
+  expo-status-bar: ~55.0.6
+  expo-symbols: ~55.0.9
+  expo-web-browser: ~55.0.16
   fast-check: ^4.8.0
   lucide-react: ^1.16.0
   oxlint: ^1.66.0
@@ -63,3 +80,14 @@ overrides:
   # root and the babel-preset-expo worklets plugin resolves it, mismatching the
   # 0.7.4 the app runs at runtime.
   react-native-worklets: "0.7.4"
+  # Expo's loose peer ranges (and @repo/ui-native's `expo-router: "*"` peer) let
+  # pnpm resolve SDK 56 copies of these into an SDK 55 app, dragging in the SDK 56
+  # expo-modules-core ABI -> native NoSuchMethodError (SharedRef / AnyTypeCache).
+  # Pin every expo package to the SDK 55 line.
+  expo-router: "~55.0.15"
+  expo-font: "~55.0.8"
+  expo-image: "~55.0.10"
+  expo-symbols: "~55.0.9"
+  expo-glass-effect: "~55.0.11"
+  "@expo/ui": "~55.0.17"
+  "@expo/metro-runtime": "~55.0.11"
