@@ -5,7 +5,10 @@ export default function AppLayout() {
   return (
     <RecordsProvider>
       <SortedRecordsProvider>
-        <Stack screenOptions={{ headerShown: false }} />
+        <Stack>
+          <Stack.Screen name="(records)" options={{ headerShown: false }} />
+          <Stack.Screen name="settings" options={{ headerShown: false }} />
+        </Stack>
       </SortedRecordsProvider>
     </RecordsProvider>
   );

@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "expo-blur": "catalog:",
     "expo-router": "catalog:",
     "react": "catalog:",
     "react-hook-form": "catalog:",

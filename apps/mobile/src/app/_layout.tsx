@@ -5,23 +5,41 @@ import "react-native-get-random-values";
 
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useColorScheme } from "react-native";
-import { TamaguiProvider, Text, View } from "tamagui";
-import { ClientProvider, PreferencesProvider, SessionProvider, StoreProvider } from "@repo/client";
+import { TamaguiProvider } from "tamagui";
+import {
+  ClientProvider,
+  PreferencesProvider,
+  SessionContext,
+  SessionProvider,
+  StoreProvider,
+} from "@repo/client";
 import { tamaguiConfig } from "@repo/ui-native";
 import "react-native-reanimated";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useVaultStore } from "@/hooks/use-vault-store";
+import { useContext } from "react";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 
-function Header() {
+function Routes() {
+  const { loggedIn } = useContext(SessionContext);
+
   return (
-    <View>
-      <Text color="$accent10" fontSize="$xl">
-        Passmgr
-      </Text>
-    </View>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+        }}
+      >
+        <Stack.Protected guard={loggedIn}>
+          <Stack.Screen name="(app)" />
+        </Stack.Protected>
+        <Stack.Screen name="(auth)" />
+      </Stack>
+      <StatusBar style="auto" />
+    </>
   );
 }
 
@@ -35,25 +53,17 @@ export default function RootLayout() {
       config={tamaguiConfig}
       defaultTheme={colorScheme === "dark" ? "dark" : "light"}
     >
-      <PreferencesProvider store={preferencesStore}>
-        <SessionProvider>
-          <ClientProvider serverUrl={serverUrl}>
-            <StoreProvider vault={vaultStore}>
-              <Stack
-                screenOptions={{
-                  headerStyle: { backgroundColor: "#eee" },
-                  headerTitle: (props) => <Header />,
-                }}
-              >
-                <Stack.Screen name="index" />
-                <Stack.Screen name="(auth)" />
-                <Stack.Screen name="(app)" />
-              </Stack>
-              <StatusBar style="auto" />
-            </StoreProvider>
-          </ClientProvider>
-        </SessionProvider>
-      </PreferencesProvider>
+      <SafeAreaProvider>
+        <PreferencesProvider store={preferencesStore}>
+          <SessionProvider>
+            <ClientProvider serverUrl={serverUrl}>
+              <StoreProvider vault={vaultStore}>
+                <Routes />
+              </StoreProvider>
+            </ClientProvider>
+          </SessionProvider>
+        </PreferencesProvider>
+      </SafeAreaProvider>
     </TamaguiProvider>
   );
 }

@@ -1,6 +1,7 @@
 export * from "./src/components/Button";
 export * from "./src/components/Card";
 export * from "./src/components/KeyboardAvoidingView";
+export * from "./src/components/BlurView";
 
 export { Input, ControlledInput } from "./src/components/forms/Input";
 export type { InputProps, ControlledInputProps } from "./src/components/forms/Input";

@@ -25,6 +25,7 @@
     "@repo/ui-native": "workspace:*",
     "@repo/util": "workspace:*",
     "expo": "catalog:",
+    "expo-blur": "catalog:",
     "expo-clipboard": "catalog:",
     "expo-constants": "catalog:",
     "expo-dev-client": "catalog:",
