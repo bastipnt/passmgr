@@ -7,6 +7,7 @@ import {
 } from "@cloudflare/opaque-ts";
 import type { TRPCClient } from "@trpc/client";
 import { encryptXChaCha, genKey, genPasswordKek, genSalt, hkdf, wipe } from "@repo/crypto";
+import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import { fromBase64, toBase64 } from "@repo/util";
 import type { AppRouter } from "@repo/types";
 import type { UserKeySchema } from "@repo/schema";
@@ -46,7 +47,7 @@ export async function registerNewUser(
   email: string,
   password: string,
 ): Promise<Uint8Array> {
-  const client: RegistrationClient = new OpaqueClient(config);
+  const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
 
   const req = await client.registerInit(password);
   if (req instanceof Error) throw new RegistrationStartFailedError();

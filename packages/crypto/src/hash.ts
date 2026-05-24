@@ -114,7 +114,7 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
  *
  * TODO: version parameters and adjust to client
  */
-const PROD_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 1 };
+const PROD_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 4 };
 
 let activePasswordKekParams: ArgonOpts = PROD_PASSWORD_KEK_PARAMS;
 

@@ -128,14 +128,14 @@ describe("genPasswordKek / retrievePRK", () => {
   const ARGON_TIMEOUT_MS = 60_000;
 
   it(
-    "uses prod defaults (t:3, m:128MiB, p:1) when no params given",
+    "uses prod defaults (t:3, m:128MiB, p:4) when no params given",
     async () => {
       const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
         "correct horse battery staple",
       );
       expect(passwordKek.length).toBe(32);
       expect(passwordKekSaltData.length).toBe(32);
-      expect(passwordKekParams).toEqual({ t: 3, m: 128 * 1024, p: 1 });
+      expect(passwordKekParams).toEqual({ t: 3, m: 128 * 1024, p: 4 });
     },
     ARGON_TIMEOUT_MS,
   );

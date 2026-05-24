@@ -11,6 +11,7 @@ import type { DecryptedRecord } from "@repo/schema";
 import { SessionContext } from "./SessionProvider";
 import { useStore } from "./StoreProvider";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
+import { timed } from "../util/perf";
 import type { EncryptedRecordSchema } from "@repo/schema";
 
 type RecordsContextValue = {
@@ -81,7 +82,9 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
     // Decrypt changed/new records
     if (toDecrypt.length > 0) {
-      const decrypted = await Promise.all(toDecrypt.map(decryptRecord));
+      const decrypted = await timed(`decrypt ${toDecrypt.length} records`, () =>
+        Promise.all(toDecrypt.map(decryptRecord)),
+      );
 
       for (const record of decrypted) {
         recordsMapRef.current.set(record.recordId, record);

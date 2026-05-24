@@ -35,7 +35,9 @@ pnpm --filter mobile start     # Expo dev server
 bun ./devResetDB.ts   # Reset dev database
 ```
 
-No test framework is currently configured.
+### Testing
+
+Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
 
 ## Architecture
 
@@ -81,7 +83,7 @@ Authenticated requests use HMAC-signed headers (no cookies):
 - `x-timestamp` — Unix timestamp (requests >5 min old are rejected as replay protection)
 - `x-signature` — HMAC-SHA256 of `(type, path, timestamp, input)` using the `authKey`
 
-The `protectedProcedure` middleware in `apps/server/src/auth/authMiddleware.ts` validates these headers on every protected tRPC call.
+The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
 
 ### Key Hierarchy
 

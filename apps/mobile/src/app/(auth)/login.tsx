@@ -21,6 +21,7 @@ import {
   Spinner,
   useForm,
 } from "@repo/ui-native";
+import { timed } from "@repo/client/src/util/perf";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -43,9 +44,9 @@ export default function LoginScreen() {
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);
     try {
-      const unlockInfo = await loginUser(email, password);
+      const unlockInfo = await timed("total login time", () => loginUser(email, password));
       if (!unlockInfo) return;
-      await unlock(unlockInfo);
+      await timed("total unlock time", () => unlock(unlockInfo));
       router.replace("/(app)");
     } finally {
       setLoading(false);

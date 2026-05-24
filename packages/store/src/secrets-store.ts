@@ -104,6 +104,17 @@ class SecretsStore {
     return this.vaultKey.slice();
   }
 
+  /**
+   * Re-encrypt the in-memory vault key under a new password KEK (e.g. after
+   * Argon2 params change). The plaintext vault key never leaves memory; only
+   * the returned ciphertext is persisted. Caller is responsible for wiping
+   * `passwordKek` afterwards.
+   */
+  rewrapVaultKey(passwordKek: Uint8Array): [encryptedVaultKey: string, nonce: string] {
+    if (!this.vaultKey) throw new SessionLockedError();
+    return encryptXChaCha(passwordKek, this.vaultKey);
+  }
+
   private async deriveAuthKey(): Promise<Uint8Array> {
     if (!this.sessionSecret) throw new SessionLockedError();
     if (!this.authSalt) throw new SessionLockedError();

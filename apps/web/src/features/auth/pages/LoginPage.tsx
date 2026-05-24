@@ -8,6 +8,7 @@ import type { LoginFormValues } from "@features/auth/components/LoginForm";
 import { BiometricLoginCard } from "@features/auth/components/BiometricLoginCard";
 import LoginForm from "@features/auth/components/LoginForm";
 import ExistingUserButton from "@features/auth/components/ExistingUserButton";
+import { timed } from "@repo/client/src/util/perf";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError } = useLogin();
@@ -39,7 +40,7 @@ export default function LoginPage() {
       secretsStore.setPassword(password);
     } else {
       // only authentication with the server
-      unlockVaultInfo = await loginUser(email, password);
+      unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
     }
 
     // something went wrong
@@ -50,7 +51,7 @@ export default function LoginPage() {
     }
 
     // unlock vault (store)
-    await unlock(unlockVaultInfo);
+    await timed("total unlock time", () => unlock(unlockVaultInfo));
   };
 
   return (

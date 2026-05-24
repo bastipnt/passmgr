@@ -1,28 +1,40 @@
-import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type { ArgonParams, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import { useContext, useState } from "react";
-import { fromBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import { SessionContext } from "../providers/SessionProvider";
 import { secretsStore } from "@repo/store";
 import { useStore } from "../providers/StoreProvider";
-import { authenticateBiometric } from "@repo/crypto";
+import { authenticateBiometric, genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
 import { useLogin } from "./use-login";
+import { useTRPCClient } from "../util/trpc";
+import { timed } from "../util/perf";
+
+function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
+  return a.t === b.t && a.m === b.m && a.p === b.p;
+}
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState(false);
   const { unlockVault, unlockWithVaultKey } = useContext(SessionContext);
   const store = useStore();
   const { loginUser } = useLogin();
+  const trpc = useTRPCClient();
 
   async function unlock({ email, password, userPasswordKeys }: VaultUnlockInfo) {
     let passwordKek: Uint8Array;
 
     try {
-      passwordKek = await argon2WorkerService.derive(
-        password,
-        fromBase64(userPasswordKeys.passwordKekSalt),
-        userPasswordKeys.passwordKekParams,
+      const { passwordKekParams } = userPasswordKeys;
+      passwordKek = await timed(
+        `argon2 derive (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
+        () =>
+          argon2WorkerService.derive(
+            password,
+            fromBase64(userPasswordKeys.passwordKekSalt),
+            passwordKekParams,
+          ),
       );
     } catch (e) {
       console.error("Vault unlock failed", e);
@@ -41,6 +53,48 @@ export function useUnlock() {
     );
 
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+
+    // Transparently migrate to the current Argon2 params if the stored ones are
+    // stale (e.g. after a params bump). Best-effort — needs the server and the
+    // unlocked vault key in memory; failures don't block login.
+    void rekeyIfParamsStale(email, password, userPasswordKeys.passwordKekParams);
+  }
+
+  /**
+   * Re-derive the password KEK with the current params and re-wrap the vault
+   * key. Runs client-side only — the server never sees the key or password.
+   * TODO: move into separate file (refactor)
+   */
+  async function rekeyIfParamsStale(
+    email: string,
+    password: string,
+    storedParams: ArgonParams,
+  ): Promise<void> {
+    const targetParams = getPasswordKekParams();
+    if (paramsEqual(storedParams, targetParams)) return;
+    if (typeof navigator !== "undefined" && !navigator.onLine) return;
+
+    try {
+      const { passwordKek, passwordKekParams, passwordKekSaltData } = await timed(
+        `argon2 rekey (t:${targetParams.t} m:${targetParams.m} p:${targetParams.p})`,
+        () => genPasswordKek(password, targetParams),
+      );
+
+      const [encryptedVaultKey, vaultKeyEncryptionNonce] = secretsStore.rewrapVaultKey(passwordKek);
+      wipe(passwordKek);
+
+      const updated: PasswordKeySchema = {
+        passwordKekParams,
+        passwordKekSalt: toBase64(passwordKekSaltData),
+        encryptedVaultKey,
+        vaultKeyEncryptionNonce,
+      };
+
+      await trpc.user.rekeyPasswordKeys.mutate(updated);
+      await storeKeyMaterial(email, updated);
+    } catch (e) {
+      console.error("Argon2 param rekey failed (will retry next login)", e);
+    }
   }
 
   async function biometricUnlock() {
@@ -51,7 +105,7 @@ export function useUnlock() {
     let onlineAuthFailure = true;
 
     if (navigator.onLine && email) {
-      const unlockInfo = await loginUser(email, password);
+      const unlockInfo = await timed("total login time", () => loginUser(email, password));
       onlineAuthFailure = !unlockInfo;
 
       if (unlockInfo) await storeKeyMaterial(email, unlockInfo.userPasswordKeys);
