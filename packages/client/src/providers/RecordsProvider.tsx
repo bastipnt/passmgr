@@ -58,11 +58,12 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
   const recordsMapRef = useRef(new Map<string, DecryptedRecord>());
   const fingerprintMapRef = useRef(new Map<string, string>());
+  const runningRef = useRef<Promise<void> | null>(null);
 
   const [revision, setRevision] = useState(0);
   const [ready, setReady] = useState(false);
 
-  const decryptAll = useCallback(async () => {
+  const runDecryptAll = useCallback(async () => {
     const encrypted = await vault.getAllLatest();
     const activeIds = new Set<string>();
 
@@ -102,6 +103,21 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     setRevision((r) => r + 1);
     setReady(true);
   }, [vault]);
+
+  // Serialize runs: the initial-unlock and on-sync effects can both fire before
+  // either writes fingerprints, which would race into decrypting everything
+  // twice. Chaining lets the second run see the first run's fingerprints and
+  // no-op, so the fingerprint dedup actually applies. Run regardless of whether
+  // the previous run resolved or rejected, so one failure doesn't stall the chain.
+  const decryptAll = useCallback(() => {
+    const prev = runningRef.current ?? Promise.resolve();
+    const run = prev.then(runDecryptAll, runDecryptAll);
+    runningRef.current = run;
+    void run.finally(() => {
+      if (runningRef.current === run) runningRef.current = null;
+    });
+    return run;
+  }, [runDecryptAll]);
 
   // Initial decryption when vault becomes ready
   useEffect(() => {
