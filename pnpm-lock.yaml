@@ -64,8 +64,8 @@ catalogs:
       specifier: 1.0.0-beta.15-859cf75
       version: 1.0.0-beta.15-859cf75
     drizzle-orm:
-      specifier: 1.0.0-beta.15-859cf75
-      version: 1.0.0-beta.15-859cf75
+      specifier: 1.0.0-beta.20
+      version: 1.0.0-beta.20
     drizzle-seed:
       specifier: 1.0.0-beta.15-859cf75
       version: 1.0.0-beta.15-859cf75
@@ -661,7 +661,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)
+        version: 1.0.0-beta.20(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)
     devDependencies:
       '@testcontainers/postgresql':
         specifier: 'catalog:'
@@ -677,7 +677,7 @@ importers:
         version: 1.0.0-beta.15-859cf75
       drizzle-seed:
         specifier: 'catalog:'
-        version: 1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3))
+        version: 1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.20(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3))
       oxlint:
         specifier: 'catalog:'
         version: 1.66.0(oxlint-tsgolint@0.23.0)
@@ -6206,8 +6206,8 @@ packages:
     resolution: {integrity: sha512-Y36s1XQGVb1PgU3aRNgufp1K3D2VkIifu8kv4Ubsmxi+Dq+N7KMklnpp7Knu/XC4FZi2MHPPG3v3o097r0/TcQ==}
     hasBin: true
 
-  drizzle-orm@1.0.0-beta.15-859cf75:
-    resolution: {integrity: sha512-dGVb2Q70H2AV6513hkOXR3Ud0FeGXLdugVq3YehoqkGIVTJrkuo0gRnCcW/dfI00O07t3T4HSh4clF/D/o/IsQ==}
+  drizzle-orm@1.0.0-beta.20:
+    resolution: {integrity: sha512-7qiuw+Z6yGr+ywt3PS5dP6UCfdymIuFT/ni6GnPGzLhkBIolNBTo4ByMBWTxJ7dW/Ya6d73GtkeuKfcVcriVHA==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
@@ -6220,7 +6220,6 @@ packages:
       '@op-engineering/op-sqlite': '>=2'
       '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1.13'
-      '@prisma/client': '*'
       '@sinclair/typebox': '>=0.34.8'
       '@sqlitecloud/drivers': '>=1.0.653'
       '@tidbcloud/serverless': '*'
@@ -6243,7 +6242,6 @@ packages:
       mysql2: '>=2'
       pg: '>=8'
       postgres: '>=3'
-      prisma: '*'
       sql.js: '>=1'
       sqlite3: '>=5'
       typebox: '>=1.0.0'
@@ -6271,8 +6269,6 @@ packages:
       '@opentelemetry/api':
         optional: true
       '@planetscale/database':
-        optional: true
-      '@prisma/client':
         optional: true
       '@sinclair/typebox':
         optional: true
@@ -6313,8 +6309,6 @@ packages:
       pg:
         optional: true
       postgres:
-        optional: true
-      prisma:
         optional: true
       sql.js:
         optional: true
@@ -16365,7 +16359,7 @@ snapshots:
       esbuild: 0.25.12
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3):
+  drizzle-orm@1.0.0-beta.20(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3):
     dependencies:
       '@types/mssql': 9.1.9(@azure/core-client@1.10.1)
       mssql: 11.0.1(@azure/core-client@1.10.1)
@@ -16375,9 +16369,9 @@ snapshots:
       pg: 8.21.0
       zod: 4.4.3
 
-  drizzle-seed@1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)):
+  drizzle-seed@1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.20(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)):
     dependencies:
-      drizzle-orm: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)
+      drizzle-orm: 1.0.0-beta.20(@types/mssql@9.1.9(@azure/core-client@1.10.1))(@types/pg@8.20.0)(expo-sqlite@55.0.16(expo@55.0.25)(react-native@0.85.3(@babel/core@7.29.0)(@react-native/metro-config@0.85.3(@babel/core@7.29.0))(@types/react@19.2.15)(react@19.2.6))(react@19.2.6))(mssql@11.0.1(@azure/core-client@1.10.1))(pg@8.21.0)(zod@4.4.3)
       pure-rand: 6.1.0
 
   dunder-proto@1.0.1:
