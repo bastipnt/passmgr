@@ -21,8 +21,8 @@ catalog:
   "@types/react-dom": ^19.2.3
   "@vitejs/plugin-react": ^6.0.2
   "@vitest/coverage-v8": ^4.1.6
-  drizzle-kit: 1.0.0-beta.15-859cf75
-  drizzle-orm: 1.0.0-beta.15-859cf75
+  drizzle-kit: 1.0.0-rc.4-273829f
+  drizzle-orm: 1.0.0-rc.4-273829f
   drizzle-seed: 1.0.0-beta.15-859cf75
   # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
