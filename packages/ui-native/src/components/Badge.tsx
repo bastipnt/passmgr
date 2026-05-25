@@ -48,7 +48,7 @@ export function Badge({
     <BadgeFrame variant={variant} {...props}>
       {typeof children === "string" ? (
         <SizableText
-          size="$xs"
+          size="$2"
           fontWeight="500"
           color={textColorMap[variant]}
           textDecorationLine={variant === "link" ? "underline" : "none"}

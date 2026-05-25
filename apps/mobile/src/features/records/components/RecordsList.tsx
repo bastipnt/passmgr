@@ -1,7 +1,8 @@
 import { RecordGroup, useSortedRecords } from "@repo/client";
 import { DecryptedRecord } from "@repo/schema";
+import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui-native";
 import { useRouter } from "expo-router";
-import { Avatar, ListItem, Text, YGroup } from "tamagui";
+import { ListItem, Text, YGroup } from "tamagui";
 
 type RecordLIProps = {
   record: DecryptedRecord;
@@ -17,14 +18,15 @@ function RecordLI({ record, active }: RecordLIProps) {
         onPress={() => router.navigate(`./${record.recordId}`)}
         background={active ? "$background" : "$accent10"}
         icon={
-          <Avatar circular size="$3">
-            <Avatar.Image src="/placeholder.png" />
-            <Avatar.Fallback background="$accent0" />
+          <Avatar circular>
+            <AvatarImage src="/placeholder.png" />
+            <AvatarFallback background="$accent0">{record.title.charAt(0)}</AvatarFallback>
           </Avatar>
         }
         title={record.title}
         subTitle={record.username || "-"}
         size="$4"
+        gap="$4"
       />
     </YGroup.Item>
   );

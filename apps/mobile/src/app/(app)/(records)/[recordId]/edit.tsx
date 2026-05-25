@@ -8,8 +8,8 @@ export default function EditScreen() {
 
   return (
     <Main>
-      <Text fontSize="$xl">Edit ID: {recordId}</Text>
-      <Text fontSize="$xl">Path: {pathname}</Text>
+      <Text fontSize="$6">Edit ID: {recordId}</Text>
+      <Text fontSize="$6">Path: {pathname}</Text>
       <Button onPress={() => router.back()}>Close</Button>
     </Main>
   );

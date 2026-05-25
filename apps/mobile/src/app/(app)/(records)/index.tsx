@@ -8,7 +8,7 @@ export default function RecordsScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <Main>
+    <Main bg="$background">
       <ScrollView>
         <SafeAreaView>
           <RecordsList />
@@ -16,9 +16,8 @@ export default function RecordsScreen() {
       </ScrollView>
 
       <BlurView
-        intensity={80}
+        intensity={50}
         tint="default"
-        blurMethod="dimezisBlurViewSdk31Plus"
         style={[StyleSheet.absoluteFill, { bottom: undefined }]}
         height={insets.top}
       />

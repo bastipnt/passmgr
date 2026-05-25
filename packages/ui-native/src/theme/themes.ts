@@ -1,8 +1,8 @@
 import { createV5Theme, defaultChildrenThemes } from "@tamagui/config/v5";
 import { v5ComponentThemes } from "@tamagui/themes/v5";
 import { yellow, yellowDark, red, redDark, green, greenDark } from "@tamagui/colors";
-import { fontSize } from "@repo/tokens";
-import { createFont } from "tamagui";
+// import { fontSize } from "@repo/tokens";
+// import { createFont } from "tamagui";
 
 const darkPalette = [
   "hsla(310, 12%, 1%, 1)",
@@ -114,24 +114,24 @@ export const themes: Themes =
 //   xxl: spacing.xxl,
 // } as const;
 
-export const bodyFont = createFont({
-  family: "System",
-  size: {
-    true: fontSize.md,
-    xs: fontSize.xs,
-    sm: fontSize.sm,
-    md: fontSize.md,
-    lg: fontSize.lg,
-    xl: fontSize.xl,
-  },
-  lineHeight: {
-    xs: 16,
-    sm: 20,
-    md: 24,
-    lg: 26,
-    xl: 30,
-  },
-  weight: {
-    md: "400",
-  },
-});
+// export const bodyFont = createFont({
+//   family: "System",
+//   size: {
+//     true: fontSize.md,
+//     xs: fontSize.xs,
+//     sm: fontSize.sm,
+//     md: fontSize.md,
+//     lg: fontSize.lg,
+//     xl: fontSize.xl,
+//   },
+//   lineHeight: {
+//     xs: 16,
+//     sm: 20,
+//     md: 24,
+//     lg: 26,
+//     xl: 30,
+//   },
+//   weight: {
+//     md: "400",
+//   },
+// });

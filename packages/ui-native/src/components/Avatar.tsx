@@ -24,9 +24,9 @@ const badgeSizeMap: Record<AvatarSize, number> = {
 };
 
 const fallbackFontMap: Record<AvatarSize, FontSizeTokens> = {
-  default: "$sm",
-  sm: "$xs",
-  lg: "$sm",
+  default: "$4",
+  sm: "$2",
+  lg: "$6",
 };
 
 // Web uses `group-data-[size]` CSS selectors so children can scale to the avatar

@@ -44,13 +44,13 @@ export const EmptyMedia = styled(YStack, {
 
 export const EmptyTitle = styled(Text, {
   name: "EmptyTitle",
-  fontSize: "$sm",
+  fontSize: "$2",
   fontWeight: "500",
 });
 
 export const EmptyDescription = styled(Text, {
   name: "EmptyDescription",
-  fontSize: "$sm",
+  fontSize: "$2",
   color: "$color11",
 });
 

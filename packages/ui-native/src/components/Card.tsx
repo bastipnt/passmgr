@@ -23,7 +23,7 @@ export function CardHeader({ children }: CardSlotProps) {
 
 export function CardTitle({ children }: { children: ReactNode }) {
   return (
-    <Text fontSize="$xl" fontWeight="700" flex={1}>
+    <Text fontSize="$6" fontWeight="700" flex={1}>
       {children}
     </Text>
   );

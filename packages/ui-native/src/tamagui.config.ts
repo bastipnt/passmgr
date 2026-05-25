@@ -1,6 +1,6 @@
 import { createTamagui } from "tamagui";
 import { defaultConfig } from "@tamagui/config/v5";
-import { bodyFont, themes } from "./theme/themes";
+import { themes } from "./theme/themes";
 // import { colors, fontSize, radius, spacing } from "@repo/tokens";
 
 // TODO: WIP
@@ -105,8 +105,6 @@ export const tamaguiConfig = createTamagui({
   },
   fonts: {
     ...defaultConfig.fonts,
-    body: bodyFont,
-    heading: bodyFont,
   },
 });
 
