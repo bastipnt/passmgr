@@ -39,6 +39,15 @@ export async function setSession(session: Session): Promise<string> {
   return sessionId;
 }
 
+/**
+ * Sliding-expiration refresh: roll the session's 24h TTL forward on activity so
+ * an active user (mobile session restored on each reopen) stays logged in,
+ * while an idle session still expires after 24h. Best-effort.
+ */
+export async function touchSession(sessionId: string): Promise<void> {
+  await redis.expire(sessionKey(sessionId), SESSION_TTL_SECONDS);
+}
+
 export async function getLoginAttempt(userId: string): Promise<LoginAttempt | undefined> {
   const rawLoginAttempt = await redis.get(loginKey(userId));
   if (rawLoginAttempt === null) return undefined;

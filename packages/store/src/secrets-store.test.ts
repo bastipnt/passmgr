@@ -167,6 +167,48 @@ describe("password helpers (biometric enrollment)", () => {
   });
 });
 
+describe("exportPersistableBundle / restoreSession", () => {
+  it("throws unless both the session and vault are unlocked", async () => {
+    expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
+
+    // session unlocked but vault still locked
+    await secretsStore.unlockSession("sid", "k", genKey());
+    expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
+  });
+
+  it("round-trips: a restored store signs and decrypts identically (no OPAQUE/Argon2)", async () => {
+    const sessionKey = "persist-session-key";
+    const authSalt = genKey();
+    const authSaltCopy = authSalt.slice(); // lock() will zero the stored authSalt
+    const vaultKey = genKey();
+
+    await secretsStore.unlockSession("sid-persist", sessionKey, authSalt);
+    secretsStore.unlockWithVaultKey(vaultKey.slice());
+
+    // Capture a record ciphertext under the live session before exporting.
+    const [enc, nonce] = secretsStore.encryptRecord("secret-data");
+
+    const bundle = secretsStore.exportPersistableBundle();
+    expect(bundle.sessionId).toBe("sid-persist");
+
+    secretsStore.lock();
+    await expect(secretsStore.signRequest("x")).rejects.toThrow(/SessionLocked/);
+
+    secretsStore.restoreSession(bundle);
+    expect(secretsStore.sessionId).toBe("sid-persist");
+
+    // signRequest verifies against the independently-derived authKey
+    const message = "query\n/user.heartbeat\n123\nabc\n{}";
+    const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    const expectedAuthKey = await hkdf(sessionSecret, "sessionAuth", authSaltCopy);
+    const sig = await secretsStore.signRequest(message);
+    expect(await verifyHmac(expectedAuthKey, sig, message)).toBe(true);
+
+    // vault key restored — decrypts the record encrypted before the lock
+    expect(new TextDecoder().decode(secretsStore.decryptRecord(enc, nonce))).toBe("secret-data");
+  });
+});
+
 describe("exportVaultKeyForWorker", () => {
   it("throws when the vault is locked", () => {
     expect(() => secretsStore.exportVaultKeyForWorker()).toThrow(/SessionLocked/);

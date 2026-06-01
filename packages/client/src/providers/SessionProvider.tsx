@@ -1,4 +1,4 @@
-import { secretsStore } from "@repo/store";
+import { secretsStore, type LoginBundle } from "@repo/store";
 import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
 export const SessionContext = createContext<{
@@ -9,6 +9,7 @@ export const SessionContext = createContext<{
   isOffline: boolean;
 
   loginSession: (newSessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
+  restoreLogin: (bundle: Omit<LoginBundle, "email">) => void;
   offlineLoginSession: () => void;
   unlockVault: (
     passwordKek: Uint8Array,
@@ -22,6 +23,7 @@ export const SessionContext = createContext<{
   vaultUnlocked: false,
   isOffline: false,
   async loginSession() {},
+  restoreLogin() {},
   offlineLoginSession() {},
   unlockVault() {},
   unlockWithVaultKey() {},
@@ -69,6 +71,18 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     [],
   );
 
+  /**
+   * Restore a persisted session on app reopen (mobile). Re-establishes both the
+   * server session and the unlocked vault directly from secure-storage key
+   * material — no OPAQUE handshake, no Argon2.
+   */
+  const restoreLogin = useCallback((bundle: Omit<LoginBundle, "email">) => {
+    secretsStore.restoreSession(bundle);
+    setSessionId(bundle.sessionId);
+    setLoggedIn(true);
+    setVaultUnlocked(true);
+  }, []);
+
   const offlineLoginSession = useCallback(() => {
     setSessionId("offline");
     setLoggedIn(true);
@@ -101,6 +115,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       vaultUnlocked,
       isOffline,
       loginSession,
+      restoreLogin,
       offlineLoginSession,
       unlockVault,
       unlockWithVaultKey,
@@ -112,6 +127,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       vaultUnlocked,
       isOffline,
       loginSession,
+      restoreLogin,
       offlineLoginSession,
       unlockVault,
       unlockWithVaultKey,

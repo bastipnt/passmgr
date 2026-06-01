@@ -1,5 +1,6 @@
 import { decryptXChaCha, encryptXChaCha, hkdf, signHmac, wipe } from "@repo/crypto";
-import { fromString } from "@repo/util";
+import { fromBase64, fromString, toBase64 } from "@repo/util";
+import type { LoginBundle } from "./session-persistence.types";
 
 class SessionLockedError extends Error {
   override message: string = "SessionLockedError";
@@ -48,6 +49,38 @@ class SecretsStore {
    */
   unlockWithVaultKey(vaultKey: Uint8Array) {
     this.vaultKey = vaultKey;
+  }
+
+  /**
+   * Export the in-memory session + vault keys for persistence to OS secure
+   * storage. Returns base64 material (minus the account email, which the caller
+   * supplies). Throws unless both the session and vault are unlocked.
+   */
+  exportPersistableBundle(): Omit<LoginBundle, "email"> {
+    if (!this.sessionId || !this.authKey || !this.authSalt || !this.vaultKey) {
+      throw new SessionLockedError();
+    }
+
+    return {
+      sessionId: this.sessionId,
+      authKeyB64: toBase64(this.authKey),
+      authSaltB64: toBase64(this.authSalt),
+      vaultKeyB64: toBase64(this.vaultKey),
+    };
+  }
+
+  /**
+   * Restore a previously-persisted session straight from key material — no
+   * OPAQUE handshake, no Argon2. After this, both authenticated requests
+   * (`signRequest`) and item decryption work, exactly as after a full login +
+   * vault unlock. `sessionSecret` is intentionally not restored: it is only an
+   * intermediate used to derive `authKey`, which we already have.
+   */
+  restoreSession(bundle: Omit<LoginBundle, "email">) {
+    this.sessionId = bundle.sessionId;
+    this.authKey = fromBase64(bundle.authKeyB64);
+    this.authSalt = fromBase64(bundle.authSaltB64);
+    this.vaultKey = fromBase64(bundle.vaultKeyB64);
   }
 
   setPassword(pw: string) {

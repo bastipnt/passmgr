@@ -19,10 +19,14 @@
     "@repo/util": "workspace:*"
   },
   "peerDependencies": {
+    "expo-secure-store": "*",
     "expo-sqlite": "*",
     "sqlocal": "*"
   },
   "peerDependenciesMeta": {
+    "expo-secure-store": {
+      "optional": true
+    },
     "expo-sqlite": {
       "optional": true
     },

@@ -4,7 +4,7 @@ import { fromBase64, toBase64 } from "@repo/util";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import { SessionContext } from "../providers/SessionProvider";
-import { secretsStore } from "@repo/store";
+import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
 import { useStore } from "../providers/StoreProvider";
 import { authenticateBiometric, genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
 import { useLogin } from "./use-login";
@@ -53,6 +53,8 @@ export function useUnlock() {
     );
 
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+
+    await persistSession(email);
 
     // Transparently migrate to the current Argon2 params if the stored ones are
     // stale (e.g. after a params bump). Best-effort — needs the server and the
@@ -113,6 +115,24 @@ export function useUnlock() {
 
     unlockWithVaultKey(vaultKey, onlineAuthFailure);
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+
+    if (!onlineAuthFailure && email) await persistSession(email);
+  }
+
+  /**
+   * Persist the live session + vault keys to OS secure storage (mobile only —
+   * no-op on web) so the next app launch can restore a logged-in, unlocked
+   * state behind a single biometric prompt, skipping OPAQUE + Argon2.
+   * Best-effort: failures never block unlock.
+   */
+  async function persistSession(email: string) {
+    if (!isPersistentLoginAvailable()) return;
+
+    try {
+      await persistLoginBundle({ ...secretsStore.exportPersistableBundle(), email });
+    } catch (e) {
+      console.error("Persisting session for fast unlock failed", e);
+    }
   }
 
   /**

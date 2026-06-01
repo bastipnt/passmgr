@@ -21,6 +21,12 @@ export const userRouter = router({
       message: "Hello there",
     };
   }),
+  // Lightweight liveness check. The mobile client calls this to validate a
+  // restored session before entering the app; passing through
+  // `protectedProcedure` also refreshes the sliding session TTL.
+  heartbeat: protectedProcedure.query(() => {
+    return { ok: true } as const;
+  }),
   getById: publicProcedure.input(z.string()).query((opts) => {
     return users[opts.input]; // input type is string
   }),

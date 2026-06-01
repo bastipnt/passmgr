@@ -1,5 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import { claimNonce, getSession } from "../util/redis-utils";
+import { claimNonce, getSession, touchSession } from "../util/redis-utils";
 import { getMessage, verifyHmac } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
 import { loggedProcedure, shortHash } from "../logger";
@@ -40,6 +40,8 @@ export const protectedSubscriptionProcedure = loggedProcedure.use(async (opts) =
 
   const session = await getSession(sessionId);
   if (!session) return denyAuth(log, path, "session_not_found", sessionId);
+
+  void touchSession(sessionId);
 
   return opts.next({ ctx: { userId: session.userId } });
 });
@@ -86,6 +88,9 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   // window, which means this is a replay of a previously-valid request.
   const claimed = await claimNonce(nonce);
   if (!claimed) return denyAuth(log, path, "replay_detected", sessionId);
+
+  // Sliding expiration: any authenticated activity rolls the 24h TTL forward.
+  void touchSession(sessionId);
 
   return opts.next({
     ctx: {

@@ -40,7 +40,14 @@
           }
         }
       ],
-      "expo-font"
+      "expo-font",
+      [
+        "expo-secure-store",
+        {
+          "configureAndroidBackup": true,
+          "faceIDPermission": "Allow Passmgr to unlock your vault with Face ID."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

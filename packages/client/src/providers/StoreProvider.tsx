@@ -3,7 +3,7 @@ import { SyncManager } from "../sync-manager";
 import { SessionContext } from "./SessionProvider";
 import { usePreferences } from "./PreferencesProvider";
 import { useTRPCClient } from "../util/trpc";
-import { Vault } from "@repo/store";
+import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { VaultKeyMaterial } from "@repo/schema";
 
@@ -125,6 +125,8 @@ export function StoreProvider({ vault, children }: StoreProviderProps) {
 
   async function removeVault() {
     await vault.clear();
+    await clearLoginBundle();
+    secretsStore.lock();
     preferences.remove(BIOMETRIC_DISMISSED);
     setVaultKeyMaterial(null);
     setBiometricKeyMaterial(null);
