@@ -36,12 +36,16 @@
     },
     "db:migrate": {
       "cache": false,
-      "dependsOn": ["^db:generate"],
+      "dependsOn": ["^db:generate", "db:dev"],
       "env": ["DATABASE_URL"]
     },
     "db:up": {
       "cache": false,
       "persistent": true,
+      "env": ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
+    },
+    "db:dev": {
+      "cache": false,
       "env": ["POSTGRES_USER", "POSTGRES_PASSWORD", "POSTGRES_DB"]
     },
     "typegen:css": {},

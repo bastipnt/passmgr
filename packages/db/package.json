@@ -10,6 +10,7 @@
     "test:coverage": "vitest run --coverage",
     "lint": "oxlint --type-aware",
     "db:up": "docker compose up",
+    "db:dev": "docker compose up -d --wait",
     "db:down": "docker compose down",
     "db:push": "npx drizzle-kit push",
     "db:generate": "bunx drizzle-kit generate --config drizzle.config.ts",
