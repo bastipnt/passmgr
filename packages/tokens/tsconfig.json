@@ -18,7 +18,8 @@
     "composite": true,
     "declarationMap": true,
     "sourceMap": true,
-    "lib": ["esnext"]
+    "lib": ["esnext", "dom", "dom.iterable"],
+    "jsx": "react-jsx"
   },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]

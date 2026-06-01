@@ -1,36 +1,7 @@
 import { RecordGroup, useSortedRecords } from "@repo/client";
-import { DecryptedRecord } from "@repo/schema";
-import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui-native";
+import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
-import { ListItem, Text, YGroup } from "tamagui";
-
-type RecordLIProps = {
-  record: DecryptedRecord;
-  active: boolean;
-};
-
-function RecordLI({ record, active }: RecordLIProps) {
-  const router = useRouter();
-
-  return (
-    <YGroup.Item>
-      <ListItem
-        onPress={() => router.navigate(`./${record.recordId}`)}
-        background={active ? "$background" : "$accent10"}
-        icon={
-          <Avatar circular>
-            <AvatarImage src="/placeholder.png" />
-            <AvatarFallback background="$accent0">{record.title.charAt(0)}</AvatarFallback>
-          </Avatar>
-        }
-        title={record.title}
-        subTitle={record.username || "-"}
-        size="$4"
-        gap="$4"
-      />
-    </YGroup.Item>
-  );
-}
+import { YGroup } from "tamagui";
 
 type RecordGroupProps = {
   recordGroup: RecordGroup;
@@ -38,15 +9,20 @@ type RecordGroupProps = {
 };
 
 function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
+  const router = useRouter();
+
   return (
     <YGroup.Item>
-      <Text p="$2">{recordGroup.label}</Text>
+      {recordGroup.label && <RecordGroupLabel text={recordGroup.label} />}
       <YGroup>
         {recordGroup.records.map((record) => (
-          <RecordLI
+          <RecordListItem
             key={record.recordId}
-            record={record}
+            title={record.title}
+            username={record.username}
+            websites={record.websites}
             active={record.recordId === activeRecordId}
+            onClick={() => router.navigate(`./${record.recordId}`)}
           />
         ))}
       </YGroup>

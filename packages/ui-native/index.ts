@@ -1,3 +1,4 @@
+// *** COMPONENTS ***
 export * from "./src/components/Avatar";
 export * from "./src/components/Badge";
 export * from "./src/components/Button";
@@ -23,9 +24,16 @@ export { Spinner } from "./src/components/Spinner";
 export { Link } from "./src/components/Link";
 export type { LinkProps } from "./src/components/Link";
 
+// *** FEATURE COMPONENTS ***
+// record-list
+export * from "./src/features/record-list/RecordGroupLabel";
+export * from "./src/features/record-list/RecordListItem";
+
+// *** THEME ***
 export { colors, spacing, radius, fontSize } from "./src/theme/tokens";
 
 export { tamaguiConfig } from "./src/tamagui.config";
 export type { AppTamaguiConfig } from "./src/tamagui.config";
 
+// *** FORM ***
 export { useForm } from "react-hook-form";

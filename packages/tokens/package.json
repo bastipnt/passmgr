@@ -15,5 +15,15 @@
     "@repo/typescript-config": "workspace:*",
     "oxlint": "catalog:",
     "typescript": "catalog:"
+  },
+  "peerDependencies": {
+    "expo-blur": "catalog:",
+    "expo-router": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
+    "react-native": "catalog:",
+    "react-native-reanimated": "catalog:",
+    "react-native-safe-area-context": "catalog:",
+    "tamagui": "catalog:"
   }
 }

@@ -25,6 +25,7 @@
     "@repo/store": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/util": "workspace:*",
+    "@repo/tokens": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
     "lucide-react": "catalog:",
     "react": "catalog:",
