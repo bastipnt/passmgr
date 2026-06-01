@@ -32,7 +32,7 @@ catalog:
   expo-clipboard: ~55.0.13
   expo-constants: ~55.0.16
   expo-dev-client: ~55.0.35
-  expo-font: ~55.0.8
+  expo-font: ~56.0.5
   expo-haptics: ~55.0.14
   expo-image: ~55.0.10
   expo-linking: ~55.0.15
@@ -88,7 +88,7 @@ overrides:
   # expo-modules-core ABI -> native NoSuchMethodError (SharedRef / AnyTypeCache).
   # Pin every expo package to the SDK 55 line.
   expo-router: "~55.0.15"
-  expo-font: "~55.0.8"
+  expo-font: "~56.0.5"
   expo-image: "~55.0.10"
   expo-symbols: "~55.0.9"
   expo-glass-effect: "~55.0.11"
