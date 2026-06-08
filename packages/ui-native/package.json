@@ -20,8 +20,8 @@
   },
   "dependencies": {
     "@repo/tokens": "workspace:*",
-    "@tamagui/config": "^2.0.0",
-    "@tamagui/themes": "^2.0.0"
+    "@tamagui/config": "^2.1.0",
+    "@tamagui/themes": "^2.1.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
