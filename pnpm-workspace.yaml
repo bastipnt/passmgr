@@ -36,7 +36,7 @@ catalog:
   # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
   expo: ~55.0.25
-  expo-blur: ~55.0.14
+  expo-blur: ~56.0.3
   expo-clipboard: ~55.0.13
   expo-constants: ~55.0.16
   expo-dev-client: ~55.0.35
