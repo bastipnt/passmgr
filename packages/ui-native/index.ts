@@ -29,6 +29,9 @@ export type { LinkProps } from "./src/components/Link";
 export * from "./src/features/record-list/RecordGroupLabel";
 export * from "./src/features/record-list/RecordListItem";
 
+// *** BLOCKS ***
+export * from "./src/components/blocks/RecordDetailsItem";
+
 // *** THEME ***
 export { colors, spacing, radius, fontSize } from "./src/theme/tokens";
 

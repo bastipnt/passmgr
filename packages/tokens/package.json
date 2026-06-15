@@ -24,6 +24,7 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
-    "tamagui": "catalog:"
+    "tamagui": "catalog:",
+    "@tamagui/lucide-icons-2": "catalog:"
   }
 }

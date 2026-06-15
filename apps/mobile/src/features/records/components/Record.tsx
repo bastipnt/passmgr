@@ -1,59 +1,16 @@
 import { useGetRecord } from "@repo/client";
-import { ListItem, ListItemProps, Separator, Text, View, YGroup, YStack } from "tamagui";
-import { Earth, Key, Mail } from "@tamagui/lucide-icons-2";
+import { ScrollView, Separator, Text, View, YGroup, YStack } from "tamagui";
+import { Earth, Key, Lock, Mail, NotebookPen, NotebookText } from "@tamagui/lucide-icons-2";
+import { Fragment, ReactNode } from "react";
+import { RecordDetailsItem } from "@repo/ui-native";
 import Clipboard from "@react-native-clipboard/clipboard";
-import { ReactNode } from "react";
+import { isDefined } from "@repo/util";
 
 function Fallback() {
   return (
     <View>
       <Text>Fallback</Text>
     </View>
-  );
-}
-
-const HIDDEN_VALUE = "••••••••••••" as const;
-
-type SubtitleProps = {
-  value?: string | string[];
-  hidden?: boolean;
-};
-
-function Subtitle({ value, hidden }: SubtitleProps) {
-  if (!value) return <Text>-</Text>;
-  else if (typeof value === "string") return <Text>{hidden ? HIDDEN_VALUE : value}</Text>;
-  else
-    return (
-      <YGroup gap="$1">
-        {value.map((v, i) => (
-          <YGroup.Item key={`item-${v}-${i}`}>
-            <Text>{v}</Text>
-          </YGroup.Item>
-        ))}
-      </YGroup>
-    );
-}
-
-type RecordLIProps = {
-  icon: ListItemProps["icon"];
-  title: string;
-  value?: string | string[];
-  variant?: "default" | "password";
-};
-
-function RecordLI({ icon, title, value, variant }: RecordLIProps) {
-  const usesHiddenValue = variant === "password";
-
-  const onCopy = () => Clipboard.setString(typeof value === "string" ? value : "");
-
-  return (
-    <ListItem
-      icon={icon}
-      title={title}
-      subTitle={<Subtitle value={value} hidden={usesHiddenValue} />}
-      onPress={onCopy}
-      gap="$4"
-    />
   );
 }
 
@@ -69,24 +26,83 @@ type RecordProps = {
   recordId?: string | string[];
 };
 
-// TODO: style my own ListItem: https://tamagui.dev/ui/list-item#customization
+// TODO: fix styling, add missing fields
 export default function Record({ recordId }: RecordProps) {
   if (!recordId || typeof recordId !== "string") return <Fallback />;
 
   const { record, ready } = useGetRecord(recordId);
   if (!ready || !record) return <Fallback />;
 
-  return (
-    <YStack gap="$4">
-      <RecordLIGroup>
-        <RecordLI icon={Mail} title="Username" value={record.username} />
-        <Separator />
-        <RecordLI icon={Key} title="Password" value={record.password} variant="password" />
-      </RecordLIGroup>
+  const onCopy = (value?: string) => Clipboard.setString(typeof value === "string" ? value : "");
 
-      <RecordLIGroup>
-        <RecordLI icon={Earth} title="Websites" value={record.websites?.map((w) => w.value)} />
-      </RecordLIGroup>
-    </YStack>
+  return (
+    <ScrollView>
+      <YStack gap="$4">
+        <RecordLIGroup>
+          <RecordDetailsItem
+            icon={<Mail />}
+            title="Username"
+            value={record.username}
+            onCopy={() => onCopy(record.username)}
+          />
+          <Separator />
+          <RecordDetailsItem
+            icon={<Key />}
+            title="Password"
+            value={record.password}
+            variant="password"
+            onCopy={() => onCopy(record.password)}
+          />
+          {/* {isDefined(record.totp) && (
+          <>
+            <Separator />
+
+            <TotpField onCopy={onCopy} totpData={record.totp} />
+          </>
+        )} */}
+        </RecordLIGroup>
+
+        {isDefined(record.websites) && record.websites.length > 0 && (
+          <RecordLIGroup>
+            <RecordDetailsItem
+              icon={<Earth />}
+              title="Websites"
+              value={record.websites?.map((w) => w.value)}
+              variant="websites"
+            />
+          </RecordLIGroup>
+        )}
+
+        {isDefined(record.note) && record.note !== "" && (
+          <RecordLIGroup>
+            <RecordDetailsItem
+              title="Notes"
+              value={record.note}
+              icon={<NotebookPen />}
+              variant="noAction"
+            />
+          </RecordLIGroup>
+        )}
+
+        {isDefined(record.extraFields) && record.extraFields.length > 0 && (
+          <RecordLIGroup>
+            {record.extraFields.map((extraField, i) => (
+              <Fragment key={i}>
+                <RecordDetailsItem
+                  title={extraField.title}
+                  value={extraField.value}
+                  // onClick={({ type }) =>
+                  //   type === "copy" && onCopy(extraField.value, extraField.title)
+                  // }
+                  icon={extraField.type === "secret" ? <Lock /> : <NotebookText />}
+                  variant={extraField.type === "secret" ? "hidden" : "default"}
+                />
+                {i < record.extraFields!.length - 1 && <Separator />}
+              </Fragment>
+            ))}
+          </RecordLIGroup>
+        )}
+      </YStack>
+    </ScrollView>
   );
 }
