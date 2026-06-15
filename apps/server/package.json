@@ -28,7 +28,7 @@
     "@cloudflare/opaque-ts": "catalog:",
     "@trpc/server": "catalog:",
     "fastify": "^5.8.5",
-    "ioredis": "^5.10.1",
+    "ioredis": "^5.11.1",
     "zod": "catalog:"
   },
   "devDependencies": {

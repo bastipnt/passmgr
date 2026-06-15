@@ -30,7 +30,7 @@
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "react-error-boundary": "^6.1.1",
+    "react-error-boundary": "^6.1.2",
     "react-icons": "catalog:",
     "sqlocal": "^0.18.0",
     "wouter": "catalog:",
