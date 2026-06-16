@@ -67,8 +67,8 @@ catalogs:
       specifier: 1.0.0-beta.15-859cf75
       version: 1.0.0-beta.15-859cf75
     drizzle-seed:
-      specifier: 1.0.0-beta.15-859cf75
-      version: 1.0.0-beta.15-859cf75
+      specifier: 1.0.0-rc.4-273829f
+      version: 1.0.0-rc.4-273829f
     expo:
       specifier: ~56.0.12
       version: 56.0.12
@@ -687,7 +687,7 @@ importers:
         version: 1.0.0-beta.15-859cf75
       drizzle-seed:
         specifier: 'catalog:'
-        version: 1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9)(@types/pg@8.20.0)(expo-sqlite@56.0.5(expo@56.0.12)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.7))(react@19.2.7))(mssql@11.0.1)(pg@8.21.0)(zod@4.4.3))
+        version: 1.0.0-rc.4-273829f(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9)(@types/pg@8.20.0)(expo-sqlite@56.0.5(expo@56.0.12)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.7))(react@19.2.7))(mssql@11.0.1)(pg@8.21.0)(zod@4.4.3))
       oxlint:
         specifier: 'catalog:'
         version: 1.69.0(oxlint-tsgolint@0.23.0)
@@ -6120,8 +6120,8 @@ packages:
       zod:
         optional: true
 
-  drizzle-seed@1.0.0-beta.15-859cf75:
-    resolution: {integrity: sha512-q/hdRD8p8xmvT+4MhxUzTx21ga8yOAhZn92hVak4MiosAJP58OC3IfF/cblJd3uffsS/qUfE48B801Dg4I8JGA==}
+  drizzle-seed@1.0.0-rc.4-273829f:
+    resolution: {integrity: sha512-IygU8LyhpW+0WK5rbwVvaSPFeBLmkuT/Ilr3xQctBJi4brPngg8qSnOZtCaqhhsJhn21BN9E55z66KZ2PVOj4A==}
     peerDependencies:
       drizzle-orm: '>=1.0.0-beta.2'
 
@@ -15846,7 +15846,7 @@ snapshots:
       pg: 8.21.0
       zod: 4.4.3
 
-  drizzle-seed@1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9)(@types/pg@8.20.0)(expo-sqlite@56.0.5(expo@56.0.12)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.7))(react@19.2.7))(mssql@11.0.1)(pg@8.21.0)(zod@4.4.3)):
+  drizzle-seed@1.0.0-rc.4-273829f(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9)(@types/pg@8.20.0)(expo-sqlite@56.0.5(expo@56.0.12)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.7))(react@19.2.7))(mssql@11.0.1)(pg@8.21.0)(zod@4.4.3)):
     dependencies:
       drizzle-orm: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9)(@types/pg@8.20.0)(expo-sqlite@56.0.5(expo@56.0.12)(react-native@0.86.0(@babel/core@7.29.7)(@react-native/metro-config@0.85.3(@babel/core@7.29.7))(@types/react@19.2.17)(react@19.2.7))(react@19.2.7))(mssql@11.0.1)(pg@8.21.0)(zod@4.4.3)
       pure-rand: 6.1.0
