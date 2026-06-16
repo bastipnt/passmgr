@@ -18,17 +18,17 @@
   "license": "ISC",
   "packageManager": "pnpm@10.23.0",
   "dependencies": {
+    "@cloudflare/opaque-ts": "catalog:",
     "@fastify/cors": "^11.2.0",
-    "@fastify/rate-limit": "^10.3.0",
-    "@fastify/redis": "^7.2.0",
+    "@fastify/rate-limit": "^11.0.0",
+    "@fastify/redis": "^8.0.0",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
-    "@cloudflare/opaque-ts": "catalog:",
     "@trpc/server": "catalog:",
     "fastify": "^5.8.5",
-    "ioredis": "^5.10.1",
+    "ioredis": "^5.11.1",
     "zod": "catalog:"
   },
   "devDependencies": {

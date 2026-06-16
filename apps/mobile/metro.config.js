@@ -15,7 +15,7 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-config.resolver.disableHierarchicalLookup = true;
+// config.resolver.disableHierarchicalLookup = true;
 
 // Required for @cloudflare/opaque-ts → @noble/hashes which exposes
 // subpaths (e.g. "@noble/hashes/lib/scrypt") only via the `exports` map.

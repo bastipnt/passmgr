@@ -13,9 +13,10 @@ COPY packages/db/package.json packages/db/
 COPY packages/crypto/package.json packages/crypto/
 COPY packages/schema/package.json packages/schema/
 COPY packages/util/package.json packages/util/
+COPY patches/ patches/
 
 # Install pnpm (no npm or curl in bun image) and dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/* && \
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates libatomic1 && rm -rf /var/lib/apt/lists/* && \
   curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" PNPM_VERSION=10.32.1 sh - && \
   export PNPM_HOME="$HOME/.local/share/pnpm" && \
   export PATH="$PNPM_HOME:$PATH" && \

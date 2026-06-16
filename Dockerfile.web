@@ -22,6 +22,7 @@ COPY packages/ui/package.json packages/ui/
 COPY packages/db/package.json packages/db/
 COPY packages/typescript-config/package.json packages/typescript-config/
 COPY packages/types/package.json packages/types/
+COPY patches/ patches/
 
 # Install dependencies
 RUN pnpm install --frozen-lockfile
@@ -39,7 +40,9 @@ ENV VITE_SERVER_URL=${VITE_SERVER_URL}
 RUN cd packages/db && npx drizzle-kit generate || true
 
 # Build the web app (turborepo handles dependency order)
-RUN pnpm --filter web build
+# Disable pre-run deps check: mobile pkg (react-native-argon2 patch target)
+# is intentionally absent from this image, which would fail the check.
+RUN pnpm --config.verify-deps-before-run=false --filter web build
 
 # ---- Stage 2: Serve with Caddy ----
 FROM caddy:2-alpine AS production

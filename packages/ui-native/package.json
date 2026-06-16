@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
+    "@tamagui/lucide-icons-2": "catalog:",
     "expo-blur": "catalog:",
     "expo-router": "catalog:",
     "react": "catalog:",
@@ -16,13 +17,12 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
-    "tamagui": "catalog:",
-    "@tamagui/lucide-icons-2": "catalog:"
+    "tamagui": "catalog:"
   },
   "dependencies": {
     "@repo/tokens": "workspace:*",
-    "@tamagui/config": "^2.0.0",
-    "@tamagui/themes": "^2.0.0"
+    "@tamagui/config": "^2.3.0",
+    "@tamagui/themes": "^2.3.0"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -8,16 +8,16 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@cloudflare/opaque-ts": "catalog:",
     "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/store": "workspace:*",
     "@repo/types": "workspace:*",
     "@repo/util": "workspace:*",
-    "@cloudflare/opaque-ts": "catalog:",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
-    "tinykeys": "^3.1.0"
+    "tinykeys": "^4.0.0"
   },
   "peerDependencies": {
     "react": "catalog:",
