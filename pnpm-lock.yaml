@@ -248,12 +248,12 @@ importers:
       '@repo/store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@repo/tokens':
-        specifier: workspace:*
-        version: link:../../packages/tokens
       '@repo/ui-native':
         specifier: workspace:*
         version: link:../../packages/ui-native
+      '@repo/ui-shared':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@repo/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -463,12 +463,12 @@ importers:
       '@repo/store':
         specifier: workspace:*
         version: link:../../packages/store
-      '@repo/tokens':
-        specifier: workspace:*
-        version: link:../../packages/tokens
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@repo/ui-shared':
+        specifier: workspace:*
+        version: link:../../packages/tokens
       '@repo/util':
         specifier: workspace:*
         version: link:../../packages/util
@@ -810,7 +810,7 @@ importers:
       '@fontsource-variable/inter':
         specifier: ^5.2.8
         version: 5.2.8
-      '@repo/tokens':
+      '@repo/ui-shared':
         specifier: workspace:*
         version: link:../tokens
       '@repo/util':
@@ -934,7 +934,7 @@ importers:
 
   packages/ui-native:
     dependencies:
-      '@repo/tokens':
+      '@repo/ui-shared':
         specifier: workspace:*
         version: link:../tokens
       '@tamagui/config':

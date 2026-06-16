@@ -1,7 +1,7 @@
 import { createV5Theme, defaultChildrenThemes } from "@tamagui/config/v5";
 import { v5ComponentThemes } from "@tamagui/themes/v5";
 import { yellow, yellowDark, red, redDark, green, greenDark } from "@tamagui/colors";
-// import { fontSize } from "@repo/tokens";
+// import { fontSize } from "@repo/ui-shared";
 // import { createFont } from "tamagui";
 
 const darkPalette = [

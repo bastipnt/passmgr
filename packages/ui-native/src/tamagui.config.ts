@@ -1,7 +1,7 @@
 import { createTamagui } from "tamagui";
 import { defaultConfig } from "@tamagui/config/v5";
 import { themes } from "./theme/themes";
-// import { colors, fontSize, radius, spacing } from "@repo/tokens";
+// import { colors, fontSize, radius, spacing } from "@repo/ui-shared";
 
 // TODO: WIP
 

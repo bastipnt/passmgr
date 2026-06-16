@@ -23,7 +23,7 @@
     "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
     "@repo/store": "workspace:*",
-    "@repo/tokens": "workspace:*",
+    "@repo/ui-shared": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/util": "workspace:*",
     "@tailwindcss/postcss": "catalog:",

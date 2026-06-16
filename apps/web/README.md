@@ -5,7 +5,7 @@ Web client for [passmgr](../../README.md). React 19 + Vite + Tailwind v4.
 ## Stack
 
 - **React 19** + **Vite** (overridden globally to `rolldown-vite` via pnpm overrides)
-- **Tailwind CSS v4** for styling, with design tokens from `@repo/tokens`
+- **Tailwind CSS v4** for styling, with design tokens from `@repo/ui-shared`
 - **wouter** for routing
 - **tRPC** client via `@repo/client` (handles HMAC request signing transparently)
 - **react-hook-form** + Zod schemas from `@repo/schema`

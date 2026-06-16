@@ -1,6 +1,6 @@
 import { ListItem, Text, YGroup } from "tamagui";
 import { Avatar, AvatarFallback, AvatarImage } from "../../components/Avatar";
-import { useWebsiteAvatar } from "@repo/tokens";
+import { useWebsiteAvatar } from "@repo/ui-shared";
 
 type RecordLIProps = {
   title: string;

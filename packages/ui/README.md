@@ -15,7 +15,7 @@ Web component library for [passmgr](../../README.md). shadcn-based, built on Tai
 
 ## Conventions
 
-- All components consume color via design tokens from `@repo/tokens` (e.g. `primary-500`, `surface-3`).
+- All components consume color via design tokens from `@repo/ui-shared` (e.g. `primary-500`, `surface-3`).
 - Conditional class names: `cn()`, not template strings.
 - Keep components dumb. Business logic belongs in app code or `@repo/client`.
 

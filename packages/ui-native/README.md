@@ -15,7 +15,7 @@ Mobile component library for [passmgr](../../README.md). Tamagui-based.
 ## Conventions
 
 - Style via Tamagui props. Where NativeWind survives, keep it isolated to a single style layer per component.
-- Color via tokens from `@repo/tokens`. The Tamagui config maps tokens onto Tamagui's theme system.
+- Color via tokens from `@repo/ui-shared`. The Tamagui config maps tokens onto Tamagui's theme system.
 - Keep components stateless — feed them via props from screen-level containers.
 
 ## Status

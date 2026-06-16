@@ -1,4 +1,4 @@
-# @repo/tokens
+# @repo/ui-shared
 
 Design tokens for [passmgr](../../README.md): colors, spacing, typography scales. Source of truth for the visual language across web and mobile.
 

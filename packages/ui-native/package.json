@@ -20,7 +20,7 @@
     "tamagui": "catalog:"
   },
   "dependencies": {
-    "@repo/tokens": "workspace:*",
+    "@repo/ui-shared": "workspace:*",
     "@tamagui/config": "^2.3.0",
     "@tamagui/themes": "^2.3.0"
   },
