@@ -24,9 +24,9 @@ const badgeSizeMap: Record<AvatarSize, number> = {
 };
 
 const fallbackFontMap: Record<AvatarSize, FontSizeTokens> = {
-  default: "$4",
-  sm: "$2",
-  lg: "$6",
+  default: "$lg",
+  sm: "$md",
+  lg: "$lg",
 };
 
 // Web uses `group-data-[size]` CSS selectors so children can scale to the avatar
@@ -40,13 +40,24 @@ export function Avatar({
   const dimension = sizeMap[size];
   return (
     <AvatarSizeContext.Provider value={size}>
-      <AvatarPrimitive circular width={dimension} height={dimension} {...props} />
+      <AvatarPrimitive circular width={dimension} height={dimension} {...props} unstyled />
     </AvatarSizeContext.Provider>
   );
 }
 
 export function AvatarImage(props: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  return <AvatarPrimitive.Image accessibilityRole="image" {...props} />;
+  const size = useContext(AvatarSizeContext);
+  const dimension = badgeSizeMap[size];
+
+  return (
+    <AvatarPrimitive.Image
+      accessibilityRole="image"
+      width={dimension}
+      height={dimension}
+      {...props}
+      unstyled
+    />
+  );
 }
 
 export function AvatarFallback({
@@ -55,7 +66,7 @@ export function AvatarFallback({
 }: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
   const size = useContext(AvatarSizeContext);
   return (
-    <AvatarPrimitive.Fallback bg="$color3" items="center" justify="center" {...props}>
+    <AvatarPrimitive.Fallback bg="$color3" items="center" justify="center" {...props} unstyled>
       {typeof children === "string" ? (
         <Text fontSize={fallbackFontMap[size]} color="$color11">
           {children}

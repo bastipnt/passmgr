@@ -8,9 +8,9 @@ export function FieldError({ errors }: FieldErrorProps) {
   if (errors.length === 0) return null;
 
   return (
-    <YStack gap="$1" mt="$0.5">
+    <YStack gap="$sm" mt="$xs">
       {errors.map((e, i) => (
-        <Text key={i} fontSize="$2" color="$destructive">
+        <Text key={i} fontSize="$md" color="$destructive">
           {e.message}
         </Text>
       ))}

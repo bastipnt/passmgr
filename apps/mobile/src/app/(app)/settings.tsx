@@ -7,7 +7,7 @@ export default function SettingsScreen() {
 
   return (
     <Main>
-      <Text fontSize="$6">Settings</Text>
+      <Text fontSize="$lg">Settings</Text>
       <Text>Logged in with sessionId: {sessionId}</Text>
     </Main>
   );

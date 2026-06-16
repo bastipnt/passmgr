@@ -10,9 +10,9 @@ export default function RecordScreen() {
   return (
     <ScrollView>
       <Button onPress={() => router.navigate(`/${recordId as string}/edit`)}>Edit</Button>
-      <Main p="$4" bg="$background08" flex={1}>
-        {/* <Text fontSize="$4">Record ID: {recordId}</Text>
-        <Text fontSize="$4">Path: {pathname} hello</Text> */}
+      <Main p="$lg" bg="$background08" flex={1}>
+        {/* <Text fontSize="$lg">Record ID: {recordId}</Text>
+        <Text fontSize="$lg">Path: {pathname} hello</Text> */}
         {/* <Button onPress={() => router.back()}>Close</Button> */}
         <Record recordId={recordId} />
       </Main>

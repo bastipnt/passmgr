@@ -6,7 +6,7 @@ type RecordGroupLabelProps = {
 
 export function RecordGroupLabel({ text }: RecordGroupLabelProps) {
   return (
-    <View p="$2" bg="$accent10">
+    <View p="$md" bg="$accent10">
       <Text>{text}</Text>
     </View>
   );

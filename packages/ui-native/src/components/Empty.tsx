@@ -3,9 +3,9 @@ import { styled, Text, YStack } from "tamagui";
 export const Empty = styled(YStack, {
   name: "Empty",
   width: "100%",
-  gap: "$4",
-  p: "$6",
-  rounded: "$6",
+  gap: "$lg",
+  p: "$lg",
+  rounded: "$lg",
   borderWidth: 1,
   borderColor: "$borderColor",
   borderStyle: "dashed",
@@ -15,7 +15,7 @@ export const Empty = styled(YStack, {
 
 export const EmptyHeader = styled(YStack, {
   name: "EmptyHeader",
-  gap: "$2",
+  gap: "$md",
   maxW: 320,
   items: "center",
 });
@@ -31,7 +31,7 @@ export const EmptyMedia = styled(YStack, {
       icon: {
         width: 32,
         height: 32,
-        rounded: "$4",
+        rounded: "$lg",
         bg: "$color3",
       },
     },
@@ -44,13 +44,13 @@ export const EmptyMedia = styled(YStack, {
 
 export const EmptyTitle = styled(Text, {
   name: "EmptyTitle",
-  fontSize: "$2",
+  fontSize: "$md",
   fontWeight: "500",
 });
 
 export const EmptyDescription = styled(Text, {
   name: "EmptyDescription",
-  fontSize: "$2",
+  fontSize: "$md",
   color: "$color11",
 });
 
@@ -58,6 +58,6 @@ export const EmptyContent = styled(YStack, {
   name: "EmptyContent",
   width: "100%",
   maxW: 320,
-  gap: "$2",
+  gap: "$md",
   items: "center",
 });

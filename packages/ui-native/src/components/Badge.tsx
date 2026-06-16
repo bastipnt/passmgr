@@ -7,8 +7,8 @@ const BadgeFrame = styled(XStack, {
   height: 20,
   items: "center",
   justify: "center",
-  gap: "$1",
-  px: "$2",
+  gap: "$md",
+  px: "$md",
   rounded: 9999,
   borderWidth: 1,
   borderColor: "transparent",
@@ -48,7 +48,7 @@ export function Badge({
     <BadgeFrame variant={variant} {...props}>
       {typeof children === "string" ? (
         <SizableText
-          size="$2"
+          size="$md"
           fontWeight="500"
           color={textColorMap[variant]}
           textDecorationLine={variant === "link" ? "underline" : "none"}

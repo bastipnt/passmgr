@@ -30,8 +30,8 @@ export function RecordListItem({ title, username, websites, active, onClick }: R
         }
         title={title}
         subTitle={username ?? "-"}
-        size="$4"
-        gap="$4"
+        size="$lg"
+        gap="$lg"
       />
     </YGroup.Item>
   );

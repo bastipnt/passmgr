@@ -30,7 +30,7 @@ export function Link(props: LinkProps) {
     return (
       <Anchor {...rest} target="_blank" rel="noopener noreferrer">
         <LinkText>
-          {children} <ArrowUpRight size="$1" color="$accent3" />
+          {children} <ArrowUpRight size="$sm" color="$accent3" />
         </LinkText>
       </Anchor>
     );

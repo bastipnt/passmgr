@@ -19,7 +19,7 @@ export function Input({ label, error, className: _className, style: _style, ...r
         {...(rest as Record<string, unknown>)}
       />
       {error && (
-        <Text theme="error" fontSize="$2" color="$destructive">
+        <Text theme="error" fontSize="$md" color="$destructive">
           {error}
         </Text>
       )}

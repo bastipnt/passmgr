@@ -24,7 +24,7 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <XStack items="flex-end" gap="$4">
+        <XStack items="flex-end" gap="$lg">
           <YStack flex={1}>
             <Input
               value={(field.value as string | undefined) ?? ""}

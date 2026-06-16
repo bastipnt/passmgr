@@ -16,7 +16,7 @@ function Fallback() {
 
 function RecordLIGroup({ children }: { children: ReactNode }) {
   return (
-    <YGroup rounded="$4" overflow="hidden">
+    <YGroup rounded="$lg" overflow="hidden">
       {children}
     </YGroup>
   );
@@ -36,7 +36,7 @@ export default function Record({ recordId }: RecordProps) {
   const onCopy = (value?: string) => Clipboard.setString(typeof value === "string" ? value : "");
 
   return (
-    <YStack gap="$4">
+    <YStack gap="$lg">
       <RecordLIGroup>
         <RecordDetailsItem
           icon={<Mail />}

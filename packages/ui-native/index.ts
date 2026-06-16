@@ -32,9 +32,6 @@ export * from "./src/features/record-list/RecordListItem";
 // *** BLOCKS ***
 export * from "./src/components/blocks/RecordDetailsItem";
 
-// *** THEME ***
-export { colors, spacing, radius, fontSize } from "./src/theme/tokens";
-
 export { tamaguiConfig } from "./src/tamagui.config";
 export type { AppTamaguiConfig } from "./src/tamagui.config";
 

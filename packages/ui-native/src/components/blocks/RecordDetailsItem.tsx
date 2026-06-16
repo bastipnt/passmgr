@@ -31,7 +31,7 @@ function Value({ value, hidden, variant }: ValueProps) {
       {typeof valueToDisplay === "string" ? (
         valueToDisplay
       ) : (
-        <YGroup gap="$2" pt="$3">
+        <YGroup gap="$md" pt="$sm">
           {valueToDisplay.map((v, i) => (
             <YGroup.Item key={`item-${v}-${i}`}>
               {usesLinks ? (
@@ -68,7 +68,7 @@ type MultipleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
 
 const ListItemIcon = function ({ children }: { children: ReactNode }) {
   return (
-    <View pt="$1">
+    <View pt="$sm">
       <ListItem.Icon>{children}</ListItem.Icon>
     </View>
   );
@@ -85,14 +85,14 @@ export function RecordDetailsItem({
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
 
   return (
-    <ListItem.Frame onPress={onCopy} gap="$4" bg="$accent10" items="flex-start">
+    <ListItem.Frame onPress={onCopy} gap="$lg" bg="$accent10" items="flex-start">
       <ListItemIcon>{icon}</ListItemIcon>
       <YStack flex={1}>
         <ListItem.Title>{title}</ListItem.Title>
         <Value hidden={usesHiddenValue && valueHidden} value={value} variant={variant} />
       </YStack>
       {usesHiddenValue && (
-        <Button circular size="$4" onPress={() => setValueHidden((h) => !h)}>
+        <Button circular size="$lg" onPress={() => setValueHidden((h) => !h)}>
           {valueHidden ? <EyeOff /> : <Eye />}
         </Button>
       )}

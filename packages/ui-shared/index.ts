@@ -1,4 +1,4 @@
-export { colors, spacing, radius, fontSize } from "./src/index";
+export * from "./src/tokens";
 
 // HOOKS
 export * from "./src/hooks/use-website-avatar";

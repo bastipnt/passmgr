@@ -92,7 +92,7 @@ export default function RegisterScreen() {
         </View>
       </Modal>
 
-      <View flex={1} justify="center" content="center" p="$4">
+      <View flex={1} justify="center" content="center" p="$lg">
         <Card>
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>

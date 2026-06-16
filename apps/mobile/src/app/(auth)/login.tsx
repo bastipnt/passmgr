@@ -55,7 +55,7 @@ export default function LoginScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} flex={1}>
-      <View flex={1} justify="center" content="center" p="$4">
+      <View flex={1} justify="center" content="center" p="$lg">
         <Form>
           <Card>
             <CardHeader>
