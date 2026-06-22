@@ -21,8 +21,8 @@
   },
   "dependencies": {
     "@repo/ui-shared": "workspace:*",
-    "@tamagui/config": "^2.3.0",
-    "@tamagui/themes": "^2.3.0"
+    "@tamagui/config": "^2.3.2",
+    "@tamagui/themes": "^2.3.2"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",

@@ -7,16 +7,7 @@ import {
 } from "@tamagui/config/v5";
 import { yellow, yellowDark, red, redDark, green, greenDark } from "@tamagui/colors";
 import { colors, radius, spacing } from "@repo/ui-shared";
-
-const spaceTokens = {
-  true: spacing.md,
-  xs: spacing.xs,
-  sm: spacing.sm,
-  md: spacing.md,
-  lg: spacing.lg,
-  xl: spacing.xl,
-  xxl: spacing.xxl,
-} as const;
+import { sizeToSpace } from "./utils";
 
 const sizeTokens = {
   true: spacing.md,
@@ -26,6 +17,25 @@ const sizeTokens = {
   lg: spacing.lg,
   xl: spacing.xl,
   xxl: spacing.xxl,
+} as const;
+
+type SizeKeysIn = keyof typeof sizeTokens;
+type Sizes = {
+  [Key in SizeKeysIn extends `$${infer Key}` ? Key : SizeKeysIn]: number;
+};
+type SizeKeys = `${keyof Sizes extends `${infer K}` ? K : never}`;
+
+const mySpaceTokens: {
+  [Key in SizeKeys]: Key extends keyof Sizes ? Sizes[Key] : number;
+} = Object.fromEntries(
+  Object.entries(sizeTokens).map(([k, v]) => {
+    return [k, sizeToSpace(v)] as const;
+  }),
+) as any;
+
+const spaceTokens = {
+  ...defaultConfig.tokens.space,
+  ...mySpaceTokens,
 } as const;
 
 const radiusTokens = {

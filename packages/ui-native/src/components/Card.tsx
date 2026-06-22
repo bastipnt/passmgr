@@ -14,7 +14,7 @@ export function Card({ children }: CardSlotProps) {
 export function CardHeader({ children }: CardSlotProps) {
   return (
     <CardPrimitive.Header>
-      <XStack content="space-between" items="center" gap="$lg">
+      <XStack content="space-between" items="center" gap="$md">
         {children}
       </XStack>
     </CardPrimitive.Header>
@@ -31,7 +31,7 @@ export function CardTitle({ children }: { children: ReactNode }) {
 
 export function CardAction({ children }: CardSlotProps) {
   return (
-    <XStack items="center" gap="$lg">
+    <XStack items="center" gap="$md">
       {children}
     </XStack>
   );
@@ -39,7 +39,7 @@ export function CardAction({ children }: CardSlotProps) {
 
 export function CardContent({ children }: CardSlotProps) {
   return (
-    <YStack gap="$lg" p="$lg">
+    <YStack gap="$md" p="$md">
       {children}
     </YStack>
   );
@@ -48,7 +48,7 @@ export function CardContent({ children }: CardSlotProps) {
 export function CardFooter({ children }: CardSlotProps) {
   return (
     <CardPrimitive.Footer>
-      <XStack flex={1} justify="flex-end" gap="$lg" p="$lg">
+      <XStack flex={1} justify="flex-end" gap="$md" p="$md">
         {children}
       </XStack>
     </CardPrimitive.Footer>
