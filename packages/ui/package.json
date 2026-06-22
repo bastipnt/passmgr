@@ -45,7 +45,7 @@
     "react-hook-form": "catalog:",
     "react-icons": "catalog:",
     "shadcn": "^4.11.0",
-    "storybook": "^10.4.4",
+    "storybook": "^10.4.6",
     "tailwindcss": "catalog:",
     "typescript": "catalog:",
     "vite": "catalog:",
