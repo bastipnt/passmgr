@@ -46,7 +46,7 @@
     "@prettier/plugin-oxc": "^0.1.4",
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
-    "fallow": "^2.96.0",
+    "fallow": "^2.101.0",
     "prettier": "^3.8.4",
     "prettier-plugin-css-order": "^2.2.0",
     "prettier-plugin-organize-imports": "^4.3.0",
