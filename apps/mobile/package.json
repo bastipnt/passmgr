@@ -44,7 +44,7 @@
     "react-hook-form": "catalog:",
     "react-native": "catalog:",
     "react-native-argon2": "^4.0.0",
-    "react-native-get-random-values": "~1.11.0",
+    "react-native-get-random-values": "~2.0.0",
     "react-native-mmkv": "^4.3.1",
     "react-native-quick-crypto": "^1.1.5",
     "react-native-reanimated": "catalog:",
