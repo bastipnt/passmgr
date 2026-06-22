@@ -32,7 +32,7 @@ catalog:
   "@vitest/coverage-v8": ^4.1.8
   drizzle-kit: 1.0.0-beta.15-859cf75
   drizzle-orm: 1.0.0-beta.15-859cf75
-  drizzle-seed: 1.0.0-beta.15-859cf75
+  drizzle-seed: 1.0.0-rc.4-273829f
   # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
   expo: ~56.0.12
