@@ -18,6 +18,7 @@ export const SessionContext = createContext<{
   ) => void;
   unlockWithVaultKey: (vaultKey: Uint8Array, offline?: boolean) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
+  endSession: () => void;
 }>({
   loggedIn: false,
   vaultUnlocked: false,
@@ -30,6 +31,7 @@ export const SessionContext = createContext<{
   async signRequest() {
     return new Uint8Array(32);
   },
+  endSession() {},
 });
 
 type SessionProviderProps = {
@@ -108,6 +110,13 @@ export default function SessionProvider({ children }: SessionProviderProps) {
 
   const signRequest = useCallback(async (message: string) => secretsStore.signRequest(message), []);
 
+  /** Reset all session state. Does NOT wipe keys/storage — see useLogout(). */
+  const endSession = useCallback(() => {
+    setSessionId(undefined);
+    setLoggedIn(false);
+    setVaultUnlocked(false);
+  }, []);
+
   const value = useMemo(
     () => ({
       sessionId,
@@ -120,6 +129,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       unlockVault,
       unlockWithVaultKey,
       signRequest,
+      endSession,
     }),
     [
       sessionId,
@@ -132,6 +142,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       unlockVault,
       unlockWithVaultKey,
       signRequest,
+      endSession,
     ],
   );
 

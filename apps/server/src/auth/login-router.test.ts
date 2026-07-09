@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 
+import { genKey } from "@repo/crypto";
+import { toBase64 } from "@repo/util";
 import { createCallerFactory } from "../trpc";
 import { appRouter } from "../router";
 import { redis } from "../redis";
@@ -7,6 +9,7 @@ import { buildTestContext } from "../../test/setup/test-context";
 import { truncateAll } from "../../test/setup/db-helpers";
 import { buildUserKeys } from "../../test/setup/user-keys";
 import { clientStartLogin, clientStartRegistration } from "../../test/setup/opaque-client";
+import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
 
 const createCaller = createCallerFactory(appRouter);
 
@@ -65,5 +68,43 @@ describe("loginRouter — edge cases", () => {
       // @ts-expect-error — deliberately bypassing input type to test runtime validation.
       caller.login.startLogin({ email: "not-an-email", startLoginRequest: 42 }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
+describe("loginRouter — logout", () => {
+  const SESSION_ID = "11111111-1111-1111-1111-111111111111";
+  const SESSION_KEY = "deterministic-session-key";
+
+  async function seedSession(): Promise<{ authKey: Uint8Array }> {
+    const authSalt = genKey();
+    const authKey = await deriveAuthKey(SESSION_KEY, authSalt);
+    await redis.set(
+      `session:${SESSION_ID}`,
+      JSON.stringify({ userId: "user-A", rawAuthKey: toBase64(authKey) }),
+      "EX",
+      3600,
+    );
+    return { authKey };
+  }
+
+  it("deletes the Redis session and returns ok", async () => {
+    const { authKey } = await seedSession();
+    const headers = await signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "mutation",
+      path: "login.logout",
+      input: undefined,
+    });
+    const caller = createCaller(buildTestContext(headers));
+    await expect(caller.login.logout()).resolves.toEqual({ ok: true });
+    expect(await redis.exists(`session:${SESSION_ID}`)).toBe(0);
+  });
+
+  it("logout without auth headers → UNAUTHORIZED", async () => {
+    await seedSession();
+    const caller = createCaller(buildTestContext(undefined));
+    await expect(caller.login.logout()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await redis.exists(`session:${SESSION_ID}`)).toBe(1);
   });
 });

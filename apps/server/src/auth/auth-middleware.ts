@@ -95,6 +95,7 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   return opts.next({
     ctx: {
       userId,
+      sessionId,
     },
   });
 });

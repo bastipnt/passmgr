@@ -1,11 +1,18 @@
 import { KE1, KE3, RegistrationRecord, ExpectedAuthResult } from "@cloudflare/opaque-ts";
-import { loggedProcedure } from "../logger";
+import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { db } from "@repo/db";
 import { TRPCError } from "@trpc/server";
 import { hashEmail, hkdf, wipe } from "@repo/crypto";
-import { delLoginAttempt, getLoginAttempt, setLoginAttempt, setSession } from "../util/redis-utils";
+import {
+  deleteSession,
+  delLoginAttempt,
+  getLoginAttempt,
+  setLoginAttempt,
+  setSession,
+} from "../util/redis-utils";
+import { protectedProcedure } from "./auth-middleware";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import {
   finishLoginInputSchema,
@@ -141,4 +148,10 @@ export const loginRouter = router({
       log?.info({ emailHash }, "auth.login.success");
       return { sessionId, userPasswordKeys: keyQueryRes };
     }),
+
+  logout: protectedProcedure.mutation(async ({ ctx }) => {
+    await deleteSession(ctx.sessionId);
+    ctx.req?.log?.info({ sidHash: await shortHash(ctx.sessionId) }, "auth.logout");
+    return { ok: true } as const;
+  }),
 });

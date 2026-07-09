@@ -48,6 +48,10 @@ export async function touchSession(sessionId: string): Promise<void> {
   await redis.expire(sessionKey(sessionId), SESSION_TTL_SECONDS);
 }
 
+export async function deleteSession(sessionId: string): Promise<void> {
+  await redis.del(sessionKey(sessionId));
+}
+
 export async function getLoginAttempt(userId: string): Promise<LoginAttempt | undefined> {
   const rawLoginAttempt = await redis.get(loginKey(userId));
   if (rawLoginAttempt === null) return undefined;
