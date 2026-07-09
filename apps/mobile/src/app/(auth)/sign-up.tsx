@@ -1,49 +1,52 @@
 import { useMemo, useState } from "react";
-import { Modal, Platform, Pressable } from "react-native";
+import { Modal, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { useRegistration } from "@repo/client";
-import { wipe } from "@repo/crypto";
+import { getStrengthFromString, wipe } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
+import { zodResolver } from "@hookform/resolvers/zod";
+import z from "zod";
+import { Button, Text, View } from "tamagui";
 import {
-  Button,
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  FieldGroup,
-  KeyboardAvoidingView,
-  Link,
-  Spinner,
+  SheetScene,
+  StrengthMeter,
   useForm,
+  useWatch,
 } from "@repo/ui-native";
-import { zodResolver } from "@hookform/resolvers/zod";
-import z from "zod";
-import { Text, View } from "tamagui";
+import { TermsRow } from "@/components/TermsRow";
 
-const credentialsSchema = z.object({
-  email: z.email(),
-  password: z.string().min(8),
-});
+const credentialsSchema = z
+  .object({
+    email: z.email(),
+    password: z.string().min(8),
+    confirmPassword: z.string(),
+  })
+  .refine((v) => v.password === v.confirmPassword, {
+    path: ["confirmPassword"],
+    message: "Passwords do not match",
+  });
 
 type FormValues = z.infer<typeof credentialsSchema>;
 
-export default function RegisterScreen() {
+export default function SignUpScreen() {
   const router = useRouter();
   const { registerNewUser, registrationError } = useRegistration();
   const [loading, setLoading] = useState(false);
+  const [agreed, setAgreed] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
   const [copied, setCopied] = useState(false);
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(credentialsSchema),
-    defaultValues: { email: "", password: "" },
+    defaultValues: { email: "", password: "", confirmPassword: "" },
   });
+
+  const password = useWatch({ control, name: "password" });
+  const strength = useMemo(() => (password ? getStrengthFromString(password) : null), [password]);
 
   const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
 
@@ -64,11 +67,11 @@ export default function RegisterScreen() {
     if (recoveryKey) wipe(recoveryKey);
     setRecoveryKey(null);
     setCopied(false);
-    router.replace("/(auth)/login");
+    router.replace("/(auth)/sign-in");
   };
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+    <>
       <Modal visible={recoveryKey !== null} transparent animationType="fade">
         <View>
           <View>
@@ -92,51 +95,45 @@ export default function RegisterScreen() {
         </View>
       </Modal>
 
-      <View flex={1} justify="center" content="center" p="$lg">
-        <Card>
-          <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardAction>
-              <Link href="/(auth)/login">Login</Link>
-            </CardAction>
-          </CardHeader>
+      <SheetScene
+        title="Create account"
+        subtitle="Set up your secure vault."
+        actionLabel="Create account"
+        loading={loading}
+        actionDisabled={!agreed}
+        onAction={handleSubmit(onSubmit)}
+      >
+        <ControlledInput
+          control={control}
+          name="email"
+          label="Email"
+          autoCapitalize="none"
+          autoComplete="username"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+        />
+        <ControlledPasswordInput
+          control={control}
+          name="password"
+          label="Password"
+          textContentType="newPassword"
+          note={strength && <StrengthMeter level={strength.level} label={strength.label} />}
+        />
+        <ControlledPasswordInput
+          control={control}
+          name="confirmPassword"
+          label="Confirm password"
+          textContentType="newPassword"
+        />
 
-          <CardContent>
-            <FieldGroup>
-              <ControlledInput
-                control={control}
-                name="email"
-                label="Email"
-                autoCapitalize="none"
-                autoComplete="username"
-                keyboardType="email-address"
-                textContentType="emailAddress"
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="password"
-                label="Password"
-                textContentType="newPassword"
-              />
-            </FieldGroup>
+        <TermsRow checked={agreed} onChange={setAgreed} />
 
-            {registrationError && (
-              <FieldError
-                errors={[
-                  { message: "Error when trying to register a new account please try again" },
-                ]}
-              />
-            )}
-          </CardContent>
-
-          <CardFooter>
-            <Button onPress={handleSubmit(onSubmit)}>
-              Sign Up
-              {loading && <Spinner />}
-            </Button>
-          </CardFooter>
-        </Card>
-      </View>
-    </KeyboardAvoidingView>
+        {registrationError && (
+          <FieldError
+            errors={[{ message: "Error when trying to register a new account please try again" }]}
+          />
+        )}
+      </SheetScene>
+    </>
   );
 }

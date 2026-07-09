@@ -6,7 +6,7 @@ import "react-native-get-random-values";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { ActivityIndicator, useColorScheme, View } from "react-native";
+import { useColorScheme } from "react-native";
 import { TamaguiProvider } from "tamagui";
 import {
   ClientProvider,
@@ -17,6 +17,7 @@ import {
   useSessionRestore,
 } from "@repo/client";
 import { tamaguiConfig } from "@repo/ui-native";
+import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useVaultStore } from "@/hooks/use-vault-store";
@@ -36,10 +37,10 @@ function Routes() {
   // hold on a splash instead of flashing the login screen.
   if (status === "restoring") {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
-        <ActivityIndicator />
-        <StatusBar style="auto" />
-      </View>
+      <>
+        <SplashScreen />
+        <StatusBar style="light" />
+      </>
     );
   }
 

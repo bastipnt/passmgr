@@ -6,7 +6,7 @@ import {
   v5ComponentThemes,
 } from "@tamagui/config/v5";
 import { yellow, yellowDark, red, redDark, green, greenDark } from "@tamagui/colors";
-import { colors, radius, spacing } from "@repo/ui-shared";
+import { colors, fontSize, radius, spacing } from "@repo/ui-shared";
 import { sizeToSpace } from "./utils";
 
 const sizeTokens = {
@@ -111,25 +111,27 @@ const builtThemes = createV5Theme({
   },
 });
 
+const LINE_HEIGHT_RATIO = 1.618 as const;
+
 const defaultFont = createFont({
   family: isWeb ? "Inter, Helvetica, Arial, sans-serif" : "Inter",
   size: {
-    true: 16,
-    xs: 12,
-    sm: 14,
-    md: 16,
-    lg: 18,
-    xl: 22,
-    xxl: 30,
+    true: fontSize.md,
+    xs: fontSize.xs,
+    sm: fontSize.sm,
+    md: fontSize.md,
+    lg: fontSize.lg,
+    xl: fontSize.xl,
+    xxl: fontSize.xxl,
   },
   lineHeight: {
-    true: 24,
-    xs: 16,
-    sm: 20,
-    md: 24,
-    lg: 28,
-    xl: 32,
-    xxl: 38,
+    true: fontSize.md * LINE_HEIGHT_RATIO,
+    xs: fontSize.xs * LINE_HEIGHT_RATIO,
+    sm: fontSize.sm * LINE_HEIGHT_RATIO,
+    md: fontSize.md * LINE_HEIGHT_RATIO,
+    lg: fontSize.lg * LINE_HEIGHT_RATIO,
+    xl: fontSize.xl * LINE_HEIGHT_RATIO,
+    xxl: fontSize.xxl * LINE_HEIGHT_RATIO,
   },
   weight: {
     true: "400",

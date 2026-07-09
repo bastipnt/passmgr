@@ -1,4 +1,4 @@
-export { colors } from "./colors";
+export * from "./colors";
 
 export const spacing = {
   xs: 20,
@@ -21,4 +21,5 @@ export const fontSize = {
   md: 16,
   lg: 18,
   xl: 22,
+  xxl: 28,
 } as const;

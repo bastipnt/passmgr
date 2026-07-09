@@ -8,6 +8,9 @@ export * from "./src/components/Skeleton";
 export * from "./src/components/KeyboardAvoidingView";
 export * from "./src/components/BlurView";
 
+export { Blobs } from "./src/components/Blobs";
+export type { BlobsProps, BlobsTone } from "./src/components/Blobs";
+
 export { Input, ControlledInput } from "./src/components/forms/Input";
 export type { InputProps, ControlledInputProps } from "./src/components/forms/Input";
 
@@ -30,10 +33,19 @@ export * from "./src/features/record-list/RecordGroupLabel";
 export * from "./src/features/record-list/RecordListItem";
 
 // *** BLOCKS ***
+export * from "./src/components/blocks/AppIcon";
+export * from "./src/components/blocks/BiometricGlyph";
+export * from "./src/components/blocks/BrandMark";
+export * from "./src/components/blocks/CloseChip";
 export * from "./src/components/blocks/RecordDetailsItem";
+export * from "./src/components/blocks/SheetScene";
+export * from "./src/components/blocks/SpinnerRing";
+export * from "./src/components/blocks/SplashGradient";
+export * from "./src/components/blocks/StrengthMeter";
+export * from "./src/components/blocks/Wordmark";
 
 export { tamaguiConfig } from "./src/tamagui.config";
 export type { AppTamaguiConfig } from "./src/tamagui.config";
 
 // *** FORM ***
-export { useForm } from "react-hook-form";
+export * from "react-hook-form";

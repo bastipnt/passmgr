@@ -17,10 +17,12 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
+    "react-native-svg": "catalog:",
     "tamagui": "catalog:"
   },
   "dependencies": {
     "@repo/ui-shared": "workspace:*",
+    "@repo/util": "workspace:*",
     "@tamagui/config": "^2.3.2",
     "@tamagui/themes": "^2.3.2"
   },
@@ -35,6 +37,7 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
+    "react-native-svg": "catalog:",
     "tamagui": "catalog:",
     "typescript": "catalog:"
   },

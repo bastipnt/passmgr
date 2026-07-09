@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { XStack, YStack } from "tamagui";
+import { Eye, EyeOff } from "@tamagui/lucide-icons-2";
+import { View } from "tamagui";
 import { Input, type InputProps } from "./Input";
-import { Button } from "../Button";
 
 export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omit<
   InputProps,
-  "value" | "onChangeText" | "onBlur" | "secureTextEntry"
+  "value" | "onChangeText" | "onBlur" | "secureTextEntry" | "trailing"
 > & {
   control: Control<TFieldValues>;
   name: FieldPath<TFieldValues>;
@@ -18,33 +18,35 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
   ...rest
 }: ControlledPasswordInputProps<TFieldValues>) {
   const [visible, setVisible] = useState(false);
+  const Icon = visible ? EyeOff : Eye;
 
   return (
     <Controller
       control={control}
       name={name}
       render={({ field, fieldState }) => (
-        <XStack items="flex-end" gap="$lg">
-          <YStack flex={1}>
-            <Input
-              value={(field.value as string | undefined) ?? ""}
-              onChangeText={field.onChange}
-              onBlur={field.onBlur}
-              error={fieldState.error?.message}
-              secureTextEntry={!visible}
-              autoCapitalize="none"
-              autoCorrect={false}
-              {...rest}
-            />
-          </YStack>
-          <Button
-            accessibilityLabel={visible ? "Hide password" : "Show password"}
-            onPress={() => setVisible((v) => !v)}
-            variant="outlined"
-          >
-            {visible ? "Hide" : "Show"}
-          </Button>
-        </XStack>
+        <Input
+          value={(field.value as string | undefined) ?? ""}
+          onChangeText={field.onChange}
+          onBlur={field.onBlur}
+          error={fieldState.error?.message}
+          secureTextEntry={!visible}
+          autoCapitalize="none"
+          autoCorrect={false}
+          trailing={
+            <View
+              accessibilityRole="button"
+              accessibilityLabel={visible ? "Hide password" : "Show password"}
+              hitSlop={8}
+              p="$xs"
+              onPress={() => setVisible((v) => !v)}
+              pressStyle={{ opacity: 0.6 }}
+            >
+              <Icon size={20} color="$color005" />
+            </View>
+          }
+          {...rest}
+        />
       )}
     />
   );
