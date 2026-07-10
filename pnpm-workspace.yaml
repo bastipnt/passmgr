@@ -35,18 +35,18 @@ catalog:
   drizzle-seed: 1.0.0-beta.15-859cf75
   # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
-  expo: ~56.0.12
+  expo: ~56.0.15
   expo-blur: ~56.0.3
   expo-clipboard: ~56.0.4
-  expo-constants: ~56.0.18
-  expo-dev-client: ~56.0.20
+  expo-constants: ~56.0.20
+  expo-dev-client: ~56.0.22
   expo-font: ~56.0.7
   expo-haptics: ~56.0.3
   expo-image: ~56.0.11
-  expo-linking: ~56.0.14
-  expo-router: ~56.2.11
+  expo-linking: ~56.0.15
+  expo-router: ~56.2.14
   expo-secure-store: ~56.0.4
-  expo-splash-screen: ^56.0.10
+  expo-splash-screen: ^56.0.12
   expo-sqlite: ~56.0.5
   expo-status-bar: ~56.0.4
   expo-symbols: ~56.0.6
@@ -115,7 +115,7 @@ overrides:
   # expo-symbols: "~56.0.6"
   # expo-glass-effect: "~55.0.11"
   # "@expo/ui": "~55.0.17"
-  "@expo/metro-runtime": "56.0.15"
+  "@expo/metro-runtime": "56.0.16"
   "@expo/dom-webview": "56.0.5"
   "@react-native/metro-config": "0.85.3"
   react-dom: "19.2.3"
