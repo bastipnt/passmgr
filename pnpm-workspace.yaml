@@ -17,9 +17,9 @@ catalog:
   "@hookform/resolvers": ^5.4.0
   "@tailwindcss/postcss": ^4.3.2
   "@tailwindcss/vite": ^4.3.2
-  "@tamagui/babel-plugin": 2.4.3
-  "@tamagui/metro-plugin": 2.4.3
-  "@tamagui/lucide-icons-2": ^2.4.3
+  "@tamagui/babel-plugin": 2.4.5
+  "@tamagui/metro-plugin": 2.4.5
+  "@tamagui/lucide-icons-2": ^2.4.5
   "@tanstack/react-query": ^5.101.2
   "@testcontainers/postgresql": ^12.0.4
   "@trpc/client": ^11.18.0
@@ -52,23 +52,23 @@ catalog:
   expo-symbols: ~56.0.6
   expo-web-browser: ~56.0.5
   fast-check: ^4.9.0
-  lucide-react: ^1.23.0
+  lucide-react: ^1.24.0
   oxlint: ^1.73.0
-  oxlint-tsgolint: ^0.23.0
-  react: 19.2.3
-  react-dom: 19.2.3
+  oxlint-tsgolint: ^0.24.0
+  react: 19.2.7
+  react-dom: 19.2.7
   react-hook-form: ^7.81.0
   react-icons: ^5.7.0
-  react-native: 0.85.3
-  react-native-reanimated: 4.3.1
-  react-native-safe-area-context: ~5.7.0
-  react-native-svg: 15.15.4
-  react-native-worklets: ^0.8.3
+  react-native: 0.86.0
+  react-native-reanimated: 4.5.1
+  react-native-safe-area-context: ~5.8.0
+  react-native-svg: 15.15.5
+  react-native-worklets: ^0.10.2
   tailwindcss: ^4.3.2
-  tamagui: 2.4.3
+  tamagui: 2.4.5
   testcontainers: ^12.0.4
   typescript: ~6.0.3
-  vite: 8.0.16
+  vite: 8.1.4
   vitest: ^4.1.10
   wouter: ^3.10.0
   zod: ^4.4.3
@@ -118,7 +118,7 @@ overrides:
   "@expo/metro-runtime": "56.0.16"
   "@expo/dom-webview": "56.0.5"
   "@react-native/metro-config": "0.85.3"
-  react-dom: "19.2.3"
+  react-dom: "19.2.7"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
