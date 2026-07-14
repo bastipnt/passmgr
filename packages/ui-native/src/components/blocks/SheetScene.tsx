@@ -56,16 +56,17 @@ export function SheetScene({
         <Button
           height={52}
           rounded="$lg"
-          bg="$primary"
-          color="$primaryForeground"
+          theme="blue_accent"
+          // bg="$primary"
+          // color="$primaryForeground"
           fontWeight="700"
           disabled={actionDisabled || loading}
-          opacity={actionDisabled ? 0.5 : 1}
-          pressStyle={{ bg: "$primaryPressed", borderColor: "$primaryPressed" }}
+          // opacity={actionDisabled ? 0.5 : 1}
+          // pressStyle={{ bg: "$primaryPressed", borderColor: "$primaryPressed" }}
           onPress={onAction}
+          icon={loading ? <Spinner /> : undefined}
         >
           {actionLabel}
-          {loading && <Spinner />}
         </Button>
       </YStack>
     </KeyboardAvoidingView>
