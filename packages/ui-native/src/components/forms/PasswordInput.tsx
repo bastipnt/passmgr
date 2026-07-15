@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { Pressable } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { Eye, EyeOff } from "@tamagui/lucide-icons-2";
-import { View } from "tamagui";
+import { Eye, EyeOff } from "lucide-react-native";
+import { useCSSVariable } from "uniwind";
 import { Input, type InputProps } from "./Input";
 
 export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omit<
@@ -19,6 +20,7 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
 }: ControlledPasswordInputProps<TFieldValues>) {
   const [visible, setVisible] = useState(false);
   const Icon = visible ? EyeOff : Eye;
+  const iconColor = useCSSVariable("--color-muted-foreground") as string;
 
   return (
     <Controller
@@ -34,16 +36,16 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
           autoCapitalize="none"
           autoCorrect={false}
           trailing={
-            <View
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={visible ? "Hide password" : "Show password"}
               hitSlop={8}
-              p="$xs"
+              className="p-xs"
+              style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
               onPress={() => setVisible((v) => !v)}
-              pressStyle={{ opacity: 0.6 }}
             >
-              <Icon size={20} color="$color005" />
-            </View>
+              <Icon size={20} color={iconColor} />
+            </Pressable>
           }
           {...rest}
         />

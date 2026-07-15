@@ -1,7 +1,7 @@
 import { ActivityIndicator, type ActivityIndicatorProps } from "react-native";
-import { useTheme } from "tamagui";
 
-export function Spinner(props: ActivityIndicatorProps) {
-  const theme = useTheme();
-  return <ActivityIndicator color={theme.primary?.val} {...props} />;
+// `colorClassName` is Uniwind's way of driving a native color prop from a
+// Tailwind color class — here the ActivityIndicator spinner color.
+export function Spinner({ colorClassName = "text-primary", ...props }: ActivityIndicatorProps) {
+  return <ActivityIndicator colorClassName={colorClassName} {...props} />;
 }

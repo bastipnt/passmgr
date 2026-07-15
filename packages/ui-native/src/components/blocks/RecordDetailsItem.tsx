@@ -1,7 +1,8 @@
-import React, { ReactNode, useState } from "react";
-import { ListItem, Text, View, YGroup, YStack } from "tamagui";
+import { type ReactNode, useState } from "react";
+import { Pressable, View, Text } from "react-native";
+import { Eye, EyeOff } from "lucide-react-native";
+import { useCSSVariable } from "uniwind";
 import { Button } from "../Button";
-import { Eye, EyeOff } from "@tamagui/lucide-icons-2";
 import { Link } from "../Link";
 
 const HIDDEN_VALUE = "••••••••••••" as const;
@@ -21,31 +22,24 @@ function Value({ value, hidden, variant }: ValueProps) {
   const valueToDisplay = hidden ? HIDDEN_VALUE : (value ?? "-");
   const usesLinks = variant === "websites";
 
+  if (typeof valueToDisplay === "string") {
+    return <Text className="text-md text-foreground">{valueToDisplay}</Text>;
+  }
+
   return (
-    <ListItem.Text
-      whiteSpace="pre-line"
-      style={{ overflowWrap: "break-word" }}
-      color="$black06"
-      unstyled
-    >
-      {typeof valueToDisplay === "string" ? (
-        valueToDisplay
-      ) : (
-        <YGroup gap="$md" pt="$sm">
-          {valueToDisplay.map((v, i) => (
-            <YGroup.Item key={`item-${v}-${i}`}>
-              {usesLinks ? (
-                <Link target="_blank" href={v}>
-                  {v}
-                </Link>
-              ) : (
-                <Text>{v}</Text>
-              )}
-            </YGroup.Item>
-          ))}
-        </YGroup>
-      )}
-    </ListItem.Text>
+    <View className="gap-md pt-sm">
+      {valueToDisplay.map((v, i) => (
+        <View key={`item-${v}-${i}`}>
+          {usesLinks ? (
+            <Link target="_blank" href={v}>
+              {v}
+            </Link>
+          ) : (
+            <Text className="text-md text-foreground">{v}</Text>
+          )}
+        </View>
+      ))}
+    </View>
   );
 }
 
@@ -66,14 +60,6 @@ type MultipleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
   variant?: (typeof multipleValuesVariants)[number];
 };
 
-const ListItemIcon = function ({ children }: { children: ReactNode }) {
-  return (
-    <View pt="$sm">
-      <ListItem.Icon>{children}</ListItem.Icon>
-    </View>
-  );
-};
-
 export function RecordDetailsItem({
   icon,
   title,
@@ -83,19 +69,33 @@ export function RecordDetailsItem({
 }: SingleRecordDetailsItemProps | MultipleRecordDetailsItemProps) {
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
+  const iconColor = useCSSVariable("--color-foreground") as string;
 
   return (
-    <ListItem.Frame onPress={onCopy} gap="$lg" bg="$accent10" items="flex-start">
-      <ListItemIcon>{icon}</ListItemIcon>
-      <YStack flex={1}>
-        <ListItem.Title>{title}</ListItem.Title>
+    <Pressable
+      onPress={onCopy}
+      className="flex-row items-start gap-lg bg-card p-md"
+      style={({ pressed }) => (pressed && onCopy ? { opacity: 0.7 } : null)}
+    >
+      <View className="pt-sm">{icon}</View>
+      <View className="flex-1">
+        <Text className="text-sm font-semibold text-muted-foreground">{title}</Text>
         <Value hidden={usesHiddenValue && valueHidden} value={value} variant={variant} />
-      </YStack>
+      </View>
       {usesHiddenValue && (
-        <Button circular size="$lg" onPress={() => setValueHidden((h) => !h)}>
-          {valueHidden ? <EyeOff /> : <Eye />}
+        <Button
+          variant="secondary"
+          size="icon-lg"
+          className="rounded-full bg-muted"
+          onPress={() => setValueHidden((h) => !h)}
+        >
+          {valueHidden ? (
+            <EyeOff size={18} color={iconColor} />
+          ) : (
+            <Eye size={18} color={iconColor} />
+          )}
         </Button>
       )}
-    </ListItem.Frame>
+    </Pressable>
   );
 }

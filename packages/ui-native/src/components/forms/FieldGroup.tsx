@@ -1,6 +1,9 @@
-import { type ViewProps } from "react-native";
-import { YStack } from "tamagui";
+import { View, type ViewProps } from "react-native";
 
-export function FieldGroup({ children }: ViewProps & { className?: string }) {
-  return <YStack gap="$md">{children}</YStack>;
+export function FieldGroup({ children, ...props }: ViewProps & { className?: string }) {
+  return (
+    <View className="gap-md" {...props}>
+      {children}
+    </View>
+  );
 }

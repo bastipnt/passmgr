@@ -1,21 +1,18 @@
 import Record from "@/features/records/components/Record";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Button, Main, ScrollView } from "tamagui";
+import { View, ScrollView } from "react-native";
+import { Button } from "@repo/ui-native";
 
 export default function RecordScreen() {
   const router = useRouter();
   const { recordId } = useLocalSearchParams();
-  // const pathname = usePathname();
 
   return (
     <ScrollView>
       <Button onPress={() => router.navigate(`/${recordId as string}/edit`)}>Edit</Button>
-      <Main p="$lg" bg="$background08" flex={1}>
-        {/* <Text fontSize="$lg">Record ID: {recordId}</Text>
-        <Text fontSize="$lg">Path: {pathname} hello</Text> */}
-        {/* <Button onPress={() => router.back()}>Close</Button> */}
+      <View className="flex-1 bg-background p-lg">
         <Record recordId={recordId} />
-      </Main>
+      </View>
     </ScrollView>
   );
 }

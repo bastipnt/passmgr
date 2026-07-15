@@ -1,4 +1,4 @@
-import { View } from "tamagui";
+import { View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 import { BRAND_GRADIENT } from "@repo/ui-shared";
 import { BrandMark } from "./BrandMark";
@@ -16,16 +16,16 @@ export function AppIcon({ size = 74 }: AppIconProps) {
 
   return (
     <View
-      width={size}
-      height={size}
-      rounded={radius}
-      overflow="hidden"
-      items="center"
-      justify="center"
-      shadowColor="rgba(79,70,229,0.5)"
-      shadowOffset={{ width: 0, height: 14 }}
-      shadowRadius={30}
-      shadowOpacity={1}
+      className="items-center justify-center overflow-hidden"
+      style={{
+        width: size,
+        height: size,
+        borderRadius: radius,
+        shadowColor: "rgba(79,70,229,0.5)",
+        shadowOffset: { width: 0, height: 14 },
+        shadowRadius: 30,
+        shadowOpacity: 1,
+      }}
     >
       <Svg width={size} height={size} style={{ position: "absolute", top: 0, left: 0 }}>
         <Defs>
@@ -37,7 +37,7 @@ export function AppIcon({ size = 74 }: AppIconProps) {
         </Defs>
         <Rect width={size} height={size} rx={radius} fill="url(#appIconGrad)" />
       </Svg>
-      <BrandMark size={Math.round(size * 0.56)} color="$background" />
+      <BrandMark size={Math.round(size * 0.56)} />
     </View>
   );
 }

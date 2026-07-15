@@ -7,8 +7,9 @@ import { getStrengthFromString, wipe } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { Button, Text, View } from "tamagui";
+import { View, Text } from "react-native";
 import {
+  Button,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
@@ -73,18 +74,20 @@ export default function SignUpScreen() {
   return (
     <>
       <Modal visible={recoveryKey !== null} transparent animationType="fade">
-        <View>
-          <View>
-            <Text>Save your recovery key</Text>
-            <Text>
+        <View className="flex-1 items-center justify-center bg-black/50 p-lg">
+          <View className="w-full gap-md rounded-xl bg-card p-lg">
+            <Text className="text-lg font-bold text-card-foreground">Save your recovery key</Text>
+            <Text className="text-sm text-muted-foreground">
               Store this key in a safe place. It is the only way to recover your vault if you forget
               your password. It is shown once and never sent to the server.
             </Text>
             <Pressable onLongPress={onCopy}>
-              <Text selectable>{recoveryKeyB64}</Text>
+              <Text selectable className="text-md text-foreground">
+                {recoveryKeyB64}
+              </Text>
             </Pressable>
-            <View>
-              <Button variant="outlined" onPress={onCopy}>
+            <View className="gap-sm">
+              <Button variant="outline" onPress={onCopy}>
                 {copied ? "Copied" : "Copy to clipboard"}
               </Button>
               <Button onPress={onConfirm} disabled={!copied}>

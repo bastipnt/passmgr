@@ -6,7 +6,7 @@ import Animated, {
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { useTheme } from "tamagui";
+import { useCSSVariable } from "uniwind";
 
 export type SkeletonProps = {
   width?: DimensionValue;
@@ -16,7 +16,7 @@ export type SkeletonProps = {
 };
 
 export function Skeleton({ width = "100%", height = 16, borderRadius = 6, style }: SkeletonProps) {
-  const theme = useTheme();
+  const backgroundColor = useCSSVariable("--color-muted") as string;
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function Skeleton({ width = "100%", height = 16, borderRadius = 6, style 
           width,
           height,
           borderRadius,
-          backgroundColor: theme.color3?.val,
+          backgroundColor,
         },
         animatedStyle,
         style,

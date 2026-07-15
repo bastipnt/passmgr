@@ -1,93 +1,82 @@
 import { useRouter } from "expo-router";
+import { View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Text, View, YStack } from "tamagui";
-import { AppIcon, BiometricGlyph, Blobs, Wordmark } from "@repo/ui-native";
+import { useCSSVariable } from "uniwind";
+import { AppIcon, BiometricGlyph, Blobs, Button, Wordmark } from "@repo/ui-native";
 
 export default function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const foreground = useCSSVariable("--color-foreground") as string;
 
   return (
-    <YStack flex={1} bg="$background">
+    <View className="flex-1 bg-background">
       <Blobs tone="light" />
 
-      <YStack flex={1} px={24} pt={insets.top + 16} pb={insets.bottom + 24}>
+      <View
+        className="flex-1 px-lg"
+        style={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 24 }}
+      >
         {/* brand lockup */}
-        <YStack items="center" gap={16} mt={8}>
+        <View className="mt-[8px] items-center gap-[16px]">
           <AppIcon size={74} />
-          <Wordmark size={26} color="$foreground" dot="$primary" />
-        </YStack>
+          <Wordmark size={26} colorClassName="text-foreground" dotClassName="text-primary" />
+        </View>
 
         {/* welcome */}
-        <YStack items="center" mt={40} gap={10}>
+        <View className="mt-[40px] items-center gap-[10px]">
           <Text
-            fontFamily="$heading"
-            fontSize={30}
-            lineHeight={36}
-            fontWeight="700"
-            letterSpacing={-0.6}
-            color="$foreground"
+            className="font-bold text-foreground"
+            style={{ fontSize: 30, lineHeight: 36, letterSpacing: -0.6 }}
           >
             Welcome back
           </Text>
           <Text
-            fontFamily="$body"
-            fontSize={15.5}
-            lineHeight={23}
-            text="center"
-            color="$mutedForeground"
+            className="text-center text-muted-foreground"
+            style={{ fontSize: 15.5, lineHeight: 23 }}
           >
             Your passwords, synced and{"\n"}protected on every device.
           </Text>
-        </YStack>
+        </View>
 
         {/* prominent Face ID */}
-        <YStack flex={1} items="center" justify="center" gap={16}>
+        <View className="flex-1 items-center justify-center gap-[16px]">
           <View
-            width={96}
-            height={96}
-            rounded={48}
-            bg="#fff"
-            items="center"
-            justify="center"
-            shadowColor="rgba(79,70,229,0.5)"
-            shadowOffset={{ width: 0, height: 14 }}
-            shadowRadius={30}
-            shadowOpacity={1}
+            className="h-[96px] w-[96px] items-center justify-center rounded-full bg-white"
+            style={{
+              shadowColor: "rgba(79,70,229,0.5)",
+              shadowOffset: { width: 0, height: 14 },
+              shadowRadius: 30,
+              shadowOpacity: 1,
+            }}
           >
-            <BiometricGlyph size={42} color="$foreground" />
+            <BiometricGlyph size={42} color={foreground} />
           </View>
           {/* TODO: wire biometric unlock (LocalAuthentication + session restore) */}
-          <Text fontFamily="$body" fontSize={15} fontWeight="700" color="$primary">
+          <Text className="font-bold text-primary" style={{ fontSize: 15 }}>
             Unlock with Face ID
           </Text>
-        </YStack>
+        </View>
 
         {/* actions */}
-        <YStack gap={12}>
+        <View className="gap-[12px]">
           <Button
-            height={52}
-            rounded="$lg"
-            bg="$primary"
-            color="$primaryForeground"
-            fontWeight="700"
-            pressStyle={{ bg: "$primaryPressed", borderColor: "$primaryPressed" }}
+            size="lg"
+            textClassName="font-bold"
             onPress={() => router.push("/(auth)/sign-in")}
           >
             Sign in
           </Button>
           <Button
-            chromeless
-            height={52}
-            rounded="$lg"
-            color="$primary"
-            fontWeight="700"
+            variant="ghost"
+            size="lg"
+            textClassName="text-primary font-bold"
             onPress={() => router.push("/(auth)/sign-up")}
           >
             Create account
           </Button>
-        </YStack>
-      </YStack>
-    </YStack>
+        </View>
+      </View>
+    </View>
   );
 }

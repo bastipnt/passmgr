@@ -6,17 +6,21 @@ import Animated, {
   withTiming,
   Easing,
 } from "react-native-reanimated";
-import { styled } from "tamagui";
+import { useCSSVariable } from "uniwind";
 
 export type SpinnerRingProps = {
   size?: number;
 };
 
-const StyledAnimatedView = styled(Animated.View);
-
-/** Continuously rotating ring: faint border with a solid white top edge. */
+/** Continuously rotating ring: faint border with a solid top edge. */
 export function SpinnerRing({ size = 26 }: SpinnerRingProps) {
   const rotation = useSharedValue(0);
+  // Resolve token colors to concrete strings — className on an Animated.View
+  // isn't intercepted by Uniwind, so we drive border colors via style instead.
+  const [borderColor, topColor] = useCSSVariable([
+    "--color-border",
+    "--color-background",
+  ]) as string[];
 
   useEffect(() => {
     rotation.value = withRepeat(
@@ -31,15 +35,18 @@ export function SpinnerRing({ size = 26 }: SpinnerRingProps) {
   }));
 
   return (
-    <StyledAnimatedView
-      width={size}
-      height={size}
-      // @ts-expect-error
-      borderRadius={size / 2}
-      borderWidth="$2.5"
-      borderColor="$border"
-      borderTopColor="$background"
-      style={animatedStyle}
+    <Animated.View
+      style={[
+        {
+          width: size,
+          height: size,
+          borderRadius: size / 2,
+          borderWidth: 2.5,
+          borderColor,
+          borderTopColor: topColor,
+        },
+        animatedStyle,
+      ]}
     />
   );
 }

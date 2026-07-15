@@ -1,5 +1,5 @@
 const { getDefaultConfig } = require("expo/metro-config");
-const { withTamagui } = require("@tamagui/metro-plugin");
+const { withUniwindConfig } = require("uniwind/metro");
 const path = require("node:path");
 
 const projectRoot = __dirname;
@@ -63,7 +63,10 @@ config.resolver.resolveRequest = (context, moduleName, platform) => {
   return context.resolveRequest(context, moduleName, platform);
 };
 
-module.exports = withTamagui(config, {
-  components: ["tamagui"],
-  config: "../../packages/ui-native/src/tamagui.config.ts",
+// withUniwindConfig must be the outermost wrapper. It compiles Tailwind classes
+// (from the app + the @source globs in global.css, which cover @repo/ui-native)
+// into native style objects at Metro build time.
+module.exports = withUniwindConfig(config, {
+  cssEntryFile: "./src/global.css",
+  dtsFile: "./src/uniwind-types.d.ts",
 });

@@ -1,14 +1,13 @@
-import { Main, ScrollView } from "tamagui";
+import { View, ScrollView, StyleSheet } from "react-native";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "@repo/ui-native";
-import { StyleSheet } from "react-native";
 
 export default function RecordsScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <Main bg="$background">
+    <View className="flex-1 bg-background">
       <ScrollView>
         <SafeAreaView>
           <RecordsList />
@@ -18,9 +17,8 @@ export default function RecordsScreen() {
       <BlurView
         intensity={50}
         tint="default"
-        style={[StyleSheet.absoluteFill, { bottom: undefined }]}
-        height={insets.top}
+        style={[StyleSheet.absoluteFill, { bottom: undefined, height: insets.top }]}
       />
-    </Main>
+    </View>
   );
 }

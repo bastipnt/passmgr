@@ -1,7 +1,8 @@
 import { type ReactNode } from "react";
-import { type TextInputProps } from "react-native";
+import { TextInput, type TextInputProps, View, Text } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import { Input as TInput, Label, Text, XStack, YStack } from "tamagui";
+
+import { cn } from "../../lib/utils";
 
 export type InputProps = TextInputProps & {
   label?: string;
@@ -23,40 +24,32 @@ export function Input({
   ...rest
 }: InputProps) {
   return (
-    <YStack gap="$xs">
-      {label && (
-        <Label lineHeight="$lg" fontWeight="$bold" color="$color">
-          {label}
-        </Label>
-      )}
+    <View className="gap-xs">
+      {label && <Text className="text-md font-bold text-foreground">{label}</Text>}
 
-      <XStack items="center" position="relative">
-        <TInput
-          flex={1}
-          height="$lg"
-          borderWidth={1.5}
-          bg="$white"
-          pr={trailing ? 46 : undefined}
-          borderColor={error ? "$destructive" : "$borderColor"}
-          focusStyle={error ? { borderColor: "$destructive" } : { borderColor: "$primary" }}
-          placeholderTextColor="$color005"
-          {...(rest as Record<string, unknown>)}
+      <View className="relative flex-row items-center">
+        <TextInput
+          className={cn(
+            "h-[52px] flex-1 rounded-lg border-[1.5px] bg-background px-md text-md text-foreground",
+            error
+              ? "border-destructive focus:border-destructive"
+              : "border-border focus:border-primary",
+            trailing && "pr-[46px]",
+          )}
+          placeholderTextColorClassName="text-muted-foreground"
+          {...rest}
         />
         {trailing && (
-          <XStack position="absolute" r={12} t={0} b={0} items="center" justify="center">
+          <View className="absolute inset-y-0 right-[12px] items-center justify-center">
             {trailing}
-          </XStack>
+          </View>
         )}
-      </XStack>
+      </View>
 
-      {error && (
-        <Text theme="error" fontSize="$sm" color="$destructive">
-          {error}
-        </Text>
-      )}
+      {error && <Text className="text-sm text-destructive">{error}</Text>}
 
       {note}
-    </YStack>
+    </View>
   );
 }
 

@@ -41,3 +41,6 @@ app-example
 # generated native folders
 /ios
 /android
+
+# Uniwind generated class-name types (dtsFile)
+/src/uniwind-types.d.ts

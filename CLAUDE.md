@@ -46,17 +46,40 @@ Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured 
 ```
 apps/
   web/       React 19 + Vite + Tailwind CSS v4, uses wouter for routing
-  mobile/    React Native + Expo
+  mobile/    React Native + Expo, styled with Uniwind (Tailwind v4 for RN)
   server/    Fastify 5 + tRPC backend, runs with Bun
 packages/
   client/    Shared React hooks for auth (useLogin, useRegistration) + tRPC client setup
   crypto/    All cryptographic primitives (@noble/hashes, @noble/ciphers)
   db/        Drizzle ORM schema + migrations (PostgreSQL)
   schema/    Zod schemas shared between client and server
-  ui/        Shared React component library (shadcn-based), re-exports react-hook-form
+  ui/        Shared React web component library (shadcn-based), re-exports react-hook-form
+  ui-native/ Shared React Native component library (Uniwind + cva + cn), re-exports react-hook-form
+  ui-shared/ Design tokens (colors/spacing/radius) shared by web + native
   util/      Base64/string encoding utilities
   typescript-config/  Shared tsconfig base files
 ```
+
+### Mobile styling (Uniwind)
+
+`apps/mobile` + `packages/ui-native` style with **Uniwind** (Tailwind v4 for React
+Native, `className` API) — the same mental model as web. No babel preset; classes
+compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.config.js`).
+
+- Theme tokens live in `apps/mobile/src/global.css` as Uniwind `@variant light/dark`
+  blocks, transcribed from `@repo/ui-shared` colors (web kebab-case names, e.g.
+  `bg-primary`, `text-primary-foreground`). The spacing scale (`p-md`, `gap-lg`)
+  maps to the values the old Tamagui config rendered.
+- `@source "../../../packages/ui-native/src"` in `global.css` makes Tailwind scan the
+  sibling package (v4 only auto-detects the app itself).
+- Compose variants with `cva` + `cn()` from `@repo/ui-native/lib/utils`, mirroring
+  `packages/ui`.
+- Read tokens in JS via `useCSSVariable(name)` (in components) or
+  `Uniwind.getCSSVariable(name)` (outside). Wrap non-core third-party components with
+  `withUniwind` to give them `className`.
+- The generated `apps/mobile/src/uniwind-types.d.ts` (dtsFile) is git-ignored;
+  `className` prop augmentations come from `uniwind/types` (referenced in the
+  `*-env.d.ts` files).
 
 ### Authentication Flow (OPAQUE protocol)
 

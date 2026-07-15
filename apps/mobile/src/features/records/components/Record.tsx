@@ -1,25 +1,26 @@
 import { useGetRecord } from "@repo/client";
-import { Separator, Text, View, YGroup, YStack } from "tamagui";
-import { Earth, Key, Lock, Mail, NotebookPen, NotebookText } from "@tamagui/lucide-icons-2";
-import { Fragment, ReactNode } from "react";
+import { View, Text } from "react-native";
+import { Earth, Key, Lock, Mail, NotebookPen, NotebookText } from "lucide-react-native";
+import { Fragment, type ReactNode } from "react";
 import { RecordDetailsItem } from "@repo/ui-native";
+import { useCSSVariable } from "uniwind";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { isDefined } from "@repo/util";
 
 function Fallback() {
   return (
     <View>
-      <Text>Fallback</Text>
+      <Text className="text-foreground">Fallback</Text>
     </View>
   );
 }
 
 function RecordLIGroup({ children }: { children: ReactNode }) {
-  return (
-    <YGroup rounded="$lg" overflow="hidden">
-      {children}
-    </YGroup>
-  );
+  return <View className="overflow-hidden rounded-lg">{children}</View>;
+}
+
+function Separator() {
+  return <View className="h-px bg-border" />;
 }
 
 type RecordProps = {
@@ -28,6 +29,8 @@ type RecordProps = {
 
 // TODO: fix styling, add missing fields
 export default function Record({ recordId }: RecordProps) {
+  const iconColor = useCSSVariable("--color-muted-foreground") as string;
+
   if (!recordId || typeof recordId !== "string") return <Fallback />;
 
   const { record, ready } = useGetRecord(recordId);
@@ -36,17 +39,17 @@ export default function Record({ recordId }: RecordProps) {
   const onCopy = (value?: string) => Clipboard.setString(typeof value === "string" ? value : "");
 
   return (
-    <YStack gap="$lg">
+    <View className="gap-lg">
       <RecordLIGroup>
         <RecordDetailsItem
-          icon={<Mail />}
+          icon={<Mail size={20} color={iconColor} />}
           title="Username"
           value={record.username}
           onCopy={() => onCopy(record.username)}
         />
         <Separator />
         <RecordDetailsItem
-          icon={<Key />}
+          icon={<Key size={20} color={iconColor} />}
           title="Password"
           value={record.password}
           variant="password"
@@ -64,7 +67,7 @@ export default function Record({ recordId }: RecordProps) {
       {isDefined(record.websites) && record.websites.length > 0 && (
         <RecordLIGroup>
           <RecordDetailsItem
-            icon={<Earth />}
+            icon={<Earth size={20} color={iconColor} />}
             title="Websites"
             value={record.websites?.map((w) => w.value)}
             variant="websites"
@@ -77,7 +80,7 @@ export default function Record({ recordId }: RecordProps) {
           <RecordDetailsItem
             title="Notes"
             value={record.note}
-            icon={<NotebookPen />}
+            icon={<NotebookPen size={20} color={iconColor} />}
             variant="noAction"
           />
         </RecordLIGroup>
@@ -101,6 +104,6 @@ export default function Record({ recordId }: RecordProps) {
           ))}
         </RecordLIGroup>
       )}
-    </YStack>
+    </View>
   );
 }

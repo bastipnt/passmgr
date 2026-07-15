@@ -22,7 +22,8 @@
     "@repo/ui-native": "workspace:*",
     "@repo/ui-shared": "workspace:*",
     "@repo/util": "workspace:*",
-    "@tamagui/lucide-icons-2": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
     "expo": "catalog:",
     "expo-blur": "catalog:",
     "expo-clipboard": "catalog:",
@@ -39,6 +40,7 @@
     "expo-status-bar": "catalog:",
     "expo-symbols": "catalog:",
     "expo-web-browser": "catalog:",
+    "lucide-react-native": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-hook-form": "catalog:",
@@ -52,12 +54,12 @@
     "react-native-screens": "~4.25.2",
     "react-native-svg": "catalog:",
     "react-native-worklets": "catalog:",
-    "tamagui": "catalog:",
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "uniwind": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@tamagui/babel-plugin": "catalog:",
-    "@tamagui/metro-plugin": "catalog:",
     "@types/react": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:"

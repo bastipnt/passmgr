@@ -1,17 +1,18 @@
 import Svg, { Path, Rect } from "react-native-svg";
-import { ColorTokens, getTokenValue, Token } from "tamagui";
+import { Uniwind } from "uniwind";
 
 export type BrandMarkProps = {
   size?: number;
-  color?: ColorTokens;
+  /** Resolved color string (hex/rgb). Defaults to the `--color-background` token. */
+  color?: string;
 };
 
 /**
  * Padlock brand mark, drawn on a 24x24 grid so it stays crisp at any size.
  * Shackle is a stroked arc; the body is a rounded rect with a keyhole.
  */
-export function BrandMark({ size = 70, color = "$background" }: BrandMarkProps) {
-  const colorVal = getTokenValue(color as Token);
+export function BrandMark({ size = 70, color }: BrandMarkProps) {
+  const colorVal = color ?? (Uniwind.getCSSVariable("--color-background") as string);
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

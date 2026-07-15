@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
-import { Platform } from "react-native";
-import { Button, Text, XStack, YStack } from "tamagui";
+import { Platform, View, Text } from "react-native";
+import { Button } from "../Button";
 import { KeyboardAvoidingView } from "../KeyboardAvoidingView";
 import { Spinner } from "../Spinner";
 import { CloseChip } from "./CloseChip";
@@ -29,46 +29,36 @@ export function SheetScene({
   children,
 }: SheetSceneProps) {
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} flex={1}>
-      <YStack flex={1} bg="$background" p={24}>
-        <XStack items="flex-start" justify="space-between" mb={22}>
-          <YStack gap={6}>
+    <KeyboardAvoidingView
+      behavior={Platform.OS === "ios" ? "padding" : undefined}
+      className="flex-1"
+    >
+      <View className="flex-1 bg-background p-lg">
+        <View className="mb-[22px] flex-row items-start justify-between">
+          <View className="gap-[6px]">
             <Text
-              fontFamily="$heading"
-              fontSize={26}
-              fontWeight="700"
-              letterSpacing={-0.5}
-              color="$foreground"
+              className="font-bold text-foreground"
+              style={{ fontSize: 26, letterSpacing: -0.5 }}
             >
               {title}
             </Text>
-            <Text fontFamily="$body" fontSize={14} color="$mutedForeground">
-              {subtitle}
-            </Text>
-          </YStack>
+            <Text className="text-sm text-muted-foreground">{subtitle}</Text>
+          </View>
           <CloseChip />
-        </XStack>
+        </View>
 
-        <YStack flex={1} justify="center" gap="$lg" mb="$lg">
-          {children}
-        </YStack>
+        <View className="mb-lg flex-1 justify-center gap-lg">{children}</View>
 
         <Button
-          height={52}
-          rounded="$lg"
-          theme="blue_accent"
-          // bg="$primary"
-          // color="$primaryForeground"
-          fontWeight="700"
+          size="lg"
+          textClassName="font-bold"
           disabled={actionDisabled || loading}
-          // opacity={actionDisabled ? 0.5 : 1}
-          // pressStyle={{ bg: "$primaryPressed", borderColor: "$primaryPressed" }}
           onPress={onAction}
-          icon={loading ? <Spinner /> : undefined}
+          icon={loading ? <Spinner colorClassName="text-primary-foreground" /> : undefined}
         >
           {actionLabel}
         </Button>
-      </YStack>
+      </View>
     </KeyboardAvoidingView>
   );
 }

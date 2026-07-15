@@ -1,8 +1,7 @@
 import { LEVEL_COLOR } from "@repo/ui-shared";
 import type { PasswordStrengthLevel } from "@repo/util";
-import { Text, View, XStack, type TextProps } from "tamagui";
-
-type Color = TextProps["color"];
+import { View, Text } from "react-native";
+import { useCSSVariable } from "uniwind";
 
 const LEVEL_INDEX: Record<PasswordStrengthLevel, number> = {
   weak: 1,
@@ -20,23 +19,22 @@ export type StrengthMeterProps = {
 export function StrengthMeter({ level, label }: StrengthMeterProps) {
   const filled = LEVEL_INDEX[level];
   const color = LEVEL_COLOR[level];
+  const borderColor = useCSSVariable("--color-border") as string;
 
   return (
-    <XStack items="center" gap="$sm" mt="$xs">
-      <XStack flex={1} gap={5}>
+    <View className="mt-xs flex-row items-center gap-sm">
+      <View className="flex-1 flex-row" style={{ gap: 5 }}>
         {[1, 2, 3, 4].map((i) => (
           <View
             key={i}
-            flex={1}
-            height={4}
-            rounded={2}
-            bg={(i <= filled ? color : "$border") as Color}
+            className="h-[4px] flex-1 rounded-[2px]"
+            style={{ backgroundColor: i <= filled ? color : borderColor }}
           />
         ))}
-      </XStack>
-      <Text fontSize={12.5} fontWeight="600" color={color as Color}>
+      </View>
+      <Text className="font-semibold" style={{ fontSize: 12.5, color }}>
         {label}
       </Text>
-    </XStack>
+    </View>
   );
 }

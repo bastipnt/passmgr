@@ -1,45 +1,28 @@
-import { ArrowUpRight } from "@tamagui/lucide-icons-2";
+import { ArrowUpRight } from "lucide-react-native";
 import { Link as ExpoLink, type LinkProps as ExpoLinkProps } from "expo-router";
-import { ReactNode } from "react";
-import { Anchor, AnchorProps, Text } from "tamagui";
+import { Text } from "react-native";
+import { useCSSVariable } from "uniwind";
 
-type ExternalLinkProps = AnchorProps & {
+export type LinkProps = Omit<ExpoLinkProps, "href"> & {
+  href: string;
   children: string;
-  target: "_blank";
+  target?: "_blank";
 };
 
-type InternalLinkProps = ExpoLinkProps & {
-  children: string;
-  target?: undefined;
-};
+export function Link({ children, target, href, ...rest }: LinkProps) {
+  const accent = useCSSVariable("--color-primary") as string;
 
-export type LinkProps = ExternalLinkProps | InternalLinkProps;
-
-function LinkText({ children }: { children: ReactNode }) {
   return (
-    <Text color="$accent3" fontSize="$true" fontWeight="500">
-      {children}
-    </Text>
-  );
-}
-
-export function Link(props: LinkProps) {
-  if (props.target === "_blank") {
-    const { children, ...rest } = props;
-
-    return (
-      <Anchor {...rest} target="_blank" rel="noopener noreferrer">
-        <LinkText>
-          {children} <ArrowUpRight size="$sm" color="$accent3" />
-        </LinkText>
-      </Anchor>
-    );
-  }
-
-  const { children, ...rest } = props;
-  return (
-    <ExpoLink {...rest}>
-      <LinkText>{children}</LinkText>
+    <ExpoLink {...rest} href={href as ExpoLinkProps["href"]} target={target}>
+      <Text className="text-md font-medium text-primary">
+        {children}
+        {target === "_blank" ? (
+          <>
+            {" "}
+            <ArrowUpRight size={14} color={accent} />
+          </>
+        ) : null}
+      </Text>
     </ExpoLink>
   );
 }

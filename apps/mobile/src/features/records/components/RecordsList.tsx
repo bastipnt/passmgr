@@ -1,7 +1,7 @@
 import { RecordGroup, useSortedRecords } from "@repo/client";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
-import { YGroup } from "tamagui";
+import { View } from "react-native";
 
 type RecordGroupProps = {
   recordGroup: RecordGroup;
@@ -12,9 +12,9 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
   const router = useRouter();
 
   return (
-    <YGroup.Item>
+    <View>
       {recordGroup.label && <RecordGroupLabel text={recordGroup.label} />}
-      <YGroup>
+      <View className="overflow-hidden rounded-lg">
         {recordGroup.records.map((record) => (
           <RecordListItem
             key={record.recordId}
@@ -25,8 +25,8 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
             onClick={() => router.navigate(`./${record.recordId}`)}
           />
         ))}
-      </YGroup>
-    </YGroup.Item>
+      </View>
+    </View>
   );
 }
 
@@ -34,7 +34,7 @@ export function RecordsList() {
   const { recordGroups } = useSortedRecords();
 
   return (
-    <YGroup>
+    <View className="gap-md">
       {recordGroups.map((recordGroup) => (
         <RecordGroupLI
           key={recordGroup.label ?? "all"}
@@ -42,6 +42,6 @@ export function RecordsList() {
           activeRecordId={"TODO:"}
         />
       ))}
-    </YGroup>
+    </View>
   );
 }

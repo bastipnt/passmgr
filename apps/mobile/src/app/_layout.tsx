@@ -2,12 +2,12 @@ import { install } from "react-native-quick-crypto";
 install();
 
 import "react-native-get-random-values";
+import "../global.css";
 
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
-import { useColorScheme } from "react-native";
-import { TamaguiProvider } from "tamagui";
+import { Uniwind } from "uniwind";
 import {
   ClientProvider,
   PreferencesProvider,
@@ -16,7 +16,6 @@ import {
   StoreProvider,
   useSessionRestore,
 } from "@repo/client";
-import { tamaguiConfig } from "@repo/ui-native";
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
@@ -62,26 +61,26 @@ function Routes() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme();
   const preferencesStore = usePreferencesStore();
   const vaultStore = useVaultStore();
 
+  // Follow the device light/dark setting. Uniwind's light/dark themes are
+  // adaptive; "system" re-enables tracking the OS color scheme.
+  useEffect(() => {
+    Uniwind.setTheme("system");
+  }, []);
+
   return (
-    <TamaguiProvider
-      config={tamaguiConfig}
-      defaultTheme={colorScheme === "dark" ? "dark" : "light"}
-    >
-      <SafeAreaProvider>
-        <PreferencesProvider store={preferencesStore}>
-          <SessionProvider>
-            <ClientProvider serverUrl={serverUrl}>
-              <StoreProvider vault={vaultStore}>
-                <Routes />
-              </StoreProvider>
-            </ClientProvider>
-          </SessionProvider>
-        </PreferencesProvider>
-      </SafeAreaProvider>
-    </TamaguiProvider>
+    <SafeAreaProvider>
+      <PreferencesProvider store={preferencesStore}>
+        <SessionProvider>
+          <ClientProvider serverUrl={serverUrl}>
+            <StoreProvider vault={vaultStore}>
+              <Routes />
+            </StoreProvider>
+          </ClientProvider>
+        </SessionProvider>
+      </PreferencesProvider>
+    </SafeAreaProvider>
   );
 }

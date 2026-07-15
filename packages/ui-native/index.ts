@@ -44,8 +44,8 @@ export * from "./src/components/blocks/SplashGradient";
 export * from "./src/components/blocks/StrengthMeter";
 export * from "./src/components/blocks/Wordmark";
 
-export { tamaguiConfig } from "./src/tamagui.config";
-export type { AppTamaguiConfig } from "./src/tamagui.config";
+// *** LIB ***
+export { cn } from "./src/lib/utils";
 
 // *** FORM ***
 export * from "react-hook-form";

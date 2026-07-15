@@ -9,28 +9,31 @@
     "typecheck": "tsc --noEmit"
   },
   "peerDependencies": {
-    "@tamagui/lucide-icons-2": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
     "expo-blur": "catalog:",
     "expo-router": "catalog:",
+    "lucide-react-native": "catalog:",
     "react": "catalog:",
     "react-hook-form": "catalog:",
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
     "react-native-svg": "catalog:",
-    "tamagui": "catalog:"
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "uniwind": "catalog:"
   },
   "dependencies": {
     "@repo/ui-shared": "workspace:*",
-    "@repo/util": "workspace:*",
-    "@tamagui/config": "^2.4.3",
-    "@tamagui/themes": "^2.4.3"
+    "@repo/util": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
-    "@tamagui/babel-plugin": "catalog:",
-    "@tamagui/metro-plugin": "catalog:",
     "@types/react": "catalog:",
+    "class-variance-authority": "catalog:",
+    "clsx": "catalog:",
+    "lucide-react-native": "catalog:",
     "oxlint": "catalog:",
     "react": "catalog:",
     "react-hook-form": "catalog:",
@@ -38,8 +41,10 @@
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
     "react-native-svg": "catalog:",
-    "tamagui": "catalog:",
-    "typescript": "catalog:"
+    "tailwind-merge": "catalog:",
+    "tailwindcss": "catalog:",
+    "typescript": "catalog:",
+    "uniwind": "catalog:"
   },
   "exports": {
     ".": "./index.ts"

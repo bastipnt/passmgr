@@ -1,56 +1,57 @@
-import { ReactNode } from "react";
-import { Card as CardPrimitive, CardProps, Text, XStack, YStack } from "tamagui";
+import { type ReactNode } from "react";
+import { View, type ViewProps, Text } from "react-native";
 
-type CardSlotProps = CardProps & { className?: string };
+import { cn } from "../lib/utils";
 
-export function Card({ children }: CardSlotProps) {
+type CardSlotProps = ViewProps & { className?: string; children?: ReactNode };
+
+export function Card({ className, children, ...props }: CardSlotProps) {
   return (
-    <CardPrimitive borderWidth={1} borderColor="$borderColor" padding="$sm" gap="$sm">
+    <View
+      className={cn("gap-sm rounded-xl border border-border bg-card p-sm", className)}
+      {...props}
+    >
       {children}
-    </CardPrimitive>
+    </View>
   );
 }
 
-export function CardHeader({ children }: CardSlotProps) {
+export function CardHeader({ className, children, ...props }: CardSlotProps) {
   return (
-    <CardPrimitive.Header>
-      <XStack content="space-between" items="center" gap="$md">
-        {children}
-      </XStack>
-    </CardPrimitive.Header>
+    <View className={cn("flex-row items-center justify-between gap-md", className)} {...props}>
+      {children}
+    </View>
   );
 }
 
-export function CardTitle({ children }: { children: ReactNode }) {
+export function CardTitle({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <Text fontSize="$lg" fontWeight="700" flex={1}>
+    <Text className={cn("flex-1 text-lg font-bold text-card-foreground", className)}>
       {children}
     </Text>
   );
 }
 
-export function CardAction({ children }: CardSlotProps) {
+export function CardAction({ className, children, ...props }: CardSlotProps) {
   return (
-    <XStack items="center" gap="$md">
+    <View className={cn("flex-row items-center gap-md", className)} {...props}>
       {children}
-    </XStack>
+    </View>
   );
 }
 
-export function CardContent({ children }: CardSlotProps) {
+export function CardContent({ className, children, ...props }: CardSlotProps) {
   return (
-    <YStack gap="$md" p="$md">
+    <View className={cn("gap-md p-md", className)} {...props}>
       {children}
-    </YStack>
+    </View>
   );
 }
 
-export function CardFooter({ children }: CardSlotProps) {
+export function CardFooter({ className, children, ...props }: CardSlotProps) {
   return (
-    <CardPrimitive.Footer>
-      <XStack flex={1} justify="flex-end" gap="$md" p="$md">
-        {children}
-      </XStack>
-    </CardPrimitive.Footer>
+    <View className={cn("flex-1 flex-row justify-end gap-md p-md", className)} {...props}>
+      {children}
+    </View>
   );
 }

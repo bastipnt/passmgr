@@ -12,7 +12,7 @@
     ".expo/types/**/*.ts",
     "expo-env.d.ts",
     "types.d.ts",
-    "nativewind-env.d.ts"
+    "src/uniwind-env.d.ts"
   ],
   "exclude": ["node_modules"]
 }

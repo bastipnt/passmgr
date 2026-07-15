@@ -1,4 +1,3 @@
-import { KeyboardAvoidingView as BaseKeyboardAvoidingView } from "react-native";
-import { styled } from "tamagui";
-
-export const KeyboardAvoidingView = styled(BaseKeyboardAvoidingView, {});
+// RN's KeyboardAvoidingView already accepts `className` via uniwind/types
+// (KeyboardAvoidingViewProps extends ViewProps), so a plain re-export is enough.
+export { KeyboardAvoidingView } from "react-native";

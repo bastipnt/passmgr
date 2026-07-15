@@ -1,4 +1,4 @@
-import { Text, YStack } from "tamagui";
+import { View, Text } from "react-native";
 
 export type FieldErrorProps = {
   errors: { message: string }[];
@@ -8,12 +8,12 @@ export function FieldError({ errors }: FieldErrorProps) {
   if (errors.length === 0) return null;
 
   return (
-    <YStack gap="$sm" mt="$xs">
+    <View className="mt-xs gap-sm">
       {errors.map((e, i) => (
-        <Text key={i} fontSize="$md" color="$destructive">
+        <Text key={i} className="text-md text-destructive">
           {e.message}
         </Text>
       ))}
-    </YStack>
+    </View>
   );
 }

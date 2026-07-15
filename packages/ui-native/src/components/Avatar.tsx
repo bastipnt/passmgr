@@ -1,13 +1,7 @@
 import { createContext, useContext, type ReactNode } from "react";
-import {
-  Avatar as AvatarPrimitive,
-  type AvatarProps,
-  type FontSizeTokens,
-  Text,
-  XStack,
-  YStack,
-  type YStackProps,
-} from "tamagui";
+import { Image, type ImageProps, View, type ViewProps, Text } from "react-native";
+
+import { cn } from "../lib/utils";
 
 type AvatarSize = "default" | "sm" | "lg";
 
@@ -23,118 +17,126 @@ const badgeSizeMap: Record<AvatarSize, number> = {
   lg: 12,
 };
 
-const fallbackFontMap: Record<AvatarSize, FontSizeTokens> = {
-  default: "$lg",
-  sm: "$md",
-  lg: "$lg",
+const fallbackTextClass: Record<AvatarSize, string> = {
+  default: "text-lg",
+  sm: "text-md",
+  lg: "text-lg",
 };
 
-// Web uses `group-data-[size]` CSS selectors so children can scale to the avatar
-// size. Native has no such selectors, so we thread the size through context.
 const AvatarSizeContext = createContext<AvatarSize>("default");
 
 export function Avatar({
   size = "default",
+  className,
+  style,
+  children,
   ...props
-}: Omit<AvatarProps, "size"> & { size?: AvatarSize }) {
+}: ViewProps & { size?: AvatarSize; className?: string }) {
   const dimension = sizeMap[size];
   return (
     <AvatarSizeContext.Provider value={size}>
-      <AvatarPrimitive circular width={dimension} height={dimension} {...props} unstyled />
+      <View
+        className={cn("items-center justify-center overflow-hidden rounded-full", className)}
+        style={[{ width: dimension, height: dimension }, style]}
+        {...props}
+      >
+        {children}
+      </View>
     </AvatarSizeContext.Provider>
   );
 }
 
-export function AvatarImage(props: React.ComponentProps<typeof AvatarPrimitive.Image>) {
-  const size = useContext(AvatarSizeContext);
-  const dimension = badgeSizeMap[size];
-
+export function AvatarImage({
+  src,
+  className,
+  ...props
+}: Omit<ImageProps, "source"> & { src?: string; className?: string }) {
+  if (!src) return null;
   return (
-    <AvatarPrimitive.Image
+    <Image
       accessibilityRole="image"
-      width={dimension}
-      height={dimension}
+      source={{ uri: src }}
+      className={cn("h-full w-full", className)}
       {...props}
-      unstyled
     />
   );
 }
 
 export function AvatarFallback({
   children,
+  className,
   ...props
-}: React.ComponentProps<typeof AvatarPrimitive.Fallback>) {
+}: ViewProps & { className?: string; children?: ReactNode }) {
   const size = useContext(AvatarSizeContext);
   return (
-    <AvatarPrimitive.Fallback bg="$color3" items="center" justify="center" {...props} unstyled>
+    <View
+      className={cn("h-full w-full items-center justify-center bg-muted", className)}
+      {...props}
+    >
       {typeof children === "string" ? (
-        <Text fontSize={fallbackFontMap[size]} color="$color11">
-          {children}
-        </Text>
+        <Text className={cn("text-muted-foreground", fallbackTextClass[size])}>{children}</Text>
       ) : (
         children
       )}
-    </AvatarPrimitive.Fallback>
+    </View>
   );
 }
 
-export function AvatarBadge({ children, ...props }: YStackProps) {
+export function AvatarBadge({
+  children,
+  className,
+  style,
+  ...props
+}: ViewProps & { className?: string }) {
   const size = useContext(AvatarSizeContext);
   const dimension = badgeSizeMap[size];
   return (
-    <YStack
-      position="absolute"
-      r={0}
-      b={0}
-      z={10}
-      width={dimension}
-      height={dimension}
-      rounded={9999}
-      items="center"
-      justify="center"
-      bg="$accent9"
-      borderWidth={2}
-      borderColor="$background"
+    <View
+      className={cn(
+        "absolute bottom-0 right-0 z-10 items-center justify-center rounded-full border-2 border-background bg-primary",
+        className,
+      )}
+      style={[{ width: dimension, height: dimension }, style]}
       {...props}
     >
       {children}
-    </YStack>
+    </View>
   );
 }
 
 export function AvatarGroup({
   size = "default",
+  className,
   children,
   ...props
-}: YStackProps & { size?: AvatarSize }) {
+}: ViewProps & { size?: AvatarSize; className?: string }) {
   return (
     <AvatarSizeContext.Provider value={size}>
-      <XStack items="center" {...props}>
+      <View className={cn("flex-row items-center", className)} {...props}>
         {children}
-      </XStack>
+      </View>
     </AvatarSizeContext.Provider>
   );
 }
 
-export function AvatarGroupCount({ children, ...props }: YStackProps & { children: ReactNode }) {
+export function AvatarGroupCount({
+  children,
+  className,
+  style,
+  ...props
+}: ViewProps & { className?: string; children: ReactNode }) {
   const size = useContext(AvatarSizeContext);
   const dimension = sizeMap[size];
   return (
-    <YStack
-      width={dimension}
-      height={dimension}
-      ml={-8}
-      rounded={9999}
-      items="center"
-      justify="center"
-      bg="$color3"
-      borderWidth={2}
-      borderColor="$background"
+    <View
+      className={cn(
+        "-ml-2 items-center justify-center rounded-full border-2 border-background bg-muted",
+        className,
+      )}
+      style={[{ width: dimension, height: dimension }, style]}
       {...props}
     >
-      <Text fontSize={fallbackFontMap[size]} color="$color11">
-        {children}
-      </Text>
-    </YStack>
+      <Text className={cn("text-muted-foreground", fallbackTextClass[size])}>{children}</Text>
+    </View>
   );
 }

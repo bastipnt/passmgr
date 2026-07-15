@@ -1,63 +1,61 @@
-import { styled, Text, YStack } from "tamagui";
+import { type ReactNode } from "react";
+import { View, type ViewProps, Text, type TextProps } from "react-native";
+import { cva, type VariantProps } from "class-variance-authority";
 
-export const Empty = styled(YStack, {
-  name: "Empty",
-  width: "100%",
-  gap: "$lg",
-  p: "$lg",
-  rounded: "$lg",
-  borderWidth: 1,
-  borderColor: "$borderColor",
-  borderStyle: "dashed",
-  items: "center",
-  justify: "center",
-});
+import { cn } from "../lib/utils";
 
-export const EmptyHeader = styled(YStack, {
-  name: "EmptyHeader",
-  gap: "$md",
-  maxW: 320,
-  items: "center",
-});
+export function Empty({ className, ...props }: ViewProps & { className?: string }) {
+  return (
+    <View
+      className={cn(
+        "w-full items-center justify-center gap-lg rounded-lg border border-dashed border-border p-lg",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
 
-export const EmptyMedia = styled(YStack, {
-  name: "EmptyMedia",
-  items: "center",
-  justify: "center",
+export function EmptyHeader({ className, ...props }: ViewProps & { className?: string }) {
+  return <View className={cn("max-w-[320px] items-center gap-md", className)} {...props} />;
+}
 
+const emptyMediaVariants = cva("items-center justify-center", {
   variants: {
     variant: {
-      default: { bg: "transparent" },
-      icon: {
-        width: 32,
-        height: 32,
-        rounded: "$lg",
-        bg: "$color3",
-      },
+      default: "bg-transparent",
+      icon: "h-[32px] w-[32px] rounded-lg bg-muted",
     },
-  } as const,
-
+  },
   defaultVariants: {
     variant: "default",
   },
 });
 
-export const EmptyTitle = styled(Text, {
-  name: "EmptyTitle",
-  fontSize: "$md",
-  fontWeight: "500",
-});
+export function EmptyMedia({
+  className,
+  variant = "default",
+  ...props
+}: ViewProps & { className?: string } & VariantProps<typeof emptyMediaVariants>) {
+  return <View className={cn(emptyMediaVariants({ variant }), className)} {...props} />;
+}
 
-export const EmptyDescription = styled(Text, {
-  name: "EmptyDescription",
-  fontSize: "$md",
-  color: "$color11",
-});
+export function EmptyTitle({ className, ...props }: TextProps & { className?: string }) {
+  return <Text className={cn("text-md font-medium", className)} {...props} />;
+}
 
-export const EmptyContent = styled(YStack, {
-  name: "EmptyContent",
-  width: "100%",
-  maxW: 320,
-  gap: "$md",
-  items: "center",
-});
+export function EmptyDescription({ className, ...props }: TextProps & { className?: string }) {
+  return <Text className={cn("text-md text-muted-foreground", className)} {...props} />;
+}
+
+export function EmptyContent({
+  className,
+  children,
+  ...props
+}: ViewProps & { className?: string; children?: ReactNode }) {
+  return (
+    <View className={cn("w-full max-w-[320px] items-center gap-md", className)} {...props}>
+      {children}
+    </View>
+  );
+}

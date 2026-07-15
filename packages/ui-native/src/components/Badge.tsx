@@ -1,63 +1,60 @@
-import { type ColorTokens, SizableText, styled, XStack, type XStackProps } from "tamagui";
+import { type ReactNode } from "react";
+import { View, type ViewProps, Text } from "react-native";
+import { cva, type VariantProps } from "class-variance-authority";
 
-type BadgeVariant = "default" | "secondary" | "destructive" | "outline" | "ghost" | "link";
+import { cn } from "../lib/utils";
 
-const BadgeFrame = styled(XStack, {
-  name: "Badge",
-  height: 20,
-  items: "center",
-  justify: "center",
-  gap: "$md",
-  px: "$md",
-  rounded: 9999,
-  borderWidth: 1,
-  borderColor: "transparent",
-  overflow: "hidden",
+const badgeVariants = cva(
+  "h-[20px] flex-row items-center justify-center gap-md rounded-full border border-transparent px-md overflow-hidden",
+  {
+    variants: {
+      variant: {
+        default: "bg-primary",
+        secondary: "bg-secondary",
+        destructive: "bg-destructive/10",
+        outline: "border-border",
+        ghost: "bg-transparent",
+        link: "bg-transparent",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  },
+);
 
+const badgeTextVariants = cva("text-xs font-medium", {
   variants: {
     variant: {
-      default: { bg: "$accent9" },
-      secondary: { bg: "$color4" },
-      destructive: { theme: "error", bg: "$color5" },
-      outline: { borderColor: "$borderColor" },
-      ghost: { bg: "transparent" },
-      link: { bg: "transparent" },
+      default: "text-primary-foreground",
+      secondary: "text-secondary-foreground",
+      destructive: "text-destructive",
+      outline: "text-foreground",
+      ghost: "text-foreground",
+      link: "text-primary underline",
     },
-  } as const,
-
+  },
   defaultVariants: {
     variant: "default",
   },
 });
 
-const textColorMap: Record<BadgeVariant, ColorTokens> = {
-  default: "$accent11",
-  secondary: "$color12",
-  destructive: "$color11",
-  outline: "$color12",
-  ghost: "$color11",
-  link: "$accent10",
-};
+export type BadgeProps = ViewProps &
+  VariantProps<typeof badgeVariants> & {
+    className?: string;
+    children?: ReactNode;
+  };
 
-export function Badge({
-  variant = "default",
-  children,
-  ...props
-}: XStackProps & { variant?: BadgeVariant }) {
+export function Badge({ variant = "default", className, children, ...props }: BadgeProps) {
   return (
-    <BadgeFrame variant={variant} {...props}>
+    <View className={cn(badgeVariants({ variant }), className)} {...props}>
       {typeof children === "string" ? (
-        <SizableText
-          size="$md"
-          fontWeight="500"
-          color={textColorMap[variant]}
-          textDecorationLine={variant === "link" ? "underline" : "none"}
-        >
-          {children}
-        </SizableText>
+        <Text className={cn(badgeTextVariants({ variant }))}>{children}</Text>
       ) : (
         children
       )}
-    </BadgeFrame>
+    </View>
   );
 }
+
+export { badgeVariants, badgeTextVariants };

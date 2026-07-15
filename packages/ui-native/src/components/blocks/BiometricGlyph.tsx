@@ -1,17 +1,18 @@
 import Svg, { Circle, Path } from "react-native-svg";
-import { getTokenValue, ColorTokens, Token } from "tamagui";
+import { Uniwind } from "uniwind";
 
 export type BiometricGlyphProps = {
   size?: number;
-  color?: ColorTokens;
+  /** Resolved color string (hex/rgb). Defaults to the `--color-primary` token. */
+  color?: string;
 };
 
 /**
  * Face ID style glyph drawn on a 24x24 grid: four rounded corner brackets framing
  * two eyes and a smile. Indigo by default to sit on the white unlock circle.
  */
-export function BiometricGlyph({ size = 42, color = "$primary" }: BiometricGlyphProps) {
-  const colorVal = getTokenValue(color as Token);
+export function BiometricGlyph({ size = 42, color }: BiometricGlyphProps) {
+  const colorVal = color ?? (Uniwind.getCSSVariable("--color-primary") as string);
 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">

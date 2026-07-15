@@ -1,5 +1,6 @@
 import { useLocalSearchParams, usePathname, useRouter } from "expo-router";
-import { Button, Main, Text } from "tamagui";
+import { View, Text } from "react-native";
+import { Button } from "@repo/ui-native";
 
 export default function EditScreen() {
   const router = useRouter();
@@ -7,10 +8,10 @@ export default function EditScreen() {
   const pathname = usePathname();
 
   return (
-    <Main>
-      <Text fontSize="$lg">Edit ID: {recordId}</Text>
-      <Text fontSize="$lg">Path: {pathname}</Text>
+    <View className="flex-1 gap-md bg-background p-md">
+      <Text className="text-lg text-foreground">Edit ID: {recordId}</Text>
+      <Text className="text-lg text-foreground">Path: {pathname}</Text>
       <Button onPress={() => router.back()}>Close</Button>
-    </Main>
+    </View>
   );
 }

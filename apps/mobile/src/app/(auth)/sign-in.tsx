@@ -3,7 +3,7 @@ import { useRouter } from "expo-router";
 import { useLogin, useUnlock } from "@repo/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { Text, View } from "tamagui";
+import { Pressable, Text } from "react-native";
 import {
   ControlledInput,
   ControlledPasswordInput,
@@ -67,12 +67,10 @@ export default function SignInScreen() {
         label="Password"
         textContentType="password"
         note={
-          <View self="flex-end" mt="$xs" hitSlop={8} onPress={() => {}}>
+          <Pressable className="mt-xs self-end" hitSlop={8} onPress={() => {}}>
             {/* TODO: wire a real password-reset flow */}
-            <Text fontSize="$xs" fontWeight="$bold" lineHeight="$sm" color="$primary">
-              Forgot password?
-            </Text>
-          </View>
+            <Text className="text-xs font-bold text-primary">Forgot password?</Text>
+          </Pressable>
         }
       />
 

@@ -1,4 +1,4 @@
-import { Text, View } from "tamagui";
+import { View, Text } from "react-native";
 
 type RecordGroupLabelProps = {
   text: string;
@@ -6,8 +6,8 @@ type RecordGroupLabelProps = {
 
 export function RecordGroupLabel({ text }: RecordGroupLabelProps) {
   return (
-    <View p="$md" bg="$accent10">
-      <Text>{text}</Text>
+    <View className="bg-muted px-md py-sm">
+      <Text className="text-xs font-semibold uppercase text-muted-foreground">{text}</Text>
     </View>
   );
 }

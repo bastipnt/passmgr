@@ -1,4 +1,4 @@
-import { styled } from "tamagui";
 import { BlurView as BlurViewPrimitive } from "expo-blur";
+import { withUniwind } from "uniwind";
 
-export const BlurView = styled(BlurViewPrimitive, {});
+export const BlurView = withUniwind(BlurViewPrimitive);

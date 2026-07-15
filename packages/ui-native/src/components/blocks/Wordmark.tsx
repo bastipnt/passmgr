@@ -1,35 +1,35 @@
-import { XStack, Text, ColorTokens } from "tamagui";
+import { View, Text } from "react-native";
+
+import { cn } from "../../lib/utils";
 
 export type WordmarkProps = {
   size?: number;
-  color?: ColorTokens;
-  dot?: ColorTokens;
+  /** Tailwind text-color class for the wordmark. */
+  colorClassName?: string;
+  /** Tailwind text-color class for the trailing accent dot. */
+  dotClassName?: string;
 };
 
 /**
- * "Passmgr" wordmark with a trailing accent dot. Text-based (Inter from the
- * tamagui config) rather than an SVG glyph, so it follows the app font setup.
+ * "Passmgr" wordmark with a trailing accent dot. Text-based (Inter) rather than
+ * an SVG glyph, so it follows the app font setup.
  */
 export function Wordmark({
   size = 40,
-  color = "$background",
-  dot = "$mutedForeground",
+  colorClassName = "text-background",
+  dotClassName = "text-muted-foreground",
 }: WordmarkProps) {
   return (
-    <XStack items="flex-end" gap={size * 0.04}>
+    <View className="flex-row items-end" style={{ gap: size * 0.04 }}>
       <Text
-        fontFamily="$body"
-        fontSize={size}
-        lineHeight={size}
-        fontWeight="700"
-        color={color}
-        letterSpacing={-size * 0.02}
+        className={cn("font-bold", colorClassName)}
+        style={{ fontSize: size, lineHeight: size, letterSpacing: -size * 0.02 }}
       >
         Passmgr
       </Text>
-      <Text fontFamily="$body" fontSize={size} lineHeight={size} fontWeight="700" color={dot}>
+      <Text className={cn("font-bold", dotClassName)} style={{ fontSize: size, lineHeight: size }}>
         .
       </Text>
-    </XStack>
+    </View>
   );
 }

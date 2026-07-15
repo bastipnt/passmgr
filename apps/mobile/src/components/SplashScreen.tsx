@@ -1,4 +1,4 @@
-import { YStack, View, Text } from "tamagui";
+import { View, Text } from "react-native";
 import { BlurView, BrandMark, SpinnerRing, SplashGradient, Wordmark } from "@repo/ui-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -11,88 +11,49 @@ export function SplashScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <YStack flex={1} items="center" justify="center" bg="#4B36D6">
+    <View className="flex-1 items-center justify-center bg-[#4B36D6]">
       <SplashGradient />
 
       {/* floating decor */}
       <View
-        position="absolute"
-        t={120}
-        l={-40}
-        width={150}
-        height={150}
-        rounded={44}
-        borderWidth={2}
-        borderColor="rgba(255,255,255,0.18)"
-        rotate="18deg"
+        className="absolute left-[-40px] top-[120px] h-[150px] w-[150px] rounded-[44px] border-2 border-[rgba(255,255,255,0.18)]"
+        style={{ transform: [{ rotate: "18deg" }] }}
       />
       <View
-        position="absolute"
-        b={150}
-        r={-50}
-        width={190}
-        height={190}
-        rounded={56}
-        borderWidth={2}
-        borderColor="rgba(255,255,255,0.14)"
-        rotate="-12deg"
+        className="absolute bottom-[150px] right-[-50px] h-[190px] w-[190px] rounded-[56px] border-2 border-[rgba(255,255,255,0.14)]"
+        style={{ transform: [{ rotate: "-12deg" }] }}
       />
-      <View
-        position="absolute"
-        t={250}
-        r={40}
-        width={14}
-        height={14}
-        rounded={5}
-        bg="rgba(255,255,255,0.5)"
-      />
-      <View
-        position="absolute"
-        b={280}
-        l={44}
-        width={10}
-        height={10}
-        rounded={4}
-        bg="rgba(255,255,255,0.4)"
-      />
+      <View className="absolute right-[40px] top-[250px] h-[14px] w-[14px] rounded-[5px] bg-[rgba(255,255,255,0.5)]" />
+      <View className="absolute bottom-[280px] left-[44px] h-[10px] w-[10px] rounded-[4px] bg-[rgba(255,255,255,0.4)]" />
 
       {/* logo + wordmark */}
-      <YStack items="center" gap={26}>
+      <View className="items-center gap-[26px]">
         <BlurView
           intensity={18}
           tint="light"
-          width={118}
-          height={118}
-          rounded={30}
-          overflow="hidden"
-          items="center"
-          justify="center"
-          borderWidth={1.5}
-          borderColor="rgba(255,255,255,0.35)"
-          bg="rgba(255,255,255,0.14)"
-          shadowColor="rgba(40,30,120,0.4)"
-          shadowOffset={{ width: 0, height: 18 }}
-          shadowRadius={30}
-          shadowOpacity={1}
+          className="h-[118px] w-[118px] items-center justify-center overflow-hidden rounded-[30px] border-[1.5px] border-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.14)]"
+          style={{
+            shadowColor: "rgba(40,30,120,0.4)",
+            shadowOffset: { width: 0, height: 18 },
+            shadowRadius: 30,
+            shadowOpacity: 1,
+          }}
         >
-          <BrandMark size={70} color="$background" />
+          <BrandMark size={70} />
         </BlurView>
-        <Wordmark size={40} color="$background" dot="$mutedForeground" />
-      </YStack>
+        <Wordmark size={40} />
+      </View>
 
       {/* footer */}
-      <YStack position="absolute" b={insets.bottom + 64} items="center" gap={14}>
+      <View className="absolute items-center gap-[14px]" style={{ bottom: insets.bottom + 64 }}>
         <Text
-          fontFamily="$body"
-          fontSize={14}
-          fontWeight="600"
-          color="rgba(255,255,255,0.78)"
-          letterSpacing={0.3}
+          className="text-[rgba(255,255,255,0.78)]"
+          style={{ fontSize: 14, fontWeight: "600", letterSpacing: 0.3 }}
         >
           End-to-end encrypted
         </Text>
         <SpinnerRing size={26} />
-      </YStack>
-    </YStack>
+      </View>
+    </View>
   );
 }
