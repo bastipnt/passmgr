@@ -3,6 +3,7 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { SessionContext, useLogout } from "@repo/client";
 import { View, ScrollView, Text, Alert, StyleSheet } from "react-native";
 import { BlurView, Button, Spinner } from "@repo/ui-native";
+import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 export default function SettingsScreen() {
   const { sessionId } = useContext(SessionContext);
@@ -23,6 +24,7 @@ export default function SettingsScreen() {
           <View className="gap-md p-md">
             <Text className="text-lg text-foreground">Settings</Text>
             <Text className="text-foreground">Logged in with sessionId: {sessionId}</Text>
+            <ThemeSwitch />
             <Button
               variant="destructive"
               disabled={loggingOut}

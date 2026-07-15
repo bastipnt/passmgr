@@ -19,6 +19,7 @@ import {
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { getStoredTheme } from "@/hooks/use-theme-preference";
 import { useVaultStore } from "@/hooks/use-vault-store";
 import { useContext, useEffect } from "react";
 
@@ -64,11 +65,11 @@ export default function RootLayout() {
   const preferencesStore = usePreferencesStore();
   const vaultStore = useVaultStore();
 
-  // Follow the device light/dark setting. Uniwind's light/dark themes are
-  // adaptive; "system" re-enables tracking the OS color scheme.
+  // Apply the persisted appearance choice. Uniwind's light/dark themes are
+  // adaptive; "system" (the default) re-enables tracking the OS color scheme.
   useEffect(() => {
-    Uniwind.setTheme("system");
-  }, []);
+    Uniwind.setTheme(getStoredTheme(preferencesStore));
+  }, [preferencesStore]);
 
   return (
     <SafeAreaProvider>
