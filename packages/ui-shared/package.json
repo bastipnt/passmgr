@@ -5,7 +5,7 @@
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
-    "./colors.css": "./src/tokens/colors.css"
+    "./theme.css": "./src/tokens/theme.css"
   },
   "scripts": {
     "lint": "oxlint --type-aware",

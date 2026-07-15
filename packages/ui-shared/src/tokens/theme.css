@@ -1,0 +1,127 @@
+/*
+ * Cross-platform semantic color palette — the single source of truth.
+ * Consumed by web (packages/ui/src/styles/globals.css) and mobile
+ * (apps/mobile/src/global.css, the uniwind cssEntryFile).
+ *
+ * THE SHAPE BELOW IS LOAD-BEARING FOR MOBILE. uniwind's rule-visitor only
+ * extracts theme values from `@layer theme { :root { &:where(.<theme>) {} } }`:
+ *   - the @layer theme / :root nesting is required
+ *   - `&:where()` is required — `:is()` is not detected
+ *   - only the FIRST @variant light / @variant dark block per theme is read, so
+ *     every shared token must live in the single block below
+ *   - every token must exist in BOTH light and dark, or uniwind hard-errors
+ *     ("All themes must have the same variables")
+ *
+ * `@variant light` / `@variant dark` resolve against each platform's own
+ * @custom-variant definitions, which deliberately differ:
+ *   mobile → :where(), generated into node_modules/uniwind/uniwind.css
+ *   web    → :is(),    declared in packages/ui/src/styles/globals.css
+ */
+
+/*
+ * Registration only. `unset` registers the --color-* namespace key so Tailwind
+ * generates the matching bg-, text- and border- utilities, while leaving the
+ * value invalid at :root so the light/dark blocks below always win. Do not
+ * give these real values.
+ */
+@theme {
+  --color-background: unset;
+  --color-foreground: unset;
+  --color-card: unset;
+  --color-card-foreground: unset;
+  --color-popover: unset;
+  --color-popover-foreground: unset;
+  --color-muted: unset;
+  --color-muted-foreground: unset;
+  --color-primary: unset;
+  --color-primary-foreground: unset;
+  --color-primary-pressed: unset;
+  --color-secondary: unset;
+  --color-secondary-foreground: unset;
+  --color-accent: unset;
+  --color-accent-foreground: unset;
+  --color-destructive: unset;
+  --color-border: unset;
+  --color-input: unset;
+  --color-ring: unset;
+}
+
+/*
+ * Theme-invariant status colors, mirroring LEVEL_COLOR in ./colors.ts. These
+ * must stay out of the @variant blocks — uniwind requires light and dark to
+ * declare identical variable sets.
+ */
+@theme {
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-error: #de4047;
+}
+
+/*
+ * Radius ladder, derived from a single --radius base so the steps stay evenly
+ * spaced if the base is retuned. uniwind resolves the rem base and the calc()
+ * steps at build time on native (rem uses --uniwind-em, default 16), so both
+ * platforms render the same px.
+ *
+ * --radius itself must stay a real custom property at runtime: web reads it via
+ * var(--radius) in Toaster.tsx and rounded-[calc(var(--radius)-5px)] in
+ * InputGroup.tsx.
+ */
+@theme {
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --radius-3xl: calc(var(--radius) + 12px);
+  --radius-4xl: calc(var(--radius) + 16px);
+}
+
+@layer theme {
+  :root {
+    @variant light {
+      --color-background: #e0e4f9;
+      --color-foreground: #000000;
+      --color-card: #f3f5ff;
+      --color-card-foreground: #000000;
+      --color-popover: #f3f5ff;
+      --color-popover-foreground: #000000;
+      --color-muted: #d0d3e8;
+      --color-muted-foreground: #242535;
+      --color-primary: #4b36d6;
+      --color-primary-foreground: #ffffff;
+      --color-primary-pressed: #3c16be;
+      --color-secondary: #c0c3d8;
+      --color-secondary-foreground: #000000;
+      --color-accent: #d0d3e8;
+      --color-accent-foreground: #000000;
+      --color-destructive: #de4047;
+      --color-border: #9194a8;
+      --color-input: #9194a8;
+      --color-ring: #34259b;
+    }
+
+    @variant dark {
+      --color-background: #242535;
+      --color-foreground: #d0d3e8;
+      --color-card: #303242;
+      --color-card-foreground: #d0d3e8;
+      --color-popover: #303242;
+      --color-popover-foreground: #d0d3e8;
+      --color-muted: #575a6c;
+      --color-muted-foreground: #b0b3c8;
+      --color-primary: #6565de;
+      --color-primary-foreground: #ffffff;
+      --color-primary-pressed: #5350c6;
+      --color-secondary: #181a28;
+      --color-secondary-foreground: #d0d3e8;
+      --color-accent: #3d3f50;
+      --color-accent-foreground: #d0d3e8;
+      --color-destructive: #de4047;
+      --color-border: #575a6c;
+      --color-input: #575a6c;
+      --color-ring: #9299ff;
+    }
+  }
+}

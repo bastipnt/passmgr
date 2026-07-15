@@ -5,41 +5,41 @@ import { Meta, ColorPalette, ColorItem } from "@storybook/addon-docs/blocks";
 
 # Colors
 
-Tokens come from `src/styles/globals.css`. Light values from `:root`, dark values from `.dark`. Toggle the theme in the toolbar to flip.
+The semantic palette comes from `@repo/ui-shared/theme.css`, shared verbatim with mobile. The `--sidebar-*` aliases below are web-only and live in `src/styles/globals.css`. Toggle the theme in the toolbar to flip.
 
 ## Surface
 
 <ColorPalette>
   <ColorItem
     title="Background"
-    subtitle="--background / --foreground"
+    subtitle="--color-background / --color-foreground"
     colors={{
-      background: "var(--background)",
-      foreground: "var(--foreground)",
+      background: "var(--color-background)",
+      foreground: "var(--color-foreground)",
     }}
   />
   <ColorItem
     title="Card"
-    subtitle="--card / --card-foreground"
+    subtitle="--color-card / --color-card-foreground"
     colors={{
-      card: "var(--card)",
-      "card-foreground": "var(--card-foreground)",
+      card: "var(--color-card)",
+      "card-foreground": "var(--color-card-foreground)",
     }}
   />
   <ColorItem
     title="Popover"
-    subtitle="--popover / --popover-foreground"
+    subtitle="--color-popover / --color-popover-foreground"
     colors={{
-      popover: "var(--popover)",
-      "popover-foreground": "var(--popover-foreground)",
+      popover: "var(--color-popover)",
+      "popover-foreground": "var(--color-popover-foreground)",
     }}
   />
   <ColorItem
     title="Muted"
-    subtitle="--muted / --muted-foreground"
+    subtitle="--color-muted / --color-muted-foreground"
     colors={{
-      muted: "var(--muted)",
-      "muted-foreground": "var(--muted-foreground)",
+      muted: "var(--color-muted)",
+      "muted-foreground": "var(--color-muted-foreground)",
     }}
   />
 </ColorPalette>
@@ -47,44 +47,62 @@ Tokens come from `src/styles/globals.css`. Light values from `:root`, dark value
 ## Brand
 
 <ColorPalette>
-  <ColorItem title="Base" subtitle="--base (hue source)" colors={{ base: "var(--base)" }} />
   <ColorItem
     title="Primary"
-    subtitle="--primary / --primary-foreground"
+    subtitle="--color-primary / --color-primary-foreground"
     colors={{
-      primary: "var(--primary)",
-      "primary-foreground": "var(--primary-foreground)",
+      primary: "var(--color-primary)",
+      "primary-foreground": "var(--color-primary-foreground)",
     }}
   />
   <ColorItem
+    title="Primary pressed"
+    subtitle="--color-primary-pressed"
+    colors={{ "primary-pressed": "var(--color-primary-pressed)" }}
+  />
+  <ColorItem
     title="Secondary"
-    subtitle="--secondary / --secondary-foreground"
+    subtitle="--color-secondary / --color-secondary-foreground"
     colors={{
-      secondary: "var(--secondary)",
-      "secondary-foreground": "var(--secondary-foreground)",
+      secondary: "var(--color-secondary)",
+      "secondary-foreground": "var(--color-secondary-foreground)",
     }}
   />
   <ColorItem
     title="Accent"
-    subtitle="--accent / --accent-foreground"
+    subtitle="--color-accent / --color-accent-foreground"
     colors={{
-      accent: "var(--accent)",
-      "accent-foreground": "var(--accent-foreground)",
+      accent: "var(--color-accent)",
+      "accent-foreground": "var(--color-accent-foreground)",
     }}
   />
   <ColorItem
     title="Destructive"
-    subtitle="--destructive"
-    colors={{ destructive: "var(--destructive)" }}
+    subtitle="--color-destructive"
+    colors={{ destructive: "var(--color-destructive)" }}
+  />
+</ColorPalette>
+
+## Status
+
+<ColorPalette>
+  <ColorItem
+    title="Status"
+    subtitle="--color-success / --color-warning / --color-error"
+    colors={{
+      success: "var(--color-success)",
+      warning: "var(--color-warning)",
+      error: "var(--color-error)",
+    }}
   />
 </ColorPalette>
 
 ## Borders & Rings
 
 <ColorPalette>
-  <ColorItem title="Border" subtitle="--border" colors={{ border: "var(--border)" }} />
-  <ColorItem title="Input" subtitle="--input" colors={{ input: "var(--input)" }} />
-  <ColorItem title="Ring" subtitle="--ring" colors={{ ring: "var(--ring)" }} />
+  <ColorItem title="Border" subtitle="--color-border" colors={{ border: "var(--color-border)" }} />
+  <ColorItem title="Input" subtitle="--color-input" colors={{ input: "var(--color-input)" }} />
+  <ColorItem title="Ring" subtitle="--color-ring" colors={{ ring: "var(--color-ring)" }} />
 </ColorPalette>
 
 ## Sidebar

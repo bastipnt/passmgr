@@ -2,6 +2,13 @@
 @import "uniwind";
 
 /*
+ * Semantic color tokens, shared verbatim with apps/web via @repo/ui. Must come
+ * after "uniwind", which provides the light/dark @custom-variant definitions
+ * the imported @variant blocks resolve against.
+ */
+@import "@repo/ui-shared/theme.css";
+
+/*
  * Tailwind must scan the sibling workspace package for class strings. v4
  * auto-detects this app, but @repo/ui-native lives outside the app root and
  * needs an explicit @source. Path is relative to this file (apps/mobile/src).
@@ -9,78 +16,19 @@
 @source "../../../packages/ui-native/src";
 
 /*
- * Semantic color tokens. Values are transcribed from
- * packages/ui-shared/src/tokens/colors.ts (colors.light / colors.dark) — the
- * single source of truth. Keep both variants in lockstep: every var must exist
- * in both `light` and `dark`. Names use web kebab-case (bg-primary,
- * text-primary-foreground, …) so class strings match apps/web / @repo/ui.
- */
-@layer theme {
-  :root {
-    @variant light {
-      --color-background: #e0e4f9;
-      --color-foreground: #000000;
-      --color-card: #f3f5ff;
-      --color-card-foreground: #000000;
-      --color-muted: #d0d3e8;
-      --color-muted-foreground: #242535;
-      --color-primary: #4b36d6;
-      --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #3c16be;
-      --color-secondary: #c0c3d8;
-      --color-secondary-foreground: #000000;
-      --color-accent: #d0d3e8;
-      --color-accent-foreground: #000000;
-      --color-destructive: #de4047;
-      --color-border: #9194a8;
-      --color-input: #9194a8;
-      --color-ring: #34259b;
-    }
-
-    @variant dark {
-      --color-background: #242535;
-      --color-foreground: #d0d3e8;
-      --color-card: #303242;
-      --color-card-foreground: #d0d3e8;
-      --color-muted: #575a6c;
-      --color-muted-foreground: #b0b3c8;
-      --color-primary: #6565de;
-      --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #5350c6;
-      --color-secondary: #181a28;
-      --color-secondary-foreground: #d0d3e8;
-      --color-accent: #3d3f50;
-      --color-accent-foreground: #d0d3e8;
-      --color-destructive: #de4047;
-      --color-border: #575a6c;
-      --color-input: #575a6c;
-      --color-ring: #9299ff;
-    }
-  }
-}
-
-/*
- * Theme-invariant tokens + scales. These generate utilities directly.
- *   - status colors (success/warning/error) mirror LEVEL_COLOR / destructive
- *   - spacing scale = the sizeToSpace()-derived values Tamagui rendered for
- *     p/m/gap from spacing.{xs..xxl} (see prior tamagui.config.ts)
- *   - radius/text scales = raw values from @repo/ui-shared tokens
+ * Mobile-local scales. The radius ladder is shared (see theme.css); these two
+ * deliberately differ from web and so stay here:
+ *   - spacing = the sizeToSpace()-derived values Tamagui rendered for p/m/gap
+ *     from spacing.{xs..xxl} (see prior tamagui.config.ts)
+ *   - text = raw px, where web uses Tailwind's default rem-based scale
  */
 @theme {
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #de4047;
-
   --spacing-xs: 2px;
   --spacing-sm: 7px;
   --spacing-md: 18px;
   --spacing-lg: 24px;
   --spacing-xl: 39px;
   --spacing-xxl: 60px;
-
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 14px;
 
   --text-xs: 12px;
   --text-sm: 14px;

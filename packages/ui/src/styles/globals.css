@@ -1,27 +1,55 @@
-@import "@repo/ui-shared/colors.css";
 @import "tailwindcss";
+@import "@repo/ui-shared/theme.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/inter";
 
-@source "../../../apps/**/*.{ts,tsx}";
-@source "../../../components/**/*.{ts,tsx}";
+@source "../../../apps/web/src/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
-@custom-variant dark (&:is(.dark *));
+/*
+ * Mirrors the light/dark variants uniwind generates for mobile, but with :is()
+ * instead of :where(). :is(.dark, .dark *) is (0,1,0) — the same specificity as
+ * the previous `:is(.dark *)` — so every dark:* utility keeps its exact
+ * precedence against state variants (e.g. Button's outline variant pairs
+ * dark:bg-input/30 with an unpaired aria-expanded:bg-muted). :where() would
+ * drop them to (0,0,0) and flip that. Mobile must keep :where(): uniwind's
+ * rule-visitor only detects that form.
+ */
+@custom-variant light {
+  &:is(.light, .light *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: light) {
+    &:not(:is(.light, .light *, .dark, .dark *)) {
+      @slot;
+    }
+  }
+}
+
+@custom-variant dark {
+  &:is(.dark, .dark *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:not(:is(.light, .light *, .dark, .dark *)) {
+      @slot;
+    }
+  }
+}
 
 /* Web-specific vars not in the shared token palette */
 :root {
-  --radius: 0.625rem;
-
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
+  --sidebar: var(--color-background);
+  --sidebar-foreground: var(--color-foreground);
+  --sidebar-primary: var(--color-primary);
+  --sidebar-primary-foreground: var(--color-primary-foreground);
+  --sidebar-accent: var(--color-accent);
+  --sidebar-accent-foreground: var(--color-accent-foreground);
+  --sidebar-border: var(--color-border);
+  --sidebar-ring: var(--color-ring);
 
   --avatar-fallback-l-bg: 0.92;
   --avatar-fallback-c-bg: 0.06;
@@ -29,18 +57,9 @@
   --avatar-fallback-c-fg: 0.12;
 }
 
+/* Only the avatar-fallback vars differ by theme; the --sidebar-* aliases
+ * resolve through --color-* and so track the theme on their own. */
 .dark {
-  --radius: 0.625rem;
-
-  --sidebar: var(--background);
-  --sidebar-foreground: var(--foreground);
-  --sidebar-primary: var(--primary);
-  --sidebar-primary-foreground: var(--primary-foreground);
-  --sidebar-accent: var(--accent);
-  --sidebar-accent-foreground: var(--accent-foreground);
-  --sidebar-border: var(--border);
-  --sidebar-ring: var(--ring);
-
   --avatar-fallback-l-bg: 0.28;
   --avatar-fallback-c-bg: 0.06;
   --avatar-fallback-l-fg: 0.85;
@@ -57,31 +76,6 @@
   --color-sidebar-primary: var(--sidebar-primary);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar: var(--sidebar);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --color-background: var(--background);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-  --radius-2xl: calc(var(--radius) + 8px);
-  --radius-3xl: calc(var(--radius) + 12px);
-  --radius-4xl: calc(var(--radius) + 16px);
 }
 
 @layer base {
