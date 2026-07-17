@@ -78,7 +78,9 @@ function ItemDisplay({
             {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
           </ItemDescription>
         ) : (
-          <div data-slot="item-description">{value}</div>
+          <div data-slot="item-description" className="text-left">
+            {value}
+          </div>
         )}
       </ItemContent>
       {actions && <ItemActions>{actions}</ItemActions>}

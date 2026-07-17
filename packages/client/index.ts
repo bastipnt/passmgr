@@ -15,6 +15,7 @@ export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-update-record";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-records";
+export * from "./src/hooks/use-totp";
 export * from "./src/hooks/use-auto-reconnect";
 export * from "./src/hooks/use-shortcut";
 

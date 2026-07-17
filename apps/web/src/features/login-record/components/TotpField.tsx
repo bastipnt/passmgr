@@ -1,6 +1,6 @@
-import { useTotp } from "@/hooks/use-totp";
+import { formatTotpToken, TOTP_PERIOD_MS, useTotp } from "@repo/client";
 import { ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
-import { CircleProgress } from "@repo/ui/components/CircleProgress";
+import { TotpRing } from "@repo/ui/components/TotpRing";
 import { LockIcon } from "lucide-react";
 
 type TotpFieldProps = {
@@ -9,15 +9,15 @@ type TotpFieldProps = {
 };
 
 export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
-  const { progress, seconds, token } = useTotp(totpData);
+  const { token, seconds, period } = useTotp(totpData);
 
   return (
     <ItemDisplay
       title="2FA token (TOTP)"
-      value={token}
+      value={<span aria-live="polite">{formatTotpToken(token)}</span>}
       onClick={() => onCopy(token, "2FA token")}
       icon={<LockIcon />}
-      actions={<CircleProgress progress={progress ?? 0}>{seconds}</CircleProgress>}
+      actions={<TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />}
     />
   );
 }

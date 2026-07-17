@@ -42,6 +42,7 @@ export * from "./src/components/blocks/SheetScene";
 export * from "./src/components/blocks/SpinnerRing";
 export * from "./src/components/blocks/SplashGradient";
 export * from "./src/components/blocks/StrengthMeter";
+export * from "./src/components/blocks/TotpRing";
 export * from "./src/components/blocks/Wordmark";
 
 // *** LIB ***

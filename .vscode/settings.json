@@ -64,4 +64,8 @@
     "ListHeaderComponentClassName"
   ],
   "tailwindCSS.classFunctions": ["cn", "cva", "useResolveClassNames"]
+  // "tailwindCSS.experimental.configFile": {
+  //   "apps/mobile/src/global.css": "apps/mobile/src/**",
+  //   "packages/ui/src/styles/globals.css": "apps/web/src/**"
+  // }
 }

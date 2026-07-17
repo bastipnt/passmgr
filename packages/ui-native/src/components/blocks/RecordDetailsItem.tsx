@@ -46,6 +46,8 @@ function Value({ value, hidden, variant }: ValueProps) {
 type BaseRecordDetailsItemProps = {
   icon: ReactNode;
   title: string;
+  /** Rendered at the trailing edge, e.g. a countdown ring. */
+  accessory?: ReactNode;
 };
 
 type SingleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
@@ -66,6 +68,7 @@ export function RecordDetailsItem({
   value,
   variant = "default",
   onCopy,
+  accessory,
 }: SingleRecordDetailsItemProps | MultipleRecordDetailsItemProps) {
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
@@ -82,6 +85,7 @@ export function RecordDetailsItem({
         <Text className="text-sm font-semibold text-muted-foreground">{title}</Text>
         <Value hidden={usesHiddenValue && valueHidden} value={value} variant={variant} />
       </View>
+      {accessory}
       {usesHiddenValue && (
         <Button
           variant="secondary"

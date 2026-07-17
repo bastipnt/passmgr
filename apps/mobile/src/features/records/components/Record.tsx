@@ -6,6 +6,7 @@ import { RecordDetailsItem } from "@repo/ui-native";
 import { useCSSVariable } from "uniwind";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { isDefined } from "@repo/util";
+import TotpField from "./TotpField";
 
 function Fallback() {
   return (
@@ -55,13 +56,12 @@ export default function Record({ recordId }: RecordProps) {
           variant="password"
           onCopy={() => onCopy(record.password)}
         />
-        {/* {isDefined(record.totp) && (
+        {isDefined(record.totp) && (
           <>
             <Separator />
-
             <TotpField onCopy={onCopy} totpData={record.totp} />
           </>
-        )} */}
+        )}
       </RecordLIGroup>
 
       {isDefined(record.websites) && record.websites.length > 0 && (
