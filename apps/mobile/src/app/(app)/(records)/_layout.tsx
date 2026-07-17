@@ -13,7 +13,6 @@ export default function RecordsLayout() {
         options={{
           headerShown: false,
           presentation: "formSheet",
-          sheetCornerRadius: 24,
           sheetGrabberVisible: true,
         }}
       />

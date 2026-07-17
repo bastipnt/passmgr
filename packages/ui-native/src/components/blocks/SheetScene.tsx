@@ -1,9 +1,10 @@
-import { type ReactNode } from "react";
-import { Platform, View, Text } from "react-native";
+import { useEffect, useState, type ReactNode } from "react";
+import { View, Text } from "react-native";
 import { Button } from "../Button";
-import { KeyboardAvoidingView } from "../KeyboardAvoidingView";
 import { Spinner } from "../Spinner";
 import { CloseChip } from "./CloseChip";
+import { KeyboardAwareScrollView, KeyboardEvents } from "react-native-keyboard-controller";
+import { cn } from "../../lib/utils";
 
 export type SheetSceneProps = {
   title: string;
@@ -28,26 +29,41 @@ export function SheetScene({
   loading,
   children,
 }: SheetSceneProps) {
+  const [keyboardVisible, setKeyboardVisible] = useState(false);
+
+  useEffect(() => {
+    const show = KeyboardEvents.addListener("keyboardWillShow", () => {
+      setKeyboardVisible(true);
+    });
+
+    const hide = KeyboardEvents.addListener("keyboardWillHide", () => {
+      setKeyboardVisible(false);
+    });
+
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
+
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === "ios" ? "padding" : undefined}
-      className="flex-1"
+    <KeyboardAwareScrollView
+      bottomOffset={24}
+      mode="layout"
+      contentContainerStyle={{ flex: keyboardVisible ? undefined : 1 }}
     >
-      <View className="flex-1 bg-background p-lg">
-        <View className="mb-[22px] flex-row items-start justify-between">
-          <View className="gap-[6px]">
-            <Text
-              className="font-bold text-foreground"
-              style={{ fontSize: 26, letterSpacing: -0.5 }}
-            >
-              {title}
-            </Text>
+      <View className={cn("p-lg gap-lg justify-between", !keyboardVisible && "flex-1")}>
+        <View className={cn("flex-row items-start justify-between")}>
+          <View className="gap-1">
+            <Text className="text-2xl font-bold text-foreground">{title}</Text>
             <Text className="text-sm text-muted-foreground">{subtitle}</Text>
           </View>
           <CloseChip />
         </View>
 
-        <View className="mb-lg flex-1 justify-center gap-lg">{children}</View>
+        <View className={cn("justify-center gap-lg", !keyboardVisible && "flex-1")}>
+          {children}
+        </View>
 
         <Button
           size="lg"
@@ -59,6 +75,6 @@ export function SheetScene({
           {actionLabel}
         </Button>
       </View>
-    </KeyboardAvoidingView>
+    </KeyboardAwareScrollView>
   );
 }

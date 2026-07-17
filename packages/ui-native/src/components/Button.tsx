@@ -18,6 +18,7 @@ const buttonVariants = cva(
         link: "bg-transparent",
       },
       size: {
+        sm: "h-[32px]",
         default: "h-[40px]",
         lg: "h-[52px]",
         icon: "h-[40px] w-[40px] px-0",

@@ -7,6 +7,7 @@ import "../global.css";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
+import { KeyboardProvider } from "react-native-keyboard-controller";
 import { Uniwind } from "uniwind";
 import {
   ClientProvider,
@@ -73,15 +74,17 @@ export default function RootLayout() {
 
   return (
     <SafeAreaProvider>
-      <PreferencesProvider store={preferencesStore}>
-        <SessionProvider>
-          <ClientProvider serverUrl={serverUrl}>
-            <StoreProvider vault={vaultStore}>
-              <Routes />
-            </StoreProvider>
-          </ClientProvider>
-        </SessionProvider>
-      </PreferencesProvider>
+      <KeyboardProvider>
+        <PreferencesProvider store={preferencesStore}>
+          <SessionProvider>
+            <ClientProvider serverUrl={serverUrl}>
+              <StoreProvider vault={vaultStore}>
+                <Routes />
+              </StoreProvider>
+            </ClientProvider>
+          </SessionProvider>
+        </PreferencesProvider>
+      </KeyboardProvider>
     </SafeAreaProvider>
   );
 }
