@@ -23,6 +23,7 @@ export const formatTotpToken = (token?: string) =>
  */
 export function useTotp(totpSecret?: string) {
   const [token, setToken] = useState<string>();
+  const [isInvalid, setIsInvalid] = useState(false);
   const [seconds, setSeconds] = useState<number>();
   const [period, setPeriod] = useState<number>(currentPeriod);
   const tickRef = useRef<() => void>(null);
@@ -39,9 +40,15 @@ export function useTotp(totpSecret?: string) {
     async function fetchToken(secret: string) {
       try {
         const next = await getToken(secret);
-        if (!cancelled) setToken(next);
+        if (!cancelled) {
+          setIsInvalid(false);
+          setToken(next);
+        }
       } catch {
-        if (!cancelled) setToken("invalid TOTP secret");
+        if (!cancelled) {
+          setIsInvalid(true);
+          setToken("invalid TOTP secret");
+        }
       }
     }
 
@@ -81,5 +88,5 @@ export function useTotp(totpSecret?: string) {
   /** Force a tick outside the interval, e.g. when the app returns to foreground. */
   const resync = useCallback(() => tickRef.current?.(), []);
 
-  return { token, seconds, period, resync };
+  return { token, isInvalid, seconds, period, resync };
 }

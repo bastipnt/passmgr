@@ -88,15 +88,15 @@ export function RecordDetailsItem({
       {accessory}
       {usesHiddenValue && (
         <Button
-          variant="secondary"
+          variant="ghost"
           size="icon-lg"
-          className="rounded-full bg-muted"
+          className="rounded-full"
           onPress={() => setValueHidden((h) => !h)}
         >
           {valueHidden ? (
-            <EyeOff size={18} color={iconColor} />
-          ) : (
             <Eye size={18} color={iconColor} />
+          ) : (
+            <EyeOff size={18} color={iconColor} />
           )}
         </Button>
       )}

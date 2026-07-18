@@ -28,7 +28,6 @@ type RecordProps = {
   recordId?: string | string[];
 };
 
-// TODO: fix styling, add missing fields
 export default function Record({ recordId }: RecordProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
 
@@ -81,7 +80,7 @@ export default function Record({ recordId }: RecordProps) {
             title="Notes"
             value={record.note}
             icon={<NotebookPen size={20} color={iconColor} />}
-            variant="noAction"
+            onCopy={() => onCopy(record.note)}
           />
         </RecordLIGroup>
       )}
@@ -93,10 +92,14 @@ export default function Record({ recordId }: RecordProps) {
               <RecordDetailsItem
                 title={extraField.title}
                 value={extraField.value}
-                // onClick={({ type }) =>
-                //   type === "copy" && onCopy(extraField.value, extraField.title)
-                // }
-                icon={extraField.type === "secret" ? <Lock /> : <NotebookText />}
+                onCopy={() => onCopy(extraField.value)}
+                icon={
+                  extraField.type === "secret" ? (
+                    <Lock size={20} color={iconColor} />
+                  ) : (
+                    <NotebookText size={20} color={iconColor} />
+                  )
+                }
                 variant={extraField.type === "secret" ? "hidden" : "default"}
               />
               {i < record.extraFields!.length - 1 && <Separator />}

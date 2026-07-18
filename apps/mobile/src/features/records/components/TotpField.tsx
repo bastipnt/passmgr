@@ -11,7 +11,7 @@ type TotpFieldProps = {
 };
 
 export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
-  const { token, seconds, period, resync } = useTotp(totpData);
+  const { token, isInvalid, seconds, period, resync } = useTotp(totpData);
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
 
   // Timers pause while backgrounded — pull a fresh token when the app returns.
@@ -28,7 +28,11 @@ export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
       title="2FA token (TOTP)"
       value={formatTotpToken(token)}
       onCopy={() => onCopy(token)}
-      accessory={<TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />}
+      accessory={
+        isInvalid ? undefined : (
+          <TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />
+        )
+      }
     />
   );
 }

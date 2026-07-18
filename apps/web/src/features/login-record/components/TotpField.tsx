@@ -9,7 +9,7 @@ type TotpFieldProps = {
 };
 
 export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
-  const { token, seconds, period } = useTotp(totpData);
+  const { token, isInvalid, seconds, period } = useTotp(totpData);
 
   return (
     <ItemDisplay
@@ -17,7 +17,11 @@ export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
       value={<span aria-live="polite">{formatTotpToken(token)}</span>}
       onClick={() => onCopy(token, "2FA token")}
       icon={<LockIcon />}
-      actions={<TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />}
+      actions={
+        isInvalid ? undefined : (
+          <TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />
+        )
+      }
     />
   );
 }
