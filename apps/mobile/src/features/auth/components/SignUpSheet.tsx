@@ -1,24 +1,24 @@
-import { useMemo, useState } from "react";
-import { Modal, Pressable } from "react-native";
+import { useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { FullWindowOverlay } from "react-native-screens";
 import * as Clipboard from "expo-clipboard";
-import { useRouter } from "expo-router";
 import { useRegistration } from "@repo/client";
 import { getStrengthFromString, wipe } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { View, Text } from "react-native";
 import {
+  BottomSheet,
   Button,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  SheetScene,
+  Spinner,
   StrengthMeter,
-  useForm,
-  useWatch,
+  type BottomSheetRef,
 } from "@repo/ui-native";
 import { TermsRow } from "@/components/TermsRow";
+import { useForm, useWatch } from "react-hook-form";
 
 const credentialsSchema = z
   .object({
@@ -33,13 +33,55 @@ const credentialsSchema = z
 
 type FormValues = z.infer<typeof credentialsSchema>;
 
-export default function SignUpScreen() {
-  const router = useRouter();
+/**
+ * Hosts the recovery-key dialog above the app. iOS avoids RN's `Modal`:
+ * presenting an `@expo/ui` BottomSheet installs a window-level gesture recogniser
+ * that outlives the sheet and cancels touches inside `RCTModalHostView`, so the
+ * dialog's buttons would reach `onPressIn` but never fire `onPress`.
+ * `FullWindowOverlay` renders through RN's own surface, which is unaffected.
+ */
+function DialogPortal({
+  visible,
+  onRequestClose,
+  children,
+}: {
+  visible: boolean;
+  onRequestClose: () => void;
+  children: ReactNode;
+}) {
+  if (Platform.OS === "ios") {
+    if (!visible) return null;
+    return (
+      <FullWindowOverlay>
+        <View style={StyleSheet.absoluteFill}>{children}</View>
+      </FullWindowOverlay>
+    );
+  }
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
+      {children}
+    </Modal>
+  );
+}
+
+type SignUpSheetProps = {
+  ref: Ref<BottomSheetRef>;
+  /** Called after the user saves their recovery key, to open the sign-in sheet. */
+  onSwitchToSignIn: () => void;
+};
+
+export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
+  const sheetRef = useRef<BottomSheetRef>(null);
   const { registerNewUser, registrationError } = useRegistration();
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
   const [copied, setCopied] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
+  }));
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(credentialsSchema),
@@ -55,7 +97,10 @@ export default function SignUpScreen() {
     setLoading(true);
     const key = await registerNewUser(email, password);
     setLoading(false);
-    if (key) setRecoveryKey(key);
+    if (!key) return;
+    // Dismiss the form sheet, then present the recovery key over the welcome screen.
+    sheetRef.current?.triggerShowHide(false);
+    setRecoveryKey(key);
   };
 
   const onCopy = async () => {
@@ -68,12 +113,12 @@ export default function SignUpScreen() {
     if (recoveryKey) wipe(recoveryKey);
     setRecoveryKey(null);
     setCopied(false);
-    router.replace("/(auth)/sign-in");
+    onSwitchToSignIn();
   };
 
   return (
     <>
-      <Modal visible={recoveryKey !== null} transparent animationType="fade">
+      <DialogPortal visible={recoveryKey !== null} onRequestClose={onConfirm}>
         <View className="flex-1 items-center justify-center bg-black/50 p-lg">
           <View className="w-full gap-md rounded-xl bg-card p-lg">
             <Text className="text-lg font-bold text-card-foreground">Save your recovery key</Text>
@@ -96,16 +141,29 @@ export default function SignUpScreen() {
             </View>
           </View>
         </View>
-      </Modal>
+      </DialogPortal>
 
-      <SheetScene
-        title="Create account"
-        subtitle="Set up your secure vault."
-        actionLabel="Create account"
-        loading={loading}
-        actionDisabled={!agreed}
-        onAction={handleSubmit(onSubmit)}
+      <BottomSheet
+        ref={sheetRef}
+        snapPoints={["full"]}
+        className="p-lg gap-lg"
+        footer={
+          <Button
+            size="lg"
+            textClassName="font-bold"
+            disabled={!agreed || loading}
+            onPress={handleSubmit(onSubmit)}
+            icon={loading ? <Spinner colorClassName="text-primary-foreground" /> : undefined}
+          >
+            Create account
+          </Button>
+        }
       >
+        <View className="gap-1">
+          <Text className="text-2xl font-bold text-foreground">Create account</Text>
+          <Text className="text-sm text-muted-foreground">Set up your secure vault.</Text>
+        </View>
+
         <ControlledInput
           control={control}
           name="email"
@@ -136,7 +194,7 @@ export default function SignUpScreen() {
             errors={[{ message: "Error when trying to register a new account please try again" }]}
           />
         )}
-      </SheetScene>
+      </BottomSheet>
     </>
   );
 }

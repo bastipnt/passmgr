@@ -1,17 +1,19 @@
-import { useState } from "react";
-import { useRouter } from "expo-router";
+import { useImperativeHandle, useRef, useState, type Ref } from "react";
+import { Pressable, Text, View } from "react-native";
 import { useLogin, useUnlock } from "@repo/client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import z from "zod";
-import { Pressable, Text } from "react-native";
 import {
+  BottomSheet,
+  Button,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  SheetScene,
-  useForm,
+  Spinner,
+  type BottomSheetRef,
 } from "@repo/ui-native";
 import { timed } from "@repo/client/src/util/perf";
+import { useForm } from "react-hook-form";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -20,11 +22,15 @@ const credentialsSchema = z.object({
 
 type FormValues = z.infer<typeof credentialsSchema>;
 
-export default function SignInScreen() {
-  const router = useRouter();
+export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
+  const sheetRef = useRef<BottomSheetRef>(null);
   const { loginUser, loginError } = useLogin();
   const { unlock, unlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
+
+  useImperativeHandle(ref, () => ({
+    triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
+  }));
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(credentialsSchema),
@@ -36,21 +42,37 @@ export default function SignInScreen() {
     try {
       const unlockInfo = await timed("total login time", () => loginUser(email, password));
       if (!unlockInfo) return;
+      // Close the sheet before unlocking. `unlock()` flips `loggedIn`, which makes the
+      // root `!loggedIn` guard swap to `(app)`; dismissing the native sheet first keeps
+      // its window-level gesture recogniser from lingering over the new screen.
+      sheetRef.current?.triggerShowHide(false);
       await timed("total unlock time", () => unlock(unlockInfo));
-      router.replace("/(app)");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <SheetScene
-      title="Sign in"
-      subtitle="Welcome back to Passmgr."
-      actionLabel="Sign in"
-      loading={loading}
-      onAction={handleSubmit(onSubmit)}
+    <BottomSheet
+      ref={sheetRef}
+      className="p-lg gap-lg"
+      footer={
+        <Button
+          size="lg"
+          textClassName="font-bold"
+          disabled={loading}
+          onPress={handleSubmit(onSubmit)}
+          icon={loading ? <Spinner colorClassName="text-primary-foreground" /> : undefined}
+        >
+          Sign in
+        </Button>
+      }
     >
+      <View className="gap-1">
+        <Text className="text-2xl font-bold text-foreground">Sign in</Text>
+        <Text className="text-sm text-muted-foreground">Welcome back to Passmgr.</Text>
+      </View>
+
       <ControlledInput
         control={control}
         name="email"
@@ -77,6 +99,6 @@ export default function SignInScreen() {
       {(loginError || unlockError) && (
         <FieldError errors={[{ message: "Login error please try again" }]} />
       )}
-    </SheetScene>
+    </BottomSheet>
   );
 }

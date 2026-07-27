@@ -17,11 +17,6 @@ export default function AppLayout() {
             <NativeTabs.Trigger.Icon sf="gear" md="settings" />
           </NativeTabs.Trigger>
         </NativeTabs>
-
-        {/* <Stack>
-          <Stack.Screen name="(records)" options={{ headerShown: false }} />
-          <Stack.Screen name="settings" options={{ headerShown: false }} />
-        </Stack> */}
       </SortedRecordsProvider>
     </RecordsProvider>
   );

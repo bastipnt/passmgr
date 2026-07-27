@@ -20,12 +20,14 @@
     "react-native-keyboard-controller": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
+    "react-native-screens": "~4.25.2",
     "react-native-svg": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",
     "uniwind": "catalog:"
   },
   "dependencies": {
+    "@expo/ui": "^56.0.21",
     "@repo/ui-shared": "workspace:*",
     "@repo/util": "workspace:*"
   },
@@ -41,6 +43,7 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
+    "react-native-screens": "~4.25.2",
     "react-native-svg": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",

@@ -55,7 +55,9 @@ function Routes() {
         <Stack.Protected guard={loggedIn}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-        <Stack.Screen name="(auth)" />
+        <Stack.Protected guard={!loggedIn}>
+          <Stack.Screen name="(auth)" />
+        </Stack.Protected>
       </Stack>
       <StatusBar style="auto" />
     </>

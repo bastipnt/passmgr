@@ -1,4 +1,4 @@
-import { type ReactNode } from "react";
+import { RefObject, type ReactNode } from "react";
 import { Pressable, type PressableProps, Text } from "react-native";
 import { cva, type VariantProps } from "class-variance-authority";
 

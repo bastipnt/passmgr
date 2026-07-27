@@ -1,21 +1,14 @@
 import { useContext } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { SessionContext, useLogout } from "@repo/client";
-import { View, ScrollView, Text, Alert, StyleSheet } from "react-native";
-import { BlurView, Button, Spinner } from "@repo/ui-native";
+import { View, ScrollView, Text, StyleSheet } from "react-native";
+import { BlurView, Button, RemoveDialog, Spinner } from "@repo/ui-native";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 export default function SettingsScreen() {
   const { sessionId } = useContext(SessionContext);
   const { logout, loggingOut } = useLogout();
   const insets = useSafeAreaInsets();
-
-  function confirmLogout() {
-    Alert.alert("Log out?", "This removes your vault data from this device.", [
-      { text: "Cancel", style: "cancel" },
-      { text: "Log out", style: "destructive", onPress: () => void logout() },
-    ]);
-  }
 
   return (
     <View className="flex-1 bg-background">
@@ -25,14 +18,21 @@ export default function SettingsScreen() {
             <Text className="text-lg text-foreground">Settings</Text>
             <Text className="text-foreground">Logged in with sessionId: {sessionId}</Text>
             <ThemeSwitch />
-            <Button
-              variant="destructive"
-              disabled={loggingOut}
-              icon={loggingOut ? <Spinner /> : undefined}
-              onPress={confirmLogout}
+            <RemoveDialog
+              title="Log out?"
+              description="This removes your vault data from this device."
+              removeTitle="Log out"
+              closeTitle="Cancel"
+              onRemove={() => void logout()}
             >
-              {loggingOut ? "Logging out…" : "Log out"}
-            </Button>
+              <Button
+                variant="destructive"
+                disabled={loggingOut}
+                icon={loggingOut ? <Spinner /> : undefined}
+              >
+                {loggingOut ? "Logging out…" : "Log out"}
+              </Button>
+            </RemoveDialog>
           </View>
         </SafeAreaView>
       </ScrollView>

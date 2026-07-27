@@ -6,26 +6,29 @@ import { cn } from "../../lib/utils";
 
 export type InputProps = TextInputProps & {
   label?: string;
+  hideLabel?: boolean;
   error?: string;
   /** Rendered below the input — e.g. a strength meter or a "Forgot password?" link. */
   note?: ReactNode;
   /** Rendered at the trailing edge inside the field — e.g. a password eye toggle. */
-  trailing?: ReactNode;
+  addon?: ReactNode;
+  icon?: ReactNode;
   className?: string;
 };
 
 export function Input({
   label,
+  hideLabel,
   error,
   note,
-  trailing,
+  addon,
   className: _className,
   style: _style,
   ...rest
 }: InputProps) {
   return (
-    <View className="gap-xs">
-      {label && <Text className="text-md font-bold text-foreground">{label}</Text>}
+    <View className="gap-2 flex-auto">
+      {label && !hideLabel && <Text className="text-md font-bold text-foreground">{label}</Text>}
 
       <View className="relative flex-row items-center">
         <TextInput
@@ -34,14 +37,14 @@ export function Input({
             error
               ? "border-destructive focus:border-destructive"
               : "border-border focus:border-primary",
-            trailing && "pr-[46px]",
+            addon && "pr-[46px]",
           )}
           placeholderTextColorClassName="text-muted-foreground"
           {...rest}
         />
-        {trailing && (
+        {addon && (
           <View className="absolute inset-y-0 right-[12px] items-center justify-center">
-            {trailing}
+            {addon}
           </View>
         )}
       </View>
@@ -64,21 +67,35 @@ export type ControlledInputProps<TFieldValues extends FieldValues> = Omit<
 export function ControlledInput<TFieldValues extends FieldValues>({
   control,
   name,
+  icon,
   ...rest
 }: ControlledInputProps<TFieldValues>) {
   return (
     <Controller
       control={control}
       name={name}
-      render={({ field, fieldState }) => (
-        <Input
-          value={(field.value as string | undefined) ?? ""}
-          onChangeText={field.onChange}
-          onBlur={field.onBlur}
-          error={fieldState.error?.message}
-          {...rest}
-        />
-      )}
+      render={({ field, fieldState }) => {
+        const fieldContent = (
+          <Input
+            value={(field.value as string | undefined) ?? ""}
+            onChangeText={field.onChange}
+            onBlur={field.onBlur}
+            error={fieldState.error?.message}
+            {...rest}
+          />
+        );
+
+        if (icon) {
+          return (
+            <View className="items-start gap-2 flex-row">
+              <View className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</View>
+              {fieldContent}
+            </View>
+          );
+        }
+
+        return fieldContent;
+      }}
     />
   );
 }

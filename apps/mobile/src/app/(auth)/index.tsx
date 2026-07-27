@@ -1,13 +1,23 @@
-import { useRouter } from "expo-router";
+import { useRef } from "react";
 import { View, Text } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
-import { AppIcon, BiometricGlyph, Blobs, Button, Wordmark } from "@repo/ui-native";
+import {
+  AppIcon,
+  BiometricGlyph,
+  Blobs,
+  Button,
+  Wordmark,
+  type BottomSheetRef,
+} from "@repo/ui-native";
+import { SignInSheet } from "@/features/auth/components/SignInSheet";
+import { SignUpSheet } from "@/features/auth/components/SignUpSheet";
 
 export default function LoginScreen() {
-  const router = useRouter();
   const insets = useSafeAreaInsets();
   const foreground = useCSSVariable("--color-foreground") as string;
+  const signInRef = useRef<BottomSheetRef>(null);
+  const signUpRef = useRef<BottomSheetRef>(null);
 
   return (
     <View className="flex-1 bg-background">
@@ -63,7 +73,7 @@ export default function LoginScreen() {
           <Button
             size="lg"
             textClassName="font-bold"
-            onPress={() => router.push("/(auth)/sign-in")}
+            onPress={() => signInRef.current?.triggerShowHide(true)}
           >
             Sign in
           </Button>
@@ -71,12 +81,18 @@ export default function LoginScreen() {
             variant="ghost"
             size="lg"
             textClassName="text-primary font-bold"
-            onPress={() => router.push("/(auth)/sign-up")}
+            onPress={() => signUpRef.current?.triggerShowHide(true)}
           >
             Create account
           </Button>
         </View>
       </View>
+
+      <SignInSheet ref={signInRef} />
+      <SignUpSheet
+        ref={signUpRef}
+        onSwitchToSignIn={() => signInRef.current?.triggerShowHide(true)}
+      />
     </View>
   );
 }
