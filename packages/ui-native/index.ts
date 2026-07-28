@@ -11,6 +11,7 @@ export * from "./src/components/Empty";
 export * from "./src/components/Skeleton";
 export * from "./src/components/Slider";
 export * from "./src/components/KeyboardAvoidingView";
+export * from "./src/components/MenuSelect";
 export * from "./src/components/Spinner";
 export * from "./src/components/Link";
 

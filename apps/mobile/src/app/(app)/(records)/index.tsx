@@ -1,34 +1,49 @@
-import { ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, View } from "react-native";
 import { RecordsList } from "@/features/records/components/RecordsList";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
-import { BlurView } from "@repo/ui-native";
-import { useRecordSearch } from "@repo/client";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { PageActions } from "@repo/ui-native";
+import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
+import { useRecordSearch, useSortedRecords } from "@repo/client";
 import { useScrollToTop } from "expo-router";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
 
 export default function RecordsScreen() {
-  const insets = useSafeAreaInsets();
   const recordGroups = useRecordSearch("");
+  const { sort } = useSortedRecords();
 
   // Tapping the already-active Home tab scrolls back to the top.
   const scrollRef = useRef<ScrollView>(null);
   useScrollToTop(scrollRef);
   useResetStackOnTabBlur();
 
+  // A new sort reshuffles the whole list, so the old scroll offset points at
+  // unrelated records — go back to the top. Skips the initial render.
+  const prevSortRef = useRef(sort);
+  useEffect(() => {
+    if (prevSortRef.current === sort) return;
+    prevSortRef.current = sort;
+    scrollRef.current?.scrollTo({ y: 0, animated: true });
+  }, [sort]);
+
   return (
     <View className="flex-1 bg-background">
-      <ScrollView ref={scrollRef} className="flex-1" contentContainerClassName="flex-grow">
+      {/* Padding on the content container clears the floating sort button —
+          the safe area inset itself still comes from the SafeAreaView. */}
+      <ScrollView
+        ref={scrollRef}
+        className="flex-1"
+        contentContainerClassName="flex-grow"
+        contentContainerStyle={{ paddingTop: 76 }}
+      >
         <SafeAreaView>
           <RecordsList recordGroups={recordGroups} />
         </SafeAreaView>
       </ScrollView>
 
-      <BlurView
-        intensity={50}
-        tint="default"
-        style={[StyleSheet.absoluteFill, { bottom: undefined, height: insets.top }]}
-      />
+      <PageActions>
+        <RecordsSortMenu />
+      </PageActions>
     </View>
   );
 }
