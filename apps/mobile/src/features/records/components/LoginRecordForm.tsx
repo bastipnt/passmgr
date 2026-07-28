@@ -1,4 +1,5 @@
 import { useForm } from "react-hook-form";
+import type { Href } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { loginRecordSchema, type LoginRecord as FormValues } from "@repo/schema";
 import { useImperativeHandle, type Ref } from "react";
@@ -24,6 +25,8 @@ export type LoginRecordFormHandle = {
 type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
   action: string;
+  /** Route of the generator sheet the password field opens. */
+  generatorPath: Href;
   serverError?: string;
   defaultValues?: Partial<FormValues>;
   ref?: Ref<LoginRecordFormHandle>;
@@ -33,6 +36,7 @@ export default function LoginRecordForm({
   onSubmit,
   serverError,
   defaultValues,
+  generatorPath,
   ref,
 }: LoginRecordFormProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
@@ -76,7 +80,7 @@ export default function LoginRecordForm({
             icon={<MailIcon size={18} color={iconColor} />}
           />
 
-          <PasswordField control={control} setValue={setValue} />
+          <PasswordField control={control} setValue={setValue} generatorPath={generatorPath} />
 
           <ControlledInput
             control={control}

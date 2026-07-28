@@ -1,5 +1,5 @@
 import { Pressable } from "react-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { DicesIcon, KeyIcon } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
@@ -11,11 +11,12 @@ import { usePasswordGenerator } from "@/features/password-generation/PasswordGen
 type PasswordFieldProps = {
   control: Control<FormValues>;
   setValue: UseFormSetValue<FormValues>;
+  /** Route of the generator sheet — differs per screen (create vs. edit). */
+  generatorPath: Href;
 };
 
-export default function PasswordField({ control, setValue }: PasswordFieldProps) {
+export default function PasswordField({ control, setValue, generatorPath }: PasswordFieldProps) {
   const router = useRouter();
-  const { recordId } = useLocalSearchParams<{ recordId: string }>();
   const { registerTarget } = usePasswordGenerator();
 
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
@@ -26,7 +27,7 @@ export default function PasswordField({ control, setValue }: PasswordFieldProps)
     registerTarget((generated) =>
       setValue("password", generated, { shouldDirty: true, shouldValidate: true }),
     );
-    router.navigate(`/${recordId}/generate-password`);
+    router.navigate(generatorPath);
   };
 
   return (

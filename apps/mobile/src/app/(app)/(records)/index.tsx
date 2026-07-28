@@ -1,14 +1,15 @@
 import { ScrollView, View } from "react-native";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { PageActions } from "@repo/ui-native";
+import { Button, PageActions } from "@repo/ui-native";
 import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
 import { useRecordSearch, useSortedRecords } from "@repo/client";
-import { useScrollToTop } from "expo-router";
+import { useRouter, useScrollToTop } from "expo-router";
 import { useEffect, useRef } from "react";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
 
 export default function RecordsScreen() {
+  const router = useRouter();
   const recordGroups = useRecordSearch("");
   const { sort } = useSortedRecords();
 
@@ -43,6 +44,15 @@ export default function RecordsScreen() {
 
       <PageActions>
         <RecordsSortMenu />
+
+        <Button
+          hug
+          variant="glass"
+          size="icon-lg"
+          systemImage="plus"
+          accessibilityLabel="New record"
+          onPress={() => router.navigate("/new")}
+        />
       </PageActions>
     </View>
   );
