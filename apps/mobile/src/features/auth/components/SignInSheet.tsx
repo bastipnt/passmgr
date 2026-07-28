@@ -9,7 +9,6 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  Spinner,
   type BottomSheetRef,
 } from "@repo/ui-native";
 import { timed } from "@repo/client/src/util/perf";
@@ -60,9 +59,8 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
         <Button
           size="lg"
           textClassName="font-bold"
-          disabled={loading}
+          loading={loading}
           onPress={handleSubmit(onSubmit)}
-          icon={loading ? <Spinner colorClassName="text-primary-foreground" /> : undefined}
         >
           Sign in
         </Button>

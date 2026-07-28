@@ -13,7 +13,6 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  Spinner,
   StrengthMeter,
   type BottomSheetRef,
 } from "@repo/ui-native";
@@ -153,9 +152,9 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
           <Button
             size="lg"
             textClassName="font-bold"
-            disabled={!agreed || loading}
+            disabled={!agreed}
+            loading={loading}
             onPress={handleSubmit(onSubmit)}
-            icon={loading ? <Spinner colorClassName="text-primary-foreground" /> : undefined}
           >
             Create account
           </Button>

@@ -2,7 +2,7 @@ import { useContext } from "react";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { SessionContext, useLogout } from "@repo/client";
 import { View, ScrollView, Text, StyleSheet } from "react-native";
-import { BlurView, Button, RemoveDialog, Spinner } from "@repo/ui-native";
+import { BlurView, Button, RemoveDialog } from "@repo/ui-native";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 export default function SettingsScreen() {
@@ -25,11 +25,7 @@ export default function SettingsScreen() {
               closeTitle="Cancel"
               onRemove={() => void logout()}
             >
-              <Button
-                variant="destructive"
-                disabled={loggingOut}
-                icon={loggingOut ? <Spinner /> : undefined}
-              >
+              <Button size="lg" variant="destructive" loading={loggingOut}>
                 {loggingOut ? "Logging out…" : "Log out"}
               </Button>
             </RemoveDialog>

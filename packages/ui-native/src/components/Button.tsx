@@ -4,6 +4,9 @@ import { cva, type VariantProps } from "class-variance-authority";
 import {
   Button as SwiftUIButton,
   Host,
+  HStack,
+  ProgressView,
+  Text as SwiftUIText,
   type ButtonProps as SwiftUIButtonProps,
 } from "@expo/ui/swift-ui";
 import {
@@ -11,14 +14,17 @@ import {
   buttonStyle,
   controlSize,
   disabled as disabledModifier,
+  foregroundStyle,
   frame,
   imageScale,
   labelStyle,
+  progressViewStyle,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
 import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";
+import { Spinner } from "./Spinner";
 
 const buttonVariants = cva(
   "flex-row shrink-0 items-center justify-center gap-sm rounded-lg border border-transparent px-[10px]",
@@ -69,6 +75,19 @@ const buttonTextVariants = cva("text-sm font-semibold", {
   },
 });
 
+/** Spinner tint for the pressable fallback — mirrors `buttonTextVariants`. */
+const spinnerColorClasses = {
+  default: "text-primary-foreground",
+  outline: "text-foreground",
+  secondary: "text-secondary-foreground",
+  ghost: "text-foreground",
+  "ghost-destructive": "text-destructive",
+  destructive: "text-destructive",
+  link: "text-primary",
+  glass: "text-foreground",
+  "glass-primary": "text-primary",
+} as const satisfies Record<ButtonVariant, string>;
+
 /**
  * The SwiftUI button lives inside a `Host`, which is an ordinary RN view to
  * yoga: it only carries the box (height, and width for the icon sizes). Colors
@@ -103,10 +122,19 @@ type NativeVariantSpec = {
   style: "borderedProminent" | "bordered" | "plain" | "glass";
   role?: "destructive";
   tintVariable: string;
+  /**
+   * Color of the label content. Only the prominent style paints its own
+   * contrasting label, so every other variant just reuses the tint.
+   */
+  contentVariable?: string;
 };
 
 const nativeVariants: Record<ButtonVariant, NativeVariantSpec> = {
-  default: { style: "borderedProminent", tintVariable: "--color-primary" },
+  default: {
+    style: "borderedProminent",
+    tintVariable: "--color-primary",
+    contentVariable: "--color-primary-foreground",
+  },
   outline: { style: "bordered", tintVariable: "--color-foreground" },
   secondary: { style: "bordered", tintVariable: "--color-secondary-foreground" },
   ghost: { style: "plain", tintVariable: "--color-foreground" },
@@ -154,6 +182,12 @@ export type ButtonProps = Omit<PressableProps, "children"> &
     textClassName?: string;
     /** Leading node (icon / spinner) rendered before the label. */
     icon?: ReactNode;
+    /**
+     * Swaps the leading icon for a spinner and disables the button. Prefer this
+     * over passing a spinner as `icon`: the native iOS button can only lay out
+     * SwiftUI children, so an RN spinner would drop it back to the pressable.
+     */
+    loading?: boolean;
     children?: ReactNode;
     /**
      * iOS only: SF Symbol drawn by the native button. Required for icon-only
@@ -181,6 +215,7 @@ export function Button({
   variant = "default",
   size = "default",
   icon,
+  loading = false,
   children,
   disabled,
   systemImage,
@@ -190,6 +225,9 @@ export function Button({
 }: ButtonProps) {
   const nativeVariant = nativeVariants[variant ?? "default"];
   const tintColor = useCSSVariable(nativeVariant.tintVariable) as string;
+  const contentColor = useCSSVariable(nativeVariant.contentVariable ?? nativeVariant.tintVariable);
+
+  const isDisabled = disabled || loading;
 
   /*
    * SwiftUI can only lay out its own children, so anything carrying RN nodes
@@ -203,14 +241,45 @@ export function Button({
   if (useNativeButton) {
     const { onPress, accessibilityLabel } = props;
 
+    /*
+     * While loading the label is built from SwiftUI views instead of the
+     * `label` prop, so the spinner stays inside the native button rather than
+     * knocking it back to the pressable. The spinner has to be tinted
+     * explicitly: the prominent style paints its label white, but a nested
+     * ProgressView follows the button tint and would vanish into the fill.
+     */
+    const spinner = (
+      <ProgressView modifiers={[progressViewStyle("circular"), tint(contentColor as string)]} />
+    );
+
+    /*
+     * A `frame` on the button itself only widens the tap target: the button
+     * style still sizes its fill to the label and centers it. Stretching has to
+     * happen *inside* the label, which means building it from SwiftUI views
+     * instead of the `label` prop. Only the `hug` sizes keep the plain prop —
+     * they are meant to shrink to their content.
+     */
+    // A `systemImage` next to text keeps the prop pair: SwiftUI's `Label` pairs
+    // symbol and title for us, and no call site needs that combo stretched.
+    const fillLabel = !hug && label != null && systemImage == null;
+    const labelContent =
+      loading || fillLabel ? (
+        <HStack spacing={6} modifiers={fillLabel ? [frame({ maxWidth: FILL })] : []}>
+          {loading ? spinner : null}
+          {label != null ? (
+            <SwiftUIText modifiers={[foregroundStyle(contentColor as string)]}>{label}</SwiftUIText>
+          ) : null}
+        </HStack>
+      ) : undefined;
+
     return (
       <NativeHost
         matchContents={{ horizontal: hug }}
         className={cn(nativeHostVariants({ size }), className)}
       >
         <SwiftUIButton
-          label={label ?? ""}
-          systemImage={systemImage}
+          label={labelContent ? undefined : (label ?? "")}
+          systemImage={labelContent ? undefined : systemImage}
           role={nativeVariant.role}
           // The native button reports no gesture event; no call site reads one.
           onPress={() => onPress?.(undefined as never)}
@@ -221,26 +290,28 @@ export function Button({
             frame({ maxWidth: FILL, maxHeight: FILL }),
             // The SF Symbol tracks the label font, so the bigger sizes need it
             // scaled up explicitly to fill their box.
-            ...(iconOnly
+            ...(iconOnly && !loading
               ? [labelStyle("iconOnly"), imageScale(nativeImageScales[size ?? "default"])]
               : []),
-            ...(disabled ? [disabledModifier(true)] : []),
+            ...(isDisabled ? [disabledModifier(true)] : []),
             ...(accessibilityLabel ? [accessibilityLabelModifier(accessibilityLabel)] : []),
           ]}
-        />
+        >
+          {labelContent}
+        </SwiftUIButton>
       </NativeHost>
     );
   }
 
   return (
     <Pressable
-      className={cn(buttonVariants({ variant, size }), disabled && "opacity-50", className)}
-      disabled={disabled}
-      style={({ pressed }) => (pressed && !disabled ? { opacity: 0.85 } : null)}
+      className={cn(buttonVariants({ variant, size }), isDisabled && "opacity-50", className)}
+      disabled={isDisabled}
+      style={({ pressed }) => (pressed && !isDisabled ? { opacity: 0.85 } : null)}
       accessibilityRole="button"
       {...props}
     >
-      {icon}
+      {loading ? <Spinner colorClassName={spinnerColorClasses[variant ?? "default"]} /> : icon}
       {typeof children === "string" ? (
         <Text className={cn(buttonTextVariants({ variant }), textClassName)}>{children}</Text>
       ) : (
