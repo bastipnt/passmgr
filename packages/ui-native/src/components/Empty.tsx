@@ -41,7 +41,7 @@ export function EmptyMedia({
 }
 
 export function EmptyTitle({ className, ...props }: TextProps & { className?: string }) {
-  return <Text className={cn("text-md font-medium", className)} {...props} />;
+  return <Text className={cn("text-foreground text-md font-medium", className)} {...props} />;
 }
 
 export function EmptyDescription({ className, ...props }: TextProps & { className?: string }) {

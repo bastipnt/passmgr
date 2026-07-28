@@ -3,7 +3,7 @@ import { Stack, useFocusEffect, useRouter } from "expo-router";
 import { useCallback, useRef, useState } from "react";
 import type { SearchBarCommands } from "react-native-screens";
 import { useRecordSearch } from "@repo/client";
-import { Empty, EmptyDescription, EmptyHeader } from "@repo/ui-native";
+import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@repo/ui-native";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { RecentRecords } from "@/features/search/components/RecentRecords";
 import { useRecentRecords } from "@/features/search/use-recent-records";
@@ -19,6 +19,7 @@ export default function SearchScreen() {
   const { recentRecords, addRecentRecord, clearRecentRecords } = useRecentRecords();
 
   const hasQuery = query.trim().length > 0;
+  const hasResults = recordGroups.some((recordGroup) => recordGroup.records.length > 0);
   const searchBarRef = useRef<SearchBarCommands>(null);
   const router = useRouter();
   const background = useCSSVariable("--color-background") as string;
@@ -71,7 +72,18 @@ export default function SearchScreen() {
       >
         <View>
           {hasQuery ? (
-            <RecordsList recordGroups={recordGroups} onSelect={addRecentRecord} />
+            hasResults ? (
+              <RecordsList recordGroups={recordGroups} onSelect={addRecentRecord} />
+            ) : (
+              <View className="p-md">
+                <Empty>
+                  <EmptyHeader>
+                    <EmptyTitle>No results found</EmptyTitle>
+                    <EmptyDescription>Nothing matches “{query.trim()}”.</EmptyDescription>
+                  </EmptyHeader>
+                </Empty>
+              </View>
+            )
           ) : recentRecords.length > 0 ? (
             <RecentRecords
               records={recentRecords}
