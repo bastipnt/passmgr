@@ -131,11 +131,13 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
                 {recoveryKeyB64}
               </Text>
             </Pressable>
+            {/* `native={false}`: SwiftUI hosts stay unmounted inside a
+                `FullWindowOverlay` — see the note in `RemoveDialog`. */}
             <View className="gap-sm">
-              <Button variant="outline" onPress={onCopy}>
+              <Button native={false} variant="outline" onPress={onCopy}>
                 {copied ? "Copied" : "Copy to clipboard"}
               </Button>
-              <Button onPress={onConfirm} disabled={!copied}>
+              <Button native={false} onPress={onConfirm} disabled={!copied}>
                 I saved it
               </Button>
             </View>

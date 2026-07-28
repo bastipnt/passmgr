@@ -1,12 +1,15 @@
 import { View } from "react-native";
 import { ReactNode } from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollFade } from "./ScrollFade";
 
-type SheetActionsProps = {
+type PageActionsProps = {
   children: ReactNode;
 };
 
-function SheetActions({ children }: SheetActionsProps) {
+function PageActions({ children }: PageActionsProps) {
+  const insets = useSafeAreaInsets();
+
   return (
     <>
       <ScrollFade edge="top" height={80} />
@@ -14,7 +17,8 @@ function SheetActions({ children }: SheetActionsProps) {
         buttons scrollable. */}
       <View
         pointerEvents="box-none"
-        className="absolute left-0 right-0 flex-row justify-between px-4 top-4"
+        className="absolute left-0 right-0 flex-row justify-between px-4"
+        style={{ top: insets.top + 8 }}
       >
         {children}
       </View>
@@ -22,4 +26,4 @@ function SheetActions({ children }: SheetActionsProps) {
   );
 }
 
-export { SheetActions };
+export { PageActions };

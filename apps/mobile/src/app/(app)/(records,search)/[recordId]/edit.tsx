@@ -123,7 +123,21 @@ export default function EditScreen() {
       </KeyboardAwareScrollView>
 
       <SheetActions>
-        <Button size="sm" onPress={() => formRef.current?.triggerSubmit()}>
+        <Button
+          hug
+          variant="glass"
+          size="icon-lg"
+          systemImage="xmark"
+          accessibilityLabel="Close"
+          onPress={() => router.back()}
+        />
+
+        <Button
+          hug
+          variant="glass-primary"
+          size="lg"
+          onPress={() => formRef.current?.triggerSubmit()}
+        >
           Save
         </Button>
       </SheetActions>

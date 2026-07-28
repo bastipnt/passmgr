@@ -1,6 +1,12 @@
-import { cloneElement, isValidElement, useState, type ReactElement, type ReactNode } from "react";
+import { cloneElement, isValidElement, useState, type ReactElement } from "react";
 import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { FullWindowOverlay } from "react-native-screens";
+import {
+  Alert,
+  Host,
+  Spacer,
+  Button as SwiftUIButton,
+  Text as SwiftUIText,
+} from "@expo/ui/swift-ui";
 
 import { Button } from "../Button";
 
@@ -29,44 +35,18 @@ type ControlledRemoveDialogProps = RemoveDialogBaseProps & {
 export type RemoveDialogProps = UncontrolledRemoveDialogProps | ControlledRemoveDialogProps;
 
 /**
- * Hosts the dialog above the rest of the app.
- *
- * iOS deliberately avoids RN's `Modal`: presenting an `@expo/ui` BottomSheet
- * installs a window-level gesture recogniser that outlives the sheet and
- * cancels touches inside `RCTModalHostView`, so presses reach `onPressIn` but
- * never complete as `onPress`. `FullWindowOverlay` renders through RN's own
- * surface instead, which is unaffected. Android has no native sheet presented
- * over RN, so `Modal` is fine there.
+ * The SwiftUI alert is presented by the hosting controller, not drawn inside
+ * the host's box, so the host only has to exist in the tree — it never needs
+ * a size or any touch handling of its own.
  */
-function DialogPortal({
-  visible,
-  onRequestClose,
-  children,
-}: {
-  visible: boolean;
-  onRequestClose: () => void;
-  children: ReactNode;
-}) {
-  if (Platform.OS === "ios") {
-    if (!visible) return null;
-    return (
-      <FullWindowOverlay>
-        <View style={StyleSheet.absoluteFill}>{children}</View>
-      </FullWindowOverlay>
-    );
-  }
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRequestClose}>
-      {children}
-    </Modal>
-  );
-}
+const hiddenHost = { position: "absolute", width: 0, height: 0 } as const;
 
 /**
  * Confirmation dialog for destructive actions. Mirrors the web
  * `RemoveDialog`: controlled via `open`/`onOpenChange`, or uncontrolled
  * with a trigger element passed as `children`.
+ *
+ * iOS presents the system alert (`@expo/ui`); Android renders an RN `Modal`.
  */
 export function RemoveDialog({
   title,
@@ -95,11 +75,60 @@ export function RemoveDialog({
       ? cloneElement(children, { onPress: () => setOpen(true) })
       : null;
 
+  if (Platform.OS === "ios") {
+    return (
+      <>
+        {trigger}
+
+        <Host style={hiddenHost} pointerEvents="none">
+          <Alert
+            title={title}
+            isPresented={isOpen}
+            onIsPresentedChange={(presented) => {
+              // Fires when the alert dismisses itself (a button, or a swipe on
+              // an iPad popover), which the RN state has to follow.
+              if (!presented) setOpen(false);
+            }}
+          >
+            {/*
+             * `.alert` is a modifier on the trigger view, so the slot must hold
+             * a real SwiftUI view — an empty one drops the presentation. The
+             * RN trigger above stays the visible one; `Spacer` inside the
+             * zero-sized host paints nothing.
+             */}
+            <Alert.Trigger>
+              <Spacer />
+            </Alert.Trigger>
+            <Alert.Message>
+              <SwiftUIText>{description}</SwiftUIText>
+            </Alert.Message>
+            <Alert.Actions>
+              <SwiftUIButton label={closeTitle} role="cancel" onPress={() => setOpen(false)} />
+              <SwiftUIButton
+                label={removeTitle}
+                role="destructive"
+                onPress={() => {
+                  setOpen(false);
+                  onRemove();
+                }}
+              />
+            </Alert.Actions>
+          </Alert>
+        </Host>
+      </>
+    );
+  }
+
   return (
     <>
       {trigger}
 
-      <DialogPortal visible={isOpen} onRequestClose={() => setOpen(false)}>
+      <Modal
+        visible={isOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setOpen(false)}
+      >
         {/*
          * Backdrop is a sibling *behind* the card rather than its parent.
          * Nesting pressables made each ancestor take the responder off its
@@ -136,10 +165,7 @@ export function RemoveDialog({
                 variant="destructive"
                 onPress={() => {
                   setOpen(false);
-                  // Deferred: `onRemove` typically unmounts this dialog. Running
-                  // it in the same batch tears the overlay down while it is
-                  // still visible, leaving its window behind to swallow touches.
-                  requestAnimationFrame(onRemove);
+                  onRemove();
                 }}
               >
                 {removeTitle}
@@ -147,7 +173,7 @@ export function RemoveDialog({
             </View>
           </View>
         </View>
-      </DialogPortal>
+      </Modal>
     </>
   );
 }

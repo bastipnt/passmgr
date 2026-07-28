@@ -196,6 +196,23 @@ export function useSortedRecords(): SortedRecordsContextValue {
   return ctx;
 }
 
+/**
+ * Search over all records without touching the provider's own `query`. Mobile
+ * has a dedicated search tab whose input must not filter the records tab, so it
+ * keeps its query in local state and groups the results through this hook.
+ * An empty query falls back to the regular sorted grouping.
+ */
+export function useRecordSearch(query: string): RecordGroup[] {
+  const { records } = useGetRecords();
+  const { sort } = useSortedRecords();
+  const trimmed = query.trim();
+
+  return useMemo(() => {
+    if (!trimmed) return groupRecords(sortRecords(records, sort), sort);
+    return [{ label: null, records: filterBySearch(records, trimmed) }];
+  }, [records, sort, trimmed]);
+}
+
 type SortedRecordsProviderProps = {
   children: ReactNode;
 };

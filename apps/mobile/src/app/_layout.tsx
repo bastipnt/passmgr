@@ -8,7 +8,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { Uniwind } from "uniwind";
+import { Uniwind, useResolveClassNames } from "uniwind";
 import {
   ClientProvider,
   PreferencesProvider,
@@ -29,6 +29,7 @@ const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 function Routes() {
   const { loggedIn } = useContext(SessionContext);
   const { status, tryRestore } = useSessionRestore();
+  const contentStyle = useResolveClassNames("bg-background");
 
   useEffect(() => {
     void tryRestore();
@@ -50,6 +51,7 @@ function Routes() {
       <Stack
         screenOptions={{
           headerShown: false,
+          contentStyle,
         }}
       >
         <Stack.Protected guard={loggedIn}>

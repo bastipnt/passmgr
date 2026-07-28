@@ -1,4 +1,4 @@
-import { RecordGroup, useSortedRecords } from "@repo/client";
+import { RecordGroup } from "@repo/client";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
@@ -22,7 +22,9 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
             username={record.username}
             websites={record.websites}
             active={record.recordId === activeRecordId}
-            onClick={() => router.navigate(`./${record.recordId}`)}
+            // [recordId] lives in the (records,search) group, so the same href
+            // resolves inside whichever tab is currently active.
+            onClick={() => router.navigate(`/${record.recordId}`)}
           />
         ))}
       </View>
@@ -30,9 +32,11 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
   );
 }
 
-export function RecordsList() {
-  const { recordGroups } = useSortedRecords();
+type RecordsListProps = {
+  recordGroups: RecordGroup[];
+};
 
+export function RecordsList({ recordGroups }: RecordsListProps) {
   return (
     <View className="gap-md">
       {recordGroups.map((recordGroup) => (
