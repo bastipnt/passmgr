@@ -4,16 +4,16 @@ import { loginRecordSchema, type LoginRecord as FormValues } from "@repo/schema"
 import { useImperativeHandle, type Ref } from "react";
 import {
   ControlledInput,
-  ControlledPasswordInput,
   ControlledTextarea,
   FieldError,
   FieldGroup,
   FieldSeparator,
   FieldSet,
 } from "@repo/ui-native";
-import { KeyIcon, LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react-native";
+import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react-native";
 import WebsiteFormFields from "@/features/records/components/WebsiteFormFields";
 import ExtraFormFields from "@/features/records/components/ExtraFormFields";
+import PasswordField from "@/features/records/components/PasswordField";
 import { View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
@@ -76,13 +76,7 @@ export default function LoginRecordForm({
             icon={<MailIcon size={18} color={iconColor} />}
           />
 
-          <ControlledPasswordInput
-            control={control}
-            name="password"
-            label="Password"
-            autoComplete="off"
-            icon={<KeyIcon size={18} color={iconColor} />}
-          />
+          <PasswordField control={control} setValue={setValue} />
 
           <ControlledInput
             control={control}

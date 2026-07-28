@@ -12,6 +12,8 @@ export type InputProps = TextInputProps & {
   note?: ReactNode;
   /** Rendered at the trailing edge inside the field — e.g. a password eye toggle. */
   addon?: ReactNode;
+  /** Extra classes for the `TextInput` itself — e.g. wider padding for a two-icon addon. */
+  inputClassName?: string;
   icon?: ReactNode;
   className?: string;
 };
@@ -22,6 +24,7 @@ export function Input({
   error,
   note,
   addon,
+  inputClassName,
   className: _className,
   style: _style,
   ...rest
@@ -38,6 +41,7 @@ export function Input({
               ? "border-destructive focus:border-destructive"
               : "border-border focus:border-primary",
             addon && "pr-[46px]",
+            inputClassName,
           )}
           placeholderTextColorClassName="text-muted-foreground"
           {...rest}

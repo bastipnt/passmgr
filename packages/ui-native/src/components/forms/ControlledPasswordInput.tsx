@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
+import { cn } from "../../lib/utils";
 import { Input, type InputProps } from "./ControlledInput";
 
 export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omit<
@@ -11,12 +12,16 @@ export type ControlledPasswordInputProps<TFieldValues extends FieldValues> = Omi
 > & {
   control: Control<TFieldValues>;
   name: FieldPath<TFieldValues>;
+  /** Rendered inside the field, left of the visibility toggle — e.g. a generator trigger. */
+  actions?: ReactNode;
 };
 
 export function ControlledPasswordInput<TFieldValues extends FieldValues>({
   control,
   name,
   icon,
+  actions,
+  inputClassName,
   ...rest
 }: ControlledPasswordInputProps<TFieldValues>) {
   const [visible, setVisible] = useState(false);
@@ -37,17 +42,23 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
             secureTextEntry={!visible}
             autoCapitalize="none"
             autoCorrect={false}
+            // The addon sits absolutely inside the field, so extra actions need
+            // the input's trailing padding widened by hand.
+            inputClassName={cn(actions && "pr-[76px]", inputClassName)}
             addon={
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={visible ? "Hide password" : "Show password"}
-                hitSlop={8}
-                className="p-xs"
-                style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
-                onPress={() => setVisible((v) => !v)}
-              >
-                <Icon size={20} color={iconColor} />
-              </Pressable>
+              <View className="flex-row items-center gap-xs">
+                {actions}
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={visible ? "Hide password" : "Show password"}
+                  hitSlop={8}
+                  className="p-xs"
+                  style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
+                  onPress={() => setVisible((v) => !v)}
+                >
+                  <Icon size={20} color={iconColor} />
+                </Pressable>
+              </View>
             }
             {...rest}
           />

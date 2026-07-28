@@ -9,6 +9,7 @@ export * from "./src/components/BlurView";
 export * from "./src/components/Card";
 export * from "./src/components/Empty";
 export * from "./src/components/Skeleton";
+export * from "./src/components/Slider";
 export * from "./src/components/KeyboardAvoidingView";
 export * from "./src/components/Spinner";
 export * from "./src/components/Link";
@@ -19,6 +20,7 @@ export * from "./src/components/forms/ControlledInput";
 export * from "./src/components/forms/ControlledPasswordInput";
 export * from "./src/components/forms/ControlledTextarea";
 export * from "./src/components/forms/ControlledExtraField";
+export * from "./src/components/forms/OptionToggle";
 
 // *** FEATURE COMPONENTS ***
 // record-list

@@ -10,7 +10,10 @@ import {
   generatePassword,
   getCharsetSize,
   getStrength,
+  PASSPHRASE_DEFAULTS,
+  PASSWORD_DEFAULTS,
   PasswordGeneratorError,
+  type GeneratorMode,
   type PassphraseOptions,
   type PasswordOptions,
 } from "@repo/crypto";
@@ -25,11 +28,6 @@ import {
   SheetTitle,
 } from "@repo/ui/components/Sheet";
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
-import {
-  PASSPHRASE_DEFAULTS,
-  PASSWORD_DEFAULTS,
-  type Mode,
-} from "@features/password-generation/generatorOptions";
 import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
 import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
 import { useIsMobile } from "@/hooks/use-is-mobile";
@@ -51,7 +49,7 @@ const TITLE = "Generate password";
 
 export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorProps) {
   const [open, setOpen] = useState(false);
-  const [mode, setMode] = useState<Mode>("password");
+  const [mode, setMode] = useState<GeneratorMode>("password");
   const [pwOpts, setPwOpts] = useState<PasswordOptions>(PASSWORD_DEFAULTS);
   const [phOpts, setPhOpts] = useState<PassphraseOptions>(PASSPHRASE_DEFAULTS);
   const [generated, setGenerated] = useState("");

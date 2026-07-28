@@ -1,6 +1,5 @@
 import OptionToggle from "@features/password-generation/components/OptionToggle";
-import { SEPARATORS } from "@features/password-generation/generatorOptions";
-import type { PassphraseOptions } from "@repo/crypto";
+import { SEPARATORS, type PassphraseOptions } from "@repo/crypto";
 import { Field, FieldLabel } from "@repo/ui/components/Field";
 import {
   Select,
