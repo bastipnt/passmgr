@@ -6,9 +6,10 @@ import { View } from "react-native";
 type RecordGroupProps = {
   recordGroup: RecordGroup;
   activeRecordId: string;
+  onSelect?: (recordId: string) => void;
 };
 
-function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
+function RecordGroupLI({ recordGroup, activeRecordId, onSelect }: RecordGroupProps) {
   const router = useRouter();
 
   return (
@@ -24,7 +25,10 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
             active={record.recordId === activeRecordId}
             // [recordId] lives in the (records,search) group, so the same href
             // resolves inside whichever tab is currently active.
-            onClick={() => router.navigate(`/${record.recordId}`)}
+            onClick={() => {
+              onSelect?.(record.recordId);
+              router.navigate(`/${record.recordId}`);
+            }}
           />
         ))}
       </View>
@@ -34,9 +38,11 @@ function RecordGroupLI({ recordGroup, activeRecordId }: RecordGroupProps) {
 
 type RecordsListProps = {
   recordGroups: RecordGroup[];
+  /** Fires before navigation when a record is tapped (search tracks recents). */
+  onSelect?: (recordId: string) => void;
 };
 
-export function RecordsList({ recordGroups }: RecordsListProps) {
+export function RecordsList({ recordGroups, onSelect }: RecordsListProps) {
   return (
     <View className="gap-md">
       {recordGroups.map((recordGroup) => (
@@ -44,6 +50,7 @@ export function RecordsList({ recordGroups }: RecordsListProps) {
           key={recordGroup.label ?? "all"}
           recordGroup={recordGroup}
           activeRecordId={"TODO:"}
+          onSelect={onSelect}
         />
       ))}
     </View>

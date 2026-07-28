@@ -1,4 +1,5 @@
 import { useCallback, useState } from "react";
+import { Appearance } from "react-native";
 import { Uniwind } from "uniwind";
 import { usePreferences, type PreferencesStore } from "@repo/client";
 
@@ -18,6 +19,17 @@ export function getStoredTheme(preferences: PreferencesStore): ThemePreference {
   return "system";
 }
 
+/**
+ * Applies the theme to both layers: Uniwind styles the JS tree, while UIKit paints the
+ * native chrome (stack headers, tab bar, keyboard, alerts) from `Appearance` alone — so
+ * without this the native parts stay light while the app renders dark. "unspecified"
+ * hands control back to the OS.
+ */
+export function applyTheme(theme: ThemePreference) {
+  Uniwind.setTheme(theme);
+  Appearance.setColorScheme(theme === "system" ? "unspecified" : theme);
+}
+
 export function useThemePreference() {
   const preferences = usePreferences();
   const [preference, setPreferenceState] = useState(() => getStoredTheme(preferences));
@@ -25,7 +37,7 @@ export function useThemePreference() {
   const setPreference = useCallback(
     (next: ThemePreference) => {
       preferences.set(STORAGE_KEY, next);
-      Uniwind.setTheme(next);
+      applyTheme(next);
       setPreferenceState(next);
     },
     [preferences],

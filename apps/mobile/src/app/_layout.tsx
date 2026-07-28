@@ -8,7 +8,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
-import { Uniwind, useResolveClassNames } from "uniwind";
+import { useResolveClassNames } from "uniwind";
 import {
   ClientProvider,
   PreferencesProvider,
@@ -20,7 +20,7 @@ import {
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
-import { getStoredTheme } from "@/hooks/use-theme-preference";
+import { applyTheme, getStoredTheme } from "@/hooks/use-theme-preference";
 import { useVaultStore } from "@/hooks/use-vault-store";
 import { useContext, useEffect } from "react";
 
@@ -73,7 +73,7 @@ export default function RootLayout() {
   // Apply the persisted appearance choice. Uniwind's light/dark themes are
   // adaptive; "system" (the default) re-enables tracking the OS color scheme.
   useEffect(() => {
-    Uniwind.setTheme(getStoredTheme(preferencesStore));
+    applyTheme(getStoredTheme(preferencesStore));
   }, [preferencesStore]);
 
   return (
