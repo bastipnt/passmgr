@@ -9,6 +9,7 @@ import {
   type TRPCClient,
 } from "@trpc/client";
 import type { AppRouter } from "@repo/types";
+import type { EventSourceLike } from "@trpc/server/unstable-core-do-not-import";
 import { generateAuthHeaders } from "../util/headers";
 
 function makeQueryClient() {
@@ -42,9 +43,15 @@ function getQueryClient() {
 type ClientProviderProps = {
   children: ReactNode;
   serverUrl: string;
+  /**
+   * `EventSource` ponyfill for SSE subscriptions. Web leaves this unset and gets
+   * `globalThis.EventSource`; React Native has no such global and must pass one.
+   * Must be a stable reference — the tRPC client is created once.
+   */
+  eventSource?: EventSourceLike.AnyConstructor;
 };
 
-export default function ClientProvider({ children, serverUrl }: ClientProviderProps) {
+export default function ClientProvider({ children, serverUrl, eventSource }: ClientProviderProps) {
   const queryClient = getQueryClient();
 
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
@@ -54,6 +61,7 @@ export default function ClientProvider({ children, serverUrl }: ClientProviderPr
           condition: (op) => op.type === "subscription",
           true: httpSubscriptionLink({
             url: serverUrl,
+            EventSource: eventSource,
             connectionParams: async () => {
               const { secretsStore } = await import("@repo/store");
               return { sessionId: secretsStore.sessionId ?? "" };

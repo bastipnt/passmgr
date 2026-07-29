@@ -16,6 +16,7 @@
     "@repo/util": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",
+    "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
     "tinykeys": "^4.0.0"
   },

@@ -19,9 +19,11 @@ import {
 } from "@repo/client";
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
+import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { applyTheme, getStoredTheme } from "@/hooks/use-theme-preference";
 import { useVaultStore } from "@/hooks/use-vault-store";
+import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 import { useContext, useEffect } from "react";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
@@ -69,6 +71,7 @@ function Routes() {
 export default function RootLayout() {
   const preferencesStore = usePreferencesStore();
   const vaultStore = useVaultStore();
+  const appActive = useAppActive();
 
   // Apply the persisted appearance choice. Uniwind's light/dark themes are
   // adaptive; "system" (the default) re-enables tracking the OS color scheme.
@@ -81,8 +84,8 @@ export default function RootLayout() {
       <KeyboardProvider>
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
-            <ClientProvider serverUrl={serverUrl}>
-              <StoreProvider vault={vaultStore}>
+            <ClientProvider serverUrl={serverUrl} eventSource={RNEventSourcePonyfill}>
+              <StoreProvider vault={vaultStore} syncEnabled={appActive}>
                 <Routes />
               </StoreProvider>
             </ClientProvider>

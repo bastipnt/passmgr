@@ -33,10 +33,16 @@ export function useStore(): StoreContextValue {
 
 type StoreProviderProps = {
   vault: Vault;
+  /**
+   * Gates the SSE subscription and periodic sync. Mobile passes the app's
+   * foreground state — the OS suspends sockets and timers in the background, so
+   * the stream has to be torn down and re-established rather than left to rot.
+   */
+  syncEnabled?: boolean;
   children: ReactNode;
 };
 
-export function StoreProvider({ vault, children }: StoreProviderProps) {
+export function StoreProvider({ vault, syncEnabled = true, children }: StoreProviderProps) {
   const { loggedIn, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const preferences = usePreferences();
@@ -77,7 +83,7 @@ export function StoreProvider({ vault, children }: StoreProviderProps) {
 
   // Sync on login + start periodic sync + SSE subscription + resync when back online
   useEffect(() => {
-    if (!loggedIn || isOffline) return;
+    if (!loggedIn || isOffline || !syncEnabled) return;
 
     const onOnline = () => void syncManager.sync();
     if (typeof window !== "undefined" && typeof window.addEventListener === "function")
@@ -91,18 +97,19 @@ export function StoreProvider({ vault, children }: StoreProviderProps) {
     function subscribe() {
       currentSubscription = trpc.record.onRecordChange.subscribe(undefined, {
         onData: (event) => {
-          retryDelay = 5_000;
           if (event.data.type === "changed") {
+            // Only a real event proves the stream works. Resetting on "connected"
+            // too would pin a server that accepts-then-drops at a flat 5s loop.
+            retryDelay = 5_000;
             void syncManager.sync();
           }
         },
         onError: () => {
           currentSubscription = null;
           if (disposed) return;
-          retryTimer = setTimeout(() => {
-            retryDelay = Math.min(retryDelay * 2, 60_000);
-            subscribe();
-          }, retryDelay);
+          const delay = retryDelay;
+          retryDelay = Math.min(retryDelay * 2, 60_000);
+          retryTimer = setTimeout(subscribe, delay);
         },
       });
     }
@@ -121,7 +128,7 @@ export function StoreProvider({ vault, children }: StoreProviderProps) {
         window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [loggedIn, isOffline, syncManager, trpc]);
+  }, [loggedIn, isOffline, syncEnabled, syncManager, trpc]);
 
   async function removeVault() {
     await vault.clear();
