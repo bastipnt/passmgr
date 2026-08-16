@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { EditIcon, EllipsisVerticalIcon, TrashIcon, XIcon } from "lucide-react";
+import { EditIcon, EllipsisVerticalIcon, Timeline, TrashIcon, XIcon } from "lucide-react";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -8,9 +8,54 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { SessionContext } from "@repo/client";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
+
+type MoreDropdownProps = {
+  onDelete: () => void;
+  isMobile: boolean;
+};
+
+function MoreDropdown({ onDelete, isMobile }: MoreDropdownProps) {
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button
+              variant={isMobile ? "outline" : "ghost"}
+              size="icon"
+              className="rounded-full sm:rounded-lg"
+            >
+              <EllipsisVerticalIcon />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => {}}>
+            <Timeline /> Versions
+          </DropdownMenuItem>
+
+          <DropdownMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+            <TrashIcon /> Delete
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <RemoveDialog
+        title="Delete item"
+        description="Are you sure you want to delete this item? This action cannot be undone."
+        removeTitle="Delete"
+        onRemove={onDelete}
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+      />
+    </>
+  );
+}
 
 type RecordActionsProps = {
   title: string;
@@ -27,7 +72,6 @@ export function RecordActions({
   onSetOpen,
   className,
 }: RecordActionsProps) {
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const { isOffline } = useContext(SessionContext);
   const isMobile = useIsMobile();
 
@@ -53,33 +97,7 @@ export function RecordActions({
           <Button variant={isMobile ? "default" : "ghost"} onClick={onEdit}>
             <EditIcon /> Edit
           </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger
-              render={
-                <Button
-                  variant={isMobile ? "outline" : "ghost"}
-                  size="icon"
-                  className="rounded-full sm:rounded-lg"
-                >
-                  <EllipsisVerticalIcon />
-                </Button>
-              }
-            />
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-                <TrashIcon /> Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-
-          <RemoveDialog
-            title="Delete item"
-            description="Are you sure you want to delete this item? This action cannot be undone."
-            removeTitle="Delete"
-            onRemove={onDelete}
-            open={deleteDialogOpen}
-            onOpenChange={setDeleteDialogOpen}
-          />
+          <MoreDropdown isMobile={isMobile} onDelete={onDelete} />
         </div>
       )}
     </div>

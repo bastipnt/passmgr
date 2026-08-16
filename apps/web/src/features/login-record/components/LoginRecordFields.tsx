@@ -1,26 +1,36 @@
 import { Fragment } from "react";
-import { EarthIcon, KeyIcon, LockIcon, MailIcon, NotebookPenIcon, TextIcon } from "lucide-react";
+import {
+  EarthIcon,
+  KeyIcon,
+  LockIcon,
+  MailIcon,
+  NotebookPenIcon,
+  Pen,
+  Rocket,
+  TextIcon,
+  Wand,
+} from "lucide-react";
 import { Separator } from "@repo/ui/components/Separator";
 import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import Link from "@repo/ui/components/Link";
-import { isDefined } from "@repo/util";
+import { isDefined, toLocalDateStr } from "@repo/util";
 import { getStrengthFromString } from "@repo/crypto";
-import type { LoginRecord } from "@repo/schema";
+import type { DecryptedRecord } from "@repo/schema";
 import TotpField from "@features/login-record/components/TotpField";
 
 type LoginRecordFieldsProps = {
-  data: LoginRecord;
+  record: DecryptedRecord;
   onCopy: (value: string | undefined, label: string) => void;
 };
 
-export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
+export function LoginRecordFields({ record, onCopy }: LoginRecordFieldsProps) {
   return (
     <>
       <ItemDisplayGroup>
         <ItemDisplay
           title="Username"
-          value={data.username}
-          onClick={() => onCopy(data.username, "Username")}
+          value={record.username}
+          onClick={() => onCopy(record.username, "Username")}
           icon={<MailIcon />}
         />
 
@@ -28,29 +38,29 @@ export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
 
         <ItemDisplay
           title="Password"
-          value={data.password}
-          onClick={({ type }) => type === "copy" && onCopy(data.password, "Password")}
+          value={record.password}
+          onClick={({ type }) => type === "copy" && onCopy(record.password, "Password")}
           icon={<KeyIcon />}
-          variant={data.password ? "password" : "noAction"}
-          strength={data.password ? getStrengthFromString(data.password) : undefined}
+          variant={record.password ? "password" : "noAction"}
+          strength={record.password ? getStrengthFromString(record.password) : undefined}
         />
 
-        {isDefined(data.totp) && (
+        {isDefined(record.totp) && (
           <>
             <Separator />
 
-            <TotpField onCopy={onCopy} totpData={data.totp} />
+            <TotpField onCopy={onCopy} totpData={record.totp} />
           </>
         )}
       </ItemDisplayGroup>
 
-      {isDefined(data.websites) && data.websites.length > 0 && (
+      {isDefined(record.websites) && record.websites.length > 0 && (
         <ItemDisplayGroup>
           <ItemDisplay
             title="Websites"
             value={
               <ul>
-                {data.websites.map(({ value }, i) => (
+                {record.websites.map(({ value }, i) => (
                   <li key={i}>
                     <Link target="_blank" href={value} className="p-0">
                       {value}
@@ -66,11 +76,11 @@ export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
         </ItemDisplayGroup>
       )}
 
-      {isDefined(data.note) && data.note !== "" && (
+      {isDefined(record.note) && record.note !== "" && (
         <ItemDisplayGroup>
           <ItemDisplay
             title="Notes"
-            value={<span className="whitespace-pre-line wrap-break-word">{data.note}</span>}
+            value={<span className="whitespace-pre-line wrap-break-word">{record.note}</span>}
             onClick={() => {}}
             icon={<NotebookPenIcon />}
             variant="noAction"
@@ -78,9 +88,9 @@ export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
         </ItemDisplayGroup>
       )}
 
-      {isDefined(data.extraFields) && data.extraFields.length > 0 && (
+      {isDefined(record.extraFields) && record.extraFields.length > 0 && (
         <ItemDisplayGroup>
-          {data.extraFields.map((extraField, i) => (
+          {record.extraFields.map((extraField, i) => (
             <Fragment key={i}>
               <ItemDisplay
                 title={extraField.title}
@@ -91,11 +101,26 @@ export function LoginRecordFields({ data, onCopy }: LoginRecordFieldsProps) {
                 icon={extraField.type === "secret" ? <LockIcon /> : <TextIcon />}
                 variant={extraField.type === "secret" ? "hidden" : "default"}
               />
-              {i < data.extraFields!.length - 1 && <Separator />}
+              {i < record.extraFields!.length - 1 && <Separator />}
             </Fragment>
           ))}
         </ItemDisplayGroup>
       )}
+
+      <ul className="flex flex-col gap-1">
+        <li className="flex flex-row gap-2 items-center text-muted">
+          <Wand size={20} />
+          <p>Date last used: TBA</p>
+        </li>
+        <li className="flex flex-row gap-2 items-center text-muted">
+          <Pen size={20} />
+          <p>Date last changed: {toLocalDateStr(record.clientUpdatedAt)}</p>
+        </li>
+        <li className="flex flex-row gap-2 items-center text-muted">
+          <Rocket size={20} />
+          <p>Date created: {toLocalDateStr(record.firstCreatedAt)}</p>
+        </li>
+      </ul>
     </>
   );
 }

@@ -59,7 +59,12 @@ export default function LoginRecordForm({
   }));
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit(handleFormSubmit)} autoComplete="off">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit(handleFormSubmit)}
+      autoComplete="off"
+      className="p-4"
+    >
       <FieldGroup className="*:pr-8">
         <FieldSet>
           <ControlledInput

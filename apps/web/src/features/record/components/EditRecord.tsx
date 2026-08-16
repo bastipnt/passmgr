@@ -6,7 +6,6 @@ import {
   SheetTitle,
 } from "@repo/ui/components/Sheet";
 import type { LoginRecord } from "@repo/schema";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import LoginRecordForm, {
   type LoginRecordFormHandle,
 } from "@features/login-record/forms/LoginRecordForm";
@@ -15,6 +14,7 @@ import { Button } from "@repo/ui/components/Button";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { TrashIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 
 type EditRecordProps = {
   open: boolean;
@@ -82,7 +82,6 @@ export default function EditRecord({
             <XIcon />
           </Button>
         )}
-
         <div className="flex flex-row gap-4 sm:justify-between sm:w-full">
           {!isMobile && <DeleteAction />}
           <div className="flex flex-row gap-4">

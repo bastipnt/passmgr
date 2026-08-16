@@ -24,7 +24,7 @@ import { ArrowUpDownIcon } from "lucide-react";
 import { useSortedRecords, SORT_LABELS } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
 import { useGetRecords, useShortcut } from "@repo/client";
-import { useIsMobile } from "@/hooks/use-is-mobile";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useEditingContext } from "@features/record/providers/EditingProvider";
 
 type SidebarRecordProps = {

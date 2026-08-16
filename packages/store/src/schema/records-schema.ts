@@ -57,10 +57,10 @@ export async function upsertRecords(
 
 export async function getAllRecordsLatest(db: SqlDriver): Promise<EncryptedRecordSchema[]> {
   return await db.all<EncryptedRecordSchema>(/* sql */ `
-    SELECT r.*
+    SELECT r.*, firstCreatedAt
     FROM records r
     INNER JOIN (
-      SELECT recordId, MAX(version) AS maxVersion
+      SELECT recordId, MAX(version) AS maxVersion, MIN(created_at) AS firstCreatedAt
       FROM records
       GROUP BY recordId
     ) latest ON r.recordId = latest.recordId AND r.version = latest.maxVersion
@@ -68,13 +68,14 @@ export async function getAllRecordsLatest(db: SqlDriver): Promise<EncryptedRecor
   `);
 }
 
+// TODO: not really used -> record is from all records list
 export async function getByRecordId(
   recordId: string,
   db: SqlDriver,
 ): Promise<EncryptedRecordSchema | undefined> {
   const rows = await db.all<EncryptedRecordSchema>(
     /* sql */ `
-      SELECT * FROM records
+      SELECT r.*, min(r.created_at) over (partition by r.recordId) as firstCreatedAt FROM records r
       WHERE recordId = ?
       ORDER BY version DESC
       LIMIT 1

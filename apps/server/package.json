@@ -16,7 +16,6 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "packageManager": "pnpm@10.23.0",
   "dependencies": {
     "@cloudflare/opaque-ts": "catalog:",
     "@fastify/cors": "^11.3.0",

@@ -44,6 +44,7 @@ async function decryptRecord(encrypted: EncryptedRecordSchema): Promise<Decrypte
     version: encrypted.version,
     clientUpdatedAt: encrypted.clientUpdatedAt,
     created_at: encrypted.created_at ?? null,
+    firstCreatedAt: encrypted.firstCreatedAt ?? null,
   };
 }
 

@@ -15,7 +15,7 @@ import { useLocation } from "wouter";
 
 export function useRecordActions({ recordId }: { recordId: string }) {
   const { isOffline } = useContext(SessionContext);
-  const { record: data, ready } = useGetRecord(recordId);
+  const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
   const { isEditing, setIsEditing, isEditSheetOpen, setIsEditSheetOpen } = useEditingContext();
 
@@ -50,7 +50,7 @@ export function useRecordActions({ recordId }: { recordId: string }) {
 
   function handleSubmit(formValues: LoginRecord) {
     const { encryptedData, encryptionNonce } = encryptRecord({
-      schemaVersion: data!.schemaVersion,
+      schemaVersion: record!.schemaVersion,
       ...formValues,
     });
     updateRecord({
@@ -58,26 +58,26 @@ export function useRecordActions({ recordId }: { recordId: string }) {
       encryptedData,
       encryptionNonce,
       cryptoVersion: CURRENT_CRYPTO_VERSION,
-      version: data!.version,
+      version: record!.version,
       clientUpdatedAt: new Date().toISOString(),
     });
   }
 
-  useShortcut("$mod+Shift+c", () => copyField(data?.password, "Password"), {
+  useShortcut("$mod+Shift+c", () => copyField(record?.password, "Password"), {
     description: "Copy password",
-    enabled: ready && !!data?.password && !isEditing,
+    enabled: ready && !!record?.password && !isEditing,
     allowInInput: true,
   });
 
-  useShortcut("$mod+Shift+u", () => copyField(data?.username, "Username"), {
+  useShortcut("$mod+Shift+u", () => copyField(record?.username, "Username"), {
     description: "Copy username",
-    enabled: ready && !!data?.username && !isEditing,
+    enabled: ready && !!record?.username && !isEditing,
     allowInInput: true,
   });
 
   useShortcut("$mod+e", () => handleEditSheetChange(true), {
     description: "Edit record",
-    enabled: ready && !!data?.username && !isOffline && !isEditing,
+    enabled: ready && !!record?.username && !isOffline && !isEditing,
     allowInInput: true,
   });
 
@@ -86,7 +86,7 @@ export function useRecordActions({ recordId }: { recordId: string }) {
     deleteRecord,
     copyField,
     handleSubmit,
-    data,
+    record,
     ready,
     isEditing,
     isEditSheetOpen,

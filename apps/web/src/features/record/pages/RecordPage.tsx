@@ -8,16 +8,16 @@ type ActionsProps = {
 };
 
 function Actions({ recordId }: ActionsProps) {
-  const { handleEditSheetChange, deleteRecord, data, ready } = useRecordActions({
+  const { handleEditSheetChange, deleteRecord, record, ready } = useRecordActions({
     recordId,
   });
 
-  if (!ready || !data) return null;
+  if (!ready || !record) return null;
 
   return (
     <RecordActions
       className="pb-10"
-      title={data.title}
+      title={record.title}
       onEdit={() => handleEditSheetChange(true)}
       onDelete={() => deleteRecord(recordId)}
     />

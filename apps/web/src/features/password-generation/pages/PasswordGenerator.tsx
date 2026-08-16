@@ -30,7 +30,6 @@ import {
 import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
 import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import {
   Drawer,
   DrawerActions,
@@ -39,6 +38,7 @@ import {
   DrawerTitle,
 } from "@repo/ui/components/Drawer";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 
 type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;

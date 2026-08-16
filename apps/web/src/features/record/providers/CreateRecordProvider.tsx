@@ -13,20 +13,13 @@ import { encryptRecord, useCreateRecord } from "@repo/client";
 import { isDefined } from "@repo/util";
 import { toast } from "@repo/ui";
 import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@repo/ui/components/Sheet";
 import { recordSlug } from "@/data/routes";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import LoginRecordForm, {
   type LoginRecordFormHandle,
 } from "@features/login-record/forms/LoginRecordForm";
-import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
+import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { XIcon } from "lucide-react";
 import { useEditingContext } from "@features/record/providers/EditingProvider";
 
@@ -92,19 +85,6 @@ export default function CreateRecordProvider({ children }: { children: ReactNode
 
   const value = useMemo(() => ({ openCreateSheet }), [openCreateSheet]);
 
-  function LoginRecordFormWrapper() {
-    return (
-      <LoginRecordForm
-        onSubmit={handleSubmit}
-        onCancel={() => handleCreatingChange(false)}
-        serverError={createRecordError?.message}
-        defaultValues={initialTitle ? { title: initialTitle } : undefined}
-        action="Create"
-        ref={formRef}
-      />
-    );
-  }
-
   function FormActions() {
     return (
       <div className="flex flex-row gap-4 justify-between">
@@ -134,34 +114,22 @@ export default function CreateRecordProvider({ children }: { children: ReactNode
   return (
     <CreateRecordContext value={value}>
       {children}
-      {isMobile ? (
-        <Drawer open={isCreating} onOpenChange={handleCreatingChange}>
-          <DrawerPopup>
-            <DrawerActions>
-              <FormActions />
-            </DrawerActions>
-            <DrawerContent>
-              <LoginRecordFormWrapper />
-            </DrawerContent>
-          </DrawerPopup>
-        </Drawer>
-      ) : (
-        <Sheet open={isCreating} onOpenChange={handleCreatingChange}>
-          <SheetContent side="right" className="sm:max-w-3xl!">
-            <SheetHeader>
-              <SheetTitle>New Login</SheetTitle>
-            </SheetHeader>
-
-            <div className="p-4">
-              <LoginRecordFormWrapper />
-            </div>
-
-            <SheetFooter>
-              <FormActions />
-            </SheetFooter>
-          </SheetContent>
-        </Sheet>
-      )}
+      <ResponsiveSheet
+        open={isCreating}
+        onOpenChange={handleCreatingChange}
+        title="New Login"
+        actions={<FormActions />}
+        sheetClassName="sm:max-w-3xl!"
+      >
+        <LoginRecordForm
+          onSubmit={handleSubmit}
+          onCancel={() => handleCreatingChange(false)}
+          serverError={createRecordError?.message}
+          defaultValues={initialTitle ? { title: initialTitle } : undefined}
+          action="Create"
+          ref={formRef}
+        />
+      </ResponsiveSheet>
     </CreateRecordContext>
   );
 }

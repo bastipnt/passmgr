@@ -15,7 +15,7 @@ function RecordInner({ recordId }: RecordProps) {
     deleteRecord,
     copyField,
     handleSubmit,
-    data,
+    record,
     ready,
     isEditSheetOpen,
     updateRecordError,
@@ -23,21 +23,21 @@ function RecordInner({ recordId }: RecordProps) {
     recordId,
   });
 
-  if (!ready || !data) return <Fallback />;
+  if (!ready || !record) return <Fallback />;
 
   const defaultValues: Partial<LoginRecord> = {
-    title: data.title,
-    username: data.username,
-    password: data.password,
-    totp: data.totp,
-    websites: data.websites,
-    note: data.note,
-    extraFields: data.extraFields,
+    title: record.title,
+    username: record.username,
+    password: record.password,
+    totp: record.totp,
+    websites: record.websites,
+    note: record.note,
+    extraFields: record.extraFields,
   };
 
   return (
     <div className="grid grid-cols-1 items-start gap-4">
-      <LoginRecordFields data={data} onCopy={copyField} />
+      <LoginRecordFields record={record} onCopy={copyField} />
 
       <EditRecord
         open={isEditSheetOpen}

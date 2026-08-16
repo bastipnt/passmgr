@@ -14,13 +14,22 @@ import { TRPCError, tracked } from "@trpc/server";
 import { emitRecordsChanged, onRecordsChanged } from "../events/record-events";
 
 function serializeRecord(record: RecordType) {
-  const { rowId: _rowId, userId: _userId, ...rest } = record;
+  const {
+    rowId: _rowId,
+    userId: _userId,
+    clientUpdatedAt,
+    created_at,
+    updated_at,
+    deleted_at,
+    ...rest
+  } = record;
+
   return {
     ...rest,
-    clientUpdatedAt: record.clientUpdatedAt.toISOString(),
-    created_at: record.created_at?.toISOString() ?? null,
-    updated_at: record.updated_at.toISOString(),
-    deleted_at: record.deleted_at?.toISOString() ?? null,
+    clientUpdatedAt: clientUpdatedAt.toISOString(),
+    created_at: created_at?.toISOString() ?? null,
+    updated_at: updated_at.toISOString(),
+    deleted_at: deleted_at?.toISOString() ?? null,
   };
 }
 
@@ -128,6 +137,7 @@ export const recordRouter = router({
         .limit(1);
 
       if (!current || current.deletedAt !== null) throw new TRPCError({ code: "NOT_FOUND" });
+      // TODO: make this not a conflict
       if (current.version !== version) throw new TRPCError({ code: "CONFLICT" });
 
       const [record] = await db

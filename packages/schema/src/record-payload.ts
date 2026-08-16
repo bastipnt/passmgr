@@ -13,7 +13,9 @@ export const encryptedRecordSchema = z.object({
   deleted_at: z.string().nullable().optional(),
 });
 
-export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema>;
+export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema> & {
+  firstCreatedAt?: string;
+};
 
 export const createRecordInputSchema = z.object({
   recordId: z.uuid(),
@@ -39,6 +41,7 @@ export type DecryptedRecord = RecordSchema & {
   version: number;
   clientUpdatedAt: string;
   created_at: string | null;
+  firstCreatedAt: string | null;
 };
 
 /** The crypto version used when encrypting records with the current code. */

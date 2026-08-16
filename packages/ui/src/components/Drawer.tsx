@@ -44,7 +44,7 @@ function DrawerActions({ children, className }: { children: React.ReactNode; cla
     <div
       data-slot="drawer-actions"
       className={cn(
-        "sticky top-0 left-0 right-0 pt-2 pb-4 z-10 backdrop-blur-xs bg-popover/80",
+        "sticky top-0 left-0 right-0 pt-2 pb-4 px-4 z-10 backdrop-blur-xs bg-popover/80",
         className,
       )}
     >
@@ -91,9 +91,7 @@ function DrawerPopup({
           translate="no"
           {...props}
         >
-          <div className="overflow-y-auto overscroll-contain touch-auto h-full px-4">
-            {children}
-          </div>
+          <div className="overflow-y-auto overscroll-contain touch-auto h-full">{children}</div>
         </DrawerPrimitive.Popup>
       </DrawerViewport>
     </DrawerPortal>

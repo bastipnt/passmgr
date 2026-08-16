@@ -1,11 +1,11 @@
 import { recordSlug } from "@/data/routes";
-import { useIsMobile } from "@/hooks/use-is-mobile";
 import RecordLayout from "@features/record/layout/RecordLayout";
 import { RecordMobileDrawer } from "@features/record/pages/RecordMobileDrawer";
 import CreateRecordProvider from "@features/record/providers/CreateRecordProvider";
 import EditingProvider from "@features/record/providers/EditingProvider";
 import SelectedElementProvider from "@features/record/providers/SelectedElementProvider";
 import { SessionContext, useAutoReconnect } from "@repo/client";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { lazy, useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 

@@ -13,16 +13,16 @@ type ActionsProps = {
 };
 
 function Actions({ recordId, setOpen }: ActionsProps) {
-  const { handleEditSheetChange, deleteRecord, data, ready } = useRecordActions({
+  const { handleEditSheetChange, deleteRecord, record, ready } = useRecordActions({
     recordId,
   });
 
-  if (!ready || !data) return null;
+  if (!ready || !record) return null;
 
   return (
     <DrawerActions>
       <RecordActions
-        title={data.title}
+        title={record.title}
         onEdit={() => handleEditSheetChange(true)}
         onDelete={() => deleteRecord(recordId)}
         onSetOpen={setOpen}
@@ -51,7 +51,7 @@ export function RecordMobileDrawer() {
     >
       <DrawerPopup>
         {recordId && <Actions recordId={recordId} setOpen={setOpen} />}
-        <DrawerContent>
+        <DrawerContent className="px-4">
           <Suspense fallback={null}>{recordId && <Record recordId={recordId} />}</Suspense>
         </DrawerContent>
       </DrawerPopup>
