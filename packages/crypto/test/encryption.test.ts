@@ -1,3 +1,4 @@
+import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { describe, expect, it } from "vitest";
 import {
   decryptXChaCha,
@@ -7,7 +8,6 @@ import {
   encryptXChaChaWithAAD,
 } from "../src/encryption";
 import { hkdf } from "../src/hash";
-import { fromBase64, fromString, toBase64 } from "@repo/util";
 
 describe("xchacha20-poly1305", () => {
   it("roundtrips a string", () => {

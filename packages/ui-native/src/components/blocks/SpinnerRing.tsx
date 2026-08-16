@@ -1,10 +1,10 @@
 import { useEffect } from "react";
 import Animated, {
+  Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
-  Easing,
 } from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
 

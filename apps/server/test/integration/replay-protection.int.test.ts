@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
-import { buildTestContext } from "../setup/test-context";
 import { signRequest } from "../setup/signed-request";
+import { buildTestContext } from "../setup/test-context";
 import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
 
 const email = "alice@example.com";

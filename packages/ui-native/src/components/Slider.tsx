@@ -1,7 +1,7 @@
-import { Platform, Pressable, Text, View } from "react-native";
 import { Host, Slider as SwiftUISlider } from "@expo/ui/swift-ui";
 import { tint } from "@expo/ui/swift-ui/modifiers";
 import { MinusIcon, PlusIcon } from "lucide-react-native";
+import { Platform, Pressable, Text, View } from "react-native";
 import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";
@@ -90,7 +90,7 @@ export function Slider({
         <PlusIcon size={18} color={foreground} />
       </Pressable>
 
-      <Text className="w-[32px] text-right text-sm text-muted-foreground">{value}</Text>
+      <Text className="w-[32px] text-right text-muted-foreground text-sm">{value}</Text>
     </View>
   );
 }

@@ -1,9 +1,9 @@
+import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { randomBytes } from "node:crypto";
-import { Client } from "pg";
-import { OpaqueID, getOpaqueConfig } from "@cloudflare/opaque-ts";
+import { getOpaqueConfig, OpaqueID } from "@cloudflare/opaque-ts";
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from "@testcontainers/postgresql";
+import { Client } from "pg";
 import { GenericContainer, type StartedTestContainer } from "testcontainers";
 
 let pgContainer: StartedPostgreSqlContainer | undefined;

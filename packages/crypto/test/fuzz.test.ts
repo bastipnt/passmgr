@@ -1,10 +1,10 @@
+import { fromBase64, fromString } from "@repo/util";
 import fc from "fast-check";
 import { describe, expect, it } from "vitest";
 import { decryptXChaCha, encryptXChaCha } from "../src/encryption";
 import { hkdf, signHmac, verifyHmac } from "../src/hash";
 import { generatePassword } from "../src/password-generator";
 import { genKey } from "../src/util/secrets-utils";
-import { fromBase64, fromString } from "@repo/util";
 
 const SHORT_RUNS = { numRuns: 50 };
 const TINY_RUNS = { numRuns: 30 };

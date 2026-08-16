@@ -1,8 +1,7 @@
 import { describe, expect, it } from "vitest";
-
-import { createCallerFactory } from "../trpc";
-import { appRouter } from "../router";
 import { buildTestContext } from "../../test/setup/test-context";
+import { appRouter } from "../router";
+import { createCallerFactory } from "../trpc";
 
 const createCaller = createCallerFactory(appRouter);
 

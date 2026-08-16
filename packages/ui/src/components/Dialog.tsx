@@ -1,11 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
-
-import { cn } from "@repo/ui/lib/utils";
 import { Button } from "@repo/ui/components/Button";
+import { cn } from "@repo/ui/lib/utils";
+import { XIcon } from "lucide-react";
+import * as React from "react";
 
 import styles from "./Dialog.module.css";
 
@@ -103,7 +102,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("cn-font-heading text-base leading-none font-medium", className)}
+      className={cn("cn-font-heading font-medium text-base leading-none", className)}
       {...props}
     />
   );
@@ -114,7 +113,7 @@ function DialogDescription({ className, ...props }: DialogPrimitive.Description.
     <DialogPrimitive.Description
       data-slot="dialog-description"
       className={cn(
-        "text-sm text-muted-foreground *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
+        "text-muted-foreground text-sm *:[a]:underline *:[a]:underline-offset-3 *:[a]:hover:text-foreground",
         className,
       )}
       {...props}
@@ -126,16 +125,16 @@ const createHandle = DialogPrimitive.createHandle;
 type DialogHandle<T> = DialogPrimitive.Handle<T>;
 
 export {
+  createHandle,
   Dialog,
   DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
+  type DialogHandle,
   DialogHeader,
   DialogOverlay,
   DialogPortal,
   DialogTitle,
   DialogTrigger,
-  createHandle,
-  type DialogHandle,
 };

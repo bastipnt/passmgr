@@ -5,7 +5,7 @@
 // to the master OPAQUE server key — rotating either invalidates every
 // registration. Keep them out of source control and back them up offline.
 
-import { OpaqueID, getOpaqueConfig } from "@cloudflare/opaque-ts";
+import { getOpaqueConfig, OpaqueID } from "@cloudflare/opaque-ts";
 
 const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
 const oprfSeed = crypto.getRandomValues(new Uint8Array(cfg.hash.Nh));

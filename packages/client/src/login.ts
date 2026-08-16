@@ -1,16 +1,16 @@
 import {
-  OpaqueClient,
-  OpaqueID,
+  type AuthClient,
   getOpaqueConfig,
   KE2,
-  type AuthClient,
+  OpaqueClient,
+  OpaqueID,
 } from "@cloudflare/opaque-ts";
-import type { TRPCClient } from "@trpc/client";
 import { genSalt } from "@repo/crypto";
-import { fromBase64, toBase64 } from "@repo/util";
-import type { AppRouter } from "@repo/types";
-import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
+import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type { AppRouter } from "@repo/types";
+import { fromBase64, toBase64 } from "@repo/util";
+import type { TRPCClient } from "@trpc/client";
 import { timed } from "./util/perf";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;

@@ -1,7 +1,7 @@
-import preview from "../../.storybook/preview";
-import RemoveDialog from "./RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { fn } from "storybook/test";
+import preview from "../../.storybook/preview";
+import RemoveDialog from "./RemoveDialog";
 
 const meta = preview.meta({
   title: "Design System/Complex/RemoveDialog",

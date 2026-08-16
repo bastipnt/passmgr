@@ -1,6 +1,6 @@
-import { type CSSProperties } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { useWebsiteAvatar } from "@repo/ui-shared";
+import { type CSSProperties } from "react";
 
 type Website = { value: string };
 

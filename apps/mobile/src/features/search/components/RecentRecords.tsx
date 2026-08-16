@@ -1,7 +1,7 @@
-import { Pressable, Text, View } from "react-native";
-import { useRouter } from "expo-router";
-import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import type { DecryptedRecord } from "@repo/schema";
+import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
+import { useRouter } from "expo-router";
+import { Pressable, Text, View } from "react-native";
 
 type RecentRecordsProps = {
   records: DecryptedRecord[];
@@ -19,7 +19,7 @@ export function RecentRecords({ records, onOpen, onClear }: RecentRecordsProps) 
           <RecordGroupLabel text="Recent" />
         </View>
         <Pressable onPress={onClear} hitSlop={8}>
-          <Text className="text-xs font-semibold uppercase text-muted-foreground">Clear</Text>
+          <Text className="font-semibold text-muted-foreground text-xs uppercase">Clear</Text>
         </Pressable>
       </View>
 

@@ -2,24 +2,24 @@ import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
 import type { SqlDriver } from "./driver";
 import {
-  clearRecordsTable,
-  CREATE_RECORDS_SCHEMA_SQL,
-  getAllRecordsLatest,
-  getByRecordId,
-  upsertRecords,
-} from "./schema/records-schema";
-import {
+  CREATE_KEYS_SCHEMA_SQL,
   clearBiometricKey,
   clearKeysTable,
-  CREATE_KEYS_SCHEMA_SQL,
   getBiometricKey,
   getVaultKey,
   upsertBiometricVaultKey,
   upsertVaultKey,
 } from "./schema/keys-schema";
 import {
-  clearSyncTable,
+  CREATE_RECORDS_SCHEMA_SQL,
+  clearRecordsTable,
+  getAllRecordsLatest,
+  getByRecordId,
+  upsertRecords,
+} from "./schema/records-schema";
+import {
   CREATE_SYNC_META_SCHEMA_SQL,
+  clearSyncTable,
   getLastSyncTimestamp,
   setLastSyncTimestamp,
 } from "./schema/sync-schema";

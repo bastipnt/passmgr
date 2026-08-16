@@ -1,3 +1,4 @@
+import { type ReactNode, useId } from "react";
 import {
   Controller,
   type ControllerProps,
@@ -6,7 +7,6 @@ import {
 } from "react-hook-form";
 import { Field, FieldError, FieldLabel } from "../Field";
 import { Textarea } from "../Textarea";
-import { useId, type ReactNode } from "react";
 
 export type ControlledTextareaParams<
   TFieldValues extends FieldValues = FieldValues,
@@ -46,7 +46,7 @@ export function ControlledTextarea<TFieldValues extends FieldValues = FieldValue
         if (icon) {
           return (
             <div className="flex items-start gap-2">
-              <span className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</span>
+              <span className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">{icon}</span>
               {fieldContent}
             </div>
           );

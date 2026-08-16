@@ -3,10 +3,10 @@
 .backdrop {
   --duration: 200ms;
   --backdrop-opacity: 1;
-
-  @apply fixed inset-0 bg-black/10;
   opacity: calc(var(--backdrop-opacity) - var(--drawer-swipe-progress));
   transition: opacity var(--duration) ease-in-out;
+
+  @apply fixed inset-0 bg-black/10;
 
   @supports (backdrop-filter: blur(0)) {
     @apply backdrop-blur-xs;
@@ -48,13 +48,13 @@
     0px,
     calc(var(--drawer-frontmost-height, var(--drawer-height)) - var(--bleed))
   );
+  background-clip: padding-box;
+  transition: all var(--duration) ease-in-out;
+  will-change: transform;
 
   @apply popup-nested;
 
   @apply fixed bg-popover text-popover-foreground shadow-lg overflow-hidden;
-  transition: all var(--duration) ease-in-out;
-  will-change: transform;
-  background-clip: padding-box;
 
   &[data-swiping] {
     user-select: none;
@@ -82,16 +82,17 @@
 
   &[data-side="bottom"] {
     --translate-y: calc(
-      var(--drawer-swipe-movement-y) - var(--stack-peek-offset) -
-        (var(--stack-shrink) * var(--stack-height))
+      var(--drawer-swipe-movement-y) -
+      var(--stack-peek-offset) -
+      (var(--stack-shrink) * var(--stack-height))
     );
-
-    @apply w-full border-t rounded-t-xl;
+    height: calc(90vh + var(--bleed));
+    padding-bottom: calc(env(safe-area-inset-bottom, 0) + var(--bleed));
+    margin-bottom: calc(-1 * var(--bleed));
     transform: translateY(var(--translate-y)) scale(var(--stack-scale));
     transform-origin: 50% calc(100% - var(--bleed));
-    margin-bottom: calc(-1 * var(--bleed));
-    padding-bottom: calc(env(safe-area-inset-bottom, 0) + var(--bleed));
-    height: calc(90vh + var(--bleed));
+
+    @apply w-full border-t rounded-t-xl;
 
     &[data-swiping] {
       transition-duration: 0s;
@@ -118,18 +119,18 @@
   --indent-transition: calc(1 - clamp(0, calc(var(--drawer-swipe-progress) * 100000), 1));
   --indent-scale: calc(0.98 + (0.02 * var(--indent-progress)));
   --indent-translate-y: calc(0.5rem * (1 - var(--indent-progress)));
-
-  @apply relative bg-background;
+  contain: layout;
   transform-origin: center top;
   transition:
     transform calc(400ms * var(--indent-transition)),
     transform calc(250ms * var(--indent-transition));
   will-change: transform;
-  contain: layout;
+
+  @apply relative bg-background;
 
   &[data-active] {
-    transform: translateY(var(--indent-translate-y)) scale(var(--indent-scale));
-    border-top-right-radius: var(--indent-radius);
     border-top-left-radius: var(--indent-radius);
+    border-top-right-radius: var(--indent-radius);
+    transform: translateY(var(--indent-translate-y)) scale(var(--indent-scale));
   }
 }

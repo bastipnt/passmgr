@@ -1,8 +1,8 @@
+import { secretsStore } from "@repo/store";
 import { useContext, useEffect, useRef } from "react";
 import { SessionContext } from "../providers/SessionProvider";
-import { useLogin } from "./use-login";
 import { useStore } from "../providers/StoreProvider";
-import { secretsStore } from "@repo/store";
+import { useLogin } from "./use-login";
 
 /**
  * Automatically performs OPAQUE login when transitioning from offline to online

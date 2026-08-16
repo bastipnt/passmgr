@@ -19,13 +19,13 @@ export function PasswordStrengthBar({ level, label, bits, className }: Props) {
   const pct = Math.min(100, bits);
   return (
     <div className={cn("flex items-center gap-2", className)}>
-      <div className="bg-input h-1 flex-1 overflow-hidden rounded-full">
+      <div className="h-1 flex-1 overflow-hidden rounded-full bg-input">
         <div
           className={cn("h-full transition-all", LEVEL_COLOR[level])}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <span className="text-muted-foreground text-xs whitespace-nowrap tabular-nums">
+      <span className="whitespace-nowrap text-muted-foreground text-xs tabular-nums">
         {label} · {Math.round(bits)} bits
       </span>
     </div>

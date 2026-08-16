@@ -1,11 +1,11 @@
-import { fastifyTRPCPlugin, type FastifyTRPCPluginOptions } from "@trpc/server/adapters/fastify";
-import fastify from "fastify";
-import { appRouter, type AppRouter } from "./router";
 import cors from "@fastify/cors";
+import { type FastifyTRPCPluginOptions, fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
+import fastify from "fastify";
+import { type AppRouter, appRouter } from "./router";
 import "./opaque";
-import { createContext } from "./context";
-import fastifyRedis from "@fastify/redis";
 import rateLimit from "@fastify/rate-limit";
+import fastifyRedis from "@fastify/redis";
+import { createContext } from "./context";
 import { redis } from "./redis";
 
 const isDev = process.env.NODE_ENV !== "production";

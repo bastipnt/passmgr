@@ -1,10 +1,10 @@
+import { cva, type VariantProps } from "class-variance-authority";
 import { Children, cloneElement, isValidElement, type ReactElement, type ReactNode } from "react";
 import { Text, type TextProps, View, type ViewProps } from "react-native";
-import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "../lib/utils";
 
-const buttonGroupVariants = cva("flex self-start items-stretch", {
+const buttonGroupVariants = cva("flex items-stretch self-start", {
   variants: {
     orientation: {
       horizontal: "flex-row",
@@ -77,7 +77,7 @@ function ButtonGroupText({ className, ...props }: ButtonGroupTextProps) {
   return (
     <Text
       className={cn(
-        "self-center rounded-lg border border-border bg-muted px-[10px] py-[10px] text-sm font-medium text-muted-foreground",
+        "self-center rounded-lg border border-border bg-muted px-[10px] py-[10px] font-medium text-muted-foreground text-sm",
         className,
       )}
       {...props}

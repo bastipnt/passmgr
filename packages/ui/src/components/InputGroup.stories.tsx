@@ -1,3 +1,4 @@
+import { EyeIcon, MailIcon, SearchIcon } from "lucide-react";
 import preview from "../../.storybook/preview";
 import {
   InputGroup,
@@ -7,7 +8,6 @@ import {
   InputGroupText,
   InputGroupTextarea,
 } from "./InputGroup";
-import { SearchIcon, MailIcon, EyeIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Atoms/InputGroup",

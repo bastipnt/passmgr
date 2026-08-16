@@ -1,6 +1,6 @@
+import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 import preview from "../../.storybook/preview";
 import { ThemeToggle } from "./ThemeToggle";
-import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 
 const meta = preview.meta({
   title: "Design System/Complex/ThemeToggle",

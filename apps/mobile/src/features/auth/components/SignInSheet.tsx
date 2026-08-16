@@ -1,18 +1,18 @@
-import { useImperativeHandle, useRef, useState, type Ref } from "react";
-import { Pressable, Text, View } from "react-native";
-import { useLogin, useUnlock } from "@repo/client";
 import { zodResolver } from "@hookform/resolvers/zod";
-import z from "zod";
+import { useLogin, useUnlock } from "@repo/client";
+import { timed } from "@repo/client/src/util/perf";
 import {
   BottomSheet,
+  type BottomSheetRef,
   Button,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
-  type BottomSheetRef,
 } from "@repo/ui-native";
-import { timed } from "@repo/client/src/util/perf";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
+import { Pressable, Text, View } from "react-native";
+import z from "zod";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -54,7 +54,7 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
   return (
     <BottomSheet
       ref={sheetRef}
-      className="p-lg gap-lg"
+      className="gap-lg p-lg"
       footer={
         <Button
           size="lg"
@@ -67,8 +67,8 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
       }
     >
       <View className="gap-1">
-        <Text className="text-2xl font-bold text-foreground">Sign in</Text>
-        <Text className="text-sm text-muted-foreground">Welcome back to Passmgr.</Text>
+        <Text className="font-bold text-2xl text-foreground">Sign in</Text>
+        <Text className="text-muted-foreground text-sm">Welcome back to Passmgr.</Text>
       </View>
 
       <ControlledInput
@@ -89,7 +89,7 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
         note={
           <Pressable className="mt-xs self-end" hitSlop={8} onPress={() => {}}>
             {/* TODO: wire a real password-reset flow */}
-            <Text className="text-xs font-bold text-primary">Forgot password?</Text>
+            <Text className="font-bold text-primary text-xs">Forgot password?</Text>
           </Pressable>
         }
       />

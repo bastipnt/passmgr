@@ -1,9 +1,9 @@
+import { RecordActions } from "@features/record/components/RecordActions";
+import { useRecordActions } from "@features/record/hooks/use-record-actions";
+import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { recordSlug } from "../../../data/routes";
-import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
-import { RecordActions } from "@features/record/components/RecordActions";
-import { useRecordActions } from "@features/record/hooks/use-record-actions";
 
 const Record = lazy(() => import("@features/record/components/Record"));
 

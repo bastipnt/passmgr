@@ -1,7 +1,7 @@
-import preview from "../../.storybook/preview";
-import { StackedButton } from "./StackedButton";
-import { Button } from "./Button";
 import { EyeIcon } from "lucide-react";
+import preview from "../../.storybook/preview";
+import { Button } from "./Button";
+import { StackedButton } from "./StackedButton";
 
 const meta = preview.meta({
   title: "Design System/Atoms/StackedButton",

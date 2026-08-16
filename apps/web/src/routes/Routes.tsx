@@ -1,7 +1,7 @@
-import { Route, Switch } from "wouter";
-import { Suspense, lazy } from "react";
-import { DrawerProvider } from "@repo/ui/components/Drawer";
 import { authRoutesMap } from "@features/auth/AuthRoutes";
+import { DrawerProvider } from "@repo/ui/components/Drawer";
+import { lazy, Suspense } from "react";
+import { Route, Switch } from "wouter";
 
 const RecordRoutes = lazy(() => import("@features/record/RecordRoutes"));
 const AuthRoutes = lazy(() => import("@features/auth/AuthRoutes"));

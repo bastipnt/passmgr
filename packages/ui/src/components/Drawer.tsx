@@ -1,10 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { Drawer as DrawerPrimitive } from "@base-ui/react";
-
 import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import * as React from "react";
 
 import styles from "./Drawer.module.css";
 
@@ -36,7 +35,7 @@ function DrawerViewport({ ...props }: React.ComponentProps<typeof DrawerPrimitiv
 }
 
 function DrawerHandle() {
-  return <div className={cn("w-12 h-1 mb-4 mx-auto rounded-full bg-border")} />;
+  return <div className={cn("mx-auto mb-4 h-1 w-12 rounded-full bg-border")} />;
 }
 
 function DrawerActions({ children, className }: { children: React.ReactNode; className?: string }) {
@@ -44,7 +43,7 @@ function DrawerActions({ children, className }: { children: React.ReactNode; cla
     <div
       data-slot="drawer-actions"
       className={cn(
-        "sticky top-0 left-0 right-0 pt-2 pb-4 px-4 z-10 backdrop-blur-xs bg-popover/80",
+        "sticky top-0 right-0 left-0 z-10 bg-popover/80 px-4 pt-2 pb-4 backdrop-blur-xs",
         className,
       )}
     >
@@ -91,7 +90,7 @@ function DrawerPopup({
           translate="no"
           {...props}
         >
-          <div className="overflow-y-auto overscroll-contain touch-auto h-full">{children}</div>
+          <div className="h-full touch-auto overflow-y-auto overscroll-contain">{children}</div>
         </DrawerPrimitive.Popup>
       </DrawerViewport>
     </DrawerPortal>
@@ -153,13 +152,13 @@ function DrawerProvider({
 
 export {
   Drawer,
-  DrawerTrigger,
-  DrawerContent,
-  DrawerPopup,
-  DrawerTitle,
   DrawerActions,
-  DrawerHandle,
-  DrawerDescription,
   DrawerClose,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHandle,
+  DrawerPopup,
   DrawerProvider,
+  DrawerTitle,
+  DrawerTrigger,
 };

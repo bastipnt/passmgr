@@ -14,10 +14,9 @@
 }
 
 .popup {
+  background-clip: padding-box;
   @apply popup-nested;
   @apply fixed flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out overflow-hidden;
-
-  background-clip: padding-box;
 
   &[data-starting-style],
   &[data-ending-style] {

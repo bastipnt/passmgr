@@ -1,7 +1,7 @@
+import { KeyIcon } from "lucide-react";
+import { useForm } from "react-hook-form";
 import preview from "../../../.storybook/preview";
 import { ControlledExtraField } from "./ControlledExtraField";
-import { useForm } from "react-hook-form";
-import { KeyIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Form/ControlledExtraField",

@@ -1,9 +1,9 @@
-import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
-import type { ReactNode } from "react";
-import { Field, FieldError } from "../Field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
-import { useId } from "react";
 import { cn } from "@repo/ui/lib/utils";
+import type { ReactNode } from "react";
+import { useId } from "react";
+import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
+import { Field, FieldError } from "../Field";
 
 export type ControlledExtraFieldProps<
   TFieldValues extends FieldValues = FieldValues,
@@ -45,7 +45,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                       {...titleField}
                       data-slot="input-title"
                       className={cn(
-                        "bg-transparent text-muted-foreground w-full border-none text-xs outline-none",
+                        "w-full border-none bg-transparent text-muted-foreground text-xs outline-none",
                         titleState.invalid && "text-destructive",
                       )}
                       placeholder="Title"
@@ -74,8 +74,8 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
 
             if (icon) {
               return (
-                <div className="flex items-start gap-2 flex-1">
-                  <span className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">
+                <div className="flex flex-1 items-start gap-2">
+                  <span className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">
                     {icon}
                   </span>
                   {fieldContent}

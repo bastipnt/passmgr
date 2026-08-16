@@ -1,7 +1,7 @@
+import { NotebookIcon } from "lucide-react";
+import { useForm } from "react-hook-form";
 import preview from "../../../.storybook/preview";
 import { ControlledTextarea } from "./ControlledTextarea";
-import { useForm } from "react-hook-form";
-import { NotebookIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Form/ControlledTextarea",

@@ -1,4 +1,5 @@
 import preview from "../../.storybook/preview";
+import { Button } from "./Button";
 import {
   Sheet,
   SheetClose,
@@ -9,7 +10,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "./Sheet";
-import { Button } from "./Button";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Sheet",

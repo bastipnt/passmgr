@@ -1,7 +1,7 @@
-import { Pressable, View, Text } from "react-native";
-import { Check } from "lucide-react-native";
-import { useCSSVariable } from "uniwind";
 import { cn } from "@repo/ui-native";
+import { Check } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
+import { useCSSVariable } from "uniwind";
 
 export type TermsRowProps = {
   checked: boolean;

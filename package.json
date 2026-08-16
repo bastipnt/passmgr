@@ -21,7 +21,7 @@
     "db:migrate": "pnpm run --filter @repo/db db:migrate",
     "db:seed": "pnpm run --filter @repo/db db:seed",
     "lint": "turbo run lint",
-    "format": "biome check --write",
+    "format": "biome check --write --unsafe",
     "format:check": "biome check",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",

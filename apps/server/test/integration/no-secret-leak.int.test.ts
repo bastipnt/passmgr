@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it } from "vitest";
 import { toBase64 } from "@repo/util";
-import { registerNewUser } from "../../../../packages/client/src/register";
+import { beforeEach, describe, expect, it } from "vitest";
 import { loginUser } from "../../../../packages/client/src/login";
-import { createCallerFactory } from "../../src/trpc";
-import { appRouter } from "../../src/router";
+import { registerNewUser } from "../../../../packages/client/src/register";
 import { redis } from "../../src/redis";
+import { appRouter } from "../../src/router";
+import { createCallerFactory } from "../../src/trpc";
 import { truncateAll } from "../setup/db-helpers";
 import { buildTestContext } from "../setup/test-context";
 

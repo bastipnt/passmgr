@@ -90,7 +90,7 @@ export default function LoginForm({
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-row gap-4 justify-end">
+        <CardFooter className="flex flex-row justify-end gap-4">
           <Button type="submit" disabled={loading}>
             Login
             {loading && <Spinner data-icon="inline-start" />}

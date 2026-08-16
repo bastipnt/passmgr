@@ -1,7 +1,7 @@
-import { useState, type ReactNode } from "react";
-import { Pressable, View } from "react-native";
-import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 import { Eye, EyeOff } from "lucide-react-native";
+import { type ReactNode, useState } from "react";
+import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
+import { Pressable, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { cn } from "../../lib/utils";
 import { Input, type InputProps } from "./ControlledInput";
@@ -66,8 +66,8 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
 
         if (icon) {
           return (
-            <View className="items-start gap-2 flex-row">
-              <View className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</View>
+            <View className="flex-row items-start gap-2">
+              <View className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">{icon}</View>
               {fieldContent}
             </View>
           );

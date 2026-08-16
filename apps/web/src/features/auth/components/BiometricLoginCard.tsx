@@ -1,10 +1,10 @@
+import { useUnlock } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { FingerprintIcon } from "lucide-react";
 import { useState } from "react";
-import { useUnlock } from "@repo/client";
 
 type BiometricLoginCardParams = {
   loading: boolean;
@@ -32,7 +32,7 @@ export function BiometricLoginCard({ loading, setLoading }: BiometricLoginCardPa
     <Card>
       <CardHeader>
         <CardTitle>
-          <FingerprintIcon className="size-12 mx-auto" />
+          <FingerprintIcon className="mx-auto size-12" />
         </CardTitle>
       </CardHeader>
       <CardContent className="pt-6">

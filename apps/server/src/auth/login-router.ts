@@ -1,10 +1,17 @@
-import { KE1, KE3, RegistrationRecord, ExpectedAuthResult } from "@cloudflare/opaque-ts";
+import { ExpectedAuthResult, KE1, KE3, RegistrationRecord } from "@cloudflare/opaque-ts";
+import { hashEmail, hkdf, wipe } from "@repo/crypto";
+import { db } from "@repo/db";
+import {
+  finishLoginInputSchema,
+  finishLoginOutputSchema,
+  startLoginInputSchema,
+  startLoginOutputSchema,
+} from "@repo/schema";
+import { fromBase64, fromString, toBase64 } from "@repo/util";
+import { TRPCError } from "@trpc/server";
 import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
-import { db } from "@repo/db";
-import { TRPCError } from "@trpc/server";
-import { hashEmail, hkdf, wipe } from "@repo/crypto";
 import {
   deleteSession,
   delLoginAttempt,
@@ -13,13 +20,6 @@ import {
   setSession,
 } from "../util/redis-utils";
 import { protectedProcedure } from "./auth-middleware";
-import { fromBase64, fromString, toBase64 } from "@repo/util";
-import {
-  finishLoginInputSchema,
-  finishLoginOutputSchema,
-  startLoginInputSchema,
-  startLoginOutputSchema,
-} from "@repo/schema";
 
 type LoginLog = {
   warn: (obj: object, msg: string) => void;

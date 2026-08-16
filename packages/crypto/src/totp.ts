@@ -1,5 +1,5 @@
-import { generate } from "otplib";
 import { createGuardrails } from "@otplib/core";
+import { generate } from "otplib";
 
 const guardrails = createGuardrails({
   MIN_SECRET_BYTES: 10,

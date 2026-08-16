@@ -1,6 +1,6 @@
+import { useForm } from "react-hook-form";
 import preview from "../../../.storybook/preview";
 import { ControlledPasswordInput } from "./ControlledPasswordInput";
-import { useForm } from "react-hook-form";
 
 const meta = preview.meta({
   title: "Design System/Form/ControlledPasswordInput",

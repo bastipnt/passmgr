@@ -1,8 +1,8 @@
-import { Button } from "@repo/ui/components/Button";
-import z from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLocation } from "wouter";
 import { useRegistration } from "@repo/client";
+import { wipe } from "@repo/crypto";
+import { useForm } from "@repo/ui";
+import { Button } from "@repo/ui/components/Button";
 import {
   Card,
   CardAction,
@@ -11,12 +11,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
-import Link from "@repo/ui/components/Link";
-import { FieldError, FieldGroup } from "@repo/ui/components/Field";
-import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { useForm } from "@repo/ui";
-import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
-import { Spinner } from "@repo/ui/components/Spinner";
 import {
   Dialog,
   DialogContent,
@@ -25,9 +19,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@repo/ui/components/Dialog";
-import { useMemo, useState } from "react";
-import { wipe } from "@repo/crypto";
+import { FieldError, FieldGroup } from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
+import Link from "@repo/ui/components/Link";
+import { Spinner } from "@repo/ui/components/Spinner";
 import { toBase64 } from "@repo/util";
+import { useMemo, useState } from "react";
+import { useLocation } from "wouter";
+import z from "zod";
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();
@@ -89,7 +89,7 @@ export default function RegisterPage() {
               your password. It is shown once and never sent to the server.
             </DialogDescription>
           </DialogHeader>
-          <code className="bg-muted rounded p-2 break-all font-mono text-xs select-all">
+          <code className="select-all break-all rounded bg-muted p-2 font-mono text-xs">
             {recoveryKeyB64}
           </code>
           <DialogFooter>
@@ -139,7 +139,7 @@ export default function RegisterPage() {
             )}
           </CardContent>
 
-          <CardFooter className="flex flex-row gap-4 justify-end">
+          <CardFooter className="flex flex-row justify-end gap-4">
             <Button type="submit" disabled={loading}>
               Sign Up
               {loading && <Spinner data-icon="inline-start" />}

@@ -5,14 +5,12 @@ config();
 config({ path: "../../apps/server/.env" });
 
 import {
+  type AKEExportKeyPair,
+  getOpaqueConfig,
   OpaqueClient,
   OpaqueID,
   OpaqueServer,
-  getOpaqueConfig,
-  type AKEExportKeyPair,
 } from "@cloudflare/opaque-ts";
-import { reset } from "drizzle-seed";
-import { db, schema, usersTable, keysTable, recordsTable } from ".";
 import {
   encryptEmail,
   encryptXChaCha,
@@ -22,8 +20,10 @@ import {
   hashEmail,
   hkdf,
 } from "@repo/crypto";
-import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { exampleLoginRecords, type RecordSchema } from "@repo/schema";
+import { fromBase64, fromString, toBase64 } from "@repo/util";
+import { reset } from "drizzle-seed";
+import { db, keysTable, recordsTable, schema, usersTable } from ".";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";

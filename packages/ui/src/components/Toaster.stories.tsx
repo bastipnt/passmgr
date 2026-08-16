@@ -1,7 +1,7 @@
-import preview from "../../.storybook/preview";
-import { Toaster } from "./Toaster";
-import { Button } from "./Button";
 import { toast } from "sonner";
+import preview from "../../.storybook/preview";
+import { Button } from "./Button";
+import { Toaster } from "./Toaster";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Toaster",

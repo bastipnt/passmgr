@@ -1,11 +1,11 @@
-import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { SyncManager } from "../sync-manager";
-import { SessionContext } from "./SessionProvider";
-import { usePreferences } from "./PreferencesProvider";
-import { useTRPCClient } from "../util/trpc";
-import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { VaultKeyMaterial } from "@repo/schema";
+import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
+import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { SyncManager } from "../sync-manager";
+import { useTRPCClient } from "../util/trpc";
+import { usePreferences } from "./PreferencesProvider";
+import { SessionContext } from "./SessionProvider";
 
 const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 

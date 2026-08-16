@@ -1,15 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
-
 import { genKey } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
-import { createCallerFactory } from "../trpc";
-import { appRouter } from "../router";
-import { redis } from "../redis";
-import { buildTestContext } from "../../test/setup/test-context";
+import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
-import { buildUserKeys } from "../../test/setup/user-keys";
 import { clientStartLogin, clientStartRegistration } from "../../test/setup/opaque-client";
 import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
+import { buildTestContext } from "../../test/setup/test-context";
+import { buildUserKeys } from "../../test/setup/user-keys";
+import { redis } from "../redis";
+import { appRouter } from "../router";
+import { createCallerFactory } from "../trpc";
 
 const createCaller = createCallerFactory(appRouter);
 

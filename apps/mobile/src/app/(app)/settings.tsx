@@ -1,8 +1,8 @@
-import { useContext } from "react";
-import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { SessionContext, useLogout } from "@repo/client";
-import { View, ScrollView, Text, StyleSheet } from "react-native";
 import { BlurView, Button, RemoveDialog } from "@repo/ui-native";
+import { useContext } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 
 export default function SettingsScreen() {
@@ -15,7 +15,7 @@ export default function SettingsScreen() {
       <ScrollView contentContainerStyle={{ minHeight: "100%" }}>
         <SafeAreaView>
           <View className="gap-md p-md">
-            <Text className="text-lg text-foreground">Settings</Text>
+            <Text className="text-foreground text-lg">Settings</Text>
             <Text className="text-foreground">Logged in with sessionId: {sessionId}</Text>
             <ThemeSwitch />
             <RemoveDialog

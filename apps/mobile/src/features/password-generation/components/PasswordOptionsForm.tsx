@@ -1,7 +1,7 @@
-import { Text, View } from "react-native";
-import { Input, OptionToggle, Slider } from "@repo/ui-native";
 import type { PasswordOptions } from "@repo/crypto";
+import { Input, OptionToggle, Slider } from "@repo/ui-native";
 import { clampInt } from "@repo/util";
+import { Text, View } from "react-native";
 
 type PasswordOptionsFormProps = {
   pwOpts: PasswordOptions;
@@ -13,8 +13,8 @@ export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptio
     <View className="gap-md">
       <View className="gap-sm">
         <View className="flex-row items-center justify-between">
-          <Text className="text-md text-foreground">Length</Text>
-          <Text className="text-sm text-muted-foreground">{pwOpts.length}</Text>
+          <Text className="text-foreground text-md">Length</Text>
+          <Text className="text-muted-foreground text-sm">{pwOpts.length}</Text>
         </View>
         <Slider
           accessibilityLabel="Password length"

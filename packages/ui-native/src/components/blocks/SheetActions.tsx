@@ -1,5 +1,5 @@
-import { View } from "react-native";
 import { ReactNode } from "react";
+import { View } from "react-native";
 import { ScrollFade } from "./ScrollFade";
 
 type SheetActionsProps = {
@@ -14,7 +14,7 @@ function SheetActions({ children }: SheetActionsProps) {
         buttons scrollable. */}
       <View
         pointerEvents="box-none"
-        className="absolute left-0 right-0 flex-row justify-between px-4 top-4"
+        className="absolute top-4 right-0 left-0 flex-row justify-between px-4"
       >
         {children}
       </View>

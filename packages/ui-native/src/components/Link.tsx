@@ -1,5 +1,5 @@
-import { ArrowUpRight } from "lucide-react-native";
 import { Link as ExpoLink, type LinkProps as ExpoLinkProps } from "expo-router";
+import { ArrowUpRight } from "lucide-react-native";
 import { Text } from "react-native";
 import { useCSSVariable } from "uniwind";
 
@@ -14,7 +14,7 @@ export function Link({ children, target, href, ...rest }: LinkProps) {
 
   return (
     <ExpoLink {...rest} href={href as ExpoLinkProps["href"]} target={target}>
-      <Text className="text-md font-medium text-primary">
+      <Text className="font-medium text-md text-primary">
         {children}
         {target === "_blank" ? (
           <>

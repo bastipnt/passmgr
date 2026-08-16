@@ -1,13 +1,4 @@
-import {
-  useFieldArray,
-  type Control,
-  type FieldErrors,
-  type UseFormRegister,
-  type UseFormSetValue,
-} from "react-hook-form";
 import { type LoginRecord as FormValues } from "@repo/schema";
-import { useEffect } from "react";
-import { normalizeWebsiteUrl } from "@repo/util";
 import {
   Button,
   ButtonGroup,
@@ -17,9 +8,18 @@ import {
   FieldSet,
   RemoveDialog,
 } from "@repo/ui-native";
+import { normalizeWebsiteUrl } from "@repo/util";
 import { EarthIcon, PlusIcon, TrashIcon } from "lucide-react-native";
-import { useCSSVariable } from "uniwind";
+import { useEffect } from "react";
+import {
+  type Control,
+  type FieldErrors,
+  type UseFormRegister,
+  type UseFormSetValue,
+  useFieldArray,
+} from "react-hook-form";
 import { Text } from "react-native";
+import { useCSSVariable } from "uniwind";
 
 type WebsiteFieldsProps = {
   control: Control<FormValues>;
@@ -53,7 +53,7 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
       <FieldGroup>
         {fields.map((field, index) => (
           <ButtonGroup key={field.id} className="gap-2">
-            <ButtonGroup className="flex-auto ml-6">
+            <ButtonGroup className="ml-6 flex-auto">
               <ControlledInput
                 control={control}
                 name={`websites.${index}.value`}

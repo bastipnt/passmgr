@@ -1,16 +1,16 @@
 import { RegistrationRequest } from "@cloudflare/opaque-ts";
-import { TRPCError } from "@trpc/server";
-import { loggedProcedure } from "../logger";
-import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
-import { router } from "../trpc";
-import { db, keysTable, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
+import { db, keysTable, usersTable } from "@repo/db";
 import {
   finishRegistrationInputSchema,
   startRegistrationInputSchema,
   startRegistrationOutputSchema,
 } from "@repo/schema";
+import { toBase64 } from "@repo/util";
+import { TRPCError } from "@trpc/server";
+import { loggedProcedure } from "../logger";
+import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
+import { router } from "../trpc";
 
 function assertRegistrationEnabled() {
   if (process.env.REGISTRATION_DISABLED === "true") {

@@ -1,6 +1,6 @@
+import { fromString } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getRemainingTime, getToken } from "../src/totp";
-import { fromString } from "@repo/util";
 
 // RFC 6238 Appendix B test vectors, SHA-1, 30s period, 6-digit:
 // Secret (ASCII): "12345678901234567890" (20 bytes)

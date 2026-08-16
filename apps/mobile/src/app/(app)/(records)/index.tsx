@@ -1,11 +1,11 @@
-import { ScrollView, View } from "react-native";
-import { RecordsList } from "@/features/records/components/RecordsList";
-import { SafeAreaView } from "react-native-safe-area-context";
-import { Button, PageActions } from "@repo/ui-native";
-import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
 import { useRecordSearch, useSortedRecords } from "@repo/client";
+import { Button, PageActions } from "@repo/ui-native";
 import { useRouter, useScrollToTop } from "expo-router";
 import { useEffect, useRef } from "react";
+import { ScrollView, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { RecordsList } from "@/features/records/components/RecordsList";
+import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
 
 export default function RecordsScreen() {

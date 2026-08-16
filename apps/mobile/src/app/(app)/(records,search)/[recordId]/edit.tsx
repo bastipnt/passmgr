@@ -1,12 +1,12 @@
-import { useLocalSearchParams, useRouter } from "expo-router";
-import { View, Text } from "react-native";
-import { Button, RemoveDialog } from "@repo/ui-native";
-import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { encryptRecord, useDeleteRecord, useGetRecord, useUpdateRecord } from "@repo/client";
 import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
-import { normalizeFormValues } from "@/features/records/normalize-form-values";
+import { Button, RemoveDialog } from "@repo/ui-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
+import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
+import RecordFormSheet from "@/features/records/components/RecordFormSheet";
+import { normalizeFormValues } from "@/features/records/normalize-form-values";
 
 function Fallback() {
   return (

@@ -1,13 +1,10 @@
-import { type ReactNode } from "react";
-import { Platform, Pressable, type PressableProps, Text } from "react-native";
-import { cva, type VariantProps } from "class-variance-authority";
 import {
-  Button as SwiftUIButton,
   Host,
   HStack,
   ProgressView,
-  Text as SwiftUIText,
+  Button as SwiftUIButton,
   type ButtonProps as SwiftUIButtonProps,
+  Text as SwiftUIText,
 } from "@expo/ui/swift-ui";
 import {
   accessibilityLabel as accessibilityLabelModifier,
@@ -21,13 +18,16 @@ import {
   progressViewStyle,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
+import { cva, type VariantProps } from "class-variance-authority";
+import { type ReactNode } from "react";
+import { Platform, Pressable, type PressableProps, Text } from "react-native";
 import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";
 import { Spinner } from "./Spinner";
 
 const buttonVariants = cva(
-  "flex-row shrink-0 items-center justify-center gap-sm rounded-lg border border-transparent px-[10px]",
+  "shrink-0 flex-row items-center justify-center gap-sm rounded-lg border border-transparent px-[10px]",
   {
     variants: {
       variant: {
@@ -38,8 +38,8 @@ const buttonVariants = cva(
         "ghost-destructive": "bg-transparent",
         destructive: "bg-destructive/20",
         link: "bg-transparent",
-        glass: "bg-muted/80 border-border",
-        "glass-primary": "bg-muted/80 border-border",
+        glass: "border-border bg-muted/80",
+        "glass-primary": "border-border bg-muted/80",
       },
       size: {
         sm: "h-[32px]",
@@ -56,7 +56,7 @@ const buttonVariants = cva(
   },
 );
 
-const buttonTextVariants = cva("text-sm font-semibold", {
+const buttonTextVariants = cva("font-semibold text-sm", {
   variants: {
     variant: {
       default: "text-primary-foreground",
@@ -321,4 +321,4 @@ export function Button({
   );
 }
 
-export { buttonVariants, buttonTextVariants };
+export { buttonTextVariants, buttonVariants };

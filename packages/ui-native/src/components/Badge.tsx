@@ -1,11 +1,11 @@
-import { type ReactNode } from "react";
-import { View, type ViewProps, Text } from "react-native";
 import { cva, type VariantProps } from "class-variance-authority";
+import { type ReactNode } from "react";
+import { Text, View, type ViewProps } from "react-native";
 
 import { cn } from "../lib/utils";
 
 const badgeVariants = cva(
-  "h-[20px] flex-row items-center justify-center gap-md rounded-full border border-transparent px-md overflow-hidden",
+  "h-[20px] flex-row items-center justify-center gap-md overflow-hidden rounded-full border border-transparent px-md",
   {
     variants: {
       variant: {
@@ -23,7 +23,7 @@ const badgeVariants = cva(
   },
 );
 
-const badgeTextVariants = cva("text-xs font-medium", {
+const badgeTextVariants = cva("font-medium text-xs", {
   variants: {
     variant: {
       default: "text-primary-foreground",
@@ -57,4 +57,4 @@ export function Badge({ variant = "default", className, children, ...props }: Ba
   );
 }
 
-export { badgeVariants, badgeTextVariants };
+export { badgeTextVariants, badgeVariants };

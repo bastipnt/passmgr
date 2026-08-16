@@ -1,6 +1,6 @@
-import { useRouter } from "expo-router";
 import { encryptRecord, useCreateRecord } from "@repo/client";
 import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import { useRouter } from "expo-router";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { normalizeFormValues } from "@/features/records/normalize-form-values";
 

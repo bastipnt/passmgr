@@ -1,5 +1,5 @@
-import { secretsStore, type LoginBundle } from "@repo/store";
-import { createContext, useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { type LoginBundle, secretsStore } from "@repo/store";
+import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
 export const SessionContext = createContext<{
   sessionId?: string;

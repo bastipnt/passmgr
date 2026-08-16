@@ -5,8 +5,8 @@
 // (~50× faster), so vault-unlock at login doesn't lock the UI thread.
 // Metro auto-picks this file over `argon2-impl.ts` for ios/android bundles.
 
-import argon2 from "react-native-argon2";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";
+import argon2 from "react-native-argon2";
 
 export type { ArgonOpts } from "@noble/hashes/argon2.js";
 

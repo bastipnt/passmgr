@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import LoginForm from "./LoginForm";
 

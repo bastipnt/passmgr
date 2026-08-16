@@ -1,6 +1,6 @@
+import type { PreferencesStore } from "@repo/client";
 import { useMemo } from "react";
 import { createMMKV } from "react-native-mmkv";
-import type { PreferencesStore } from "@repo/client";
 
 export function usePreferencesStore() {
   return useMemo<PreferencesStore>(() => {

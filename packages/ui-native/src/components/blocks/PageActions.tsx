@@ -1,5 +1,5 @@
-import { View } from "react-native";
 import { ReactNode } from "react";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { ScrollFade } from "./ScrollFade";
 
@@ -17,7 +17,7 @@ function PageActions({ children }: PageActionsProps) {
         buttons scrollable. */}
       <View
         pointerEvents="box-none"
-        className="absolute left-0 right-0 flex-row justify-between px-4"
+        className="absolute right-0 left-0 flex-row justify-between px-4"
         style={{ top: insets.top + 8 }}
       >
         {children}

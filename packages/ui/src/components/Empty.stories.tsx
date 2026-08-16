@@ -1,4 +1,6 @@
+import { InboxIcon } from "lucide-react";
 import preview from "../../.storybook/preview";
+import { Button } from "./Button";
 import {
   Empty,
   EmptyContent,
@@ -7,8 +9,6 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "./Empty";
-import { Button } from "./Button";
-import { InboxIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Empty",

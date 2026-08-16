@@ -11,7 +11,8 @@
       "!**/pnpm-lock.yaml",
       "!**/*.css.d.ts",
       "!packages/db/drizzle/**",
-      "!**/CHANGELOG.md"
+      "!**/CHANGELOG.md",
+      "!apps/mobile/eas.json"
     ]
   },
   "formatter": {
@@ -33,12 +34,60 @@
     }
   },
   "json": {
+    "parser": {
+      "allowComments": true,
+      "allowTrailingCommas": true
+    },
     "formatter": {
       "trailingCommas": "none"
     }
   },
+  "css": {
+    "parser": {
+      "tailwindDirectives": true
+    }
+  },
   "linter": {
-    "enabled": false
+    "enabled": true,
+    "rules": {
+      "preset": "none",
+      "nursery": {
+        "useSortedClasses": {
+          "level": "warn",
+          "options": {
+            "attributes": [
+              "headerClassName",
+              "contentContainerClassName",
+              "columnWrapperClassName",
+              "endFillColorClassName",
+              "imageClassName",
+              "tintColorClassName",
+              "ios_backgroundColorClassName",
+              "thumbColorClassName",
+              "trackColorOnClassName",
+              "trackColorOffClassName",
+              "selectionColorClassName",
+              "cursorColorClassName",
+              "underlineColorAndroidClassName",
+              "placeholderTextColorClassName",
+              "selectionHandleColorClassName",
+              "colorsClassName",
+              "progressBackgroundColorClassName",
+              "titleColorClassName",
+              "underlayColorClassName",
+              "colorClassName",
+              "drawerBackgroundColorClassName",
+              "statusBarBackgroundColorClassName",
+              "backdropColorClassName",
+              "backgroundColorClassName",
+              "ListFooterComponentClassName",
+              "ListHeaderComponentClassName"
+            ],
+            "functions": ["cn", "cva", "useResolveClassNames"]
+          }
+        }
+      }
+    }
   },
   "assist": {
     "enabled": true,

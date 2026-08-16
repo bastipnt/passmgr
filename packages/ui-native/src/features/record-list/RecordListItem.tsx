@@ -1,6 +1,6 @@
-import { Pressable, View, Text } from "react-native";
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/Avatar";
 import { useWebsiteAvatar } from "@repo/ui-shared";
+import { Pressable, Text, View } from "react-native";
+import { Avatar, AvatarFallback, AvatarImage } from "../../components/Avatar";
 
 import { cn } from "../../lib/utils";
 
@@ -31,8 +31,8 @@ export function RecordListItem({ title, username, websites, active, onClick }: R
         )}
       </Avatar>
       <View className="flex-1">
-        <Text className="text-md font-medium text-foreground">{title}</Text>
-        <Text className="text-sm text-muted-foreground">{username ?? "-"}</Text>
+        <Text className="font-medium text-foreground text-md">{title}</Text>
+        <Text className="text-muted-foreground text-sm">{username ?? "-"}</Text>
       </View>
     </Pressable>
   );

@@ -1,7 +1,7 @@
 import { defineRelationsPart } from "drizzle-orm";
-import { usersTable } from "./schema/users";
 import { keysTable } from "./schema/keys";
 import { recordsTable } from "./schema/records";
+import { usersTable } from "./schema/users";
 
 export const schema = {
   usersTable,

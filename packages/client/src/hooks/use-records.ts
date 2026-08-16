@@ -1,5 +1,5 @@
-import { useRecordsContext } from "../providers/RecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
+import { useRecordsContext } from "../providers/RecordsProvider";
 
 export function useGetRecords(): { records: DecryptedRecord[]; ready: boolean } {
   const { records, ready } = useRecordsContext();

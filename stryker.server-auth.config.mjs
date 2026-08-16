@@ -10,10 +10,7 @@ const config = {
     related: false,
   },
   coverageAnalysis: "perTest",
-  mutate: [
-    "apps/server/src/auth/**/*.ts",
-    "!apps/server/src/auth/**/*.test.ts",
-  ],
+  mutate: ["apps/server/src/auth/**/*.ts", "!apps/server/src/auth/**/*.test.ts"],
   ignorePatterns: ["**/dist/**", "**/coverage/**", "reports/**", ".stryker-tmp/**"],
   disableTypeChecks: true,
   tempDirName: ".stryker-tmp/server-auth",

@@ -1,4 +1,5 @@
 import { server } from "./src/server";
+
 export type { AppRouter } from "./src/router";
 
 const host = process.env.HOST ?? "0.0.0.0";

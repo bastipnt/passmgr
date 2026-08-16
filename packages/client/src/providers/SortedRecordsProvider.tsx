@@ -1,8 +1,8 @@
-import { createContext, useContext, useMemo, useState, type ReactNode } from "react";
 import type { DecryptedRecord } from "@repo/schema";
+import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { useGetRecords } from "../hooks/use-records";
-import { usePreferences } from "./PreferencesProvider";
 import type { PreferencesStore } from "../preferences/PreferencesStore";
+import { usePreferences } from "./PreferencesProvider";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };

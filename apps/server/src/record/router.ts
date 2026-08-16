@@ -1,17 +1,17 @@
-import { router } from "../trpc";
-import z from "zod";
-import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
+import { db, type RecordType, recordsTable } from "@repo/db";
 import {
   createRecordInputSchema,
-  updateRecordInputSchema,
   encryptedRecordSchema,
   syncInputSchema,
   syncOutputSchema,
+  updateRecordInputSchema,
 } from "@repo/schema";
-import { db, type RecordType, recordsTable } from "@repo/db";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
 import { TRPCError, tracked } from "@trpc/server";
+import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import z from "zod";
+import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged, onRecordsChanged } from "../events/record-events";
+import { router } from "../trpc";
 
 function serializeRecord(record: RecordType) {
   const {

@@ -1,8 +1,8 @@
+import type { ArgonParams } from "@repo/schema";
 import type { InferSelectModel } from "drizzle-orm";
 import { index, json, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
 import { usersTable } from "./users";
-import type { ArgonParams } from "@repo/schema";
 
 export const keysTable = pgTable(
   "keys",

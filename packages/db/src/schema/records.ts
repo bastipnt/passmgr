@@ -1,7 +1,7 @@
+import type { InferSelectModel } from "drizzle-orm";
 import { index, integer, pgTable, timestamp, uniqueIndex, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
 import { usersTable } from "./users";
-import type { InferSelectModel } from "drizzle-orm";
 
 export const recordsTable = pgTable(
   "records",

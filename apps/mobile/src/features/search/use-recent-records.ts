@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from "react";
 import { useGetRecords, usePreferences } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
+import { useCallback, useMemo, useState } from "react";
 
 const STORAGE_KEY = "search.recent-records";
 const MAX_ENTRIES = 8;

@@ -1,11 +1,15 @@
-import { type ReactNode, useState } from "react";
-import { Platform, StyleSheet, View } from "react-native";
+import {
+  Host as ComposeHost,
+  Text as ComposeText,
+  DropdownMenu,
+  DropdownMenuItem,
+} from "@expo/ui/jetpack-compose";
 import {
   Host,
   Menu,
   Picker,
-  Text as SwiftUIText,
   type ButtonProps as SwiftUIButtonProps,
+  Text as SwiftUIText,
 } from "@expo/ui/swift-ui";
 import {
   buttonStyle,
@@ -17,12 +21,8 @@ import {
   tag,
   tint,
 } from "@expo/ui/swift-ui/modifiers";
-import {
-  DropdownMenu,
-  DropdownMenuItem,
-  Host as ComposeHost,
-  Text as ComposeText,
-} from "@expo/ui/jetpack-compose";
+import { type ReactNode, useState } from "react";
+import { Platform, StyleSheet, View } from "react-native";
 import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";

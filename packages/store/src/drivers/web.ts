@@ -1,5 +1,5 @@
-import { SQLocal } from "sqlocal";
 import type { TransactionHandle } from "sqlocal";
+import { SQLocal } from "sqlocal";
 import type { SqlDriver } from "../driver";
 
 /** Underlying connection: top-level SQLocal or a tx handle from `SQLocal.transaction`. */

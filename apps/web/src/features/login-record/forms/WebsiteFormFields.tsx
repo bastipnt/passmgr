@@ -1,20 +1,20 @@
+import { type LoginRecord as FormValues } from "@repo/schema";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { Button } from "@repo/ui/components/Button";
+import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
+import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { InputGroupAddon } from "@repo/ui/components/InputGroup";
+import { normalizeWebsiteUrl } from "@repo/util";
+import { EarthIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { useEffect } from "react";
 import {
-  useFieldArray,
   type Control,
   type FieldErrors,
   type UseFormRegister,
   type UseFormSetValue,
+  useFieldArray,
 } from "react-hook-form";
-import { type LoginRecord as FormValues } from "@repo/schema";
-import { useEffect } from "react";
-import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
-import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
-import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { InputGroupAddon } from "@repo/ui/components/InputGroup";
-import { EarthIcon, PlusIcon, TrashIcon } from "lucide-react";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { Button } from "@repo/ui/components/Button";
-import { normalizeWebsiteUrl } from "@repo/util";
 
 type WebsiteFieldsProps = {
   control: Control<FormValues>;
@@ -46,7 +46,7 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
       <FieldGroup>
         {fields.map((field, index) => (
           <ButtonGroup key={field.id} className="w-full">
-            <ButtonGroup className="w-full ml-6">
+            <ButtonGroup className="ml-6 w-full">
               <ControlledInput
                 control={control}
                 name={`websites.${index}.value`}

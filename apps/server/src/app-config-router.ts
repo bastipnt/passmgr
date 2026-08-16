@@ -1,6 +1,5 @@
-import { publicProcedure } from "./trpc";
-import { router } from "./trpc";
 import { appConfigOutputSchema } from "@repo/schema";
+import { publicProcedure, router } from "./trpc";
 
 export const appConfigRouter = router({
   getConfig: publicProcedure.output(appConfigOutputSchema).query(() => {

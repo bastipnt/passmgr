@@ -1,27 +1,27 @@
+import LoginRecordForm, {
+  type LoginRecordFormHandle,
+} from "@features/login-record/forms/LoginRecordForm";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
+import { encryptRecord, useCreateRecord } from "@repo/client";
+import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import { toast } from "@repo/ui";
+import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
+import { Button } from "@repo/ui/components/Button";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { isDefined } from "@repo/util";
+import { XIcon } from "lucide-react";
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
 import { useLocation } from "wouter";
-import { encryptRecord, useCreateRecord } from "@repo/client";
-import { isDefined } from "@repo/util";
-import { toast } from "@repo/ui";
-import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { recordSlug } from "@/data/routes";
-import LoginRecordForm, {
-  type LoginRecordFormHandle,
-} from "@features/login-record/forms/LoginRecordForm";
-import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
-import { Button } from "@repo/ui/components/Button";
-import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { XIcon } from "lucide-react";
-import { useEditingContext } from "@features/record/providers/EditingProvider";
 
 type CreateRecordContextValue = {
   openCreateSheet: (title?: string) => void;
@@ -87,7 +87,7 @@ export default function CreateRecordProvider({ children }: { children: ReactNode
 
   function FormActions() {
     return (
-      <div className="flex flex-row gap-4 justify-between">
+      <div className="flex flex-row justify-between gap-4">
         {isMobile && (
           <Button
             variant="outline"

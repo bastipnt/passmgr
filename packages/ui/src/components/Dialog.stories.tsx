@@ -1,4 +1,5 @@
 import preview from "../../.storybook/preview";
+import { Button } from "./Button";
 import {
   Dialog,
   DialogClose,
@@ -9,7 +10,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "./Dialog";
-import { Button } from "./Button";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Dialog",

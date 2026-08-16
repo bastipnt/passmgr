@@ -1,3 +1,10 @@
+import LoginRecordForm, {
+  type LoginRecordFormHandle,
+} from "@features/login-record/forms/LoginRecordForm";
+import type { LoginRecord } from "@repo/schema";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { Button } from "@repo/ui/components/Button";
+import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import {
   Sheet,
   SheetContent,
@@ -5,16 +12,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@repo/ui/components/Sheet";
-import type { LoginRecord } from "@repo/schema";
-import LoginRecordForm, {
-  type LoginRecordFormHandle,
-} from "@features/login-record/forms/LoginRecordForm";
-import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
-import { Button } from "@repo/ui/components/Button";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { TrashIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
-import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 
 type EditRecordProps = {
   open: boolean;
@@ -71,7 +71,7 @@ export default function EditRecord({
 
   function FormActions() {
     return (
-      <div className="flex flex-row gap-4 justify-between">
+      <div className="flex flex-row justify-between gap-4">
         {isMobile && (
           <Button
             variant="outline"
@@ -82,7 +82,7 @@ export default function EditRecord({
             <XIcon />
           </Button>
         )}
-        <div className="flex flex-row gap-4 sm:justify-between sm:w-full">
+        <div className="flex flex-row gap-4 sm:w-full sm:justify-between">
           {!isMobile && <DeleteAction />}
           <div className="flex flex-row gap-4">
             {!isMobile && (
@@ -105,7 +105,7 @@ export default function EditRecord({
         </DrawerActions>
         <DrawerContent>
           <LoginRecordFormWrapper />
-          <div className="py-4 flex flex-row justify-end">
+          <div className="flex flex-row justify-end py-4">
             <DeleteAction />
           </div>
         </DrawerContent>

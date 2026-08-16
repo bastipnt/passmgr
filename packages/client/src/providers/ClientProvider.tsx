@@ -1,16 +1,16 @@
+import type { AppRouter } from "@repo/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
-import { TRPCProvider } from "../util/trpc";
 import {
   createTRPCClient,
   httpLink,
-  splitLink,
   httpSubscriptionLink,
+  splitLink,
   type TRPCClient,
 } from "@trpc/client";
-import type { AppRouter } from "@repo/types";
 import type { EventSourceLike } from "@trpc/server/unstable-core-do-not-import";
+import { type ReactNode, useState } from "react";
 import { generateAuthHeaders } from "../util/headers";
+import { TRPCProvider } from "../util/trpc";
 
 function makeQueryClient() {
   return new QueryClient({

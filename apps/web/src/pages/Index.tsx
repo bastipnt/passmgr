@@ -1,5 +1,5 @@
+import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 import { Button } from "@repo/ui/components/Button";
-import Link from "@repo/ui/components/Link";
 import {
   Empty,
   EmptyContent,
@@ -8,15 +8,15 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@repo/ui/components/Empty";
+import Link from "@repo/ui/components/Link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
-import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 
 export default function Index() {
   const { openCreateSheet } = useCreateRecordContext();
 
   return (
-    <div className="h-full flex flex-col justify-center items-center">
+    <div className="flex h-full flex-col items-center justify-center">
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="icon">

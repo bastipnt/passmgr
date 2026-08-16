@@ -1,26 +1,26 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { useRouter } from "expo-router";
-import * as Clipboard from "expo-clipboard";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
   estimatePassphraseEntropy,
+  type GeneratorMode,
   generatePassphrase,
   generatePassword,
   getCharsetSize,
   getStrength,
   PASSPHRASE_DEFAULTS,
   PASSWORD_DEFAULTS,
-  PasswordGeneratorError,
-  type GeneratorMode,
   type PassphraseOptions,
+  PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
 import { Button, cn, SheetActions, StrengthMeter } from "@repo/ui-native";
-import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
+import * as Clipboard from "expo-clipboard";
+import { useRouter } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Pressable, Text, View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import PassphraseOptionsForm from "@/features/password-generation/components/PassphraseOptions";
+import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
 
 const MODES: { value: GeneratorMode; label: string }[] = [
@@ -110,7 +110,7 @@ export default function PasswordGenerator() {
               >
                 <Text
                   className={cn(
-                    "text-sm font-semibold",
+                    "font-semibold text-sm",
                     selected ? "text-primary-foreground" : "text-muted-foreground",
                   )}
                 >
@@ -124,11 +124,11 @@ export default function PasswordGenerator() {
         <View className="gap-sm">
           <View className="min-h-[64px] justify-center rounded-lg border border-border bg-muted/50 p-md">
             {error ? (
-              <Text className="text-md text-destructive">{error}</Text>
+              <Text className="text-destructive text-md">{error}</Text>
             ) : (
               <Text
                 selectable
-                className="text-md text-foreground"
+                className="text-foreground text-md"
                 style={{ fontFamily: "Courier" }}
               >
                 {generated}

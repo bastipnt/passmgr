@@ -1,5 +1,3 @@
-import { cloneElement, isValidElement, useState, type ReactElement } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import {
   Alert,
   Host,
@@ -7,6 +5,8 @@ import {
   Button as SwiftUIButton,
   Text as SwiftUIText,
 } from "@expo/ui/swift-ui";
+import { cloneElement, isValidElement, type ReactElement, useState } from "react";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { Button } from "../Button";
 
@@ -153,8 +153,8 @@ export function RemoveDialog({
             onStartShouldSetResponder={() => true}
           >
             <View className="gap-sm">
-              <Text className="text-lg font-semibold text-foreground">{title}</Text>
-              <Text className="text-sm text-muted-foreground">{description}</Text>
+              <Text className="font-semibold text-foreground text-lg">{title}</Text>
+              <Text className="text-muted-foreground text-sm">{description}</Text>
             </View>
 
             <View className="flex-row justify-end gap-sm">

@@ -6,16 +6,16 @@
 // to migrating apps/server/src/auth/login-router.ts off @serenity-kit/opaque.
 
 import {
-  OpaqueClient,
-  OpaqueID,
-  OpaqueServer,
+  getOpaqueConfig,
   KE1,
   KE2,
   KE3,
+  OpaqueClient,
+  OpaqueID,
+  OpaqueServer,
+  RegistrationRecord,
   RegistrationRequest,
   RegistrationResponse,
-  RegistrationRecord,
-  getOpaqueConfig,
 } from "@cloudflare/opaque-ts";
 
 function bytesEq(a: number[], b: number[]) {

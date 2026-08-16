@@ -17,7 +17,7 @@ export function OptionToggle({ label, checked, onChange, className }: OptionTogg
 
   return (
     <View className={cn("flex-row items-center justify-between gap-md", className)}>
-      <Text className="flex-1 text-md text-foreground">{label}</Text>
+      <Text className="flex-1 text-foreground text-md">{label}</Text>
       <Switch
         value={checked}
         onValueChange={onChange}

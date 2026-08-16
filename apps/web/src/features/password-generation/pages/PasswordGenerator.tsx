@@ -1,35 +1,26 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
+import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
   estimatePassphraseEntropy,
+  type GeneratorMode,
   generatePassphrase,
   generatePassword,
   getCharsetSize,
   getStrength,
   PASSPHRASE_DEFAULTS,
   PASSWORD_DEFAULTS,
-  PasswordGeneratorError,
-  type GeneratorMode,
   type PassphraseOptions,
+  PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
 
 import { Button } from "@repo/ui/components/Button";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@repo/ui/components/Sheet";
-import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
-import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
-import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
+import type { DialogHandle } from "@repo/ui/components/Dialog";
 import {
   Drawer,
   DrawerActions,
@@ -37,8 +28,17 @@ import {
   DrawerPopup,
   DrawerTitle,
 } from "@repo/ui/components/Drawer";
-import type { DialogHandle } from "@repo/ui/components/Dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@repo/ui/components/Sheet";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
 
 type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;
@@ -125,7 +125,7 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
         <Button
           variant="outline"
           size="icon"
-          className="rounded-full mr-auto"
+          className="mr-auto rounded-full"
           onClick={() => setOpen(false)}
         >
           <XIcon />
@@ -148,7 +148,7 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
   const content = (
     <div className="flex flex-col gap-8">
       <div className="flex flex-col gap-1.5">
-        <div className="bg-muted/50 border-input min-h-9 rounded-md border px-2.5 py-2 font-mono text-sm break-all">
+        <div className="min-h-9 break-all rounded-md border border-input bg-muted/50 px-2.5 py-2 font-mono text-sm">
           {generated || (error ? <span className="text-destructive">{error}</span> : "")}
         </div>
         <PasswordStrengthBar level={strength.level} label={strength.label} bits={strength.bits} />
@@ -182,7 +182,7 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
           <SheetTitle>{TITLE}</SheetTitle>
           {modeSwitch}
         </SheetHeader>
-        <div className="p-4 flex-1">{content}</div>
+        <div className="flex-1 p-4">{content}</div>
         <SheetFooter>{actions}</SheetFooter>
       </SheetContent>
     </Sheet>

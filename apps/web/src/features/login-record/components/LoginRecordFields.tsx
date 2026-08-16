@@ -1,4 +1,10 @@
-import { Fragment } from "react";
+import TotpField from "@features/login-record/components/TotpField";
+import { getStrengthFromString } from "@repo/crypto";
+import type { DecryptedRecord } from "@repo/schema";
+import { ItemDisplay, ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
+import Link from "@repo/ui/components/Link";
+import { Separator } from "@repo/ui/components/Separator";
+import { isDefined, toLocalDateStr } from "@repo/util";
 import {
   EarthIcon,
   KeyIcon,
@@ -10,13 +16,7 @@ import {
   TextIcon,
   Wand,
 } from "lucide-react";
-import { Separator } from "@repo/ui/components/Separator";
-import { ItemDisplayGroup, ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
-import Link from "@repo/ui/components/Link";
-import { isDefined, toLocalDateStr } from "@repo/util";
-import { getStrengthFromString } from "@repo/crypto";
-import type { DecryptedRecord } from "@repo/schema";
-import TotpField from "@features/login-record/components/TotpField";
+import { Fragment } from "react";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
@@ -80,7 +80,7 @@ export function LoginRecordFields({ record, onCopy }: LoginRecordFieldsProps) {
         <ItemDisplayGroup>
           <ItemDisplay
             title="Notes"
-            value={<span className="whitespace-pre-line wrap-break-word">{record.note}</span>}
+            value={<span className="wrap-break-word whitespace-pre-line">{record.note}</span>}
             onClick={() => {}}
             icon={<NotebookPenIcon />}
             variant="noAction"
@@ -108,15 +108,15 @@ export function LoginRecordFields({ record, onCopy }: LoginRecordFieldsProps) {
       )}
 
       <ul className="flex flex-col gap-1">
-        <li className="flex flex-row gap-2 items-center text-muted">
+        <li className="flex flex-row items-center gap-2 text-muted">
           <Wand size={20} />
           <p>Date last used: TBA</p>
         </li>
-        <li className="flex flex-row gap-2 items-center text-muted">
+        <li className="flex flex-row items-center gap-2 text-muted">
           <Pen size={20} />
           <p>Date last changed: {toLocalDateStr(record.clientUpdatedAt)}</p>
         </li>
-        <li className="flex flex-row gap-2 items-center text-muted">
+        <li className="flex flex-row items-center gap-2 text-muted">
           <Rocket size={20} />
           <p>Date created: {toLocalDateStr(record.firstCreatedAt)}</p>
         </li>

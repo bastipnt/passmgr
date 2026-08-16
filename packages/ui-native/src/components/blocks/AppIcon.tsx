@@ -1,6 +1,6 @@
+import { BRAND_GRADIENT } from "@repo/ui-shared";
 import { View } from "react-native";
 import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
-import { BRAND_GRADIENT } from "@repo/ui-shared";
 import { BrandMark } from "./BrandMark";
 
 export type AppIconProps = {

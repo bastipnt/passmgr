@@ -1,5 +1,5 @@
-import { View, Text } from "react-native";
 import { BlurView, BrandMark, SpinnerRing, SplashGradient, Wordmark } from "@repo/ui-native";
+import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
@@ -16,14 +16,14 @@ export function SplashScreen() {
 
       {/* floating decor */}
       <View
-        className="absolute left-[-40px] top-[120px] h-[150px] w-[150px] rounded-[44px] border-2 border-[rgba(255,255,255,0.18)]"
+        className="absolute top-[120px] left-[-40px] h-[150px] w-[150px] rounded-[44px] border-2 border-[rgba(255,255,255,0.18)]"
         style={{ transform: [{ rotate: "18deg" }] }}
       />
       <View
-        className="absolute bottom-[150px] right-[-50px] h-[190px] w-[190px] rounded-[56px] border-2 border-[rgba(255,255,255,0.14)]"
+        className="absolute right-[-50px] bottom-[150px] h-[190px] w-[190px] rounded-[56px] border-2 border-[rgba(255,255,255,0.14)]"
         style={{ transform: [{ rotate: "-12deg" }] }}
       />
-      <View className="absolute right-[40px] top-[250px] h-[14px] w-[14px] rounded-[5px] bg-[rgba(255,255,255,0.5)]" />
+      <View className="absolute top-[250px] right-[40px] h-[14px] w-[14px] rounded-[5px] bg-[rgba(255,255,255,0.5)]" />
       <View className="absolute bottom-[280px] left-[44px] h-[10px] w-[10px] rounded-[4px] bg-[rgba(255,255,255,0.4)]" />
 
       {/* logo + wordmark */}

@@ -1,15 +1,15 @@
-import { useForm } from "react-hook-form";
+import ExtraFormFields from "@features/login-record/forms/ExtraFormFields";
+import WebsiteFormFields from "@features/login-record/forms/WebsiteFormFields";
+import PasswordField from "@features/password-generation/components/PasswordField";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react";
+import { type LoginRecord as FormValues, loginRecordSchema } from "@repo/schema";
 import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
-import { loginRecordSchema, type LoginRecord as FormValues } from "@repo/schema";
-import PasswordField from "@features/password-generation/components/PasswordField";
-import WebsiteFormFields from "@features/login-record/forms/WebsiteFormFields";
 import { normalizeWebsiteUrl } from "@repo/util";
-import ExtraFormFields from "@features/login-record/forms/ExtraFormFields";
-import { useImperativeHandle, useRef, type Ref } from "react";
+import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react";
+import { type Ref, useImperativeHandle, useRef } from "react";
+import { useForm } from "react-hook-form";
 
 export type LoginRecordFormHandle = {
   triggerSubmit: () => void;

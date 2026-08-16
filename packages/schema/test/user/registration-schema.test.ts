@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { startLoginInputSchema } from "../../src/user/login-schema";
 import {
   finishRegistrationInputSchema,
   startRegistrationInputSchema,
 } from "../../src/user/registration-schema";
-import { startLoginInputSchema } from "../../src/user/login-schema";
 
 function b64(bytes: number): string {
   return Buffer.from(new Uint8Array(bytes)).toString("base64");

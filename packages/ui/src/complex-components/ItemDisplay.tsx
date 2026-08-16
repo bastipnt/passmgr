@@ -13,7 +13,7 @@ import { StackedButton } from "@repo/ui/components/StackedButton";
 import { cn } from "@repo/ui/lib/utils";
 import type { PasswordStrength, PasswordStrengthLevel } from "@repo/util";
 import { BadgeCheckIcon, EyeIcon, EyeOffIcon, NotebookIcon, ShieldAlertIcon } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 const HIDDEN_VALUE = "••••••••••••" as const;
 
@@ -74,7 +74,7 @@ function ItemDisplay({
           {variant === "password" && strength && <StrengthBadge strength={strength} />}
         </ItemTitle>
         {typeof value === "string" ? (
-          <ItemDescription className="text-ellipsis overflow-hidden">
+          <ItemDescription className="overflow-hidden text-ellipsis">
             {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
           </ItemDescription>
         ) : (
@@ -90,7 +90,7 @@ function ItemDisplay({
   const CopyButton = (
     <Button
       variant="ghost"
-      className="h-auto group-last:rounded-b-lg group-first:rounded-t-lg rounded-none gap-x-2.5"
+      className="h-auto gap-x-2.5 rounded-none group-first:rounded-t-lg group-last:rounded-b-lg"
       onClick={() => onClick({ type: "copy" })}
     >
       {ItemInner}
@@ -108,7 +108,7 @@ function ItemDisplay({
 
   return (
     <Item
-      className="last:rounded-b-lg first:rounded-t-lg rounded-none group"
+      className="group rounded-none first:rounded-t-lg last:rounded-b-lg"
       render={
         usesHiddenValue ? (
           <StackedButton>
@@ -133,7 +133,7 @@ type ItemDisplayGroupProps = {
 };
 
 function ItemDisplayGroup({ children }: ItemDisplayGroupProps) {
-  return <ItemGroup className="border rounded-lg gap-0">{children}</ItemGroup>;
+  return <ItemGroup className="gap-0 rounded-lg border">{children}</ItemGroup>;
 }
 
 export { ItemDisplay, ItemDisplayGroup, itemDisplayVariants };

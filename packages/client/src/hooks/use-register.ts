@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { useTRPCClient } from "../util/trpc";
 import {
   RegistrationFinishFailedError,
   RegistrationStartFailedError,
   registerNewUser as registerNewUserCore,
 } from "../register";
+import { useTRPCClient } from "../util/trpc";
 
 export function useRegistration() {
   const trpc = useTRPCClient();

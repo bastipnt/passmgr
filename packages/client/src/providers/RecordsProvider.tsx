@@ -1,18 +1,17 @@
+import type { DecryptedRecord, EncryptedRecordSchema } from "@repo/schema";
 import {
   createContext,
+  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useRef,
   useState,
-  type ReactNode,
 } from "react";
-import type { DecryptedRecord } from "@repo/schema";
-import { SessionContext } from "./SessionProvider";
-import { useStore } from "./StoreProvider";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
 import { timed } from "../util/perf";
-import type { EncryptedRecordSchema } from "@repo/schema";
+import { SessionContext } from "./SessionProvider";
+import { useStore } from "./StoreProvider";
 
 type RecordsContextValue = {
   records: DecryptedRecord[];

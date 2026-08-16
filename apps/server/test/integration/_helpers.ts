@@ -1,11 +1,11 @@
 import { genKey } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
-import { createCallerFactory } from "../../src/trpc";
 import { appRouter } from "../../src/router";
+import { createCallerFactory } from "../../src/trpc";
+import { clientStartLogin, clientStartRegistration } from "../setup/opaque-client";
+import { deriveAuthKey, signRequest } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
-import { deriveAuthKey, signRequest } from "../setup/signed-request";
-import { clientStartLogin, clientStartRegistration } from "../setup/opaque-client";
 
 export const createCaller = createCallerFactory(appRouter);
 

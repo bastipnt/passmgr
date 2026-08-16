@@ -1,4 +1,4 @@
-import { SORT_LABELS, useSortedRecords, type SortOption } from "@repo/client";
+import { SORT_LABELS, type SortOption, useSortedRecords } from "@repo/client";
 import { MenuSelect } from "@repo/ui-native";
 import { ArrowUpDownIcon } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";

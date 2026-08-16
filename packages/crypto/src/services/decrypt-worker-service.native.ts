@@ -1,8 +1,9 @@
 // Main-thread record decryption for React Native. XChaCha20-Poly1305 decryption
 // is fast enough to run on the JS thread, so no web worker is needed here.
 // Mirrors the message contract of decrypt.worker.ts.
-import { decryptXChaCha } from "../encryption";
+
 import type { RecordSchema } from "@repo/schema";
+import { decryptXChaCha } from "../encryption";
 
 class DecryptNativeService {
   private vaultKey: Uint8Array | null = null;

@@ -39,7 +39,7 @@ function ScrollFade({
   const id = `scrollFade-${edge}`;
 
   return (
-    <View pointerEvents="none" className="absolute left-0 right-0" style={{ height, [edge]: 0 }}>
+    <View pointerEvents="none" className="absolute right-0 left-0" style={{ height, [edge]: 0 }}>
       <Svg width="100%" height="100%">
         <Defs>
           <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">

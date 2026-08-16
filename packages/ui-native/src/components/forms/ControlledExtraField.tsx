@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
+import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
 import { TextInput, View } from "react-native";
-import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
 
 import { cn } from "../../lib/utils";
 import { Field, FieldError } from "./Field";
@@ -50,7 +50,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                     placeholder="Title"
                     placeholderTextColorClassName="text-muted-foreground"
                     className={cn(
-                      "text-sm text-muted-foreground",
+                      "text-muted-foreground text-sm",
                       titleState.invalid && "text-destructive",
                     )}
                   />
@@ -64,7 +64,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                     autoCapitalize="none"
                     autoCorrect={false}
                     className={cn(
-                      "text-md text-foreground",
+                      "text-foreground text-md",
                       valueState.invalid && "text-destructive",
                     )}
                   />

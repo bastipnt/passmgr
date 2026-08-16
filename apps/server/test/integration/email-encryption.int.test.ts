@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { db, usersTable } from "@repo/db";
 import { encryptEmail, hashEmail } from "@repo/crypto";
+import { db, usersTable } from "@repo/db";
 import { fromString, toBase64 } from "@repo/util";
+import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { register } from "./_helpers";

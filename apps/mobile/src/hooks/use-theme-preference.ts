@@ -1,7 +1,7 @@
+import { type PreferencesStore, usePreferences } from "@repo/client";
 import { useCallback, useState } from "react";
 import { Appearance } from "react-native";
 import { Uniwind } from "uniwind";
-import { usePreferences, type PreferencesStore } from "@repo/client";
 
 export type ThemePreference = "system" | "light" | "dark";
 

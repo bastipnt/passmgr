@@ -1,11 +1,10 @@
 "use client";
 
-import * as React from "react";
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
-import { XIcon } from "lucide-react";
-
-import { cn } from "@repo/ui/lib/utils";
 import { Button } from "@repo/ui/components/Button";
+import { cn } from "@repo/ui/lib/utils";
+import { XIcon } from "lucide-react";
+import * as React from "react";
 
 import styles from "./Sheet.module.css";
 
@@ -54,7 +53,7 @@ function SheetContent({
         className={cn(styles.popup, className)}
         {...props}
       >
-        <div className="overflow-y-auto overscroll-contain touch-auto h-full flex flex-col">
+        <div className="flex h-full touch-auto flex-col overflow-y-auto overscroll-contain">
           {children}
         </div>
         {showCloseButton && (
@@ -78,7 +77,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-header"
       className={cn(
-        "sticky top-0 left-0 right-0 backdrop-blur-xs bg-popover/80 flex flex-col gap-0.5 p-4 z-10",
+        "sticky top-0 right-0 left-0 z-10 flex flex-col gap-0.5 bg-popover/80 p-4 backdrop-blur-xs",
         className,
       )}
       {...props}
@@ -91,7 +90,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-footer"
       className={cn(
-        "sticky bottom-0 left-0 right-0 flex flex-col gap-2 backdrop-blur-xs bg-popover/80 p-4",
+        "sticky right-0 bottom-0 left-0 flex flex-col gap-2 bg-popover/80 p-4 backdrop-blur-xs",
         className,
       )}
       {...props}
@@ -103,7 +102,7 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("cn-font-heading text-base font-medium text-foreground", className)}
+      className={cn("cn-font-heading font-medium text-base text-foreground", className)}
       {...props}
     />
   );
@@ -113,7 +112,7 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
   return (
     <SheetPrimitive.Description
       data-slot="sheet-description"
-      className={cn("text-sm text-muted-foreground", className)}
+      className={cn("text-muted-foreground text-sm", className)}
       {...props}
     />
   );
@@ -121,11 +120,11 @@ function SheetDescription({ className, ...props }: SheetPrimitive.Description.Pr
 
 export {
   Sheet,
-  SheetTrigger,
   SheetClose,
   SheetContent,
-  SheetHeader,
-  SheetFooter,
-  SheetTitle,
   SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
 };

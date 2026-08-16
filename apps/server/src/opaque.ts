@@ -1,8 +1,8 @@
 import {
+  type AKEExportKeyPair,
+  getOpaqueConfig,
   OpaqueID,
   OpaqueServer,
-  getOpaqueConfig,
-  type AKEExportKeyPair,
 } from "@cloudflare/opaque-ts";
 import { fromBase64, fromString } from "@repo/util";
 

@@ -1,6 +1,6 @@
 import AuthLayout from "@features/auth/AuthLayout";
 import { SessionContext, useAppConfig, useStore } from "@repo/client";
-import { Suspense, lazy, useContext } from "react";
+import { lazy, Suspense, useContext } from "react";
 import { Redirect, Route, Switch, useRoute } from "wouter";
 
 const BiometricEnrollPage = lazy(() => import("@features/auth/pages/BiometricEnrollPage"));

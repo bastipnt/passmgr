@@ -1,13 +1,13 @@
-import { useMemo } from "react";
-import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
+import { PasswordStrengthBar } from "@features/password-generation/components/PasswordStrengthBar";
+import PasswordGenerator from "@features/password-generation/pages/PasswordGenerator";
+import { getStrengthFromString } from "@repo/crypto";
 import { type LoginRecord as FormValues } from "@repo/schema";
+import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
-import PasswordGenerator from "@features/password-generation/pages/PasswordGenerator";
 import { DicesIcon, KeyIcon } from "lucide-react";
-import { PasswordStrengthBar } from "@features/password-generation/components/PasswordStrengthBar";
-import { getStrengthFromString } from "@repo/crypto";
-import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
+import { useMemo } from "react";
+import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 
 type PasswordFieldProps = {
   control: Control<FormValues>;

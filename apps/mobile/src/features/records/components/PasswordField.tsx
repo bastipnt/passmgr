@@ -1,11 +1,11 @@
-import { Pressable } from "react-native";
-import { useRouter, type Href } from "expo-router";
-import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
-import { DicesIcon, KeyIcon } from "lucide-react-native";
-import { useCSSVariable } from "uniwind";
 import { getStrengthFromString } from "@repo/crypto";
 import { type LoginRecord as FormValues } from "@repo/schema";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
+import { type Href, useRouter } from "expo-router";
+import { DicesIcon, KeyIcon } from "lucide-react-native";
+import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
+import { Pressable } from "react-native";
+import { useCSSVariable } from "uniwind";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
 
 type PasswordFieldProps = {

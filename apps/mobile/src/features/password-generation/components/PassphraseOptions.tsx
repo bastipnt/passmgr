@@ -1,6 +1,6 @@
-import { Pressable, Text, View } from "react-native";
+import { type PassphraseOptions, SEPARATORS } from "@repo/crypto";
 import { cn, OptionToggle, Slider } from "@repo/ui-native";
-import { SEPARATORS, type PassphraseOptions } from "@repo/crypto";
+import { Pressable, Text, View } from "react-native";
 
 type PassphraseOptionsFormProps = {
   phOpts: PassphraseOptions;
@@ -12,8 +12,8 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
     <View className="gap-md">
       <View className="gap-sm">
         <View className="flex-row items-center justify-between">
-          <Text className="text-md text-foreground">Words</Text>
-          <Text className="text-sm text-muted-foreground">{phOpts.wordCount}</Text>
+          <Text className="text-foreground text-md">Words</Text>
+          <Text className="text-muted-foreground text-sm">{phOpts.wordCount}</Text>
         </View>
         <Slider
           accessibilityLabel="Word count"
@@ -26,7 +26,7 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
       </View>
 
       <View className="gap-sm">
-        <Text className="text-md text-foreground">Separator</Text>
+        <Text className="text-foreground text-md">Separator</Text>
         <View className="flex-row gap-xs rounded-lg border border-border bg-card p-xs">
           {SEPARATORS.map(({ label, value }) => {
             const selected = phOpts.separator === value;
@@ -46,7 +46,7 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
               >
                 <Text
                   className={cn(
-                    "text-sm font-semibold",
+                    "font-semibold text-sm",
                     selected ? "text-primary-foreground" : "text-muted-foreground",
                   )}
                 >

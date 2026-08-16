@@ -1,5 +1,4 @@
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
-import { useIsMobile } from "../hooks/use-is-mobile";
 import {
   Sheet,
   SheetContent,
@@ -8,6 +7,7 @@ import {
   SheetTitle,
 } from "@repo/ui/components/Sheet";
 import type { ReactNode } from "react";
+import { useIsMobile } from "../hooks/use-is-mobile";
 
 type ResponsiveSheetProps = {
   open: boolean;

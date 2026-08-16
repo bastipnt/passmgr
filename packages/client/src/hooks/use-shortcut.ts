@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useShortcutContext, type ShortcutEntry } from "../providers/ShortcutProvider";
+import { type ShortcutEntry, useShortcutContext } from "../providers/ShortcutProvider";
 
 interface UseShortcutOptions {
   /** Human-readable description (for future help dialog / Kbd hints) */

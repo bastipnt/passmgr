@@ -1,13 +1,13 @@
 import {
   BottomSheet as BottomSheetPrimitive,
-  RNHostView,
   type BottomSheetProps as BottomSheetPrimitiveProps,
+  RNHostView,
 } from "@expo/ui";
 import { ReactNode, Ref, useImperativeHandle, useState } from "react";
 import { View } from "react-native";
-import { Button } from "./Button";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { cn } from "../lib/utils";
+import { Button } from "./Button";
 
 type BottomSheetRef = {
   triggerShowHide: (show: boolean) => void;
@@ -46,7 +46,7 @@ function BottomSheet({
       snapPoints={snapPoints}
     >
       <RNHostView>
-        <View className="gap-2 flex-1">
+        <View className="flex-1 gap-2">
           {/* `flex-1` on the scroll view (not the content container) keeps the
               footer inside the host's hit-testable frame. */}
           <KeyboardAwareScrollView

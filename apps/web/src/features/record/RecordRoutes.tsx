@@ -1,4 +1,3 @@
-import { recordSlug } from "@/data/routes";
 import RecordLayout from "@features/record/layout/RecordLayout";
 import { RecordMobileDrawer } from "@features/record/pages/RecordMobileDrawer";
 import CreateRecordProvider from "@features/record/providers/CreateRecordProvider";
@@ -8,6 +7,7 @@ import { SessionContext, useAutoReconnect } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { lazy, useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
+import { recordSlug } from "@/data/routes";
 
 const Index = lazy(() => import("@pages/Index"));
 const RecordPage = lazy(() => import("@features/record/pages/RecordPage"));

@@ -1,15 +1,15 @@
-import { View } from "react-native";
-import { Stack, useFocusEffect, useRouter } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import type { SearchBarCommands } from "react-native-screens";
 import { useRecordSearch } from "@repo/client";
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@repo/ui-native";
+import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { useCallback, useRef, useState } from "react";
+import { View } from "react-native";
+import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import type { SearchBarCommands } from "react-native-screens";
+import { useCSSVariable } from "uniwind";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { RecentRecords } from "@/features/search/components/RecentRecords";
 import { useRecentRecords } from "@/features/search/use-recent-records";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
-import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
-import { useCSSVariable } from "uniwind";
 
 export default function SearchScreen() {
   // Local state on purpose: the provider's own `query` is shared with the

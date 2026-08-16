@@ -1,9 +1,9 @@
 import {
+  getOpaqueConfig,
   KE2,
   OpaqueClient,
   OpaqueID,
   RegistrationResponse,
-  getOpaqueConfig,
 } from "@cloudflare/opaque-ts";
 import { fromBase64, toBase64 } from "@repo/util";
 

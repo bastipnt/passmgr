@@ -1,23 +1,23 @@
-import { useImperativeHandle, useMemo, useRef, useState, type ReactNode, type Ref } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { FullWindowOverlay } from "react-native-screens";
-import * as Clipboard from "expo-clipboard";
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRegistration } from "@repo/client";
 import { getStrengthFromString, wipe } from "@repo/crypto";
-import { toBase64 } from "@repo/util";
-import { zodResolver } from "@hookform/resolvers/zod";
-import z from "zod";
 import {
   BottomSheet,
+  type BottomSheetRef,
   Button,
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
   StrengthMeter,
-  type BottomSheetRef,
 } from "@repo/ui-native";
-import { TermsRow } from "@/components/TermsRow";
+import { toBase64 } from "@repo/util";
+import * as Clipboard from "expo-clipboard";
+import { type ReactNode, type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { FullWindowOverlay } from "react-native-screens";
+import z from "zod";
+import { TermsRow } from "@/components/TermsRow";
 
 const credentialsSchema = z
   .object({
@@ -120,13 +120,13 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
       <DialogPortal visible={recoveryKey !== null} onRequestClose={onConfirm}>
         <View className="flex-1 items-center justify-center bg-black/50 p-lg">
           <View className="w-full gap-md rounded-xl bg-card p-lg">
-            <Text className="text-lg font-bold text-card-foreground">Save your recovery key</Text>
-            <Text className="text-sm text-muted-foreground">
+            <Text className="font-bold text-card-foreground text-lg">Save your recovery key</Text>
+            <Text className="text-muted-foreground text-sm">
               Store this key in a safe place. It is the only way to recover your vault if you forget
               your password. It is shown once and never sent to the server.
             </Text>
             <Pressable onLongPress={onCopy}>
-              <Text selectable className="text-md text-foreground">
+              <Text selectable className="text-foreground text-md">
                 {recoveryKeyB64}
               </Text>
             </Pressable>
@@ -147,7 +147,7 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
       <BottomSheet
         ref={sheetRef}
         snapPoints={["full"]}
-        className="p-lg gap-lg"
+        className="gap-lg p-lg"
         footer={
           <Button
             size="lg"
@@ -161,8 +161,8 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
         }
       >
         <View className="gap-1">
-          <Text className="text-2xl font-bold text-foreground">Create account</Text>
-          <Text className="text-sm text-muted-foreground">Set up your secure vault.</Text>
+          <Text className="font-bold text-2xl text-foreground">Create account</Text>
+          <Text className="text-muted-foreground text-sm">Set up your secure vault.</Text>
         </View>
 
         <ControlledInput

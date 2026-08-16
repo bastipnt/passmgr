@@ -1,3 +1,6 @@
+import { InputGroup, InputGroupInput } from "@repo/ui/components/InputGroup";
+import { isDefined } from "@repo/util";
+import { type ReactNode, useId } from "react";
 import {
   Controller,
   type ControllerProps,
@@ -6,9 +9,6 @@ import {
 } from "react-hook-form";
 import { Field, FieldError, FieldLabel } from "../Field";
 import { Input } from "../Input";
-import { useId, type ReactNode } from "react";
-import { isDefined } from "@repo/util";
-import { InputGroup, InputGroupInput } from "@repo/ui/components/InputGroup";
 
 export type ControlledInputParams<
   TFieldValues extends FieldValues = FieldValues,
@@ -57,7 +57,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
         if (icon) {
           return (
             <div className="flex items-start gap-2">
-              <span className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</span>
+              <span className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">{icon}</span>
               {fieldContent}
             </div>
           );

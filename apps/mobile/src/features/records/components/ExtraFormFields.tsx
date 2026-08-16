@@ -1,10 +1,3 @@
-import {
-  useFieldArray,
-  type Control,
-  type FieldErrors,
-  type UseFormRegister,
-} from "react-hook-form";
-
 import { type LoginRecord as FormValues } from "@repo/schema";
 import {
   BottomSheet,
@@ -18,9 +11,15 @@ import {
   RemoveDialog,
 } from "@repo/ui-native";
 import { LockIcon, PlusIcon, TextIcon, TrashIcon } from "lucide-react-native";
+import { useCallback, useRef } from "react";
+import {
+  type Control,
+  type FieldErrors,
+  type UseFormRegister,
+  useFieldArray,
+} from "react-hook-form";
 import { Text } from "react-native";
 import { useCSSVariable } from "uniwind";
-import { useCallback, useRef } from "react";
 
 type ExtraFormFieldsProps = {
   control: Control<FormValues>;
@@ -92,7 +91,7 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
         <Text className="text-foreground">Add</Text>
       </Button>
 
-      <BottomSheet ref={sheetRef} className="py-8 gap-4">
+      <BottomSheet ref={sheetRef} className="gap-4 py-8">
         <Button onPress={() => appendExtraField("text")}>
           <Text>Text</Text>
         </Button>

@@ -1,7 +1,16 @@
-import { Link, useRoute, useLocation } from "wouter";
-import { Fragment, useCallback, useEffect, useRef } from "react";
-import { recordSlug } from "../data/routes";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
+import { useGetRecords, useShortcut } from "@repo/client";
+import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
+import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
+import { Button } from "@repo/ui/components/Button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@repo/ui/components/DropdownMenu";
 import {
   Item,
   ItemContent,
@@ -11,21 +20,12 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import { WebsiteAvatar } from "./WebsiteAvatar";
-import { Button } from "@repo/ui/components/Button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@repo/ui/components/DropdownMenu";
-import { ArrowUpDownIcon } from "lucide-react";
-import { useSortedRecords, SORT_LABELS } from "@repo/client/src/providers/SortedRecordsProvider";
-import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
-import { useGetRecords, useShortcut } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { useEditingContext } from "@features/record/providers/EditingProvider";
+import { ArrowUpDownIcon } from "lucide-react";
+import { Fragment, useCallback, useEffect, useRef } from "react";
+import { Link, useLocation, useRoute } from "wouter";
+import { recordSlug } from "../data/routes";
+import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type SidebarRecordProps = {
   record: DecryptedRecord;
@@ -59,7 +59,7 @@ function RecordSidebarSkeleton() {
   return (
     <ItemGroup className="max-w-sm">
       {Array.from({ length: 5 }).map((_, i) => (
-        // biome-ignore lint/suspicious/noArrayIndexKey: static skeleton list
+        // static skeleton list, index key is fine
         <Item key={i} variant="outline">
           <ItemMedia>
             <Skeleton className="size-8 rounded-full" />
@@ -150,7 +150,7 @@ export default function RecordSidebar() {
   const noResults = hasQuery && sortedRecords.length === 0;
 
   return (
-    <div className="flex sm:max-w-sm flex-col gap-2">
+    <div className="flex flex-col gap-2 sm:max-w-sm">
       <div className="flex items-center justify-end">
         <DropdownMenu>
           <DropdownMenuTrigger
@@ -172,13 +172,13 @@ export default function RecordSidebar() {
         </DropdownMenu>
       </div>
       {noResults ? (
-        <p className="text-sm text-muted-foreground px-1 py-4">No results</p>
+        <p className="px-1 py-4 text-muted-foreground text-sm">No results</p>
       ) : (
         <ItemGroup>
           {recordGroups.map((recordGroup) => (
             <Fragment key={recordGroup.label ?? "all"}>
               {recordGroup.label && (
-                <p className="text-xs text-muted-foreground font-medium px-1 pt-2 first:pt-0">
+                <p className="px-1 pt-2 font-medium text-muted-foreground text-xs first:pt-0">
                   {recordGroup.label}
                 </p>
               )}

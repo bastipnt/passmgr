@@ -1,5 +1,5 @@
-import { createContext, useContext, type ReactNode } from "react";
-import { Image, type ImageProps, View, type ViewProps, Text } from "react-native";
+import { createContext, type ReactNode, useContext } from "react";
+import { Image, type ImageProps, Text, View, type ViewProps } from "react-native";
 
 import { cn } from "../lib/utils";
 
@@ -93,7 +93,7 @@ export function AvatarBadge({
   return (
     <View
       className={cn(
-        "absolute bottom-0 right-0 z-10 items-center justify-center rounded-full border-2 border-background bg-primary",
+        "absolute right-0 bottom-0 z-10 items-center justify-center rounded-full border-2 border-background bg-primary",
         className,
       )}
       style={[{ width: dimension, height: dimension }, style]}

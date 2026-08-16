@@ -191,7 +191,7 @@ This project uses:
 
 - **OXLint**: Primary linter (run `oxlint --type-aware`)
 - **ESLint**: Secondary linter for specific rules
-- **Biome**: Code formatting plus import/CSS-property sorting assists (linter disabled; OXLint owns linting)
+- **Biome**: Code formatting, import/CSS-property sorting assists, and Tailwind className sorting (`useSortedClasses`). Linter otherwise disabled — OXLint owns linting.
 
 Always run `pnpm lint` and `pnpm format` before committing changes.
 

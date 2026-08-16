@@ -1,15 +1,15 @@
-import { useRef } from "react";
-import { View, Text } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useCSSVariable } from "uniwind";
 import {
   AppIcon,
   BiometricGlyph,
   Blobs,
+  type BottomSheetRef,
   Button,
   Wordmark,
-  type BottomSheetRef,
 } from "@repo/ui-native";
+import { useRef } from "react";
+import { Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useCSSVariable } from "uniwind";
 import { SignInSheet } from "@/features/auth/components/SignInSheet";
 import { SignUpSheet } from "@/features/auth/components/SignUpSheet";
 

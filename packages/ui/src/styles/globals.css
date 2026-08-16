@@ -83,10 +83,10 @@
     @apply border-border outline-ring/50;
   }
   body {
-    @apply font-sans bg-background text-foreground antialiased;
+    background-repeat: no-repeat;
     background-position: center;
     background-size: cover;
-    background-repeat: no-repeat;
+    @apply font-sans bg-background text-foreground antialiased;
   }
   html {
     @apply font-sans antialiased;
@@ -102,13 +102,13 @@
     &::before {
       content: "";
 
-      @apply top-0 left-0 right-0 bottom-0 absolute pointer-events-none;
+      border-radius: inherit;
 
       box-shadow:
         inset 1px 1px 1px oklch(from var(--specular) L C H / 0.2),
         inset 0 0 5px oklch(from var(--specular) L C H / 0.2);
 
-      border-radius: inherit;
+      @apply top-0 left-0 right-0 bottom-0 absolute pointer-events-none;
     }
   }
 }
@@ -124,8 +124,8 @@
     pointer-events: none;
 
     &::after {
-      @apply z-20;
       opacity: calc(1 - var(--stack-progress));
+      @apply z-20;
     }
   }
 }

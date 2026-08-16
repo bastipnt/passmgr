@@ -1,12 +1,12 @@
 import { useEffect } from "react";
 import { AppState, Text, View } from "react-native";
-import Svg, { Circle } from "react-native-svg";
 import Animated, {
   Easing,
   useAnimatedProps,
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import Svg, { Circle } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
@@ -86,7 +86,7 @@ export function TotpRing({ period, periodMs, seconds, size = 36 }: TotpRingProps
         />
       </Svg>
       <Text
-        className="text-xs font-semibold text-muted-foreground"
+        className="font-semibold text-muted-foreground text-xs"
         style={{ fontVariant: ["tabular-nums"] }}
       >
         {seconds ?? ""}

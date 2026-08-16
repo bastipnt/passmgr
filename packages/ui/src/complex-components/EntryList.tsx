@@ -1,9 +1,9 @@
 // TODO: still used?
 
-import { useCallback, type ReactNode, useState, useEffect } from "react";
+import { Button } from "@repo/ui/components/Button";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import { TiEyeOutline, TiTick } from "react-icons/ti";
 import { getAttrsForName } from "../utils/label-mapping";
-import { Button } from "@repo/ui/components/Button";
 
 type EntryListProps = {
   children: ReactNode;

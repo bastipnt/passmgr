@@ -1,18 +1,18 @@
-import { ErrorBoundary } from "react-error-boundary";
-import Routes from "./routes/Routes";
+import ErrorFallback from "@pages/ErrorFallback";
 import {
   ClientProvider,
-  SessionProvider,
-  RecordsProvider,
-  ShortcutProvider,
   PreferencesProvider,
+  RecordsProvider,
+  SessionProvider,
+  ShortcutProvider,
+  StoreProvider,
 } from "@repo/client";
-import ErrorFallback from "@pages/ErrorFallback";
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
-import { StoreProvider } from "@repo/client";
+import { ErrorBoundary } from "react-error-boundary";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useVaultStore } from "@/hooks/use-vault-store";
+import Routes from "./routes/Routes";
 
 function App() {
   const vaultStore = useVaultStore();

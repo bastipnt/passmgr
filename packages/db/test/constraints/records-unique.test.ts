@@ -1,5 +1,5 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { Client } from "pg";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getClient, insertRecord, insertUser, truncateAll } from "../setup/db-helpers";
 
 const UNIQUE_VIOLATION = "23505";

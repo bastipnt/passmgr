@@ -1,11 +1,11 @@
-import { Pressable, Text, View } from "react-native";
-import { Monitor, Moon, Sun, type LucideIcon } from "lucide-react-native";
-import { useCSSVariable } from "uniwind";
 import { cn } from "@repo/ui-native";
+import { type LucideIcon, Monitor, Moon, Sun } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
+import { useCSSVariable } from "uniwind";
 import {
   THEME_LABELS,
-  useThemePreference,
   type ThemePreference,
+  useThemePreference,
 } from "@/hooks/use-theme-preference";
 
 const OPTIONS: { value: ThemePreference; Icon: LucideIcon }[] = [
@@ -21,7 +21,7 @@ export function ThemeSwitch() {
 
   return (
     <View className="gap-sm">
-      <Text className="text-sm text-muted-foreground">Appearance</Text>
+      <Text className="text-muted-foreground text-sm">Appearance</Text>
       <View className="flex-row gap-xs rounded-lg border border-border bg-card p-xs">
         {OPTIONS.map(({ value, Icon }) => {
           const selected = preference === value;
@@ -42,7 +42,7 @@ export function ThemeSwitch() {
               <Icon size={16} color={selected ? activeColor : inactiveColor} />
               <Text
                 className={cn(
-                  "text-sm font-semibold",
+                  "font-semibold text-sm",
                   selected ? "text-primary-foreground" : "text-muted-foreground",
                 )}
               >

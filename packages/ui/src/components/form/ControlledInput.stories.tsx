@@ -1,7 +1,7 @@
+import { MailIcon } from "lucide-react";
+import { useForm } from "react-hook-form";
 import preview from "../../../.storybook/preview";
 import { ControlledInput } from "./ControlledInput";
-import { useForm } from "react-hook-form";
-import { MailIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Form/ControlledInput",

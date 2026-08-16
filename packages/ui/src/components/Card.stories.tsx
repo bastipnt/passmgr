@@ -1,4 +1,5 @@
 import preview from "../../.storybook/preview";
+import { Button } from "./Button";
 import {
   Card,
   CardAction,
@@ -8,7 +9,6 @@ import {
   CardHeader,
   CardTitle,
 } from "./Card";
-import { Button } from "./Button";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Card",

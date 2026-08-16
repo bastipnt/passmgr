@@ -1,8 +1,8 @@
-import { TRPCError } from "@trpc/server";
-import { claimNonce, getSession, touchSession } from "../util/redis-utils";
 import { getMessage, verifyHmac } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
+import { TRPCError } from "@trpc/server";
 import { loggedProcedure, shortHash } from "../logger";
+import { claimNonce, getSession, touchSession } from "../util/redis-utils";
 
 function checkTimestamp(timestamp: string): boolean {
   const now = Date.now();

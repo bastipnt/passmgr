@@ -1,4 +1,4 @@
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 
 type RecordGroupLabelProps = {
   text: string;
@@ -7,7 +7,7 @@ type RecordGroupLabelProps = {
 export function RecordGroupLabel({ text }: RecordGroupLabelProps) {
   return (
     <View className="bg-muted px-md py-sm">
-      <Text className="text-xs font-semibold uppercase text-muted-foreground">{text}</Text>
+      <Text className="font-semibold text-muted-foreground text-xs uppercase">{text}</Text>
     </View>
   );
 }

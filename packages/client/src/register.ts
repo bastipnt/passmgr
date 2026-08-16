@@ -1,16 +1,16 @@
 import {
+  getOpaqueConfig,
   OpaqueClient,
   OpaqueID,
-  RegistrationResponse,
-  getOpaqueConfig,
   type RegistrationClient,
+  RegistrationResponse,
 } from "@cloudflare/opaque-ts";
-import type { TRPCClient } from "@trpc/client";
 import { encryptXChaCha, genKey, genPasswordKek, genSalt, hkdf, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import { fromBase64, toBase64 } from "@repo/util";
-import type { AppRouter } from "@repo/types";
 import type { UserKeySchema } from "@repo/schema";
+import type { AppRouter } from "@repo/types";
+import { fromBase64, toBase64 } from "@repo/util";
+import type { TRPCClient } from "@trpc/client";
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 

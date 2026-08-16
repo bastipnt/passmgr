@@ -1,13 +1,13 @@
+import type { VaultUnlockInfo } from "@repo/schema";
 import { useContext, useState } from "react";
-import { useTRPCClient } from "../util/trpc";
-import { SessionContext } from "../providers/SessionProvider";
 import {
   LoginFinishFailedError,
   LoginStartFailedError,
-  OpaqueLoginFailedError,
   loginUser as loginUserCore,
+  OpaqueLoginFailedError,
 } from "../login";
-import type { VaultUnlockInfo } from "@repo/schema";
+import { SessionContext } from "../providers/SessionProvider";
+import { useTRPCClient } from "../util/trpc";
 
 export function useLogin() {
   const trpc = useTRPCClient();

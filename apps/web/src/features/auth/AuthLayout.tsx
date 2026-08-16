@@ -5,5 +5,5 @@ type AuthLayoutProps = {
 };
 
 export default function AuthLayout({ children }: AuthLayoutProps) {
-  return <main className="flex flex-col justify-center items-center min-h-screen">{children}</main>;
+  return <main className="flex min-h-screen flex-col items-center justify-center">{children}</main>;
 }

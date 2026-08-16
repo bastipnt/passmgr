@@ -1,14 +1,10 @@
 import { install } from "react-native-quick-crypto";
+
 install();
 
 import "react-native-get-random-values";
 import "../global.css";
 
-import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
-import { SafeAreaProvider } from "react-native-safe-area-context";
-import { KeyboardProvider } from "react-native-keyboard-controller";
-import { useResolveClassNames } from "uniwind";
 import {
   ClientProvider,
   PreferencesProvider,
@@ -17,14 +13,19 @@ import {
   StoreProvider,
   useSessionRestore,
 } from "@repo/client";
+import { Stack } from "expo-router";
+import { StatusBar } from "expo-status-bar";
+import { KeyboardProvider } from "react-native-keyboard-controller";
+import { SafeAreaProvider } from "react-native-safe-area-context";
+import { useResolveClassNames } from "uniwind";
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
+import { useContext, useEffect } from "react";
 import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { applyTheme, getStoredTheme } from "@/hooks/use-theme-preference";
 import { useVaultStore } from "@/hooks/use-vault-store";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
-import { useContext, useEffect } from "react";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 

@@ -1,14 +1,14 @@
+import { BiometricLoginCard } from "@features/auth/components/BiometricLoginCard";
+import ExistingUserButton from "@features/auth/components/ExistingUserButton";
+import type { LoginFormValues } from "@features/auth/components/LoginForm";
+import LoginForm from "@features/auth/components/LoginForm";
 import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
-import { Button } from "@repo/ui/components/Button";
-import { useContext, useState } from "react";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { timed } from "@repo/client/src/util/perf";
 import type { VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
-import type { LoginFormValues } from "@features/auth/components/LoginForm";
-import { BiometricLoginCard } from "@features/auth/components/BiometricLoginCard";
-import LoginForm from "@features/auth/components/LoginForm";
-import ExistingUserButton from "@features/auth/components/ExistingUserButton";
-import { timed } from "@repo/client/src/util/perf";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import { Button } from "@repo/ui/components/Button";
+import { useContext, useState } from "react";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError } = useLogin();
@@ -55,7 +55,7 @@ export default function LoginPage() {
   };
 
   return (
-    <section className="w-xs max-w-full flex flex-col gap-4">
+    <section className="flex w-xs max-w-full flex-col gap-4">
       {storedEmail && loginWithStoredEmail && store.biometricKeyMaterial && (
         <BiometricLoginCard loading={loading} setLoading={setLoading} />
       )}

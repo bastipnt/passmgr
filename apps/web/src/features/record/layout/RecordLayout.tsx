@@ -1,5 +1,13 @@
-import { useContext, useRef, useState, type ReactNode } from "react";
-
+import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
+import RecordSidebar from "@components/Sidebar";
+import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
+import { useEditingContext } from "@features/record/providers/EditingProvider";
+import { SessionContext, useShortcut } from "@repo/client";
+import {
+  SortedRecordsProvider,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
+import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import { Button } from "@repo/ui/components/Button";
 import {
   Empty,
@@ -16,18 +24,9 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
-import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
-import RecordSidebar from "@components/Sidebar";
-import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
 import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
-import { SessionContext, useShortcut } from "@repo/client";
-import {
-  SortedRecordsProvider,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { type ReactNode, useContext, useRef, useState } from "react";
 import { modKey } from "@/lib/formatShortcut";
-import { useEditingContext } from "@features/record/providers/EditingProvider";
-import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 
 type RecordLayoutProps = {
   children: ReactNode;
@@ -79,7 +78,7 @@ function NoSearchResults() {
   const { openCreateSheet } = useCreateRecordContext();
 
   return (
-    <div className="h-full flex flex-col justify-center items-center">
+    <div className="flex h-full flex-col items-center justify-center">
       <Empty>
         <EmptyHeader>
           <EmptyMedia variant="icon">
@@ -142,8 +141,8 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
 
   return (
     <SortedRecordsProvider>
-      <div className="h-screen grid grid-rows-[auto_1fr] grid-cols-1 sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
-        <header className="flex flex-row gap-4 content-stretch p-4 border-b col-span-2">
+      <div className="grid h-screen grid-cols-1 grid-rows-[auto_1fr] sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
+        <header className="col-span-2 flex flex-row content-stretch gap-4 border-b p-4">
           <SearchInput />
           <Button
             variant="outline"
@@ -161,8 +160,8 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
             </Button>
           )}
         </header>
-        <main className="grid sm:grid-cols-subgrid col-span-2 items-stretch overflow-hidden">
-          <section className="sm:border-r p-4 overflow-y-scroll scroll-py-4">
+        <main className="col-span-2 grid items-stretch overflow-hidden sm:grid-cols-subgrid">
+          <section className="scroll-py-4 overflow-y-scroll p-4 sm:border-r">
             <RecordSidebar />
           </section>
           <MainContent>{children}</MainContent>

@@ -1,6 +1,6 @@
-import { type ReactNode } from "react";
-import { View, type ViewProps, Text, type TextProps } from "react-native";
 import { cva, type VariantProps } from "class-variance-authority";
+import { type ReactNode } from "react";
+import { Text, type TextProps, View, type ViewProps } from "react-native";
 
 import { cn } from "../lib/utils";
 
@@ -8,7 +8,7 @@ export function Empty({ className, ...props }: ViewProps & { className?: string 
   return (
     <View
       className={cn(
-        "w-full items-center justify-center gap-lg rounded-lg border border-dashed border-border p-lg",
+        "w-full items-center justify-center gap-lg rounded-lg border border-border border-dashed p-lg",
         className,
       )}
       {...props}
@@ -41,7 +41,7 @@ export function EmptyMedia({
 }
 
 export function EmptyTitle({ className, ...props }: TextProps & { className?: string }) {
-  return <Text className={cn("text-foreground text-md font-medium", className)} {...props} />;
+  return <Text className={cn("font-medium text-foreground text-md", className)} {...props} />;
 }
 
 export function EmptyDescription({ className, ...props }: TextProps & { className?: string }) {

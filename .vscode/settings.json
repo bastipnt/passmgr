@@ -34,6 +34,10 @@
   "[css]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
+  // *.css is associated with the `tailwindcss` language id (see files.associations)
+  "[tailwindcss]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
   "files.exclude": {
     "**/.git": true,
     "**/.svn": true,

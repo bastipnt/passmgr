@@ -1,5 +1,3 @@
-import { beforeEach, describe, expect, it } from "vitest";
-import { db, usersTable } from "@repo/db";
 import {
   decryptXChaCha,
   encryptXChaCha,
@@ -9,12 +7,14 @@ import {
   hkdf,
   retrievePRK,
 } from "@repo/crypto";
+import { db, usersTable } from "@repo/db";
 import { fromBase64, toBase64, UUIDV4_RE } from "@repo/util";
+import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
-import { createCaller, loginAndGetAuthKey } from "./_helpers";
-import { buildTestContext } from "../setup/test-context";
 import { clientStartRegistration } from "../setup/opaque-client";
+import { buildTestContext } from "../setup/test-context";
+import { createCaller, loginAndGetAuthKey } from "./_helpers";
 
 /**
  * Register a user the same way the client does, but keep `vaultKey` + `recoveryKey`

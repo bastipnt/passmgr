@@ -1,6 +1,6 @@
-import { type ReactNode, useState } from "react";
-import { Pressable, View, Text } from "react-native";
 import { Eye, EyeOff } from "lucide-react-native";
+import { type ReactNode, useState } from "react";
+import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { Button } from "../Button";
 import { Link } from "../Link";
@@ -23,7 +23,7 @@ function Value({ value, hidden, variant }: ValueProps) {
   const usesLinks = variant === "websites";
 
   if (typeof valueToDisplay === "string") {
-    return <Text className="text-md text-foreground">{valueToDisplay}</Text>;
+    return <Text className="text-foreground text-md">{valueToDisplay}</Text>;
   }
 
   return (
@@ -35,7 +35,7 @@ function Value({ value, hidden, variant }: ValueProps) {
               {v}
             </Link>
           ) : (
-            <Text className="text-md text-foreground">{v}</Text>
+            <Text className="text-foreground text-md">{v}</Text>
           )}
         </View>
       ))}
@@ -82,7 +82,7 @@ export function RecordDetailsItem({
     >
       <View className="pt-sm">{icon}</View>
       <View className="flex-1">
-        <Text className="text-sm font-semibold text-muted-foreground">{title}</Text>
+        <Text className="font-semibold text-muted-foreground text-sm">{title}</Text>
         <Value hidden={usesHiddenValue && valueHidden} value={value} variant={variant} />
       </View>
       {accessory}

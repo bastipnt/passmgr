@@ -1,15 +1,15 @@
-import type { ArgonParams, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
-import { useContext, useState } from "react";
-import { fromBase64, toBase64 } from "@repo/util";
+import { authenticateBiometric, genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
-import { SessionContext } from "../providers/SessionProvider";
+import type { ArgonParams, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
+import { fromBase64, toBase64 } from "@repo/util";
+import { useContext, useState } from "react";
+import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
-import { authenticateBiometric, genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
-import { useLogin } from "./use-login";
-import { useTRPCClient } from "../util/trpc";
 import { timed } from "../util/perf";
+import { useTRPCClient } from "../util/trpc";
+import { useLogin } from "./use-login";
 
 function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
   return a.t === b.t && a.m === b.m && a.p === b.p;

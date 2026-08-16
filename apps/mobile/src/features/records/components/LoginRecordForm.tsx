@@ -1,8 +1,5 @@
-import { useForm } from "react-hook-form";
-import type { Href } from "expo-router";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { loginRecordSchema, type LoginRecord as FormValues } from "@repo/schema";
-import { useImperativeHandle, type Ref } from "react";
+import { type LoginRecord as FormValues, loginRecordSchema } from "@repo/schema";
 import {
   ControlledInput,
   ControlledTextarea,
@@ -11,12 +8,15 @@ import {
   FieldSeparator,
   FieldSet,
 } from "@repo/ui-native";
+import type { Href } from "expo-router";
 import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react-native";
-import WebsiteFormFields from "@/features/records/components/WebsiteFormFields";
-import ExtraFormFields from "@/features/records/components/ExtraFormFields";
-import PasswordField from "@/features/records/components/PasswordField";
+import { type Ref, useImperativeHandle } from "react";
+import { useForm } from "react-hook-form";
 import { View } from "react-native";
 import { useCSSVariable } from "uniwind";
+import ExtraFormFields from "@/features/records/components/ExtraFormFields";
+import PasswordField from "@/features/records/components/PasswordField";
+import WebsiteFormFields from "@/features/records/components/WebsiteFormFields";
 
 export type LoginRecordFormHandle = {
   triggerSubmit: () => void;

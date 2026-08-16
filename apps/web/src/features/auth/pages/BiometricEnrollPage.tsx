@@ -55,12 +55,12 @@ export default function BiometricEnrollPage() {
           <CardTitle>Enable Biometric Unlock?</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Use fingerprint or Face ID to unlock your vault next time — no password needed.
           </p>
           {error && <FieldError errors={[{ message: "Using fingerprint to unlock failed" }]} />}
         </CardContent>
-        <CardFooter className="flex flex-row gap-4 justify-end">
+        <CardFooter className="flex flex-row justify-end gap-4">
           <Button type="button" variant="secondary" onClick={onDismissEnroll} disabled={enrolling}>
             Skip
           </Button>

@@ -1,11 +1,11 @@
-import { z } from "zod";
-import { publicProcedure, router } from "../trpc";
-import { loggedProcedure } from "../logger";
-import { protectedProcedure } from "../auth/auth-middleware";
-import { passwordKeySchema } from "@repo/schema";
 import { db, keysTable } from "@repo/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { passwordKeySchema } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
+import { and, eq, isNull } from "drizzle-orm";
+import { z } from "zod";
+import { protectedProcedure } from "../auth/auth-middleware";
+import { loggedProcedure } from "../logger";
+import { publicProcedure, router } from "../trpc";
 
 type User = {
   id: string;

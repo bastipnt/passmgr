@@ -44,7 +44,7 @@ function TotpRing({ period, periodMs, seconds, className }: TotpRingProps) {
       )}
     >
       <svg
-        className="absolute inset-0 -rotate-90 size-full"
+        className="absolute inset-0 size-full -rotate-90"
         viewBox="0 0 100 100"
         fill="none"
         aria-hidden="true"
@@ -61,7 +61,7 @@ function TotpRing({ period, periodMs, seconds, className }: TotpRingProps) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="relative text-sm tabular-nums text-muted-foreground">{seconds}</span>
+      <span className="relative text-muted-foreground text-sm tabular-nums">{seconds}</span>
     </div>
   );
 }

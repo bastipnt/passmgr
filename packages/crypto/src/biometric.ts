@@ -1,6 +1,6 @@
 import { fromBase64, toBase64 } from "@repo/util";
-import { hkdf } from "./hash";
 import { decryptXChaCha, encryptXChaCha } from "./encryption";
+import { hkdf } from "./hash";
 import { wipe } from "./util/secrets-utils";
 
 export const BIOMETRIC_KEY = [

@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
-import { TextInput, type TextInputProps, View, Text } from "react-native";
-import { Controller, type Control, type FieldPath, type FieldValues } from "react-hook-form";
+import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
+import { Text, TextInput, type TextInputProps, View } from "react-native";
 
 import { cn } from "../../lib/utils";
 
@@ -24,14 +24,14 @@ export function Textarea({
   ...rest
 }: TextareaProps) {
   return (
-    <View className="gap-2 flex-auto">
-      {label && !hideLabel && <Text className="text-md font-bold text-foreground">{label}</Text>}
+    <View className="flex-auto gap-2">
+      {label && !hideLabel && <Text className="font-bold text-foreground text-md">{label}</Text>}
 
       <TextInput
         multiline
         textAlignVertical="top"
         className={cn(
-          "min-h-[104px] rounded-lg border-[1.5px] bg-background px-md py-md text-md text-foreground",
+          "min-h-[104px] rounded-lg border-[1.5px] bg-background px-md py-md text-foreground text-md",
           error
             ? "border-destructive focus:border-destructive"
             : "border-border focus:border-primary",
@@ -40,7 +40,7 @@ export function Textarea({
         {...rest}
       />
 
-      {error && <Text className="text-sm text-destructive">{error}</Text>}
+      {error && <Text className="text-destructive text-sm">{error}</Text>}
 
       {note}
     </View>
@@ -79,7 +79,7 @@ export function ControlledTextarea<TFieldValues extends FieldValues>({
         if (icon) {
           return (
             <View className="flex-row items-start gap-2">
-              <View className="text-muted-foreground [&>svg]:size-4 shrink-0 pt-0.5">{icon}</View>
+              <View className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">{icon}</View>
               {fieldContent}
             </View>
           );

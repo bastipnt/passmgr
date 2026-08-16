@@ -1,15 +1,14 @@
-import { beforeEach, describe, expect, it } from "vitest";
-
-import z from "zod";
-import fc from "fast-check";
-import { TRPCError } from "@trpc/server";
 import { genKey } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
-import { protectedProcedure } from "./auth-middleware";
-import { createCallerFactory, router } from "../trpc";
-import { redis } from "../redis";
-import { buildTestContext } from "../../test/setup/test-context";
+import { TRPCError } from "@trpc/server";
+import fc from "fast-check";
+import { beforeEach, describe, expect, it } from "vitest";
+import z from "zod";
 import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
+import { buildTestContext } from "../../test/setup/test-context";
+import { redis } from "../redis";
+import { createCallerFactory, router } from "../trpc";
+import { protectedProcedure } from "./auth-middleware";
 
 const testRouter = router({
   echo: protectedProcedure

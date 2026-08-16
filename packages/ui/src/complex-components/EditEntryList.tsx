@@ -1,6 +1,6 @@
+import { useId } from "react";
 import type { FieldError, FieldErrors, FieldValues, Path, UseFormRegister } from "react-hook-form";
 import { getAttrsForName } from "../utils/label-mapping";
-import { useId } from "react";
 
 type EditEntryListProps<T extends FieldValues> = {
   items: { name: Path<T> }[];

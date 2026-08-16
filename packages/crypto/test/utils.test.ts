@@ -1,6 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { normalize } from "../src/util/string-utils";
-import { getMessage } from "../src/util/general";
 import {
   hkdfInfo,
   SESSION_ID_HEADER,
@@ -9,6 +7,8 @@ import {
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "../src/util/constants";
+import { getMessage } from "../src/util/general";
+import { normalize } from "../src/util/string-utils";
 
 const NONCE = "00000000-0000-4000-8000-000000000000";
 

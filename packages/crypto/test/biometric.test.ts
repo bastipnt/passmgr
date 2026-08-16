@@ -4,9 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authenticateBiometric,
   BIOMETRIC_KEY,
+  type BiometricKeyMaterial,
   enrollBiometric,
   isPrfSupported,
-  type BiometricKeyMaterial,
 } from "../src/biometric";
 
 // Minimal WebAuthn mock: a fake authenticator that returns a deterministic

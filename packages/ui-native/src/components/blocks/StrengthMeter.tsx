@@ -1,6 +1,6 @@
 import { LEVEL_COLOR } from "@repo/ui-shared";
 import type { PasswordStrengthLevel } from "@repo/util";
-import { View, Text } from "react-native";
+import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
 const LEVEL_INDEX: Record<PasswordStrengthLevel, number> = {

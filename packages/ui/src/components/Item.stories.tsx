@@ -1,4 +1,6 @@
+import { ChevronRightIcon, FolderIcon } from "lucide-react";
 import preview from "../../.storybook/preview";
+import { Button } from "./Button";
 import {
   Item,
   ItemActions,
@@ -11,8 +13,6 @@ import {
   ItemSeparator,
   ItemTitle,
 } from "./Item";
-import { Button } from "./Button";
-import { ChevronRightIcon, FolderIcon } from "lucide-react";
 
 const meta = preview.meta({
   title: "Design System/Atoms/Item",

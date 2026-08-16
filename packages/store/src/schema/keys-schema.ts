@@ -1,5 +1,5 @@
-import { VAULT_KEY, type VaultKeyMaterial } from "@repo/schema";
 import { BIOMETRIC_KEY, type BiometricKeyMaterial } from "@repo/crypto";
+import { VAULT_KEY, type VaultKeyMaterial } from "@repo/schema";
 import type { SqlDriver } from "../driver";
 
 export const CREATE_KEYS_SCHEMA_SQL = /* sql */ `

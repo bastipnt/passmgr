@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { View, type ViewProps, Text } from "react-native";
+import { Text, View, type ViewProps } from "react-native";
 
 import { cn } from "../lib/utils";
 
@@ -26,7 +26,7 @@ export function CardHeader({ className, children, ...props }: CardSlotProps) {
 
 export function CardTitle({ className, children }: { className?: string; children: ReactNode }) {
   return (
-    <Text className={cn("flex-1 text-lg font-bold text-card-foreground", className)}>
+    <Text className={cn("flex-1 font-bold text-card-foreground text-lg", className)}>
       {children}
     </Text>
   );

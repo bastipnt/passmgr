@@ -1,11 +1,11 @@
+import Clipboard from "@react-native-clipboard/clipboard";
 import { useGetRecord } from "@repo/client";
-import { View, Text } from "react-native";
+import { RecordDetailsItem } from "@repo/ui-native";
+import { isDefined } from "@repo/util";
 import { Earth, Key, Lock, Mail, NotebookPen, NotebookText } from "lucide-react-native";
 import { Fragment, type ReactNode } from "react";
-import { RecordDetailsItem } from "@repo/ui-native";
+import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
-import Clipboard from "@react-native-clipboard/clipboard";
-import { isDefined } from "@repo/util";
 import TotpField from "./TotpField";
 
 function Fallback() {

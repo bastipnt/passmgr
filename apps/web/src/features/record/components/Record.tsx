@@ -1,9 +1,9 @@
-import { useParams } from "wouter";
-import { type LoginRecord } from "@repo/schema";
 import { LoginRecordFields } from "@features/login-record/components/LoginRecordFields";
+import EditRecord from "@features/record/components/EditRecord";
 import { Fallback } from "@features/record/components/Fallback";
 import { useRecordActions } from "@features/record/hooks/use-record-actions";
-import EditRecord from "@features/record/components/EditRecord";
+import { type LoginRecord } from "@repo/schema";
+import { useParams } from "wouter";
 
 type RecordProps = {
   recordId: string;

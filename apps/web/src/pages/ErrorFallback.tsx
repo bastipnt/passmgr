@@ -1,5 +1,3 @@
-import type { FallbackProps } from "react-error-boundary";
-import { isDefined } from "@repo/util";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -9,6 +7,8 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
+import { isDefined } from "@repo/util";
+import type { FallbackProps } from "react-error-boundary";
 
 export default function ErrorFallback({ resetErrorBoundary, error }: FallbackProps) {
   const errorMessage =
@@ -16,7 +16,7 @@ export default function ErrorFallback({ resetErrorBoundary, error }: FallbackPro
       ? (error as { message: string }).message
       : "";
   return (
-    <main className="flex flex-col justify-center items-center min-h-screen">
+    <main className="flex min-h-screen flex-col items-center justify-center">
       <section role="alert" className="w-lg">
         <Card>
           <CardHeader>

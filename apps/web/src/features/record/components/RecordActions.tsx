@@ -1,5 +1,5 @@
-import { useContext, useState } from "react";
-import { EditIcon, EllipsisVerticalIcon, Timeline, TrashIcon, XIcon } from "lucide-react";
+import { SessionContext } from "@repo/client";
+import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -7,10 +7,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { SessionContext } from "@repo/client";
 import { cn } from "@repo/ui/lib/utils";
+import { EditIcon, EllipsisVerticalIcon, Timeline, TrashIcon, XIcon } from "lucide-react";
+import { useContext, useState } from "react";
 
 type MoreDropdownProps = {
   onDelete: () => void;
@@ -76,8 +76,8 @@ export function RecordActions({
   const isMobile = useIsMobile();
 
   return (
-    <div className={cn("flex flex-row justify-between items-center", className)}>
-      <div className="flex flex-row gap-4 items-center">
+    <div className={cn("flex flex-row items-center justify-between", className)}>
+      <div className="flex flex-row items-center gap-4">
         {isMobile && onSetOpen && (
           <Button
             variant="outline"
@@ -93,7 +93,7 @@ export function RecordActions({
       </div>
 
       {!isOffline && (
-        <div className="flex gap-4 items-center">
+        <div className="flex items-center gap-4">
           <Button variant={isMobile ? "default" : "ghost"} onClick={onEdit}>
             <EditIcon /> Edit
           </Button>
