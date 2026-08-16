@@ -22,7 +22,7 @@ Built with pnpm workspaces, Turborepo, and TypeScript.
 pnpm dev              # Start all apps in development mode
 pnpm build            # Build all packages and apps
 pnpm lint             # Lint all packages
-pnpm format           # Format code with Prettier
+pnpm format           # Format code with Biome
 pnpm typecheck      # Type check all packages
 
 # Individual apps
@@ -191,7 +191,7 @@ This project uses:
 
 - **OXLint**: Primary linter (run `oxlint --type-aware`)
 - **ESLint**: Secondary linter for specific rules
-- **Prettier**: Code formatting with Tailwind and import organization
+- **Biome**: Code formatting plus import/CSS-property sorting assists (linter disabled; OXLint owns linting)
 
 Always run `pnpm lint` and `pnpm format` before committing changes.
 

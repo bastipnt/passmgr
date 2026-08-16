@@ -46,7 +46,7 @@ See [roadmap.md](./roadmap.md) for the full plan.
 | Server  | Fastify 5, tRPC 11, Bun runtime, Drizzle ORM (1.0 beta)               |
 | Data    | PostgreSQL 17, Redis 7                                                |
 | Crypto  | `@cloudflare/opaque-ts`, `@noble/hashes`, `@noble/ciphers`            |
-| Tooling | pnpm 10 workspaces, Turborepo, OXLint, Prettier, Lefthook, commitlint |
+| Tooling | pnpm 10 workspaces, Turborepo, OXLint, Biome, Lefthook, commitlint    |
 
 ## Repo layout
 
@@ -113,7 +113,7 @@ pnpm typecheck        # tsc across the monorepo
 pnpm test             # Vitest unit tests
 pnpm test:integration # integration suites
 pnpm e2e              # Playwright
-pnpm format           # Prettier
+pnpm format           # Biome (format + assists, writes)
 pnpm db:generate      # Drizzle migration generation
 pnpm db:migrate       # Drizzle migration apply
 ```

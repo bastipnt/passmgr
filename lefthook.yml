@@ -10,8 +10,8 @@ pre-commit:
       run: gitleaks protect --staged --no-banner -v
     format:
       tags: style
-      glob: "*.{ts,tsx,md}"
-      run: pnpm prettier --write {staged_files}
+      glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css}"
+      run: pnpm biome check --write --no-errors-on-unmatched {staged_files}
       stage_fixed: true
 
 pre-push:

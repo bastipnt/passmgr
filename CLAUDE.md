@@ -15,7 +15,7 @@ pnpm dev              # Start all apps in development mode
 pnpm build            # Build all packages and apps
 pnpm lint             # Lint all packages (OXLint)
 pnpm typecheck        # Type check all packages
-pnpm format           # Format with Prettier
+pnpm format           # Format with Biome (`format:check` for CI)
 pnpm db:generate      # Generate Drizzle migrations
 pnpm db:migrate       # Run migrations
 pnpm db:up            # Start Postgres via Docker Compose

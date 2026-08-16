@@ -6,20 +6,33 @@
   ],
   // "eslint.format.enable": true,
   // "eslint.lintTask.enable": true,
-  "prettier.prettierPath": "./node_modules/prettier",
-  "prettier.requireConfig": true,
   "js/ts.tsdk.path": "node_modules/typescript/lib",
-  "cSpell.words": ["fastify", "oxlint", "oxlintrc", "trpc"],
+  "cSpell.words": ["biome", "biomejs", "fastify", "oxlint", "oxlintrc", "trpc"],
   "editor.codeActionsOnSave": {
-    "source.fixAll.oxc": "explicit"
+    "source.fixAll.oxc": "explicit",
+    "source.organizeImports.biome": "explicit",
+    "source.useSortedProperties.biome": "explicit"
   },
   "editor.formatOnSave": true,
   "oxc.typeAware": true,
+  "editor.defaultFormatter": "biomejs.biome",
   "[typescript]": {
-    "editor.defaultFormatter": "esbenp.prettier-vscode"
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "[javascript]": {
-    "editor.defaultFormatter": "oxc.oxc-vscode"
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[css]": {
+    "editor.defaultFormatter": "biomejs.biome"
   },
   "files.exclude": {
     "**/.git": true,
