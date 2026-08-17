@@ -1,6 +1,3 @@
-import LoginRecordForm, {
-  type LoginRecordFormHandle,
-} from "@features/login-record/forms/LoginRecordForm";
 import type { LoginRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
@@ -15,6 +12,7 @@ import {
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { TrashIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
+import LoginRecordForm, { type LoginRecordFormHandle } from "./login/LoginRecordForm";
 
 type EditRecordProps = {
   open: boolean;

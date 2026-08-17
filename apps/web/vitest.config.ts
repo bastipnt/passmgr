@@ -7,10 +7,6 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "@pages": path.resolve(__dirname, "./src/pages"),
-      "@components": path.resolve(__dirname, "./src/components"),
-      "@utils": path.resolve(__dirname, "./src/utils"),
-      "@features": path.resolve(__dirname, "./src/features"),
       "@": path.resolve(__dirname, "./src"),
     },
   },
@@ -27,7 +23,7 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
-      include: ["src/features/auth/**", "src/features/login-record/**"],
+      include: ["src/features/auth/**", "src/features/records/login/**"],
       thresholds: {
         lines: 80,
         branches: 70,

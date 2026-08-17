@@ -1,6 +1,3 @@
-import ExtraFormFields from "@features/login-record/forms/ExtraFormFields";
-import WebsiteFormFields from "@features/login-record/forms/WebsiteFormFields";
-import PasswordField from "@features/password-generation/components/PasswordField";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { type LoginRecord as FormValues, loginRecordSchema } from "@repo/schema";
 import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/components/Field";
@@ -10,6 +7,9 @@ import { normalizeWebsiteUrl } from "@repo/util";
 import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
+import { PasswordField } from "@/features/password-generation";
+import ExtraFormFields from "./ExtraFormFields";
+import WebsiteFormFields from "./WebsiteFormFields";
 
 export type LoginRecordFormHandle = {
   triggerSubmit: () => void;

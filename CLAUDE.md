@@ -60,6 +60,34 @@ packages/
   typescript-config/  Shared tsconfig base files
 ```
 
+### Web app structure (`apps/web/src`)
+
+```
+app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
+features/    auth/ · records/ (with records/login/) · password-generation/
+components/  App-wide, feature-agnostic components only
+hooks/ lib/ test/ types/
+```
+
+Rules:
+
+- **Feature folders are flat.** Files sit directly in the feature. Nest only for a
+  sub-domain (`records/login/` = the login record type), **never** by file kind — no
+  `components/`, `hooks/`, `pages/`, `forms/`, or `providers/` inside a feature.
+- **Screens live in their feature** (`features/auth/LoginPage.tsx`). There is no
+  top-level `pages/`. Only app-shell screens (`NotFound`, `ErrorFallback`) live in `app/`.
+- **Every route string is in `app/route-paths.ts`** (`authPaths`, `recordPaths`).
+  Never hardcode a path in a component.
+- **Cross-feature imports go through the barrel**: `@/features/password-generation`,
+  never `@/features/password-generation/PasswordField`. Enforced by
+  `no-restricted-imports` in `apps/web/.oxlintrc.json`.
+- **Inside a feature, use relative `./` imports.** Importing your own feature via `@/features/...`
+  creates a cycle through the barrel.
+- **One alias: `@/` → `src/`.** (`@pages`, `@components`, `@features`, `@utils` were removed.)
+  Declared in three places that must stay in sync: `vite.config.ts`, `vitest.config.ts`,
+  `tsconfig.app.json`.
+- Web `features/records/` matches mobile's `features/records/` naming.
+
 ### Mobile styling (Uniwind)
 
 `apps/mobile` + `packages/ui-native` style with **Uniwind** (Tailwind v4 for React

@@ -1,4 +1,3 @@
-import TotpField from "@features/login-record/components/TotpField";
 import { getStrengthFromString } from "@repo/crypto";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplay, ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
@@ -17,6 +16,7 @@ import {
   Wand,
 } from "lucide-react";
 import { Fragment } from "react";
+import TotpField from "./TotpField";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;

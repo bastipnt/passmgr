@@ -1,7 +1,3 @@
-import LoginRecordForm, {
-  type LoginRecordFormHandle,
-} from "@features/login-record/forms/LoginRecordForm";
-import { useEditingContext } from "@features/record/providers/EditingProvider";
 import { encryptRecord, useCreateRecord } from "@repo/client";
 import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
@@ -21,7 +17,9 @@ import {
   useState,
 } from "react";
 import { useLocation } from "wouter";
-import { recordSlug } from "@/data/routes";
+import { recordPaths } from "@/app/route-paths";
+import { useEditingContext } from "./EditingProvider";
+import LoginRecordForm, { type LoginRecordFormHandle } from "./login/LoginRecordForm";
 
 type CreateRecordContextValue = {
   openCreateSheet: (title?: string) => void;
@@ -55,7 +53,7 @@ export default function CreateRecordProvider({ children }: { children: ReactNode
     onSuccess: (recordId) => {
       handleCreatingChange(false);
       setInitialTitle(undefined);
-      navigate(`/${recordSlug}/${recordId}`);
+      navigate(recordPaths.record(recordId));
     },
   });
 

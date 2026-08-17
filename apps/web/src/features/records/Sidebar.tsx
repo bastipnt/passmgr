@@ -1,4 +1,3 @@
-import { useEditingContext } from "@features/record/providers/EditingProvider";
 import { useGetRecords, useShortcut } from "@repo/client";
 import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
 import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
@@ -24,7 +23,8 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { ArrowUpDownIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
-import { recordSlug } from "../data/routes";
+import { recordPaths } from "@/app/route-paths";
+import { useEditingContext } from "./EditingProvider";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type SidebarRecordProps = {
@@ -39,7 +39,7 @@ function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
       variant={active ? "active" : "outline"}
       render={
         <Link
-          href={`../${recordSlug}/${record.recordId}`}
+          href={`..${recordPaths.record(record.recordId)}`}
           ref={(el: HTMLAnchorElement | null) => registerRef(record.recordId, el)}
         />
       }
@@ -75,7 +75,7 @@ function RecordSidebarSkeleton() {
 }
 
 export default function RecordSidebar() {
-  const [_, params] = useRoute(`/${recordSlug}/:recordId`);
+  const [_, params] = useRoute(recordPaths.detail);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
   const { query, sort, sortedRecords, recordGroups, handleSortChange } = useSortedRecords();
@@ -100,7 +100,7 @@ export default function RecordSidebar() {
       const nextRecord = sortedRecords[nextIndex];
       if (nextRecord) {
         shouldFocusRef.current = true;
-        navigate(`/${recordSlug}/${nextRecord.recordId}`);
+        navigate(recordPaths.record(nextRecord.recordId));
       }
     },
     [sortedRecords, params?.recordId, navigate],
@@ -130,7 +130,7 @@ export default function RecordSidebar() {
 
   useEffect(() => {
     if (!isMobile && ready && !params?.recordId && sortedRecords.length > 0) {
-      navigate(`/${recordSlug}/${sortedRecords[0].recordId}`, { replace: true });
+      navigate(recordPaths.record(sortedRecords[0].recordId), { replace: true });
     }
   }, [isMobile, ready, params?.recordId, sortedRecords, navigate]);
 
@@ -139,7 +139,7 @@ export default function RecordSidebar() {
     if (!isMobile && prevQueryRef.current !== query) {
       prevQueryRef.current = query;
       if (sortedRecords.length > 0) {
-        navigate(`/${recordSlug}/${sortedRecords[0].recordId}`, { replace: true });
+        navigate(recordPaths.record(sortedRecords[0].recordId), { replace: true });
       }
     }
   }, [isMobile, query, sortedRecords, navigate]);

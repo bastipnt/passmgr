@@ -1,7 +1,5 @@
 "use client";
 
-import PassphraseOptionsForm from "@features/password-generation/components/PassphraseOptions";
-import PasswordOptionsForm from "@features/password-generation/components/PasswordOptionsForm";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
@@ -17,7 +15,6 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
-
 import { Button } from "@repo/ui/components/Button";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
@@ -38,7 +35,9 @@ import {
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { PasswordStrengthBar } from "../components/PasswordStrengthBar";
+import PassphraseOptionsForm from "./PassphraseOptions";
+import PasswordOptionsForm from "./PasswordOptionsForm";
+import { PasswordStrengthBar } from "./PasswordStrengthBar";
 
 type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;

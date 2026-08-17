@@ -1,4 +1,3 @@
-import ErrorFallback from "@pages/ErrorFallback";
 import {
   ClientProvider,
   PreferencesProvider,
@@ -12,7 +11,8 @@ import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 import { ErrorBoundary } from "react-error-boundary";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useVaultStore } from "@/hooks/use-vault-store";
-import Routes from "./routes/Routes";
+import ErrorFallback from "./ErrorFallback";
+import Routes from "./routes";
 
 function App() {
   const vaultStore = useVaultStore();

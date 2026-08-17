@@ -1,7 +1,3 @@
-import ShortcutsHelpDialog from "@components/ShortcutsHelpDialog";
-import RecordSidebar from "@components/Sidebar";
-import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
-import { useEditingContext } from "@features/record/providers/EditingProvider";
 import { SessionContext, useShortcut } from "@repo/client";
 import {
   SortedRecordsProvider,
@@ -26,7 +22,11 @@ import {
 import { Kbd } from "@repo/ui/components/Kbd";
 import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { type ReactNode, useContext, useRef, useState } from "react";
+import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { modKey } from "@/lib/formatShortcut";
+import { useCreateRecordContext } from "./CreateRecordProvider";
+import { useEditingContext } from "./EditingProvider";
+import RecordSidebar from "./Sidebar";
 
 type RecordLayoutProps = {
   children: ReactNode;

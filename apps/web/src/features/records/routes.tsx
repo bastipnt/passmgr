@@ -1,25 +1,25 @@
-import RecordLayout from "@features/record/layout/RecordLayout";
-import { RecordMobileDrawer } from "@features/record/pages/RecordMobileDrawer";
-import CreateRecordProvider from "@features/record/providers/CreateRecordProvider";
-import EditingProvider from "@features/record/providers/EditingProvider";
-import SelectedElementProvider from "@features/record/providers/SelectedElementProvider";
 import { SessionContext, useAutoReconnect } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { lazy, useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
-import { recordSlug } from "@/data/routes";
+import { authPaths, recordPaths } from "@/app/route-paths";
+import CreateRecordProvider from "./CreateRecordProvider";
+import EditingProvider from "./EditingProvider";
+import RecordLayout from "./RecordLayout";
+import { RecordMobileDrawer } from "./RecordMobileDrawer";
+import SelectedElementProvider from "./SelectedElementProvider";
 
-const Index = lazy(() => import("@pages/Index"));
-const RecordPage = lazy(() => import("@features/record/pages/RecordPage"));
+const NotFound = lazy(() => import("@/app/NotFound"));
 
-const NotFound = lazy(() => import("@pages/NotFound"));
+const RecordsEmptyState = lazy(() => import("./RecordsEmptyState"));
+const RecordPage = lazy(() => import("./RecordPage"));
 
 export default function RecordRoutes() {
   const { sessionId } = useContext(SessionContext);
   useAutoReconnect();
   const isMobile = useIsMobile();
 
-  if (!sessionId) return <Redirect to="/login" />;
+  if (!sessionId) return <Redirect to={authPaths.login} />;
 
   return (
     <EditingProvider>
@@ -27,11 +27,11 @@ export default function RecordRoutes() {
         <SelectedElementProvider>
           <RecordLayout>
             <Switch>
-              <Route path="/" component={isMobile ? undefined : Index} />
               <Route
-                path={`/${recordSlug}/:recordId`}
-                component={isMobile ? undefined : RecordPage}
+                path={recordPaths.index}
+                component={isMobile ? undefined : RecordsEmptyState}
               />
+              <Route path={recordPaths.detail} component={isMobile ? undefined : RecordPage} />
 
               <Route>
                 <NotFound />

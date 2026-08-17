@@ -17,6 +17,7 @@ import Link from "@repo/ui/components/Link";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useEffect } from "react";
 import z from "zod";
+import { authPaths } from "@/app/route-paths";
 
 const userCredentialsSchema = z.object({
   email: z.email(),
@@ -61,7 +62,7 @@ export default function LoginForm({
           {registrationEnabled && (
             <CardAction>
               or
-              <Link href="/register" variant="link">
+              <Link href={authPaths.register} variant="link">
                 Sign Up
               </Link>
             </CardAction>

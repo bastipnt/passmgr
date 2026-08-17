@@ -1,5 +1,3 @@
-import { PasswordStrengthBar } from "@features/password-generation/components/PasswordStrengthBar";
-import PasswordGenerator from "@features/password-generation/pages/PasswordGenerator";
 import { getStrengthFromString } from "@repo/crypto";
 import { type LoginRecord as FormValues } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
@@ -8,6 +6,8 @@ import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGrou
 import { DicesIcon, KeyIcon } from "lucide-react";
 import { useMemo } from "react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
+import PasswordGenerator from "./PasswordGenerator";
+import { PasswordStrengthBar } from "./PasswordStrengthBar";
 
 type PasswordFieldProps = {
   control: Control<FormValues>;

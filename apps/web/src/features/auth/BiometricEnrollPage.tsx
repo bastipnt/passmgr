@@ -7,6 +7,7 @@ import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useState } from "react";
 import { useLocation } from "wouter";
+import { recordPaths } from "@/app/route-paths";
 
 // TODO: fails if argon2id not finished
 export default function BiometricEnrollPage() {
@@ -17,7 +18,7 @@ export default function BiometricEnrollPage() {
   const store = useStore();
 
   function navigateNext() {
-    navigate("/");
+    navigate(recordPaths.index);
   }
 
   async function onEnroll() {

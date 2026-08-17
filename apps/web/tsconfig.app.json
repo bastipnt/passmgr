@@ -24,10 +24,6 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "paths": {
-      "@pages/*": ["./src/pages/*"],
-      "@components/*": ["./src/components/*"],
-      "@utils/*": ["./src/utils/*"],
-      "@features/*": ["./src/features/*"],
       "@/*": ["./src/*"],
       "@repo/ui/*": ["../../packages/ui/src/*"]
     }

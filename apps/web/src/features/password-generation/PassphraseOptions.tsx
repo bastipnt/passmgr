@@ -1,4 +1,3 @@
-import OptionToggle from "@features/password-generation/components/OptionToggle";
 import { type PassphraseOptions, SEPARATORS } from "@repo/crypto";
 import { Field, FieldLabel } from "@repo/ui/components/Field";
 import {
@@ -10,6 +9,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { Slider } from "@repo/ui/components/Slider";
+import OptionToggle from "./OptionToggle";
 
 type PassphraseOptionsFormProps = {
   phOpts: PassphraseOptions;

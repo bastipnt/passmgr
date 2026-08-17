@@ -1,9 +1,9 @@
-import OptionToggle from "@features/password-generation/components/OptionToggle";
 import type { PasswordOptions } from "@repo/crypto";
 import { Field, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Slider } from "@repo/ui/components/Slider";
 import { clampInt } from "@repo/util";
+import OptionToggle from "./OptionToggle";
 
 type PasswordOptionsFormProps = {
   pwOpts: PasswordOptions;

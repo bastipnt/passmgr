@@ -1,7 +1,3 @@
-import { BiometricLoginCard } from "@features/auth/components/BiometricLoginCard";
-import ExistingUserButton from "@features/auth/components/ExistingUserButton";
-import type { LoginFormValues } from "@features/auth/components/LoginForm";
-import LoginForm from "@features/auth/components/LoginForm";
 import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import type { VaultUnlockInfo } from "@repo/schema";
@@ -9,6 +5,10 @@ import { secretsStore } from "@repo/store";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { useContext, useState } from "react";
+import { BiometricLoginCard } from "./BiometricLoginCard";
+import ExistingUserButton from "./ExistingUserButton";
+import type { LoginFormValues } from "./LoginForm";
+import LoginForm from "./LoginForm";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError } = useLogin();

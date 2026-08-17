@@ -1,4 +1,3 @@
-import { useEditingContext } from "@features/record/providers/EditingProvider";
 import {
   encryptRecord,
   SessionContext,
@@ -12,6 +11,8 @@ import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
 import { useLocation } from "wouter";
+import { recordPaths } from "@/app/route-paths";
+import { useEditingContext } from "./EditingProvider";
 
 export function useRecordActions({ recordId }: { recordId: string }) {
   const { isOffline } = useContext(SessionContext);
@@ -27,7 +28,7 @@ export function useRecordActions({ recordId }: { recordId: string }) {
   const { deleteRecord } = useDeleteRecord({
     onSuccess: () => {
       toast.success("Record deleted");
-      navigate("/");
+      navigate(recordPaths.index);
     },
   });
 

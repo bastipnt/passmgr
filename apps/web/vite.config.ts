@@ -9,10 +9,6 @@ export default defineConfig({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
-      "@pages": path.resolve(__dirname, "./src/pages"),
-      "@components": path.resolve(__dirname, "./src/components"),
-      "@utils": path.resolve(__dirname, "./src/utils"),
-      "@features": path.resolve(__dirname, "./src/features"),
       "@": path.resolve(__dirname, "./src"),
     },
   },

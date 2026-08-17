@@ -1,5 +1,26 @@
 {
   "$schema": "../../node_modules/oxlint/configuration_schema.json",
   "extends": ["../../.oxlintrc.base.json"],
-  "plugins": ["jsx-a11y", "react"]
+  "plugins": ["jsx-a11y", "react"],
+  "rules": {
+    "no-restricted-imports": [
+      "error",
+      {
+        "patterns": [
+          {
+            "group": ["@/features/*/*"],
+            "message": "Import a feature through its barrel: @/features/<name>. Inside a feature, use relative ./ imports."
+          },
+          {
+            "group": ["@features/*", "@pages/*", "@components/*", "@utils/*"],
+            "message": "Alias removed — use @/ (e.g. @/features/records)."
+          },
+          {
+            "group": ["../*"],
+            "message": "Don't climb out of a folder relatively — use @/ for anything outside, ./ for siblings."
+          }
+        ]
+      }
+    ]
+  }
 }

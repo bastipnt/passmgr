@@ -1,9 +1,9 @@
-import { LoginRecordFields } from "@features/login-record/components/LoginRecordFields";
-import EditRecord from "@features/record/components/EditRecord";
-import { Fallback } from "@features/record/components/Fallback";
-import { useRecordActions } from "@features/record/hooks/use-record-actions";
 import { type LoginRecord } from "@repo/schema";
 import { useParams } from "wouter";
+import EditRecord from "./EditRecord";
+import { LoginRecordFields } from "./login/LoginRecordFields";
+import { RecordFallback } from "./RecordFallback";
+import { useRecordActions } from "./use-record-actions";
 
 type RecordProps = {
   recordId: string;
@@ -23,7 +23,7 @@ function RecordInner({ recordId }: RecordProps) {
     recordId,
   });
 
-  if (!ready || !record) return <Fallback />;
+  if (!ready || !record) return <RecordFallback />;
 
   const defaultValues: Partial<LoginRecord> = {
     title: record.title,
@@ -54,7 +54,7 @@ function RecordInner({ recordId }: RecordProps) {
 export default function Record({ recordId: recordIdProp }: { recordId?: string } = {}) {
   const params = useParams();
   const recordId = recordIdProp ?? params.recordId;
-  if (!recordId) return <Fallback />;
+  if (!recordId) return <RecordFallback />;
 
   return <RecordInner recordId={recordId} />;
 }

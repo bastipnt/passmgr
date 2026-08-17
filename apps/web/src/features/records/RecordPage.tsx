@@ -1,7 +1,7 @@
-import Record from "@features/record/components/Record";
-import { RecordActions } from "@features/record/components/RecordActions";
-import { useRecordActions } from "@features/record/hooks/use-record-actions";
 import { useParams } from "wouter";
+import Record from "./Record";
+import { RecordActions } from "./RecordActions";
+import { useRecordActions } from "./use-record-actions";
 
 type ActionsProps = {
   recordId: string;

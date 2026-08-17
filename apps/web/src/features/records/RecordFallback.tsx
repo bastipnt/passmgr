@@ -1,7 +1,7 @@
 import { Item, ItemContent, ItemGroup, ItemMedia } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 
-export function Fallback() {
+export function RecordFallback() {
   return (
     <div className="grid grid-cols-1 items-start gap-4 p-8">
       <div className="grid grid-cols-[1fr_auto] items-center">

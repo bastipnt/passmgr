@@ -1,11 +1,11 @@
-import { RecordActions } from "@features/record/components/RecordActions";
-import { useRecordActions } from "@features/record/hooks/use-record-actions";
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useLocation, useRoute } from "wouter";
-import { recordSlug } from "../../../data/routes";
+import { recordPaths } from "@/app/route-paths";
+import { RecordActions } from "./RecordActions";
+import { useRecordActions } from "./use-record-actions";
 
-const Record = lazy(() => import("@features/record/components/Record"));
+const Record = lazy(() => import("./Record"));
 
 type ActionsProps = {
   recordId: string;
@@ -32,7 +32,7 @@ function Actions({ recordId, setOpen }: ActionsProps) {
 }
 
 export function RecordMobileDrawer() {
-  const [match, params] = useRoute(`/${recordSlug}/:recordId`);
+  const [match, params] = useRoute(recordPaths.detail);
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(match);
   const recordId = params?.recordId;
@@ -46,7 +46,7 @@ export function RecordMobileDrawer() {
       open={open}
       onOpenChange={setOpen}
       onOpenChangeComplete={(o) => {
-        if (!o) navigate("/");
+        if (!o) navigate(recordPaths.index);
       }}
     >
       <DrawerPopup>

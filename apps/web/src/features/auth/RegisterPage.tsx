@@ -28,6 +28,7 @@ import { toBase64 } from "@repo/util";
 import { useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import z from "zod";
+import { authPaths } from "@/app/route-paths";
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();
@@ -70,7 +71,7 @@ export default function RegisterPage() {
     if (recoveryKey) wipe(recoveryKey);
     setRecoveryKey(null);
     setCopied(false);
-    navigate("/login");
+    navigate(authPaths.login);
   };
 
   return (
@@ -109,7 +110,7 @@ export default function RegisterPage() {
             <CardTitle>Sign Up</CardTitle>
             <CardAction>
               or
-              <Link href="/login" variant="link">
+              <Link href={authPaths.login} variant="link">
                 Login
               </Link>
             </CardAction>

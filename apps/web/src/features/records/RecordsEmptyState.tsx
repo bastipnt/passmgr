@@ -1,4 +1,3 @@
-import { useCreateRecordContext } from "@features/record/providers/CreateRecordProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
   Empty,
@@ -11,8 +10,9 @@ import {
 import Link from "@repo/ui/components/Link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
+import { useCreateRecordContext } from "./CreateRecordProvider";
 
-export default function Index() {
+export default function RecordsEmptyState() {
   const { openCreateSheet } = useCreateRecordContext();
 
   return (
