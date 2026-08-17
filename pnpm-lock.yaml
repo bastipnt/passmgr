@@ -61,8 +61,8 @@ catalogs:
       specifier: 1.0.0-beta.15-859cf75
       version: 1.0.0-beta.15-859cf75
     drizzle-orm:
-      specifier: 1.0.0-beta.15-859cf75
-      version: 1.0.0-beta.15-859cf75
+      specifier: 1.0.0-rc.1-929a083
+      version: 1.0.0-rc.1-929a083
     drizzle-seed:
       specifier: 1.0.0-beta.15-859cf75
       version: 1.0.0-beta.15-859cf75
@@ -686,7 +686,7 @@ importers:
         version: 17.4.2
       drizzle-orm:
         specifier: 'catalog:'
-        version: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)
+        version: 1.0.0-rc.1-929a083(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)
     devDependencies:
       '@testcontainers/postgresql':
         specifier: 'catalog:'
@@ -702,7 +702,7 @@ importers:
         version: 1.0.0-beta.15-859cf75
       drizzle-seed:
         specifier: 'catalog:'
-        version: 1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3))
+        version: 1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-rc.1-929a083(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3))
       oxlint:
         specifier: 'catalog:'
         version: 1.73.0(oxlint-tsgolint@0.23.0)
@@ -5261,14 +5261,12 @@ packages:
     deprecated: The 1.0.0-beta line is superseded by the 1.0 release candidate. Install drizzle-kit@rc instead.
     hasBin: true
 
-  drizzle-orm@1.0.0-beta.15-859cf75:
-    resolution: {integrity: sha512-dGVb2Q70H2AV6513hkOXR3Ud0FeGXLdugVq3YehoqkGIVTJrkuo0gRnCcW/dfI00O07t3T4HSh4clF/D/o/IsQ==}
-    deprecated: The 1.0.0-beta line is superseded by the 1.0 release candidate. Install drizzle-orm@rc instead.
+  drizzle-orm@1.0.0-rc.1-929a083:
+    resolution: {integrity: sha512-Uf5c8YHntTzEOIDUsPtGn2bRj0k1PudDBU2WazsFynxV0zp1qwKQVlKI1F1b/y4Ovi5X3gersEeppvODZ82c4w==}
     peerDependencies:
       '@aws-sdk/client-rds-data': '>=3'
       '@cloudflare/workers-types': '>=4'
-      '@effect/sql': ^0.48.5
-      '@effect/sql-pg': ^0.49.7
+      '@effect/sql-pg': '>=4.0.0-beta.58 || >=4.0.0'
       '@electric-sql/pglite': '>=0.2.0'
       '@libsql/client': '>=0.10.0'
       '@libsql/client-wasm': '>=0.10.0'
@@ -5276,7 +5274,6 @@ packages:
       '@op-engineering/op-sqlite': '>=2'
       '@opentelemetry/api': ^1.4.1
       '@planetscale/database': '>=1.13'
-      '@prisma/client': '*'
       '@sinclair/typebox': '>=0.34.8'
       '@sqlitecloud/drivers': '>=1.0.653'
       '@tidbcloud/serverless': '*'
@@ -5293,13 +5290,12 @@ packages:
       arktype: '>=2.0.0'
       better-sqlite3: '>=9.3.0'
       bun-types: '*'
+      effect: '>=4.0.0-beta.58 || >=4.0.0'
       expo-sqlite: '>=14.0.0'
-      gel: '>=2'
       mssql: ^11.0.1
       mysql2: '>=2'
       pg: '>=8'
       postgres: '>=3'
-      prisma: '*'
       sql.js: '>=1'
       sqlite3: '>=5'
       typebox: '>=1.0.0'
@@ -5309,8 +5305,6 @@ packages:
       '@aws-sdk/client-rds-data':
         optional: true
       '@cloudflare/workers-types':
-        optional: true
-      '@effect/sql':
         optional: true
       '@effect/sql-pg':
         optional: true
@@ -5328,8 +5322,6 @@ packages:
         optional: true
       '@planetscale/database':
         optional: true
-      '@prisma/client':
-        optional: true
       '@sinclair/typebox':
         optional: true
       '@sqlitecloud/drivers':
@@ -5343,6 +5335,8 @@ packages:
       '@tursodatabase/database-wasm':
         optional: true
       '@types/better-sqlite3':
+        optional: true
+      '@types/mssql':
         optional: true
       '@types/pg':
         optional: true
@@ -5360,17 +5354,17 @@ packages:
         optional: true
       bun-types:
         optional: true
+      effect:
+        optional: true
       expo-sqlite:
         optional: true
-      gel:
+      mssql:
         optional: true
       mysql2:
         optional: true
       pg:
         optional: true
       postgres:
-        optional: true
-      prisma:
         optional: true
       sql.js:
         optional: true
@@ -8985,10 +8979,12 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/abort-controller@2.1.2':
     dependencies:
       tslib: 2.8.1
+    optional: true
 
   '@azure/core-auth@1.10.1(supports-color@10.2.2)':
     dependencies:
@@ -8997,6 +8993,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/core-client@1.10.2(supports-color@10.2.2)':
     dependencies:
@@ -9009,6 +9006,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/core-lro@2.7.2(supports-color@10.2.2)':
     dependencies:
@@ -9018,10 +9016,12 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/core-paging@1.6.2':
     dependencies:
       tslib: 2.8.1
+    optional: true
 
   '@azure/core-rest-pipeline@1.24.0(supports-color@10.2.2)':
     dependencies:
@@ -9034,10 +9034,12 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/core-tracing@1.3.1':
     dependencies:
       tslib: 2.8.1
+    optional: true
 
   '@azure/core-util@1.13.1(supports-color@10.2.2)':
     dependencies:
@@ -9046,6 +9048,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/identity@4.13.1(supports-color@10.2.2)':
     dependencies:
@@ -9062,6 +9065,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/keyvault-common@2.1.0(supports-color@10.2.2)':
     dependencies:
@@ -9075,6 +9079,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/keyvault-keys@4.10.2(supports-color@10.2.2)':
     dependencies:
@@ -9091,6 +9096,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/logger@1.3.0(supports-color@10.2.2)':
     dependencies:
@@ -9098,17 +9104,21 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@azure/msal-browser@5.13.0':
     dependencies:
       '@azure/msal-common': 16.8.0
+    optional: true
 
-  '@azure/msal-common@16.8.0': {}
+  '@azure/msal-common@16.8.0':
+    optional: true
 
   '@azure/msal-node@5.2.4':
     dependencies:
       '@azure/msal-common': 16.8.0
       jsonwebtoken: 9.0.3
+    optional: true
 
   '@babel/code-frame@7.29.7':
     dependencies:
@@ -11170,7 +11180,8 @@ snapshots:
       '@jridgewell/resolve-uri': 3.1.2
       '@jridgewell/sourcemap-codec': 1.5.5
 
-  '@js-joda/core@5.7.0': {}
+  '@js-joda/core@5.7.0':
+    optional: true
 
   '@js-sdsl/ordered-map@4.4.2': {}
 
@@ -12591,7 +12602,8 @@ snapshots:
       '@tanstack/query-core': 5.101.2
       react: 19.2.3
 
-  '@tediousjs/connection-string@0.5.0': {}
+  '@tediousjs/connection-string@0.5.0':
+    optional: true
 
   '@testcontainers/postgresql@12.0.4(supports-color@10.2.2)':
     dependencies:
@@ -12759,6 +12771,7 @@ snapshots:
       tedious: 19.2.1(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@types/node@18.19.130':
     dependencies:
@@ -12793,6 +12806,7 @@ snapshots:
   '@types/readable-stream@4.0.23':
     dependencies:
       '@types/node': 26.1.1
+    optional: true
 
   '@types/resolve@1.20.6': {}
 
@@ -12830,6 +12844,7 @@ snapshots:
       tslib: 2.8.1
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   '@ungap/structured-clone@1.3.2': {}
 
@@ -13312,6 +13327,7 @@ snapshots:
       buffer: 6.0.3
       inherits: 2.0.4
       readable-stream: 4.7.0
+    optional: true
 
   body-parser@2.3.0(supports-color@10.2.2):
     dependencies:
@@ -13367,7 +13383,8 @@ snapshots:
 
   buffer-crc32@1.0.0: {}
 
-  buffer-equal-constant-time@1.0.1: {}
+  buffer-equal-constant-time@1.0.1:
+    optional: true
 
   buffer-from@1.1.2: {}
 
@@ -13891,19 +13908,18 @@ snapshots:
       esbuild: 0.25.12
       jiti: 2.7.0
 
-  drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3):
-    dependencies:
-      '@types/mssql': 9.1.9(supports-color@10.2.2)
-      mssql: 11.0.1(supports-color@10.2.2)
+  drizzle-orm@1.0.0-rc.1-929a083(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3):
     optionalDependencies:
+      '@types/mssql': 9.1.9(supports-color@10.2.2)
       '@types/pg': 8.20.0
       expo-sqlite: 57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7)
+      mssql: 11.0.1(supports-color@10.2.2)
       pg: 8.22.0
       zod: 4.4.3
 
-  drizzle-seed@1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-beta.15-859cf75(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)):
+  drizzle-seed@1.0.0-beta.15-859cf75(drizzle-orm@1.0.0-rc.1-929a083(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)):
     dependencies:
-      drizzle-orm: 1.0.0-beta.15-859cf75(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)
+      drizzle-orm: 1.0.0-rc.1-929a083(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.0(expo@56.0.15)(react-native@0.86.0(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.85.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.2.17)(react@19.2.7)(supports-color@10.2.2))(react@19.2.7))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.4.3)
       pure-rand: 6.1.0
 
   dunder-proto@1.0.1:
@@ -13917,6 +13933,7 @@ snapshots:
   ecdsa-sig-formatter@1.0.11:
     dependencies:
       safe-buffer: 5.2.1
+    optional: true
 
   ee-first@1.1.1: {}
 
@@ -14981,6 +14998,7 @@ snapshots:
       debug: 4.4.3(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   https-proxy-agent@7.0.6(supports-color@10.2.2):
     dependencies:
@@ -14999,6 +15017,7 @@ snapshots:
   iconv-lite@0.6.3:
     dependencies:
       safer-buffer: 2.1.2
+    optional: true
 
   iconv-lite@0.7.3:
     dependencies:
@@ -15298,17 +15317,20 @@ snapshots:
       lodash.once: 4.1.1
       ms: 2.1.3
       semver: 7.8.5
+    optional: true
 
   jwa@2.0.1:
     dependencies:
       buffer-equal-constant-time: 1.0.1
       ecdsa-sig-formatter: 1.0.11
       safe-buffer: 5.2.1
+    optional: true
 
   jws@4.0.1:
     dependencies:
       jwa: 2.0.1
       safe-buffer: 5.2.1
+    optional: true
 
   kleur@3.0.3: {}
 
@@ -15444,19 +15466,26 @@ snapshots:
 
   lodash.groupby@4.6.0: {}
 
-  lodash.includes@4.3.0: {}
+  lodash.includes@4.3.0:
+    optional: true
 
-  lodash.isboolean@3.0.3: {}
+  lodash.isboolean@3.0.3:
+    optional: true
 
-  lodash.isinteger@4.0.4: {}
+  lodash.isinteger@4.0.4:
+    optional: true
 
-  lodash.isnumber@3.0.3: {}
+  lodash.isnumber@3.0.3:
+    optional: true
 
-  lodash.isplainobject@4.0.6: {}
+  lodash.isplainobject@4.0.6:
+    optional: true
 
-  lodash.isstring@4.0.1: {}
+  lodash.isstring@4.0.1:
+    optional: true
 
-  lodash.once@4.1.1: {}
+  lodash.once@4.1.1:
+    optional: true
 
   lodash.throttle@4.1.1: {}
 
@@ -15785,6 +15814,7 @@ snapshots:
       tedious: 18.6.2(supports-color@10.2.2)
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   msw@2.15.0(@types/node@25.9.5)(typescript@6.0.3):
     dependencies:
@@ -15860,7 +15890,8 @@ snapshots:
 
   nanoid@3.3.15: {}
 
-  native-duplexpair@1.0.0: {}
+  native-duplexpair@1.0.0:
+    optional: true
 
   negotiator@0.6.3: {}
 
@@ -17521,7 +17552,8 @@ snapshots:
       - bare-buffer
       - react-native-b4a
 
-  tarn@3.0.2: {}
+  tarn@3.0.2:
+    optional: true
 
   tedious@18.6.2(supports-color@10.2.2):
     dependencies:
@@ -17537,6 +17569,7 @@ snapshots:
       sprintf-js: 1.1.3
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   tedious@19.2.1(supports-color@10.2.2):
     dependencies:
@@ -17552,6 +17585,7 @@ snapshots:
       sprintf-js: 1.1.3
     transitivePeerDependencies:
       - supports-color
+    optional: true
 
   teex@1.0.1:
     dependencies:
