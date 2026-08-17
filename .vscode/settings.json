@@ -80,9 +80,32 @@
     "ListFooterComponentClassName",
     "ListHeaderComponentClassName"
   ],
-  "tailwindCSS.classFunctions": ["cn", "cva", "useResolveClassNames"]
-  // "tailwindCSS.experimental.configFile": {
-  //   "apps/mobile/src/global.css": "apps/mobile/src/**",
-  //   "packages/ui/src/styles/globals.css": "apps/web/src/**"
-  // }
+  "tailwindCSS.classFunctions": ["cn", "cva", "useResolveClassNames"],
+  /*
+   * Two Tailwind v4 entry points live in this monorepo. Without an explicit
+   * map the extension auto-detects both and serves whichever it found first,
+   * so mobile-only tokens (--spacing-md, px-based --text-*) leak into web
+   * files and vice versa. Keys = entry CSS, values = globs (relative to the
+   * workspace root) of files that resolve against that entry.
+   *
+   * NOTE: once this setting exists, files matched by NO glob get no
+   * IntelliSense at all — add new UI dirs here.
+   */
+  "tailwindCSS.experimental.configFile": {
+    "packages/ui/src/styles/globals.css": [
+      "apps/web/src/**",
+      "packages/ui/src/**",
+      "packages/ui-shared/src/**"
+    ],
+    "apps/mobile/src/global.css": ["apps/mobile/src/**", "packages/ui-native/src/**"]
+  },
+  "tailwindCSS.files.exclude": [
+    "**/.git/**",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/coverage/**",
+    "**/storybook-static/**",
+    "**/.stryker-tmp/**",
+    "**/.turbo/**"
+  ]
 }

@@ -1,3 +1,8 @@
 {
-  "recommendations": ["oxc.oxc-vscode", "biomejs.biome", "streetsidesoftware.code-spell-checker"]
+  "recommendations": [
+    "oxc.oxc-vscode",
+    "biomejs.biome",
+    "bradlc.vscode-tailwindcss",
+    "streetsidesoftware.code-spell-checker"
+  ]
 }
