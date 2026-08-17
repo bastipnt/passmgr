@@ -1,10 +1,7 @@
 import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
+import { fromBase64 } from "@repo/util";
 
 let vaultKey: Uint8Array | null = null;
-
-function fromBase64(input: string): Uint8Array {
-  return Uint8Array.fromBase64(input);
-}
 
 self.onmessage = (event: MessageEvent) => {
   const msg = event.data as

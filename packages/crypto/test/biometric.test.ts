@@ -1,5 +1,6 @@
 // TODO: look
 
+import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   authenticateBiometric,
@@ -277,7 +278,7 @@ describe("enrollBiometric / authenticateBiometric", () => {
     };
     const tampered: BiometricKeyMaterial = {
       ...material,
-      prfSalt: new Uint8Array(32).fill(0xff).toBase64(),
+      prfSalt: toBase64(new Uint8Array(32).fill(0xff)),
     };
     await expect(authenticateBiometric(tampered)).rejects.toThrow();
   });

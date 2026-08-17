@@ -42,9 +42,9 @@ describe("xchacha20-poly1305", () => {
   it("throws on tampered ciphertext", () => {
     const key = new Uint8Array(32).fill(5);
     const [ct, nonce] = encryptXChaCha(key, "secret");
-    const bytes = Uint8Array.fromBase64(ct);
+    const bytes = fromBase64(ct);
     bytes[0] = bytes[0]! ^ 0xff;
-    const tampered = bytes.toBase64();
+    const tampered = toBase64(bytes);
     expect(() => decryptXChaCha(key, tampered, nonce)).toThrow();
   });
 
