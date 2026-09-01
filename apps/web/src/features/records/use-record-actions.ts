@@ -10,19 +10,26 @@ import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { useEditingContext } from "./EditingProvider";
+
+function copyField(value: string | undefined, label: string) {
+  if (!value) return;
+  void navigator.clipboard.writeText(value);
+  toast.success(`${label} copied to clipboard`);
+}
 
 export function useRecordActions({ recordId }: { recordId: string }) {
-  const { isOffline } = useContext(SessionContext);
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
-  const { isEditing, setIsEditing, isEditSheetOpen, setIsEditSheetOpen } = useEditingContext();
+  // The URL is the source of truth for whether the edit sheet is open, so
+  // opening and closing it is navigation.
+  const [isEditSheetOpen] = useRoute(recordPaths.edit);
 
   function handleEditSheetChange(open: boolean) {
-    setIsEditSheetOpen(open);
-    setIsEditing(open);
+    navigate(open ? recordPaths.editRecord(recordId) : recordPaths.record(recordId), {
+      replace: true,
+    });
   }
 
   const { deleteRecord } = useDeleteRecord({
@@ -43,12 +50,6 @@ export function useRecordActions({ recordId }: { recordId: string }) {
     if (isDefined(updateRecordError)) toast.error("Error saving");
   }, [updateRecordError]);
 
-  function copyField(value: string | undefined, label: string) {
-    if (!value) return;
-    void navigator.clipboard.writeText(value);
-    toast.success(`${label} copied to clipboard`);
-  }
-
   function handleSubmit(formValues: LoginRecord) {
     const { encryptedData, encryptionNonce } = encryptRecord({
       schemaVersion: record!.schemaVersion,
@@ -64,24 +65,6 @@ export function useRecordActions({ recordId }: { recordId: string }) {
     });
   }
 
-  useShortcut("$mod+Shift+c", () => copyField(record?.password, "Password"), {
-    description: "Copy password",
-    enabled: ready && !!record?.password && !isEditing,
-    allowInInput: true,
-  });
-
-  useShortcut("$mod+Shift+u", () => copyField(record?.username, "Username"), {
-    description: "Copy username",
-    enabled: ready && !!record?.username && !isEditing,
-    allowInInput: true,
-  });
-
-  useShortcut("$mod+e", () => handleEditSheetChange(true), {
-    description: "Edit record",
-    enabled: ready && !!record?.username && !isOffline && !isEditing,
-    allowInInput: true,
-  });
-
   return {
     handleEditSheetChange,
     deleteRecord,
@@ -89,8 +72,39 @@ export function useRecordActions({ recordId }: { recordId: string }) {
     handleSubmit,
     record,
     ready,
-    isEditing,
     isEditSheetOpen,
     updateRecordError,
   };
+}
+
+/**
+ * Record-scoped shortcuts. Register these **once per screen** — `useRecordActions`
+ * runs in several components at once, and registering there would mean the same
+ * keys are claimed repeatedly with "last mounted wins" semantics.
+ *
+ * Suppression while a sheet is open is handled by `ShortcutLayer`, not by
+ * `enabled` — `enabled` here only means "this action is impossible right now".
+ */
+export function useRecordShortcuts({ recordId }: { recordId: string }) {
+  const { isOffline } = useContext(SessionContext);
+  const { record, ready } = useGetRecord(recordId);
+  const [, navigate] = useLocation();
+
+  useShortcut("$mod+Shift+c", () => copyField(record?.password, "Password"), {
+    description: "Copy password",
+    enabled: ready && !!record?.password,
+    allowInInput: true,
+  });
+
+  useShortcut("$mod+Shift+u", () => copyField(record?.username, "Username"), {
+    description: "Copy username",
+    enabled: ready && !!record?.username,
+    allowInInput: true,
+  });
+
+  useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
+    description: "Edit record",
+    enabled: ready && !!record?.username && !isOffline,
+    allowInInput: true,
+  });
 }

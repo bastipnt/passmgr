@@ -10,11 +10,9 @@ import {
 import Link from "@repo/ui/components/Link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { TiFolderAdd } from "react-icons/ti";
-import { useCreateRecordContext } from "./CreateRecordProvider";
+import { createSheetSearch } from "./CreateRecordSheet";
 
 export default function RecordsEmptyState() {
-  const { openCreateSheet } = useCreateRecordContext();
-
   return (
     <div className="flex h-full flex-col items-center justify-center">
       <Empty>
@@ -28,9 +26,9 @@ export default function RecordsEmptyState() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row justify-center gap-2">
-          <Button variant="default" onClick={() => openCreateSheet()}>
+          <Link variant="default" href={createSheetSearch()}>
             Create Record
-          </Button>
+          </Link>
           <Button variant="outline">Import</Button>
         </EmptyContent>
         <Link href="/about" variant="link" className="text-muted-foreground" size="sm">

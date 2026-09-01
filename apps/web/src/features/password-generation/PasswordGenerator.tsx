@@ -1,5 +1,6 @@
 "use client";
 
+import { ShortcutLayer } from "@repo/client";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
@@ -15,23 +16,10 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
+import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
-import {
-  Drawer,
-  DrawerActions,
-  DrawerContent,
-  DrawerPopup,
-  DrawerTitle,
-} from "@repo/ui/components/Drawer";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "@repo/ui/components/Sheet";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -161,29 +149,18 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
     </div>
   );
 
-  return isMobile ? (
-    <Drawer open={open} onOpenChange={setOpen} handle={handle}>
-      <DrawerPopup>
-        <DrawerActions className="space-y-4">
-          {actions}
-          <div className="space-y-4">
-            <DrawerTitle>{TITLE}</DrawerTitle>
-            {modeSwitch}
-          </div>
-        </DrawerActions>
-        <DrawerContent>{content}</DrawerContent>
-      </DrawerPopup>
-    </Drawer>
-  ) : (
-    <Sheet open={open} onOpenChange={setOpen} handle={handle}>
-      <SheetContent side="right">
-        <SheetHeader className="space-y-4">
-          <SheetTitle>{TITLE}</SheetTitle>
-          {modeSwitch}
-        </SheetHeader>
-        <div className="flex-1 p-4">{content}</div>
-        <SheetFooter>{actions}</SheetFooter>
-      </SheetContent>
-    </Sheet>
+  return (
+    <ShortcutLayer active={open}>
+      <ResponsiveSheet
+        open={open}
+        handle={handle}
+        onOpenChange={setOpen}
+        title={TITLE}
+        actions={actions}
+      >
+        {modeSwitch}
+        {content}
+      </ResponsiveSheet>
+    </ShortcutLayer>
   );
 }

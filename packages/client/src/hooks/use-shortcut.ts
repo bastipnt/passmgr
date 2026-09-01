@@ -1,5 +1,9 @@
 import { useEffect, useRef } from "react";
-import { type ShortcutEntry, useShortcutContext } from "../providers/ShortcutProvider";
+import {
+  type ShortcutEntry,
+  useShortcutContext,
+  useShortcutLayerDepth,
+} from "../providers/ShortcutProvider";
 
 interface UseShortcutOptions {
   /** Human-readable description (for future help dialog / Kbd hints) */
@@ -29,6 +33,9 @@ export function useShortcut(
 ) {
   const { description, enabled = true, allowInInput = false } = options;
   const { register } = useShortcutContext();
+  // Read during render: child effects run before parent effects, so resolving
+  // the depth inside the effect below would register at the parent's layer.
+  const layer = useShortcutLayerDepth();
 
   // Keep handler ref stable so we don't re-register on every render
   const handlerRef = useRef(handler);
@@ -41,9 +48,10 @@ export function useShortcut(
       key,
       description,
       allowInInput,
+      layer,
       handler: (e) => handlerRef.current(e),
     };
 
     return register(entry);
-  }, [key, description, enabled, allowInInput, register]);
+  }, [key, description, enabled, allowInInput, layer, register]);
 }

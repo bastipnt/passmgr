@@ -1,4 +1,4 @@
-import { SessionContext } from "@repo/client";
+import { SessionContext, ShortcutLayer } from "@repo/client";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -7,17 +7,20 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
+import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { EditIcon, EllipsisVerticalIcon, Timeline, TrashIcon, XIcon } from "lucide-react";
 import { useContext, useState } from "react";
+import { recordPaths } from "@/app/route-paths";
 
 type MoreDropdownProps = {
+  recordId: string;
   onDelete: () => void;
   isMobile: boolean;
 };
 
-function MoreDropdown({ onDelete, isMobile }: MoreDropdownProps) {
+function MoreDropdown({ recordId, onDelete, isMobile }: MoreDropdownProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   return (
@@ -35,7 +38,7 @@ function MoreDropdown({ onDelete, isMobile }: MoreDropdownProps) {
           }
         />
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => {}}>
+          <DropdownMenuItem render={<Link href={recordPaths.recordVersions(recordId)} />}>
             <Timeline /> Versions
           </DropdownMenuItem>
 
@@ -45,29 +48,31 @@ function MoreDropdown({ onDelete, isMobile }: MoreDropdownProps) {
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <RemoveDialog
-        title="Delete item"
-        description="Are you sure you want to delete this item? This action cannot be undone."
-        removeTitle="Delete"
-        onRemove={onDelete}
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-      />
+      <ShortcutLayer active={deleteDialogOpen}>
+        <RemoveDialog
+          title="Delete item"
+          description="Are you sure you want to delete this item? This action cannot be undone."
+          removeTitle="Delete"
+          onRemove={onDelete}
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+        />
+      </ShortcutLayer>
     </>
   );
 }
 
 type RecordActionsProps = {
+  recordId: string;
   title: string;
-  onEdit: () => void;
   onDelete: () => void;
   onSetOpen?: (o: boolean) => void;
   className?: string;
 };
 
 export function RecordActions({
+  recordId,
   title,
-  onEdit,
   onDelete,
   onSetOpen,
   className,
@@ -94,10 +99,10 @@ export function RecordActions({
 
       {!isOffline && (
         <div className="flex items-center gap-4">
-          <Button variant={isMobile ? "default" : "ghost"} onClick={onEdit}>
+          <Link variant={isMobile ? "default" : "ghost"} href={recordPaths.editRecord(recordId)}>
             <EditIcon /> Edit
-          </Button>
-          <MoreDropdown isMobile={isMobile} onDelete={onDelete} />
+          </Link>
+          <MoreDropdown recordId={recordId} isMobile={isMobile} onDelete={onDelete} />
         </div>
       )}
     </div>

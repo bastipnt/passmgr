@@ -1,5 +1,6 @@
 import { type LoginRecord } from "@repo/schema";
-import { useParams } from "wouter";
+import { Redirect, useParams } from "wouter";
+import { recordPaths } from "@/app/route-paths";
 import EditRecord from "./EditRecord";
 import { LoginRecordFields } from "./login/LoginRecordFields";
 import { RecordFallback } from "./RecordFallback";
@@ -23,7 +24,8 @@ function RecordInner({ recordId }: RecordProps) {
     recordId,
   });
 
-  if (!ready || !record) return <RecordFallback />;
+  if (!ready) return <RecordFallback />;
+  if (!record) return <Redirect to={recordPaths.index} replace />;
 
   const defaultValues: Partial<LoginRecord> = {
     title: record.title,

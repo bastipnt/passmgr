@@ -1,9 +1,9 @@
 import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
-import { lazy, Suspense, useEffect, useState } from "react";
-import { useLocation, useRoute } from "wouter";
+import { lazy, Suspense } from "react";
 import { recordPaths } from "@/app/route-paths";
 import { RecordActions } from "./RecordActions";
-import { useRecordActions } from "./use-record-actions";
+import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
+import { useRouteSheet } from "./use-route-sheet";
 
 const Record = lazy(() => import("./Record"));
 
@@ -13,17 +13,16 @@ type ActionsProps = {
 };
 
 function Actions({ recordId, setOpen }: ActionsProps) {
-  const { handleEditSheetChange, deleteRecord, record, ready } = useRecordActions({
-    recordId,
-  });
+  const { deleteRecord, record, ready } = useRecordActions({ recordId });
+  useRecordShortcuts({ recordId });
 
   if (!ready || !record) return null;
 
   return (
     <DrawerActions>
       <RecordActions
+        recordId={recordId}
         title={record.title}
-        onEdit={() => handleEditSheetChange(true)}
         onDelete={() => deleteRecord(recordId)}
         onSetOpen={setOpen}
       />
@@ -32,23 +31,15 @@ function Actions({ recordId, setOpen }: ActionsProps) {
 }
 
 export function RecordMobileDrawer() {
-  const [match, params] = useRoute(recordPaths.detail);
-  const [, navigate] = useLocation();
-  const [open, setOpen] = useState(match);
+  // Loose match: the drawer stays open while a sub-route sheet is layered on it.
+  const { open, params, setOpen, onOpenChangeComplete } = useRouteSheet<{ recordId: string }>(
+    recordPaths.detailAny,
+    () => recordPaths.index,
+  );
   const recordId = params?.recordId;
 
-  useEffect(() => {
-    setOpen(match);
-  }, [match]);
-
   return (
-    <Drawer
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={(o) => {
-        if (!o) navigate(recordPaths.index);
-      }}
-    >
+    <Drawer open={open} onOpenChange={setOpen} onOpenChangeComplete={onOpenChangeComplete}>
       <DrawerPopup>
         {recordId && <Actions recordId={recordId} setOpen={setOpen} />}
         <DrawerContent className="px-4">

@@ -24,7 +24,6 @@ import { ArrowUpDownIcon } from "lucide-react";
 import { Fragment, useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { useEditingContext } from "./EditingProvider";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type SidebarRecordProps = {
@@ -39,7 +38,7 @@ function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
       variant={active ? "active" : "outline"}
       render={
         <Link
-          href={`..${recordPaths.record(record.recordId)}`}
+          href={recordPaths.record(record.recordId)}
           ref={(el: HTMLAnchorElement | null) => registerRef(record.recordId, el)}
         />
       }
@@ -75,11 +74,13 @@ function RecordSidebarSkeleton() {
 }
 
 export default function RecordSidebar() {
-  const [_, params] = useRoute(recordPaths.detail);
+  // Loose match: a record stays "in view" (highlighted, arrow-navigable) while
+  // one of its sub-route sheets — edit, versions — is open.
+  const [_, params] = useRoute(recordPaths.detailAny);
+  const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
   const { query, sort, sortedRecords, recordGroups, handleSortChange } = useSortedRecords();
-  const { isEditing } = useEditingContext();
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
@@ -118,21 +119,24 @@ export default function RecordSidebar() {
 
   useShortcut("ArrowDown", () => navigateByOffset(1), {
     description: "Next record",
-    enabled: ready && sortedRecords.length > 0 && !isEditing,
+    enabled: ready && sortedRecords.length > 0,
     allowInInput: true,
   });
 
   useShortcut("ArrowUp", () => navigateByOffset(-1), {
     description: "Previous record",
-    enabled: ready && sortedRecords.length > 0 && !isEditing,
+    enabled: ready && sortedRecords.length > 0,
     allowInInput: true,
   });
 
+  // Auto-select the first record, but only at the index — gating on
+  // `!params?.recordId` alone would also fire on any unmatched sub-route and
+  // eject the user out of it.
   useEffect(() => {
-    if (!isMobile && ready && !params?.recordId && sortedRecords.length > 0) {
+    if (!isMobile && ready && isIndex && sortedRecords.length > 0) {
       navigate(recordPaths.record(sortedRecords[0].recordId), { replace: true });
     }
-  }, [isMobile, ready, params?.recordId, sortedRecords, navigate]);
+  }, [isMobile, ready, isIndex, sortedRecords, navigate]);
 
   // Auto-navigate to first filtered result when search query changes
   useEffect(() => {

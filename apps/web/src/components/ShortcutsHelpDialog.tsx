@@ -1,5 +1,5 @@
 // fallow-ignore-file unused-file
-import { useShortcutContext } from "@repo/client";
+import { ShortcutLayer, useShortcutContext } from "@repo/client";
 import {
   Dialog,
   DialogContent,
@@ -18,30 +18,34 @@ type ShortcutsHelpDialogProps = {
 
 export default function ShortcutsHelpDialog({ open, onOpenChange }: ShortcutsHelpDialogProps) {
   const { shortcuts } = useShortcutContext();
-  const visible = shortcuts.filter((s) => s.description);
+  const visible = [
+    ...new Map(shortcuts.filter((s) => s.description).map((s) => [s.key, s])).values(),
+  ];
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Keyboard Shortcuts</DialogTitle>
-          <DialogDescription>
-            Press <Kbd>?</Kbd> anytime to open this list.
-          </DialogDescription>
-        </DialogHeader>
-        <ul className="flex flex-col gap-2">
-          {visible.map((s) => (
-            <li key={s.key} className="flex items-center justify-between gap-4">
-              <span className="text-sm">{s.description}</span>
-              <KbdGroup>
-                {formatShortcut(s.key).map((token, i) => (
-                  <Kbd key={i}>{token}</Kbd>
-                ))}
-              </KbdGroup>
-            </li>
-          ))}
-        </ul>
-      </DialogContent>
-    </Dialog>
+    <ShortcutLayer active={open}>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Keyboard Shortcuts</DialogTitle>
+            <DialogDescription>
+              Press <Kbd>?</Kbd> anytime to open this list.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="flex flex-col gap-2">
+            {visible.map((s) => (
+              <li key={s.key} className="flex items-center justify-between gap-4">
+                <span className="text-sm">{s.description}</span>
+                <KbdGroup>
+                  {formatShortcut(s.key).map((token, i) => (
+                    <Kbd key={i}>{token}</Kbd>
+                  ))}
+                </KbdGroup>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
+    </ShortcutLayer>
   );
 }

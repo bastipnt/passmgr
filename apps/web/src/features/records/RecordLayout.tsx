@@ -20,12 +20,13 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
+import Link from "@repo/ui/components/Link";
 import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { type ReactNode, useContext, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { modKey } from "@/lib/formatShortcut";
-import { useCreateRecordContext } from "./CreateRecordProvider";
-import { useEditingContext } from "./EditingProvider";
+import { createSheetSearch, useOpenCreateSheet } from "./CreateRecordSheet";
 import RecordSidebar from "./Sidebar";
 
 type RecordLayoutProps = {
@@ -35,11 +36,9 @@ type RecordLayoutProps = {
 function SearchInput() {
   const { query, setQuery } = useSortedRecords();
   const inputRef = useRef<HTMLInputElement>(null);
-  const { isEditing } = useEditingContext();
 
   useShortcut("$mod+k", () => inputRef.current?.focus(), {
     description: "Focus search",
-    enabled: !isEditing,
     allowInInput: true,
   });
 
@@ -75,7 +74,7 @@ function SearchInput() {
 
 function NoSearchResults() {
   const { query, setQuery } = useSortedRecords();
-  const { openCreateSheet } = useCreateRecordContext();
+  const openCreateSheet = useOpenCreateSheet();
 
   return (
     <div className="flex h-full flex-col items-center justify-center">
@@ -118,24 +117,21 @@ function MainContent({ children }: { children: ReactNode }) {
 
 export default function RecordLayout({ children }: RecordLayoutProps) {
   const { isOffline } = useContext(SessionContext);
-  const { isEditing } = useEditingContext();
-  const { openCreateSheet } = useCreateRecordContext();
+  const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
 
-  useShortcut("$mod+Shift+n", () => openCreateSheet(), {
+  useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
     description: "Create new record",
-    enabled: !isOffline && !isEditing,
+    enabled: !isOffline,
   });
 
   useShortcut("$mod+l", () => window.location.reload(), {
     description: "Lock vault",
-    enabled: !isEditing,
     allowInInput: true,
   });
 
   useShortcut("Shift+?", () => setHelpOpen((o) => !o), {
     description: "Show keyboard shortcuts",
-    enabled: !isEditing,
     allowInInput: false,
   });
 
@@ -154,10 +150,10 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </Button>
           <ThemeToggle />
           {!isOffline && (
-            <Button variant="default" onClick={() => openCreateSheet()}>
+            <Link variant="default" href={createSheetSearch()}>
               <PlusIcon />
               New Record
-            </Button>
+            </Link>
           )}
         </header>
         <main className="col-span-2 grid items-stretch overflow-hidden sm:grid-cols-subgrid">

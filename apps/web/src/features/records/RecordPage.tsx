@@ -1,36 +1,41 @@
 import { useParams } from "wouter";
 import Record from "./Record";
 import { RecordActions } from "./RecordActions";
-import { useRecordActions } from "./use-record-actions";
+import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 
 type ActionsProps = {
   recordId: string;
 };
 
 function Actions({ recordId }: ActionsProps) {
-  const { handleEditSheetChange, deleteRecord, record, ready } = useRecordActions({
-    recordId,
-  });
+  const { deleteRecord, record, ready } = useRecordActions({ recordId });
 
   if (!ready || !record) return null;
 
   return (
     <RecordActions
       className="pb-10"
+      recordId={recordId}
       title={record.title}
-      onEdit={() => handleEditSheetChange(true)}
       onDelete={() => deleteRecord(recordId)}
     />
   );
 }
 
-export default function RecordPage() {
-  const { recordId } = useParams();
+function RecordScreen({ recordId }: { recordId: string }) {
+  useRecordShortcuts({ recordId });
 
   return (
     <section className="p-4">
-      {recordId && <Actions recordId={recordId} />}
+      <Actions recordId={recordId} />
       <Record />
     </section>
   );
+}
+
+export default function RecordPage() {
+  const { recordId } = useParams();
+  if (!recordId) return null;
+
+  return <RecordScreen recordId={recordId} />;
 }
