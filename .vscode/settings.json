@@ -10,6 +10,7 @@
   "cSpell.words": ["biome", "biomejs", "fastify", "oxlint", "oxlintrc", "trpc"],
   "editor.codeActionsOnSave": {
     "source.fixAll.oxc": "explicit",
+    "quickfix.biome": "explicit",
     "source.organizeImports.biome": "explicit",
     "source.useSortedProperties.biome": "explicit"
   },
