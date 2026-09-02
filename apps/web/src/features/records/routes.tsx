@@ -6,7 +6,7 @@ import { authPaths, recordPaths } from "@/app/route-paths";
 import CreateRecordSheet from "./CreateRecordSheet";
 import RecordLayout from "./RecordLayout";
 import { RecordMobileDrawer } from "./RecordMobileDrawer";
-import VersionsSheet from "./VersionsSheet";
+import VersionsSheet from "./versions/VersionsSheet";
 
 const NotFound = lazy(() => import("@/app/NotFound"));
 

@@ -16,8 +16,8 @@
             "message": "Alias removed — use @/ (e.g. @/features/records)."
           },
           {
-            "group": ["../*"],
-            "message": "Don't climb out of a folder relatively — use @/ for anything outside, ./ for siblings."
+            "group": ["../../**"],
+            "message": "Don't climb more than one folder up — use @/ for anything further, ./ for siblings. One level up is allowed so a sub-domain folder (records/versions/) can reach its parent feature."
           }
         ]
       }
