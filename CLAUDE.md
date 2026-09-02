@@ -64,7 +64,7 @@ packages/
 
 ```
 app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
-features/    auth/ · records/ (with records/login/) · password-generation/
+features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/
 components/  App-wide, feature-agnostic components only
 hooks/ lib/ test/ types/
 ```
@@ -72,8 +72,19 @@ hooks/ lib/ test/ types/
 Rules:
 
 - **Feature folders are flat.** Files sit directly in the feature. Nest only for a
-  sub-domain (`records/login/` = the login record type), **never** by file kind — no
-  `components/`, `hooks/`, `pages/`, `forms/`, or `providers/` inside a feature.
+  sub-domain (`records/login/` = the login record type, `records/versions/` = version
+  history), **never** by file kind — no `components/`, `hooks/`, `pages/`, `forms/`,
+  or `providers/` inside a feature.
+- **Sub-domain vs. top-level feature: dependency direction decides, not file count.**
+  A sub-domain stays *inside* its parent when it can't stand alone — no top-level route
+  of its own, or it needs the parent's internals. Lifting it out would make the parent's
+  `routes.tsx` import it while it imports back through the parent barrel: a cycle. It
+  graduates to a top-level feature only once nothing in it imports the parent.
+- **Sub-domain folders have no `index.ts`.** Import them by path (`./versions/VersionsSheet`).
+  A barrel inside a feature hides the dependency graph and invites cycles.
+- **Sub-domain files may climb exactly one level** (`../use-route-sheet`,
+  `../login/LoginRecordFields`) to reach their parent feature; two or more is banned by
+  `no-restricted-imports` — use `@/` for anything further.
 - **Screens live in their feature** (`features/auth/LoginPage.tsx`). There is no
   top-level `pages/`. Only app-shell screens (`NotFound`, `ErrorFallback`) live in `app/`.
 - **Every route string is in `app/route-paths.ts`** (`authPaths`, `recordPaths`).
