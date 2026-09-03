@@ -7,6 +7,7 @@ import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { normalizeFormValues } from "@/features/records/normalize-form-values";
+import { recordPaths } from "@/route-paths";
 
 function Fallback() {
   return (
@@ -81,7 +82,7 @@ export default function EditScreen() {
       onSubmit={onSubmit}
       defaultValues={defaultValues}
       action="Save"
-      generatorPath={`/${recordId}/generate-password`}
+      generatorPath={recordPaths.generatePassword(recordId)}
     >
       <RemoveDialog
         title="Delete record"

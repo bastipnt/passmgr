@@ -1,3 +1,4 @@
+import { getLoginFieldSpecs, LOGIN_FIELD_GROUPS } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
 import { Separator } from "@repo/ui/components/Separator";
@@ -5,7 +6,7 @@ import { toLocalDateStr } from "@repo/util";
 import { Pen, Rocket, Wand } from "lucide-react";
 import { Fragment } from "react";
 import { copyField } from "../record-utils";
-import { getLoginFieldSpecs, LOGIN_FIELD_GROUPS } from "./login-field-specs";
+import LoginFieldDisplay from "./LoginFieldDisplay";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
@@ -25,7 +26,7 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
             {groupSpecs.map((spec, i) => (
               <Fragment key={spec.key}>
                 {i > 0 && <Separator />}
-                {spec.render(copyField)}
+                <LoginFieldDisplay spec={spec} onCopy={copyField} />
               </Fragment>
             ))}
           </ItemDisplayGroup>

@@ -31,6 +31,9 @@ export {
 export * from "./src/providers/SortedRecordsProvider";
 // Providers
 export * from "./src/providers/StoreProvider";
+// Records
+export * from "./src/records/diff-fields";
+export * from "./src/records/login-field-specs";
 export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";
 export { generateAuthHeaders } from "./src/util/headers";

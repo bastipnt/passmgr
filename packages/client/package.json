@@ -5,7 +5,9 @@
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@cloudflare/opaque-ts": "catalog:",
@@ -32,6 +34,7 @@
     "oxlint-tsgolint": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
-    "vite": "catalog:"
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }

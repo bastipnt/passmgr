@@ -27,6 +27,17 @@ export default function RecordLayout() {
           contentStyle,
         }}
       />
+      <Stack.Screen
+        name="versions"
+        options={{
+          headerShown: false,
+          presentation: "formSheet",
+          sheetGrabberVisible: true,
+          // Taller than the default half sheet — a diff of a full record runs long.
+          sheetAllowedDetents: [0.6, 1],
+          contentStyle,
+        }}
+      />
     </Stack>
   );
 }

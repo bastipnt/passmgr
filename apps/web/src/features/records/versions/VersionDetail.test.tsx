@@ -70,6 +70,22 @@ describe("VersionDetail", () => {
     expect(latestCell!.className).toContain("border-warning");
   });
 
+  it("labels the status and both sides so the stacked layout stays readable", () => {
+    setup(makeRecord(1, { username: "old@x" }), makeRecord(2, { username: "new@x" }));
+
+    expect(screen.getByText("Changed")).toBeTruthy();
+    expect(screen.getByText("Before")).toBeTruthy();
+    expect(screen.getByText("Now")).toBeTruthy();
+  });
+
+  it("leaves an unchanged field without a status or side label", () => {
+    setup(makeRecord(1, { username: "same" }), makeRecord(2, { username: "same" }));
+
+    expect(screen.queryByText("Changed")).toBeNull();
+    expect(screen.queryByText("Before")).toBeNull();
+    expect(screen.queryByText("Now")).toBeNull();
+  });
+
   it("leaves an unchanged field with no status colour", () => {
     setup(makeRecord(1, { username: "same" }), makeRecord(2, { username: "same" }));
 
@@ -86,7 +102,7 @@ describe("VersionDetail", () => {
     expect(cell.className).toContain("bg-success/10");
     // Only the latest side rendered the field.
     expect(screen.getAllByText("Notes")).toHaveLength(1);
-    expect(screen.getByText("Added:")).toBeTruthy();
+    expect(screen.getByText("Added")).toBeTruthy();
   });
 
   it("marks a removed field red and leaves the latest side empty", () => {
@@ -96,14 +112,15 @@ describe("VersionDetail", () => {
     expect(cell.className).toContain("border-error");
     expect(cell.className).toContain("bg-error/10");
     expect(screen.getAllByText("Websites")).toHaveLength(1);
-    expect(screen.getByText("Removed:")).toBeTruthy();
+    expect(screen.getByText("Removed")).toBeTruthy();
   });
 
   it("shows the title so renames are visible", () => {
-    setup(makeRecord(1, { title: "Before" }), makeRecord(2, { title: "After" }));
+    // Not "Before"/"After" — those collide with the stacked layout's captions.
+    setup(makeRecord(1, { title: "Old name" }), makeRecord(2, { title: "New name" }));
 
-    expect(screen.getByText("Before")).toBeTruthy();
-    expect(screen.getByText("After")).toBeTruthy();
+    expect(screen.getByText("Old name")).toBeTruthy();
+    expect(screen.getByText("New name")).toBeTruthy();
     for (const cell of cellsFor("Title")) {
       expect(cell.className).toContain("border-warning");
     }

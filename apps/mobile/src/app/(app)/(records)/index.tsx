@@ -7,6 +7,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
+import { recordPaths } from "@/route-paths";
 
 export default function RecordsScreen() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function RecordsScreen() {
       <ScrollView
         ref={scrollRef}
         className="flex-1"
-        contentContainerClassName="flex-grow"
+        contentContainerClassName="grow"
         contentContainerStyle={{ paddingTop: 76 }}
       >
         <SafeAreaView>
@@ -51,7 +52,7 @@ export default function RecordsScreen() {
           size="icon-lg"
           systemImage="plus"
           accessibilityLabel="New record"
-          onPress={() => router.navigate("/new")}
+          onPress={() => router.navigate(recordPaths.create)}
         />
       </PageActions>
     </View>

@@ -1,18 +1,20 @@
-import { useRecordHistory } from "@repo/client";
+import {
+  alignFieldSpecs,
+  type DiffStatus,
+  getLoginFieldSpecs,
+  type LoginFieldSpec,
+  useRecordHistory,
+} from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
 import { Button } from "@repo/ui/components/Button";
 import { Skeleton } from "@repo/ui/components/Skeleton";
+import { cn } from "@repo/ui/lib/utils";
 import { toLocalDateStr } from "@repo/util";
 import { ChevronLeftIcon } from "lucide-react";
-import { Fragment } from "react";
 import { Link } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { getLoginFieldSpecs, type LoginFieldSpec } from "../login/login-field-specs";
-import { alignFieldSpecs, type DiffStatus } from "./diff-fields";
-
-/** Copying from a historical revision is not offered. */
-const noCopy = () => {};
+import LoginFieldDisplay from "../login/LoginFieldDisplay";
 
 const CELL_CLASS: Record<DiffStatus, { old: string; latest: string }> = {
   unchanged: { old: "hidden sm:block", latest: "" },
@@ -26,6 +28,18 @@ const STATUS_LABEL: Record<DiffStatus, string> = {
   edited: "Changed",
   added: "Added",
   removed: "Removed",
+};
+
+const STATUS_TEXT_CLASS: Record<DiffStatus, string> = {
+  unchanged: "",
+  edited: "text-warning",
+  added: "text-success",
+  removed: "text-error",
+};
+
+const SIDE_CAPTION: Record<"old" | "latest", string> = {
+  old: "Before",
+  latest: "Now",
 };
 
 function DiffCell({
@@ -44,13 +58,16 @@ function DiffCell({
     return <div aria-hidden className="hidden sm:block" />;
   }
 
-  const label = STATUS_LABEL[status];
+  // Stacked, the two revisions read as one column, so each card has to say
+  // which one it is. Side by side the column headings already do, and the
+  // caption drops back to screen readers.
+  const caption = status === "unchanged" ? undefined : SIDE_CAPTION[side];
 
   return (
     <div>
+      {caption && <p className="mb-1 text-muted-foreground text-xs sm:sr-only">{caption}</p>}
       <ItemDisplayGroup className={CELL_CLASS[status][side]}>
-        {label && <span className="sr-only">{label}:</span>}
-        {spec.render(noCopy)}
+        <LoginFieldDisplay spec={spec} />
       </ItemDisplayGroup>
     </div>
   );
@@ -103,14 +120,23 @@ export default function VersionDetail({
       </Button>
 
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:items-start sm:gap-x-4">
-        <VersionHeading record={record} isLatest={false} />
-        <VersionHeading record={latestRecord} isLatest />
+        {/* `sm:contents` dissolves these wrappers back into grid cells, so the
+            stacked layout can group a row without changing the grid. */}
+        <div className="flex flex-row items-start justify-between gap-4 sm:contents">
+          <VersionHeading record={record} isLatest={false} />
+          <VersionHeading record={latestRecord} isLatest />
+        </div>
 
         {rows.map((row) => (
-          <Fragment key={`${row.status}:${row.key}`}>
+          <div key={`${row.status}:${row.key}`} className="flex flex-col gap-1.5 sm:contents">
+            {STATUS_LABEL[row.status] && (
+              <p className={cn("font-medium text-xs sm:sr-only", STATUS_TEXT_CLASS[row.status])}>
+                {STATUS_LABEL[row.status]}
+              </p>
+            )}
             <DiffCell spec={row.old} status={row.status} side="old" />
             <DiffCell spec={row.latest} status={row.status} side="latest" />
-          </Fragment>
+          </div>
         ))}
       </div>
     </div>

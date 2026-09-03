@@ -1,4 +1,4 @@
-import type { LoginFieldSpec } from "../login/login-field-specs";
+import type { LoginFieldSpec } from "./login-field-specs";
 
 export type DiffStatus = "unchanged" | "edited" | "added" | "removed";
 

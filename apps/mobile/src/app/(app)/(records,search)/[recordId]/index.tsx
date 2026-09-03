@@ -3,6 +3,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Record from "@/features/records/components/Record";
+import { recordPaths } from "@/route-paths";
 
 export default function RecordScreen() {
   const router = useRouter();
@@ -35,7 +36,7 @@ export default function RecordScreen() {
           hug
           variant="glass-primary"
           size="lg"
-          onPress={() => router.navigate(`/${recordId as string}/edit`)}
+          onPress={() => router.navigate(recordPaths.editRecord(recordId as string))}
         >
           Edit
         </Button>

@@ -10,6 +10,7 @@ import { RecordsList } from "@/features/records/components/RecordsList";
 import { RecentRecords } from "@/features/search/components/RecentRecords";
 import { useRecentRecords } from "@/features/search/use-recent-records";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
+import { recordPaths } from "@/route-paths";
 
 export default function SearchScreen() {
   // Local state on purpose: the provider's own `query` is shared with the
@@ -59,7 +60,7 @@ export default function SearchScreen() {
         onCancelButtonPress={() => {
           setQuery("");
           searchBarRef.current?.clearText();
-          router.navigate("/");
+          router.navigate(recordPaths.index);
         }}
       />
       {/* `Stack.SearchBar` forces `headerShown: true`, and the native header does not

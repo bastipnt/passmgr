@@ -3,6 +3,7 @@ import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { useRouter } from "expo-router";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { normalizeFormValues } from "@/features/records/normalize-form-values";
+import { recordPaths } from "@/route-paths";
 
 export default function NewRecordScreen() {
   const router = useRouter();
@@ -34,7 +35,7 @@ export default function NewRecordScreen() {
       onSubmit={onSubmit}
       serverError={createRecordError?.message}
       action="Create"
-      generatorPath="/generate-password"
+      generatorPath={recordPaths.createGeneratePassword}
     />
   );
 }

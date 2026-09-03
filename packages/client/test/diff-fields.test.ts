@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
-import type { LoginFieldKey, LoginFieldSpec } from "../login/login-field-specs";
-import { alignFieldSpecs } from "./diff-fields";
+import { alignFieldSpecs } from "../src/records/diff-fields";
+import type { LoginFieldKey, LoginFieldSpec } from "../src/records/login-field-specs";
 
 function spec(key: LoginFieldKey, compare: string): LoginFieldSpec {
-  return { key, group: "extra", compare, render: () => null };
+  return { key, group: "extra", compare, kind: "extra-text", label: key };
 }
 
 describe("alignFieldSpecs", () => {

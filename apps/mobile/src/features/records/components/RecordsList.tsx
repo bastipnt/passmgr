@@ -2,6 +2,7 @@ import { RecordGroup } from "@repo/client";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { View } from "react-native";
+import { recordPaths } from "@/route-paths";
 
 type RecordGroupProps = {
   recordGroup: RecordGroup;
@@ -27,7 +28,7 @@ function RecordGroupLI({ recordGroup, activeRecordId, onSelect }: RecordGroupPro
             // resolves inside whichever tab is currently active.
             onClick={() => {
               onSelect?.(record.recordId);
-              router.navigate(`/${record.recordId}`);
+              router.navigate(recordPaths.record(record.recordId));
             }}
           />
         ))}

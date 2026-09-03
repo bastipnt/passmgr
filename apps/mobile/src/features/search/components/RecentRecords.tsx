@@ -2,6 +2,7 @@ import type { DecryptedRecord } from "@repo/schema";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { Pressable, Text, View } from "react-native";
+import { recordPaths } from "@/route-paths";
 
 type RecentRecordsProps = {
   records: DecryptedRecord[];
@@ -32,7 +33,7 @@ export function RecentRecords({ records, onOpen, onClear }: RecentRecordsProps) 
             websites={record.websites}
             onClick={() => {
               onOpen(record.recordId);
-              router.navigate(`/${record.recordId}`);
+              router.navigate(recordPaths.record(record.recordId));
             }}
           />
         ))}
