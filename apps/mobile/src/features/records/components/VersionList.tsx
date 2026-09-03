@@ -14,9 +14,9 @@ import { recordPaths } from "@/route-paths";
  */
 function TimelineRail({ children, isOldest }: { children: ReactNode; isOldest: boolean }) {
   return (
-    <View className="items-center self-stretch">
+    <View className="items-center gap-2 self-stretch">
       <View className="rounded-full bg-primary p-2">{children}</View>
-      {!isOldest && <View className="-mb-md w-0.5 flex-1 bg-border" />}
+      {!isOldest && <View className="-mb-2 w-0.5 flex-1 bg-border" />}
     </View>
   );
 }

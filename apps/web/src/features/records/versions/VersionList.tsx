@@ -26,7 +26,7 @@ export default function VersionList({ recordId }: { recordId: string }) {
       <ItemGroup className="p-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <Item key={i} className="p-0">
-            <ItemMedia className="flex h-full flex-col justify-start">
+            <ItemMedia className="self-stretch! flex flex-col justify-start">
               <Skeleton className="mt-1 h-8 w-8 rounded-full" />
               {i < 3 && <div className="-mb-3 w-0.5 flex-1 bg-border"></div>}
             </ItemMedia>
@@ -61,7 +61,7 @@ export default function VersionList({ recordId }: { recordId: string }) {
 
         return (
           <Item key={version.version} className="p-0">
-            <ItemMedia className="flex h-full flex-col justify-start">
+            <ItemMedia className="self-stretch! flex flex-col justify-start gap-2">
               <div className="mt-1 rounded-full bg-primary p-2">{icon}</div>
               {!isOldest && <div className="-mb-3 w-0.5 flex-1 bg-border"></div>}
             </ItemMedia>
