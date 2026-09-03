@@ -2,50 +2,62 @@ import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/comp
 import { lazy, Suspense } from "react";
 import { recordPaths } from "@/app/route-paths";
 import { RecordActions } from "./RecordActions";
-import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
+import { useRecordActions } from "./use-record-actions";
 import { useRouteSheet } from "./use-route-sheet";
 
 const Record = lazy(() => import("./Record"));
 
-type ActionsProps = {
+type RecordMobileDrawerInnerProps = {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  onOpenChangeComplete: (nextOpen: boolean) => void;
   recordId: string;
-  setOpen: (o: boolean) => void;
 };
 
-function Actions({ recordId, setOpen }: ActionsProps) {
-  const { deleteRecord, record, ready } = useRecordActions({ recordId });
-  useRecordShortcuts({ recordId });
+export function RecordMobileDrawerInner({
+  onOpenChangeComplete,
+  open,
+  recordId,
+  setOpen,
+}: RecordMobileDrawerInnerProps) {
+  const { record, ready, deleteRecord } = useRecordActions({ recordId });
 
-  if (!ready || !record) return null;
+  if (!ready) return null; // TODO: should be a fallback
+  if (!record) return null;
 
   return (
-    <DrawerActions>
-      <RecordActions
-        recordId={recordId}
-        title={record.title}
-        onDelete={() => deleteRecord(recordId)}
-        onSetOpen={setOpen}
-      />
-    </DrawerActions>
+    <Drawer open={open} onOpenChange={setOpen} onOpenChangeComplete={onOpenChangeComplete}>
+      <DrawerPopup>
+        <DrawerActions>
+          <RecordActions
+            recordId={recordId}
+            title={record.title}
+            onDelete={() => deleteRecord(recordId)}
+            onSetOpen={setOpen}
+          />
+        </DrawerActions>
+        <DrawerContent className="px-4">
+          <Suspense fallback={null}>{recordId && <Record record={record} />}</Suspense>
+        </DrawerContent>
+      </DrawerPopup>
+    </Drawer>
   );
 }
 
-export function RecordMobileDrawer() {
-  // Loose match: the drawer stays open while a sub-route sheet is layered on it.
+export default function RecordMobileDrawer() {
   const { open, params, setOpen, onOpenChangeComplete } = useRouteSheet<{ recordId: string }>(
     recordPaths.detailAny,
     () => recordPaths.index,
   );
   const recordId = params?.recordId;
+  if (!recordId) return null;
 
   return (
-    <Drawer open={open} onOpenChange={setOpen} onOpenChangeComplete={onOpenChangeComplete}>
-      <DrawerPopup>
-        {recordId && <Actions recordId={recordId} setOpen={setOpen} />}
-        <DrawerContent className="px-4">
-          <Suspense fallback={null}>{recordId && <Record recordId={recordId} />}</Suspense>
-        </DrawerContent>
-      </DrawerPopup>
-    </Drawer>
+    <RecordMobileDrawerInner
+      recordId={recordId}
+      open={open}
+      onOpenChangeComplete={onOpenChangeComplete}
+      setOpen={setOpen}
+    />
   );
 }

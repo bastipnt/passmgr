@@ -10,38 +10,28 @@ import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { copyField } from "./record-utils";
 
-function copyField(value: string | undefined, label: string) {
-  if (!value) return;
-  void navigator.clipboard.writeText(value);
-  toast.success(`${label} copied to clipboard`);
-}
+type UseRecordActionsProps = {
+  recordId: string;
+  actionCb?: () => void;
+};
 
-export function useRecordActions({ recordId }: { recordId: string }) {
+export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) {
   const { record, ready } = useGetRecord(recordId);
-  const [, navigate] = useLocation();
-  // The URL is the source of truth for whether the edit sheet is open, so
-  // opening and closing it is navigation.
-  const [isEditSheetOpen] = useRoute(recordPaths.edit);
-
-  function handleEditSheetChange(open: boolean) {
-    navigate(open ? recordPaths.editRecord(recordId) : recordPaths.record(recordId), {
-      replace: true,
-    });
-  }
 
   const { deleteRecord } = useDeleteRecord({
     onSuccess: () => {
       toast.success("Record deleted");
-      navigate(recordPaths.index);
+      if (actionCb) actionCb();
     },
   });
 
   const { updateRecord, updateRecordError } = useUpdateRecord({
     onSuccess: () => {
-      handleEditSheetChange(false);
+      if (actionCb) actionCb();
       toast.success("Record saved");
     },
   });
@@ -66,13 +56,10 @@ export function useRecordActions({ recordId }: { recordId: string }) {
   }
 
   return {
-    handleEditSheetChange,
     deleteRecord,
-    copyField,
     handleSubmit,
     record,
     ready,
-    isEditSheetOpen,
     updateRecordError,
   };
 }

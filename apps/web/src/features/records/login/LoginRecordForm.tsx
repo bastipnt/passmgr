@@ -17,7 +17,6 @@ export type LoginRecordFormHandle = {
 
 type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
-  onDelete?: () => void;
   action: string;
   serverError?: string;
   defaultValues?: Partial<FormValues>;

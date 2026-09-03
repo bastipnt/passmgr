@@ -1,111 +1,36 @@
-import { getStrengthFromString } from "@repo/crypto";
 import type { DecryptedRecord } from "@repo/schema";
-import { ItemDisplay, ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
-import Link from "@repo/ui/components/Link";
+import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
 import { Separator } from "@repo/ui/components/Separator";
-import { isDefined, toLocalDateStr } from "@repo/util";
-import {
-  EarthIcon,
-  KeyIcon,
-  LockIcon,
-  MailIcon,
-  NotebookPenIcon,
-  Pen,
-  Rocket,
-  TextIcon,
-  Wand,
-} from "lucide-react";
+import { toLocalDateStr } from "@repo/util";
+import { Pen, Rocket, Wand } from "lucide-react";
 import { Fragment } from "react";
-import TotpField from "./TotpField";
+import { copyField } from "../record-utils";
+import { getLoginFieldSpecs, LOGIN_FIELD_GROUPS } from "./login-field-specs";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
-  onCopy: (value: string | undefined, label: string) => void;
 };
 
-export function LoginRecordFields({ record, onCopy }: LoginRecordFieldsProps) {
+export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
+  const specs = getLoginFieldSpecs(record);
+
   return (
     <>
-      <ItemDisplayGroup>
-        <ItemDisplay
-          title="Username"
-          value={record.username}
-          onClick={() => onCopy(record.username, "Username")}
-          icon={<MailIcon />}
-        />
+      {LOGIN_FIELD_GROUPS.map((group) => {
+        const groupSpecs = specs.filter((spec) => spec.group === group);
+        if (groupSpecs.length === 0) return null;
 
-        <Separator />
-
-        <ItemDisplay
-          title="Password"
-          value={record.password}
-          onClick={({ type }) => type === "copy" && onCopy(record.password, "Password")}
-          icon={<KeyIcon />}
-          variant={record.password ? "password" : "noAction"}
-          strength={record.password ? getStrengthFromString(record.password) : undefined}
-        />
-
-        {isDefined(record.totp) && (
-          <>
-            <Separator />
-
-            <TotpField onCopy={onCopy} totpData={record.totp} />
-          </>
-        )}
-      </ItemDisplayGroup>
-
-      {isDefined(record.websites) && record.websites.length > 0 && (
-        <ItemDisplayGroup>
-          <ItemDisplay
-            title="Websites"
-            value={
-              <ul>
-                {record.websites.map(({ value }, i) => (
-                  <li key={i}>
-                    <Link target="_blank" href={value} className="p-0">
-                      {value}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            }
-            onClick={() => {}}
-            icon={<EarthIcon />}
-            variant="noAction"
-          />
-        </ItemDisplayGroup>
-      )}
-
-      {isDefined(record.note) && record.note !== "" && (
-        <ItemDisplayGroup>
-          <ItemDisplay
-            title="Notes"
-            value={<span className="wrap-break-word whitespace-pre-line">{record.note}</span>}
-            onClick={() => {}}
-            icon={<NotebookPenIcon />}
-            variant="noAction"
-          />
-        </ItemDisplayGroup>
-      )}
-
-      {isDefined(record.extraFields) && record.extraFields.length > 0 && (
-        <ItemDisplayGroup>
-          {record.extraFields.map((extraField, i) => (
-            <Fragment key={i}>
-              <ItemDisplay
-                title={extraField.title}
-                value={extraField.value}
-                onClick={({ type }) =>
-                  type === "copy" && onCopy(extraField.value, extraField.title)
-                }
-                icon={extraField.type === "secret" ? <LockIcon /> : <TextIcon />}
-                variant={extraField.type === "secret" ? "hidden" : "default"}
-              />
-              {i < record.extraFields!.length - 1 && <Separator />}
-            </Fragment>
-          ))}
-        </ItemDisplayGroup>
-      )}
+        return (
+          <ItemDisplayGroup key={group}>
+            {groupSpecs.map((spec, i) => (
+              <Fragment key={spec.key}>
+                {i > 0 && <Separator />}
+                {spec.render(copyField)}
+              </Fragment>
+            ))}
+          </ItemDisplayGroup>
+        );
+      })}
 
       <ul className="flex flex-col gap-1">
         <li className="flex flex-row items-center gap-2 text-muted">

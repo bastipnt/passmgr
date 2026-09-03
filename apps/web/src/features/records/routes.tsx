@@ -5,8 +5,7 @@ import { Redirect, Route, Switch } from "wouter";
 import { authPaths, recordPaths } from "@/app/route-paths";
 import CreateRecordSheet from "./CreateRecordSheet";
 import RecordLayout from "./RecordLayout";
-import { RecordMobileDrawer } from "./RecordMobileDrawer";
-import VersionsSheet from "./versions/VersionsSheet";
+import RecordMobileDrawer from "./RecordMobileDrawer";
 
 const NotFound = lazy(() => import("@/app/NotFound"));
 
@@ -37,9 +36,9 @@ export default function RecordRoutes() {
       </Switch>
 
       {isMobile && <RecordMobileDrawer />}
+
       {/* Siblings of the Switch: these outlive their own close navigation, so
           they can animate out before the route changes. */}
-      <VersionsSheet />
       <CreateRecordSheet />
     </RecordLayout>
   );

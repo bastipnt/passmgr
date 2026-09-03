@@ -130,10 +130,11 @@ function ItemDisplay({
 
 type ItemDisplayGroupProps = {
   children: ReactNode;
+  className?: string;
 };
 
-function ItemDisplayGroup({ children }: ItemDisplayGroupProps) {
-  return <ItemGroup className="gap-0 rounded-lg border">{children}</ItemGroup>;
+function ItemDisplayGroup({ children, className }: ItemDisplayGroupProps) {
+  return <ItemGroup className={cn("gap-0 rounded-lg border", className)}>{children}</ItemGroup>;
 }
 
 export { ItemDisplay, ItemDisplayGroup, itemDisplayVariants };
