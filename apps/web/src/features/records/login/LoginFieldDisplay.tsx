@@ -1,4 +1,4 @@
-import type { LoginFieldSpec } from "@repo/client";
+import { type LoginFieldSpec, PREF_KEYS, usePreference } from "@repo/client";
 import { getStrengthFromString } from "@repo/crypto";
 import { ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import Link from "@repo/ui/components/Link";
@@ -30,6 +30,9 @@ type LoginFieldDisplayProps = {
  * behaviour — lives here.
  */
 export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldDisplayProps) {
+  const [revealSeconds] = usePreference<number>(PREF_KEYS.revealTimeoutSeconds, 0);
+  const revealTimeoutMs = revealSeconds * 1_000;
+
   switch (spec.kind) {
     case "title":
       return (
@@ -55,6 +58,7 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
           icon={<KeyIcon />}
           variant={spec.value ? "password" : "noAction"}
           strength={spec.value ? getStrengthFromString(spec.value) : undefined}
+          revealTimeoutMs={revealTimeoutMs}
         />
       );
 
@@ -102,6 +106,7 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
           onClick={({ type }) => type === "copy" && onCopy(spec.value, spec.label)}
           icon={spec.kind === "extra-secret" ? <LockIcon /> : <TextIcon />}
           variant={spec.kind === "extra-secret" ? "hidden" : "default"}
+          revealTimeoutMs={revealTimeoutMs}
         />
       );
   }

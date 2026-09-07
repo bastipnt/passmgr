@@ -12,7 +12,7 @@ import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { copyField } from "./record-utils";
+import { useCopyField } from "./record-utils";
 
 type UseRecordActionsProps = {
   recordId: string;
@@ -76,6 +76,7 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
   const { isOffline } = useContext(SessionContext);
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
+  const copyField = useCopyField();
 
   useShortcut("$mod+Shift+c", () => copyField(record?.password, "Password"), {
     description: "Copy password",

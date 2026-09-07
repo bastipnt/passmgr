@@ -1,8 +1,7 @@
-import { useGetRecords, usePreferences } from "@repo/client";
+import { PREF_KEYS, useGetRecords, usePreferences } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { useCallback, useMemo, useState } from "react";
 
-const STORAGE_KEY = "search.recent-records";
 const MAX_ENTRIES = 8;
 
 function parse(raw: string | null): string[] {
@@ -25,7 +24,9 @@ function parse(raw: string | null): string[] {
 export function useRecentRecords() {
   const preferences = usePreferences();
   const { records } = useGetRecords();
-  const [recentIds, setRecentIds] = useState<string[]>(() => parse(preferences.get(STORAGE_KEY)));
+  const [recentIds, setRecentIds] = useState<string[]>(() =>
+    parse(preferences.get(PREF_KEYS.recentRecords)),
+  );
 
   const recentRecords = useMemo<DecryptedRecord[]>(() => {
     const byId = new Map(records.map((record) => [record.recordId, record]));
@@ -37,8 +38,8 @@ export function useRecentRecords() {
   const persist = useCallback(
     (next: string[]) => {
       setRecentIds(next);
-      if (next.length === 0) preferences.remove(STORAGE_KEY);
-      else preferences.set(STORAGE_KEY, JSON.stringify(next));
+      if (next.length === 0) preferences.remove(PREF_KEYS.recentRecords);
+      else preferences.set(PREF_KEYS.recentRecords, JSON.stringify(next));
     },
     [preferences],
   );
@@ -47,7 +48,7 @@ export function useRecentRecords() {
     (recordId: string) => {
       setRecentIds((current) => {
         const next = [recordId, ...current.filter((id) => id !== recordId)].slice(0, MAX_ENTRIES);
-        preferences.set(STORAGE_KEY, JSON.stringify(next));
+        preferences.set(PREF_KEYS.recentRecords, JSON.stringify(next));
         return next;
       });
     },

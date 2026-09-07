@@ -29,3 +29,14 @@ export const recordPaths = {
    */
   createParam: "new",
 } as const;
+
+export const settingsPaths = {
+  index: "/settings",
+  generator: "/settings/generator",
+  security: "/settings/security",
+  duplicates: "/settings/duplicates",
+  weakPasswords: "/settings/weak-passwords",
+
+  /** Prefix the app-level router hands to the settings feature. */
+  any: "/settings/*?",
+} as const;

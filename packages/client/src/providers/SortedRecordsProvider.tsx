@@ -1,27 +1,21 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
-import type { PreferencesStore } from "../preferences/PreferencesStore";
-import { usePreferences } from "./PreferencesProvider";
+import { PREF_KEYS } from "../preferences/preference-keys";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
 
 // TODO: created_at does not correctly work here, because the records are versioned and it always takes the created_at of the newest version
+export const DEFAULT_SORT: SortOption = "most-recent";
+
 export const SORT_LABELS: Record<SortOption, string> = {
   "most-recent": "Most recent",
   alphabetical: "Alphabetical",
   newest: "Newest to oldest",
   oldest: "Oldest to newest",
 };
-
-const STORAGE_KEY = "pass-mgr-sort";
-
-function getInitialSort(preferences: PreferencesStore): SortOption {
-  const stored = preferences.get(STORAGE_KEY);
-  if (stored && stored in SORT_LABELS) return stored as SortOption;
-  return "most-recent";
-}
 
 function compareTimestamps(a: string | null, b: string | null): number {
   if (!a && !b) return 0;
@@ -219,9 +213,10 @@ type SortedRecordsProviderProps = {
 
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
-  const preferences = usePreferences();
   const [query, setQuery] = useState("");
-  const [sort, setSort] = useState<SortOption>(() => getInitialSort(preferences));
+  const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
+  // localStorage is user-editable and older builds wrote unvalidated values.
+  const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
 
   const hasQuery = query.trim().length > 0;
   const filtered = useMemo(() => filterBySearch(records, query), [records, query]);
@@ -236,9 +231,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   );
 
   function handleSortChange(value: string) {
-    const next = value as SortOption;
-    setSort(next);
-    preferences.set(STORAGE_KEY, next);
+    setStoredSort(value as SortOption);
   }
 
   const value = useMemo(

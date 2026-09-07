@@ -1,4 +1,4 @@
-import { SessionContext, useShortcut } from "@repo/client";
+import { PREF_KEYS, SessionContext, usePreference, useShortcut } from "@repo/client";
 import {
   SortedRecordsProvider,
   useSortedRecords,
@@ -21,10 +21,12 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
-import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
+import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, Settings, XIcon } from "lucide-react";
 import { type ReactNode, useContext, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { settingsPaths } from "@/app/route-paths";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
+import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import { createSheetSearch, useOpenCreateSheet } from "./CreateRecordSheet";
 import RecordSidebar from "./Sidebar";
@@ -119,13 +121,20 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   const { isOffline } = useContext(SessionContext);
   const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
+  const [autoLockMinutes] = usePreference<number>(PREF_KEYS.autoLockMinutes, 0);
+
+  // `secretsStore` is memory-only on web, so a reload drops every key. It also
+  // discards unsaved sheet state, which is the right trade for a lock.
+  const lockVault = () => window.location.reload();
+
+  useIdleLock(autoLockMinutes, lockVault);
 
   useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
     description: "Create new record",
     enabled: !isOffline,
   });
 
-  useShortcut("$mod+l", () => window.location.reload(), {
+  useShortcut("$mod+l", lockVault, {
     description: "Lock vault",
     allowInInput: true,
   });
@@ -148,6 +157,9 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           >
             <CircleHelpIcon className="h-[1.2rem] w-[1.2rem]" />
           </Button>
+          <Link variant="outline" size="icon" href={settingsPaths.index}>
+            <Settings className="h-[1.2rem] w-[1.2rem]" />
+          </Link>
           <ThemeToggle />
           {!isOffline && (
             <Link variant="default" href={createSheetSearch()}>

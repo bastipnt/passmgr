@@ -1,4 +1,4 @@
-import { type PreferencesStore, usePreferences } from "@repo/client";
+import { PREF_KEYS, type PreferencesStore, usePreferences } from "@repo/client";
 import { useCallback, useState } from "react";
 import { Appearance } from "react-native";
 import { Uniwind } from "uniwind";
@@ -11,10 +11,8 @@ export const THEME_LABELS: Record<ThemePreference, string> = {
   dark: "Dark",
 };
 
-const STORAGE_KEY = "pass-mgr-theme";
-
 export function getStoredTheme(preferences: PreferencesStore): ThemePreference {
-  const stored = preferences.get(STORAGE_KEY);
+  const stored = preferences.get(PREF_KEYS.theme);
   if (stored && stored in THEME_LABELS) return stored as ThemePreference;
   return "system";
 }
@@ -36,7 +34,7 @@ export function useThemePreference() {
 
   const setPreference = useCallback(
     (next: ThemePreference) => {
-      preferences.set(STORAGE_KEY, next);
+      preferences.set(PREF_KEYS.theme, next);
       applyTheme(next);
       setPreferenceState(next);
     },

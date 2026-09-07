@@ -13,7 +13,7 @@ import { StackedButton } from "@repo/ui/components/StackedButton";
 import { cn } from "@repo/ui/lib/utils";
 import type { PasswordStrength, PasswordStrengthLevel } from "@repo/util";
 import { BadgeCheckIcon, EyeIcon, EyeOffIcon, NotebookIcon, ShieldAlertIcon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 const HIDDEN_VALUE = "••••••••••••" as const;
 
@@ -51,6 +51,8 @@ type ItemDisplayProps = {
   variant?: (typeof itemDisplayVariants)[number];
   actions?: ReactNode;
   strength?: PasswordStrength;
+  /** Re-hide a revealed value after this many ms. `0` keeps it revealed. */
+  revealTimeoutMs?: number;
 };
 
 function ItemDisplay({
@@ -61,9 +63,17 @@ function ItemDisplay({
   value = "-",
   variant = "default",
   strength,
+  revealTimeoutMs = 0,
 }: ItemDisplayProps) {
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
+
+  useEffect(() => {
+    if (valueHidden || revealTimeoutMs <= 0) return;
+
+    const timer = setTimeout(() => setValueHidden(true), revealTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [valueHidden, revealTimeoutMs]);
 
   const ItemInner = (
     <>

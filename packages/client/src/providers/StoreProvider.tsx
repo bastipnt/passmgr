@@ -2,12 +2,11 @@ import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { VaultKeyMaterial } from "@repo/schema";
 import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { PREF_KEYS } from "../preferences/preference-keys";
 import { SyncManager } from "../sync-manager";
 import { useTRPCClient } from "../util/trpc";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
-
-const BIOMETRIC_DISMISSED = "biometric-dismissed" as const;
 
 type StoreContextValue = {
   vault: Vault;
@@ -53,7 +52,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
   );
 
   const [biometricDismissed, setBiometricDismissed_] = useState(
-    Number(preferences.get(BIOMETRIC_DISMISSED)) === 1,
+    Number(preferences.get(PREF_KEYS.biometricDismissed)) === 1,
   );
 
   const needsBiometricEnroll = !biometricDismissed && biometricKeyMaterial === null;
@@ -61,8 +60,8 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
   function setBiometricDismissed(dismissed: boolean) {
     setBiometricDismissed_(dismissed);
 
-    if (dismissed) preferences.set(BIOMETRIC_DISMISSED, "1");
-    else preferences.remove(BIOMETRIC_DISMISSED);
+    if (dismissed) preferences.set(PREF_KEYS.biometricDismissed, "1");
+    else preferences.remove(PREF_KEYS.biometricDismissed);
   }
 
   const syncManagerRef = useRef<SyncManager | null>(null);
@@ -134,7 +133,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     await vault.clear();
     await clearLoginBundle();
     secretsStore.lock();
-    preferences.remove(BIOMETRIC_DISMISSED);
+    preferences.remove(PREF_KEYS.biometricDismissed);
     setVaultKeyMaterial(null);
     setBiometricKeyMaterial(null);
   }

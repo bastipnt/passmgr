@@ -5,7 +5,7 @@ import { Separator } from "@repo/ui/components/Separator";
 import { toLocalDateStr } from "@repo/util";
 import { Pen, Rocket, Wand } from "lucide-react";
 import { Fragment } from "react";
-import { copyField } from "../record-utils";
+import { useCopyField } from "../record-utils";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 
 type LoginRecordFieldsProps = {
@@ -14,6 +14,7 @@ type LoginRecordFieldsProps = {
 
 export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
   const specs = getLoginFieldSpecs(record);
+  const copyField = useCopyField();
 
   return (
     <>
