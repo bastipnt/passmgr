@@ -32,6 +32,7 @@ export const recordPaths = {
 
 export const settingsPaths = {
   index: "/settings",
+  general: "/settings/general",
   generator: "/settings/generator",
   security: "/settings/security",
   duplicates: "/settings/duplicates",
