@@ -12,12 +12,13 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
-import { Button, SheetActions, StrengthMeter } from "@repo/ui-native";
+import { Button, StrengthMeter } from "@repo/ui-native";
 import * as Clipboard from "expo-clipboard";
-import { useRouter } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import { useCSSVariable, useResolveClassNames } from "uniwind";
 import GeneratorModeSwitch from "@/features/password-generation/components/GeneratorModeSwitch";
 import PassphraseOptionsForm from "@/features/password-generation/components/PassphraseOptions";
 import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
@@ -27,6 +28,9 @@ export default function PasswordGenerator() {
   const router = useRouter();
   const { applyGenerated } = usePasswordGenerator();
   const defaults = useGeneratorDefaults();
+  const headerTitleStyle = useResolveClassNames("text-foreground");
+  const foregroundColor = useCSSVariable("--color-foreground") as string;
+  const primaryColor = useCSSVariable("--color-primary") as string;
 
   // Seeded from the saved defaults; edits here are for this password only. The
   // generator is a route, so it remounts on every open and re-reads them.
@@ -85,15 +89,42 @@ export default function PasswordGenerator() {
 
   return (
     <View className="flex-1">
-      <KeyboardAwareScrollView
-        mode="layout"
-        contentContainerClassName="grow gap-lg p-md pt-[80px]"
-        bottomOffset={24}
-      >
+      {/* Native bar items rather than views floating over the sheet — only real
+          `UIBarButtonItem`s get UIKit's glass instead of sitting on top of it. */}
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTransparent: true,
+          headerTitleStyle,
+          title: "Generate password",
+          unstable_headerLeftItems: () => [
+            {
+              type: "button",
+              label: "Close",
+              accessibilityLabel: "Close",
+              icon: { type: "sfSymbol", name: "xmark" },
+              tintColor: foregroundColor,
+              onPress: () => router.back(),
+            },
+          ],
+          unstable_headerRightItems: () => [
+            {
+              type: "button",
+              label: "Use",
+              variant: "prominent",
+              tintColor: primaryColor,
+              disabled: !generated || noCharset,
+              onPress: onUse,
+            },
+          ],
+        }}
+      />
+
+      <KeyboardAwareScrollView mode="layout" contentContainerClassName="grow gap-lg p-md">
         <GeneratorModeSwitch mode={mode} setMode={setMode} />
 
         <View className="gap-sm">
-          <View className="min-h-[64px] justify-center rounded-lg border border-border bg-muted/50 p-md">
+          <View className="justify-center rounded-lg border border-border bg-muted/50 p-md">
             {error ? (
               <Text className="text-destructive text-md">{error}</Text>
             ) : (
@@ -133,27 +164,6 @@ export default function PasswordGenerator() {
           <PassphraseOptionsForm phOpts={phOpts} setPhOpts={setPhOpts} />
         )}
       </KeyboardAwareScrollView>
-
-      <SheetActions>
-        <Button
-          hug
-          variant="glass"
-          size="icon-lg"
-          systemImage="xmark"
-          accessibilityLabel="Close"
-          onPress={() => router.back()}
-        />
-
-        <Button
-          hug
-          variant="glass-primary"
-          size="lg"
-          disabled={!generated || noCharset}
-          onPress={onUse}
-        >
-          Use
-        </Button>
-      </SheetActions>
     </View>
   );
 }

@@ -35,6 +35,7 @@ export default function NewRecordScreen() {
       onSubmit={onSubmit}
       serverError={createRecordError?.message}
       action="Create"
+      title="New record"
       generatorPath={recordPaths.createGeneratePassword}
     />
   );

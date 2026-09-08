@@ -82,6 +82,7 @@ export default function EditScreen() {
       onSubmit={onSubmit}
       defaultValues={defaultValues}
       action="Save"
+      title="Edit record"
       generatorPath={recordPaths.generatePassword(recordId)}
     >
       <RemoveDialog

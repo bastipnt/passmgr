@@ -10,7 +10,7 @@ export default function VersionsLayout() {
   const contentStyle = useResolveClassNames("bg-background");
 
   return (
-    <Stack screenOptions={{ headerShown: false, contentStyle }}>
+    <Stack screenOptions={{ contentStyle }}>
       <Stack.Screen name="index" />
       <Stack.Screen name="[version]" />
     </Stack>

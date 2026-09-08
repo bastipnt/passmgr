@@ -24,7 +24,6 @@ export default function RecordsLayout() {
         <Stack.Screen
           name="new"
           options={{
-            headerShown: false,
             presentation: "formSheet",
             sheetGrabberVisible: true,
             contentStyle,
@@ -33,7 +32,6 @@ export default function RecordsLayout() {
         <Stack.Screen
           name="generate-password"
           options={{
-            headerShown: false,
             presentation: "formSheet",
             sheetGrabberVisible: true,
             contentStyle,

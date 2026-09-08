@@ -61,7 +61,6 @@ export default function RecordLayout() {
       <Stack.Screen
         name="edit"
         options={{
-          headerShown: false,
           presentation: "formSheet",
           sheetGrabberVisible: true,
           contentStyle,
@@ -70,7 +69,6 @@ export default function RecordLayout() {
       <Stack.Screen
         name="generate-password"
         options={{
-          headerShown: false,
           presentation: "formSheet",
           sheetGrabberVisible: true,
           contentStyle,
