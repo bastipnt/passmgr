@@ -1,6 +1,6 @@
 "use client";
 
-import { PREF_KEYS, ShortcutLayer, usePreference } from "@repo/client";
+import { ShortcutLayer, useGeneratorDefaults } from "@repo/client";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
@@ -10,8 +10,6 @@ import {
   generatePassword,
   getCharsetSize,
   getStrength,
-  PASSPHRASE_DEFAULTS,
-  PASSWORD_DEFAULTS,
   type PassphraseOptions,
   PasswordGeneratorError,
   type PasswordOptions,
@@ -35,15 +33,11 @@ type PasswordGeneratorProps = {
 const TITLE = "Generate password";
 
 export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorProps) {
-  const [defaultMode] = usePreference<GeneratorMode>(PREF_KEYS.generatorMode, "password");
-  const [defaultPwOpts] = usePreference<PasswordOptions>(
-    PREF_KEYS.generatorPasswordOptions,
-    PASSWORD_DEFAULTS,
-  );
-  const [defaultPhOpts] = usePreference<PassphraseOptions>(
-    PREF_KEYS.generatorPassphraseOptions,
-    PASSPHRASE_DEFAULTS,
-  );
+  const {
+    mode: defaultMode,
+    pwOpts: defaultPwOpts,
+    phOpts: defaultPhOpts,
+  } = useGeneratorDefaults();
 
   const [open, setOpen] = useState(false);
   // Seeded from the saved defaults; edits here are for this password only and

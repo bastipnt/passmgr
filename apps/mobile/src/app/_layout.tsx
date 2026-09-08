@@ -13,7 +13,7 @@ import {
   StoreProvider,
   useSessionRestore,
 } from "@repo/client";
-import { Stack } from "expo-router";
+import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -23,7 +23,7 @@ import "react-native-reanimated";
 import { useContext, useEffect } from "react";
 import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
-import { applyTheme, getStoredTheme } from "@/hooks/use-theme-preference";
+import { applyTheme, getStoredTheme, useThemePreference } from "@/hooks/use-theme-preference";
 import { useVaultStore } from "@/hooks/use-vault-store";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 
@@ -33,6 +33,8 @@ function Routes() {
   const { loggedIn } = useContext(SessionContext);
   const { status, tryRestore } = useSessionRestore();
   const contentStyle = useResolveClassNames("bg-background");
+  const headerStyle = contentStyle;
+  const { preference } = useThemePreference();
 
   useEffect(() => {
     void tryRestore();
@@ -44,17 +46,18 @@ function Routes() {
     return (
       <>
         <SplashScreen />
-        <StatusBar style="light" />
+        <StatusBar style="auto" />
       </>
     );
   }
 
   return (
-    <>
+    <ThemeProvider value={preference === "dark" ? DarkTheme : DefaultTheme}>
       <Stack
         screenOptions={{
           headerShown: false,
           contentStyle,
+          headerStyle,
         }}
       >
         <Stack.Protected guard={loggedIn}>
@@ -65,7 +68,7 @@ function Routes() {
         </Stack.Protected>
       </Stack>
       <StatusBar style="auto" />
-    </>
+    </ThemeProvider>
   );
 }
 

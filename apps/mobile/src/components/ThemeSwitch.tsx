@@ -14,14 +14,19 @@ const OPTIONS: { value: ThemePreference; Icon: LucideIcon }[] = [
   { value: "dark", Icon: Moon },
 ];
 
-export function ThemeSwitch() {
+type ThemeSwitchProps = {
+  /** The settings screen already titles the section. */
+  hideLabel?: boolean;
+};
+
+export function ThemeSwitch({ hideLabel = false }: ThemeSwitchProps) {
   const { preference, setPreference } = useThemePreference();
   const activeColor = useCSSVariable("--color-primary-foreground") as string;
   const inactiveColor = useCSSVariable("--color-muted-foreground") as string;
 
   return (
     <View className="gap-sm">
-      <Text className="text-muted-foreground text-sm">Appearance</Text>
+      {!hideLabel && <Text className="text-muted-foreground text-sm">Appearance</Text>}
       <View className="flex-row gap-xs rounded-lg border border-border bg-card p-xs">
         {OPTIONS.map(({ value, Icon }) => {
           const selected = preference === value;

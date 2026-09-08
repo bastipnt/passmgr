@@ -1,18 +1,28 @@
-import { useRecordSearch, useSortedRecords } from "@repo/client";
-import { Button, PageActions } from "@repo/ui-native";
-import { useRouter, useScrollToTop } from "expo-router";
+import {
+  SORT_LABELS,
+  type SortOption,
+  useGetRecords,
+  useRecordSearch,
+  useSortedRecords,
+} from "@repo/client";
+import { Stack, useRouter, useScrollToTop } from "expo-router";
 import { useEffect, useRef } from "react";
 import { ScrollView, View } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { RecordsList } from "@/features/records/components/RecordsList";
-import { RecordsSortMenu } from "@/features/records/components/RecordsSortMenu";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
 import { recordPaths } from "@/route-paths";
+
+const SORT_OPTIONS = Object.entries(SORT_LABELS) as [SortOption, string][];
 
 export default function RecordsScreen() {
   const router = useRouter();
   const recordGroups = useRecordSearch("");
-  const { sort } = useSortedRecords();
+  const { recordsNumber } = useGetRecords();
+  const { sort, handleSortChange } = useSortedRecords();
+  const foregroundColor = useCSSVariable("--color-foreground") as string;
+  const primaryColor = useCSSVariable("--color-primary") as string;
+  const headerTitleStyle = useResolveClassNames("text-foreground");
 
   // Tapping the already-active Home tab scrolls back to the top.
   const scrollRef = useRef<ScrollView>(null);
@@ -30,31 +40,60 @@ export default function RecordsScreen() {
 
   return (
     <View className="flex-1 bg-background">
-      {/* Padding on the content container clears the floating sort button —
-          the safe area inset itself still comes from the SafeAreaView. */}
+      {/*
+       * Native `UIBarButtonItem`s rather than views floating over the list: only
+       * real bar items get the iOS 26 glass that samples the content scrolling
+       * under the transparent header. The sort picker is a `UIMenu` with one
+       * checked action — `multiselectable` defaults to false, so it behaves as
+       * a single select.
+       */}
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          headerTransparent: true,
+          headerTitleStyle,
+          title: `${recordsNumber} Entries`,
+          unstable_headerLeftItems: () => [
+            {
+              type: "menu",
+              label: "Sort",
+              accessibilityLabel: "Sort records",
+              icon: { type: "sfSymbol", name: "arrow.up.arrow.down" },
+              tintColor: foregroundColor,
+              menu: {
+                title: "Sort by",
+                items: SORT_OPTIONS.map(([value, label]) => ({
+                  type: "action",
+                  label,
+                  state: value === sort ? "on" : "off",
+                  onPress: () => handleSortChange(value),
+                })),
+              },
+            },
+          ],
+          unstable_headerRightItems: () => [
+            {
+              type: "button",
+              label: "New record",
+              accessibilityLabel: "New record",
+              icon: { type: "sfSymbol", name: "plus" },
+              tintColor: primaryColor,
+              onPress: () => router.navigate(recordPaths.create),
+            },
+          ],
+        }}
+      />
+
+      {/* `automatic` lets UIKit inset the list by the transparent header and
+          drives the scroll-edge effect behind the bar items. */}
       <ScrollView
         ref={scrollRef}
         className="flex-1"
         contentContainerClassName="grow"
-        contentContainerStyle={{ paddingTop: 76 }}
+        contentInsetAdjustmentBehavior="automatic"
       >
-        <SafeAreaView>
-          <RecordsList recordGroups={recordGroups} />
-        </SafeAreaView>
+        <RecordsList recordGroups={recordGroups} />
       </ScrollView>
-
-      <PageActions>
-        <RecordsSortMenu />
-
-        <Button
-          hug
-          variant="glass"
-          size="icon-lg"
-          systemImage="plus"
-          accessibilityLabel="New record"
-          onPress={() => router.navigate(recordPaths.create)}
-        />
-      </PageActions>
     </View>
   );
 }

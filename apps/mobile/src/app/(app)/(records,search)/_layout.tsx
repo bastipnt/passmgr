@@ -9,8 +9,9 @@ export default function RecordsLayout() {
   // stack below it both hand generated passwords back to their own field.
   return (
     <PasswordGeneratorProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" options={{ headerShown: false, contentStyle }} />
+      <Stack>
+        {/* The screen turns its own header on — it owns the sort menu state. */}
+        <Stack.Screen name="index" options={{ contentStyle }} />
         <Stack.Screen name="search" options={{ headerShown: false, title: "", contentStyle }} />
 
         <Stack.Screen

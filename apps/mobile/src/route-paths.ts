@@ -15,7 +15,6 @@ import type { Href } from "expo-router";
 export const recordPaths = {
   index: "/" as Href,
   search: "/search" as Href,
-  settings: "/settings" as Href,
 
   create: "/new" as Href,
   /** The generator opened from the create sheet. */
@@ -28,4 +27,12 @@ export const recordPaths = {
   generatePassword: (recordId: string) => `/${recordId}/generate-password` as Href,
   recordVersions: (recordId: string) => `/${recordId}/versions` as Href,
   version: (recordId: string, version: number) => `/${recordId}/versions/${version}` as Href,
+} as const;
+
+/** Mirrors web's `settingsPaths`; the tab root is `index`. */
+export const settingsPaths = {
+  index: "/settings" as Href,
+  general: "/settings/general" as Href,
+  generator: "/settings/generator" as Href,
+  security: "/settings/security" as Href,
 } as const;

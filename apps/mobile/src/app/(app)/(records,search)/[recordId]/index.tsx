@@ -1,13 +1,8 @@
-import { Button, PageActions } from "@repo/ui-native";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useLocalSearchParams } from "expo-router";
 import { ScrollView, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Record from "@/features/records/components/Record";
-import { recordPaths } from "@/route-paths";
 
 export default function RecordScreen() {
-  const router = useRouter();
-  const insets = useSafeAreaInsets();
   const { recordId } = useLocalSearchParams();
 
   return (
@@ -17,30 +12,10 @@ export default function RecordScreen() {
       <ScrollView
         className="flex-1"
         contentContainerClassName="px-4 pb-4"
-        contentContainerStyle={{ paddingTop: insets.top + 24 }}
+        // contentContainerStyle={{ paddingTop: insets.top + 24 }}
       >
         <Record recordId={recordId} />
       </ScrollView>
-
-      <PageActions>
-        <Button
-          hug
-          variant="glass"
-          size="icon-lg"
-          systemImage="chevron.backward"
-          accessibilityLabel="Back"
-          onPress={() => router.back()}
-        />
-
-        <Button
-          hug
-          variant="glass-primary"
-          size="lg"
-          onPress={() => router.navigate(recordPaths.editRecord(recordId as string))}
-        >
-          Edit
-        </Button>
-      </PageActions>
     </View>
   );
 }

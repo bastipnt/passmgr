@@ -1,4 +1,14 @@
-import { PREF_KEYS, usePreference } from "@repo/client";
+import {
+  AUTO_LOCK_CHOICES,
+  AUTO_LOCK_DEFAULT_MINUTES,
+  CLIPBOARD_CLEAR_CHOICES,
+  CLIPBOARD_CLEAR_DEFAULT_SECONDS,
+  PREF_KEYS,
+  type PreferenceChoice,
+  REVEAL_TIMEOUT_CHOICES,
+  REVEAL_TIMEOUT_DEFAULT_SECONDS,
+  usePreference,
+} from "@repo/client";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@repo/ui/components/Item";
 import {
   Select,
@@ -9,33 +19,10 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 
-type Choice = { label: string; value: number };
-
-const clipboardChoices: Choice[] = [
-  { label: "Never", value: 0 },
-  { label: "After 15 seconds", value: 15 },
-  { label: "After 30 seconds", value: 30 },
-  { label: "After 1 minute", value: 60 },
-];
-
-const autoLockChoices: Choice[] = [
-  { label: "Never", value: 0 },
-  { label: "After 1 minute", value: 1 },
-  { label: "After 5 minutes", value: 5 },
-  { label: "After 15 minutes", value: 15 },
-  { label: "After 30 minutes", value: 30 },
-];
-
-const revealChoices: Choice[] = [
-  { label: "Never", value: 0 },
-  { label: "After 10 seconds", value: 10 },
-  { label: "After 30 seconds", value: 30 },
-];
-
 type ChoiceSettingProps = {
   title: string;
   description: string;
-  choices: Choice[];
+  choices: PreferenceChoice[];
   value: number;
   onValueChange: (value: number) => void;
 };
@@ -72,12 +59,15 @@ function ChoiceSetting({ title, description, choices, value, onValueChange }: Ch
 export default function SecuritySettingsPage() {
   const [clipboardClearSeconds, setClipboardClearSeconds] = usePreference<number>(
     PREF_KEYS.clipboardClearSeconds,
-    0,
+    CLIPBOARD_CLEAR_DEFAULT_SECONDS,
   );
-  const [autoLockMinutes, setAutoLockMinutes] = usePreference<number>(PREF_KEYS.autoLockMinutes, 0);
+  const [autoLockMinutes, setAutoLockMinutes] = usePreference<number>(
+    PREF_KEYS.autoLockMinutes,
+    AUTO_LOCK_DEFAULT_MINUTES,
+  );
   const [revealTimeoutSeconds, setRevealTimeoutSeconds] = usePreference<number>(
     PREF_KEYS.revealTimeoutSeconds,
-    0,
+    REVEAL_TIMEOUT_DEFAULT_SECONDS,
   );
 
   return (
@@ -86,7 +76,7 @@ export default function SecuritySettingsPage() {
         <ChoiceSetting
           title="Clear clipboard"
           description="Only works while this tab stays focused — your browser will not let the app touch the clipboard in the background."
-          choices={clipboardChoices}
+          choices={CLIPBOARD_CLEAR_CHOICES}
           value={clipboardClearSeconds}
           onValueChange={setClipboardClearSeconds}
         />
@@ -94,7 +84,7 @@ export default function SecuritySettingsPage() {
         <ChoiceSetting
           title="Lock when idle"
           description="Locking clears every key from memory. Anything you were editing but had not saved is lost."
-          choices={autoLockChoices}
+          choices={AUTO_LOCK_CHOICES}
           value={autoLockMinutes}
           onValueChange={setAutoLockMinutes}
         />
@@ -102,7 +92,7 @@ export default function SecuritySettingsPage() {
         <ChoiceSetting
           title="Hide revealed values again"
           description="Applies to passwords and hidden custom fields after you reveal them."
-          choices={revealChoices}
+          choices={REVEAL_TIMEOUT_CHOICES}
           value={revealTimeoutSeconds}
           onValueChange={setRevealTimeoutSeconds}
         />

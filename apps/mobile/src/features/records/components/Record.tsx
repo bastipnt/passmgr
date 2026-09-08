@@ -1,4 +1,3 @@
-import Clipboard from "@react-native-clipboard/clipboard";
 import { getLoginFieldSpecs, LOGIN_FIELD_GROUPS, useGetRecord } from "@repo/client";
 import { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui-native";
@@ -9,6 +8,7 @@ import { Fragment, type ReactNode } from "react";
 import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { recordPaths } from "@/route-paths";
+import { useCopyField } from "../use-copy-field";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 
 function Fallback() {
@@ -68,9 +68,10 @@ export default function Record({ recordId }: RecordProps) {
   if (!recordId || typeof recordId !== "string") return <Fallback />;
 
   const { record, ready } = useGetRecord(recordId);
+  // Above the `ready` guard: that flips mid-mount, and a hook after it would
+  // change the hook order between renders.
+  const onCopy = useCopyField();
   if (!ready || !record) return <Fallback />;
-
-  const onCopy = (value?: string) => Clipboard.setString(typeof value === "string" ? value : "");
 
   const specs = getLoginFieldSpecs(record);
 

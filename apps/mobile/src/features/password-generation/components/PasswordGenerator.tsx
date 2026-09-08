@@ -1,3 +1,4 @@
+import { useGeneratorDefaults } from "@repo/client";
 import {
   EFF_WORDLIST_SIZE,
   estimateEntropy,
@@ -7,34 +8,31 @@ import {
   generatePassword,
   getCharsetSize,
   getStrength,
-  PASSPHRASE_DEFAULTS,
-  PASSWORD_DEFAULTS,
   type PassphraseOptions,
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
-import { Button, cn, SheetActions, StrengthMeter } from "@repo/ui-native";
+import { Button, SheetActions, StrengthMeter } from "@repo/ui-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
+import GeneratorModeSwitch from "@/features/password-generation/components/GeneratorModeSwitch";
 import PassphraseOptionsForm from "@/features/password-generation/components/PassphraseOptions";
 import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
 
-const MODES: { value: GeneratorMode; label: string }[] = [
-  { value: "password", label: "Password" },
-  { value: "passphrase", label: "Passphrase" },
-];
-
 export default function PasswordGenerator() {
   const router = useRouter();
   const { applyGenerated } = usePasswordGenerator();
+  const defaults = useGeneratorDefaults();
 
-  const [mode, setMode] = useState<GeneratorMode>("password");
-  const [pwOpts, setPwOpts] = useState<PasswordOptions>(PASSWORD_DEFAULTS);
-  const [phOpts, setPhOpts] = useState<PassphraseOptions>(PASSPHRASE_DEFAULTS);
+  // Seeded from the saved defaults; edits here are for this password only. The
+  // generator is a route, so it remounts on every open and re-reads them.
+  const [mode, setMode] = useState<GeneratorMode>(defaults.mode);
+  const [pwOpts, setPwOpts] = useState<PasswordOptions>(defaults.pwOpts);
+  const [phOpts, setPhOpts] = useState<PassphraseOptions>(defaults.phOpts);
   const [generated, setGenerated] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -92,34 +90,7 @@ export default function PasswordGenerator() {
         contentContainerClassName="grow gap-lg p-md pt-[80px]"
         bottomOffset={24}
       >
-        <View className="flex-row gap-xs rounded-lg border border-border bg-card p-xs">
-          {MODES.map(({ value, label }) => {
-            const selected = mode === value;
-
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                onPress={() => setMode(value)}
-                className={cn(
-                  "h-[40px] flex-1 items-center justify-center rounded-md",
-                  selected && "bg-primary",
-                )}
-                style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
-              >
-                <Text
-                  className={cn(
-                    "font-semibold text-sm",
-                    selected ? "text-primary-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+        <GeneratorModeSwitch mode={mode} setMode={setMode} />
 
         <View className="gap-sm">
           <View className="min-h-[64px] justify-center rounded-lg border border-border bg-muted/50 p-md">

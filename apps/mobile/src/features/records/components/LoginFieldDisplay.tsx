@@ -1,4 +1,9 @@
-import type { LoginFieldSpec } from "@repo/client";
+import {
+  type LoginFieldSpec,
+  PREF_KEYS,
+  REVEAL_TIMEOUT_DEFAULT_SECONDS,
+  usePreference,
+} from "@repo/client";
 import { RecordDetailsItem } from "@repo/ui-native";
 import { Earth, Key, Lock, Mail, NotebookPen, NotebookText, Tag } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
@@ -19,6 +24,11 @@ type LoginFieldDisplayProps = {
  */
 export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
+  const [revealSeconds] = usePreference<number>(
+    PREF_KEYS.revealTimeoutSeconds,
+    REVEAL_TIMEOUT_DEFAULT_SECONDS,
+  );
+  const revealTimeoutMs = revealSeconds * 1_000;
   const copy = onCopy ? () => onCopy(spec.value) : undefined;
 
   switch (spec.kind) {
@@ -49,6 +59,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
           title={spec.label}
           value={spec.value}
           variant="password"
+          revealTimeoutMs={revealTimeoutMs}
           onCopy={copy}
         />
       );
@@ -93,6 +104,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
           title={spec.label}
           value={spec.value}
           variant="hidden"
+          revealTimeoutMs={revealTimeoutMs}
           onCopy={copy}
         />
       );

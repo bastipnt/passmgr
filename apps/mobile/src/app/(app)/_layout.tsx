@@ -1,10 +1,14 @@
 import { RecordsProvider, SortedRecordsProvider } from "@repo/client";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCSSVariable } from "uniwind";
+import { useAutoLock } from "@/hooks/use-auto-lock";
 
 export default function AppLayout() {
   const primary = useCSSVariable("--color-primary") as string;
   const mutedForeground = useCSSVariable("--color-muted-foreground") as string;
+
+  // Mounted once for the whole signed-in tree; unmounts with it on lock.
+  useAutoLock();
 
   return (
     <RecordsProvider>

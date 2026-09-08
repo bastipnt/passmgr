@@ -1,9 +1,15 @@
 import type { DecryptedRecord } from "@repo/schema";
+import { useMemo } from "react";
 import { useRecordsContext } from "../providers/RecordsProvider";
 
-export function useGetRecords(): { records: DecryptedRecord[]; ready: boolean } {
+export function useGetRecords(): {
+  records: DecryptedRecord[];
+  ready: boolean;
+  recordsNumber: number;
+} {
   const { records, ready } = useRecordsContext();
-  return { records, ready };
+  const recordsNumber = useMemo(() => records.length, [records]);
+  return { records, ready, recordsNumber };
 }
 
 export function useGetRecord(recordId: string): {

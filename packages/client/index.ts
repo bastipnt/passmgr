@@ -3,8 +3,10 @@
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
+export * from "./src/hooks/use-clipboard-clear";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
+export * from "./src/hooks/use-generator-defaults";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-logout";
 export * from "./src/hooks/use-preference";
@@ -19,6 +21,7 @@ export * from "./src/hooks/use-update-record";
 export * from "./src/preferences/PreferencesStore";
 // Preferences
 export * from "./src/preferences/preference-keys";
+export * from "./src/preferences/security-choices";
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export * from "./src/providers/PreferencesProvider";
 export * from "./src/providers/RecordsProvider";

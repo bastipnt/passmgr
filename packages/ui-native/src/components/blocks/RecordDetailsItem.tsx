@@ -1,5 +1,5 @@
 import { Eye, EyeOff } from "lucide-react-native";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { Button } from "../Button";
@@ -48,6 +48,8 @@ type BaseRecordDetailsItemProps = {
   title: string;
   /** Rendered at the trailing edge, e.g. a countdown ring. */
   accessory?: ReactNode;
+  /** Re-hide a revealed value after this many ms. `0` keeps it revealed. */
+  revealTimeoutMs?: number;
 };
 
 type SingleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
@@ -69,10 +71,18 @@ export function RecordDetailsItem({
   variant = "default",
   onCopy,
   accessory,
+  revealTimeoutMs = 0,
 }: SingleRecordDetailsItemProps | MultipleRecordDetailsItemProps) {
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
   const iconColor = useCSSVariable("--color-foreground") as string;
+
+  useEffect(() => {
+    if (valueHidden || revealTimeoutMs <= 0) return;
+
+    const timer = setTimeout(() => setValueHidden(true), revealTimeoutMs);
+    return () => clearTimeout(timer);
+  }, [valueHidden, revealTimeoutMs]);
 
   return (
     <Pressable
