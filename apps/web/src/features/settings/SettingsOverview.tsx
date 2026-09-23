@@ -10,7 +10,7 @@ type SidebarItemParams = {
 };
 
 function SidebarItem({ path, title }: SidebarItemParams) {
-  const [active] = useRoute(path);
+  const [active] = useRoute(`${path}/*?`);
 
   return (
     <Item variant={active ? "active" : "outline"} render={<WouterLink href={path} />}>
@@ -37,8 +37,7 @@ export default function SettingsOverview({ className }: SettingsOverviewProps) {
           <SidebarItem title="General Settings" path={settingsPaths.general} />
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />
           <SidebarItem title="Security" path={settingsPaths.security} />
-          <SidebarItem title="Duplicates" path={settingsPaths.duplicates} />
-          <SidebarItem title="Weak Passwords" path={settingsPaths.weakPasswords} />
+          <SidebarItem title="Pass Monitor" path={settingsPaths.passMonitor} />
         </ItemGroup>
       </div>
     </section>

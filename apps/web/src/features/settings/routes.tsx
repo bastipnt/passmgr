@@ -9,6 +9,8 @@ const NotFound = lazy(() => import("@/app/NotFound"));
 const GeneralSettingsPage = lazy(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazy(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazy(() => import("./SecuritySettingsPage"));
+const PassMonitorPage = lazy(() => import("./PassMonitorPage"));
+const ReusedPasswordsPage = lazy(() => import("./ReusedPasswordsPage"));
 const DuplicatesPage = lazy(() => import("./DuplicatesPage"));
 const WeakPasswordsPage = lazy(() => import("./WeakPasswordsPage"));
 
@@ -35,6 +37,8 @@ export default function SettingsRoutes() {
         <Route path={settingsPaths.general} component={GeneralSettingsPage} />
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />
+        <Route path={settingsPaths.passMonitor} component={PassMonitorPage} />
+        <Route path={settingsPaths.reusedPasswords} component={ReusedPasswordsPage} />
         <Route path={settingsPaths.duplicates} component={DuplicatesPage} />
         <Route path={settingsPaths.weakPasswords} component={WeakPasswordsPage} />
 

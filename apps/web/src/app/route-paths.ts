@@ -35,8 +35,10 @@ export const settingsPaths = {
   general: "/settings/general",
   generator: "/settings/generator",
   security: "/settings/security",
-  duplicates: "/settings/duplicates",
-  weakPasswords: "/settings/weak-passwords",
+  passMonitor: "/settings/pass-monitor",
+  reusedPasswords: "/settings/reused-passwords",
+  duplicates: "/settings/pass-monitor/duplicates",
+  weakPasswords: "/settings/pass-monitor/weak-passwords",
 
   /** Prefix the app-level router hands to the settings feature. */
   any: "/settings/*?",
