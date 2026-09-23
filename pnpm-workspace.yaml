@@ -75,7 +75,14 @@ catalog:
   wouter: ^3.10.0
   zod: ^4.4.3
 
-minimumReleaseAge: 1440
+blockExoticSubdeps: true
+trustPolicy: no-downgrade
+# Known false positives: published without provenance after earlier versions had it.
+trustPolicyExclude:
+  - semver@6.3.1
+  - ua-parser-js@1.0.41
+
+minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - "@expo/cli@56.1.16"
   - "@expo/config-plugins@56.0.9"

@@ -71,13 +71,28 @@ jobs:
   #       with:
   #         category: "/language:javascript-typescript"
 
+  semgrep-image:
+    name: semgrep image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.ref.outputs.image }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          sparse-checkout: .github/semgrep
+          sparse-checkout-cone-mode: false
+
+      - id: ref
+        run: echo "image=$(sed -n 's/^FROM //p' .github/semgrep/Dockerfile)" >> "$GITHUB_OUTPUT"
+
   semgrep:
     name: semgrep
+    needs: semgrep-image
     runs-on: ubuntu-latest
     container:
-      image: returntocorp/semgrep
+      image: ${{ needs.semgrep-image.outputs.image }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
 
       - run: semgrep ci --config p/owasp-top-ten --config p/javascript --config p/typescript
 

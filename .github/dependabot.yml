@@ -8,6 +8,8 @@ updates:
       time: "06:00"
       timezone: Europe/Berlin
     open-pull-requests-limit: 10
+    cooldown:
+      default-days: 7
     versioning-strategy: increase
     commit-message:
       prefix: chore
@@ -66,6 +68,8 @@ updates:
       time: "06:00"
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: ci
       include: scope
@@ -80,12 +84,15 @@ updates:
   - package-ecosystem: docker
     directories:
       - /
+      - /.github/semgrep
     schedule:
       interval: weekly
       day: monday
       time: "06:00"
       timezone: Europe/Berlin
     open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
     commit-message:
       prefix: chore
       include: scope
