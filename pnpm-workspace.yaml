@@ -96,6 +96,7 @@ minimumReleaseAgeExclude:
   - expo@56.0.12
   - "@expo/ui@56.0.18"
   - expo-router@56.2.11
+  - find-my-way@9.6.1
 
 nodeLinker: hoisted
 
@@ -125,7 +126,19 @@ overrides:
   "@expo/metro-runtime": "56.0.16"
   "@expo/dom-webview": "56.0.5"
   "@react-native/metro-config": "0.85.3"
-  react-dom: "19.2.3"
+  # Single metro copy matching Expo's exact pin (@expo/metro ~56.0.2 -> 0.84.5).
+  # metro >=0.84.5 drops image-size (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq).
+  # Bump together with @expo/metro when upgrading Expo.
+  metro: "0.84.5"
+  metro-cache: "0.84.5"
+  metro-config: "0.84.5"
+  metro-core: "0.84.5"
+  metro-minify-terser: "0.84.5"
+  metro-resolver: "0.84.5"
+  metro-runtime: "0.84.5"
+  metro-source-map: "0.84.5"
+  metro-transform-worker: "0.84.5"
+  react-dom: "catalog:"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
