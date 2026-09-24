@@ -4,8 +4,10 @@ on:
   push:
     tags: ["v*"]
 
+# One deploy at a time, never cancelled midway. Deliberately not derived from
+# github.workflow: the reused CI workflow's group would collide with it.
 concurrency:
-  group: release-${{ github.ref }}
+  group: deploy-production
   cancel-in-progress: false
 
 permissions:
@@ -13,7 +15,14 @@ permissions:
   packages: write
 
 jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  e2e:
+    uses: ./.github/workflows/e2e.yml
+
   build:
+    needs: [ci, e2e]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -57,21 +66,51 @@ jobs:
   deploy:
     needs: build
     runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
     env:
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
     steps:
-      - name: SSH deploy
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
         with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_PORT || 22 }}
-          envs: GITHUB_REF_NAME,DEPLOY_PATH
-          script: |
-            set -e
-            cd "$DEPLOY_PATH"
-            export IMAGE_TAG="${GITHUB_REF_NAME#v}"
-            docker compose -f docker-compose.prod.yml --env-file .env.production pull
-            docker compose -f docker-compose.prod.yml --env-file .env.production up -d
-            docker image prune -f
+          sparse-checkout: |
+            docker-compose.prod.yml
+            infra/deploy/remote-deploy.sh
+          sparse-checkout-cone-mode: false
+
+      # Host key is pinned via DEPLOY_KNOWN_HOSTS (output of
+      # `ssh-keyscan -p <port> <host>`), so a spoofed host is rejected.
+      - name: Configure SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          {
+            echo "Host deploy"
+            echo "  HostName $DEPLOY_HOST"
+            echo "  Port ${DEPLOY_PORT:-22}"
+            echo "  User $DEPLOY_USER"
+            echo "  IdentityFile ~/.ssh/deploy_key"
+            echo "  IdentitiesOnly yes"
+            echo "  StrictHostKeyChecking yes"
+          } > ~/.ssh/config
+
+      # Ship the compose file with every release so the host never runs a stale one.
+      - name: Upload compose file
+        run: scp docker-compose.prod.yml "deploy:${DEPLOY_PATH}/docker-compose.prod.yml"
+
+      - name: Deploy
+        run: |
+          IMAGE_TAG="${GITHUB_REF_NAME#v}"
+          # Expanded locally on purpose; %q quotes the values for the remote shell.
+          # shellcheck disable=SC2029
+          ssh deploy "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") IMAGE_TAG=$(printf %q "$IMAGE_TAG") bash -s" \
+            < infra/deploy/remote-deploy.sh

@@ -1,17 +1,41 @@
+{
+	servers {
+		# Keep X-Forwarded-For from the host reverse proxy (reaches us via the
+		# Docker bridge) so the server can rate-limit on the real client IP.
+		trusted_proxies static private_ranges
+	}
+}
+
 :8080 {
-	# sqlocal (OPFS) requires cross-origin-isolation in browsers.
 	header {
+		# sqlocal (OPFS) requires cross-origin-isolation in browsers.
 		Cross-Origin-Embedder-Policy credentialless
 		Cross-Origin-Opener-Policy same-origin
+
+		# sqlite-wasm needs wasm-unsafe-eval and blob: workers.
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy no-referrer
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		-Server
 	}
 
 	# Proxy tRPC API requests to the server
 	handle /trpc/* {
+		header Cache-Control no-store
 		reverse_proxy server:3000
 	}
 
 	# Serve static web files with SPA fallback
 	handle {
+		# Vite emits content-hashed files under /assets; everything else
+		# (index.html) must revalidate so a deploy is picked up immediately.
+		@assets path /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		@pages not path /assets/*
+		header @pages Cache-Control no-cache
+
 		root * /srv
 		file_server
 		try_files {path} /index.html

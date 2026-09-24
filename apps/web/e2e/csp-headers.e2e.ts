@@ -8,24 +8,37 @@ test.describe("security headers", () => {
     expect(res.headers()["cross-origin-opener-policy"]).toBe("same-origin");
   });
 
-  // No CSP is sent today. Designing a policy that allows the SPA, the OPFS
-  // worker, and the tRPC fetch endpoint without breaking dev or prod needs
-  // a dedicated security pass. Enable once Caddyfile / @fastify/helmet adds
-  // a policy.
-  test.skip("Content-Security-Policy is set", () => {
-    // intentionally empty
+  test("Content-Security-Policy locks the SPA to its own origin", async ({ request }) => {
+    const res = await request.get("/");
+    const csp = res.headers()["content-security-policy"];
+    expect(csp).toContain("default-src 'self'");
+    expect(csp).toContain("frame-ancestors 'none'");
+    expect(csp).toContain("object-src 'none'");
+    expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
   });
 
-  // HSTS is only meaningful behind TLS termination; currently the prod
-  // Caddyfile does not enable it (the deployment terminates TLS upstream).
-  // Enable once HSTS is part of the Caddy config.
+  // The SPA must actually boot under the CSP (sqlite-wasm needs
+  // 'wasm-unsafe-eval' and blob: workers).
+  test("the app runs without CSP violations", async ({ page }) => {
+    const violations: string[] = [];
+    page.on("console", (msg) => {
+      if (/Content Security Policy/i.test(msg.text())) violations.push(msg.text());
+    });
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    expect(violations).toEqual([]);
+  });
+
+  // HSTS is only meaningful behind TLS termination, which the host reverse
+  // proxy does in production — set it there, not in this Caddyfile.
   test.skip("Strict-Transport-Security is set", () => {
     // intentionally empty
   });
 
-  // Not currently emitted by Caddy or the server. Add via Caddyfile
-  // (`header X-Frame-Options DENY`) or via @fastify/helmet, then enable.
-  test.skip("X-Frame-Options is set", () => {
-    // intentionally empty
+  test("hardening headers are set", async ({ request }) => {
+    const headers = (await request.get("/")).headers();
+    expect(headers["x-frame-options"]).toBe("DENY");
+    expect(headers["x-content-type-options"]).toBe("nosniff");
+    expect(headers["referrer-policy"]).toBe("no-referrer");
   });
 });

@@ -10,7 +10,13 @@ import { redis } from "./redis";
 
 const isDev = process.env.NODE_ENV !== "production";
 
+// Number of reverse proxy hops to trust for X-Forwarded-For, so `req.ip` (the
+// rate-limit key) is the real client rather than the proxy. A hop count instead
+// of `true` keeps client-supplied X-Forwarded-For entries from being trusted.
+const trustProxy = process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : false;
+
 export const server = fastify({
+  trustProxy,
   routerOptions: {
     maxParamLength: 5000,
   },

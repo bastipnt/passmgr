@@ -17,9 +17,9 @@ COPY patches/ patches/
 
 # Install pnpm (no npm or curl in bun image) and dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates libatomic1 && rm -rf /var/lib/apt/lists/* && \
-  curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" PNPM_VERSION=10.32.1 sh - && \
+  curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" PNPM_VERSION=11.22.0 sh - && \
   export PNPM_HOME="$HOME/.local/share/pnpm" && \
-  export PATH="$PNPM_HOME:$PATH" && \
+  export PATH="$PNPM_HOME/bin:$PATH" && \
   pnpm install --frozen-lockfile
 
 # ---- Stage 2: Build ----
@@ -32,10 +32,6 @@ COPY packages/crypto/ packages/crypto/
 COPY packages/schema/ packages/schema/
 COPY packages/util/ packages/util/
 
-# Generate Drizzle schema (needed before build)
-# DATABASE_URL is not needed for generate, only for migrate/push
-RUN cd packages/db && pnpm dlx drizzle-kit generate --config drizzle.config.ts || true
-
 # ---- Stage 3: Production ----
 FROM oven/bun:1-slim AS production
 
@@ -44,7 +40,9 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 # Copy everything from build stage
-COPY --from=build /app ./
+COPY --from=build --chown=bun:bun /app ./
+
+USER bun
 
 EXPOSE 3000
 
