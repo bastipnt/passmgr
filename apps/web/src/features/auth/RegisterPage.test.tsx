@@ -100,4 +100,27 @@ describe("RegisterPage", () => {
     renderWithProviders(<RegisterPage />);
     expect(screen.getByText(/error when trying to register a new account/i)).toBeInTheDocument();
   });
+
+  describe("with an invite link", () => {
+    beforeEach(() => {
+      window.history.replaceState(null, "", "/register?invite=abc123");
+      return () => window.history.replaceState(null, "", "/");
+    });
+
+    it("passes the invite code to registerNewUser", async () => {
+      registerNewUser.mockResolvedValue(undefined);
+      renderWithProviders(<RegisterPage />);
+      await submitForm();
+
+      await waitFor(() => {
+        expect(registerNewUser).toHaveBeenCalledWith("new@example.com", "hunter2hunter2", "abc123");
+      });
+    });
+
+    it("explains that the invite may be bad when registration fails", () => {
+      mockRegistrationError = true;
+      renderWithProviders(<RegisterPage />);
+      expect(screen.getByText(/invite may be invalid, expired/i)).toBeInTheDocument();
+    });
+  });
 });

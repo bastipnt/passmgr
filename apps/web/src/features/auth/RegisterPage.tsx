@@ -26,12 +26,16 @@ import Link from "@repo/ui/components/Link";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { toBase64 } from "@repo/util";
 import { useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useLocation, useSearchParams } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();
+  const [searchParams] = useSearchParams();
+  // Invite link minted by the server's create-invite CLI; lets this user
+  // register while open registration is disabled.
+  const invite = searchParams.get("invite") ?? undefined;
   const [loading, setLoading] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
   const [copied, setCopied] = useState(false);
@@ -56,7 +60,7 @@ export default function RegisterPage() {
 
   const onSubmit = async ({ password, email }: FormValues) => {
     setLoading(true);
-    const key = await registerNewUser(email, password);
+    const key = await registerNewUser(email, password, invite);
     setLoading(false);
     if (key) setRecoveryKey(key);
   };
@@ -134,7 +138,11 @@ export default function RegisterPage() {
             {registrationError && (
               <FieldError
                 errors={[
-                  { message: "Error when trying to register a new account please try again" },
+                  {
+                    message: invite
+                      ? "Registration failed. The invite may be invalid, expired, or for a different email"
+                      : "Error when trying to register a new account please try again",
+                  },
                 ]}
               />
             )}

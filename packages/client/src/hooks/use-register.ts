@@ -10,9 +10,13 @@ export function useRegistration() {
   const trpc = useTRPCClient();
   const [registrationError, setRegistrationError] = useState(false);
 
-  async function registerNewUser(email: string, password: string): Promise<Uint8Array | undefined> {
+  async function registerNewUser(
+    email: string,
+    password: string,
+    invite?: string,
+  ): Promise<Uint8Array | undefined> {
     try {
-      return await registerNewUserCore(trpc, email, password);
+      return await registerNewUserCore(trpc, email, password, invite);
     } catch (err) {
       if (
         err instanceof RegistrationStartFailedError ||

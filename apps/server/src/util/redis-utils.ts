@@ -1,12 +1,19 @@
+import { createHash, randomBytes } from "node:crypto";
 import { redis } from "../redis";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
+export const INVITE_TTL_SECONDS = 60 * 60 * 24; // 24h
 
 type Session = {
   userId: string;
   rawAuthKey: string;
+};
+
+type Invite = {
+  // When set, the invite can only register this exact email.
+  email?: string;
 };
 
 type LoginAttempt = {
@@ -84,4 +91,43 @@ function nonceKey(nonce: string) {
 export async function claimNonce(nonce: string): Promise<boolean> {
   const result = await redis.set(nonceKey(nonce), "1", "EX", NONCE_TTL_SECONDS, "NX");
   return result === "OK";
+}
+
+/**
+ * Only the SHA-256 of the code is stored, so a Redis dump doesn't leak
+ * redeemable invites.
+ */
+function inviteKey(code: string) {
+  return `invite:${createHash("sha256").update(code).digest("base64url")}`;
+}
+
+/**
+ * Mint a single-use registration invite. Lets one user register while
+ * REGISTRATION_DISABLED=true. Returns the code — it is not recoverable later.
+ */
+export async function createInvite(
+  invite: Invite = {},
+  ttlSeconds = INVITE_TTL_SECONDS,
+): Promise<string> {
+  const code = randomBytes(32).toString("base64url");
+  await redis.set(inviteKey(code), JSON.stringify(invite), "EX", ttlSeconds);
+  return code;
+}
+
+export async function getInvite(code: string): Promise<Invite | undefined> {
+  const rawInvite = await redis.get(inviteKey(code));
+  if (rawInvite === null) return undefined;
+
+  return JSON.parse(rawInvite);
+}
+
+/**
+ * Atomically redeem an invite. Returns `undefined` when it doesn't exist,
+ * expired, or was already used.
+ */
+export async function consumeInvite(code: string): Promise<Invite | undefined> {
+  const rawInvite = await redis.getdel(inviteKey(code));
+  if (rawInvite === null) return undefined;
+
+  return JSON.parse(rawInvite);
 }

@@ -51,6 +51,21 @@ pnpm --filter server dev
 
 Make sure Postgres + Redis are up (`pnpm db:up` from repo root) and migrations have run (`pnpm db:migrate`).
 
+## Inviting users
+
+With `REGISTRATION_DISABLED=true` (the prod default) sign-up needs a single-use invite. Mint one on the server:
+
+```bash
+docker compose -f docker-compose.prod.yml exec server \
+  bun apps/server/scripts/create-invite.ts --email alice@example.com
+# https://<host>/register?invite=...
+# Single use, expires <ISO date>, only for alice@example.com
+```
+
+Flags: `--email` (optional, binds invite to that address), `--ttl <hours>` (default 24), `--url <base>` (default `$CORS_ORIGIN`). Locally: `pnpm --filter server invite -- --url http://localhost:5173`.
+
+The invitee registers in the web app as usual — OPAQUE and key derivation run on their device, so the server never sees the password or recovery key. Redis stores only a SHA-256 of the code.
+
 ## Tests
 
 ```bash

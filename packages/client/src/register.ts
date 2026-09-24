@@ -40,12 +40,14 @@ function b64ToBytes(s: string): number[] {
  * Throws RegistrationStartFailedError or RegistrationFinishFailedError on tRPC failure;
  * on the finish-failure path the recoveryKey buffer has already been wiped.
  *
+ * @param invite one-time invite code; required when the server has registration disabled
  * @returns the recoveryKey (must be shown to the user exactly once and never sent to the server)
  */
 export async function registerNewUser(
   trpc: RegistrationTRPCClient,
   email: string,
   password: string,
+  invite?: string,
 ): Promise<Uint8Array> {
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
 
@@ -59,6 +61,7 @@ export async function registerNewUser(
     ({ registrationResponse } = await trpc.register.startRegistration.mutate({
       email,
       registrationRequest,
+      invite,
     }));
   } catch {
     throw new RegistrationStartFailedError();
@@ -85,6 +88,7 @@ export async function registerNewUser(
       email,
       registrationRecord,
       userKeys,
+      invite,
     });
   } catch {
     wipe(recoveryKey);

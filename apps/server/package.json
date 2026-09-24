@@ -8,6 +8,7 @@
     "dev": "bun run --watch index.ts",
     "typecheck": "tsc --noEmit",
     "lint": "oxlint --type-aware",
+    "invite": "bun scripts/create-invite.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
