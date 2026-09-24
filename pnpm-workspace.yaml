@@ -71,7 +71,7 @@ catalog:
   typescript: ~6.0.3
   uniwind: ^1.10.0
   vite: 8.0.16
-  vitest: ^4.1.10
+  vitest: ^4.1.11
   wouter: ^3.10.0
   zod: ^4.4.3
 
