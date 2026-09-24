@@ -14,6 +14,9 @@ export default defineConfig({
     hookTimeout: 180_000,
     globalSetup: ["./test/setup/global-setup.ts"],
     setupFiles: ["./test/setup/argon2-fast.ts"],
+    // @repo/db loads apps/server/.env via dotenv/config; dotenv never overrides
+    // vars already set, so pin flags here to keep a local dev .env from leaking in.
+    env: { REGISTRATION_DISABLED: "false" },
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
