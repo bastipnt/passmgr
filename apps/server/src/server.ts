@@ -79,8 +79,9 @@ await server.register(cors, {
       cb(null, true);
       return;
     }
-    // Generate an error on other origins, disabling access
-    cb(new Error("Not allowed"), false);
+    // Omit CORS headers so the browser blocks the response (no 500)
+    server.log.warn({ origin }, "cors.rejected");
+    cb(null, false);
   },
   credentials: true,
 });
