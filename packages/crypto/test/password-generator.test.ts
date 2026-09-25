@@ -190,11 +190,11 @@ describe("generatePassphrase", () => {
   it("returns the requested word count joined by the separator", async () => {
     const phrase = await generatePassphrase({
       wordCount: 6,
-      separator: "-",
+      separator: "_",
       capitalize: false,
       includeNumber: false,
     });
-    expect(phrase.split("-").length).toBe(6);
+    expect(phrase.split("_").length).toBe(6);
   });
 
   it("floors a fractional wordCount", async () => {
@@ -210,11 +210,11 @@ describe("generatePassphrase", () => {
   it("treats wordCount<=0 as 1", async () => {
     const phrase = await generatePassphrase({
       wordCount: 0,
-      separator: "-",
+      separator: "_",
       capitalize: false,
       includeNumber: false,
     });
-    expect(phrase.split("-").length).toBe(1);
+    expect(phrase.split("_").length).toBe(1);
   });
 
   it("uses only words from the EFF large wordlist", async () => {
@@ -222,11 +222,11 @@ describe("generatePassphrase", () => {
     const set = new Set(wordlist);
     const phrase = await generatePassphrase({
       wordCount: 8,
-      separator: "-",
+      separator: "_",
       capitalize: false,
       includeNumber: false,
     });
-    for (const w of phrase.split("-")) {
+    for (const w of phrase.split("_")) {
       expect(set.has(w)).toBe(true);
     }
   });
@@ -234,11 +234,11 @@ describe("generatePassphrase", () => {
   it("capitalizes every word when capitalize is true", async () => {
     const phrase = await generatePassphrase({
       wordCount: 5,
-      separator: "-",
+      separator: "_",
       capitalize: true,
       includeNumber: false,
     });
-    for (const w of phrase.split("-")) {
+    for (const w of phrase.split("_")) {
       expect(w.charAt(0)).toBe(w.charAt(0).toUpperCase());
     }
   });
@@ -246,11 +246,11 @@ describe("generatePassphrase", () => {
   it("appends a digit to exactly one word when includeNumber is true", async () => {
     const phrase = await generatePassphrase({
       wordCount: 6,
-      separator: "-",
+      separator: "_",
       capitalize: false,
       includeNumber: true,
     });
-    const wordsWithDigit = phrase.split("-").filter((w) => /[0-9]$/.test(w));
+    const wordsWithDigit = phrase.split("_").filter((w) => /[0-9]$/.test(w));
     expect(wordsWithDigit.length).toBe(1);
   });
 });
