@@ -9,6 +9,18 @@ import { GenericContainer, type StartedTestContainer } from "testcontainers";
 let pgContainer: StartedPostgreSqlContainer | undefined;
 let redisContainer: StartedTestContainer | undefined;
 
+// Docker Desktop occasionally never publishes a fresh container's port, and
+// testcontainers gives up after 10s. A new container almost always binds fine.
+async function startWithRetry<T>(start: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await start();
+    } catch (err) {
+      if (i >= attempts || !String(err).includes("ports to be bound")) throw err;
+    }
+  }
+}
+
 export async function setup() {
   const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
   const oprfSeed = crypto.getRandomValues(new Uint8Array(cfg.hash.Nh));
@@ -22,8 +34,8 @@ export async function setup() {
   process.env.OPAQUE_SERVER_SETUP = randomBytes(32).toString("base64");
 
   [pgContainer, redisContainer] = await Promise.all([
-    new PostgreSqlContainer("postgres:16-alpine").start(),
-    new GenericContainer("redis:7-alpine").withExposedPorts(6379).start(),
+    startWithRetry(() => new PostgreSqlContainer("postgres:16-alpine").start()),
+    startWithRetry(() => new GenericContainer("redis:7-alpine").withExposedPorts(6379).start()),
   ]);
 
   process.env.DATABASE_URL = pgContainer.getConnectionUri();
