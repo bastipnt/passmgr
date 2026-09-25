@@ -4,7 +4,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     title: "Pass Mgr",
     username: "lin@example.com",
-    password: "super-secret", // TODO: decrypted here?
+    password: "super-secret",
     category: "login", // TODO: define categories,
     totp: "HXJVNAVLL3MEVIQ5LJBPOU6VD245QV5Z",
     websites: [{ value: "cool-website.example" }, { value: "wow.example" }],

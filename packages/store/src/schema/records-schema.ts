@@ -68,7 +68,6 @@ export async function getAllRecordsLatest(db: SqlDriver): Promise<EncryptedRecor
   `);
 }
 
-// TODO: not really used -> record is from all records list
 export async function getByRecordId(
   recordId: string,
   db: SqlDriver,

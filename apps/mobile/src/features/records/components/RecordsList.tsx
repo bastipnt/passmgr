@@ -6,11 +6,10 @@ import { recordPaths } from "@/route-paths";
 
 type RecordGroupProps = {
   recordGroup: RecordGroup;
-  activeRecordId: string;
   onSelect?: (recordId: string) => void;
 };
 
-function RecordGroupLI({ recordGroup, activeRecordId, onSelect }: RecordGroupProps) {
+function RecordGroupLI({ recordGroup, onSelect }: RecordGroupProps) {
   const router = useRouter();
 
   return (
@@ -23,7 +22,6 @@ function RecordGroupLI({ recordGroup, activeRecordId, onSelect }: RecordGroupPro
             title={record.title}
             username={record.username}
             websites={record.websites}
-            active={record.recordId === activeRecordId}
             // [recordId] lives in the (records,search) group, so the same href
             // resolves inside whichever tab is currently active.
             onClick={() => {
@@ -50,7 +48,6 @@ export function RecordsList({ recordGroups, onSelect }: RecordsListProps) {
         <RecordGroupLI
           key={recordGroup.label ?? "all"}
           recordGroup={recordGroup}
-          activeRecordId={"TODO:"}
           onSelect={onSelect}
         />
       ))}

@@ -1,4 +1,10 @@
-import { PREF_KEYS, SessionContext, usePreference, useShortcut } from "@repo/client";
+import {
+  AUTO_LOCK_DEFAULT_MINUTES,
+  PREF_KEYS,
+  SessionContext,
+  usePreference,
+  useShortcut,
+} from "@repo/client";
 import {
   SortedRecordsProvider,
   useSortedRecords,
@@ -121,7 +127,10 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   const { isOffline } = useContext(SessionContext);
   const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
-  const [autoLockMinutes] = usePreference<number>(PREF_KEYS.autoLockMinutes, 0);
+  const [autoLockMinutes] = usePreference<number>(
+    PREF_KEYS.autoLockMinutes,
+    AUTO_LOCK_DEFAULT_MINUTES,
+  );
 
   // `secretsStore` is memory-only on web, so a reload drops every key. It also
   // discards unsaved sheet state, which is the right trade for a lock.

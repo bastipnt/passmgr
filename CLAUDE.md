@@ -122,28 +122,31 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
 
 ### Authentication Flow (OPAQUE protocol)
 
+OPAQUE is `@cloudflare/opaque-ts` (P-256, scrypt KSF from `@repo/crypto/services/opaque-ksf`).
+
 Registration:
 
-1. Client: `opaque.client.startRegistration` → sends `registrationRequest` to server
-2. Server: `opaque.server.createRegistrationResponse` → returns `registrationResponse`
-3. Client: `opaque.client.finishRegistration` → generates `registrationRecord` + derives key hierarchy (Argon2id password KEK → vault key encrypted twice: once with password KEK, once with recovery KEK)
+1. Client: `OpaqueClient.registerInit` → sends `registrationRequest` to server
+2. Server: `opaqueServer.registerInit` → returns `registrationResponse`
+3. Client: `registerFinish` → generates `registrationRecord` + derives key hierarchy (Argon2id password KEK → vault key encrypted twice: once with password KEK, once with recovery KEK)
 4. Server: stores `registrationRecord` + encrypted key material in DB
 
 Login:
 
-1. Client: `opaque.client.startLogin` → sends `startLoginRequest`
-2. Server: `opaque.server.startLogin` → returns `loginResponse`, stores `serverLoginState` in Redis
-3. Client: `opaque.client.finishLogin` → derives `sessionKey`
-4. Server: `opaque.server.finishLogin` → verifies, creates session in Redis, returns `sessionId` + encrypted vault key material
-5. Client: `secretsStore.unlock()` — derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; stores in memory only
+1. Client: `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
+2. Server: `opaqueServer.authInit` → returns `loginResponse` (KE2), stores the `expected` auth result in Redis (5 min)
+3. Client: `authFinish` → derives `sessionKey`, sends KE3 + a random `authSalt`
+4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL), returns `sessionId` + encrypted vault key material
+5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then decrypts the vault key with the Argon2id password KEK (in a worker). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
 ### Request Authentication
 
 Authenticated requests use HMAC-signed headers (no cookies):
 
 - `x-session-id` — session identifier
-- `x-timestamp` — Unix timestamp (requests >5 min old are rejected as replay protection)
-- `x-signature` — HMAC-SHA256 of `(type, path, timestamp, input)` using the `authKey`
+- `x-timestamp` — Unix timestamp in ms (requests >5 min off are rejected)
+- `x-nonce` — random UUID, claimed once in Redis (replay protection)
+- `x-signature` — HMAC-SHA256 of `(type, path, timestamp, nonce, input)` using the `authKey`
 
 The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
 
@@ -162,10 +165,11 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 
 `appRouter` (in `apps/server/src/router.ts`):
 
-- `login` → `loginRouter` (startLogin, finishLogin)
+- `appConfig` → `appConfigRouter` (getConfig — public)
+- `login` → `loginRouter` (startLogin, finishLogin, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
-- `entry` → `entryRouter` (all, getById, update) — uses `protectedProcedure`
-- `user` → `userRouter`
+- `record` → `recordRouter` (sync, all, getById, history, create, update, delete, onRecordChange SSE) — uses `protectedProcedure`
+- `user` → `userRouter` (heartbeat, rekeyPasswordKeys)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure`
 
@@ -175,7 +179,11 @@ Server (`apps/server/.env`):
 
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_HOST`, `REDIS_PORT`
-- `OPAQUE_SERVER_SETUP` — base64-encoded OPAQUE server setup secret (must be stable across restarts)
+- `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
+- `OPAQUE_SERVER_IDENTITY` — defaults to `passmgr`; the client hardcodes the same value
+- `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
+- `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
+- `CORS_ORIGIN`, `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
 
 DB package (`packages/db/.env`):
 
@@ -194,5 +202,5 @@ DB package (`packages/db/.env`):
 ## Security Invariants
 
 - The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in `packages/client/src/register.ts`).
-- `secretsStore` (singleton in `packages/client/src/secrets-store.ts`) holds all sensitive key material in memory. Call `wipe()` on key buffers when done.
-- The `OPAQUE_SERVER_SETUP` env var is effectively the server's master key — rotating it invalidates all user registrations.
+- `secretsStore` (singleton in `packages/store/src/secrets-store.ts`) holds all sensitive key material in memory. Call `wipe()` on key buffers when done.
+- `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).

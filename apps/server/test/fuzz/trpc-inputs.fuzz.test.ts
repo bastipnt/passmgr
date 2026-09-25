@@ -12,7 +12,6 @@ const PROCEDURES: ReadonlyArray<readonly [string, Call]> = [
   ["login.finishLogin", (c, i) => c.login.finishLogin(i as never)],
   ["register.startRegistration", (c, i) => c.register.startRegistration(i as never)],
   ["register.finishRegistration", (c, i) => c.register.finishRegistration(i as never)],
-  ["user.create", (c, i) => c.user.create(i as never)],
 ];
 
 describe("tRPC boundary fuzz — never throws untyped on arbitrary JSON", () => {

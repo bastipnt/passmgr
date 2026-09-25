@@ -2,47 +2,16 @@ import { db, keysTable } from "@repo/db";
 import { passwordKeySchema } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull } from "drizzle-orm";
-import { z } from "zod";
 import { protectedProcedure } from "../auth/auth-middleware";
-import { loggedProcedure } from "../logger";
-import { publicProcedure, router } from "../trpc";
-
-type User = {
-  id: string;
-  name: string;
-  bio?: string;
-};
-
-const users: Record<string, User> = {};
+import { router } from "../trpc";
 
 export const userRouter = router({
-  all: loggedProcedure.query(() => {
-    return {
-      message: "Hello there",
-    };
-  }),
   // Lightweight liveness check. The mobile client calls this to validate a
   // restored session before entering the app; passing through
   // `protectedProcedure` also refreshes the sliding session TTL.
   heartbeat: protectedProcedure.query(() => {
     return { ok: true } as const;
   }),
-  getById: publicProcedure.input(z.string()).query((opts) => {
-    return users[opts.input]; // input type is string
-  }),
-  create: publicProcedure
-    .input(
-      z.object({
-        name: z.string().min(3),
-        bio: z.string().max(142).optional(),
-      }),
-    )
-    .mutation((opts) => {
-      const id = Date.now().toString();
-      const user: User = { id, ...opts.input };
-      users[user.id] = user;
-      return user;
-    }),
 
   // Re-wrap the vault key under new Argon2 params. The client re-derives the
   // password KEK and re-encrypts the vault key locally (zero-knowledge — the

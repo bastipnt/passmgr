@@ -3,7 +3,6 @@ import {
   hkdfInfo,
   SESSION_ID_HEADER,
   SESSION_NONCE_HEADER,
-  SESSION_SALT_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "../src/util/constants";
@@ -99,7 +98,6 @@ describe("constants", () => {
     expect(SESSION_ID_HEADER).toBe("x-session-id");
     expect(SESSION_TIMESTAMP_HEADER).toBe("x-timestamp");
     expect(SESSION_SIGNATURE_HEADER).toBe("x-signature");
-    expect(SESSION_SALT_HEADER).toBe("x-salt");
     expect(SESSION_NONCE_HEADER).toBe("x-nonce");
   });
 

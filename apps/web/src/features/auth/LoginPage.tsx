@@ -30,7 +30,6 @@ export default function LoginPage() {
       unlockVaultInfo = {
         email,
         password,
-        // TODO: maybe userPasswordKeyMaterial
         userPasswordKeys: store.vaultKeyMaterial,
       };
 

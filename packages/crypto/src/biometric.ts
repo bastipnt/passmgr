@@ -43,7 +43,6 @@ export async function enrollBiometric(
       // TODO: make variable
       rp: { name: "Pass Manager" },
       user: {
-        // TODO: why not UUID?
         id: crypto.getRandomValues(new Uint8Array(16)),
         name: "user",
         displayName: "Pass Manager User",

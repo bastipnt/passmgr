@@ -70,7 +70,6 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
 
   const { rawAuthKey, userId } = session;
 
-  // TODO: check input??
   const input = await getRawInput();
 
   const message = getMessage(

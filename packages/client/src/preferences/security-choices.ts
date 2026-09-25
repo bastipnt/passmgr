@@ -5,9 +5,9 @@
  */
 export type PreferenceChoice = { label: string; value: number };
 
-export const CLIPBOARD_CLEAR_DEFAULT_SECONDS = 0;
-export const AUTO_LOCK_DEFAULT_MINUTES = 0;
-export const REVEAL_TIMEOUT_DEFAULT_SECONDS = 0;
+export const CLIPBOARD_CLEAR_DEFAULT_SECONDS = 30;
+export const AUTO_LOCK_DEFAULT_MINUTES = 15;
+export const REVEAL_TIMEOUT_DEFAULT_SECONDS = 30;
 
 export const CLIPBOARD_CLEAR_CHOICES: PreferenceChoice[] = [
   { label: "Never", value: 0 },

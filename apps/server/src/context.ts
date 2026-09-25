@@ -11,7 +11,6 @@ type Session = {
   timestamp?: string;
   signature?: string;
   nonce?: string;
-  salt?: string;
 } | null;
 
 interface CreateInnerContextOptions extends Partial<CreateFastifyContextOptions> {

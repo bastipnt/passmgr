@@ -213,7 +213,6 @@ describe("exportVaultKeyForWorker", () => {
     expect(() => secretsStore.exportVaultKeyForWorker()).toThrow(/SessionLocked/);
   });
 
-  // TODO: do I want this?
   it("returns a copy of the vault key (mutation does not affect internal state)", () => {
     const vk = genKey();
     secretsStore.unlockWithVaultKey(vk.slice());

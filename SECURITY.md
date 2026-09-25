@@ -33,7 +33,7 @@ That said, reports about the following are very welcome:
 
 - Flaws in the OPAQUE registration/login flow (`@cloudflare/opaque-ts` usage).
 - Issues in the key hierarchy (Argon2id KEK derivation, vault key wrapping, recovery key handling).
-- Bugs in HMAC-signed request authentication (replay protection, signature verification — see `apps/server/src/auth/authMiddleware.ts`).
+- Bugs in HMAC-signed request authentication (replay protection, signature verification — see `apps/server/src/auth/auth-middleware.ts`).
 - Plaintext leakage of secrets to the server, logs, or persistent storage on the client.
 - Bypasses of `protectedProcedure` on tRPC routes.
 - Email encryption / hashing flaws (`packages/crypto`).
@@ -51,7 +51,6 @@ That said, reports about the following are very welcome:
 
 These are documented gaps, not vulnerabilities:
 
-- No idle lock or auto-relock in the web client.
 - No password recovery UI (recovery-key material is stored server-side but no flow consumes it).
-- Mobile app currently exposes auth only; no vault operations.
-- `OPAQUE_SERVER_SETUP` rotation invalidates every existing registration. This is by design.
+- No master-password change and no way to list or revoke sessions on other devices.
+- Rotating the OPAQUE secrets (`OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY`) invalidates every existing registration; rotating `OPAQUE_SERVER_SETUP` breaks email lookup. This is by design.

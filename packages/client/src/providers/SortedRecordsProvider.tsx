@@ -7,7 +7,6 @@ import { PREF_KEYS } from "../preferences/preference-keys";
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
 
-// TODO: created_at does not correctly work here, because the records are versioned and it always takes the created_at of the newest version
 export const DEFAULT_SORT: SortOption = "most-recent";
 
 export const SORT_LABELS: Record<SortOption, string> = {
@@ -16,6 +15,14 @@ export const SORT_LABELS: Record<SortOption, string> = {
   newest: "Newest to oldest",
   oldest: "Oldest to newest",
 };
+
+/**
+ * Records are versioned and `created_at` belongs to the latest version, so it
+ * moves on every edit. `firstCreatedAt` is the first version's timestamp.
+ */
+function createdAt(record: DecryptedRecord): string | null {
+  return record.firstCreatedAt ?? record.created_at;
+}
 
 function compareTimestamps(a: string | null, b: string | null): number {
   if (!a && !b) return 0;
@@ -109,11 +116,12 @@ function groupRecords(sortedRecords: DecryptedRecord[], sort: SortOption): Recor
     return groups;
   }
 
-  const tsKey = sort === "most-recent" ? "clientUpdatedAt" : "created_at";
   const bucketMap = new Map<string, DecryptedRecord[]>();
 
   for (const record of sortedRecords) {
-    const bucket = getDateBucket(record[tsKey]);
+    const bucket = getDateBucket(
+      sort === "most-recent" ? record.clientUpdatedAt : createdAt(record),
+    );
     const list = bucketMap.get(bucket);
     if (list) list.push(record);
     else bucketMap.set(bucket, [record]);
@@ -141,17 +149,17 @@ function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRec
         cmp = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
         break;
       case "newest":
-        cmp = compareTimestamps(b.created_at, a.created_at);
+        cmp = compareTimestamps(createdAt(b), createdAt(a));
         break;
       case "oldest":
-        cmp = compareTimestamps(a.created_at, b.created_at);
+        cmp = compareTimestamps(createdAt(a), createdAt(b));
         break;
     }
 
     if (cmp !== 0) return cmp;
 
     // Tiebreakers: created_at → clientUpdatedAt → alphabetical
-    cmp = compareTimestamps(a.created_at, b.created_at);
+    cmp = compareTimestamps(createdAt(a), createdAt(b));
     if (cmp !== 0) return cmp;
 
     cmp = new Date(a.clientUpdatedAt).getTime() - new Date(b.clientUpdatedAt).getTime();
