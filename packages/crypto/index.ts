@@ -9,7 +9,8 @@ export {
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
+  SUBSCRIPTION_SIGNATURE_PATH,
 } from "./src/util/constants";
 export { getMessage } from "./src/util/general";
 export * from "./src/util/secrets-utils";
-export { normalize } from "./src/util/string-utils";
+export { normalize, normalizeEmail } from "./src/util/string-utils";

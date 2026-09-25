@@ -23,7 +23,7 @@ type FormValues = z.infer<typeof credentialsSchema>;
 
 export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { loginUser, loginError } = useLogin();
+  const { loginUser, loginError, loginThrottled } = useLogin();
   const { unlock, unlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
 
@@ -94,8 +94,12 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
         }
       />
 
-      {(loginError || unlockError) && (
-        <FieldError errors={[{ message: "Login error please try again" }]} />
+      {loginThrottled ? (
+        <FieldError errors={[{ message: "Too many login attempts. Please wait and try again." }]} />
+      ) : (
+        (loginError || unlockError) && (
+          <FieldError errors={[{ message: "Login error please try again" }]} />
+        )
       )}
     </BottomSheet>
   );

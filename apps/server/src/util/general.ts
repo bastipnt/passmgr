@@ -1,4 +1,3 @@
-import { SESSION_ID_HEADER } from "@repo/crypto";
 import { TRPCError } from "@trpc/server";
 import type { FastifyRequest } from "fastify";
 
@@ -14,16 +13,34 @@ export function getHeaderSave(
   return extractedHeaders;
 }
 
-export function getSessionIdSave(
-  headers: FastifyRequest["headers"],
-  query: FastifyRequest["query"],
-): string | undefined {
-  let sessionId = getHeaderSave(headers, SESSION_ID_HEADER);
-  if (sessionId) return sessionId;
+export type SubscriptionAuthParams = {
+  sessionId?: string;
+  timestamp?: string;
+  nonce?: string;
+  signature?: string;
+};
 
-  const rawConnectionParams = (query as Record<string, string | undefined>)?.["connectionParams"];
-  if (!rawConnectionParams) return;
+/**
+ * SSE subscriptions can't set headers, so their auth values arrive as tRPC
+ * `connectionParams` in the query string. Malformed input yields `{}` (the
+ * auth middleware then rejects the request); non-string fields are dropped.
+ */
+export function getConnectionParamsSave(query: FastifyRequest["query"]): SubscriptionAuthParams {
+  const raw = (query as Record<string, string | undefined> | undefined)?.["connectionParams"];
+  if (!raw) return {};
 
-  const connectionParams = JSON.parse(rawConnectionParams) as Record<"sessionId", string>;
-  return connectionParams.sessionId;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return {};
+  }
+  if (typeof parsed !== "object" || parsed === null) return {};
+
+  const params: SubscriptionAuthParams = {};
+  for (const key of ["sessionId", "timestamp", "nonce", "signature"] as const) {
+    const value = (parsed as Record<string, unknown>)[key];
+    if (typeof value === "string") params[key] = value;
+  }
+  return params;
 }

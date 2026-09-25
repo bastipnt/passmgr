@@ -133,10 +133,10 @@ Registration:
 
 Login:
 
-1. Client: `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
-2. Server: `opaqueServer.authInit` → returns `loginResponse` (KE2), stores the `expected` auth result in Redis (5 min)
-3. Client: `authFinish` → derives `sessionKey`, sends KE3 + a random `authSalt`
-4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL), returns `sessionId` + encrypted vault key material
+1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
+2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
+3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
+4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + encrypted vault key material
 5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then decrypts the vault key with the Argon2id password KEK (in a worker). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
 ### Request Authentication
@@ -149,6 +149,10 @@ Authenticated requests use HMAC-signed headers (no cookies):
 - `x-signature` — HMAC-SHA256 of `(type, path, timestamp, nonce, input)` using the `authKey`
 
 The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
+SSE subscriptions (no headers possible) send the same four values as tRPC `connectionParams`, signed over the fixed
+path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the session TTL. `freshAuthProcedure` additionally
+requires an OPAQUE login ≤ 5 min ago (used for key changes). Key sets are versioned (`valid_from`/`valid_to`, one active
+per user) — never `UPDATE` key material in place.
 
 ### Key Hierarchy
 

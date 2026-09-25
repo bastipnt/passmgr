@@ -31,7 +31,7 @@ export async function loginAndGetAuthKey(
 ): Promise<{ sessionId: string; authKey: Uint8Array }> {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartLogin(password);
-  const { loginResponse } = await caller.login.startLogin({
+  const { loginResponse, attemptId } = await caller.login.startLogin({
     email,
     startLoginRequest: started.startLoginRequest,
   });
@@ -40,6 +40,7 @@ export async function loginAndGetAuthKey(
   const authSalt = genKey();
   const finished = await caller.login.finishLogin({
     email,
+    attemptId,
     finishLoginRequest: result.finishLoginRequest,
     authSalt: toBase64(authSalt),
   });

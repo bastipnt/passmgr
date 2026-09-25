@@ -6,6 +6,7 @@ import "./opaque";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
 import { createContext } from "./context";
+import { stripQuery } from "./logger";
 import { redis } from "./redis";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -25,6 +26,7 @@ export const server = fastify({
     redact: {
       paths: [
         'req.headers["x-signature"]',
+        'req.headers["x-session-id"]',
         "req.headers.authorization",
         "req.headers.cookie",
         "*.email",
@@ -37,6 +39,17 @@ export const server = fastify({
         "*.userKeys",
       ],
       censor: "[REDACTED]",
+    },
+    serializers: {
+      // Drop the query string: SSE subscriptions carry session id + signature
+      // in `?connectionParams=…`, which must not end up in logs.
+      req: (req) => ({
+        method: req.method,
+        url: stripQuery(req.url),
+        host: req.host,
+        remoteAddress: req.ip,
+        remotePort: req.socket?.remotePort,
+      }),
     },
     ...(isDev && { transport: { target: "pino-pretty", options: { colorize: true } } }),
   },

@@ -24,12 +24,15 @@ const userCredentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+const THROTTLED_MESSAGE = "Too many login attempts. Please wait and try again.";
+
 export type LoginFormValues = z.infer<typeof userCredentialsSchema>;
 
 type LoginFormProps = {
   onSubmit: (formValues: LoginFormValues) => Promise<void>;
   storedEmail?: string;
   loginError: boolean;
+  loginThrottled?: boolean;
   unlockError: boolean;
   loading: boolean;
 };
@@ -38,6 +41,7 @@ export default function LoginForm({
   storedEmail = "",
   onSubmit,
   loginError,
+  loginThrottled = false,
   unlockError,
   loading,
 }: LoginFormProps) {
@@ -86,8 +90,12 @@ export default function LoginForm({
               autoComplete="current-password"
             />
           </FieldGroup>
-          {(loginError || unlockError) && (
-            <FieldError errors={[{ message: "Login error please try again" }]} />
+          {loginThrottled ? (
+            <FieldError errors={[{ message: THROTTLED_MESSAGE }]} />
+          ) : (
+            (loginError || unlockError) && (
+              <FieldError errors={[{ message: "Login error please try again" }]} />
+            )
           )}
         </CardContent>
 

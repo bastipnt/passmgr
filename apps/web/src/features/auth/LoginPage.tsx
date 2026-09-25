@@ -11,7 +11,7 @@ import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
 
 export default function LoginPage() {
-  const { loginUser, offlineLogin, loginError } = useLogin();
+  const { loginUser, offlineLogin, loginError, loginThrottled } = useLogin();
   const { unlock, unlockError } = useUnlock();
 
   const [loginWithStoredEmail, setLoginWithStoredEmail] = useState(false);
@@ -63,6 +63,7 @@ export default function LoginPage() {
         storedEmail={loginWithStoredEmail ? storedEmail : undefined}
         onSubmit={onSubmit}
         loginError={loginError}
+        loginThrottled={loginThrottled}
         unlockError={unlockError}
         loading={loading}
       />

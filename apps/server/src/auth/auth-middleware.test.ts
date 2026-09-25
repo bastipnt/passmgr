@@ -1,4 +1,4 @@
-import { genKey } from "@repo/crypto";
+import { genKey, SUBSCRIPTION_SIGNATURE_PATH } from "@repo/crypto";
 import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import fc from "fast-check";
@@ -8,12 +8,21 @@ import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
 import { buildTestContext } from "../../test/setup/test-context";
 import { redis } from "../redis";
 import { createCallerFactory, router } from "../trpc";
-import { protectedProcedure } from "./auth-middleware";
+import {
+  FRESH_AUTH_WINDOW_MS,
+  freshAuthProcedure,
+  protectedProcedure,
+  protectedSubscriptionProcedure,
+} from "./auth-middleware";
 
 const testRouter = router({
   echo: protectedProcedure
     .input(z.object({ msg: z.string() }))
     .mutation(({ input, ctx }) => ({ ok: true, userId: ctx.userId, msg: input.msg })),
+  fresh: freshAuthProcedure.mutation(() => ({ ok: true })),
+  sub: protectedSubscriptionProcedure.subscription(async function* () {
+    yield "connected";
+  }),
 });
 
 const createCaller = createCallerFactory(testRouter);
@@ -21,12 +30,15 @@ const createCaller = createCallerFactory(testRouter);
 const SESSION_ID = "11111111-1111-1111-1111-111111111111";
 const SESSION_KEY = "deterministic-session-key";
 
-async function seedSession(userId = "user-A"): Promise<{ authKey: Uint8Array }> {
+async function seedSession(
+  userId = "user-A",
+  authenticatedAt?: number,
+): Promise<{ authKey: Uint8Array }> {
   const authSalt = genKey();
   const authKey = await deriveAuthKey(SESSION_KEY, authSalt);
   await redis.set(
     `session:${SESSION_ID}`,
-    JSON.stringify({ userId, rawAuthKey: toBase64(authKey) }),
+    JSON.stringify({ userId, rawAuthKey: toBase64(authKey), authenticatedAt }),
     "EX",
     3600,
   );
@@ -242,5 +254,78 @@ describe("protectedProcedure — non-malleability (fast-check)", () => {
       ),
       { numRuns: 20 },
     );
+  });
+});
+
+describe("protectedSubscriptionProcedure", () => {
+  function signSubscription(authKey: Uint8Array, overrides: { nonce?: string } = {}) {
+    return signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "subscription",
+      path: SUBSCRIPTION_SIGNATURE_PATH,
+      input: {},
+      ...overrides,
+    });
+  }
+
+  it("accepts a signed subscription", async () => {
+    const { authKey } = await seedSession();
+    const caller = createCaller(buildTestContext(await signSubscription(authKey)));
+    await expect(caller.sub()).resolves.toBeDefined();
+  });
+
+  it("rejects a subscription carrying only the session id", async () => {
+    await seedSession();
+    const caller = createCaller(buildTestContext({ sessionId: SESSION_ID }));
+    await expect(caller.sub()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejects a subscription with a bad signature", async () => {
+    await seedSession();
+    const otherKey = genKey();
+    const caller = createCaller(buildTestContext(await signSubscription(otherKey)));
+    await expect(caller.sub()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejects a replayed subscription nonce", async () => {
+    const { authKey } = await seedSession();
+    const params = await signSubscription(authKey, { nonce: crypto.randomUUID() });
+    await createCaller(buildTestContext(params)).sub();
+    await expect(createCaller(buildTestContext(params)).sub()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  it("does not extend the session TTL", async () => {
+    const { authKey } = await seedSession();
+    await redis.expire(`session:${SESSION_ID}`, 100);
+    await createCaller(buildTestContext(await signSubscription(authKey))).sub();
+    expect(await redis.ttl(`session:${SESSION_ID}`)).toBeLessThanOrEqual(100);
+  });
+});
+
+describe("freshAuthProcedure", () => {
+  async function callFresh(authenticatedAt: number | undefined) {
+    const { authKey } = await seedSession("user-A", authenticatedAt);
+    const headers = await signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "mutation",
+      path: "fresh",
+      input: undefined,
+    });
+    return createCaller(buildTestContext(headers)).fresh();
+  }
+
+  it("accepts a session from a recent OPAQUE login", async () => {
+    await expect(callFresh(Date.now() - 1_000)).resolves.toEqual({ ok: true });
+  });
+
+  it.each([
+    ["stale", Date.now() - FRESH_AUTH_WINDOW_MS - 1_000],
+    ["missing", undefined],
+  ])("rejects a session with %s authenticatedAt → FORBIDDEN", async (_label, authenticatedAt) => {
+    await expect(callFresh(authenticatedAt)).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -31,6 +31,32 @@ describe("registration/login email symmetry", () => {
   );
 });
 
+describe("email normalization", () => {
+  it("trims and lowercases on login and registration", () => {
+    const email = "  Alice@Example.COM ";
+    expect(startLoginInputSchema.parse({ email, startLoginRequest: "x" }).email).toBe(
+      "alice@example.com",
+    );
+    expect(
+      finishRegistrationInputSchema.parse({
+        email,
+        registrationRecord: "r",
+        userKeys: VALID_USER_KEYS,
+      }).email,
+    ).toBe("alice@example.com");
+  });
+
+  it("rejects a non-email on finishRegistration", () => {
+    expect(() =>
+      finishRegistrationInputSchema.parse({
+        email: "not-an-email",
+        registrationRecord: "r",
+        userKeys: VALID_USER_KEYS,
+      }),
+    ).toThrow();
+  });
+});
+
 describe("finishRegistrationInputSchema composes key-schema", () => {
   it("rejects when userKeys has out-of-range Argon t", () => {
     expect(() =>

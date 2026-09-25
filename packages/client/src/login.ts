@@ -5,12 +5,12 @@ import {
   OpaqueClient,
   OpaqueID,
 } from "@cloudflare/opaque-ts";
-import { genSalt } from "@repo/crypto";
+import { genSalt, normalizeEmail } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import { fromBase64, toBase64 } from "@repo/util";
-import type { TRPCClient } from "@trpc/client";
+import { type TRPCClient, TRPCClientError } from "@trpc/client";
 import { timed } from "./util/perf";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
@@ -33,6 +33,18 @@ export class OpaqueLoginFailedError extends Error {
   override message = "OpaqueLoginFailedError";
 }
 
+/** Too many login attempts for this account (or from this IP) — retry later. */
+export class LoginThrottledError extends Error {
+  override message = "LoginThrottledError";
+}
+
+function isThrottled(err: unknown): boolean {
+  return (
+    err instanceof TRPCClientError &&
+    (err.data?.code === "TOO_MANY_REQUESTS" || err.data?.httpStatus === 429)
+  );
+}
+
 const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
 // Must match OPAQUE_SERVER_IDENTITY on the server (default "passmgr").
 const SERVER_IDENTITY = "passmgr";
@@ -48,9 +60,10 @@ function b64ToBytes(s: string): number[] {
 export async function loginUser(
   trpc: LoginTRPCClient,
   loginSession: LoginSessionFn,
-  email: string,
+  rawEmail: string,
   password: string,
 ): Promise<VaultUnlockInfo> {
+  const email = normalizeEmail(rawEmail);
   const client: AuthClient = new OpaqueClient(config, opaqueKsf);
 
   const ke1 = await timed("opaque client.authInit (P256)", () => client.authInit(password));
@@ -59,11 +72,13 @@ export async function loginUser(
   const startLoginRequest = bytesToB64(ke1.serialize());
 
   let loginResponse: string;
+  let attemptId: string;
   try {
-    ({ loginResponse } = await timed("opaque startLogin", () =>
+    ({ loginResponse, attemptId } = await timed("opaque startLogin", () =>
       trpc.login.startLogin.mutate({ email, startLoginRequest }),
     ));
-  } catch {
+  } catch (err) {
+    if (isThrottled(err)) throw new LoginThrottledError();
     throw new LoginStartFailedError();
   }
 
@@ -90,6 +105,7 @@ export async function loginUser(
     ({ sessionId, userPasswordKeys } = await timed("opaque finishLogin", () =>
       trpc.login.finishLogin.mutate({
         email,
+        attemptId,
         finishLoginRequest,
         authSalt: toBase64(authSalt),
       }),

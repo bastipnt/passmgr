@@ -133,4 +133,10 @@ describe("opaque-flow — register + login round-trip (real crypto, real contain
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(24 * 60 * 60);
   });
+
+  it("login succeeds when the email differs only in case / whitespace from registration", async () => {
+    await registerCapturingVaultKey("Mixed.Case@Example.COM", password);
+    const { sessionId } = await loginAndGetAuthKey("  mixed.case@example.com ", password);
+    expect(sessionId).toMatch(UUIDV4_RE);
+  });
 });

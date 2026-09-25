@@ -5,6 +5,7 @@ import {
   OpaqueID,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
+import { normalizeEmail } from "@repo/crypto";
 import { fromBase64, toBase64 } from "@repo/util";
 
 const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
@@ -32,7 +33,7 @@ export async function clientStartRegistration(password: string): Promise<Started
     registrationRequest: bytesToB64(req.serialize()),
     finish: async (registrationResponse, email) => {
       const resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
-      const finished = await client.registerFinish(resp, SERVER_IDENTITY, email);
+      const finished = await client.registerFinish(resp, SERVER_IDENTITY, normalizeEmail(email));
       if (finished instanceof Error) throw finished;
       return { registrationRecord: bytesToB64(finished.record.serialize()) };
     },
@@ -56,7 +57,7 @@ export async function clientStartLogin(password: string): Promise<StartedLogin> 
     startLoginRequest: bytesToB64(ke1.serialize()),
     finish: async (loginResponse, email) => {
       const ke2 = KE2.deserialize(config, b64ToBytes(loginResponse));
-      const finished = await client.authFinish(ke2, SERVER_IDENTITY, email);
+      const finished = await client.authFinish(ke2, SERVER_IDENTITY, normalizeEmail(email));
       // Wrong-password failures may be client-detected here — surface as null so
       // callers can treat client- and server-side rejection symmetrically.
       if (finished instanceof Error) return null;

@@ -9,7 +9,7 @@ import {
 } from "@trpc/client";
 import type { EventSourceLike } from "@trpc/server/unstable-core-do-not-import";
 import { type ReactNode, useState } from "react";
-import { generateAuthHeaders } from "../util/headers";
+import { generateAuthHeaders, generateSubscriptionParams } from "../util/headers";
 import { TRPCProvider } from "../util/trpc";
 
 function makeQueryClient() {
@@ -62,10 +62,7 @@ export default function ClientProvider({ children, serverUrl, eventSource }: Cli
           true: httpSubscriptionLink({
             url: serverUrl,
             EventSource: eventSource,
-            connectionParams: async () => {
-              const { secretsStore } = await import("@repo/store");
-              return { sessionId: secretsStore.sessionId ?? "" };
-            },
+            connectionParams: generateSubscriptionParams,
           }),
           false: httpLink({
             url: serverUrl,

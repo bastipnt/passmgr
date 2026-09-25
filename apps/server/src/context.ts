@@ -1,10 +1,11 @@
 import {
+  SESSION_ID_HEADER,
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "@repo/crypto";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { getHeaderSave, getSessionIdSave } from "./util/general";
+import { getConnectionParamsSave, getHeaderSave } from "./util/general";
 
 type Session = {
   sessionId?: string;
@@ -24,12 +25,18 @@ async function createContextInner(opts?: CreateInnerContextOptions) {
 }
 
 export async function createContext(opts: CreateFastifyContextOptions) {
-  const sessionId = getSessionIdSave(opts.req.headers, opts.req.query);
-  const timestamp = getHeaderSave(opts.req.headers, SESSION_TIMESTAMP_HEADER);
-  const signature = getHeaderSave(opts.req.headers, SESSION_SIGNATURE_HEADER);
-  const nonce = getHeaderSave(opts.req.headers, SESSION_NONCE_HEADER);
+  const { headers, query } = opts.req;
 
-  const session: Session = { sessionId, timestamp, signature, nonce };
+  // Regular calls authenticate via headers; SSE subscriptions (no custom
+  // headers possible) via connectionParams. Never mix the two sources.
+  const session: Session = getHeaderSave(headers, SESSION_ID_HEADER)
+    ? {
+        sessionId: getHeaderSave(headers, SESSION_ID_HEADER),
+        timestamp: getHeaderSave(headers, SESSION_TIMESTAMP_HEADER),
+        signature: getHeaderSave(headers, SESSION_SIGNATURE_HEADER),
+        nonce: getHeaderSave(headers, SESSION_NONCE_HEADER),
+      }
+    : getConnectionParamsSave(query);
 
   const contextInner = await createContextInner({ session });
 

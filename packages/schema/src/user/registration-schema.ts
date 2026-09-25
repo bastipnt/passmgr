@@ -1,11 +1,12 @@
 import z from "zod";
+import { emailSchema } from "./email-schema";
 import { userKeySchema } from "./key-schema";
 
 /**
  * Start registration
  */
 export const startRegistrationInputSchema = z.object({
-  email: z.email(),
+  email: emailSchema,
   registrationRequest: z.string(),
   // One-time invite code; required only while REGISTRATION_DISABLED=true.
   invite: z.string().max(128).optional(),
@@ -19,7 +20,7 @@ export const startRegistrationOutputSchema = z.object({
  * Finish registration
  */
 export const finishRegistrationInputSchema = z.object({
-  email: z.string(),
+  email: emailSchema,
   registrationRecord: z.string(),
   userKeys: userKeySchema,
   invite: z.string().max(128).optional(),

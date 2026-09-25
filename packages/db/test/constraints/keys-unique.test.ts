@@ -47,12 +47,9 @@ describe("keys unique constraints", () => {
   });
 
   const uniqueFields: Array<keyof KeyRow> = [
-    "recoveryKekSalt",
     "passwordKekSalt",
     "encryptedVaultKey",
     "vaultKeyEncryptionNonce",
-    "encryptedVaultKeyRecovery",
-    "vaultKeyEncryptionNonceRecovery",
   ];
 
   for (const field of uniqueFields) {
@@ -70,5 +67,27 @@ describe("keys unique constraints", () => {
     const userB = await insertUser(client);
     await insertKey(client, userA.userId);
     await expect(insertKey(client, userB.userId)).resolves.toBeDefined();
+  });
+
+  it("allows a user's new key-set version to reuse the recovery material", async () => {
+    const user = await insertUser(client);
+    const first = await insertKey(client, user.userId);
+    await client.query(`UPDATE "keys" SET "valid_to" = now() WHERE "keySetId" = $1`, [
+      first.keySetId,
+    ]);
+    const next = makeKeyRow(user.userId, {
+      recoveryKekSalt: first.recoveryKekSalt,
+      encryptedVaultKeyRecovery: first.encryptedVaultKeyRecovery,
+      vaultKeyEncryptionNonceRecovery: first.vaultKeyEncryptionNonceRecovery,
+    });
+    await expect(attemptInsert(client, next)).resolves.toBeUndefined();
+  });
+
+  it("rejects a second active key set for the same user", async () => {
+    const user = await insertUser(client);
+    await insertKey(client, user.userId);
+    await expect(attemptInsert(client, makeKeyRow(user.userId))).rejects.toMatchObject({
+      code: UNIQUE_VIOLATION,
+    });
   });
 });

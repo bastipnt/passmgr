@@ -1,4 +1,10 @@
-import { authenticateBiometric, genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
+import {
+  authenticateBiometric,
+  genPasswordKek,
+  getPasswordKekParams,
+  normalizeEmail,
+  wipe,
+} from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import type { ArgonParams, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
@@ -138,7 +144,9 @@ export function useUnlock() {
   /**
    * Persist encrypted vault key material for offline unlock
    */
-  async function storeKeyMaterial(email: string, userPasswordKeys: PasswordKeySchema) {
+  async function storeKeyMaterial(rawEmail: string, userPasswordKeys: PasswordKeySchema) {
+    // Offline unlock passes the typed email; compare in canonical form.
+    const email = normalizeEmail(rawEmail);
     // Clear previous user's data if a different account logs in
     const previousEmail = store.vaultKeyMaterial?.email;
     if (previousEmail && previousEmail !== email) await store.vault.clear();

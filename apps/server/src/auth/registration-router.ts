@@ -1,5 +1,5 @@
 import { RegistrationRequest } from "@cloudflare/opaque-ts";
-import { encryptEmail, hashEmail } from "@repo/crypto";
+import { encryptEmail, hashEmail, normalizeEmail } from "@repo/crypto";
 import { db, keysTable, usersTable } from "@repo/db";
 import {
   finishRegistrationInputSchema,
@@ -26,7 +26,7 @@ async function assertRegistrationAllowed(
   if (process.env.REGISTRATION_DISABLED !== "true") return;
 
   const found = invite ? await (consume ? consumeInvite(invite) : getInvite(invite)) : undefined;
-  const emailMatches = !found?.email || found.email.toLowerCase() === email.toLowerCase();
+  const emailMatches = !found?.email || normalizeEmail(found.email) === email;
 
   if (!found || !emailMatches) {
     throw new TRPCError({

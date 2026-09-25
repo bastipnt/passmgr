@@ -17,3 +17,9 @@ export async function shortHash(input: string): Promise<string> {
     .map((b) => b.toString(16).padStart(2, "0"))
     .join("");
 }
+
+/** Path without query string — for logging URLs that may carry secrets. */
+export function stripQuery(url: string): string {
+  const i = url.indexOf("?");
+  return i === -1 ? url : url.slice(0, i);
+}

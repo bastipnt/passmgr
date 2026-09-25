@@ -4,6 +4,7 @@ import {
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
+  SUBSCRIPTION_SIGNATURE_PATH,
 } from "@repo/crypto";
 import { secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
@@ -35,4 +36,32 @@ export async function generateAuthHeaders(currentOperation: Operation): Promise<
   }
 
   return sessionHeaders;
+}
+
+type SubscriptionParams = {
+  sessionId: string;
+  timestamp: string;
+  nonce: string;
+  signature: string;
+};
+
+/**
+ * Signed auth values for SSE subscriptions, sent as tRPC `connectionParams`
+ * (EventSource can't set headers). tRPC re-resolves them on every
+ * (re)connect, so each connection gets a fresh timestamp + nonce.
+ */
+export async function generateSubscriptionParams(): Promise<SubscriptionParams | null> {
+  const { sessionId } = secretsStore;
+  if (!sessionId) return null;
+
+  const timestamp = Date.now().toString();
+  const nonce = crypto.randomUUID();
+  const message = getMessage("subscription", SUBSCRIPTION_SIGNATURE_PATH, timestamp, nonce, {});
+  try {
+    const signature = toBase64(await secretsStore.signRequest(message));
+    return { sessionId, timestamp, nonce, signature };
+  } catch {
+    // No authKey (offline / locked session) — server rejects, polling covers it.
+    return null;
+  }
 }

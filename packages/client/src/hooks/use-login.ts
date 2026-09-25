@@ -3,6 +3,7 @@ import { useContext, useState } from "react";
 import {
   LoginFinishFailedError,
   LoginStartFailedError,
+  LoginThrottledError,
   loginUser as loginUserCore,
   OpaqueLoginFailedError,
 } from "../login";
@@ -13,6 +14,7 @@ export function useLogin() {
   const trpc = useTRPCClient();
   const { loginSession, offlineLoginSession } = useContext(SessionContext);
   const [loginError, setLoginError] = useState(false);
+  const [loginThrottled, setLoginThrottled] = useState(false);
 
   /**
    * Performs the OPAQUE login and establishes the session (fast).
@@ -20,9 +22,14 @@ export function useLogin() {
    * so the caller can run it off the main thread.
    */
   async function loginUser(email: string, password: string): Promise<VaultUnlockInfo | undefined> {
+    setLoginThrottled(false);
     try {
       return await loginUserCore(trpc, loginSession, email, password);
     } catch (err) {
+      if (err instanceof LoginThrottledError) {
+        setLoginThrottled(true);
+        return;
+      }
       if (
         err instanceof LoginStartFailedError ||
         err instanceof LoginFinishFailedError ||
@@ -39,5 +46,5 @@ export function useLogin() {
     offlineLoginSession();
   }
 
-  return { loginUser, offlineLogin, loginError };
+  return { loginUser, offlineLogin, loginError, loginThrottled };
 }

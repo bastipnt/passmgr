@@ -14,12 +14,15 @@ import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from ".
 import { router } from "../trpc";
 import {
   deleteSession,
-  delLoginAttempt,
-  getLoginAttempt,
+  getLoginLockMs,
+  recordLoginStart,
+  resetLoginThrottle,
   setLoginAttempt,
   setSession,
+  takeLoginAttempt,
 } from "../util/redis-utils";
 import { protectedProcedure } from "./auth-middleware";
+import { fakeRegistrationRecord } from "./fake-record";
 
 type LoginLog = {
   warn: (obj: object, msg: string) => void;
@@ -48,22 +51,36 @@ export const loginRouter = router({
       const { startLoginRequest, email } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
+      const lockMs = await getLoginLockMs(emailHash);
+      if (lockMs > 0) {
+        log?.warn({ emailHash, lockMs }, "auth.login.throttled");
+        throw new TRPCError({
+          code: "TOO_MANY_REQUESTS",
+          message: `too many login attempts, retry in ${Math.ceil(lockMs / 1000)}s`,
+        });
+      }
+      await recordLoginStart(emailHash);
+
       const res = await db.query.usersTable.findFirst({
         columns: { registrationRecord: true, userId: true },
-        where: { emailHash },
+        where: { emailHash, deleted_at: { isNull: true } },
       });
-
-      if (!res) denyLogin(log, "startLogin", "user_not_found", emailHash);
-      const { registrationRecord, userId } = res;
 
       let ke1: KE1;
       let record: RegistrationRecord;
       try {
         ke1 = KE1.deserialize(opaqueConfig, b64ToBytes(startLoginRequest));
-        record = RegistrationRecord.deserialize(opaqueConfig, b64ToBytes(registrationRecord));
+        record = res
+          ? RegistrationRecord.deserialize(opaqueConfig, b64ToBytes(res.registrationRecord))
+          : await fakeRegistrationRecord(email);
       } catch {
         denyLogin(log, "startLogin", "decode_failed", emailHash);
       }
+
+      // Unknown emails get a KE2 built from a fake record rather than an error,
+      // so startLogin doesn't reveal which accounts exist. The client's
+      // authFinish fails the same way it does for a wrong password.
+      if (!res) log?.warn({ stage: "startLogin", emailHash }, "auth.login.unknown_user");
 
       // credential_identifier = email (mirrors prior serenity userIdentifier).
       // client_identity = email is mixed into MAC transcripts — must match what
@@ -76,9 +93,9 @@ export const loginRouter = router({
       const loginResponse = bytesToB64(initResult.ke2.serialize());
       const expected = bytesToB64(initResult.expected.serialize());
 
-      await setLoginAttempt({ userId, expected });
+      const attemptId = await setLoginAttempt({ userId: res?.userId ?? null, emailHash, expected });
 
-      return { loginResponse };
+      return { loginResponse, attemptId };
     }),
 
   finishLogin: loggedProcedure
@@ -86,19 +103,15 @@ export const loginRouter = router({
     .output(finishLoginOutputSchema)
     .mutation(async ({ input, ctx }) => {
       const log = ctx.req?.log;
-      const { finishLoginRequest, email, authSalt } = input;
+      const { finishLoginRequest, email, authSalt, attemptId } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const userQueryRes = await db.query.usersTable.findFirst({
-        columns: { userId: true },
-        where: { emailHash, deleted_at: { isNull: true } },
-      });
-
-      if (!userQueryRes) denyLogin(log, "finishLogin", "user_not_found", emailHash);
-      const { userId } = userQueryRes;
-
-      const loginAttempt = await getLoginAttempt(userId);
-      if (!loginAttempt) denyLogin(log, "finishLogin", "no_login_attempt", emailHash);
+      const loginAttempt = await takeLoginAttempt(attemptId);
+      if (!loginAttempt || loginAttempt.emailHash !== emailHash) {
+        denyLogin(log, "finishLogin", "no_login_attempt", emailHash);
+      }
+      const { userId } = loginAttempt;
+      if (!userId) denyLogin(log, "finishLogin", "user_not_found", emailHash);
 
       let ke3: KE3;
       let expected: ExpectedAuthResult;
@@ -114,20 +127,12 @@ export const loginRouter = router({
         denyLogin(log, "finishLogin", "opaque_finish_failed", emailHash);
       }
 
-      const sessionKey = bytesToB64(finResult.session_key);
-
-      await delLoginAttempt(userId);
-
-      const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
-      const authKey = await hkdf(sessionSecret, "sessionAuth", fromBase64(authSalt));
-
-      const sessionId = await setSession({
-        userId,
-        rawAuthKey: toBase64(authKey),
+      // The account may have been deleted between startLogin and finishLogin.
+      const userQueryRes = await db.query.usersTable.findFirst({
+        columns: { userId: true },
+        where: { userId, deleted_at: { isNull: true } },
       });
-
-      wipe(sessionSecret);
-      wipe(authKey);
+      if (!userQueryRes) denyLogin(log, "finishLogin", "user_not_found", emailHash);
 
       const keyQueryRes = await db.query.keysTable.findFirst({
         columns: {
@@ -142,8 +147,22 @@ export const loginRouter = router({
           deleted_at: { isNull: true },
         },
       });
-
       if (!keyQueryRes) denyLogin(log, "finishLogin", "no_keys", emailHash);
+
+      await resetLoginThrottle(emailHash);
+
+      const sessionKey = bytesToB64(finResult.session_key);
+      const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+      const authKey = await hkdf(sessionSecret, "sessionAuth", fromBase64(authSalt));
+
+      const sessionId = await setSession({
+        userId,
+        rawAuthKey: toBase64(authKey),
+        authenticatedAt: Date.now(),
+      });
+
+      wipe(sessionSecret);
+      wipe(authKey);
 
       log?.info({ emailHash }, "auth.login.success");
       return { sessionId, userPasswordKeys: keyQueryRes };

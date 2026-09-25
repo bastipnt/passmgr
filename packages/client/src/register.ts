@@ -5,7 +5,15 @@ import {
   type RegistrationClient,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
-import { encryptXChaCha, genKey, genPasswordKek, genSalt, hkdf, wipe } from "@repo/crypto";
+import {
+  encryptXChaCha,
+  genKey,
+  genPasswordKek,
+  genSalt,
+  hkdf,
+  normalizeEmail,
+  wipe,
+} from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { UserKeySchema } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
@@ -45,10 +53,11 @@ function b64ToBytes(s: string): number[] {
  */
 export async function registerNewUser(
   trpc: RegistrationTRPCClient,
-  email: string,
+  rawEmail: string,
   password: string,
   invite?: string,
 ): Promise<Uint8Array> {
+  const email = normalizeEmail(rawEmail);
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
 
   const req = await client.registerInit(password);
