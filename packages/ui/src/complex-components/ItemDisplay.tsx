@@ -25,18 +25,19 @@ type OnClickEvent = {
 const hiddenVariants = ["password", "hidden"] as const;
 const itemDisplayVariants = ["default", "noAction", ...hiddenVariants] as const;
 
-const STRENGTH_BADGE_CLASS: Record<PasswordStrengthLevel, string> = {
-  weak: "text-destructive",
-  fair: "text-amber-500",
-  strong: "text-emerald-500",
-  "very-strong": "text-emerald-600",
-};
+const STRENGTH_BADGE_VARIANT: Record<PasswordStrengthLevel, "destructive" | "warning" | "success"> =
+  {
+    weak: "destructive",
+    fair: "warning",
+    strong: "success",
+    "very-strong": "success",
+  };
 
 function StrengthBadge({ strength }: { strength: PasswordStrength }) {
   const isStrong = strength.level === "strong" || strength.level === "very-strong";
   const Icon = isStrong ? BadgeCheckIcon : ShieldAlertIcon;
   return (
-    <Badge variant="ghost" className={cn("mr-2 py-0", STRENGTH_BADGE_CLASS[strength.level])}>
+    <Badge variant={STRENGTH_BADGE_VARIANT[strength.level]} className="py-0">
       <Icon data-icon="inline-end" />
       {strength.label}
     </Badge>
@@ -77,18 +78,23 @@ function ItemDisplay({
 
   const ItemInner = (
     <>
-      <ItemMedia variant="icon">{icon ?? <NotebookIcon />}</ItemMedia>
+      <ItemMedia
+        variant="icon"
+        className="size-9 rounded-[10px] border border-foreground/10 bg-foreground/[0.03] text-muted-foreground dark:border-white/10"
+      >
+        {icon ?? <NotebookIcon />}
+      </ItemMedia>
       <ItemContent className="w-full overflow-hidden">
-        <ItemTitle>
+        <ItemTitle className="font-normal text-muted-foreground text-xs">
           {title}
           {variant === "password" && strength && <StrengthBadge strength={strength} />}
         </ItemTitle>
         {typeof value === "string" ? (
-          <ItemDescription className="overflow-hidden text-ellipsis">
+          <ItemDescription className="overflow-hidden text-ellipsis text-[0.95rem] text-foreground">
             {usesHiddenValue && valueHidden ? HIDDEN_VALUE : value || "-"}
           </ItemDescription>
         ) : (
-          <div data-slot="item-description" className="text-left">
+          <div data-slot="item-description" className="text-left text-[0.95rem] text-foreground">
             {value}
           </div>
         )}
@@ -100,7 +106,7 @@ function ItemDisplay({
   const CopyButton = (
     <Button
       variant="ghost"
-      className="h-auto gap-x-2.5 rounded-none group-first:rounded-t-lg group-last:rounded-b-lg"
+      className="h-auto gap-x-2.5 rounded-none group-first:rounded-t-2xl group-last:rounded-b-2xl"
       onClick={() => onClick({ type: "copy" })}
     >
       {ItemInner}
@@ -118,7 +124,7 @@ function ItemDisplay({
 
   return (
     <Item
-      className="group rounded-none first:rounded-t-lg last:rounded-b-lg"
+      className="group rounded-none first:rounded-t-2xl last:rounded-b-2xl"
       render={
         usesHiddenValue ? (
           <StackedButton>
@@ -144,7 +150,16 @@ type ItemDisplayGroupProps = {
 };
 
 function ItemDisplayGroup({ children, className }: ItemDisplayGroupProps) {
-  return <ItemGroup className={cn("gap-0 rounded-lg border", className)}>{children}</ItemGroup>;
+  return (
+    <ItemGroup
+      className={cn(
+        "gap-0 divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 dark:divide-white/8 dark:border-white/10 dark:bg-white/[0.03]",
+        className,
+      )}
+    >
+      {children}
+    </ItemGroup>
+  );
 }
 
 export { ItemDisplay, ItemDisplayGroup, itemDisplayVariants };

@@ -60,7 +60,7 @@ function SheetContent({
           <SheetPrimitive.Close
             data-slot="sheet-close"
             render={
-              <Button variant="ghost" className="absolute top-3 right-3 z-10" size="icon-sm">
+              <Button variant="outline" className="absolute top-5 right-5 z-10" size="icon-lg">
                 <XIcon />
                 <span className="sr-only">Close</span>
               </Button>
@@ -77,7 +77,7 @@ function SheetHeader({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-header"
       className={cn(
-        "sticky top-0 right-0 left-0 z-10 flex flex-col gap-0.5 bg-popover/80 p-4 backdrop-blur-xs",
+        "sticky top-0 right-0 left-0 z-10 flex min-h-20 flex-col justify-center gap-0.5 border-foreground/8 border-b bg-popover/85 py-5 pr-20 pl-7 backdrop-blur-md dark:border-white/8",
         className,
       )}
       {...props}
@@ -90,7 +90,7 @@ function SheetFooter({ className, ...props }: React.ComponentProps<"div">) {
     <div
       data-slot="sheet-footer"
       className={cn(
-        "sticky right-0 bottom-0 left-0 flex flex-col gap-2 bg-popover/80 p-4 backdrop-blur-xs",
+        "sticky right-0 bottom-0 left-0 mt-auto flex flex-col gap-2 border-foreground/8 border-t bg-popover/85 px-7 py-4 backdrop-blur-md dark:border-white/8",
         className,
       )}
       {...props}
@@ -102,7 +102,10 @@ function SheetTitle({ className, ...props }: SheetPrimitive.Title.Props) {
   return (
     <SheetPrimitive.Title
       data-slot="sheet-title"
-      className={cn("cn-font-heading font-medium text-base text-foreground", className)}
+      className={cn(
+        "font-bold font-display text-2xl text-foreground tracking-[-0.02em]",
+        className,
+      )}
       {...props}
     />
   );

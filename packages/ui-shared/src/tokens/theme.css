@@ -43,6 +43,7 @@
   --color-destructive: unset;
   --color-border: unset;
   --color-input: unset;
+  --color-field: unset;
   --color-ring: unset;
 }
 
@@ -104,7 +105,8 @@
       --color-accent-foreground: #16141f;
       --color-destructive: #e11d48;
       --color-border: #dcd9e4;
-      --color-input: #f1eff7;
+      --color-input: #d6d3e0;
+      --color-field: #f1eff7;
       --color-ring: #6e56f5;
     }
 
@@ -126,7 +128,8 @@
       --color-accent-foreground: #f4f2fa;
       --color-destructive: #f0445a;
       --color-border: #2c2b36;
-      --color-input: #1a1922;
+      --color-input: #2e2d38;
+      --color-field: #16151f;
       --color-ring: #8b78ff;
     }
   }

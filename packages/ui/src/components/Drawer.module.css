@@ -6,7 +6,7 @@
   opacity: calc(var(--backdrop-opacity) - var(--drawer-swipe-progress));
   transition: opacity var(--duration) ease-in-out;
 
-  @apply fixed inset-0 bg-black/10;
+  @apply fixed inset-0 bg-black/20 dark:bg-black/50;
 
   @supports (backdrop-filter: blur(0)) {
     @apply backdrop-blur-xs;
@@ -92,7 +92,7 @@
     transform: translateY(var(--translate-y)) scale(var(--stack-scale));
     transform-origin: 50% calc(100% - var(--bleed));
 
-    @apply w-full border-t rounded-t-xl;
+    @apply w-full border-t rounded-t-[24px];
 
     &[data-swiping] {
       transition-duration: 0s;

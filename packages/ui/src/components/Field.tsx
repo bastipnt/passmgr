@@ -5,6 +5,7 @@ import { Separator } from "@repo/ui/components/Separator";
 
 import { cn } from "@repo/ui/lib/utils";
 import { cva, type VariantProps } from "class-variance-authority";
+import { CircleAlertIcon, TimerIcon } from "lucide-react";
 import { useMemo } from "react";
 
 function FieldSet({ className, ...props }: React.ComponentProps<"fieldset">) {
@@ -146,31 +147,38 @@ function FieldSeparator({
       data-slot="field-separator"
       data-content={!!children}
       className={cn(
-        "relative -my-2 h-5 text-sm group-data-[variant=outline]/field-group:-mb-2",
+        "relative -my-2 flex h-5 items-center gap-3 text-muted-foreground text-xs uppercase tracking-[0.12em] group-data-[variant=outline]/field-group:-mb-2",
         className,
       )}
       {...props}
     >
-      <Separator className="absolute inset-0 top-1/2" />
+      <Separator className="flex-1" />
       {children && (
-        <span
-          className="relative mx-auto block w-fit bg-background px-2 text-muted-foreground"
-          data-slot="field-separator-content"
-        >
-          {children}
-        </span>
+        <>
+          <span data-slot="field-separator-content">{children}</span>
+          <Separator className="flex-1" />
+        </>
       )}
     </div>
   );
 }
 
+const messageBoxClass =
+  "flex items-start gap-2.5 rounded-xl border px-3 py-2.5 text-sm [&>svg]:mt-0.5 [&>svg]:size-4 [&>svg]:shrink-0";
+
+/**
+ * `variant="box"` renders the form-level message box (icon + tinted fill),
+ * used for auth failures; the default stays a quiet inline line under a field.
+ */
 function FieldError({
   className,
   children,
   errors,
+  variant = "inline",
   ...props
 }: React.ComponentProps<"div"> & {
   errors?: Array<{ message?: string } | undefined>;
+  variant?: "inline" | "box";
 }) {
   const content = useMemo(() => {
     if (children) {
@@ -202,10 +210,39 @@ function FieldError({
     <div
       role="alert"
       data-slot="field-error"
-      className={cn("font-normal text-destructive text-sm", className)}
+      data-variant={variant}
+      className={cn(
+        "font-normal text-destructive text-sm",
+        variant === "box" &&
+          cn(
+            messageBoxClass,
+            "border-destructive/30 bg-destructive/8 dark:bg-destructive/10 dark:text-[#ff6b7f]",
+          ),
+        className,
+      )}
       {...props}
     >
-      {content}
+      {variant === "box" && <CircleAlertIcon aria-hidden />}
+      {variant === "box" ? <div>{content}</div> : content}
+    </div>
+  );
+}
+
+/** Amber message box for recoverable states, e.g. login throttling. */
+function FieldWarning({ className, children, ...props }: React.ComponentProps<"div">) {
+  return (
+    <div
+      role="status"
+      data-slot="field-warning"
+      className={cn(
+        messageBoxClass,
+        "border-warning/40 bg-warning/12 text-amber-800 dark:border-warning/30 dark:bg-warning/10 dark:text-[#ffb23f]",
+        className,
+      )}
+      {...props}
+    >
+      <TimerIcon aria-hidden />
+      <div>{children}</div>
     </div>
   );
 }
@@ -221,4 +258,5 @@ export {
   FieldSeparator,
   FieldSet,
   FieldTitle,
+  FieldWarning,
 };

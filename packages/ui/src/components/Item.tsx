@@ -31,14 +31,14 @@ function ItemSeparator({ className, ...props }: React.ComponentProps<typeof Sepa
 }
 
 const itemVariants = cva(
-  "group/item flex w-full flex-wrap items-center rounded-lg border text-sm outline-none transition-colors duration-100 focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 [a]:transition-colors [a]:hover:bg-muted",
+  "group/item flex w-full flex-wrap items-center rounded-lg border text-sm outline-none transition-colors duration-100 focus-visible:border-ring focus-visible:ring-4 focus-visible:ring-ring/25 [a]:transition-colors [a]:hover:bg-foreground/5",
   {
     variants: {
       variant: {
         default: "border-transparent",
-        outline: "border-border",
-        active: "border-primary bg-primary [a]:hover:bg-primary",
-        muted: "border-transparent bg-muted/50",
+        outline: "border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]",
+        active: "border-primary/45 bg-primary/10 dark:bg-primary/20 [a]:hover:bg-primary/15",
+        muted: "border-transparent bg-foreground/[0.04]",
       },
       size: {
         default: "gap-2.5 px-3 py-2.5",
@@ -85,7 +85,7 @@ const itemMediaVariants = cva(
         default: "bg-transparent",
         icon: "[&_svg:not([class*='size-'])]:size-4",
         image:
-          "size-10 overflow-hidden rounded-sm group-data-[size=sm]/item:size-8 group-data-[size=xs]/item:size-6 [&_img]:size-full [&_img]:object-cover",
+          "size-10 overflow-hidden rounded-[10px] group-data-[size=sm]/item:size-8 group-data-[size=xs]/item:size-6 [&_img]:size-full [&_img]:object-cover",
       },
     },
     defaultVariants: {

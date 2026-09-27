@@ -125,15 +125,6 @@
 }
 
 @layer components {
-  /* Frosted panel: cards, the vault shell, sheets. Keep it to a few large
-   * surfaces per screen — backdrop-filter is costly. */
-  .glass {
-    background-color: var(--glass-fill);
-    border: 1px solid var(--glass-border);
-    box-shadow: var(--glass-shadow);
-    backdrop-filter: blur(28px) saturate(1.4);
-  }
-
   /* Fixed, full-viewport backdrop of four soft color blobs. Position the blobs
    * per screen via --field-{a,b,c,d} (a CSS <position>). Render it inside the
    * page layout, whose root needs `isolate`: on body it would sit beneath the
@@ -172,20 +163,27 @@
       );
     filter: blur(40px);
   }
+}
 
-  /* Multicolor headline accent. */
-  .text-spectrum {
-    color: transparent;
-    background-image: linear-gradient(90deg, #ff3d8b, #ffb23f 40%, #2ec5ff 80%, #7a5cff);
-    background-clip: text;
-  }
+/* Frosted panel: cards, the vault shell, sheets. Keep it to a few large
+ * surfaces per screen — backdrop-filter is costly. */
+@utility glass {
+  background-color: var(--glass-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  backdrop-filter: blur(28px) saturate(1.4);
 
   @media (prefers-reduced-transparency: reduce) {
-    .glass {
-      background-color: var(--color-card);
-      backdrop-filter: none;
-    }
+    background-color: var(--color-card);
+    backdrop-filter: none;
   }
+}
+
+/* Multicolor headline accent. */
+@utility text-spectrum {
+  color: transparent;
+  background-image: linear-gradient(90deg, #ff3d8b, #ffb23f 40%, #2ec5ff 80%, #7a5cff);
+  background-clip: text;
 }
 
 @utility popup-nested {

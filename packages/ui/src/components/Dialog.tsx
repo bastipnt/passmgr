@@ -55,7 +55,7 @@ function DialogContent({
           <DialogPrimitive.Close
             data-slot="dialog-close"
             render={
-              <Button variant="ghost" className="absolute top-2 right-2" size="icon-sm">
+              <Button variant="ghost" className="absolute top-4 right-4" size="icon-sm">
                 <XIcon />
                 <span className="sr-only">Close</span>
               </Button>
@@ -84,10 +84,7 @@ function DialogFooter({
   return (
     <div
       data-slot="dialog-footer"
-      className={cn(
-        "-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl p-4 sm:flex-row sm:justify-end",
-        className,
-      )}
+      className={cn("flex flex-col-reverse gap-3 sm:flex-row sm:justify-end", className)}
       {...props}
     >
       {children}
@@ -102,7 +99,7 @@ function DialogTitle({ className, ...props }: DialogPrimitive.Title.Props) {
   return (
     <DialogPrimitive.Title
       data-slot="dialog-title"
-      className={cn("cn-font-heading font-medium text-base leading-none", className)}
+      className={cn("font-bold font-display text-2xl leading-tight tracking-[-0.02em]", className)}
       {...props}
     />
   );

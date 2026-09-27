@@ -1,32 +1,40 @@
-import { Button } from "@repo/ui/components/Button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@repo/ui/components/DropdownMenu";
+import { cn } from "@repo/ui/lib/utils";
 import { useTheme } from "@repo/ui/providers/ThemeProvider";
-import { Moon, Sun } from "lucide-react";
+import { Monitor, Moon, Sun } from "lucide-react";
 
-export function ThemeToggle() {
-  const { setTheme } = useTheme();
+const OPTIONS = [
+  { value: "light", label: "Light", Icon: Sun },
+  { value: "system", label: "System", Icon: Monitor },
+  { value: "dark", label: "Dark", Icon: Moon },
+] as const;
+
+/** Segmented light / system / dark switch. */
+export function ThemeToggle({ className }: { className?: string }) {
+  const { theme, setTheme } = useTheme();
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button variant="outline" size="icon">
-            <Sun className="h-[1.2rem] w-[1.2rem] rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-            <Moon className="absolute h-[1.2rem] w-[1.2rem] rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-            <span className="sr-only">Toggle theme</span>
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>Light</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>Dark</DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("system")}>System</DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <div
+      role="radiogroup"
+      aria-label="Theme"
+      className={cn(
+        "inline-flex h-10 shrink-0 items-center gap-0.5 rounded-full border border-foreground/12 bg-white/60 p-1 dark:border-white/12 dark:bg-white/5",
+        className,
+      )}
+    >
+      {OPTIONS.map(({ value, label, Icon }) => (
+        <button
+          key={value}
+          type="button"
+          role="radio"
+          aria-checked={theme === value}
+          aria-label={label}
+          title={label}
+          onClick={() => setTheme(value)}
+          className="grid size-8 cursor-pointer place-items-center rounded-full text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-4 focus-visible:ring-ring/25 aria-checked:bg-white aria-checked:text-foreground aria-checked:shadow-xs dark:aria-checked:bg-white/12 dark:aria-checked:shadow-none [&_svg]:size-4"
+        >
+          <Icon aria-hidden />
+        </button>
+      ))}
+    </div>
   );
 }

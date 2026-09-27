@@ -61,7 +61,9 @@ function TotpRing({ period, periodMs, seconds, className }: TotpRingProps) {
           strokeLinecap="round"
         />
       </svg>
-      <span className="relative text-muted-foreground text-sm tabular-nums">{seconds}</span>
+      <span className="relative font-medium font-mono text-foreground text-xs tabular-nums">
+        {seconds}
+      </span>
     </div>
   );
 }

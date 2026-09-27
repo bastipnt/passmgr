@@ -1,7 +1,7 @@
 @reference "../styles/globals.css";
 
 .backdrop {
-  @apply fixed inset-0 bg-black/10 transition-opacity duration-150;
+  @apply fixed inset-0 bg-black/15 transition-opacity duration-150 dark:bg-black/40;
 
   @supports (backdrop-filter: blur(0)) {
     @apply backdrop-blur-xs;
@@ -16,7 +16,7 @@
 .popup {
   background-clip: padding-box;
   @apply popup-nested;
-  @apply fixed flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-lg transition duration-200 ease-in-out overflow-hidden;
+  @apply fixed flex flex-col gap-4 bg-popover bg-clip-padding text-sm text-popover-foreground shadow-2xl shadow-black/20 transition duration-200 ease-in-out overflow-hidden;
 
   &[data-starting-style],
   &[data-ending-style] {
@@ -41,8 +41,9 @@
     }
   }
 
+  /* Left/right sheets float 12px off the viewport edge as a rounded panel. */
   &[data-side="left"] {
-    @apply inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm;
+    @apply inset-y-3 left-3 w-[calc(100%-1.5rem)] rounded-[28px] border border-foreground/10 sm:max-w-md dark:border-white/12;
 
     &[data-starting-style],
     &[data-ending-style] {
@@ -51,7 +52,7 @@
   }
 
   &[data-side="right"] {
-    @apply inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm;
+    @apply inset-y-3 right-3 w-[calc(100%-1.5rem)] rounded-[28px] border border-foreground/10 sm:max-w-md dark:border-white/12;
 
     &[data-starting-style],
     &[data-ending-style] {
