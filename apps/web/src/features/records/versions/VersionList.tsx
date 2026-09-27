@@ -15,6 +15,13 @@ import { toLocalDateStr } from "@repo/util";
 import { ChevronRightIcon, ClockCheckIcon, PencilIcon, SparklesIcon } from "lucide-react";
 import { Link } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { describeVersionChanges, type VersionChange } from "./version-changes";
+
+const CHANGE_BADGE: Record<VersionChange["status"], "warning" | "success" | "destructive"> = {
+  edited: "warning",
+  added: "success",
+  removed: "destructive",
+};
 
 export default function VersionList({ recordId }: { recordId: string }) {
   const { versions, ready, error } = useRecordHistory(recordId);
@@ -51,6 +58,7 @@ export default function VersionList({ recordId }: { recordId: string }) {
       {versions.map((version, i) => {
         const isCurrent = i === 0;
         const isOldest = i === versions.length - 1;
+        const changes = describeVersionChanges(version, versions[i + 1]);
 
         const versionName = isCurrent ? "Current version" : isOldest ? "Created" : "Modified";
         const icon = isCurrent ? (
@@ -92,6 +100,15 @@ export default function VersionList({ recordId }: { recordId: string }) {
                     )}
                   </ItemTitle>
                   <ItemDescription>{toLocalDateStr(version.clientUpdatedAt)}</ItemDescription>
+                  {changes.length > 0 && (
+                    <ul className="mt-1.5 flex flex-wrap gap-1.5" aria-label="Changes">
+                      {changes.map((change) => (
+                        <li key={change.key}>
+                          <Badge variant={CHANGE_BADGE[change.status]}>{change.label}</Badge>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                 </ItemContent>
                 <ItemActions>
                   <ChevronRightIcon className="size-4" />

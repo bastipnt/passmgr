@@ -7,6 +7,7 @@ import { CalendarPlusIcon, HistoryIcon, PenLineIcon } from "lucide-react";
 import { recordPaths } from "@/app/route-paths";
 import { useCopyField } from "../record-utils";
 import LoginFieldDisplay from "./LoginFieldDisplay";
+import { PasswordHealthPanel } from "./PasswordHealthPanel";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
@@ -50,6 +51,7 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
                 </section>
               );
             })}
+            {i === 1 && <PasswordHealthPanel record={record} />}
           </div>
         ))}
       </div>
@@ -70,7 +72,8 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
           href={recordPaths.recordVersions(record.recordId)}
         >
           <HistoryIcon />
-          Version history
+          {/* Versions are numbered from 1, so the latest number is the count. */}
+          Version history · {record.version}
         </Link>
       </footer>
     </div>

@@ -25,6 +25,8 @@ type PasswordStrengthMeterProps = {
   password: string;
   /** Right-aligned hint on the label row, e.g. a character count. */
   aside?: ReactNode;
+  /** Segments only, no label row — for tight spots like the health panel. */
+  compact?: boolean;
   className?: string;
 };
 
@@ -32,14 +34,15 @@ type PasswordStrengthMeterProps = {
 export default function PasswordStrengthMeter({
   password,
   aside,
+  compact = false,
   className,
 }: PasswordStrengthMeterProps) {
   const strength = password ? getStrengthFromString(password) : null;
   const filled = strength ? LEVELS.indexOf(strength.level) + 1 : 0;
 
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
-      <div className="grid grid-cols-4 gap-1.5" aria-hidden>
+    <div className={cn("flex flex-col gap-1.5", compact && "w-16", className)}>
+      <div className={cn("grid grid-cols-4", compact ? "gap-1" : "gap-1.5")} aria-hidden>
         {LEVELS.map((level, i) => (
           <span
             key={level}
@@ -50,7 +53,12 @@ export default function PasswordStrengthMeter({
           />
         ))}
       </div>
-      <div className="flex justify-between gap-2 text-muted-foreground text-xs">
+      <div
+        className={cn(
+          "flex justify-between gap-2 text-muted-foreground text-xs",
+          compact && "sr-only",
+        )}
+      >
         <span aria-live="polite">
           {strength ? (
             <>
