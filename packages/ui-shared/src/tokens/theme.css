@@ -54,7 +54,13 @@
 @theme {
   --color-success: #10b981;
   --color-warning: #f59e0b;
-  --color-error: #de4047;
+  --color-error: #e8364f;
+
+  /* Password strength meter, red → green, mirroring LEVEL_COLOR. */
+  --color-strength-weak: #f0445a;
+  --color-strength-fair: #ff8a3d;
+  --color-strength-strong: #f5c542;
+  --color-strength-very-strong: #34d399;
 }
 
 /*
@@ -68,7 +74,7 @@
  * InputGroup.tsx.
  */
 @theme {
-  --radius: 0.625rem;
+  --radius: 0.875rem;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -81,47 +87,47 @@
 @layer theme {
   :root {
     @variant light {
-      --color-background: #e0e4f9;
-      --color-foreground: #000000;
-      --color-card: #f3f5ff;
-      --color-card-foreground: #000000;
-      --color-popover: #f3f5ff;
-      --color-popover-foreground: #000000;
-      --color-muted: #d0d3e8;
-      --color-muted-foreground: #242535;
-      --color-primary: #4b36d6;
+      --color-background: #f5f3fa;
+      --color-foreground: #16141f;
+      --color-card: #ffffff;
+      --color-card-foreground: #16141f;
+      --color-popover: #ffffff;
+      --color-popover-foreground: #16141f;
+      --color-muted: #eceaf3;
+      --color-muted-foreground: #5e5a70;
+      --color-primary: #6e56f5;
       --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #3c16be;
-      --color-secondary: #c0c3d8;
-      --color-secondary-foreground: #000000;
-      --color-accent: #d0d3e8;
-      --color-accent-foreground: #000000;
-      --color-destructive: #de4047;
-      --color-border: #9194a8;
-      --color-input: #9194a8;
-      --color-ring: #34259b;
+      --color-primary-pressed: #5b43e0;
+      --color-secondary: #ffffff;
+      --color-secondary-foreground: #16141f;
+      --color-accent: #eceaf3;
+      --color-accent-foreground: #16141f;
+      --color-destructive: #e11d48;
+      --color-border: #dcd9e4;
+      --color-input: #f1eff7;
+      --color-ring: #6e56f5;
     }
 
     @variant dark {
-      --color-background: #242535;
-      --color-foreground: #d0d3e8;
-      --color-card: #303242;
-      --color-card-foreground: #d0d3e8;
-      --color-popover: #303242;
-      --color-popover-foreground: #d0d3e8;
-      --color-muted: #575a6c;
-      --color-muted-foreground: #b0b3c8;
-      --color-primary: #6565de;
+      --color-background: #0a0a12;
+      --color-foreground: #f4f2fa;
+      --color-card: #13121c;
+      --color-card-foreground: #f4f2fa;
+      --color-popover: #17161f;
+      --color-popover-foreground: #f4f2fa;
+      --color-muted: #1e1d28;
+      --color-muted-foreground: #a7a3bc;
+      --color-primary: #6e56f5;
       --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #5350c6;
-      --color-secondary: #181a28;
-      --color-secondary-foreground: #d0d3e8;
-      --color-accent: #3d3f50;
-      --color-accent-foreground: #d0d3e8;
-      --color-destructive: #de4047;
-      --color-border: #575a6c;
-      --color-input: #575a6c;
-      --color-ring: #9299ff;
+      --color-primary-pressed: #5b43e0;
+      --color-secondary: #1a1922;
+      --color-secondary-foreground: #f4f2fa;
+      --color-accent: #23222e;
+      --color-accent-foreground: #f4f2fa;
+      --color-destructive: #f0445a;
+      --color-border: #2c2b36;
+      --color-input: #1a1922;
+      --color-ring: #8b78ff;
     }
   }
 }

@@ -2,10 +2,10 @@ import { cn } from "@repo/ui/lib/utils";
 import type { PasswordStrengthLevel } from "@repo/util";
 
 const LEVEL_COLOR: Record<PasswordStrengthLevel, string> = {
-  weak: "bg-destructive",
-  fair: "bg-amber-500",
-  strong: "bg-emerald-500",
-  "very-strong": "bg-emerald-600",
+  weak: "bg-strength-weak",
+  fair: "bg-strength-fair",
+  strong: "bg-strength-strong",
+  "very-strong": "bg-strength-very-strong",
 };
 
 type Props = {

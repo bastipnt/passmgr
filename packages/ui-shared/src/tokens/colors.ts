@@ -11,9 +11,12 @@ export const BRAND_GRADIENT = {
   to: "#3417A8",
 } as const;
 
+/** Solid brand violet — the app-mark tile and primary actions. */
+export const BRAND_COLOR = "#6E56F5";
+
 export const LEVEL_COLOR = {
-  weak: "#de4047",
-  fair: "#f59e0b",
-  strong: "#10b981",
-  "very-strong": "#059669",
+  weak: "#f0445a",
+  fair: "#ff8a3d",
+  strong: "#f5c542",
+  "very-strong": "#34d399",
 } as const;
