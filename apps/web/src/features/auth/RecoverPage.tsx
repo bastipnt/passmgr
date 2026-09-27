@@ -27,6 +27,7 @@ import { useState } from "react";
 import { type Control, useWatch } from "react-hook-form";
 import { useLocation } from "wouter";
 import { authPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
 import AuthNote from "./AuthNote";
@@ -73,6 +74,7 @@ export default function RecoverPage() {
 
   return (
     <>
+      <PageMeta title="Recover account" noindex />
       <RecoveryKeyDialog
         recoveryKey={newRecoveryKey}
         description="Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never sent to the server."

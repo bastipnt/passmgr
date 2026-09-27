@@ -2,10 +2,11 @@ import react from "@vitejs/plugin-react";
 // import tailwindcss from "@tailwindcss/vite";
 import path from "path";
 import sqlocal from "sqlocal/vite";
-import { defineConfig } from "vite";
+import { defineConfig, loadEnv } from "vite";
+import { seo } from "./vite-plugin-seo";
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   resolve: {
     dedupe: ["react", "react-dom"],
     alias: {
@@ -14,6 +15,7 @@ export default defineConfig({
   },
   plugins: [
     react(),
+    seo(loadEnv(mode, process.cwd()).VITE_SITE_URL),
     sqlocal({ coi: false }),
     {
       name: "coi-headers-credentialless",
@@ -32,4 +34,4 @@ export default defineConfig({
   worker: {
     format: "es" as const,
   },
-});
+}));

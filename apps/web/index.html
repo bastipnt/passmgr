@@ -2,9 +2,40 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>passmgr</title>
+    <title>passmgr — zero-knowledge password manager</title>
+    <meta
+      name="description"
+      content="An end-to-end encrypted password manager. Your vault is encrypted on your device and OPAQUE login means the server never sees your password."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#f5f3fa" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#0a0a12" media="(prefers-color-scheme: dark)" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+
+    <!-- Link previews. og:url, og:image, twitter:image and the canonical link
+         need absolute URLs; the seo() plugin in vite.config.ts adds them when
+         VITE_SITE_URL is set at build time. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="passmgr" />
+    <meta property="og:title" content="passmgr — zero-knowledge password manager" />
+    <meta
+      property="og:description"
+      content="Your vault is encrypted on your device. The server never sees your password — not even once."
+    />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="passmgr shield logo — zero-knowledge password manager" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="passmgr — zero-knowledge password manager" />
+    <meta
+      name="twitter:description"
+      content="Your vault is encrypted on your device. The server never sees your password — not even once."
+    />
   </head>
   <body>
     <div id="root" class="min-h-screen"></div>

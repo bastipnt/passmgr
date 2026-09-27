@@ -3,6 +3,7 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { lazy, useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 import { authPaths, recordPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 import CreateRecordSheet from "./CreateRecordSheet";
 import RecordLayout from "./RecordLayout";
 import RecordMobileDrawer from "./RecordMobileDrawer";
@@ -21,6 +22,7 @@ export default function RecordRoutes() {
 
   return (
     <RecordLayout>
+      <PageMeta title="Vault" noindex />
       <Switch>
         <Route path={recordPaths.index} component={isMobile ? undefined : RecordsEmptyState} />
         {/* Sub-routes are enumerated rather than matched with a wildcard:

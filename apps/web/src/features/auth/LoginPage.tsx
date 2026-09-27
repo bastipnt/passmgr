@@ -5,6 +5,8 @@ import { secretsStore } from "@repo/store";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ShieldCheckIcon, TrashIcon } from "lucide-react";
 import { useContext, useState } from "react";
+import { authPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
 import { BiometricUnlockButton } from "./BiometricUnlockButton";
 import ExistingUserButton from "./ExistingUserButton";
@@ -60,6 +62,11 @@ export default function LoginPage() {
 
   return (
     <>
+      <PageMeta
+        title="Sign in"
+        description="Sign in to your passmgr vault. Zero-knowledge OPAQUE login — your password never leaves this device."
+        canonicalPath={authPaths.login}
+      />
       {unlocking ? (
         <AuthHero
           title={

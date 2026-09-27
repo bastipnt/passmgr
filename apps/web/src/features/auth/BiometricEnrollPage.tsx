@@ -16,6 +16,7 @@ import { CheckIcon, FingerprintIcon } from "lucide-react";
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 
 // TODO: fails if argon2id not finished
 export default function BiometricEnrollPage() {
@@ -60,6 +61,7 @@ export default function BiometricEnrollPage() {
   return (
     <section className="w-full max-w-md justify-self-center lg:col-span-2">
       <Card variant="glass">
+        <PageMeta title="Biometric unlock" noindex />
         <CardHeader className="gap-3">
           <span className="grid size-14 place-items-center rounded-2xl bg-primary text-primary-foreground">
             <FingerprintIcon className="size-7" aria-hidden />

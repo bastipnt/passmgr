@@ -37,6 +37,11 @@ COPY packages/ packages/
 ARG VITE_SERVER_URL="/trpc"
 ENV VITE_SERVER_URL=${VITE_SERVER_URL}
 
+# Public origin (e.g. https://vault.example.com) for canonical/Open Graph URLs
+# and sitemap.xml. Empty skips them; robots.txt is emitted either way.
+ARG VITE_SITE_URL=""
+ENV VITE_SITE_URL=${VITE_SITE_URL}
+
 # Build the web app (turborepo handles dependency order)
 # Disable pre-run deps check: mobile pkg (react-native-argon2 patch target)
 # is intentionally absent from this image, which would fail the check.

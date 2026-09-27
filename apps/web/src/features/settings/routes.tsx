@@ -3,6 +3,7 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { lazy, useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 import { authPaths, settingsPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 import SettingsLayout from "./SettingsLayout";
 
 const NotFound = lazy(() => import("@/app/NotFound"));
@@ -23,6 +24,7 @@ export default function SettingsRoutes() {
 
   return (
     <SettingsLayout>
+      <PageMeta title="Settings" noindex />
       <Switch>
         {/*
          * `/settings` is the overview itself — the layout renders it. On mobile

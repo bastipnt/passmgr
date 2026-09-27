@@ -19,6 +19,7 @@ import { type Control, useWatch } from "react-hook-form";
 import { useLocation, useSearchParams } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
+import { PageMeta } from "@/components/PageMeta";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
 import AuthNote from "./AuthNote";
@@ -74,6 +75,11 @@ export default function RegisterPage() {
 
   return (
     <>
+      <PageMeta
+        title="Create account"
+        description="Create a free passmgr vault. End-to-end encrypted on your device, synced across web and mobile — the server never sees your password."
+        canonicalPath={authPaths.register}
+      />
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
         onDone={() => {

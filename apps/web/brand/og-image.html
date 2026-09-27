@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Source for public/og-image.png (1200×630). Re-render: pnpm --filter web brand:render
+         @font-face rules for "Display" and "Sans" are injected by scripts/render-brand.ts. -->
+    <style>
+      * { box-sizing: border-box; margin: 0; }
+      html, body { width: 1200px; height: 630px; overflow: hidden; }
+      body {
+        position: relative;
+        background: #0a0a12;
+        color: #f5f3fa;
+        font-family: "Sans", sans-serif;
+        padding: 72px 80px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
+      .glow { position: absolute; border-radius: 50%; filter: blur(90px); z-index: -1; }
+      .glow.a { width: 560px; height: 560px; right: -140px; top: -200px; background: #7B5CFF; opacity: .55; }
+      .glow.b { width: 480px; height: 480px; right: 180px; bottom: -300px; background: #3417A8; opacity: .7; }
+      .glow.c { width: 320px; height: 320px; left: -160px; bottom: -160px; background: #ff3d8b; opacity: .18; }
+      .brand { display: flex; align-items: center; gap: 20px; }
+      .tile {
+        width: 72px; height: 72px; border-radius: 22px;
+        background: #6E56F5; display: grid; place-items: center;
+        box-shadow: 0 12px 40px rgb(110 86 245 / .5);
+      }
+      .tile svg { width: 46px; height: 46px; }
+      .name { font-family: "Display", sans-serif; font-weight: 700; font-size: 40px; letter-spacing: -0.02em; }
+      h1 {
+        font-family: "Display", sans-serif; font-weight: 800;
+        font-size: 92px; line-height: 0.95; letter-spacing: -0.035em;
+      }
+      .accent {
+        display: block; color: transparent; background-clip: text;
+        background-image: linear-gradient(90deg, #ff3d8b, #ffb23f 40%, #2ec5ff 80%, #7a5cff);
+      }
+      .chips { display: flex; gap: 14px; }
+      .chip {
+        display: flex; align-items: center; gap: 12px;
+        padding: 12px 22px; border-radius: 999px; font-size: 24px; font-weight: 500;
+        background: rgb(255 255 255 / .07); border: 1px solid rgb(255 255 255 / .14);
+      }
+      .dot { width: 10px; height: 10px; border-radius: 50%; }
+    </style>
+  </head>
+  <body>
+    <div class="glow a"></div>
+    <div class="glow b"></div>
+    <div class="glow c"></div>
+
+    <div class="brand">
+      <div class="tile">
+        <svg viewBox="4.4 2.6 15.2 18.9"><path fill="#fff" fill-rule="evenodd" d="M12 2.6 19.6 5.5v5.9c0 4.8-3.2 8.8-7.6 10.1-4.4-1.3-7.6-5.3-7.6-10.1V5.5zM14.3 9.8a2.3 2.3 0 1 0-3.4 2l-.7 3.9h3.6l-.7-3.9a2.3 2.3 0 0 0 1.2-2z"/></svg>
+      </div>
+      <span class="name">passmgr</span>
+    </div>
+
+    <h1>Your secrets, <span class="accent">seen by no one</span>but you.</h1>
+
+    <div class="chips">
+      <span class="chip"><span class="dot" style="background:#ff3d8b"></span>Zero-knowledge</span>
+      <span class="chip"><span class="dot" style="background:#ffb23f"></span>OPAQUE login</span>
+      <span class="chip"><span class="dot" style="background:#2ec5ff"></span>End-to-end encrypted</span>
+    </div>
+  </body>
+</html>
