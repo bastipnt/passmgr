@@ -23,8 +23,10 @@ compose pull
 if [ -n "$(compose ps -q postgres)" ]; then
   mkdir -p backups
   backup="backups/pre-${IMAGE_TAG}-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
+  # This script arrives on stdin (ssh ... bash -s): without </dev/null, exec
+  # swallows the rest of it and bash exits 0 right after the backup.
   # shellcheck disable=SC2016 # expands inside the postgres container
-  compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' | gzip > "$backup"
+  compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' < /dev/null | gzip > "$backup"
   chmod 600 "$backup"
   echo "Backup written to ${backup}"
   # Keep the 10 most recent backups.
