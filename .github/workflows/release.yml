@@ -114,3 +114,23 @@ jobs:
           # shellcheck disable=SC2029
           ssh deploy "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") IMAGE_TAG=$(printf %q "$IMAGE_TAG") bash -s" \
             < infra/deploy/remote-deploy.sh
+
+      # The deploy script can exit 0 without having rolled anything out (e.g. a
+      # command swallowing its stdin), so check the host's actual state.
+      - name: Verify deployment
+        run: |
+          IMAGE_TAG="${GITHUB_REF_NAME#v}"
+          # shellcheck disable=SC2029
+          ssh deploy "cd $(printf %q "$DEPLOY_PATH") && cat .deployed-tag && docker compose -f docker-compose.prod.yml --env-file .env.production ps --status running --format '{{.Service}} {{.Image}}'" > state.txt
+          cat state.txt
+          deployed=$(head -n 1 state.txt)
+          if [ "$deployed" != "$IMAGE_TAG" ]; then
+            echo "::error::.deployed-tag is '${deployed}', expected '${IMAGE_TAG}'"
+            exit 1
+          fi
+          for service in web server; do
+            if ! grep -qE "^${service} .*/passmgr-${service}:${IMAGE_TAG//./\\.}$" state.txt; then
+              echo "::error::${service} is not running passmgr-${service}:${IMAGE_TAG}"
+              exit 1
+            fi
+          done
