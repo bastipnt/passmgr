@@ -97,6 +97,32 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
 }
 
 /**
+ * Recovery auth key: proves possession of the recovery key to the server
+ * without revealing it. Independent of the recovery KEK (different HKDF info),
+ * so the server can't unwrap the recovery copy of the vault key with it.
+ *
+ * @param recoveryKey 32 random bytes shown to the user at registration
+ *
+ * @returns 32-byte auth key (sent to the server only during recovery)
+ */
+export async function deriveRecoveryAuthKey(recoveryKey: Uint8Array): Promise<Uint8Array> {
+  return await hkdf(recoveryKey, "recoveryAuth");
+}
+
+/**
+ * Server-side verifier for a recovery auth key: SHA-256(recoveryAuthKey).
+ * The auth key has 256 bits of entropy, so a plain hash can't be brute-forced
+ * from a DB dump.
+ *
+ * @param recoveryAuthKey
+ *
+ * @returns 32-byte verifier
+ */
+export async function hashRecoveryAuthKey(recoveryAuthKey: Uint8Array): Promise<Uint8Array> {
+  return new Uint8Array(await crypto.subtle.digest("SHA-256", recoveryAuthKey as BufferSource));
+}
+
+/**
  * Generate Password Root Key (PRK)
  *
  * @param password

@@ -21,7 +21,13 @@ const credentialsSchema = z.object({
 
 type FormValues = z.infer<typeof credentialsSchema>;
 
-export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
+type SignInSheetProps = {
+  ref: Ref<BottomSheetRef>;
+  /** Opens the recovery-key flow. */
+  onForgotPassword: () => void;
+};
+
+export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
   const { loginUser, loginError, loginThrottled } = useLogin();
   const { unlock, unlockError } = useUnlock();
@@ -87,8 +93,14 @@ export function SignInSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
         label="Password"
         textContentType="password"
         note={
-          <Pressable className="mt-xs self-end" hitSlop={8} onPress={() => {}}>
-            {/* TODO: wire a real password-reset flow */}
+          <Pressable
+            className="mt-xs self-end"
+            hitSlop={8}
+            onPress={() => {
+              sheetRef.current?.triggerShowHide(false);
+              onForgotPassword();
+            }}
+          >
             <Text className="font-bold text-primary text-xs">Forgot password?</Text>
           </Pressable>
         }

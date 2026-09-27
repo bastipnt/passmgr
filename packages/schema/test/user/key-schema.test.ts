@@ -21,6 +21,7 @@ const VALID_RECOVERY_KEY = {
   recoveryKekSalt: b64(32),
   encryptedVaultKeyRecovery: b64(48),
   vaultKeyEncryptionNonceRecovery: b64(24),
+  recoveryVerifier: b64(32),
 };
 const VALID_USER_KEY = { ...VALID_PASSWORD_KEY, ...VALID_RECOVERY_KEY };
 

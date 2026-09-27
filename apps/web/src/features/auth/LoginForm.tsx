@@ -99,7 +99,10 @@ export default function LoginForm({
           )}
         </CardContent>
 
-        <CardFooter className="flex flex-row justify-end gap-4">
+        <CardFooter className="flex flex-row justify-between gap-4">
+          <Link href={authPaths.recover} variant="link">
+            Forgot password?
+          </Link>
           <Button type="submit" disabled={loading}>
             Login
             {loading && <Spinner data-icon="inline-start" />}

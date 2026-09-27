@@ -27,10 +27,12 @@ export default defineConfig({
       include: [
         "src/auth/login-router.ts",
         "src/auth/registration-router.ts",
+        "src/auth/recovery-router.ts",
         "src/record/router.ts",
         "src/util/redis-utils.ts",
         "../../packages/client/src/register.ts",
         "../../packages/client/src/login.ts",
+        "../../packages/client/src/recover.ts",
       ],
       exclude: ["**/*.test.ts"],
       thresholds: {

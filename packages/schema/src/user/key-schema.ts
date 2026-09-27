@@ -60,11 +60,19 @@ const argonParams = z
 
 export type ArgonParams = z.infer<typeof argonParams>;
 
-export const recoveryKeySchema = z.object({
+// The recovery-key-wrapped copy of the vault key (handed back during recovery).
+export const recoveryWrapSchema = z.object({
   recoveryKekSalt: z.base64().length(44),
 
   encryptedVaultKeyRecovery: z.base64().length(64),
   vaultKeyEncryptionNonceRecovery: z.base64().length(32),
+});
+
+export const recoveryKeySchema = z.object({
+  ...recoveryWrapSchema.shape,
+  // SHA-256(HKDF(recoveryKey, "recovery-auth")) — lets the server check a
+  // recovery request without ever seeing the recovery key.
+  recoveryVerifier: z.base64().length(44),
 });
 
 export const passwordKeySchema = z.object({
@@ -80,6 +88,7 @@ export const userKeySchema = z.object({
   ...passwordKeySchema.shape,
 });
 
+export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
 

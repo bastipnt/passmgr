@@ -12,6 +12,7 @@ export * from "./src/hooks/use-logout";
 export * from "./src/hooks/use-preference";
 export * from "./src/hooks/use-record-history";
 export * from "./src/hooks/use-records";
+export * from "./src/hooks/use-recovery";
 export * from "./src/hooks/use-register";
 export * from "./src/hooks/use-session-restore";
 export * from "./src/hooks/use-shortcut";

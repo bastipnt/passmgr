@@ -1,9 +1,12 @@
+import { sha256 } from "@noble/hashes/sha2.js";
 import { fromString } from "@repo/util";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  deriveRecoveryAuthKey,
   genPasswordKek,
   getPasswordKekParams,
   hashEmail,
+  hashRecoveryAuthKey,
   hkdf,
   retrievePRK,
   setPasswordKekParams,
@@ -118,6 +121,31 @@ describe("hashEmail", () => {
   it("returns a 32-byte digest", async () => {
     const out = await hashEmail(new Uint8Array(32).fill(80), "x@y.z");
     expect(out.length).toBe(32);
+  });
+});
+
+describe("recovery auth key", () => {
+  const recoveryKey = new Uint8Array(32).fill(7);
+
+  it("is deterministic and 32 bytes", async () => {
+    const a = await deriveRecoveryAuthKey(recoveryKey);
+    const b = await deriveRecoveryAuthKey(recoveryKey);
+    expect(a.length).toBe(32);
+    expect(a).toEqual(b);
+  });
+
+  it("is independent of the recovery KEK derivation", async () => {
+    const auth = await deriveRecoveryAuthKey(recoveryKey);
+    const kek = await hkdf(recoveryKey, "recoveryRootKey");
+    expect(auth).not.toEqual(kek);
+  });
+
+  it("hashes to the SHA-256 verifier", async () => {
+    const auth = await deriveRecoveryAuthKey(recoveryKey);
+    const verifier = await hashRecoveryAuthKey(auth);
+    const expected = sha256(auth);
+    expect(verifier).toEqual(expected);
+    expect(verifier).not.toEqual(auth);
   });
 });
 

@@ -3,6 +3,7 @@ export * from "./src/encryption";
 export * from "./src/hash";
 export * from "./src/password-generator";
 export * from "./src/totp";
+export * from "./src/user-keys";
 export {
   hkdfInfo,
   SESSION_ID_HEADER,

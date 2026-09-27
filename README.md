@@ -17,6 +17,7 @@ A password manager that uses [OPAQUE](https://datatracker.ietf.org/doc/draft-irt
 ```
 password ──Argon2id──► passwordKEK ──encrypt──► vaultKey
 recoveryKey ──HKDF──► recoveryKEK ──encrypt──► vaultKey  (backup wrap)
+recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► verifier  (server-side recovery proof)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey  (HMAC request signing)
 ```
@@ -31,7 +32,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and indexed via a server-keyed HM
 
 ## What's missing
 
-- **Web**: no idle lock, no password recovery UI, no auto-relock on tab close.
+- **Web**: no auto-relock on tab close.
 - **Mobile**: auth flow only. No vault, no records, no biometric unlock yet.
 - **Server**: no rate limiting, some signature-validation edge cases still TODO.
 

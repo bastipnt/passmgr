@@ -73,26 +73,29 @@ export const registrationRouter = router({
       );
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const dbUsers = await db
-        .insert(usersTable)
-        .values({
-          encryptedEmail,
-          emailNonce,
-          emailEncryptionKeySalt,
-          emailHash,
-          registrationRecord,
-        })
-        .onConflictDoNothing({ target: usersTable.emailHash })
-        .returning({ userId: usersTable.userId });
+      const created = await db.transaction(async (tx) => {
+        const [user] = await tx
+          .insert(usersTable)
+          .values({
+            encryptedEmail,
+            emailNonce,
+            emailEncryptionKeySalt,
+            emailHash,
+            registrationRecord,
+          })
+          .onConflictDoNothing({ target: usersTable.emailHash })
+          .returning({ userId: usersTable.userId });
+        if (!user) return false;
 
-      const firstUser = dbUsers[0];
-      if (!firstUser) {
+        await tx.insert(keysTable).values({ userId: user.userId, ...userKeys });
+        return true;
+      });
+
+      if (!created) {
         log?.warn({ emailHash }, "auth.register.duplicate");
         return;
       }
 
-      const { userId } = firstUser;
-      await db.insert(keysTable).values({ userId, ...userKeys });
       log?.info({ emailHash, viaInvite: invite !== undefined }, "auth.register.success");
     }),
 });

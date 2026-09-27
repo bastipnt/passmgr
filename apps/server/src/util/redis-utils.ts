@@ -24,6 +24,13 @@ type Session = {
   authenticatedAt: number;
 };
 
+type RecoveryAttempt = {
+  userId: string;
+  emailHash: string;
+  // Active key set when recovery started; finish refuses if it changed since.
+  keySetId: string;
+};
+
 type Invite = {
   // When set, the invite can only register this exact email.
   email?: string;
@@ -48,6 +55,16 @@ function loginKey(attemptId: string) {
   return `login:${attemptId}`;
 }
 
+function recoveryKey(attemptId: string) {
+  return `recovery:${attemptId}`;
+}
+
+// Unix ms before which every session of this user is invalid (see
+// revokeUserSessions). No TTL: sliding sessions can outlive any fixed window.
+function sessionEpochKey(userId: string) {
+  return `sessionepoch:${userId}`;
+}
+
 function loginThrottleKey(emailHash: string) {
   return `loginthrottle:${emailHash}`;
 }
@@ -60,7 +77,15 @@ export async function getSession(sessionId: string): Promise<Session | undefined
   const rawSession = await redis.get(sessionKey(sessionId));
   if (rawSession === null) return undefined;
 
-  return JSON.parse(rawSession);
+  const session: Session = JSON.parse(rawSession);
+  const epoch = await redis.get(sessionEpochKey(session.userId));
+  // `?? 0`: sessions minted before authenticatedAt existed count as oldest.
+  if (epoch !== null && (session.authenticatedAt ?? 0) <= Number(epoch)) {
+    await deleteSession(sessionId);
+    return undefined;
+  }
+
+  return session;
 }
 
 export async function setSession(session: Session): Promise<string> {
@@ -84,6 +109,15 @@ export async function deleteSession(sessionId: string): Promise<void> {
   await redis.del(sessionKey(sessionId));
 }
 
+/**
+ * Invalidate every existing session of a user (e.g. after the password was
+ * reset). There is no per-user session index, so instead of deleting keys this
+ * records a cut-off that getSession checks; sessions created afterwards work.
+ */
+export async function revokeUserSessions(userId: string): Promise<void> {
+  await redis.set(sessionEpochKey(userId), String(Date.now()));
+}
+
 /** Store a login attempt and return its id (handed to the client for finishLogin). */
 export async function setLoginAttempt(loginAttempt: LoginAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();
@@ -102,6 +136,21 @@ export async function takeLoginAttempt(attemptId: string): Promise<LoginAttempt 
   if (rawLoginAttempt === null) return undefined;
 
   return JSON.parse(rawLoginAttempt);
+}
+
+/** Store a recovery attempt and return its id (handed to the client for finishRecovery). */
+export async function setRecoveryAttempt(attempt: RecoveryAttempt): Promise<string> {
+  const attemptId = crypto.randomUUID();
+  await redis.set(recoveryKey(attemptId), JSON.stringify(attempt), "EX", LOGIN_ATTEMPT_TTL_SECONDS);
+  return attemptId;
+}
+
+/** Atomically fetch and delete a recovery attempt — each attempt finishes at most once. */
+export async function takeRecoveryAttempt(attemptId: string): Promise<RecoveryAttempt | undefined> {
+  const raw = await redis.getdel(recoveryKey(attemptId));
+  if (raw === null) return undefined;
+
+  return JSON.parse(raw);
 }
 
 /** Remaining lock time in ms for this account, or 0 when a login may start. */

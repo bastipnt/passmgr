@@ -11,23 +11,19 @@ import {
   OpaqueID,
   OpaqueServer,
 } from "@cloudflare/opaque-ts";
-import {
-  encryptEmail,
-  encryptXChaCha,
-  genKey,
-  genPasswordKek,
-  genSalt,
-  hashEmail,
-  hkdf,
-} from "@repo/crypto";
-import { exampleLoginRecords, type RecordSchema } from "@repo/schema";
+import { encryptEmail, encryptXChaCha, generateUserKeys, genKey, hashEmail } from "@repo/crypto";
+import { edgeCaseLoginRecords, exampleLoginRecords, type RecordSchema } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
 import { db, keysTable, recordsTable, schema, usersTable } from ".";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
 const SERVER_IDENTITY = "passmgr";
+// `bun devSeed.ts --edge-cases` also seeds the QA edge-case records.
+const WITH_EDGE_CASES = process.argv.includes("--edge-cases");
+const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function seed() {
   const { OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY, OPAQUE_SERVER_SETUP } = process.env;
@@ -40,7 +36,9 @@ async function seed() {
 
   const serverKey = fromString(OPAQUE_SERVER_SETUP);
 
-  // 1. Reset database
+  // 1. Bring the schema up to date (reset only truncates), then reset data
+  console.log("Applying migrations...");
+  await migrate(db, { migrationsFolder: `${import.meta.dirname}/drizzle` });
   console.log("Resetting database...");
   await reset(db, schema);
 
@@ -65,18 +63,9 @@ async function seed() {
   if (finished instanceof Error) throw finished;
   const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 
-  // 3. Generate key hierarchy
-  const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(PASSWORD);
-  const recoveryKey = genKey();
-  const recoveryKekSaltData = genSalt();
-  const recoveryKek = await hkdf(recoveryKey, "recoveryRootKey", recoveryKekSaltData);
+  // 3. Generate key hierarchy (same code path as client registration)
   const vaultKey = genKey();
-
-  const [encryptedVaultKey, vaultKeyEncryptionNonce] = encryptXChaCha(passwordKek, vaultKey);
-  const [encryptedVaultKeyRecovery, vaultKeyEncryptionNonceRecovery] = encryptXChaCha(
-    recoveryKek,
-    vaultKey,
-  );
+  const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, vaultKey);
 
   // 4. Encrypt email
   const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(serverKey, EMAIL);
@@ -103,24 +92,21 @@ async function seed() {
   console.log(`User created: ${userId}`);
 
   // 6. Insert keys
-  await db.insert(keysTable).values({
-    userId,
-    recoveryKekSalt: toBase64(recoveryKekSaltData),
-    passwordKekParams,
-    passwordKekSalt: toBase64(passwordKekSaltData),
-    encryptedVaultKey,
-    vaultKeyEncryptionNonce,
-    encryptedVaultKeyRecovery,
-    vaultKeyEncryptionNonceRecovery,
-  });
+  await db.insert(keysTable).values({ userId, ...userKeys });
 
   // 7. Encrypt and insert seed records
-  console.log(`Inserting ${exampleLoginRecords.length} seed records...`);
+  const loginRecords = WITH_EDGE_CASES
+    ? [...exampleLoginRecords, ...edgeCaseLoginRecords]
+    : exampleLoginRecords;
+  console.log(`Inserting ${loginRecords.length} seed records...`);
 
-  const now = new Date();
-  const recordRows = exampleLoginRecords.map((loginRecord, i) => {
+  // Spread creation over the past ~2 years so sorting and "old password"
+  // views have something to show.
+  const now = Date.now();
+  const recordRows = loginRecords.map((loginRecord, i) => {
     const payload: RecordSchema = { schemaVersion: 1, ...loginRecord };
     const [encryptedData, encryptionNonce] = encryptXChaCha(vaultKey, JSON.stringify(payload));
+    const createdAt = new Date(now - ((i * 37) % 730) * DAY_MS - i * 60_000);
 
     return {
       recordId: crypto.randomUUID(),
@@ -129,13 +115,16 @@ async function seed() {
       encryptionNonce,
       cryptoVersion: 1,
       version: 1,
-      clientUpdatedAt: new Date(now.getTime() + i),
+      clientUpdatedAt: createdAt,
+      created_at: createdAt,
+      updated_at: createdAt,
     };
   });
 
   await db.insert(recordsTable).values(recordRows);
 
-  console.log(`Done! Seeded user ${EMAIL} with ${recordRows.length} records.`);
+  console.log(`Done! Seeded user ${EMAIL} / ${PASSWORD} with ${recordRows.length} records.`);
+  console.log(`Recovery key (dev only): ${toBase64(recoveryKey)}`);
   process.exit(0);
 }
 

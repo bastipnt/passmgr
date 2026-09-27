@@ -1,16 +1,17 @@
-import {
-  type AuthClient,
-  getOpaqueConfig,
-  KE2,
-  OpaqueClient,
-  OpaqueID,
-} from "@cloudflare/opaque-ts";
+import { type AuthClient, KE2, OpaqueClient } from "@cloudflare/opaque-ts";
 import { genSalt, normalizeEmail } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
-import { fromBase64, toBase64 } from "@repo/util";
-import { type TRPCClient, TRPCClientError } from "@trpc/client";
+import { toBase64 } from "@repo/util";
+import type { TRPCClient } from "@trpc/client";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  isThrottled,
+  SERVER_IDENTITY,
+} from "./opaque";
 import { timed } from "./util/perf";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
@@ -36,25 +37,6 @@ export class OpaqueLoginFailedError extends Error {
 /** Too many login attempts for this account (or from this IP) — retry later. */
 export class LoginThrottledError extends Error {
   override message = "LoginThrottledError";
-}
-
-function isThrottled(err: unknown): boolean {
-  return (
-    err instanceof TRPCClientError &&
-    (err.data?.code === "TOO_MANY_REQUESTS" || err.data?.httpStatus === 429)
-  );
-}
-
-const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
-// Must match OPAQUE_SERVER_IDENTITY on the server (default "passmgr").
-const SERVER_IDENTITY = "passmgr";
-
-function bytesToB64(bytes: number[]): string {
-  return toBase64(Uint8Array.from(bytes));
-}
-
-function b64ToBytes(s: string): number[] {
-  return Array.from(fromBase64(s));
 }
 
 export async function loginUser(

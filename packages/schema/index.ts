@@ -6,5 +6,6 @@ export * from "./src/seed/login-record-seed";
 export * from "./src/user/email-schema";
 export * from "./src/user/key-schema";
 export * from "./src/user/login-schema";
+export * from "./src/user/recovery-schema";
 export * from "./src/user/registration-schema";
 export * from "./src/user/unlock-schema";

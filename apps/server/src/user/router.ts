@@ -50,6 +50,7 @@ export const userRouter = router({
           recoveryKekSalt: active.recoveryKekSalt,
           encryptedVaultKeyRecovery: active.encryptedVaultKeyRecovery,
           vaultKeyEncryptionNonceRecovery: active.vaultKeyEncryptionNonceRecovery,
+          recoveryVerifier: active.recoveryVerifier,
           passwordKekParams: input.passwordKekParams,
           passwordKekSalt: input.passwordKekSalt,
           encryptedVaultKey: input.encryptedVaultKey,

@@ -12,7 +12,7 @@ export function randomPassword(): string {
 /**
  * Drive the register UI end-to-end, including the recovery-key dialog.
  * Returns the base64 recovery key as displayed (useful for leakage assertions
- * and the future recovery flow).
+ * and the recovery flow).
  */
 export async function registerUser(page: Page, email: string, password: string): Promise<string> {
   // The /register route is conditionally rendered in AuthRoutes only after

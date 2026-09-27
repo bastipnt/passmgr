@@ -139,6 +139,13 @@ Login:
 4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + encrypted vault key material
 5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then decrypts the vault key with the Argon2id password KEK (in a worker). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
+Recovery (forgotten password, `auth/recovery-router.ts`):
+
+1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`
+2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped vault key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
+3. Client: unwraps the **existing** vault key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, vaultKey)` (new password wrap + **new** recovery key + verifier) → `recovery.finishRecovery`
+4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
+
 ### Request Authentication
 
 Authenticated requests use HMAC-signed headers (no cookies):
@@ -159,6 +166,7 @@ per user) — never `UPDATE` key material in place.
 ```
 password ──Argon2id──► passwordKEK ──encrypt──► vaultKey
 recoveryKey ──HKDF──► recoveryKEK ──encrypt──► vaultKey (backup)
+recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► recoveryVerifier (server, recovery proof)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
 ```
@@ -172,6 +180,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `appConfig` → `appConfigRouter` (getConfig — public)
 - `login` → `loginRouter` (startLogin, finishLogin, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
+- `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, all, getById, history, create, update, delete, onRecordChange SSE) — uses `protectedProcedure`
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys)
 

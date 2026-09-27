@@ -1,24 +1,9 @@
-import {
-  getOpaqueConfig,
-  OpaqueClient,
-  OpaqueID,
-  type RegistrationClient,
-  RegistrationResponse,
-} from "@cloudflare/opaque-ts";
-import {
-  encryptXChaCha,
-  genKey,
-  genPasswordKek,
-  genSalt,
-  hkdf,
-  normalizeEmail,
-  wipe,
-} from "@repo/crypto";
+import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
+import { generateUserKeys, normalizeEmail, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import type { UserKeySchema } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
-import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
@@ -28,18 +13,6 @@ export class RegistrationStartFailedError extends Error {
 
 export class RegistrationFinishFailedError extends Error {
   override message = "RegistrationFinishFailedError";
-}
-
-const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
-// Must match OPAQUE_SERVER_IDENTITY on the server (default "passmgr").
-const SERVER_IDENTITY = "passmgr";
-
-function bytesToB64(bytes: number[]): string {
-  return toBase64(Uint8Array.from(bytes));
-}
-
-function b64ToBytes(s: string): number[] {
-  return Array.from(fromBase64(s));
 }
 
 /**
@@ -105,45 +78,4 @@ export async function registerNewUser(
   }
 
   return recoveryKey;
-}
-
-export async function generateUserKeys(
-  password: string,
-): Promise<UserKeySchema & { recoveryKey: Uint8Array }> {
-  const recoveryKey = genKey();
-  const recoveryKekSaltData = genSalt();
-
-  const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(password);
-  const recoveryKek = await hkdf(recoveryKey, "recoveryRootKey", recoveryKekSaltData);
-  const vaultKey = genKey();
-
-  const [encryptedVaultKey, vaultKeyEncryptionNonce] = encryptXChaCha(passwordKek, vaultKey);
-  const [encryptedVaultKeyRecovery, vaultKeyEncryptionNonceRecovery] = encryptXChaCha(
-    recoveryKek,
-    vaultKey,
-  );
-
-  const recoveryKekSalt = toBase64(recoveryKekSaltData);
-  wipe(recoveryKekSaltData);
-
-  const passwordKekSalt = toBase64(passwordKekSaltData);
-  wipe(passwordKekSaltData);
-
-  wipe(vaultKey);
-
-  return {
-    // only show to user, never sent to backend
-    recoveryKey,
-
-    recoveryKekSalt,
-
-    passwordKekParams,
-    passwordKekSalt,
-
-    encryptedVaultKey,
-    vaultKeyEncryptionNonce,
-
-    encryptedVaultKeyRecovery,
-    vaultKeyEncryptionNonceRecovery,
-  };
 }

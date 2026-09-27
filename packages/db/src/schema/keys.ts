@@ -28,6 +28,10 @@ export const keysTable = pgTable(
     encryptedVaultKeyRecovery: varchar().notNull(),
     vaultKeyEncryptionNonceRecovery: varchar().notNull(),
 
+    // SHA-256 of the client's recovery auth key (see `deriveRecoveryAuthKey`).
+    // Null for accounts registered before recovery existed — those can't recover.
+    recoveryVerifier: varchar(),
+
     valid_from: timestamp().defaultNow().notNull(),
     valid_to: timestamp(),
 

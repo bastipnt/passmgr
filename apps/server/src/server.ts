@@ -35,6 +35,7 @@ export const server = fastify({
         "*.startRegistrationRequest",
         "*.registrationRecord",
         "*.recoveryKey",
+        "*.recoveryAuthKey",
         "*.passwordKekSalt",
         "*.userKeys",
       ],
@@ -57,7 +58,7 @@ export const server = fastify({
 
 await server.register(fastifyRedis, { client: redis });
 
-const AUTH_PATH_RE = /\/(login|register)\.[A-Za-z]+/;
+const AUTH_PATH_RE = /\/(login|register|recovery)\.[A-Za-z]+/;
 
 if (process.env.RATE_LIMIT_DISABLED !== "true") {
   await server.register(rateLimit, {

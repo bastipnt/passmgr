@@ -13,6 +13,7 @@ const VALID_USER_KEYS = {
   recoveryKekSalt: b64(32),
   encryptedVaultKeyRecovery: b64(48),
   vaultKeyEncryptionNonceRecovery: b64(24),
+  recoveryVerifier: b64(32),
   passwordKekParams: { t: 3, m: 128 * 1024, p: 1 },
   passwordKekSalt: b64(32),
   encryptedVaultKey: b64(48),

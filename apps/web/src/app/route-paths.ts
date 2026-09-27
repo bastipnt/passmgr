@@ -2,6 +2,7 @@ export const authPaths = {
   login: "/login",
   enrollBiometric: "/enroll-biometric",
   register: "/register",
+  recover: "/recover",
 } as const;
 
 export const recordPaths = {

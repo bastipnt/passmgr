@@ -46,6 +46,7 @@ describe("user.rekeyPasswordKeys (real Postgres + Redis)", () => {
     // Recovery copy of the vault key carries over unchanged.
     expect(active?.encryptedVaultKeyRecovery).toBe(original.encryptedVaultKeyRecovery);
     expect(active?.recoveryKekSalt).toBe(original.recoveryKekSalt);
+    expect(active?.recoveryVerifier).toBe(original.recoveryVerifier);
   });
 
   it("rejects a session whose OPAQUE login is older than the fresh-auth window", async () => {

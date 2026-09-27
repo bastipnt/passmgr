@@ -1,9 +1,11 @@
 import {
   decryptXChaCha,
+  deriveRecoveryAuthKey,
   encryptXChaCha,
   genKey,
   genPasswordKek,
   genSalt,
+  hashRecoveryAuthKey,
   hkdf,
   retrievePRK,
 } from "@repo/crypto";
@@ -46,6 +48,9 @@ async function registerCapturingVaultKey(email: string, password: string) {
     registrationRecord,
     userKeys: {
       recoveryKekSalt: toBase64(recoveryKekSaltData),
+      recoveryVerifier: toBase64(
+        await hashRecoveryAuthKey(await deriveRecoveryAuthKey(recoveryKey)),
+      ),
       passwordKekParams,
       passwordKekSalt: toBase64(passwordKekSaltData),
       encryptedVaultKey,

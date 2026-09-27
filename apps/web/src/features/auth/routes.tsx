@@ -6,6 +6,7 @@ import AuthLayout from "./AuthLayout";
 
 const BiometricEnrollPage = lazy(() => import("./BiometricEnrollPage"));
 const LoginPage = lazy(() => import("./LoginPage"));
+const RecoverPage = lazy(() => import("./RecoverPage"));
 const RegisterPage = lazy(() => import("./RegisterPage"));
 
 export default function AuthRoutes() {
@@ -28,6 +29,7 @@ export default function AuthRoutes() {
         <Switch>
           <Route path={authPaths.login} component={LoginPage} />
           <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
+          <Route path={authPaths.recover} component={RecoverPage} />
           {canRegister && <Route path={authPaths.register} component={RegisterPage} />}
 
           <Route>

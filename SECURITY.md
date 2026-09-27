@@ -51,6 +51,7 @@ That said, reports about the following are very welcome:
 
 These are documented gaps, not vulnerabilities:
 
-- No password recovery UI (recovery-key material is stored server-side but no flow consumes it).
+- Account recovery requires the recovery key shown at registration. The server stores only `SHA-256(HKDF(recoveryKey, "recovery-auth"))` as a verifier, never the key; recovery rotates the key and revokes all sessions. Accounts registered before the verifier existed cannot recover and must re-register.
+- Open SSE subscriptions are not closed when sessions are revoked (they stop at the next reconnect).
 - No master-password change and no way to list or revoke sessions on other devices.
 - Rotating the OPAQUE secrets (`OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY`) invalidates every existing registration; rotating `OPAQUE_SERVER_SETUP` breaks email lookup. This is by design.

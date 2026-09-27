@@ -10,6 +10,7 @@ import { useRef } from "react";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
+import { RecoverSheet } from "@/features/auth/components/RecoverSheet";
 import { SignInSheet } from "@/features/auth/components/SignInSheet";
 import { SignUpSheet } from "@/features/auth/components/SignUpSheet";
 
@@ -18,6 +19,7 @@ export default function LoginScreen() {
   const foreground = useCSSVariable("--color-foreground") as string;
   const signInRef = useRef<BottomSheetRef>(null);
   const signUpRef = useRef<BottomSheetRef>(null);
+  const recoverRef = useRef<BottomSheetRef>(null);
 
   return (
     <View className="flex-1 bg-background">
@@ -88,7 +90,14 @@ export default function LoginScreen() {
         </View>
       </View>
 
-      <SignInSheet ref={signInRef} />
+      <SignInSheet
+        ref={signInRef}
+        onForgotPassword={() => recoverRef.current?.triggerShowHide(true)}
+      />
+      <RecoverSheet
+        ref={recoverRef}
+        onSwitchToSignIn={() => signInRef.current?.triggerShowHide(true)}
+      />
       <SignUpSheet
         ref={signUpRef}
         onSwitchToSignIn={() => signInRef.current?.triggerShowHide(true)}
