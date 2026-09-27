@@ -1,3 +1,4 @@
+import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
@@ -5,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRoute } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
+import { AppShell, ShellPanel } from "@/components/AppShell";
 import SettingsOverview from "./SettingsOverview";
 
 type SettingsLayoutProps = {
@@ -22,18 +24,22 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   const backLink = isIndex || !isMobile ? recordPaths.index : settingsPaths.index;
 
   return (
-    <div className="grid h-screen grid-cols-1 grid-rows-[auto_1fr] sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
-      <header className="col-span-2 flex flex-row content-stretch gap-4 border-b p-4">
-        <Link variant="outline" size="icon" href={backLink}>
-          <ArrowLeft className="h-[1.2rem] w-[1.2rem]" />
-        </Link>
-      </header>
-      <main className="col-span-2 grid items-stretch overflow-hidden sm:grid-cols-subgrid">
-        <SettingsOverview className={cn(!isIndex && "hidden sm:block")} />
-        <section className={cn("overflow-y-auto", isIndex && "hidden sm:block")}>
-          {children}
-        </section>
-      </main>
-    </div>
+    <AppShell
+      mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]"
+      header={
+        <>
+          <Link variant="outline" size="icon" href={backLink} aria-label="Back">
+            <ArrowLeft />
+          </Link>
+          <h1 className="font-bold font-display text-xl tracking-[-0.02em]">Settings</h1>
+          <ThemeToggle className="ml-auto" />
+        </>
+      }
+    >
+      <ShellPanel className={cn(!isIndex && "hidden sm:block")}>
+        <SettingsOverview />
+      </ShellPanel>
+      <ShellPanel className={cn(isIndex && "hidden sm:block")}>{children}</ShellPanel>
+    </AppShell>
   );
 }

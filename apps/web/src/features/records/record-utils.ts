@@ -26,3 +26,12 @@ export function useCopyField() {
     [copy],
   );
 }
+
+/** "https://github.com/login" → "github.com"; the input itself if it isn't a URL. */
+export function displayHost(url: string) {
+  try {
+    return new URL(url).host.replace(/^www\./, "");
+  } catch {
+    return url;
+  }
+}

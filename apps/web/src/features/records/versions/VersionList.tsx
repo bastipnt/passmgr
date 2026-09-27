@@ -1,4 +1,5 @@
 import { useRecordHistory } from "@repo/client";
+import { Badge } from "@repo/ui/components/Badge";
 import {
   Item,
   ItemActions,
@@ -9,6 +10,7 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
+import { cn } from "@repo/ui/lib/utils";
 import { toLocalDateStr } from "@repo/util";
 import { ChevronRightIcon, ClockCheckIcon, PencilIcon, SparklesIcon } from "lucide-react";
 import { Link } from "wouter";
@@ -18,16 +20,16 @@ export default function VersionList({ recordId }: { recordId: string }) {
   const { versions, ready, error } = useRecordHistory(recordId);
 
   if (error) {
-    return <p className="p-4 text-destructive text-sm">Could not load version history.</p>;
+    return <p className="px-7 py-6 text-destructive text-sm">Could not load version history.</p>;
   }
 
   if (!ready) {
     return (
-      <ItemGroup className="p-4">
+      <ItemGroup className="gap-3 px-5 py-6 sm:px-7">
         {Array.from({ length: 4 }).map((_, i) => (
           <Item key={i} className="p-0">
             <ItemMedia className="self-stretch! flex flex-col justify-start">
-              <Skeleton className="mt-1 h-8 w-8 rounded-full" />
+              <Skeleton className="mt-1 size-9 rounded-full" />
               {i < 3 && <div className="-mb-3 w-0.5 flex-1 bg-border"></div>}
             </ItemMedia>
             <ItemContent>
@@ -45,7 +47,7 @@ export default function VersionList({ recordId }: { recordId: string }) {
   }
 
   return (
-    <ItemGroup className="p-4">
+    <ItemGroup className="gap-3 px-5 py-6 sm:px-7">
       {versions.map((version, i) => {
         const isCurrent = i === 0;
         const isOldest = i === versions.length - 1;
@@ -62,16 +64,33 @@ export default function VersionList({ recordId }: { recordId: string }) {
         return (
           <Item key={version.version} className="p-0">
             <ItemMedia className="self-stretch! flex flex-col justify-start gap-2">
-              <div className="mt-1 rounded-full bg-primary p-2">{icon}</div>
-              {!isOldest && <div className="-mb-3 w-0.5 flex-1 bg-border"></div>}
+              <div
+                className={cn(
+                  "mt-1 grid size-9 place-items-center rounded-full border",
+                  isCurrent
+                    ? "border-primary bg-primary text-primary-foreground"
+                    : "border-foreground/12 bg-white/70 text-muted-foreground dark:border-white/12 dark:bg-white/5",
+                )}
+              >
+                {icon}
+              </div>
+              {!isOldest && <div className="-mb-4 w-px flex-1 bg-foreground/12 dark:bg-white/12" />}
             </ItemMedia>
             <ItemContent>
               <Item
-                variant="outline"
+                variant={isCurrent ? "active" : "outline"}
+                className="rounded-2xl px-4 py-3.5"
                 render={<Link href={recordPaths.version(recordId, version.version)} />}
               >
                 <ItemContent className="gap-1">
-                  <ItemTitle>{versionName}</ItemTitle>
+                  <ItemTitle className="font-semibold text-[0.95rem]">
+                    {versionName}
+                    {isCurrent && (
+                      <Badge variant="secondary" className="h-5 text-[0.65rem] tracking-wider">
+                        NOW
+                      </Badge>
+                    )}
+                  </ItemTitle>
                   <ItemDescription>{toLocalDateStr(version.clientUpdatedAt)}</ItemDescription>
                 </ItemContent>
                 <ItemActions>

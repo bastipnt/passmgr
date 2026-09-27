@@ -5,7 +5,7 @@ import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { isDefined } from "@repo/util";
-import { XIcon } from "lucide-react";
+import { PlusIcon, XIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
@@ -75,13 +75,15 @@ export default function CreateRecordSheet() {
         </Button>
       )}
 
-      <div className="flex flex-row gap-4">
+      <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-end">
         {!isMobile && (
-          <Button variant="secondary" type="button" onClick={close}>
+          <Button variant="outline" size="lg" type="button" onClick={close}>
             Cancel
           </Button>
         )}
-        <Button onClick={() => formRef.current?.triggerSubmit()}>Save</Button>
+        <Button size="lg" onClick={() => formRef.current?.triggerSubmit()}>
+          Create login
+        </Button>
       </div>
     </div>
   );
@@ -93,7 +95,13 @@ export default function CreateRecordSheet() {
         onOpenChange={(nextOpen) => {
           if (!nextOpen) close();
         }}
-        title="New Login"
+        title="New login"
+        description="Encrypted on this device before it's saved"
+        media={
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-primary-foreground">
+            <PlusIcon className="size-5" aria-hidden />
+          </span>
+        }
         actions={formActions}
         sheetClassName="sm:max-w-3xl!"
       >

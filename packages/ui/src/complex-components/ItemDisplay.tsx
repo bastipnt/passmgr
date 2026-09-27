@@ -124,7 +124,7 @@ function ItemDisplay({
 
   return (
     <Item
-      className="group rounded-none first:rounded-t-2xl last:rounded-b-2xl"
+      className="group rounded-none border-0 not-last:border-foreground/8 not-last:border-b first:rounded-t-2xl last:rounded-b-2xl dark:not-last:border-white/8"
       render={
         usesHiddenValue ? (
           <StackedButton>
@@ -153,7 +153,7 @@ function ItemDisplayGroup({ children, className }: ItemDisplayGroupProps) {
   return (
     <ItemGroup
       className={cn(
-        "gap-0 divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 dark:divide-white/8 dark:border-white/10 dark:bg-white/[0.03]",
+        "gap-0 rounded-2xl border border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]",
         className,
       )}
     >

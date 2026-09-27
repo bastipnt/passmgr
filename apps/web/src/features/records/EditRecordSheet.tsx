@@ -4,12 +4,14 @@ import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { toLocalDateStr } from "@repo/util";
 import { TrashIcon, XIcon } from "lucide-react";
 import { useRef } from "react";
 import { recordPaths } from "@/app/route-paths";
 import LoginRecordForm, { type LoginRecordFormHandle } from "./login/LoginRecordForm";
 import { useRecordActions } from "./use-record-actions";
 import { useRouteSheet } from "./use-route-sheet";
+import { WebsiteAvatar } from "./WebsiteAvatar";
 
 export default function EditRecordSheet({ record }: { record: DecryptedRecord }) {
   const isMobile = useIsMobile();
@@ -75,15 +77,22 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
           <XIcon />
         </Button>
       )}
-      <div className="flex flex-row gap-4 sm:w-full sm:justify-between">
+      <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-between">
         {!isMobile && deleteAction}
-        <div className="flex flex-row gap-4">
+        <div className="flex flex-row items-center gap-3">
           {!isMobile && (
-            <Button variant="secondary" type="button" onClick={() => setOpen(false)}>
-              Cancel
-            </Button>
+            <>
+              <span className="hidden text-muted-foreground text-xs md:inline">
+                Every save keeps a version
+              </span>
+              <Button variant="outline" size="lg" type="button" onClick={() => setOpen(false)}>
+                Cancel
+              </Button>
+            </>
           )}
-          <Button onClick={() => formRef.current?.triggerSubmit()}>Save</Button>
+          <Button size="lg" onClick={() => formRef.current?.triggerSubmit()}>
+            Save changes
+          </Button>
         </div>
       </div>
     </div>
@@ -96,7 +105,9 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
         onOpenChange={setOpen}
         onOpenChangeComplete={onOpenChangeComplete}
         sheetClassName="sm:max-w-3xl!"
-        title="Edit Login"
+        title="Edit login"
+        description={`${record.title} · last changed ${toLocalDateStr(record.clientUpdatedAt)}`}
+        media={<WebsiteAvatar title={record.title} websites={record.websites} />}
         actions={formActions}
       >
         {form}

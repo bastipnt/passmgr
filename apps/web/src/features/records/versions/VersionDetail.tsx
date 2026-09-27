@@ -16,11 +16,15 @@ import { Link } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import LoginFieldDisplay from "../login/LoginFieldDisplay";
 
+// Unchanged rows recede; diffs get a tinted card in their status colour.
 const CELL_CLASS: Record<DiffStatus, { old: string; latest: string }> = {
-  unchanged: { old: "hidden sm:block", latest: "" },
-  edited: { old: "border-warning", latest: "border-warning" },
-  added: { old: "", latest: "border-success bg-success/10" },
-  removed: { old: "border-error bg-error/10", latest: "" },
+  unchanged: { old: "hidden opacity-55 sm:block", latest: "opacity-55" },
+  edited: {
+    old: "border-warning bg-warning/8 dark:border-warning/50",
+    latest: "border-warning bg-warning/8 dark:border-warning/50",
+  },
+  added: { old: "", latest: "border-success bg-success/10 dark:border-success/50" },
+  removed: { old: "border-error bg-error/10 dark:border-error/50", latest: "" },
 };
 
 const STATUS_LABEL: Record<DiffStatus, string> = {
@@ -32,8 +36,8 @@ const STATUS_LABEL: Record<DiffStatus, string> = {
 
 const STATUS_TEXT_CLASS: Record<DiffStatus, string> = {
   unchanged: "",
-  edited: "text-warning",
-  added: "text-success",
+  edited: "text-amber-700 dark:text-warning",
+  added: "text-emerald-700 dark:text-success",
   removed: "text-error",
 };
 
@@ -55,7 +59,12 @@ function DiffCell({
   // grid slot so the other side keeps its own row, but it collapses away once
   // the columns stack.
   if (!spec) {
-    return <div aria-hidden className="hidden sm:block" />;
+    return (
+      <div
+        aria-hidden
+        className="hidden min-h-16 rounded-2xl border border-foreground/15 border-dashed sm:block dark:border-white/15"
+      />
+    );
   }
 
   // Stacked, the two revisions read as one column, so each card has to say
@@ -75,8 +84,8 @@ function DiffCell({
 
 function VersionHeading({ record, isLatest }: { record: DecryptedRecord; isLatest: boolean }) {
   return (
-    <div>
-      <h3 className="font-medium text-sm">
+    <div className="flex flex-col gap-0.5 px-1">
+      <h3 className="font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
         {isLatest ? "Current version" : `Version ${record.version}`}
       </h3>
       <p className="text-muted-foreground text-xs">{toLocalDateStr(record.clientUpdatedAt)}</p>
@@ -95,7 +104,7 @@ export default function VersionDetail({
   const record = ready ? versions.find((v) => v.version === version) : undefined;
   const latestRecord = ready ? versions[0] : undefined;
 
-  if (!ready) return <Skeleton className="m-4 h-40" />;
+  if (!ready) return <Skeleton className="m-7 h-40 rounded-2xl" />;
   if (!record) {
     return <p className="p-4 text-muted-foreground text-sm">This version no longer exists.</p>;
   }
@@ -109,15 +118,18 @@ export default function VersionDetail({
   );
 
   return (
-    <div className="flex flex-col justify-stretch gap-4 p-4">
-      <Button
-        variant="ghost"
-        className="self-start"
-        nativeButton={false}
-        render={<Link href={recordPaths.recordVersions(recordId)} />}
-      >
-        <ChevronLeftIcon /> All versions
-      </Button>
+    <div className="flex flex-col justify-stretch gap-4 px-5 py-6 sm:px-7">
+      <div className="flex items-center justify-between gap-4">
+        <Button
+          variant="outline"
+          size="sm"
+          nativeButton={false}
+          render={<Link href={recordPaths.recordVersions(recordId)} />}
+        >
+          <ChevronLeftIcon /> All versions
+        </Button>
+        <p className="text-muted-foreground text-xs">Unchanged fields are dimmed</p>
+      </div>
 
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:items-start sm:gap-x-4">
         {/* `sm:contents` dissolves these wrappers back into grid cells, so the

@@ -3,6 +3,7 @@ import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/comp
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetFooter,
   SheetHeader,
   SheetTitle,
@@ -17,6 +18,10 @@ type ResponsiveSheetProps = {
   /** Fires after the open/close animation finishes — use to commit navigation on close. */
   onOpenChangeComplete?: (open: boolean) => void;
   title?: string;
+  /** Subtitle under the sheet title (desktop). */
+  description?: ReactNode;
+  /** Leading visual in the sheet header, e.g. the record's avatar (desktop). */
+  media?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   drawerClassName?: string;
@@ -30,6 +35,8 @@ function ResponsiveSheet({
   onOpenChangeComplete,
   children,
   title,
+  description,
+  media,
   actions,
   drawerClassName,
   sheetClassName,
@@ -58,8 +65,12 @@ function ResponsiveSheet({
     >
       <SheetContent side="right" className={sheetClassName}>
         {title && (
-          <SheetHeader>
-            <SheetTitle>{title}</SheetTitle>
+          <SheetHeader className="flex-row items-center justify-start gap-4">
+            {media}
+            <div className="flex min-w-0 flex-col gap-0.5">
+              <SheetTitle>{title}</SheetTitle>
+              {description && <SheetDescription>{description}</SheetDescription>}
+            </div>
           </SheetHeader>
         )}
 

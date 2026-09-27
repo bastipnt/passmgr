@@ -32,6 +32,7 @@ export function RecordMobileDrawerInner({
           <RecordActions
             recordId={recordId}
             title={record.title}
+            websites={record.websites}
             onDelete={() => deleteRecord(recordId)}
             onSetOpen={setOpen}
           />

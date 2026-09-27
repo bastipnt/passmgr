@@ -1,7 +1,6 @@
 import { type LoginRecord as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
-import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -10,7 +9,7 @@ import {
 } from "@repo/ui/components/DropdownMenu";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
-import { LockIcon, PlusIcon, TextIcon, TrashIcon } from "lucide-react";
+import { LockIcon, MinusIcon, PlusIcon, TextIcon } from "lucide-react";
 import {
   type Control,
   type FieldErrors,
@@ -32,11 +31,13 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
 
   return (
     <FieldSet>
-      <FieldLegend>Additional fields</FieldLegend>
-      <FieldGroup>
+      <FieldLegend className="font-semibold text-[0.7rem]! text-muted-foreground uppercase tracking-[0.12em]">
+        Additional fields
+      </FieldLegend>
+      <FieldGroup className="gap-3">
         {fields.map((field, index) => (
-          <ButtonGroup key={field.id} className="w-full">
-            <ButtonGroup className="w-full">
+          <div key={field.id} className="flex w-full items-start gap-2">
+            <div className="min-w-0 flex-1">
               <ControlledExtraField
                 control={control}
                 titleName={`extraFields.${index}.title`}
@@ -44,29 +45,38 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
                 type={field.type}
                 icon={field.type === "secret" ? <LockIcon /> : <TextIcon />}
               />
-            </ButtonGroup>
+            </div>
 
-            <ButtonGroup className="mt-4.5">
-              <RemoveDialog
-                title="Delete field"
-                description="Are you sure you want to delete this field?"
-                removeTitle="Delete"
-                onRemove={() => remove(index)}
+            <RemoveDialog
+              title="Delete field"
+              description="Are you sure you want to delete this field?"
+              removeTitle="Delete"
+              onRemove={() => remove(index)}
+            >
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="mt-4 rounded-full"
+                type="button"
+                aria-label="Remove field"
               >
-                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
-                  <TrashIcon />
-                </Button>
-              </RemoveDialog>
-            </ButtonGroup>
-          </ButtonGroup>
+                <MinusIcon />
+              </Button>
+            </RemoveDialog>
+          </div>
         ))}
       </FieldGroup>
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="ghost" type="button" className="w-fit">
+            <Button
+              variant="ghost"
+              size="sm"
+              type="button"
+              className="w-fit text-primary dark:text-ring"
+            >
               <PlusIcon />
-              Add
+              Add field
             </Button>
           }
         />

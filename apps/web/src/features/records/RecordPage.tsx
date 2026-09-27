@@ -14,11 +14,12 @@ function RecordScreen({ recordId }: { recordId: string }) {
   if (!record) return <Redirect to={recordPaths.index} replace />;
 
   return (
-    <section className="p-4">
+    <section className="p-6 lg:p-7">
       <RecordActions
-        className="pb-10"
+        className="pb-7"
         recordId={recordId}
         title={record.title}
+        websites={record.websites}
         onDelete={() => deleteRecord(recordId)}
       />
 

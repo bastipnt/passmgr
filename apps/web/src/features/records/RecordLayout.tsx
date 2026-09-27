@@ -10,6 +10,7 @@ import {
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
+import { BrandLockup, BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
 import {
   Empty,
@@ -27,10 +28,19 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
-import { CircleHelpIcon, PlusIcon, SearchIcon, SearchXIcon, Settings, XIcon } from "lucide-react";
+import {
+  CircleHelpIcon,
+  LockIcon,
+  PlusIcon,
+  SearchIcon,
+  SearchXIcon,
+  SlidersHorizontalIcon,
+  XIcon,
+} from "lucide-react";
 import { type ReactNode, useContext, useRef, useState } from "react";
-import { useLocation } from "wouter";
-import { settingsPaths } from "@/app/route-paths";
+import { Link as RouterLink, useLocation } from "wouter";
+import { recordPaths, settingsPaths } from "@/app/route-paths";
+import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
@@ -51,13 +61,14 @@ function SearchInput() {
   });
 
   return (
-    <InputGroup>
+    <InputGroup className="max-w-sm">
       <InputGroupAddon align="inline-start">
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
-        placeholder="Search..."
+        placeholder="Search logins…"
+        aria-label="Search logins"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -91,10 +102,16 @@ function NoSearchResults() {
           <EmptyMedia variant="icon">
             <SearchXIcon />
           </EmptyMedia>
-          <EmptyTitle>No Results</EmptyTitle>
-          <EmptyDescription>No records matched your search.</EmptyDescription>
+          <EmptyTitle>No results for &ldquo;{query.trim()}&rdquo;</EmptyTitle>
+          <EmptyDescription>
+            Nothing in your vault matches. Search looks at titles, usernames and websites.
+          </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent className="flex-row justify-center">
+        <EmptyContent className="flex-row flex-wrap justify-center">
+          <Button variant="outline" onClick={() => setQuery("")}>
+            <XIcon data-icon="inline-start" />
+            Clear search
+          </Button>
           <Button
             variant="default"
             onClick={() => {
@@ -102,7 +119,8 @@ function NoSearchResults() {
               setQuery("");
             }}
           >
-            Create a new record for &ldquo;{query.trim()}&rdquo;
+            <PlusIcon data-icon="inline-start" />
+            Create &ldquo;{query.trim()}&rdquo;
           </Button>
         </EmptyContent>
       </Empty>
@@ -114,12 +132,10 @@ function MainContent({ children }: { children: ReactNode }) {
   const { query, sortedRecords } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
-  return noResults ? (
-    <section className="overflow-y-scroll">
-      <NoSearchResults />
-    </section>
-  ) : (
-    children
+  return (
+    <ShellPanel className="hidden sm:block">
+      {noResults ? <NoSearchResults /> : children}
+    </ShellPanel>
   );
 }
 
@@ -155,35 +171,64 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
 
   return (
     <SortedRecordsProvider>
-      <div className="grid h-screen grid-cols-1 grid-rows-[auto_1fr] sm:grid-cols-[250px_1fr] md:grid-cols-[300px_1fr]">
-        <header className="col-span-2 flex flex-row content-stretch gap-4 border-b p-4">
-          <SearchInput />
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={() => setHelpOpen(true)}
-            aria-label="Show keyboard shortcuts"
-          >
-            <CircleHelpIcon className="h-[1.2rem] w-[1.2rem]" />
-          </Button>
-          <Link variant="outline" size="icon" href={settingsPaths.index}>
-            <Settings className="h-[1.2rem] w-[1.2rem]" />
-          </Link>
-          <ThemeToggle />
-          {!isOffline && (
-            <Link variant="default" href={createSheetSearch()}>
-              <PlusIcon />
-              New Record
-            </Link>
-          )}
-        </header>
-        <main className="col-span-2 grid items-stretch overflow-hidden sm:grid-cols-subgrid">
-          <section className="scroll-py-4 overflow-y-scroll p-4 sm:border-r">
-            <RecordSidebar />
-          </section>
-          <MainContent>{children}</MainContent>
-        </main>
-      </div>
+      <AppShell
+        mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]"
+        header={
+          <>
+            <RouterLink
+              href={recordPaths.index}
+              aria-label="passmgr"
+              className="shrink-0 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25 lg:w-[calc(21rem-1rem)]"
+            >
+              <BrandMark className="sm:hidden" />
+              <BrandLockup className="hidden sm:inline-flex" />
+            </RouterLink>
+            <SearchInput />
+            <div className="ml-auto flex shrink-0 items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="hidden sm:inline-flex"
+                onClick={() => setHelpOpen(true)}
+                aria-label="Show keyboard shortcuts"
+                title="Keyboard shortcuts"
+              >
+                <CircleHelpIcon />
+              </Button>
+              <Link
+                variant="outline"
+                size="icon"
+                href={settingsPaths.index}
+                aria-label="Settings"
+                title="Settings"
+              >
+                <SlidersHorizontalIcon />
+              </Link>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={lockVault}
+                aria-label="Lock vault"
+                title="Lock vault"
+              >
+                <LockIcon />
+              </Button>
+              <ThemeToggle className="hidden md:inline-flex" />
+              {!isOffline && (
+                <Link variant="default" href={createSheetSearch()} aria-label="New record">
+                  <PlusIcon />
+                  <span className="hidden sm:inline">New record</span>
+                </Link>
+              )}
+            </div>
+          </>
+        }
+      >
+        <ShellPanel className="scroll-py-4 p-3">
+          <RecordSidebar />
+        </ShellPanel>
+        <MainContent>{children}</MainContent>
+      </AppShell>
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
     </SortedRecordsProvider>
   );

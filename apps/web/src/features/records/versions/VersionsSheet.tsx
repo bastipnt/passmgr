@@ -43,8 +43,9 @@ export default function VersionsSheet() {
         onOpenChange={setOpen}
         onOpenChangeComplete={onOpenChangeComplete}
         title={version ? `Version ${version}` : "Version history"}
+        description={version ? "Compared with the current version" : undefined}
         sheetClassName="sm:max-w-3xl!"
-        actions={sheetActions}
+        actions={isMobile ? sheetActions : undefined}
       >
         {recordId &&
           (version === undefined ? (

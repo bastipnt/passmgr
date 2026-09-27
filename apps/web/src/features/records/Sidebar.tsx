@@ -35,7 +35,8 @@ type SidebarRecordProps = {
 function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
   return (
     <Item
-      variant={active ? "active" : "outline"}
+      variant={active ? "active" : "default"}
+      className="gap-3 rounded-2xl px-2.5 py-2"
       render={
         <Link
           href={recordPaths.record(record.recordId)}
@@ -46,9 +47,11 @@ function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
       <ItemMedia>
         <WebsiteAvatar title={record.title} websites={record.websites} />
       </ItemMedia>
-      <ItemContent className="gap-1">
-        <ItemTitle>{record.title}</ItemTitle>
-        <ItemDescription className="line-clamp-1">{record.username || "-"}</ItemDescription>
+      <ItemContent className="min-w-0 gap-0">
+        <ItemTitle className="font-semibold text-[0.95rem]">{record.title}</ItemTitle>
+        <ItemDescription className="line-clamp-1 text-[0.8rem]">
+          {record.username || "—"}
+        </ItemDescription>
       </ItemContent>
     </Item>
   );
@@ -56,12 +59,12 @@ function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
 
 function RecordSidebarSkeleton() {
   return (
-    <ItemGroup className="max-w-sm">
+    <ItemGroup className="gap-1 pt-12">
       {Array.from({ length: 5 }).map((_, i) => (
         // static skeleton list, index key is fine
-        <Item key={i} variant="outline">
+        <Item key={i} className="gap-3 px-2.5 py-2">
           <ItemMedia>
-            <Skeleton className="size-8 rounded-full" />
+            <Skeleton className="size-9 rounded-[10px]" />
           </ItemMedia>
           <ItemContent className="gap-1">
             <Skeleton className="h-4 w-32" />
@@ -70,6 +73,31 @@ function RecordSidebarSkeleton() {
         </Item>
       ))}
     </ItemGroup>
+  );
+}
+
+/** Ghost rows standing in for the first logins. */
+function EmptySidebar() {
+  return (
+    <div className="flex flex-col gap-2">
+      {[1, 0.7, 0.4].map((opacity) => (
+        <div
+          key={opacity}
+          style={{ opacity }}
+          className="flex items-center gap-3 rounded-2xl border border-foreground/12 border-dashed px-2.5 py-2 dark:border-white/12"
+          aria-hidden
+        >
+          <span className="size-9 rounded-[10px] bg-foreground/8" />
+          <span className="flex flex-1 flex-col gap-1.5">
+            <span className="h-2.5 w-20 rounded-full bg-foreground/10" />
+            <span className="h-2 w-32 rounded-full bg-foreground/8" />
+          </span>
+        </div>
+      ))}
+      <p className="px-1.5 pt-2 text-muted-foreground text-sm">
+        Your logins will show up here, grouped by when you last used them.
+      </p>
+    </div>
   );
 }
 
@@ -154,13 +182,20 @@ export default function RecordSidebar() {
   const noResults = hasQuery && sortedRecords.length === 0;
 
   return (
-    <div className="flex flex-col gap-2 sm:max-w-sm">
-      <div className="flex items-center justify-end">
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2 px-1.5 pt-1 pb-1">
+        <h2 className="font-semibold">
+          Logins{" "}
+          <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
+            {sortedRecords.length}
+          </span>
+        </h2>
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
-              <Button variant="ghost" size="icon" className="size-8">
-                <ArrowUpDownIcon className="size-4" />
+              <Button variant="outline" size="sm" aria-label="Sort records">
+                <ArrowUpDownIcon />
+                {SORT_LABELS[sort]}
               </Button>
             }
           />
@@ -177,12 +212,14 @@ export default function RecordSidebar() {
       </div>
       {noResults ? (
         <p className="px-1 py-4 text-muted-foreground text-sm">No results</p>
+      ) : sortedRecords.length === 0 ? (
+        <EmptySidebar />
       ) : (
-        <ItemGroup>
+        <ItemGroup className="gap-1">
           {recordGroups.map((recordGroup) => (
             <Fragment key={recordGroup.label ?? "all"}>
               {recordGroup.label && (
-                <p className="px-1 pt-2 font-medium text-muted-foreground text-xs first:pt-0">
+                <p className="px-2 pt-3 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em] first:pt-1">
                   {recordGroup.label}
                 </p>
               )}

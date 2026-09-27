@@ -10,17 +10,25 @@ import {
 import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
-import { EditIcon, EllipsisVerticalIcon, Timeline, TrashIcon, XIcon } from "lucide-react";
+import {
+  EllipsisIcon,
+  ExternalLinkIcon,
+  PencilLineIcon,
+  Timeline,
+  TrashIcon,
+  XIcon,
+} from "lucide-react";
 import { useContext, useState } from "react";
 import { recordPaths } from "@/app/route-paths";
+import { displayHost } from "./record-utils";
+import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type MoreDropdownProps = {
   recordId: string;
   onDelete: () => void;
-  isMobile: boolean;
 };
 
-function MoreDropdown({ recordId, onDelete, isMobile }: MoreDropdownProps) {
+function MoreDropdown({ recordId, onDelete }: MoreDropdownProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   return (
@@ -28,12 +36,8 @@ function MoreDropdown({ recordId, onDelete, isMobile }: MoreDropdownProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              variant={isMobile ? "outline" : "ghost"}
-              size="icon"
-              className="rounded-full sm:rounded-lg"
-            >
-              <EllipsisVerticalIcon />
+            <Button variant="outline" size="icon-lg" aria-label="More actions">
+              <EllipsisIcon />
             </Button>
           }
         />
@@ -65,6 +69,7 @@ function MoreDropdown({ recordId, onDelete, isMobile }: MoreDropdownProps) {
 type RecordActionsProps = {
   recordId: string;
   title: string;
+  websites?: { value: string }[];
   onDelete: () => void;
   onSetOpen?: (o: boolean) => void;
   className?: string;
@@ -73,16 +78,18 @@ type RecordActionsProps = {
 export function RecordActions({
   recordId,
   title,
+  websites,
   onDelete,
   onSetOpen,
   className,
 }: RecordActionsProps) {
+  const primaryWebsite = websites?.find((website) => website.value)?.value;
   const { isOffline } = useContext(SessionContext);
   const isMobile = useIsMobile();
 
   return (
-    <div className={cn("flex flex-row items-center justify-between", className)}>
-      <div className="flex flex-row items-center gap-4">
+    <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
+      <div className="flex min-w-0 flex-row items-center gap-4">
         {isMobile && onSetOpen && (
           <Button
             variant="outline"
@@ -94,15 +101,38 @@ export function RecordActions({
           </Button>
         )}
 
-        <h1>{title}</h1>
+        <WebsiteAvatar title={title} websites={websites} size={isMobile ? "default" : "lg"} />
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h1 className="truncate font-bold font-display text-xl tracking-[-0.02em] sm:text-3xl">
+            {title}
+          </h1>
+          {primaryWebsite && (
+            <a
+              href={primaryWebsite}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex w-fit items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
+            >
+              {displayHost(primaryWebsite)}
+              <ExternalLinkIcon className="size-3.5" aria-hidden />
+            </a>
+          )}
+        </div>
       </div>
 
       {!isOffline && (
-        <div className="flex items-center gap-4">
-          <Link variant={isMobile ? "default" : "ghost"} href={recordPaths.editRecord(recordId)}>
-            <EditIcon /> Edit
+        <div className="flex shrink-0 items-center gap-2">
+          <Link
+            variant={isMobile ? "default" : "outline"}
+            size={isMobile ? "icon-lg" : "lg"}
+            className="h-10 font-medium text-sm"
+            aria-label="Edit"
+            href={recordPaths.editRecord(recordId)}
+          >
+            <PencilLineIcon />
+            {!isMobile && "Edit"}
           </Link>
-          <MoreDropdown recordId={recordId} isMobile={isMobile} onDelete={onDelete} />
+          <MoreDropdown recordId={recordId} onDelete={onDelete} />
         </div>
       )}
     </div>

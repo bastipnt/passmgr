@@ -1,12 +1,10 @@
 import { type LoginRecord as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
-import { ButtonGroup } from "@repo/ui/components/ButtonGroup";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { InputGroupAddon } from "@repo/ui/components/InputGroup";
 import { normalizeWebsiteUrl } from "@repo/util";
-import { EarthIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { EarthIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 import {
   type Control,
@@ -42,11 +40,13 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
 
   return (
     <FieldSet>
-      <FieldLegend>Websites</FieldLegend>
-      <FieldGroup>
+      <FieldLegend className="font-semibold text-[0.7rem]! text-muted-foreground uppercase tracking-[0.12em]">
+        Websites
+      </FieldLegend>
+      <FieldGroup className="gap-3">
         {fields.map((field, index) => (
-          <ButtonGroup key={field.id} className="w-full">
-            <ButtonGroup className="ml-6 w-full">
+          <div key={field.id} className="flex w-full items-center gap-2">
+            <div className="min-w-0 flex-1">
               <ControlledInput
                 control={control}
                 name={`websites.${index}.value`}
@@ -54,36 +54,42 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
                 autoComplete="off"
                 placeholder="https://"
                 hideLabel
-                addon={
-                  <InputGroupAddon>
-                    <EarthIcon />
-                  </InputGroupAddon>
-                }
+                leadingIcon={<EarthIcon />}
                 onBlur={(e) => normalizeWebsite(index, e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") normalizeWebsite(index, e.currentTarget.value);
                 }}
               />
-            </ButtonGroup>
+            </div>
 
-            <ButtonGroup>
-              <RemoveDialog
-                title="Delete field"
-                description="Are you sure you want to delete this website?"
-                removeTitle="Delete"
-                onRemove={() => remove(index)}
+            <RemoveDialog
+              title="Delete field"
+              description="Are you sure you want to delete this website?"
+              removeTitle="Delete"
+              onRemove={() => remove(index)}
+            >
+              <Button
+                variant="outline"
+                size="icon-sm"
+                className="rounded-full"
+                type="button"
+                aria-label="Remove website"
               >
-                <Button variant="outline" size="icon" className="[--radius:999rem]" type="button">
-                  <TrashIcon />
-                </Button>
-              </RemoveDialog>
-            </ButtonGroup>
-          </ButtonGroup>
+                <MinusIcon />
+              </Button>
+            </RemoveDialog>
+          </div>
         ))}
       </FieldGroup>
-      <Button variant="ghost" className="w-fit" onClick={() => append({ value: "" })} type="button">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="w-fit text-primary dark:text-ring"
+        onClick={() => append({ value: "" })}
+        type="button"
+      >
         <PlusIcon />
-        Add
+        Add website
       </Button>
     </FieldSet>
   );

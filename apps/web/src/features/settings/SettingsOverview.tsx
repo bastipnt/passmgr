@@ -31,7 +31,7 @@ type SettingsOverviewProps = {
 
 export default function SettingsOverview({ className }: SettingsOverviewProps) {
   return (
-    <section className={cn("scroll-py-4 overflow-y-auto p-4 sm:border-r", className)}>
+    <section className={cn("scroll-py-4 p-4", className)}>
       <div className="flex flex-col gap-2 sm:max-w-sm">
         <ItemGroup>
           <SidebarItem title="General Settings" path={settingsPaths.general} />

@@ -7,9 +7,11 @@ type Website = { value: string };
 type WebsiteAvatarProps = {
   title: string;
   websites: Website[] | undefined;
+  size?: "default" | "lg";
 };
 
-export function WebsiteAvatar({ title, websites }: WebsiteAvatarProps) {
+/** Site favicon on a white rounded tile, or a hue-tinted initial. */
+export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvatarProps) {
   const { hue, src, status } = useWebsiteAvatar({ title, websites });
 
   const fallbackStyle: CSSProperties = {
@@ -18,9 +20,24 @@ export function WebsiteAvatar({ title, websites }: WebsiteAvatarProps) {
   };
 
   return (
-    <Avatar>
-      {status === "ok" && src && <AvatarImage src={src} />}
-      <AvatarFallback style={fallbackStyle}>{title.charAt(0)}</AvatarFallback>
+    <Avatar
+      className={
+        size === "lg"
+          ? "size-14 rounded-2xl bg-white p-2.5 after:rounded-2xl"
+          : "size-9 rounded-[10px] bg-white p-1.5 after:rounded-[10px]"
+      }
+    >
+      {status === "ok" && src && <AvatarImage src={src} className="rounded-sm" />}
+      <AvatarFallback
+        style={fallbackStyle}
+        className={
+          size === "lg"
+            ? "-m-2.5 size-14 rounded-2xl font-bold font-display text-2xl"
+            : "-m-1.5 size-9 rounded-[10px] font-semibold"
+        }
+      >
+        {title.charAt(0)}
+      </AvatarFallback>
     </Avatar>
   );
 }

@@ -1,13 +1,12 @@
-import { getStrengthFromString } from "@repo/crypto";
 import { type LoginRecord as FormValues } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
-import { DicesIcon, KeyIcon } from "lucide-react";
+import { KeyRoundIcon, WandSparklesIcon } from "lucide-react";
 import { useMemo } from "react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import PasswordGenerator from "./PasswordGenerator";
-import { PasswordStrengthBar } from "./PasswordStrengthBar";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 type PasswordFieldProps = {
   control: Control<FormValues>;
@@ -16,38 +15,37 @@ type PasswordFieldProps = {
 
 export default function PasswordField({ control, setValue }: PasswordFieldProps) {
   const password = useWatch({ control, name: "password" }) ?? "";
-  const strength = password ? getStrengthFromString(password) : null;
   const pwGeneratorHandle = useMemo(() => createHandle(), []);
 
   return (
-    <div className="flex flex-col gap-1.5">
+    <div className="flex flex-col gap-2">
       <ControlledInput
-        className="[-webkit-text-security:disc] focus:[-webkit-text-security:none]"
+        className="font-mono [-webkit-text-security:disc] focus:[-webkit-text-security:none]"
         control={control}
         name="password"
         label="Password"
         type="text"
         autoComplete="off"
-        icon={<KeyIcon />}
+        spellCheck={false}
+        leadingIcon={<KeyRoundIcon />}
         addon={
           <InputGroupAddon align="inline-end">
             <DialogTrigger
               handle={pwGeneratorHandle}
               render={
-                <InputGroupButton size="icon-xs" title="Generate password">
-                  <DicesIcon />
+                <InputGroupButton variant="outline" title="Generate password">
+                  <WandSparklesIcon />
+                  Generate
                 </InputGroupButton>
               }
             />
           </InputGroupAddon>
         }
       />
-      {strength && (
-        <PasswordStrengthBar
-          className="pl-6"
-          level={strength.level}
-          label={strength.label}
-          bits={strength.bits}
+      {password && (
+        <PasswordStrengthMeter
+          password={password}
+          aside={<span className="tabular-nums">{password.length} characters</span>}
         />
       )}
       <PasswordGenerator

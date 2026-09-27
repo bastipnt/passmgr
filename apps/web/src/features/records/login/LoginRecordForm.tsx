@@ -4,7 +4,7 @@ import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/compo
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
 import { normalizeWebsiteUrl } from "@repo/util";
-import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react";
+import { LockIcon, MailIcon, TagIcon } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { PasswordField } from "@/features/password-generation";
@@ -62,25 +62,27 @@ export default function LoginRecordForm({
       ref={formRef}
       onSubmit={handleSubmit(handleFormSubmit)}
       autoComplete="off"
-      className="p-4"
+      className="px-5 py-6 sm:px-7"
     >
-      <FieldGroup className="*:pr-8">
-        <FieldSet>
-          <ControlledInput
-            control={control}
-            name="title"
-            label="Title"
-            autoComplete="off"
-            icon={<TagIcon />}
-          />
+      <FieldGroup className="gap-6">
+        <FieldSet className="gap-5">
+          <div className="grid gap-5 sm:grid-cols-2">
+            <ControlledInput
+              control={control}
+              name="title"
+              label="Title"
+              autoComplete="off"
+              leadingIcon={<TagIcon />}
+            />
 
-          <ControlledInput
-            control={control}
-            name="username"
-            label="Username"
-            autoComplete="off"
-            icon={<MailIcon />}
-          />
+            <ControlledInput
+              control={control}
+              name="username"
+              label="Username"
+              autoComplete="off"
+              leadingIcon={<MailIcon />}
+            />
+          </div>
 
           <PasswordField control={control} setValue={setValue} />
 
@@ -89,36 +91,27 @@ export default function LoginRecordForm({
             name="totp"
             label="2FA token secret (TOTP)"
             autoComplete="off"
-            icon={<LockIcon />}
+            spellCheck={false}
+            className="font-mono"
+            leadingIcon={<LockIcon />}
           />
         </FieldSet>
 
         <FieldSeparator />
 
-        <WebsiteFormFields
-          control={control}
-          register={register}
-          errors={errors}
-          setValue={setValue}
-        />
-
-        <FieldSeparator />
-
-        <FieldSet>
-          <ControlledTextarea
+        <div className="grid items-start gap-6 sm:grid-cols-2">
+          <WebsiteFormFields
             control={control}
-            name="note"
-            label="Notes"
-            autoComplete="off"
-            icon={<NotebookPenIcon />}
+            register={register}
+            errors={errors}
+            setValue={setValue}
           />
-        </FieldSet>
+          <ExtraFormFields control={control} register={register} errors={errors} />
+        </div>
 
-        <FieldSeparator />
+        <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
 
-        <ExtraFormFields control={control} register={register} errors={errors} />
-
-        {serverError && <FieldError>{serverError}</FieldError>}
+        {serverError && <FieldError variant="box">{serverError}</FieldError>}
       </FieldGroup>
     </form>
   );
