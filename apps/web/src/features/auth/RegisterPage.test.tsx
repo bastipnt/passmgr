@@ -31,8 +31,8 @@ Object.defineProperty(globalThis.navigator, "clipboard", {
 
 async function submitForm() {
   await userEvent.type(screen.getByLabelText("Email"), "new@example.com");
-  await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
-  await userEvent.click(screen.getByRole("button", { name: /^sign up$/i }));
+  await userEvent.type(screen.getByLabelText("Master password"), "hunter2hunter2");
+  await userEvent.click(screen.getByRole("button", { name: /^create account$/i }));
 }
 
 describe("RegisterPage", () => {
@@ -57,9 +57,10 @@ describe("RegisterPage", () => {
     await submitForm();
 
     await screen.findByText(/save your recovery key/i);
-    const code = await screen.findByText(/AQIDBAU=/);
-    expect(code.tagName.toLowerCase()).toBe("code");
-    expect(code.className).toContain("select-all");
+    // The key is split into color-coded chunks, but the <code> text stays exact.
+    const code = document.querySelector("code");
+    expect(code?.textContent).toBe("AQIDBAU=");
+    expect(code?.className).toContain("select-all");
   });
 
   it("'I saved it' button is disabled until the user copies the key", async () => {

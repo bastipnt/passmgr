@@ -1,52 +1,38 @@
-import { useStore } from "@repo/client";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { Avatar, AvatarFallback } from "@repo/ui/components/Avatar";
-import { Button } from "@repo/ui/components/Button";
-import { Item, ItemContent, ItemDescription, ItemMedia, ItemTitle } from "@repo/ui/components/Item";
-import { StackedButton } from "@repo/ui/components/StackedButton";
-import { TrashIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 
 type ExistingUserButtonProps = {
   storedEmail: string;
   toggleSwitchUser: () => void;
 };
 
+/** Shortcut under the login card: unlock the vault already stored on this device. */
 export default function ExistingUserButton({
   storedEmail,
   toggleSwitchUser,
 }: ExistingUserButtonProps) {
-  const store = useStore();
-
   return (
-    <StackedButton>
-      <Button onClick={toggleSwitchUser} variant="secondary" className="h-auto">
-        <Item variant="default" className="px-0">
-          <ItemMedia>
-            <Avatar>
-              <AvatarFallback>{storedEmail.charAt(0).toUpperCase()}</AvatarFallback>
-            </Avatar>
-          </ItemMedia>
-          <ItemContent className="gap-1">
-            <ItemTitle>{storedEmail}</ItemTitle>
-            <ItemDescription className="line-clamp-1">Unlock existing vault</ItemDescription>
-          </ItemContent>
-        </Item>
-      </Button>
+    <button
+      type="button"
+      onClick={toggleSwitchUser}
+      className="glass flex w-full cursor-pointer items-center gap-3 rounded-2xl p-3 text-left outline-none transition-colors hover:bg-white/70 focus-visible:ring-4 focus-visible:ring-ring/25 dark:hover:bg-white/10"
+    >
+      <AccountAvatar email={storedEmail} />
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate font-semibold text-sm">{storedEmail}</span>
+        <span className="text-muted-foreground text-xs">Unlock existing vault</span>
+      </span>
+      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+    </button>
+  );
+}
 
-      <RemoveDialog
-        title="Remove vault"
-        description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
-        removeTitle="Remove vault"
-        onRemove={() => store.removeVault()}
-      >
-        <Button
-          variant="destructive"
-          title="Remove vault from this device"
-          className="text-muted-foreground text-xs"
-        >
-          <TrashIcon />
-        </Button>
-      </RemoveDialog>
-    </StackedButton>
+export function AccountAvatar({ email }: { email: string }) {
+  return (
+    <span
+      aria-hidden
+      className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary font-bold font-display text-lg text-primary-foreground"
+    >
+      {email.charAt(0).toUpperCase()}
+    </span>
   );
 }

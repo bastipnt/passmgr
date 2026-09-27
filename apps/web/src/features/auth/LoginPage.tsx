@@ -3,12 +3,14 @@ import { timed } from "@repo/client/src/util/perf";
 import type { VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { Button } from "@repo/ui/components/Button";
+import { ShieldCheckIcon, TrashIcon } from "lucide-react";
 import { useContext, useState } from "react";
-import { BiometricLoginCard } from "./BiometricLoginCard";
+import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
+import { BiometricUnlockButton } from "./BiometricUnlockButton";
 import ExistingUserButton from "./ExistingUserButton";
 import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
+import StoredAccountRow from "./StoredAccountRow";
 
 export default function LoginPage() {
   const { loginUser, offlineLogin, loginError, loginThrottled } = useLogin();
@@ -53,46 +55,79 @@ export default function LoginPage() {
     await timed("total unlock time", () => unlock(unlockVaultInfo));
   };
 
+  const unlocking = !!storedEmail && loginWithStoredEmail;
+  const toggleStoredLogin = () => setLoginWithStoredEmail((prev) => !prev);
+
   return (
-    <section className="flex w-xs max-w-full flex-col gap-4">
-      {storedEmail && loginWithStoredEmail && store.biometricKeyMaterial && (
-        <BiometricLoginCard loading={loading} setLoading={setLoading} />
+    <>
+      {unlocking ? (
+        <AuthHero
+          title={
+            <>
+              Your vault is locked. <HeroAccent>Only you hold the key.</HeroAccent>
+            </>
+          }
+          lead="Your encrypted vault is stored on this device. Unlock it with your password or biometrics — nothing is decrypted on the server."
+        />
+      ) : (
+        <AuthHero
+          title={
+            <>
+              Your secrets, <HeroAccent>seen by no one</HeroAccent> but you.
+            </>
+          }
+          lead="passmgr encrypts your vault on this device before anything leaves it. The server never learns your password — not even once."
+        >
+          <HeroChips items={["Zero-knowledge", "OPAQUE login", "End-to-end encrypted"]} />
+        </AuthHero>
       )}
 
-      <LoginForm
-        storedEmail={loginWithStoredEmail ? storedEmail : undefined}
-        onSubmit={onSubmit}
-        loginError={loginError}
-        loginThrottled={loginThrottled}
-        unlockError={unlockError}
-        loading={loading}
-      />
+      <div className="flex w-full flex-col gap-4">
+        <LoginForm
+          storedEmail={unlocking ? storedEmail : undefined}
+          account={
+            unlocking && <StoredAccountRow email={storedEmail} onSwitch={toggleStoredLogin} />
+          }
+          alternative={
+            unlocking &&
+            store.biometricKeyMaterial && (
+              <BiometricUnlockButton loading={loading} setLoading={setLoading} />
+            )
+          }
+          footer={
+            unlocking ? (
+              <RemoveDialog
+                title="Remove vault"
+                description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+                removeTitle="Remove vault"
+                onRemove={() => store.removeVault()}
+              >
+                <button
+                  type="button"
+                  className="mx-auto flex cursor-pointer items-center gap-1.5 text-muted-foreground text-xs hover:text-foreground"
+                >
+                  <TrashIcon className="size-3.5" aria-hidden />
+                  Remove vault from this device
+                </button>
+              </RemoveDialog>
+            ) : (
+              <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
+                <ShieldCheckIcon className="size-3.5" aria-hidden />
+                Your password never leaves this device
+              </p>
+            )
+          }
+          onSubmit={onSubmit}
+          loginError={loginError}
+          loginThrottled={loginThrottled}
+          unlockError={unlockError}
+          loading={loading}
+        />
 
-      {/* only show the option when loginWithStoredEmail is not already selected */}
-      {storedEmail &&
-        (loginWithStoredEmail ? (
-          <>
-            <Button variant="secondary" onClick={() => setLoginWithStoredEmail((prev) => !prev)}>
-              Login with a different account
-            </Button>
-
-            <RemoveDialog
-              title="Remove vault"
-              description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
-              removeTitle="Remove vault"
-              onRemove={() => store.removeVault()}
-            >
-              <Button variant="link" className="text-muted-foreground text-xs">
-                Remove vault from this device
-              </Button>
-            </RemoveDialog>
-          </>
-        ) : (
-          <ExistingUserButton
-            storedEmail={storedEmail}
-            toggleSwitchUser={() => setLoginWithStoredEmail((prev) => !prev)}
-          />
-        ))}
-    </section>
+        {storedEmail && !unlocking && (
+          <ExistingUserButton storedEmail={storedEmail} toggleSwitchUser={toggleStoredLogin} />
+        )}
+      </div>
+    </>
   );
 }

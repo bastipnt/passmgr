@@ -73,7 +73,7 @@ describe("RecoverPage", () => {
     await fillForm();
 
     await screen.findByText(/old recovery key no longer works/i);
-    expect(screen.getByText("AQID").tagName.toLowerCase()).toBe("code");
+    expect(document.querySelector("code")?.textContent).toBe("AQID");
 
     await userEvent.click(screen.getByRole("button", { name: /copy to clipboard/i }));
     await userEvent.click(screen.getByRole("button", { name: /i saved it/i }));

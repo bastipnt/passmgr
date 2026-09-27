@@ -5,22 +5,48 @@ import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
-  CardAction,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
-import Link from "@repo/ui/components/Link";
+import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
 import { Spinner } from "@repo/ui/components/Spinner";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  KeyRoundIcon,
+  LockIcon,
+  MailIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useState } from "react";
+import { type Control, useWatch } from "react-hook-form";
 import { useLocation } from "wouter";
 import { authPaths } from "@/app/route-paths";
+import { PasswordStrengthMeter } from "@/features/password-generation";
+import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
+import AuthNote from "./AuthNote";
+import AuthTextLink from "./AuthTextLink";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
+
+const RECOVERY_STEPS = [
+  {
+    title: "Paste your recovery key",
+    description: "The key you saved when you signed up. It unlocks your existing vault.",
+  },
+  {
+    title: "Choose a new password",
+    description: "Your vault is re-encrypted with it on this device.",
+  },
+  {
+    title: "Save your new recovery key",
+    description: "The old key stops working and you're signed out everywhere.",
+  },
+];
 
 export default function RecoverPage() {
   const [_, navigate] = useLocation();
@@ -28,7 +54,7 @@ export default function RecoverPage() {
   const [newRecoveryKey, setNewRecoveryKey] = useState<Uint8Array | null>(null);
   const { recover, recoveryError } = useRecovery();
 
-  const { handleSubmit, control } = useForm<RecoverFormValues>({
+  const { handleSubmit, control, setValue } = useForm<RecoverFormValues>({
     resolver: zodResolver(recoverFormSchema),
     defaultValues: { email: "", recoveryKey: "", password: "", confirmPassword: "" },
   });
@@ -40,8 +66,13 @@ export default function RecoverPage() {
     if (key) setNewRecoveryKey(key);
   };
 
+  const pasteRecoveryKey = async () => {
+    const text = await navigator.clipboard.readText().catch(() => "");
+    if (text) setValue("recoveryKey", text.trim(), { shouldValidate: true });
+  };
+
   return (
-    <section className="w-xs max-w-full">
+    <>
       <RecoveryKeyDialog
         recoveryKey={newRecoveryKey}
         description="Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never sent to the server."
@@ -51,28 +82,34 @@ export default function RecoverPage() {
         }}
       />
 
+      <AuthHero
+        title={
+          <>
+            Forgot your password? <HeroAccent>Your recovery key has you covered.</HeroAccent>
+          </>
+        }
+      >
+        <HeroSteps steps={RECOVERY_STEPS} />
+      </AuthHero>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
+        <Card variant="glass">
           <CardHeader>
             <CardTitle>Reset password</CardTitle>
             <CardDescription>
-              Use the recovery key you saved when you signed up. You'll be signed out on all
-              devices.
+              Remembered it? <AuthTextLink href={authPaths.login}>Log in</AuthTextLink>
             </CardDescription>
-            <CardAction>
-              <Link href={authPaths.login} variant="link">
-                Login
-              </Link>
-            </CardAction>
           </CardHeader>
 
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="gap-5">
               <ControlledInput
                 control={control}
                 name="email"
                 label="Email"
+                type="email"
                 autoComplete="username"
+                leadingIcon={<MailIcon />}
               />
               <ControlledInput
                 control={control}
@@ -81,33 +118,72 @@ export default function RecoverPage() {
                 autoComplete="off"
                 spellCheck={false}
                 className="font-mono"
+                leadingIcon={<KeyRoundIcon />}
+                addon={
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton variant="outline" onClick={pasteRecoveryKey}>
+                      Paste
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                }
               />
               <ControlledPasswordInput
                 control={control}
                 name="password"
                 label="New password"
                 autoComplete="new-password"
+                leadingIcon={<LockIcon />}
+                labelAction={
+                  <span className="text-muted-foreground text-xs">min. 8 characters</span>
+                }
+                hint={<NewPasswordHint control={control} />}
               />
               <ControlledPasswordInput
                 control={control}
                 name="confirmPassword"
                 label="Confirm new password"
                 autoComplete="new-password"
+                leadingIcon={<LockIcon />}
+                hint={<PasswordsMatch control={control} />}
               />
-            </FieldGroup>
-            {recoveryError && (
-              <FieldError errors={[{ message: RECOVERY_ERROR_MESSAGES[recoveryError] }]} />
-            )}
-          </CardContent>
 
-          <CardFooter className="flex flex-row justify-end gap-4">
-            <Button type="submit" disabled={loading}>
-              Reset password
-              {loading && <Spinner data-icon="inline-start" />}
-            </Button>
-          </CardFooter>
+              <AuthNote icon={<TriangleAlertIcon className="text-[#e0a100] dark:text-[#ffb23f]" />}>
+                You&apos;ll be <strong className="font-semibold">signed out on all devices</strong>.
+              </AuthNote>
+
+              {recoveryError && (
+                <FieldError variant="box">{RECOVERY_ERROR_MESSAGES[recoveryError]}</FieldError>
+              )}
+
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                Reset password
+                {loading ? (
+                  <Spinner data-icon="inline-end" />
+                ) : (
+                  <ArrowRightIcon data-icon="inline-end" />
+                )}
+              </Button>
+            </FieldGroup>
+          </CardContent>
         </Card>
       </form>
-    </section>
+    </>
+  );
+}
+
+function NewPasswordHint({ control }: { control: Control<RecoverFormValues> }) {
+  const password = useWatch({ control, name: "password" }) ?? "";
+  return <PasswordStrengthMeter password={password} />;
+}
+
+function PasswordsMatch({ control }: { control: Control<RecoverFormValues> }) {
+  const [password, confirmPassword] = useWatch({ control, name: ["password", "confirmPassword"] });
+  if (!confirmPassword || password !== confirmPassword) return null;
+
+  return (
+    <p className="flex items-center gap-1.5 text-[#059669] text-xs dark:text-strength-very-strong">
+      <CheckIcon className="size-3.5" aria-hidden />
+      Passwords match
+    </p>
   );
 }

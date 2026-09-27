@@ -4,22 +4,41 @@ import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
-  CardAction,
   CardContent,
-  CardFooter,
+  CardDescription,
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
-import Link from "@repo/ui/components/Link";
 import { Spinner } from "@repo/ui/components/Spinner";
+import { ArrowRightIcon, KeyRoundIcon, LockIcon, MailIcon, ShieldCheckIcon } from "lucide-react";
 import { useState } from "react";
+import { type Control, useWatch } from "react-hook-form";
 import { useLocation, useSearchParams } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
+import { PasswordStrengthMeter } from "@/features/password-generation";
+import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
+import AuthNote from "./AuthNote";
+import AuthTextLink from "./AuthTextLink";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
+
+const SIGN_UP_STEPS = [
+  {
+    title: "Pick a master password",
+    description: "It encrypts your vault on this device. We never see it and can't reset it.",
+  },
+  {
+    title: "Keep your recovery key",
+    description: "Shown once and never sent to the server.",
+  },
+  {
+    title: "Unlock anywhere",
+    description: "Web and mobile, synced end-to-end encrypted.",
+  },
+];
 
 export default function RegisterPage() {
   const [_, navigate] = useLocation();
@@ -54,7 +73,7 @@ export default function RegisterPage() {
   };
 
   return (
-    <section className="w-xs max-w-full">
+    <>
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
         onDone={() => {
@@ -63,54 +82,88 @@ export default function RegisterPage() {
         }}
       />
 
+      <AuthHero
+        title={
+          <>
+            One password. <HeroAccent>Every other one,</HeroAccent> handled.
+          </>
+        }
+      >
+        <HeroSteps steps={SIGN_UP_STEPS} />
+      </AuthHero>
+
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card>
+        <Card variant="glass">
           <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardAction>
-              or
-              <Link href={authPaths.login} variant="link">
-                Login
-              </Link>
-            </CardAction>
+            <CardTitle>Create your vault</CardTitle>
+            <CardDescription>
+              Already have one? <AuthTextLink href={authPaths.login}>Log in</AuthTextLink>
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <FieldGroup>
+            <FieldGroup className="gap-5">
               <ControlledInput
                 control={control}
                 name="email"
                 label="Email"
+                type="email"
                 autoComplete="username"
+                leadingIcon={<MailIcon />}
               />
               <ControlledPasswordInput
                 control={control}
                 name="password"
-                label="Password"
+                label="Master password"
                 autoComplete="new-password"
+                leadingIcon={<LockIcon />}
+                labelAction={
+                  <span className="text-muted-foreground text-xs">min. 8 characters</span>
+                }
+                hint={<NewPasswordStrength control={control} />}
               />
+
+              <AuthNote icon={<KeyRoundIcon className="text-[#ffb23f]" />}>
+                Next you&apos;ll get a <strong className="font-semibold">recovery key</strong>. Keep
+                it somewhere safe — it&apos;s the only way to recover a forgotten password.
+              </AuthNote>
+
+              {registrationError && (
+                <FieldError variant="box">
+                  {invite
+                    ? "Registration failed. The invite may be invalid, expired, or for a different email"
+                    : "Error when trying to register a new account please try again"}
+                </FieldError>
+              )}
+
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                Create account
+                {loading ? (
+                  <Spinner data-icon="inline-end" />
+                ) : (
+                  <ArrowRightIcon data-icon="inline-end" />
+                )}
+              </Button>
             </FieldGroup>
-            {registrationError && (
-              <FieldError
-                errors={[
-                  {
-                    message: invite
-                      ? "Registration failed. The invite may be invalid, expired, or for a different email"
-                      : "Error when trying to register a new account please try again",
-                  },
-                ]}
-              />
-            )}
           </CardContent>
 
-          <CardFooter className="flex flex-row justify-end gap-4">
-            <Button type="submit" disabled={loading}>
-              Sign Up
-              {loading && <Spinner data-icon="inline-start" />}
-            </Button>
-          </CardFooter>
+          <CardContent>
+            <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
+              <ShieldCheckIcon className="size-3.5" aria-hidden />
+              Zero-knowledge · OPAQUE · end-to-end encrypted
+            </p>
+          </CardContent>
         </Card>
       </form>
-    </section>
+    </>
   );
+}
+
+function NewPasswordStrength({
+  control,
+}: {
+  control: Control<{ email: string; password: string }>;
+}) {
+  const password = useWatch({ control, name: "password" }) ?? "";
+  return <PasswordStrengthMeter password={password} />;
 }

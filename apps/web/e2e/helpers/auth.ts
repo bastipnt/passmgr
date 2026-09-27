@@ -20,7 +20,7 @@ export async function registerUser(page: Page, email: string, password: string):
   // while the tRPC query is pending). Each page.goto() creates a fresh
   // QueryClient, so a direct goto("/register") races the query and gets
   // redirected to /login. Land on /login, wait for the "Sign Up" link to
-  // appear in the CardAction (which only renders once registrationEnabled is
+  // appear in the login card (it only renders once registrationEnabled is
   // true), then SPA-navigate by clicking it — no full reload.
   await page.goto("/login");
   const signUpLink = page.locator('a[href="/register"]');

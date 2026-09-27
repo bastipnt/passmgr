@@ -16,7 +16,7 @@ describe("LoginForm", () => {
 
     await userEvent.type(screen.getByLabelText("Email"), "user@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await userEvent.click(screen.getByRole("button", { name: /^login$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith(
@@ -32,7 +32,7 @@ describe("LoginForm", () => {
     );
     await userEvent.type(screen.getByLabelText("Password"), password);
 
-    expect(screen.getByText(/login error please try again/i)).toBeInTheDocument();
+    expect(screen.getByText(/check your email and password/i)).toBeInTheDocument();
 
     const passwordInput = screen.getByLabelText("Password") as HTMLInputElement;
     expect(passwordInput.value).toBe(password);
@@ -43,7 +43,7 @@ describe("LoginForm", () => {
     renderWithProviders(
       <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={true} loading={false} />,
     );
-    expect(screen.getByText(/login error please try again/i)).toBeInTheDocument();
+    expect(screen.getByText(/check your email and password/i)).toBeInTheDocument();
   });
 
   it("password input has type=password and autocomplete=current-password", () => {
@@ -85,6 +85,6 @@ describe("LoginForm", () => {
     renderWithProviders(
       <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={false} loading={true} />,
     );
-    expect(screen.getByRole("button", { name: /login/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /unlock vault/i })).toBeDisabled();
   });
 });

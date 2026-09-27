@@ -1,4 +1,4 @@
-import { InputGroup, InputGroupInput } from "@repo/ui/components/InputGroup";
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { isDefined } from "@repo/util";
 import { type ReactNode, useId } from "react";
 import {
@@ -16,8 +16,15 @@ export type ControlledInputParams<
   TTransformedValues = TFieldValues,
 > = {
   label: string;
+  /** Rendered outside the field, left of it. */
   icon?: ReactNode;
+  /** Rendered inside the input, before the text. */
+  leadingIcon?: ReactNode;
   addon?: ReactNode;
+  /** Right-aligned on the label row, e.g. a "Forgot password?" link. */
+  labelAction?: ReactNode;
+  /** Below the input, above the validation error, e.g. a strength meter. */
+  hint?: ReactNode;
   hideLabel?: boolean;
 } & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
   React.ComponentProps<"input">;
@@ -27,7 +34,10 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
   control,
   label,
   icon,
+  leadingIcon,
   addon,
+  labelAction,
+  hint,
   hideLabel = false,
   ...props
 }: ControlledInputParams<TFieldValues>) {
@@ -40,15 +50,27 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
       render={({ field, fieldState }) => {
         const fieldContent = (
           <Field data-invalid={fieldState.invalid}>
-            {!hideLabel && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-            {isDefined(addon) ? (
+            {!hideLabel &&
+              (isDefined(labelAction) ? (
+                <div className="flex items-baseline justify-between gap-2">
+                  <FieldLabel htmlFor={id}>{label}</FieldLabel>
+                  {labelAction}
+                </div>
+              ) : (
+                <FieldLabel htmlFor={id}>{label}</FieldLabel>
+              ))}
+            {isDefined(addon) || isDefined(leadingIcon) ? (
               <InputGroup>
+                {isDefined(leadingIcon) && (
+                  <InputGroupAddon align="inline-start">{leadingIcon}</InputGroupAddon>
+                )}
                 <InputGroupInput {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
                 {addon}
               </InputGroup>
             ) : (
               <Input {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
             )}
+            {hint}
 
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>

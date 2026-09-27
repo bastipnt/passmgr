@@ -44,7 +44,7 @@ test.describe("forgotten password → recover with recovery key", () => {
     await page.locator('input[name="email"]').fill(email);
     await page.locator('input[name="password"]').fill(oldPassword);
     await page.locator('form button[type="submit"]').click();
-    await expect(page.getByText(/login error/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/that didn.t work/i)).toBeVisible({ timeout: 30_000 });
 
     await loginUser(page, email, newPassword);
     await skipBiometricIfShown(page);

@@ -40,7 +40,7 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues = Field
             size="icon-xs"
             onClick={togglePasswordVisibility}
           >
-            {passwordVisible ? <EyeIcon /> : <EyeOffIcon />}
+            {passwordVisible ? <EyeOffIcon /> : <EyeIcon />}
           </InputGroupButton>
         </InputGroupAddon>
       }
