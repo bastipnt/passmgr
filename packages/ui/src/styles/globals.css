@@ -255,7 +255,7 @@
  * The scroller needs its own stacking context (`isolate`) and no
  * backdrop-filter of its own, or Chrome's backdrop-filter here blurs nothing. */
 @utility sticky-bar {
-  --sticky-bar-edge: calc(100% - var(--sticky-bar-fade, 1rem));
+  --sticky-bar-f: var(--sticky-bar-fade, 1rem);
 
   position: sticky;
   top: 0;
@@ -269,9 +269,21 @@
     z-index: -1;
     pointer-events: none;
     content: "";
-    background: linear-gradient(var(--sticky-bar-fill) var(--sticky-bar-edge), transparent);
+    background: var(--sticky-bar-fill);
     backdrop-filter: blur(16px) saturate(1.3);
-    mask-image: linear-gradient(#000 var(--sticky-bar-edge), transparent);
+    /* Smoothstep fade: a linear ramp's abrupt slope change where it starts
+     * reads as a hard line across the blur. The mask fades the fill too. */
+    mask-image: linear-gradient(
+      #000 calc(100% - var(--sticky-bar-f)),
+      rgb(0 0 0 / 0.957) calc(100% - var(--sticky-bar-f) * 0.875),
+      rgb(0 0 0 / 0.844) calc(100% - var(--sticky-bar-f) * 0.75),
+      rgb(0 0 0 / 0.684) calc(100% - var(--sticky-bar-f) * 0.625),
+      rgb(0 0 0 / 0.5) calc(100% - var(--sticky-bar-f) * 0.5),
+      rgb(0 0 0 / 0.316) calc(100% - var(--sticky-bar-f) * 0.375),
+      rgb(0 0 0 / 0.156) calc(100% - var(--sticky-bar-f) * 0.25),
+      rgb(0 0 0 / 0.043) calc(100% - var(--sticky-bar-f) * 0.125),
+      transparent
+    );
   }
 
   @supports (container-type: scroll-state) {
