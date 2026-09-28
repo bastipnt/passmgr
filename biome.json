@@ -12,7 +12,8 @@
       "!**/*.css.d.ts",
       "!packages/db/drizzle/**",
       "!**/CHANGELOG.md",
-      "!apps/mobile/eas.json"
+      "!apps/mobile/eas.json",
+      "!apps/web/brand/**"
     ]
   },
   "formatter": {
