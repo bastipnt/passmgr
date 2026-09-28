@@ -2,6 +2,7 @@
 
 import { Dialog as SheetPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@repo/ui/components/Button";
+import { ScrollArea } from "@repo/ui/components/ScrollArea";
 import { cn } from "@repo/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import * as React from "react";
@@ -53,9 +54,12 @@ function SheetContent({
         className={cn(styles.popup, className)}
         {...props}
       >
-        <div className="flex h-full touch-auto flex-col overflow-y-auto overscroll-contain">
+        <ScrollArea
+          className="h-full"
+          viewportClassName="flex touch-auto flex-col overscroll-contain"
+        >
           {children}
-        </div>
+        </ScrollArea>
         {showCloseButton && (
           <SheetPrimitive.Close
             data-slot="sheet-close"

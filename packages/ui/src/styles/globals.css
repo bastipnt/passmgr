@@ -196,6 +196,62 @@
   }
 }
 
+/* Native-scrollbar counterpart of `ScrollArea`, for scroll containers that
+ * can't host one (menu and select popups, the touch-first Drawer): a thin
+ * pill thumb on a clear track, shown only while the pointer is over the
+ * container. Chrome and Safari stop the track --scroll-area-inset short of
+ * both ends (via ::-webkit-scrollbar — Chrome only honors it while the
+ * standard scrollbar-width/-color stay `auto`, hence the @supports split).
+ * Firefox can't inset the track, so large rounded panels use `ScrollArea`. */
+@utility scrollbar-rounded {
+  --scrollbar-thumb: color-mix(in oklab, var(--color-foreground) 25%, transparent);
+
+  scrollbar-color: transparent transparent;
+  scrollbar-width: thin;
+
+  &:hover {
+    scrollbar-color: var(--scrollbar-thumb) transparent;
+  }
+
+  @supports selector(::-webkit-scrollbar) {
+    scrollbar-color: auto;
+    scrollbar-width: auto;
+
+    &:hover {
+      scrollbar-color: auto;
+    }
+
+    &::-webkit-scrollbar {
+      width: 10px;
+      height: 10px;
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-track {
+      margin-block: var(--scroll-area-inset, 0.5rem);
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: transparent padding-box;
+      border: 2px solid transparent;
+      border-radius: 9999px;
+    }
+
+    &:hover::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-thumb);
+    }
+
+    &::-webkit-scrollbar-thumb:hover {
+      background-color: color-mix(in oklab, var(--color-foreground) 40%, transparent);
+    }
+
+    &::-webkit-scrollbar-corner {
+      background: transparent;
+    }
+  }
+}
+
 /* Heading/action bar pinned to the top of its scroll container. Content that
  * scrolls under it is frosted: solid across the bar, then fading out over
  * --sticky-bar-fade past its bottom edge. Set the fade to 0 on a bar that

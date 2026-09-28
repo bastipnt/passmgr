@@ -338,7 +338,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </>
         }
       >
-        <ShellPanel className="scroll-pt-24 scroll-pb-3">
+        <ShellPanel viewportClassName="scroll-pt-24 scroll-pb-3">
           <RecordSidebar />
         </ShellPanel>
         <MainContent>{children}</MainContent>

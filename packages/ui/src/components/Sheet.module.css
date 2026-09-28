@@ -43,6 +43,7 @@
 
   /* Left/right sheets float 12px off the viewport edge as a rounded panel. */
   &[data-side="left"] {
+    --scroll-area-inset: 28px;
     @apply inset-y-3 left-3 w-[calc(100%-1.5rem)] rounded-[28px] border border-foreground/10 sm:max-w-md dark:border-white/12;
 
     &[data-starting-style],
@@ -52,6 +53,7 @@
   }
 
   &[data-side="right"] {
+    --scroll-area-inset: 28px;
     @apply inset-y-3 right-3 w-[calc(100%-1.5rem)] rounded-[28px] border border-foreground/10 sm:max-w-md dark:border-white/12;
 
     &[data-starting-style],
