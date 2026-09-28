@@ -43,7 +43,7 @@ const STATUS_TEXT_CLASS: Record<DiffStatus, string> = {
 
 const SIDE_CAPTION: Record<"old" | "latest", string> = {
   old: "Before",
-  latest: "Now",
+  latest: "After",
 };
 
 function DiffCell({
@@ -82,11 +82,11 @@ function DiffCell({
   );
 }
 
-function VersionHeading({ record, isLatest }: { record: DecryptedRecord; isLatest: boolean }) {
+function VersionHeading({ record, isCurrent }: { record: DecryptedRecord; isCurrent: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 px-1">
       <h3 className="font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-        {isLatest ? "Current version" : `Version ${record.version}`}
+        {isCurrent ? "Current version" : `Version ${record.version}`}
       </h3>
       <p className="text-muted-foreground text-xs">{toLocalDateStr(record.clientUpdatedAt)}</p>
     </div>
@@ -101,20 +101,28 @@ export default function VersionDetail({
   version: number;
 }) {
   const { versions, ready } = useRecordHistory(recordId);
-  const record = ready ? versions.find((v) => v.version === version) : undefined;
-  const latestRecord = ready ? versions[0] : undefined;
 
   if (!ready) return <Skeleton className="m-7 h-40 rounded-2xl" />;
+
+  // Newest first, so the revision this one replaced sits right after it.
+  const index = versions.findIndex((v) => v.version === version);
+  const record = versions[index];
+  const previousRecord = versions[index + 1];
+
   if (!record) {
     return <p className="p-4 text-muted-foreground text-sm">This version no longer exists.</p>;
   }
-  if (!latestRecord) {
-    return <p className="p-4 text-muted-foreground text-sm">This record no longer exists.</p>;
+  if (!previousRecord) {
+    return (
+      <p className="p-4 text-muted-foreground text-sm">
+        This is the first version, there is nothing earlier to compare it with.
+      </p>
+    );
   }
 
   const rows = alignFieldSpecs(
+    getLoginFieldSpecs(previousRecord, { includeTitle: true }),
     getLoginFieldSpecs(record, { includeTitle: true }),
-    getLoginFieldSpecs(latestRecord, { includeTitle: true }),
   );
 
   return (
@@ -135,8 +143,8 @@ export default function VersionDetail({
         {/* `sm:contents` dissolves these wrappers back into grid cells, so the
             stacked layout can group a row without changing the grid. */}
         <div className="flex flex-row items-start justify-between gap-4 sm:contents">
-          <VersionHeading record={record} isLatest={false} />
-          <VersionHeading record={latestRecord} isLatest />
+          <VersionHeading record={previousRecord} isCurrent={false} />
+          <VersionHeading record={record} isCurrent={index === 0} />
         </div>
 
         {rows.map((row) => (

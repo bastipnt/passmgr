@@ -65,9 +65,11 @@ export default function VersionList({ recordId }: { recordId: string }) {
           <View key={version.version} className="flex-row gap-md">
             <TimelineRail isOldest={isOldest}>{icon}</TimelineRail>
 
+            {/* The first version has nothing earlier to diff against. */}
             <Pressable
               className="flex-1 flex-row items-center gap-md rounded-lg border border-border bg-card p-md"
               style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+              disabled={isOldest}
               onPress={() => router.navigate(recordPaths.version(recordId, version.version))}
             >
               <View className="flex-1 gap-xs">
@@ -76,7 +78,7 @@ export default function VersionList({ recordId }: { recordId: string }) {
                   {toLocalDateStr(version.clientUpdatedAt)}
                 </Text>
               </View>
-              <ChevronRight size={16} color={chevronColor} />
+              {!isOldest && <ChevronRight size={16} color={chevronColor} />}
             </Pressable>
           </View>
         );

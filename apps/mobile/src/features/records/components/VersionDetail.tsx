@@ -52,11 +52,11 @@ function DiffCard({
   );
 }
 
-function VersionHeading({ record, isLatest }: { record: DecryptedRecord; isLatest: boolean }) {
+function VersionHeading({ record, isCurrent }: { record: DecryptedRecord; isCurrent: boolean }) {
   return (
     <View className="gap-xs">
       <Text className="font-semibold text-foreground text-sm">
-        {isLatest ? "Current version" : `Version ${record.version}`}
+        {isCurrent ? "Current version" : `Version ${record.version}`}
       </Text>
       <Text className="text-muted-foreground text-xs">
         {toLocalDateStr(record.clientUpdatedAt)}
@@ -72,27 +72,35 @@ type VersionDetailProps = {
 
 export default function VersionDetail({ recordId, version }: VersionDetailProps) {
   const { versions, ready } = useRecordHistory(recordId);
-  const record = ready ? versions.find((v) => v.version === version) : undefined;
-  const latestRecord = ready ? versions[0] : undefined;
 
   if (!ready) return <Skeleton height={160} />;
+
+  // Newest first, so the revision this one replaced sits right after it.
+  const index = versions.findIndex((v) => v.version === version);
+  const record = versions[index];
+  const previousRecord = versions[index + 1];
+
   if (!record) {
     return <Text className="text-muted-foreground text-sm">This version no longer exists.</Text>;
   }
-  if (!latestRecord) {
-    return <Text className="text-muted-foreground text-sm">This record no longer exists.</Text>;
+  if (!previousRecord) {
+    return (
+      <Text className="text-muted-foreground text-sm">
+        This is the first version, there is nothing earlier to compare it with.
+      </Text>
+    );
   }
 
   const rows = alignFieldSpecs(
+    getLoginFieldSpecs(previousRecord, { includeTitle: true }),
     getLoginFieldSpecs(record, { includeTitle: true }),
-    getLoginFieldSpecs(latestRecord, { includeTitle: true }),
   );
 
   return (
     <View className="gap-lg">
       <View className="flex-row justify-between gap-md">
-        <VersionHeading record={record} isLatest={false} />
-        <VersionHeading record={latestRecord} isLatest />
+        <VersionHeading record={previousRecord} isCurrent={false} />
+        <VersionHeading record={record} isCurrent={index === 0} />
       </View>
 
       {rows.map((row) => (
@@ -112,7 +120,7 @@ export default function VersionDetail({ recordId, version }: VersionDetailProps)
                   <DiffCard key="old" spec={row.old} status={row.status} caption="Before" />
                 ),
                 row.latest && (
-                  <DiffCard key="latest" spec={row.latest} status={row.status} caption="Now" />
+                  <DiffCard key="latest" spec={row.latest} status={row.status} caption="After" />
                 ),
               ]}
         </View>

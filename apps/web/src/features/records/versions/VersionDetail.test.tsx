@@ -42,9 +42,10 @@ describe("VersionDetail", () => {
     useRecordHistory.mockReset();
   });
 
+  /** Opens the newer revision, which is diffed against the one it replaced. */
   function setup(old: DecryptedRecord, latest: DecryptedRecord) {
     useRecordHistory.mockReturnValue({ versions: [latest, old], ready: true, error: undefined });
-    return renderWithProviders(<VersionDetail recordId="r1" version={old.version} />);
+    return renderWithProviders(<VersionDetail recordId="r1" version={latest.version} />);
   }
 
   it("heads each side with its version and date", () => {
@@ -52,6 +53,37 @@ describe("VersionDetail", () => {
 
     expect(screen.getByText("Version 1")).toBeTruthy();
     expect(screen.getByText("Current version")).toBeTruthy();
+  });
+
+  it("compares an older version with its predecessor, not the latest", () => {
+    useRecordHistory.mockReturnValue({
+      versions: [
+        makeRecord(3, { username: "third" }),
+        makeRecord(2, { username: "second" }),
+        makeRecord(1, { username: "first" }),
+      ],
+      ready: true,
+      error: undefined,
+    });
+    renderWithProviders(<VersionDetail recordId="r1" version={2} />);
+
+    expect(screen.getByText("Version 1")).toBeTruthy();
+    expect(screen.getByText("Version 2")).toBeTruthy();
+    expect(screen.queryByText("Current version")).toBeNull();
+    expect(screen.getByText("first")).toBeTruthy();
+    expect(screen.getByText("second")).toBeTruthy();
+    expect(screen.queryByText("third")).toBeNull();
+  });
+
+  it("explains that the first version has nothing to compare with", () => {
+    useRecordHistory.mockReturnValue({
+      versions: [makeRecord(2, {}), makeRecord(1, {})],
+      ready: true,
+      error: undefined,
+    });
+    renderWithProviders(<VersionDetail recordId="r1" version={1} />);
+
+    expect(screen.getByText(/nothing earlier to compare/)).toBeTruthy();
   });
 
   it("omits the date footer", () => {
@@ -75,7 +107,7 @@ describe("VersionDetail", () => {
 
     expect(screen.getByText("Changed")).toBeTruthy();
     expect(screen.getByText("Before")).toBeTruthy();
-    expect(screen.getByText("Now")).toBeTruthy();
+    expect(screen.getByText("After")).toBeTruthy();
   });
 
   it("leaves an unchanged field without a status or side label", () => {
@@ -83,7 +115,7 @@ describe("VersionDetail", () => {
 
     expect(screen.queryByText("Changed")).toBeNull();
     expect(screen.queryByText("Before")).toBeNull();
-    expect(screen.queryByText("Now")).toBeNull();
+    expect(screen.queryByText("After")).toBeNull();
   });
 
   it("leaves an unchanged field with no status colour", () => {

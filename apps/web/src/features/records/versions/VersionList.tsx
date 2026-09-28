@@ -88,7 +88,12 @@ export default function VersionList({ recordId }: { recordId: string }) {
               <Item
                 variant={isCurrent ? "active" : "outline"}
                 className="rounded-2xl px-4 py-3.5"
-                render={<Link href={recordPaths.version(recordId, version.version)} />}
+                // The first version has nothing earlier to diff against.
+                render={
+                  isOldest ? undefined : (
+                    <Link href={recordPaths.version(recordId, version.version)} />
+                  )
+                }
               >
                 <ItemContent className="gap-1">
                   <ItemTitle className="font-semibold text-[0.95rem]">
@@ -110,9 +115,11 @@ export default function VersionList({ recordId }: { recordId: string }) {
                     </ul>
                   )}
                 </ItemContent>
-                <ItemActions>
-                  <ChevronRightIcon className="size-4" />
-                </ItemActions>
+                {!isOldest && (
+                  <ItemActions>
+                    <ChevronRightIcon className="size-4" />
+                  </ItemActions>
+                )}
               </Item>
             </ItemContent>
           </Item>
