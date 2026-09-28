@@ -3,6 +3,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { ChevronRightIcon } from "lucide-react";
 import { useRoute, Link as WouterLink } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
+import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 type SidebarItemParams = {
   path: string;
@@ -36,8 +37,12 @@ type SettingsOverviewProps = {
 
 export default function SettingsOverview({ className }: SettingsOverviewProps) {
   return (
-    <section className={cn("scroll-py-4 p-4 max-sm:px-0 max-sm:pt-2", className)}>
-      <div className="flex flex-col gap-2 sm:max-w-sm">
+    <section className={cn("max-sm:pt-2", className)}>
+      {/* Phones title this screen in the shell header already. */}
+      <PanelHeader className="max-sm:hidden">
+        <PanelTitle>All settings</PanelTitle>
+      </PanelHeader>
+      <div className="flex flex-col gap-2 px-4 pb-4 max-sm:px-0 sm:max-w-sm">
         <ItemGroup className="max-sm:gap-0">
           <SidebarItem title="General Settings" path={settingsPaths.general} />
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />

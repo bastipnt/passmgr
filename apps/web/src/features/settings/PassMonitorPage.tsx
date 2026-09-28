@@ -2,6 +2,7 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@repo/ui/c
 import { ChevronRightIcon } from "lucide-react";
 import { Link as WouterLink } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
+import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 type PassMonitorItemParams = {
   path: string;
@@ -24,13 +25,18 @@ function PassMonitorItem({ path, title }: PassMonitorItemParams) {
 
 export default function PassMonitorPage() {
   return (
-    <div className="p-4">
-      <ItemGroup>
-        <PassMonitorItem title="Duplicates" path={settingsPaths.duplicates} />
-        <PassMonitorItem title="Weak Passwords" path={settingsPaths.weakPasswords} />
-        <PassMonitorItem title="Old Passwords" path={settingsPaths.weakPasswords} />
-        <PassMonitorItem title="Reused Passwords" path={settingsPaths.reusedPasswords} />
-      </ItemGroup>
-    </div>
+    <>
+      <PanelHeader>
+        <PanelTitle>Pass Monitor</PanelTitle>
+      </PanelHeader>
+      <div className="px-4 pb-4">
+        <ItemGroup>
+          <PassMonitorItem title="Duplicates" path={settingsPaths.duplicates} />
+          <PassMonitorItem title="Weak Passwords" path={settingsPaths.weakPasswords} />
+          <PassMonitorItem title="Old Passwords" path={settingsPaths.weakPasswords} />
+          <PassMonitorItem title="Reused Passwords" path={settingsPaths.reusedPasswords} />
+        </ItemGroup>
+      </div>
+    </>
   );
 }

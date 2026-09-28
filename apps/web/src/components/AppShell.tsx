@@ -26,15 +26,40 @@ export function AppShell({ header, children, mainClassName }: AppShellProps) {
   );
 }
 
-/** Independently scrolling column of the shell; frosted from `sm` up. */
+/**
+ * Independently scrolling column of the shell; glass from `sm` up. Keep it
+ * unpadded so a `PanelHeader` can pin edge to edge — pad the content instead.
+ * No backdrop blur of its own: with one, Chrome's sticky bars inside blur
+ * nothing — and the light field behind is blurred already. Sticky bars inside
+ * tint with the glass fill, not the page background (too dark over glass) —
+ * in dark mode not at all, where even the faint glass fill reads as a strip.
+ */
 export function ShellPanel({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
       className={cn(
-        "sm:glass min-h-0 overflow-y-auto overscroll-contain sm:rounded-[28px]",
+        "sm:glass sm:backdrop-filter-none! isolate min-h-0 overflow-y-auto overscroll-contain sm:rounded-[28px] sm:[--sticky-bar-fill:var(--glass-fill)] sm:dark:[--sticky-bar-fill:transparent]",
         className,
       )}
       {...props}
     />
+  );
+}
+
+/** Heading bar pinned to the top of a `ShellPanel`, content frosted beneath. */
+export function PanelHeader({ className, ...props }: ComponentProps<"header">) {
+  return (
+    <header
+      className={cn("sticky-bar flex min-h-14 items-center gap-2 px-4 pt-3 pb-2", className)}
+      {...props}
+    />
+  );
+}
+
+export function PanelTitle({ className, children, ...props }: ComponentProps<"h2">) {
+  return (
+    <h2 className={cn("font-bold font-display text-lg tracking-[-0.02em]", className)} {...props}>
+      {children}
+    </h2>
   );
 }

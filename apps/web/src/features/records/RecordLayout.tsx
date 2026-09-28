@@ -202,8 +202,11 @@ function MobileVault({ isOffline, onLock }: MobileVaultProps) {
       <div className="top-glow" aria-hidden />
       {/* Own stacking context (z-0): without it Chrome's backdrop-filter on
           the floating dock doesn't pick up the scrolled list, so no blur. */}
-      <div className="relative z-0 h-full overflow-y-auto overscroll-contain pb-[calc(max(env(safe-area-inset-bottom),1rem)+5.5rem)]">
-        <header className="sticky top-0 z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+      {/* --list-top: this bar's exact height (top pad + size-10 buttons +
+          pb-3), so the list's own bars pin right beneath it. No fade: the
+          list heading is always pinned under it. */}
+      <div className="relative z-0 h-full overflow-y-auto overscroll-contain pb-[calc(max(env(safe-area-inset-bottom),1rem)+5.5rem)] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
+        <header className="sticky-bar z-20 flex h-(--list-top) items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 [--sticky-bar-fade:0rem]">
           <RouterLink
             href={recordPaths.index}
             aria-label="passmgr"
@@ -335,7 +338,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </>
         }
       >
-        <ShellPanel className="scroll-py-4 p-3">
+        <ShellPanel className="scroll-pt-24 scroll-pb-3">
           <RecordSidebar />
         </ShellPanel>
         <MainContent>{children}</MainContent>

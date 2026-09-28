@@ -20,6 +20,8 @@ import {
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
+import { cn } from "@repo/ui/lib/utils";
 import { ArrowUpDownIcon, ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
@@ -77,7 +79,7 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
 
 function RecordSidebarSkeleton() {
   return (
-    <ItemGroup className="gap-1 pt-12">
+    <ItemGroup className="gap-1 p-3 pt-15">
       {Array.from({ length: 5 }).map((_, i) => (
         // static skeleton list, index key is fine
         <Item key={i} className="gap-3 px-2.5 py-2">
@@ -131,6 +133,7 @@ export default function RecordSidebar() {
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
   const shouldFocusRef = useRef(false);
+  const listRef = useRef<HTMLDivElement>(null);
 
   const registerRef = useCallback((id: string, el: HTMLAnchorElement | null) => {
     if (el) recordRefs.current.set(id, el);
@@ -194,9 +197,13 @@ export default function RecordSidebar() {
     }
   }, [isMobile, query, sortedRecords, navigate]);
 
+  // Firefox has no scroll-driven animations; this fades the group labels instead.
+  useStickyLabelFade(listRef, ready ? recordGroups : null);
+
   if (!ready) return <RecordSidebarSkeleton />;
 
   const hasQuery = query.trim().length > 0;
+  const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
   const noResults = hasQuery && sortedRecords.length === 0;
 
   const sortMenu = (
@@ -230,8 +237,18 @@ export default function RecordSidebar() {
   const Heading = isMobile ? "h1" : "h2";
 
   return (
-    <div className="flex flex-col gap-2 max-sm:gap-0">
-      <div className="flex items-center justify-between gap-2 px-1.5 pt-1 pb-1 max-sm:items-end max-sm:px-5 max-sm:pt-2">
+    <div
+      ref={listRef}
+      className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] [--list-label-h:2.25rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:3.25rem] max-sm:[--list-label-h:2.625rem]"
+    >
+      {/* Pinned under MobileVault's bar on phones (--list-top). With group
+          labels pinned beneath it, its frost spans them too: one bar, no seam. */}
+      <div
+        className={cn(
+          "sticky-bar top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
+          hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
+        )}
+      >
         <Heading className="font-semibold max-sm:font-display max-sm:font-extrabold max-sm:text-[2.125rem] max-sm:leading-none max-sm:tracking-[-0.03em]">
           Logins{" "}
           <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums max-sm:ml-1 max-sm:align-[0.25em] max-sm:font-medium max-sm:font-sans max-sm:text-lg max-sm:tracking-normal">
@@ -242,22 +259,27 @@ export default function RecordSidebar() {
       </div>
       {noResults ? (
         // Phones show the full "no results" state in the layout instead.
-        !isMobile && <p className="px-1 py-4 text-muted-foreground text-sm">No results</p>
+        !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : sortedRecords.length === 0 ? (
-        <div className="max-sm:px-4 max-sm:pt-4">
+        <div className="px-3 max-sm:px-4 max-sm:pt-4">
           <EmptySidebar />
         </div>
       ) : (
-        <div className="flex flex-col gap-1 max-sm:gap-0">
+        <div
+          className={cn("flex flex-col gap-1 max-sm:gap-0", hasGroupLabels && "-mt-2 max-sm:mt-0")}
+        >
           {recordGroups.map((recordGroup) => (
-            <section key={recordGroup.label ?? "all"} className="group/section">
+            <section key={recordGroup.label ?? "all"}>
+              {/* No frost of its own: the bar's reaches exactly --list-label-h
+                  under it. z-11 keeps the label above that frost (sticky-bar is z-10);
+                  sticky-label fades it out as the next group pushes it into the bar. */}
               {recordGroup.label && (
-                <h3 className="px-2 pt-3 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em] group-first/section:pt-1 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:tracking-[0.08em] max-sm:group-first/section:pt-5">
+                <h3 className="sticky-label z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
                   {recordGroup.label}
                 </h3>
               )}
               {/* One wrapper per group, so each group's first row drops its hairline. */}
-              <ItemGroup className="gap-1 max-sm:gap-0">
+              <ItemGroup className="gap-1 px-3 max-sm:gap-0 max-sm:px-0">
                 {recordGroup.records.map((record) => (
                   <RecordRow
                     key={record.recordId}

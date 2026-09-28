@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/Select";
+import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 type ChoiceSettingProps = {
   title: string;
@@ -71,32 +72,37 @@ export default function SecuritySettingsPage() {
   );
 
   return (
-    <div className="p-4">
-      <ItemGroup>
-        <ChoiceSetting
-          title="Clear clipboard"
-          description="Only works while this tab stays focused — your browser will not let the app touch the clipboard in the background."
-          choices={CLIPBOARD_CLEAR_CHOICES}
-          value={clipboardClearSeconds}
-          onValueChange={setClipboardClearSeconds}
-        />
+    <>
+      <PanelHeader>
+        <PanelTitle>Security</PanelTitle>
+      </PanelHeader>
+      <div className="px-4 pb-4">
+        <ItemGroup>
+          <ChoiceSetting
+            title="Clear clipboard"
+            description="Only works while this tab stays focused — your browser will not let the app touch the clipboard in the background."
+            choices={CLIPBOARD_CLEAR_CHOICES}
+            value={clipboardClearSeconds}
+            onValueChange={setClipboardClearSeconds}
+          />
 
-        <ChoiceSetting
-          title="Lock when idle"
-          description="Locking clears every key from memory. Anything you were editing but had not saved is lost."
-          choices={AUTO_LOCK_CHOICES}
-          value={autoLockMinutes}
-          onValueChange={setAutoLockMinutes}
-        />
+          <ChoiceSetting
+            title="Lock when idle"
+            description="Locking clears every key from memory. Anything you were editing but had not saved is lost."
+            choices={AUTO_LOCK_CHOICES}
+            value={autoLockMinutes}
+            onValueChange={setAutoLockMinutes}
+          />
 
-        <ChoiceSetting
-          title="Hide revealed values again"
-          description="Applies to passwords and hidden custom fields after you reveal them."
-          choices={REVEAL_TIMEOUT_CHOICES}
-          value={revealTimeoutSeconds}
-          onValueChange={setRevealTimeoutSeconds}
-        />
-      </ItemGroup>
-    </div>
+          <ChoiceSetting
+            title="Hide revealed values again"
+            description="Applies to passwords and hidden custom fields after you reveal them."
+            choices={REVEAL_TIMEOUT_CHOICES}
+            value={revealTimeoutSeconds}
+            onValueChange={setRevealTimeoutSeconds}
+          />
+        </ItemGroup>
+      </div>
+    </>
   );
 }

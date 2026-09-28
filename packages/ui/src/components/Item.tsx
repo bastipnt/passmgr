@@ -11,7 +11,7 @@ function ItemGroup({ className, ...props }: React.ComponentProps<"div">) {
       role="list"
       data-slot="item-group"
       className={cn(
-        "group/item-group flex w-full flex-col gap-4 has-data-[size=sm]:gap-2.5 has-data-[size=xs]:gap-2",
+        "group/item-group flex w-full flex-col gap-4 py-2 has-data-[size=sm]:gap-2.5 has-data-[size=xs]:gap-2",
         className,
       )}
       {...props}
@@ -38,7 +38,7 @@ const itemVariants = cva(
         default: "border-transparent",
         outline: "border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]",
         active: "border-primary/45 bg-primary/10 dark:bg-primary/20 [a]:hover:bg-primary/15",
-        muted: "border-transparent bg-foreground/[0.04]",
+        muted: "border-transparent bg-foreground/4",
       },
       size: {
         default: "gap-2.5 px-3 py-2.5",

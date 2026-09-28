@@ -1,3 +1,11 @@
+import { PanelHeader, PanelTitle } from "@/components/AppShell";
 export default function ReusedPasswords() {
-  return <div className="p-4">TBA</div>;
+  return (
+    <>
+      <PanelHeader>
+        <PanelTitle>Reused Passwords</PanelTitle>
+      </PanelHeader>
+      <div className="px-4 pb-4">TBA</div>
+    </>
+  );
 }

@@ -40,7 +40,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       }
     >
       <div className="top-glow" aria-hidden />
-      <header className="sticky top-0 z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+      <header className="sticky-bar z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-lg" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
         </Button>

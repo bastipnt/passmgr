@@ -196,6 +196,96 @@
   }
 }
 
+/* Heading/action bar pinned to the top of its scroll container. Content that
+ * scrolls under it is frosted: solid across the bar, then fading out over
+ * --sticky-bar-fade past its bottom edge. Set the fade to 0 on a bar that
+ * always has another bar pinned right beneath it, so the two join without a
+ * seam. Two backdrop blurs side by side always show one, so for frost-less
+ * sticky labels pinned under the bar (stacked above it), --sticky-bar-extend
+ * stretches the bar's own frost down under them instead. The
+ * frost only shows while the bar is stuck (fading in over the first 2rem of
+ * scroll). Tint via --sticky-bar-fill.
+ *
+ * The scroller needs its own stacking context (`isolate`) and no
+ * backdrop-filter of its own, or Chrome's backdrop-filter here blurs nothing. */
+@utility sticky-bar {
+  --sticky-bar-edge: calc(100% - var(--sticky-bar-fade, 1rem));
+
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  isolation: isolate;
+
+  &::before {
+    position: absolute;
+    inset: 0 0 calc(-1 * (var(--sticky-bar-extend, 0rem) + var(--sticky-bar-fade, 1rem)));
+    z-index: -1;
+    pointer-events: none;
+    content: "";
+    background: linear-gradient(
+      var(--sticky-bar-fill, color-mix(in oklab, var(--color-background) 80%, transparent))
+        var(--sticky-bar-edge),
+      transparent
+    );
+    backdrop-filter: blur(16px) saturate(1.3);
+    mask-image: linear-gradient(#000 var(--sticky-bar-edge), transparent);
+  }
+
+  @supports (container-type: scroll-state) {
+    container-type: scroll-state;
+
+    @container not scroll-state(stuck: top) {
+      &::before {
+        visibility: hidden;
+      }
+    }
+  }
+
+  @supports (animation-timeline: scroll()) {
+    &::before {
+      animation: sticky-bar-reveal linear both;
+      animation-timeline: scroll(nearest);
+      animation-range: 0 2rem;
+    }
+  }
+
+  @media (prefers-reduced-transparency: reduce) {
+    &::before {
+      inset: 0 0 calc(-1 * var(--sticky-bar-extend, 0rem));
+      background: var(--color-background);
+      backdrop-filter: none;
+      mask-image: none;
+    }
+  }
+}
+
+@keyframes sticky-bar-reveal {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Sticky section label pinned at --sticky-label-top. When the next section
+ * pushes it up (into the bar above), it fades out over its own height instead
+ * of sliding through the bar's content. The view timeline's start inset sits
+ * at the pinned position, so "exit" spans exactly that push-out. */
+@utility sticky-label {
+  position: sticky;
+  top: var(--sticky-label-top, 0px);
+
+  @supports (animation-timeline: view()) {
+    animation: sticky-label-exit linear both;
+    animation-timeline: view(block var(--sticky-label-top, 0px) 0px);
+    animation-range: exit 0% exit 100%;
+  }
+}
+
+@keyframes sticky-label-exit {
+  to {
+    opacity: 0;
+  }
+}
+
 /* Multicolor headline accent. */
 @utility text-spectrum {
   color: transparent;
