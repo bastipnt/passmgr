@@ -72,8 +72,24 @@
     @apply w-full;
   }
 
+  /* Pushed page: slides in from the right, swipe right to go back. */
   &[data-side="right"] {
-    @apply h-full w-3/4 border-l;
+    transform: translateX(var(--drawer-swipe-movement-x));
+
+    @apply inset-y-0 right-0 h-full w-full;
+
+    &[data-swiping] {
+      transition-duration: 0s;
+    }
+
+    &[data-starting-style],
+    &[data-ending-style] {
+      transform: translateX(100%);
+    }
+
+    &[data-ending-style] {
+      transition-duration: calc(var(--drawer-swipe-strength) * var(--duration));
+    }
   }
 
   &[data-side="left"] {

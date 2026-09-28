@@ -43,7 +43,8 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
                   <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
                     {label}
                   </h2>
-                  <ItemDisplayGroup>
+                  {/* Full-bleed rows on phones, like a native grouped list. */}
+                  <ItemDisplayGroup flushOnMobile>
                     {groupSpecs.map((spec) => (
                       <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} />
                     ))}

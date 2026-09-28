@@ -8,16 +8,8 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import Link from "@repo/ui/components/Link";
-import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
-import {
-  EllipsisIcon,
-  ExternalLinkIcon,
-  PencilLineIcon,
-  Timeline,
-  TrashIcon,
-  XIcon,
-} from "lucide-react";
+import { EllipsisIcon, ExternalLinkIcon, PencilLineIcon, Timeline, TrashIcon } from "lucide-react";
 import { useContext, useState } from "react";
 import { recordPaths } from "@/app/route-paths";
 import { displayHost } from "./record-utils";
@@ -26,9 +18,10 @@ import { WebsiteAvatar } from "./WebsiteAvatar";
 type MoreDropdownProps = {
   recordId: string;
   onDelete: () => void;
+  variant?: "outline" | "floating";
 };
 
-function MoreDropdown({ recordId, onDelete }: MoreDropdownProps) {
+export function MoreDropdown({ recordId, onDelete, variant = "outline" }: MoreDropdownProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   return (
@@ -36,7 +29,7 @@ function MoreDropdown({ recordId, onDelete }: MoreDropdownProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant="outline" size="icon-lg" aria-label="More actions">
+            <Button variant={variant} size="icon-lg" aria-label="More actions">
               <EllipsisIcon />
             </Button>
           }
@@ -71,7 +64,6 @@ type RecordActionsProps = {
   title: string;
   websites?: { value: string }[];
   onDelete: () => void;
-  onSetOpen?: (o: boolean) => void;
   className?: string;
 };
 
@@ -80,32 +72,17 @@ export function RecordActions({
   title,
   websites,
   onDelete,
-  onSetOpen,
   className,
 }: RecordActionsProps) {
   const primaryWebsite = websites?.find((website) => website.value)?.value;
   const { isOffline } = useContext(SessionContext);
-  const isMobile = useIsMobile();
 
   return (
     <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
       <div className="flex min-w-0 flex-row items-center gap-4">
-        {isMobile && onSetOpen && (
-          <Button
-            variant="outline"
-            size="icon"
-            className="rounded-full"
-            onClick={() => onSetOpen(false)}
-          >
-            <XIcon />
-          </Button>
-        )}
-
-        <WebsiteAvatar title={title} websites={websites} size={isMobile ? "default" : "lg"} />
+        <WebsiteAvatar title={title} websites={websites} size="lg" />
         <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="truncate font-bold font-display text-xl tracking-[-0.02em] sm:text-3xl">
-            {title}
-          </h1>
+          <h1 className="truncate font-bold font-display text-3xl tracking-[-0.02em]">{title}</h1>
           {primaryWebsite && (
             <a
               href={primaryWebsite}
@@ -123,14 +100,14 @@ export function RecordActions({
       {!isOffline && (
         <div className="flex shrink-0 items-center gap-2">
           <Link
-            variant={isMobile ? "default" : "outline"}
-            size={isMobile ? "icon-lg" : "lg"}
+            variant="outline"
+            size="lg"
             className="h-10 font-medium text-sm"
             aria-label="Edit"
             href={recordPaths.editRecord(recordId)}
           >
             <PencilLineIcon />
-            {!isMobile && "Edit"}
+            Edit
           </Link>
           <MoreDropdown recordId={recordId} onDelete={onDelete} />
         </div>

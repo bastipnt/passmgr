@@ -59,7 +59,7 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
       <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
         Password health
       </h2>
-      <ul className="divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 dark:divide-white/8 dark:border-white/10 dark:bg-white/[0.03]">
+      <ul className="divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:bg-transparent dark:divide-white/8 dark:border-white/10 dark:bg-white/3 max-sm:dark:bg-transparent max-sm:[&>li]:px-5">
         <HealthRow
           tone={strong ? "good" : "warn"}
           title={`${health.strength.label} password`}

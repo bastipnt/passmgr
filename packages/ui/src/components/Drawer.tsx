@@ -90,7 +90,11 @@ function DrawerPopup({
           translate="no"
           {...props}
         >
-          <div className="h-full touch-auto overflow-y-auto overscroll-contain">{children}</div>
+          {/* z-0: its own stacking context, so backdrop-filter on floating
+              controls inside it can sample the scrolled content (Chrome). */}
+          <div className="relative z-0 h-full touch-auto overflow-y-auto overscroll-contain">
+            {children}
+          </div>
         </DrawerPrimitive.Popup>
       </DrawerViewport>
     </DrawerPortal>

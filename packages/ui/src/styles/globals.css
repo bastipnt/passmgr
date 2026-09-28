@@ -167,6 +167,23 @@
 
 /* Frosted panel: cards, the vault shell, sheets. Keep it to a few large
  * surfaces per screen — backdrop-filter is costly. */
+/* Mobile screens sit on solid ground; the brand light only glows behind the
+ * large title and fades out before the content. Fixed: it stays put while the
+ * content scrolls. Needs a viewport-tall ancestor (see MobileVault) because
+ * the Drawer indent wrapper contains fixed descendants.
+ * Siblings that should paint above the glow must be positioned (`relative`). */
+@utility top-glow {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 0;
+  height: 17rem;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 70% at 0% 0%, rgb(122 92 255 / 0.38), transparent 70%),
+    radial-gradient(50% 60% at 100% 0%, rgb(255 61 139 / 0.22), transparent 70%);
+  mask-image: linear-gradient(#000 30%, transparent);
+}
+
 @utility glass {
   background-color: var(--glass-fill);
   border: 1px solid var(--glass-border);

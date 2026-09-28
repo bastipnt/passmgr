@@ -10,25 +10,30 @@ type AppShellProps = {
 
 /**
  * Signed-in frame: a dimmed light field, a floating glass header bar and a
- * main area that fills the rest of the viewport.
+ * main area that fills the rest of the viewport. Phones drop the glass and
+ * use the whole screen: solid ground, a top glow and a plain header row.
  */
 export function AppShell({ header, children, mainClassName }: AppShellProps) {
   return (
-    <div className="relative isolate grid h-dvh grid-rows-[auto_minmax(0,1fr)] gap-3 p-3 sm:gap-4 sm:p-5">
-      <div className="light-field [--field-opacity:0.28]" />
-      <header className="glass flex h-16 min-w-0 items-center gap-2 rounded-[20px] px-3 sm:gap-3 sm:px-4">
+    <div className="relative isolate grid h-dvh grid-rows-[auto_minmax(0,1fr)] sm:gap-4 sm:p-5">
+      <div className="light-field [--field-opacity:0.28] max-sm:hidden" />
+      <div className="top-glow sm:hidden" aria-hidden />
+      <header className="sm:glass relative flex min-w-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
         {header}
       </header>
-      <main className={cn("grid min-h-0 gap-3 sm:gap-4", mainClassName)}>{children}</main>
+      <main className={cn("relative grid min-h-0 sm:gap-4", mainClassName)}>{children}</main>
     </div>
   );
 }
 
-/** Frosted, independently scrolling column of the shell. */
+/** Independently scrolling column of the shell; frosted from `sm` up. */
 export function ShellPanel({ className, ...props }: ComponentProps<"section">) {
   return (
     <section
-      className={cn("glass min-h-0 overflow-y-auto overscroll-contain rounded-[28px]", className)}
+      className={cn(
+        "sm:glass min-h-0 overflow-y-auto overscroll-contain sm:rounded-[28px]",
+        className,
+      )}
       {...props}
     />
   );

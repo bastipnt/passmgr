@@ -23,6 +23,9 @@ const buttonVariants = cva(
           "text-destructive hover:bg-destructive/10 hover:text-destructive aria-expanded:bg-destructive/30 aria-expanded:text-destructive",
         destructive:
           "border-destructive/16 bg-destructive/9 text-destructive hover:bg-destructive/15 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:border-transparent dark:bg-destructive/15 dark:focus-visible:ring-destructive/40 dark:hover:bg-destructive/25",
+        // Chrome that hovers over scrolling content on mobile: frosted, pill-shaped.
+        floating:
+          "rounded-full border-foreground/8 bg-white/70 text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_6px_18px_-8px_rgb(22_20_31/0.28)] backdrop-blur-xl backdrop-saturate-160 hover:bg-white/85 aria-expanded:bg-white/85 dark:border-white/14 dark:bg-[rgb(28_26_40/0.62)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_6px_16px_-8px_rgb(0_0_0/0.6)] dark:aria-expanded:bg-[rgb(40_38_54/0.72)] dark:hover:bg-[rgb(40_38_54/0.72)]",
         link: "justify-start text-primary underline-offset-4 hover:underline dark:text-ring",
       },
       size: {
@@ -37,6 +40,8 @@ const buttonVariants = cva(
         "icon-sm":
           "size-8 in-data-[slot=button-group]:rounded-lg rounded-[min(var(--radius-md),10px)]",
         "icon-lg": "size-10",
+        /** Round floating action button. */
+        fab: "size-14 rounded-full [&_svg:not([class*='size-'])]:size-6",
       },
     },
     defaultVariants: {

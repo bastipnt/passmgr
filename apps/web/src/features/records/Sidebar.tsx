@@ -20,23 +20,29 @@ import {
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { ArrowUpDownIcon } from "lucide-react";
-import { Fragment, useCallback, useEffect, useRef } from "react";
+import { ArrowUpDownIcon, ChevronRightIcon } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
-type SidebarRecordProps = {
+type RecordRowProps = {
   record: DecryptedRecord;
   active: boolean;
+  isMobile: boolean;
   registerRef: (id: string, el: HTMLAnchorElement | null) => void;
 };
 
-function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
+/**
+ * Desktop: a rounded sidebar item with an active state. Phones (`max-sm:`): a
+ * full-bleed table-view row with a hairline inset past the avatar and a
+ * chevron — the record opens as its own page, so there is no active state.
+ */
+function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
   return (
     <Item
       variant={active ? "active" : "default"}
-      className="gap-3 rounded-2xl px-2.5 py-2"
+      className="group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5"
       render={
         <Link
           href={recordPaths.record(record.recordId)}
@@ -44,14 +50,26 @@ function SidebarRecord({ record, active, registerRef }: SidebarRecordProps) {
         />
       }
     >
-      <ItemMedia>
-        <WebsiteAvatar title={record.title} websites={record.websites} />
+      <ItemMedia className="max-sm:self-center! max-sm:translate-y-0!">
+        <WebsiteAvatar
+          title={record.title}
+          websites={record.websites}
+          size={isMobile ? "md" : "default"}
+        />
       </ItemMedia>
-      <ItemContent className="min-w-0 gap-0">
-        <ItemTitle className="font-semibold text-[0.95rem]">{record.title}</ItemTitle>
-        <ItemDescription className="line-clamp-1 text-[0.8rem]">
-          {record.username || "—"}
-        </ItemDescription>
+      <ItemContent className="min-w-0 gap-0 max-sm:flex-row max-sm:items-center max-sm:gap-2 max-sm:self-stretch max-sm:border-foreground/8 max-sm:border-t max-sm:pr-4 max-sm:group-first/row:border-t-0 dark:max-sm:border-white/8">
+        <div className="min-w-0 flex-1">
+          <ItemTitle className="font-semibold text-[0.95rem] max-sm:text-base">
+            {record.title}
+          </ItemTitle>
+          <ItemDescription className="line-clamp-1 text-[0.8rem] max-sm:text-sm">
+            {record.username || "—"}
+          </ItemDescription>
+        </div>
+        <ChevronRightIcon
+          className="size-4.5 shrink-0 text-muted-foreground/60 sm:hidden"
+          aria-hidden
+        />
       </ItemContent>
     </Item>
   );
@@ -64,7 +82,7 @@ function RecordSidebarSkeleton() {
         // static skeleton list, index key is fine
         <Item key={i} className="gap-3 px-2.5 py-2">
           <ItemMedia>
-            <Skeleton className="size-9 rounded-[10px]" />
+            <Skeleton className="size-9 rounded-sm" />
           </ItemMedia>
           <ItemContent className="gap-1">
             <Skeleton className="h-4 w-32" />
@@ -181,59 +199,78 @@ export default function RecordSidebar() {
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
 
+  const sortMenu = (
+    <DropdownMenu>
+      <DropdownMenuTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-primary max-sm:-mr-2 dark:text-ring"
+            aria-label="Sort records"
+          >
+            <ArrowUpDownIcon />
+            {SORT_LABELS[sort]}
+          </Button>
+        }
+      />
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup value={sort} onValueChange={handleSortChange}>
+          {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([value, label]) => (
+            <DropdownMenuRadioItem key={value} value={value}>
+              {label}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+
+  // The phone list is the screen itself, so its heading is the page title.
+  const Heading = isMobile ? "h1" : "h2";
+
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between gap-2 px-1.5 pt-1 pb-1">
-        <h2 className="font-semibold">
+    <div className="flex flex-col gap-2 max-sm:gap-0">
+      <div className="flex items-center justify-between gap-2 px-1.5 pt-1 pb-1 max-sm:items-end max-sm:px-5 max-sm:pt-2">
+        <Heading className="font-semibold max-sm:font-display max-sm:font-extrabold max-sm:text-[2.125rem] max-sm:leading-none max-sm:tracking-[-0.03em]">
           Logins{" "}
-          <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
+          <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums max-sm:ml-1 max-sm:align-[0.25em] max-sm:font-medium max-sm:font-sans max-sm:text-lg max-sm:tracking-normal">
             {sortedRecords.length}
           </span>
-        </h2>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button variant="outline" size="sm" aria-label="Sort records">
-                <ArrowUpDownIcon />
-                {SORT_LABELS[sort]}
-              </Button>
-            }
-          />
-          <DropdownMenuContent align="end">
-            <DropdownMenuRadioGroup value={sort} onValueChange={handleSortChange}>
-              {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([value, label]) => (
-                <DropdownMenuRadioItem key={value} value={value}>
-                  {label}
-                </DropdownMenuRadioItem>
-              ))}
-            </DropdownMenuRadioGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        </Heading>
+        {sortMenu}
       </div>
       {noResults ? (
-        <p className="px-1 py-4 text-muted-foreground text-sm">No results</p>
+        // Phones show the full "no results" state in the layout instead.
+        !isMobile && <p className="px-1 py-4 text-muted-foreground text-sm">No results</p>
       ) : sortedRecords.length === 0 ? (
-        <EmptySidebar />
+        <div className="max-sm:px-4 max-sm:pt-4">
+          <EmptySidebar />
+        </div>
       ) : (
-        <ItemGroup className="gap-1">
+        <div className="flex flex-col gap-1 max-sm:gap-0">
           {recordGroups.map((recordGroup) => (
-            <Fragment key={recordGroup.label ?? "all"}>
+            <section key={recordGroup.label ?? "all"} className="group/section">
               {recordGroup.label && (
-                <p className="px-2 pt-3 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em] first:pt-1">
+                <h3 className="px-2 pt-3 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em] group-first/section:pt-1 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:tracking-[0.08em] max-sm:group-first/section:pt-5">
                   {recordGroup.label}
-                </p>
+                </h3>
               )}
-              {recordGroup.records.map((record) => (
-                <SidebarRecord
-                  key={record.recordId}
-                  record={record}
-                  active={record.recordId === params?.recordId}
-                  registerRef={registerRef}
-                />
-              ))}
-            </Fragment>
+              {/* One wrapper per group, so each group's first row drops its hairline. */}
+              <ItemGroup className="gap-1 max-sm:gap-0">
+                {recordGroup.records.map((record) => (
+                  <RecordRow
+                    key={record.recordId}
+                    record={record}
+                    active={!isMobile && record.recordId === params?.recordId}
+                    isMobile={isMobile}
+                    registerRef={registerRef}
+                  />
+                ))}
+              </ItemGroup>
+            </section>
           ))}
-        </ItemGroup>
+        </div>
       )}
     </div>
   );

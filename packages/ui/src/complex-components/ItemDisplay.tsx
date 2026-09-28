@@ -13,9 +13,22 @@ import { StackedButton } from "@repo/ui/components/StackedButton";
 import { cn } from "@repo/ui/lib/utils";
 import type { PasswordStrength, PasswordStrengthLevel } from "@repo/util";
 import { BadgeCheckIcon, EyeIcon, EyeOffIcon, NotebookIcon, ShieldAlertIcon } from "lucide-react";
-import { type ReactNode, useEffect, useState } from "react";
+import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
 
 const HIDDEN_VALUE = "••••••••••••" as const;
+
+/** Set by `ItemDisplayGroup flushOnMobile`; rows style themselves from it. */
+const FlushOnMobileContext = createContext(false);
+
+/**
+ * Flush rows below `sm`: square corners (the group is no longer a card),
+ * a 1.25rem gutter, an inset focus ring (an outer one would be clipped at the
+ * screen edge) and a press state instead of hover, which sticks after a tap
+ * on touch screens.
+ */
+const FLUSH_ROW = "max-sm:rounded-none!";
+const FLUSH_PRESSABLE =
+  "max-sm:rounded-none! max-sm:focus-visible:border-transparent max-sm:focus-visible:ring-2 max-sm:focus-visible:ring-ring/50 max-sm:focus-visible:ring-inset max-sm:hover:bg-transparent max-sm:active:bg-primary/8 max-sm:dark:hover:bg-transparent max-sm:dark:active:bg-foreground/5";
 
 type OnClickEvent = {
   type: "copy" | "toggleHide";
@@ -66,6 +79,7 @@ function ItemDisplay({
   strength,
   revealTimeoutMs = 0,
 }: ItemDisplayProps) {
+  const flush = useContext(FlushOnMobileContext);
   const [valueHidden, setValueHidden] = useState(true);
   const usesHiddenValue = hiddenVariants.includes(variant as (typeof hiddenVariants)[number]);
 
@@ -106,7 +120,10 @@ function ItemDisplay({
   const CopyButton = (
     <Button
       variant="ghost"
-      className="h-auto gap-x-2.5 rounded-none group-first:rounded-t-2xl group-last:rounded-b-2xl"
+      className={cn(
+        "h-auto gap-x-2.5 rounded-none group-first:rounded-t-2xl group-last:rounded-b-2xl",
+        flush && [FLUSH_PRESSABLE, "max-sm:pl-5!", !usesHiddenValue && "max-sm:pr-5"],
+      )}
       onClick={() => onClick({ type: "copy" })}
     >
       {ItemInner}
@@ -124,13 +141,23 @@ function ItemDisplay({
 
   return (
     <Item
-      className="group rounded-none border-0 not-last:border-foreground/8 not-last:border-b first:rounded-t-2xl last:rounded-b-2xl dark:not-last:border-white/8"
+      className={cn(
+        "group rounded-none border-0 not-last:border-foreground/8 not-last:border-b first:rounded-t-2xl last:rounded-b-2xl dark:not-last:border-white/8",
+        flush && [FLUSH_ROW, variant === "noAction" && "max-sm:px-5"],
+      )}
       render={
         usesHiddenValue ? (
           <StackedButton>
             {CopyButton}
 
-            <Button variant="ghost" onClick={toggleHide}>
+            <Button
+              variant="ghost"
+              className={cn(
+                flush &&
+                  "max-sm:mr-4! max-sm:active:bg-primary/8 max-sm:hover:bg-transparent max-sm:dark:active:bg-foreground/5 max-sm:dark:hover:bg-transparent",
+              )}
+              onClick={toggleHide}
+            >
               {valueHidden ? <EyeIcon /> : <EyeOffIcon />}
             </Button>
           </StackedButton>
@@ -147,17 +174,24 @@ function ItemDisplay({
 type ItemDisplayGroupProps = {
   children: ReactNode;
   className?: string;
+  /**
+   * Below `sm`, drop the card and run the rows edge to edge like a native
+   * list. Expects the parent to have a 1rem side gutter, which it bleeds past.
+   */
+  flushOnMobile?: boolean;
 };
 
-function ItemDisplayGroup({ children, className }: ItemDisplayGroupProps) {
+function ItemDisplayGroup({ children, className, flushOnMobile }: ItemDisplayGroupProps) {
   return (
     <ItemGroup
       className={cn(
-        "gap-0 rounded-2xl border border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/[0.03]",
+        "gap-0 rounded-2xl border border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/3",
+        flushOnMobile &&
+          "max-sm:-mx-4 max-sm:w-auto max-sm:rounded-none max-sm:border-x-0 max-sm:bg-transparent max-sm:dark:bg-transparent",
         className,
       )}
     >
-      {children}
+      <FlushOnMobileContext value={Boolean(flushOnMobile)}>{children}</FlushOnMobileContext>
     </ItemGroup>
   );
 }
