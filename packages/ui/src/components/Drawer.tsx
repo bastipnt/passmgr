@@ -38,12 +38,17 @@ function DrawerHandle() {
   return <div className={cn("mx-auto mb-4 h-1 w-12 rounded-full bg-border")} />;
 }
 
+/**
+ * Handle and actions pinned to the top of the drawer. At rest it shows the
+ * drawer's own ground; content scrolled beneath is frosted, tinted with the
+ * popover color (lightly in light mode).
+ */
 function DrawerActions({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
     <div
       data-slot="drawer-actions"
       className={cn(
-        "sticky top-0 right-0 left-0 z-10 bg-popover/80 px-4 pt-2 pb-4 backdrop-blur-xs",
+        "sticky-bar px-4 pt-2 pb-4 [--sticky-bar-fill:color-mix(in_oklab,var(--color-popover)_55%,transparent)] dark:[--sticky-bar-fill:color-mix(in_oklab,var(--color-popover)_85%,transparent)]",
         className,
       )}
     >

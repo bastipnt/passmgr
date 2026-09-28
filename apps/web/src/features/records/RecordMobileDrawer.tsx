@@ -6,6 +6,7 @@ import Link from "@repo/ui/components/Link";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
 import { lazy, Suspense, useContext } from "react";
 import { recordPaths } from "@/app/route-paths";
+import ShellBackdrop from "@/components/ShellBackdrop";
 import { MoreDropdown } from "./RecordActions";
 import { displayHost, useCopyField } from "./record-utils";
 import { useRecordActions } from "./use-record-actions";
@@ -39,7 +40,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           : "relative isolate min-h-full pb-[max(env(safe-area-inset-bottom),1rem)]"
       }
     >
-      <div className="top-glow" aria-hidden />
+      <ShellBackdrop />
       <header className="sticky-bar z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-lg" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
@@ -149,7 +150,7 @@ function RecordMobileDrawerInner({
       onOpenChangeComplete={onOpenChangeComplete}
       swipeDirection="right"
     >
-      <DrawerPopup side="right" className="bg-background shadow-none">
+      <DrawerPopup side="right" className="bg-background! shadow-none">
         <MobileRecordScreen
           record={record}
           onBack={() => setOpen(false)}

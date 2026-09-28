@@ -42,6 +42,7 @@ import { type ReactNode, useContext, useRef, useState } from "react";
 import { Link as RouterLink, useLocation } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
+import ShellBackdrop from "@/components/ShellBackdrop";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
@@ -184,7 +185,7 @@ type MobileVaultProps = {
 
 /**
  * Phone layout, shaped like a native app rather than a shrunken desktop: the
- * list runs edge to edge on solid ground under a large title, and the
+ * list runs edge to edge over the light field under a large title, and the
  * controls float over it — actions top right, search and "new" in a bottom
  * dock. Records open as pushed pages (`RecordMobileDrawer`).
  *
@@ -199,14 +200,15 @@ function MobileVault({ isOffline, onLock }: MobileVaultProps) {
 
   return (
     <div className="relative isolate h-dvh overflow-hidden">
-      <div className="top-glow" aria-hidden />
+      <ShellBackdrop />
       {/* Own stacking context (z-0): without it Chrome's backdrop-filter on
           the floating dock doesn't pick up the scrolled list, so no blur. */}
       {/* --list-top: this bar's exact height (top pad + size-10 buttons +
-          pb-3), so the list's own bars pin right beneath it. No fade: the
-          list heading is always pinned under it. */}
+          pb-3), so the list's own bars pin right beneath it. No frost of its
+          own: the list heading, always pinned under it, reaches its frost up
+          under this bar — one blur for bar, heading and group label. */}
       <div className="relative z-0 h-full overflow-y-auto overscroll-contain pb-[calc(max(env(safe-area-inset-bottom),1rem)+5.5rem)] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
-        <header className="sticky-bar z-20 flex h-(--list-top) items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3 [--sticky-bar-fade:0rem]">
+        <header className="sticky top-0 z-20 flex h-(--list-top) items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
           <RouterLink
             href={recordPaths.index}
             aria-label="passmgr"

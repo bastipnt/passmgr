@@ -241,11 +241,12 @@ export default function RecordSidebar() {
       ref={listRef}
       className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] [--list-label-h:2.25rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:3.25rem] max-sm:[--list-label-h:2.625rem]"
     >
-      {/* Pinned under MobileVault's bar on phones (--list-top). With group
-          labels pinned beneath it, its frost spans them too: one bar, no seam. */}
+      {/* Pinned under MobileVault's bar on phones (--list-top), whose frost it
+          provides as well. With group labels pinned beneath it, its frost
+          spans them too: one bar, no seam. */}
       <div
         className={cn(
-          "sticky-bar top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
+          "sticky-bar top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 [--sticky-bar-extend-up:var(--list-top,0px)] max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
           hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
         )}
       >
