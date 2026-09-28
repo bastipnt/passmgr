@@ -342,6 +342,36 @@
   }
 }
 
+/* Drives --scroll-collapse from 0 to 1 over the first --scroll-collapse-range
+ * of its nearest scroller's scroll, for scroll-linked styles written as calc()s
+ * of it (e.g. a large title shrinking into the bar above). Browsers without
+ * scroll-driven animations (Firefox) need the useScrollCollapse fallback. */
+@property --scroll-collapse {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+@property --scroll-collapse-range {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 0px;
+}
+
+@utility scroll-collapse {
+  @supports (animation-timeline: scroll()) {
+    animation: scroll-collapse linear both;
+    animation-timeline: scroll(nearest);
+    animation-range: 0 var(--scroll-collapse-range);
+  }
+}
+
+@keyframes scroll-collapse {
+  to {
+    --scroll-collapse: 1;
+  }
+}
+
 /* Multicolor headline accent. */
 @utility text-spectrum {
   color: transparent;
