@@ -134,7 +134,9 @@
   /* Fixed, full-viewport backdrop of four soft color blobs. Position the blobs
    * per screen via --field-{a,b,c,d} (a CSS <position>). Render it inside the
    * page layout, whose root needs `isolate`: on body it would sit beneath the
-   * opaque Drawer indent wrapper. */
+   * opaque Drawer indent wrapper.
+   * Bleeds past the top and bottom: iOS Safari lays `inset: 0` out inside its
+   * toolbars and the safe areas, leaving bare body ground behind them. */
   .light-field {
     --field-a: 8% 10%;
     --field-b: 30% 85%;
@@ -142,7 +144,7 @@
     --field-d: 95% 95%;
 
     position: fixed;
-    inset: 0;
+    inset: -10rem 0;
     z-index: -1;
     pointer-events: none;
     background-color: var(--color-background);

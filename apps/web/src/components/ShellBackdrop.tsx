@@ -8,7 +8,7 @@ export default function ShellBackdrop() {
     <>
       <div className="light-field [--field-opacity:0.28]" aria-hidden />
       <div
-        className="pointer-events-none fixed inset-0 -z-1 bg-(--glass-fill) sm:hidden"
+        className="pointer-events-none fixed inset-x-0 -inset-y-40 -z-1 bg-(--glass-fill) sm:hidden"
         aria-hidden
       />
     </>
