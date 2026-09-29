@@ -30,6 +30,12 @@
       "dependsOn": ["^db:migrate"],
       "env": ["DATABASE_URL", "REDIS_HOST", "REDIS_PORT", "SERVER_URL"]
     },
+    "dev:host": {
+      "cache": false,
+      "persistent": true,
+      "dependsOn": ["^db:migrate"],
+      "with": ["server#dev", "@repo/redis#dev"]
+    },
     "db:generate": {
       "cache": false,
       "env": ["DATABASE_URL"]
