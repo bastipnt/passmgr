@@ -55,6 +55,11 @@ export default defineConfig(({ mode }) => {
             target: env.VITE_SERVER_URL,
             changeOrigin: true,
             rewrite: (p: string) => p.slice(LAN_API_PREFIX.length),
+            // Same-origin from the browser's view; drop the LAN Origin so the
+            // server's CORS allowlist doesn't flag proxied requests.
+            configure: (proxy) => {
+              proxy.on("proxyReq", (proxyReq) => proxyReq.removeHeader("origin"));
+            },
           },
         },
       },
