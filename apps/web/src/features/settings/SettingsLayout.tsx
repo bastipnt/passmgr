@@ -1,10 +1,12 @@
 import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
+import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, ChevronLeftIcon } from "lucide-react";
-import { type ReactNode, useLayoutEffect } from "react";
-import { useLocation, useRoute } from "wouter";
+import type { ReactNode } from "react";
+import { useRoute } from "wouter";
+import { usePageBack } from "@/app/page-transitions";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import SettingsOverview from "./SettingsOverview";
@@ -22,26 +24,23 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   const isMobile = useIsMobile();
   const [isIndex] = useRoute(settingsPaths.index);
   const backLink = isIndex || !isMobile ? recordPaths.index : settingsPaths.index;
-  const [location] = useLocation();
-
-  // Phones scroll the document, which keeps its offset across screens.
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, [location]);
+  const goBack = usePageBack(backLink);
 
   return (
     <AppShell
       mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]"
       header={
         <>
-          <Link
-            variant={isMobile ? "floating" : "outline"}
-            size={isMobile ? "icon-lg" : "icon"}
-            href={backLink}
-            aria-label="Back"
-          >
-            {isMobile ? <ChevronLeftIcon className="size-5" /> : <ArrowLeft />}
-          </Link>
+          {isMobile ? (
+            // A pushed page (`PageTransitions`): step back rather than push the parent.
+            <Button variant="floating" size="icon-lg" onClick={goBack} aria-label="Back">
+              <ChevronLeftIcon className="size-5" />
+            </Button>
+          ) : (
+            <Link variant="outline" size="icon" href={backLink} aria-label="Back">
+              <ArrowLeft />
+            </Link>
+          )}
           <h1 className="font-bold font-display text-xl tracking-[-0.02em]">Settings</h1>
           <ThemeToggle className="ml-auto" />
         </>

@@ -3,12 +3,15 @@ import { type RefObject, useEffect } from "react";
 const supportsScrollTimeline = () =>
   typeof CSS !== "undefined" && CSS.supports("animation-timeline: scroll()");
 
-function scrollParent(el: HTMLElement) {
+/** Nearest scrolling ancestor; the document when the page itself scrolls. */
+function scrollParent(el: HTMLElement): { scroller: HTMLElement | Window; top: () => number } {
   for (let node = el.parentElement; node; node = node.parentElement) {
     const { overflowY } = getComputedStyle(node);
-    if (overflowY === "auto" || overflowY === "scroll") return node;
+    if (overflowY === "auto" || overflowY === "scroll") {
+      return { scroller: node, top: () => node.scrollTop };
+    }
   }
-  return null;
+  return { scroller: window, top: () => window.scrollY };
 }
 
 /**
@@ -19,8 +22,8 @@ function scrollParent(el: HTMLElement) {
 export function useScrollCollapse(target: RefObject<HTMLElement | null>) {
   useEffect(() => {
     const el = target.current;
-    const scroller = el && scrollParent(el);
-    if (!el || !scroller || supportsScrollTimeline()) return;
+    if (!el || supportsScrollTimeline()) return;
+    const { scroller, top } = scrollParent(el);
 
     let frame = 0;
     const update = () => {
@@ -28,7 +31,7 @@ export function useScrollCollapse(target: RefObject<HTMLElement | null>) {
       const range = Number.parseFloat(
         getComputedStyle(el).getPropertyValue("--scroll-collapse-range"),
       );
-      const progress = range > 0 ? Math.min(1, Math.max(0, scroller.scrollTop / range)) : 0;
+      const progress = range > 0 ? Math.min(1, Math.max(0, top() / range)) : 0;
       el.style.setProperty("--scroll-collapse", String(progress));
     };
     const schedule = () => {

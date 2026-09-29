@@ -1,21 +1,21 @@
 import { SessionContext } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
-import { Drawer, DrawerPopup, DrawerTitle } from "@repo/ui/components/Drawer";
 import Link from "@repo/ui/components/Link";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
-import { lazy, Suspense, useContext, useLayoutEffect, useRef } from "react";
+import { useContext, useLayoutEffect, useRef } from "react";
+import { Redirect, useParams } from "wouter";
+import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
+import Record from "./Record";
 import { MoreDropdown } from "./RecordActions";
+import { RecordFallback } from "./RecordFallback";
 import { displayHost, useCopyField } from "./record-utils";
-import { useRecordActions } from "./use-record-actions";
-import { useRouteSheet } from "./use-route-sheet";
+import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 import { WebsiteAvatar } from "./WebsiteAvatar";
-
-const Record = lazy(() => import("./Record"));
 
 type MobileRecordScreenProps = {
   record: DecryptedRecord;
@@ -24,10 +24,11 @@ type MobileRecordScreenProps = {
 };
 
 /**
- * A record as a pushed page: floating back/edit/more over the content, the
- * fields full-bleed, and the action you open a login for — copying its
- * password — in a bottom dock. The large title scrolls up into the bar
- * between back and edit, shrinking as it goes; avatar and website scroll away.
+ * A record as a pushed page (`PageTransitions` slides it in): floating
+ * back/edit/more over the content, the fields full-bleed, and the action you
+ * open a login for — copying its password — in a bottom dock. The large title
+ * scrolls up into the bar between back and edit, shrinking as it goes; avatar
+ * and website scroll away.
  */
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
   const { isOffline } = useContext(SessionContext);
@@ -54,13 +55,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   }, [isOffline]);
 
   return (
-    <div
-      className={
-        hasDock
-          ? "relative isolate min-h-full pb-[calc(max(env(safe-area-inset-bottom),1rem)+5.5rem)]"
-          : "relative isolate min-h-full pb-[max(env(safe-area-inset-bottom),1rem)]"
-      }
-    >
+    <div className="relative isolate flex min-h-dvh flex-col">
       <ShellBackdrop />
       <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-lg" onClick={onBack} aria-label="Back">
@@ -88,7 +83,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           carries it from its hero spot (next to the avatar, 1rem under the bar;
           centered on the avatar when there's no website line) up to there:
           3.125rem + that gap. Margins/size interpolate hero → bar. */}
-      <DrawerTitle
+      <h1
         ref={titleRef}
         className={cn(
           "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.5rem)] z-30 h-9 truncate font-display font-extrabold leading-9 tracking-tight",
@@ -99,7 +94,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         )}
       >
         {record.title}
-      </DrawerTitle>
+      </h1>
 
       {/* Laid out under the title: the spacer takes the title's place. */}
       <div
@@ -124,14 +119,13 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         </div>
       </div>
 
-      <div className="relative px-4 pt-2">
-        <Suspense fallback={null}>
-          <Record record={record} />
-        </Suspense>
+      <div className="relative flex-1 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),1rem)]">
+        <Record record={record} />
       </div>
 
       {hasDock && (
-        <div className="fixed inset-x-4 bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 flex items-center gap-2.5">
+        // Sticky, not fixed: see `MobileVault` on `DrawerProvider`'s containment.
+        <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 mx-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
           {record.password && (
             <Button
               size="lg"
@@ -167,58 +161,22 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   );
 }
 
-type RecordMobileDrawerInnerProps = {
-  open: boolean;
-  setOpen: (open: boolean) => void;
-  onOpenChangeComplete: (nextOpen: boolean) => void;
-  recordId: string;
-};
+export default function MobileRecordPage() {
+  const { recordId } = useParams();
+  if (!recordId) return <Redirect to={recordPaths.index} replace />;
 
-function RecordMobileDrawerInner({
-  onOpenChangeComplete,
-  open,
-  recordId,
-  setOpen,
-}: RecordMobileDrawerInnerProps) {
-  const { record, ready, deleteRecord } = useRecordActions({ recordId });
-
-  if (!ready) return null; // TODO: should be a fallback
-  if (!record) return null;
-
-  return (
-    <Drawer
-      open={open}
-      onOpenChange={setOpen}
-      onOpenChangeComplete={onOpenChangeComplete}
-      swipeDirection="right"
-    >
-      {/* Fixed at the viewport edges, so Safari tints its bars with this
-          ground: keep it the bars' color. */}
-      <DrawerPopup side="right" className="bg-(--edge-tint)! shadow-none">
-        <MobileRecordScreen
-          record={record}
-          onBack={() => setOpen(false)}
-          onDelete={() => deleteRecord(recordId)}
-        />
-      </DrawerPopup>
-    </Drawer>
-  );
+  return <MobileRecordLoader recordId={recordId} />;
 }
 
-export default function RecordMobileDrawer() {
-  const { open, params, setOpen, onOpenChangeComplete } = useRouteSheet<{ recordId: string }>(
-    recordPaths.detailAny,
-    () => recordPaths.index,
-  );
-  const recordId = params?.recordId;
-  if (!recordId) return null;
+function MobileRecordLoader({ recordId }: { recordId: string }) {
+  useRecordShortcuts({ recordId });
+  const { record, ready, deleteRecord } = useRecordActions({ recordId });
+  const goBack = usePageBack(recordPaths.index);
+
+  if (!ready) return <RecordFallback />;
+  if (!record) return <Redirect to={recordPaths.index} replace />;
 
   return (
-    <RecordMobileDrawerInner
-      recordId={recordId}
-      open={open}
-      onOpenChangeComplete={onOpenChangeComplete}
-      setOpen={setOpen}
-    />
+    <MobileRecordScreen record={record} onBack={goBack} onDelete={() => deleteRecord(recordId)} />
   );
 }

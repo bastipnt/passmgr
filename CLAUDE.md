@@ -98,6 +98,10 @@ Rules:
   Declared in three places that must stay in sync: `vite.config.ts`, `vitest.config.ts`,
   `tsconfig.app.json`.
 - Web `features/records/` matches mobile's `features/records/` naming.
+- **Phone pages are real routes that scroll the document**, never drawers. The push/pop slide is
+  `app/page-transitions.ts` (View Transitions, driven by the router's location hook). A new page
+  gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
+  `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
 
 ### Mobile styling (Uniwind)
 

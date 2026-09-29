@@ -13,14 +13,6 @@ import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import { BrandLockup, BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
 import {
-  Empty,
-  EmptyContent,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyMedia,
-  EmptyTitle,
-} from "@repo/ui/components/Empty";
-import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -34,19 +26,19 @@ import {
   LockIcon,
   PlusIcon,
   SearchIcon,
-  SearchXIcon,
   SlidersHorizontalIcon,
   XIcon,
 } from "lucide-react";
-import { type ReactNode, useContext, useLayoutEffect, useRef, useState } from "react";
+import { type ReactNode, useContext, useRef, useState } from "react";
 import { Link as RouterLink, useLocation } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
-import ShellBackdrop from "@/components/ShellBackdrop";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
-import { createSheetSearch, useOpenCreateSheet } from "./CreateRecordSheet";
+import { createSheetSearch } from "./CreateRecordSheet";
+import { lockVault } from "./lock-vault";
+import { NoSearchResults } from "./NoSearchResults";
 import RecordSidebar from "./Sidebar";
 
 type RecordLayoutProps = {
@@ -93,80 +85,6 @@ function SearchInput() {
   );
 }
 
-/** Pill search floating in the bottom dock, within thumb reach. */
-function MobileSearchInput() {
-  const { query, setQuery } = useSortedRecords();
-
-  return (
-    <InputGroup className="h-14 flex-1 rounded-full border-foreground/8 bg-white/50 shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_12px_30px_-12px_rgb(22_20_31/0.3)] backdrop-blur-2xl backdrop-saturate-180 has-[[data-slot=input-group-control]:focus-visible]:bg-white/90 dark:border-white/14 dark:bg-[rgb(28_26_40/0.62)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_12px_30px_-12px_rgb(0_0_0/0.7)] dark:has-[[data-slot=input-group-control]:focus-visible]:bg-[rgb(28_26_40/0.8)]">
-      <InputGroupAddon align="inline-start" className="pl-5">
-        <SearchIcon className="size-5!" />
-      </InputGroupAddon>
-      <InputGroupInput
-        type="search"
-        enterKeyHint="search"
-        className="text-base [&::-webkit-search-cancel-button]:hidden"
-        placeholder="Search logins"
-        aria-label="Search logins"
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") e.currentTarget.blur();
-        }}
-      />
-      {query && (
-        <InputGroupAddon align="inline-end" className="pr-3">
-          <InputGroupButton
-            size="icon-sm"
-            className="rounded-full"
-            onClick={() => setQuery("")}
-            aria-label="Clear search"
-          >
-            <XIcon />
-          </InputGroupButton>
-        </InputGroupAddon>
-      )}
-    </InputGroup>
-  );
-}
-
-function NoSearchResults() {
-  const { query, setQuery } = useSortedRecords();
-  const openCreateSheet = useOpenCreateSheet();
-
-  return (
-    <div className="flex h-full flex-col items-center justify-center">
-      <Empty>
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <SearchXIcon />
-          </EmptyMedia>
-          <EmptyTitle>No results for &ldquo;{query.trim()}&rdquo;</EmptyTitle>
-          <EmptyDescription>
-            Nothing in your vault matches. Search looks at titles, usernames and websites.
-          </EmptyDescription>
-        </EmptyHeader>
-        <EmptyContent className="flex-row flex-wrap justify-center">
-          <Button variant="outline" onClick={() => setQuery("")}>
-            <XIcon data-icon="inline-start" />
-            Clear search
-          </Button>
-          <Button
-            variant="default"
-            onClick={() => {
-              openCreateSheet(query.trim());
-              setQuery("");
-            }}
-          >
-            <PlusIcon data-icon="inline-start" />
-            Create &ldquo;{query.trim()}&rdquo;
-          </Button>
-        </EmptyContent>
-      </Empty>
-    </div>
-  );
-}
-
 function MainContent({ children }: { children: ReactNode }) {
   const { query, sortedRecords } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
@@ -175,78 +93,6 @@ function MainContent({ children }: { children: ReactNode }) {
     <ShellPanel className="hidden sm:block">
       {noResults ? <NoSearchResults /> : children}
     </ShellPanel>
-  );
-}
-
-type MobileVaultProps = {
-  isOffline: boolean;
-  onLock: () => void;
-};
-
-/**
- * Phone layout, shaped like a native app rather than a shrunken desktop: the
- * list runs edge to edge over the light field under a large title, and the
- * controls float over it — actions top right, search and "new" in a bottom
- * dock. Records open as pushed pages (`RecordMobileDrawer`).
- *
- * The document scrolls, so Safari can run the list under its bars and
- * collapse its toolbar. Chrome is sticky rather than fixed: `DrawerProvider`'s
- * indent wrapper has `contain: layout`, which makes it the containing block
- * for `position: fixed`, so "fixed" chrome would scroll away with the page.
- */
-function MobileVault({ isOffline, onLock }: MobileVaultProps) {
-  const { query, sortedRecords } = useSortedRecords();
-  const noResults = query.trim().length > 0 && sortedRecords.length === 0;
-
-  // The document keeps its offset across screens; open the list at the top.
-  useLayoutEffect(() => {
-    window.scrollTo(0, 0);
-  }, []);
-
-  return (
-    // --list-top: the bar's exact height (top pad + size-10 buttons + pb-3),
-    // so the list's own bars pin right beneath it. No frost of its own: the
-    // list heading, always pinned under it, reaches its frost up under this
-    // bar — one blur for bar, heading and group label.
-    <div className="relative isolate flex min-h-dvh flex-col [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
-      <ShellBackdrop />
-      <header className="sticky top-0 z-20 flex h-(--list-top) shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
-        <RouterLink
-          href={recordPaths.index}
-          aria-label="passmgr"
-          className="rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25"
-        >
-          <BrandMark />
-        </RouterLink>
-        <span className="flex-1" />
-        <Button variant="floating" size="icon-lg" onClick={onLock} aria-label="Lock vault">
-          <LockIcon />
-        </Button>
-        <Link variant="floating" size="icon-lg" href={settingsPaths.index} aria-label="Settings">
-          <SlidersHorizontalIcon />
-        </Link>
-      </header>
-
-      <div className="flex-1">
-        <RecordSidebar />
-        {noResults && (
-          <div className="pt-6">
-            <NoSearchResults />
-          </div>
-        )}
-      </div>
-
-      {/* Pinned to the viewport bottom while the list runs on beneath it, and
-          resting at the same spot once it ends. */}
-      <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
-        <MobileSearchInput />
-        {!isOffline && (
-          <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New login">
-            <PlusIcon />
-          </Link>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -259,10 +105,6 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     PREF_KEYS.autoLockMinutes,
     AUTO_LOCK_DEFAULT_MINUTES,
   );
-
-  // `secretsStore` is memory-only on web, so a reload drops every key. It also
-  // discards unsaved sheet state, which is the right trade for a lock.
-  const lockVault = () => window.location.reload();
 
   useIdleLock(autoLockMinutes, lockVault);
 
@@ -281,14 +123,8 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     allowInInput: false,
   });
 
-  if (isMobile) {
-    return (
-      <SortedRecordsProvider>
-        <MobileVault isOffline={isOffline} onLock={lockVault} />
-        {children}
-      </SortedRecordsProvider>
-    );
-  }
+  // Phones: every route is its own page (`MobileVault`, `MobileRecordPage`).
+  if (isMobile) return <SortedRecordsProvider>{children}</SortedRecordsProvider>;
 
   return (
     <SortedRecordsProvider>

@@ -44,3 +44,18 @@ export const settingsPaths = {
   /** Prefix the app-level router hands to the settings feature. */
   any: "/settings/*?",
 } as const;
+
+/**
+ * Phone page stack for `PageTransitions`: moving to a deeper page slides it in
+ * from the right, moving up slides back. First match wins, so list sub-pages
+ * before their parent's wildcard. Unlisted paths (auth) don't animate.
+ */
+export const pageDepths = [
+  [recordPaths.index, 0],
+  // Edit and versions are sheets over the record, not pages: same depth.
+  [recordPaths.detailAny, 1],
+  [settingsPaths.index, 1],
+  [settingsPaths.duplicates, 3],
+  [settingsPaths.weakPasswords, 3],
+  [settingsPaths.any, 2],
+] as const;

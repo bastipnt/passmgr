@@ -452,3 +452,60 @@
     }
   }
 }
+
+/*
+ * Phone page push/pop (`PageTransitions` in apps/web): a View Transition of
+ * the whole page. Push: the old page drifts left and dims while the new one
+ * slides in from the right edge over it. Pop: the reverse, old page on top.
+ */
+/* Timing sits on the images themselves: the UA stylesheet doesn't reliably
+   pass animation-timing-function down from the group through the image pair. */
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation-duration: 380ms;
+  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
+  animation-fill-mode: both;
+}
+
+html[data-nav="push"]::view-transition-old(root) {
+  animation-name: page-under-left;
+}
+html[data-nav="push"]::view-transition-new(root) {
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+  animation-name: page-over-right;
+}
+html[data-nav="pop"]::view-transition-old(root) {
+  z-index: 1;
+  box-shadow: -8px 0 24px rgb(0 0 0 / 0.12);
+  animation-name: page-out-right;
+}
+html[data-nav="pop"]::view-transition-new(root) {
+  animation-name: page-from-left;
+}
+
+@keyframes page-over-right {
+  from {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-out-right {
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes page-from-left {
+  from {
+    transform: translateX(-30%);
+    filter: brightness(0.85);
+  }
+}
+
+@keyframes page-under-left {
+  to {
+    transform: translateX(-30%);
+    filter: brightness(0.85);
+  }
+}
