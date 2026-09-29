@@ -36,7 +36,7 @@ type RecordRowProps = {
 };
 
 /**
- * Desktop: a rounded sidebar item with an active state. Phones (`max-sm:`): a
+ * Desktop: a rounded list item with an active state. Phones (`max-sm:`): a
  * full-bleed table-view row with a hairline inset past the avatar and a
  * chevron — the record opens as its own page, so there is no active state.
  */
@@ -77,7 +77,7 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
   );
 }
 
-function RecordSidebarSkeleton() {
+function RecordListSkeleton() {
   return (
     <ItemGroup className="gap-1 p-3 pt-15">
       {Array.from({ length: 5 }).map((_, i) => (
@@ -97,7 +97,7 @@ function RecordSidebarSkeleton() {
 }
 
 /** Ghost rows standing in for the first logins. */
-function EmptySidebar() {
+function EmptyRecordList() {
   return (
     <div className="flex flex-col gap-2">
       {[1, 0.7, 0.4].map((opacity) => (
@@ -121,7 +121,7 @@ function EmptySidebar() {
   );
 }
 
-export default function RecordSidebar() {
+export default function RecordList() {
   // Loose match: a record stays "in view" (highlighted, arrow-navigable) while
   // one of its sub-route sheets — edit, versions — is open.
   const [_, params] = useRoute(recordPaths.detailAny);
@@ -200,7 +200,7 @@ export default function RecordSidebar() {
   // Firefox has no scroll-driven animations; this fades the group labels instead.
   useStickyLabelFade(listRef, ready ? recordGroups : null);
 
-  if (!ready) return <RecordSidebarSkeleton />;
+  if (!ready) return <RecordListSkeleton />;
 
   const hasQuery = query.trim().length > 0;
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
@@ -263,7 +263,7 @@ export default function RecordSidebar() {
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : sortedRecords.length === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">
-          <EmptySidebar />
+          <EmptyRecordList />
         </div>
       ) : (
         <div

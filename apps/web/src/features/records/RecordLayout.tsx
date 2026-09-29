@@ -39,7 +39,7 @@ import { modKey } from "@/lib/formatShortcut";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
-import RecordSidebar from "./Sidebar";
+import RecordList from "./RecordList";
 
 type RecordLayoutProps = {
   children: ReactNode;
@@ -182,7 +182,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
         }
       >
         <ShellPanel viewportClassName="scroll-pt-24 scroll-pb-3">
-          <RecordSidebar />
+          <RecordList />
         </ShellPanel>
         <MainContent>{children}</MainContent>
       </AppShell>

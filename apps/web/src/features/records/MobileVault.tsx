@@ -17,7 +17,7 @@ import ShellBackdrop from "@/components/ShellBackdrop";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
-import RecordSidebar from "./Sidebar";
+import RecordList from "./RecordList";
 
 /** Pill search floating in the bottom dock, within thumb reach. */
 function MobileSearchInput() {
@@ -97,7 +97,7 @@ export default function MobileVault() {
       </header>
 
       <div className="flex-1">
-        <RecordSidebar />
+        <RecordList />
         {noResults && (
           <div className="pt-6">
             <NoSearchResults />
