@@ -246,7 +246,7 @@ export default function RecordSidebar() {
           spans them too: one bar, no seam. */}
       <div
         className={cn(
-          "sticky-bar top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 [--sticky-bar-extend-up:var(--list-top,0px)] max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
+          "sticky-bar max-sm:sticky-bar-edge top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 [--sticky-bar-extend-up:var(--list-top,0px)] max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
           hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
         )}
       >

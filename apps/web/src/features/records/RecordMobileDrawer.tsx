@@ -62,7 +62,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       }
     >
       <ShellBackdrop />
-      <header className="sticky-bar z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+      <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-lg" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
         </Button>
@@ -192,7 +192,9 @@ function RecordMobileDrawerInner({
       onOpenChangeComplete={onOpenChangeComplete}
       swipeDirection="right"
     >
-      <DrawerPopup side="right" className="bg-background! shadow-none">
+      {/* Fixed at the viewport edges, so Safari tints its bars with this
+          ground: keep it the bars' color. */}
+      <DrawerPopup side="right" className="bg-(--edge-tint)! shadow-none">
         <MobileRecordScreen
           record={record}
           onBack={() => setOpen(false)}

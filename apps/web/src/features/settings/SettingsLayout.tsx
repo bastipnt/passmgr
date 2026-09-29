@@ -3,8 +3,8 @@ import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowLeft, ChevronLeftIcon } from "lucide-react";
-import type { ReactNode } from "react";
-import { useRoute } from "wouter";
+import { type ReactNode, useLayoutEffect } from "react";
+import { useLocation, useRoute } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import SettingsOverview from "./SettingsOverview";
@@ -22,6 +22,12 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
   const isMobile = useIsMobile();
   const [isIndex] = useRoute(settingsPaths.index);
   const backLink = isIndex || !isMobile ? recordPaths.index : settingsPaths.index;
+  const [location] = useLocation();
+
+  // Phones scroll the document, which keeps its offset across screens.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location]);
 
   return (
     <AppShell

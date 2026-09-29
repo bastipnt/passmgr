@@ -87,10 +87,11 @@
     @apply border-border outline-ring/50;
   }
   body {
+    background-color: var(--edge-tint);
     background-repeat: no-repeat;
     background-position: center;
     background-size: cover;
-    @apply font-sans bg-background text-foreground antialiased;
+    @apply font-sans text-foreground antialiased;
   }
   html {
     @apply font-sans antialiased;
@@ -110,6 +111,10 @@
    * glass-tinted ground). Dark mode adds none: even the faint glass fill
    * reads as a strip there. */
   --sticky-bar-fill: var(--glass-fill);
+  /* Body ground. iOS Safari fills its status bar and bottom toolbar with this
+   * one flat color (page content never paints there, not even fixed layers),
+   * so it's the light field's average tone rather than the bare background. */
+  --edge-tint: color-mix(in oklab, var(--color-background) 92%, rgb(122 92 255));
 }
 
 .dark {
@@ -118,6 +123,7 @@
   --glass-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.6);
   --field-opacity: 0.5;
   --sticky-bar-fill: transparent;
+  --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
 }
 
 @media (prefers-color-scheme: dark) {
@@ -127,16 +133,18 @@
     --glass-shadow: 0 24px 60px -24px rgb(0 0 0 / 0.6);
     --field-opacity: 0.5;
     --sticky-bar-fill: transparent;
+    --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
   }
 }
 
 @layer components {
-  /* Fixed, full-viewport backdrop of four soft color blobs. Position the blobs
-   * per screen via --field-{a,b,c,d} (a CSS <position>). Render it inside the
-   * page layout, whose root needs `isolate`: on body it would sit beneath the
-   * opaque Drawer indent wrapper.
-   * Bleeds past the top and bottom: iOS Safari lays `inset: 0` out inside its
-   * toolbars and the safe areas, leaving bare body ground behind them. */
+  /* Full-viewport backdrop of four soft color blobs. Position the blobs per
+   * screen via --field-{a,b,c,d} (a CSS <position>). Render it as the first
+   * child of the page layout, whose root needs `isolate`: on body it would sit
+   * beneath the opaque Drawer indent wrapper.
+   * No bleed past the viewport: iOS Safari never paints page layers under its
+   * bars (that's `--edge-tint`), and inside the indent wrapper's
+   * `contain: layout` an oversized fixed box makes the document scrollable. */
   .light-field {
     --field-a: 8% 10%;
     --field-b: 30% 85%;
@@ -144,32 +152,71 @@
     --field-d: 95% 95%;
 
     position: fixed;
-    inset: -10rem 0;
+    inset: 0;
     z-index: -1;
     pointer-events: none;
     background-color: var(--color-background);
-    background-image:
-      radial-gradient(
-        38rem 32rem at var(--field-a),
-        rgb(255 61 139 / var(--field-opacity)),
-        transparent 70%
-      ),
-      radial-gradient(
-        34rem 30rem at var(--field-b),
-        rgb(255 178 63 / var(--field-opacity)),
-        transparent 70%
-      ),
-      radial-gradient(
-        40rem 34rem at var(--field-c),
-        rgb(46 197 255 / var(--field-opacity)),
-        transparent 70%
-      ),
-      radial-gradient(
-        36rem 32rem at var(--field-d),
-        rgb(122 92 255 / var(--field-opacity)),
-        transparent 70%
-      );
-    filter: blur(40px);
+
+    /* Only the blobs are blurred: a filter on the field itself would also
+     * soften its edges (and the phone edge band) toward transparent. */
+    &::before {
+      position: absolute;
+      inset: 0;
+      content: "";
+      background-image:
+        radial-gradient(
+          38rem 32rem at var(--field-a),
+          rgb(255 61 139 / var(--field-opacity)),
+          transparent 70%
+        ),
+        radial-gradient(
+          34rem 30rem at var(--field-b),
+          rgb(255 178 63 / var(--field-opacity)),
+          transparent 70%
+        ),
+        radial-gradient(
+          40rem 34rem at var(--field-c),
+          rgb(46 197 255 / var(--field-opacity)),
+          transparent 70%
+        ),
+        radial-gradient(
+          36rem 32rem at var(--field-d),
+          rgb(122 92 255 / var(--field-opacity)),
+          transparent 70%
+        );
+      filter: blur(40px);
+    }
+
+    /* Phones scroll the document, and inside the indent wrapper `fixed` is
+     * relative to the whole (document-tall) page — so the field is sticky
+     * instead: viewport-sized, taking no space, pinned while the page moves.
+     * Safari's bars are one flat `--edge-tint`, so the field fades into that
+     * color at the top and bottom and keeps its color mid-screen. Between
+     * the edges it can lay a veil over the blobs (--field-veil). */
+    @media (width < 40rem) {
+      --field-a: 10% 30%;
+      --field-b: 25% 65%;
+      --field-c: 80% 22%;
+      --field-d: 90% 75%;
+
+      position: sticky;
+      inset: 0 auto auto;
+      flex-shrink: 0;
+      height: 100dvh;
+      margin-bottom: -100dvh;
+
+      &::after {
+        position: absolute;
+        inset: 0;
+        content: "";
+        background: linear-gradient(
+          var(--edge-tint) 4%,
+          var(--field-veil, transparent) 30%,
+          var(--field-veil, transparent) 70%,
+          var(--edge-tint) 96%
+        );
+      }
+    }
   }
 }
 
@@ -252,7 +299,7 @@
  * stretches the bar's own frost down under them instead, and
  * --sticky-bar-extend-up up under a frost-less bar pinned above it. The
  * frost only shows while the bar is stuck (fading in over the first 2rem of
- * scroll). Tint via --sticky-bar-fill.
+ * scroll). Tint via --sticky-bar-fill (a color or a gradient).
  *
  * The scroller needs its own stacking context (`isolate`) and no
  * backdrop-filter of its own, or Chrome's backdrop-filter here blurs nothing. */
@@ -321,6 +368,14 @@
   from {
     opacity: 0;
   }
+}
+
+/* For a sticky bar whose frost reaches the viewport top on phones. Safari's
+ * status bar there is one flat --edge-tint, so the frost starts as that color
+ * (solid across the safe area) and clears toward its bottom, where the mask
+ * takes over: content fades into the status bar instead of meeting a seam. */
+@utility sticky-bar-edge {
+  --sticky-bar-fill: linear-gradient(var(--edge-tint) env(safe-area-inset-top), transparent);
 }
 
 /* Sticky section label pinned at --sticky-label-top. When the next section

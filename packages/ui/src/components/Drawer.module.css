@@ -137,7 +137,7 @@
   --indent-scale: calc(0.98 + (0.02 * var(--indent-progress)));
   --indent-translate-y: calc(0.5rem * (1 - var(--indent-progress)));
   contain: layout;
-  transform-origin: center top;
+  transform-origin: center var(--indent-origin-y, 0px);
   transition:
     transform calc(400ms * var(--indent-transition)),
     transform calc(250ms * var(--indent-transition));

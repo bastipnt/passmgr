@@ -38,7 +38,7 @@ import {
   SlidersHorizontalIcon,
   XIcon,
 } from "lucide-react";
-import { type ReactNode, useContext, useRef, useState } from "react";
+import { type ReactNode, useContext, useLayoutEffect, useRef, useState } from "react";
 import { Link as RouterLink, useLocation } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
@@ -189,42 +189,45 @@ type MobileVaultProps = {
  * controls float over it — actions top right, search and "new" in a bottom
  * dock. Records open as pushed pages (`RecordMobileDrawer`).
  *
- * The frame is exactly one viewport tall and scrolls an inner element, rather
- * than the document: `DrawerProvider`'s indent wrapper has `contain: layout`,
- * which makes it the containing block for `position: fixed`, so "fixed"
- * chrome inside a document-height page would scroll away with it.
+ * The document scrolls, so Safari can run the list under its bars and
+ * collapse its toolbar. Chrome is sticky rather than fixed: `DrawerProvider`'s
+ * indent wrapper has `contain: layout`, which makes it the containing block
+ * for `position: fixed`, so "fixed" chrome would scroll away with the page.
  */
 function MobileVault({ isOffline, onLock }: MobileVaultProps) {
   const { query, sortedRecords } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
-  return (
-    <div className="relative isolate h-dvh overflow-hidden">
-      <ShellBackdrop />
-      {/* Own stacking context (z-0): without it Chrome's backdrop-filter on
-          the floating dock doesn't pick up the scrolled list, so no blur. */}
-      {/* --list-top: this bar's exact height (top pad + size-10 buttons +
-          pb-3), so the list's own bars pin right beneath it. No frost of its
-          own: the list heading, always pinned under it, reaches its frost up
-          under this bar — one blur for bar, heading and group label. */}
-      <div className="relative z-0 h-full overflow-y-auto overscroll-contain pb-[calc(max(env(safe-area-inset-bottom),1rem)+5.5rem)] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
-        <header className="sticky top-0 z-20 flex h-(--list-top) items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
-          <RouterLink
-            href={recordPaths.index}
-            aria-label="passmgr"
-            className="rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25"
-          >
-            <BrandMark />
-          </RouterLink>
-          <span className="flex-1" />
-          <Button variant="floating" size="icon-lg" onClick={onLock} aria-label="Lock vault">
-            <LockIcon />
-          </Button>
-          <Link variant="floating" size="icon-lg" href={settingsPaths.index} aria-label="Settings">
-            <SlidersHorizontalIcon />
-          </Link>
-        </header>
+  // The document keeps its offset across screens; open the list at the top.
+  useLayoutEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
+  return (
+    // --list-top: the bar's exact height (top pad + size-10 buttons + pb-3),
+    // so the list's own bars pin right beneath it. No frost of its own: the
+    // list heading, always pinned under it, reaches its frost up under this
+    // bar — one blur for bar, heading and group label.
+    <div className="relative isolate flex min-h-dvh flex-col [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
+      <ShellBackdrop />
+      <header className="sticky top-0 z-20 flex h-(--list-top) shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+        <RouterLink
+          href={recordPaths.index}
+          aria-label="passmgr"
+          className="rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25"
+        >
+          <BrandMark />
+        </RouterLink>
+        <span className="flex-1" />
+        <Button variant="floating" size="icon-lg" onClick={onLock} aria-label="Lock vault">
+          <LockIcon />
+        </Button>
+        <Link variant="floating" size="icon-lg" href={settingsPaths.index} aria-label="Settings">
+          <SlidersHorizontalIcon />
+        </Link>
+      </header>
+
+      <div className="flex-1">
         <RecordSidebar />
         {noResults && (
           <div className="pt-6">
@@ -233,7 +236,9 @@ function MobileVault({ isOffline, onLock }: MobileVaultProps) {
         )}
       </div>
 
-      <div className="absolute inset-x-4 bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 flex items-center gap-2.5">
+      {/* Pinned to the viewport bottom while the list runs on beneath it, and
+          resting at the same spot once it ends. */}
+      <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
         <MobileSearchInput />
         {!isOffline && (
           <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New login">

@@ -131,8 +131,30 @@ function DrawerClose({ ...props }: React.ComponentProps<typeof DrawerPrimitive.C
   return <DrawerPrimitive.Close data-slot="drawer-close" {...props} />;
 }
 
+/**
+ * The page behind an open drawer, scaled back from the top of the viewport.
+ * Phones scroll the document, so that top is the scroll offset, not 0.
+ */
 function DrawerIndent({ ...props }: React.ComponentProps<typeof DrawerPrimitive.Indent>) {
-  return <DrawerPrimitive.Indent data-slot="drawer-indent" className={styles.indent} {...props} />;
+  const ref = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => el.style.setProperty("--indent-origin-y", `${window.scrollY}px`);
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    return () => window.removeEventListener("scroll", update);
+  }, []);
+
+  return (
+    <DrawerPrimitive.Indent
+      ref={ref}
+      data-slot="drawer-indent"
+      className={styles.indent}
+      {...props}
+    />
+  );
 }
 
 function DrawerIndentBackground({
@@ -141,7 +163,8 @@ function DrawerIndentBackground({
   return (
     <DrawerPrimitive.IndentBackground
       data-slot="drawer-indent-background"
-      className={cn("absolute inset-0 bg-black")}
+      // bg is set to transparent because it would break the scroll on mobile devices adding a weird looking black piece of background while scrolling
+      className={cn("fixed inset-0 bg-transparent")}
       {...props}
     />
   );
