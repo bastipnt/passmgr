@@ -188,6 +188,8 @@ type SortedRecordsContextValue = {
   handleSortChange: (value: string) => void;
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
+  /** Whether any group carries a label (none do while searching). */
+  hasGroupLabels: boolean;
 };
 
 const SortedRecordsContext = createContext<SortedRecordsContextValue | null>(null);
@@ -238,13 +240,23 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [sortedRecords, sort, hasQuery],
   );
 
+  const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
+
   function handleSortChange(value: string) {
     setStoredSort(value as SortOption);
   }
 
   const value = useMemo(
-    () => ({ query, setQuery, sort, handleSortChange, sortedRecords, recordGroups }),
-    [query, sort, sortedRecords, recordGroups],
+    () => ({
+      query,
+      setQuery,
+      sort,
+      handleSortChange,
+      sortedRecords,
+      recordGroups,
+      hasGroupLabels,
+    }),
+    [query, sort, sortedRecords, recordGroups, hasGroupLabels],
   );
 
   return <SortedRecordsContext value={value}>{children}</SortedRecordsContext>;

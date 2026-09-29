@@ -1,15 +1,6 @@
 import { useGetRecords, useShortcut } from "@repo/client";
-import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
-import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
-import { Button } from "@repo/ui/components/Button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
-  DropdownMenuTrigger,
-} from "@repo/ui/components/DropdownMenu";
 import {
   Item,
   ItemContent,
@@ -20,12 +11,14 @@ import {
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowUpDownIcon, ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { RecordSortMenu } from "./RecordSortMenu";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type RecordRowProps = {
@@ -121,6 +114,37 @@ function EmptyRecordList() {
   );
 }
 
+/**
+ * The phone list's large title — the page title, as the list is the screen.
+ * Like `MobileRecordPage`'s, it scrolls up into MobileVault's bar (next to the
+ * brand mark), shrinking as it goes. Sticky within the list, so it pins inside
+ * the bar, centered on its buttons (the same +0.5rem as the record title, for
+ * this font's metrics); it collapses over the scroll that carries it from its
+ * hero spot (0.75rem under the bar) up to there.
+ */
+function MobileListTitle({ count }: { count: number }) {
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  useScrollCollapse(titleRef);
+
+  return (
+    <h1
+      ref={titleRef}
+      className={cn(
+        "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.5rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:3.5rem]",
+        // Hero → bar: past the brand mark (px-4 + size-9 + 0.75rem). It clears the
+        // mark sideways before rising level with it, so the two never overlap.
+        // Not truncated (that clips descenders): "Logins n" is short enough.
+        "ms-[calc(1.25rem+2.75rem*min(1,var(--scroll-collapse)*1.5))] text-[calc(2.125rem-1.0625rem*var(--scroll-collapse))]",
+      )}
+    >
+      <span>Logins</span>{" "}
+      <span className="ml-1 font-medium font-sans text-[calc(1.125rem-0.25rem*var(--scroll-collapse))] text-muted-foreground tabular-nums tracking-normal">
+        {count}
+      </span>
+    </h1>
+  );
+}
+
 export default function RecordList() {
   // Loose match: a record stays "in view" (highlighted, arrow-navigable) while
   // one of its sub-route sheets — edit, versions — is open.
@@ -128,7 +152,7 @@ export default function RecordList() {
   const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, sort, sortedRecords, recordGroups, handleSortChange } = useSortedRecords();
+  const { query, sortedRecords, recordGroups, hasGroupLabels } = useSortedRecords();
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
@@ -203,61 +227,31 @@ export default function RecordList() {
   if (!ready) return <RecordListSkeleton />;
 
   const hasQuery = query.trim().length > 0;
-  const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
   const noResults = hasQuery && sortedRecords.length === 0;
-
-  const sortMenu = (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant="ghost"
-            size="sm"
-            className="text-primary max-sm:-mr-2 dark:text-ring"
-            aria-label="Sort records"
-          >
-            <ArrowUpDownIcon />
-            {SORT_LABELS[sort]}
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end">
-        <DropdownMenuRadioGroup value={sort} onValueChange={handleSortChange}>
-          {(Object.entries(SORT_LABELS) as [SortOption, string][]).map(([value, label]) => (
-            <DropdownMenuRadioItem key={value} value={value}>
-              {label}
-            </DropdownMenuRadioItem>
-          ))}
-        </DropdownMenuRadioGroup>
-      </DropdownMenuContent>
-    </DropdownMenu>
-  );
-
-  // The phone list is the screen itself, so its heading is the page title.
-  const Heading = isMobile ? "h1" : "h2";
 
   return (
     <div
       ref={listRef}
-      className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] [--list-label-h:2.25rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:3.25rem] max-sm:[--list-label-h:2.625rem]"
+      className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]"
     >
-      {/* Pinned under MobileVault's bar on phones (--list-top), whose frost it
-          provides as well. With group labels pinned beneath it, its frost
-          spans them too: one bar, no seam. */}
-      <div
-        className={cn(
-          "sticky-bar max-sm:sticky-bar-edge top-(--list-top,0px) flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1 [--sticky-bar-extend-up:var(--list-top,0px)] max-sm:items-end max-sm:px-5 max-sm:pt-0 max-sm:pb-1.5",
-          hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
-        )}
-      >
-        <Heading className="font-semibold max-sm:font-display max-sm:font-extrabold max-sm:text-[2.125rem] max-sm:leading-none max-sm:tracking-[-0.03em]">
-          Logins{" "}
-          <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums max-sm:ml-1 max-sm:align-[0.25em] max-sm:font-medium max-sm:font-sans max-sm:text-lg max-sm:tracking-normal">
-            {sortedRecords.length}
-          </span>
-        </Heading>
-        {sortMenu}
-      </div>
+      {isMobile ? (
+        <MobileListTitle count={sortedRecords.length} />
+      ) : (
+        <div
+          className={cn(
+            "sticky-bar flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1",
+            hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
+          )}
+        >
+          <h2 className="font-semibold">
+            Logins{" "}
+            <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
+              {sortedRecords.length}
+            </span>
+          </h2>
+          <RecordSortMenu />
+        </div>
+      )}
       {noResults ? (
         // Phones show the full "no results" state in the layout instead.
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
@@ -272,10 +266,13 @@ export default function RecordList() {
           {recordGroups.map((recordGroup) => (
             <section key={recordGroup.label ?? "all"}>
               {/* No frost of its own: the bar's reaches exactly --list-label-h
-                  under it. z-11 keeps the label above that frost (sticky-bar is z-10);
-                  sticky-label fades it out as the next group pushes it into the bar. */}
+                  under it. z-11 keeps the label above that frost (sticky-bar is z-10;
+                  on phones it's MobileVault's z-20 header, so z-21, under the z-25
+                  dock); sticky-label fades it out as the next group pushes it into
+                  the bar. Pushed up there it overlaps the bar's buttons, faded but
+                  still hit-testable — hence pointer-events-none. */}
               {recordGroup.label && (
-                <h3 className="sticky-label z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
+                <h3 className="sticky-label pointer-events-none z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
                   {recordGroup.label}
                 </h3>
               )}
