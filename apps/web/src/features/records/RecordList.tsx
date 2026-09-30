@@ -118,9 +118,10 @@ function EmptyRecordList() {
  * The phone list's large title — the page title, as the list is the screen.
  * Like `MobileRecordPage`'s, it scrolls up into MobileVault's bar (next to the
  * brand mark), shrinking as it goes. Sticky within the list, so it pins inside
- * the bar, centered on its buttons (the same +0.5rem as the record title, for
- * this font's metrics); it collapses over the scroll that carries it from its
- * hero spot (0.75rem under the bar) up to there.
+ * the bar, centered on the brand mark (the bar's 2.5rem content box centers at
+ * +1.25rem; Bricolage's caps sit centered in the h-9 line box, so +0.125rem).
+ * It collapses over the scroll that carries it from its hero spot (0.75rem
+ * under the 3.25rem bar) up to there: 4rem - 0.125rem.
  */
 function MobileListTitle({ count }: { count: number }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -130,7 +131,7 @@ function MobileListTitle({ count }: { count: number }) {
     <h1
       ref={titleRef}
       className={cn(
-        "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.5rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:3.5rem]",
+        "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.125rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:3.875rem]",
         // Hero → bar: past the brand mark (px-4 + size-9 + 0.75rem). It clears the
         // mark sideways before rising level with it, so the two never overlap.
         // Not truncated (that clips descenders): "Logins n" is short enough.
