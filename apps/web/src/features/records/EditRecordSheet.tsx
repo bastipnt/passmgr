@@ -1,12 +1,12 @@
 import { ShortcutLayer } from "@repo/client";
 import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
+import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { toLocalDateStr } from "@repo/util";
-import { TrashIcon, XIcon } from "lucide-react";
+import { TrashIcon } from "lucide-react";
 import { useRef } from "react";
 import { recordPaths } from "@/app/route-paths";
 import LoginRecordForm, { type LoginRecordFormHandle } from "./login/LoginRecordForm";
@@ -58,7 +58,8 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
       onRemove={() => deleteRecord(record.recordId)}
     >
       <Button
-        variant={isMobile ? "destructive" : "ghost-destructive"}
+        variant="ghost-destructive"
+        size="lg"
         type="button"
         className="text-destructive"
         disabled={updatePending}
@@ -70,16 +71,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
 
   const formActions = (
     <div className="flex flex-row justify-between gap-4">
-      {isMobile && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="rounded-full"
-          onClick={() => setOpen(false)}
-        >
-          <XIcon />
-        </Button>
-      )}
+      <SheetCloseAction />
       <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-between">
         {!isMobile && deleteAction}
         <div className="flex flex-row items-center gap-3">

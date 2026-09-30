@@ -1,12 +1,12 @@
 import { encryptRecord, ShortcutLayer, useCreateRecord } from "@repo/client";
 import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
-import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
+import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { isDefined } from "@repo/util";
-import { PlusIcon, XIcon } from "lucide-react";
+import { PlusIcon } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
@@ -70,11 +70,7 @@ export default function CreateRecordSheet() {
 
   const formActions = (
     <div className="flex flex-row justify-between gap-4">
-      {isMobile && (
-        <Button variant="outline" size="icon" className="rounded-full" onClick={close}>
-          <XIcon />
-        </Button>
-      )}
+      <SheetCloseAction />
 
       <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-end">
         {!isMobile && (

@@ -14,11 +14,15 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
-import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
+import {
+  ResponsiveSheet,
+  SheetCloseAction,
+  SheetIconAction,
+} from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { CheckIcon, CopyIcon, RefreshCwIcon, XIcon } from "lucide-react";
+import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import GeneratorModeSwitch from "./GeneratorModeSwitch";
 import PassphraseOptionsForm from "./PassphraseOptionsForm";
@@ -103,26 +107,40 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
   }
 
   const actions = (
-    <div className="flex flex-row gap-2">
-      {isMobile && (
-        <Button
-          variant="outline"
-          size="icon"
-          className="mr-auto rounded-full"
-          onClick={() => setOpen(false)}
-        >
-          <XIcon />
-        </Button>
+    <div className="flex flex-row gap-3">
+      <SheetCloseAction className="mr-auto" />
+      {/* Labels don't fit next to the close button at phone width, so icon-only there. */}
+      {isMobile ? (
+        <>
+          <SheetIconAction onClick={handleCopy} disabled={!generated} aria-label="Copy">
+            {copied ? <CheckIcon /> : <CopyIcon />}
+          </SheetIconAction>
+          <SheetIconAction onClick={regenerate} aria-label="Regenerate">
+            <RefreshCwIcon />
+          </SheetIconAction>
+        </>
+      ) : (
+        <>
+          <Button variant="outline" size="lg" onClick={handleCopy} disabled={!generated}>
+            {copied ? <CheckIcon /> : <CopyIcon />}
+            {copied ? "Copied" : "Copy"}
+          </Button>
+          <Button variant="outline" size="lg" onClick={regenerate}>
+            <RefreshCwIcon />
+            Regenerate
+          </Button>
+        </>
       )}
-      <Button variant="outline" onClick={handleCopy} disabled={!generated}>
-        {copied ? <CheckIcon /> : <CopyIcon />}
-        {copied ? "Copied" : "Copy"}
-      </Button>
-      <Button variant="outline" onClick={regenerate}>
-        <RefreshCwIcon />
-        Regenerate
-      </Button>
-      <Button className="sm:ml-auto" onClick={handleUse} disabled={!generated || noCharset}>
+      {/* Announces the copy: a changed label or icon isn't read out. */}
+      <span className="sr-only" aria-live="polite">
+        {copied ? "Copied" : ""}
+      </span>
+      <Button
+        size="lg"
+        className="sm:ml-auto"
+        onClick={handleUse}
+        disabled={!generated || noCharset}
+      >
         Use
       </Button>
     </div>

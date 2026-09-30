@@ -76,11 +76,11 @@ export default function MobileVault() {
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
   return (
-    // --list-top: the bar's exact height (top pad + size-10 buttons + pb-3),
+    // --list-top: the bar's exact height (top pad + size-12 buttons + pb-3),
     // so the list's group labels pin right beneath it. The bar's frost reaches
     // down under them (they have none of their own): one blur for bar and label.
     // --list-label-h sits here, not in RecordList, so the bar can read it.
-    <div className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.25rem)]">
+    <div className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.75rem)]">
       <ShellBackdrop />
       <header
         className={cn(
@@ -96,10 +96,10 @@ export default function MobileVault() {
           <BrandMark />
         </RouterLink>
         <span className="flex-1" />
-        <Button variant="floating" size="icon-lg" onClick={lockVault} aria-label="Lock vault">
+        <Button variant="floating" size="icon-xl" onClick={lockVault} aria-label="Lock vault">
           <LockIcon />
         </Button>
-        <Link variant="floating" size="icon-lg" href={settingsPaths.index} aria-label="Settings">
+        <Link variant="floating" size="icon-xl" href={settingsPaths.index} aria-label="Settings">
           <SlidersHorizontalIcon />
         </Link>
       </header>

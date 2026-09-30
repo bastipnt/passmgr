@@ -40,6 +40,8 @@ const buttonVariants = cva(
         "icon-sm":
           "size-8 in-data-[slot=button-group]:rounded-lg rounded-[min(var(--radius-md),10px)]",
         "icon-lg": "size-10",
+        /** Icon-only companion to `lg` buttons (same height). */
+        "icon-xl": "size-12",
         /** Round floating action button. */
         fab: "size-14 rounded-full [&_svg:not([class*='size-'])]:size-6",
       },

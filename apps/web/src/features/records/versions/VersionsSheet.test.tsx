@@ -1,8 +1,9 @@
 import type { DecryptedRecord } from "@repo/schema";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { renderWithProviders, screen } from "@/test/render";
+import { renderWithProviders, screen, waitFor } from "@/test/render";
 import VersionsSheet from "./VersionsSheet";
 
 const useRecordHistory = vi.hoisted(() => vi.fn());
@@ -88,5 +89,14 @@ describe("VersionsSheet", () => {
       expect(screen.getByRole("dialog", { name: "Version history" })).toBeInTheDocument();
       expect(screen.queryByRole("button", { name: "All versions" })).toBeNull();
     });
+  });
+
+  it("closes from the phone drawer's X", async () => {
+    mobileMatch.mockReturnValue(true);
+    renderAt("/record/r1/versions");
+
+    await userEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 });

@@ -33,7 +33,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
         <>
           {isMobile ? (
             // A pushed page (`PageTransitions`): step back rather than push the parent.
-            <Button variant="floating" size="icon-lg" onClick={goBack} aria-label="Back">
+            <Button variant="floating" size="icon-xl" onClick={goBack} aria-label="Back">
               <ChevronLeftIcon className="size-5" />
             </Button>
           ) : (

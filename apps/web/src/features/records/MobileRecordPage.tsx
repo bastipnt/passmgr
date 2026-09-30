@@ -58,18 +58,13 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
     <div className="relative isolate flex min-h-dvh flex-col">
       <ShellBackdrop />
       <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
-        <Button variant="floating" size="icon-lg" onClick={onBack} aria-label="Back">
+        <Button variant="floating" size="icon-xl" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
         </Button>
         <span className="flex-1" />
         {!isOffline && (
           <div ref={actionsRef} className="flex items-center gap-2">
-            <Link
-              variant="floating"
-              size="lg"
-              className="h-10 px-4 text-[0.95rem]"
-              href={recordPaths.editRecord(record.recordId)}
-            >
+            <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
               <PencilLineIcon />
               Edit
             </Link>
@@ -79,18 +74,19 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       </header>
 
       {/* Sticky as a direct child of the page, so it can pin inside the bar,
-          vertically centered on its buttons. It collapses over the scroll that
-          carries it from its hero spot (next to the avatar, 1rem under the bar;
+          vertically centered on its size-12 buttons ((3rem - h-9) / 2 = +0.375rem,
+          as `MobileListTitle`). It collapses over the scroll that carries it
+          from its hero spot (next to the avatar, 1rem under the 3.75rem bar;
           centered on the avatar when there's no website line) up to there:
-          3.125rem + that gap. Margins/size interpolate hero → bar. */}
+          3.75rem - 0.375rem + that gap. Margins/size interpolate hero → bar. */}
       <h1
         ref={titleRef}
         className={cn(
-          "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.5rem)] z-30 h-9 truncate font-display font-extrabold leading-9 tracking-tight",
-          "ms-[calc(5.625rem-1.625rem*var(--scroll-collapse))] me-[calc(1.25rem+(var(--title-end,1rem)-1.25rem)*var(--scroll-collapse))] text-[calc(1.75rem-0.6875rem*var(--scroll-collapse))]",
+          "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.75rem)] z-30 h-9 truncate font-display font-extrabold leading-9 tracking-tight",
+          "ms-[calc(5.625rem-1.125rem*var(--scroll-collapse))] me-[calc(1.25rem+(var(--title-end,1rem)-1.25rem)*var(--scroll-collapse))] text-[calc(1.75rem-0.6875rem*var(--scroll-collapse))]",
           primaryWebsite
-            ? "mt-4 [--scroll-collapse-range:4.125rem]"
-            : "mt-6.5 [--scroll-collapse-range:4.75rem]",
+            ? "mt-4 [--scroll-collapse-range:4.375rem]"
+            : "mt-6.5 [--scroll-collapse-range:5rem]",
         )}
       >
         {record.title}

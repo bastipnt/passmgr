@@ -1,5 +1,12 @@
+import { Button } from "@repo/ui/components/Button";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
-import { Drawer, DrawerActions, DrawerContent, DrawerPopup } from "@repo/ui/components/Drawer";
+import {
+  Drawer,
+  DrawerActions,
+  DrawerClose,
+  DrawerContent,
+  DrawerPopup,
+} from "@repo/ui/components/Drawer";
 import {
   Sheet,
   SheetContent,
@@ -8,7 +15,9 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@repo/ui/components/Sheet";
-import type { ReactNode } from "react";
+import { cn } from "@repo/ui/lib/utils";
+import { XIcon } from "lucide-react";
+import type { ComponentProps, ReactNode } from "react";
 import { useIsMobile } from "../hooks/use-is-mobile";
 
 type ResponsiveSheetProps = {
@@ -102,4 +111,27 @@ function ResponsiveSheet({
   );
 }
 
-export { ResponsiveSheet };
+/*
+ * Sheet actions share one 48px row height: text buttons use `size="lg"`,
+ * icon-only buttons use `SheetIconAction`.
+ */
+
+/** Round icon-only sheet action, the same height as `lg` text actions. */
+function SheetIconAction({ className, ...props }: ComponentProps<typeof Button>) {
+  return (
+    <Button variant="outline" size="icon-xl" className={cn("rounded-full", className)} {...props} />
+  );
+}
+
+/** Closes the mobile drawer; renders nothing on desktop, where the sheet has its own X. */
+function SheetCloseAction({ className }: { className?: string }) {
+  const isMobile = useIsMobile();
+  if (!isMobile) return null;
+  return (
+    <DrawerClose render={<SheetIconAction className={className} aria-label="Close" />}>
+      <XIcon />
+    </DrawerClose>
+  );
+}
+
+export { ResponsiveSheet, SheetCloseAction, SheetIconAction };

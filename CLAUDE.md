@@ -102,6 +102,10 @@ Rules:
   `app/page-transitions.ts` (View Transitions, driven by the router's location hook). A new page
   gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
   `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
+- **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
+  `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
+  floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
+  sticky-title math (`MobileVault` `--list-top`, `MobileListTitle`, `MobileRecordPage` h1) assumes 48px.
 
 ### Mobile styling (Uniwind)
 

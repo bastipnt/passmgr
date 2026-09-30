@@ -29,7 +29,11 @@ export function MoreDropdown({ recordId, onDelete, variant = "outline" }: MoreDr
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button variant={variant} size="icon-lg" aria-label="More actions">
+            <Button
+              variant={variant}
+              size={variant === "floating" ? "icon-xl" : "icon-lg"}
+              aria-label="More actions"
+            >
               <EllipsisIcon />
             </Button>
           }

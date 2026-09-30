@@ -24,6 +24,11 @@ if (typeof window !== "undefined" && !window.ResizeObserver) {
   };
 }
 
+// jsdom has no Web Animations API; base-ui's ScrollArea polls it after opening.
+if (typeof Element !== "undefined" && !Element.prototype.getAnimations) {
+  Element.prototype.getAnimations = () => [];
+}
+
 beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 afterEach(() => {
   cleanup();
