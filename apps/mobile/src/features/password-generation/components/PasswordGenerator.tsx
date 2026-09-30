@@ -120,19 +120,15 @@ export default function PasswordGenerator() {
         }}
       />
 
-      <KeyboardAwareScrollView mode="layout" contentContainerClassName="grow gap-lg p-md">
+      <KeyboardAwareScrollView mode="layout" contentContainerClassName="grow gap-8 px-5 pt-4 pb-8">
         <GeneratorModeSwitch mode={mode} setMode={setMode} />
 
-        <View className="gap-sm">
-          <View className="justify-center rounded-lg border border-border bg-muted/50 p-md">
+        <View className="gap-3">
+          <View className="min-h-14 justify-center rounded-md border border-input bg-muted/50 px-4 py-3.5">
             {error ? (
-              <Text className="text-destructive text-md">{error}</Text>
+              <Text className="text-destructive text-sm">{error}</Text>
             ) : (
-              <Text
-                selectable
-                className="text-foreground text-md"
-                style={{ fontFamily: "Courier" }}
-              >
+              <Text selectable className="font-mono text-[15px] text-foreground leading-6">
                 {generated}
               </Text>
             )}
@@ -143,7 +139,7 @@ export default function PasswordGenerator() {
             label={`${strength.label} · ${Math.round(strength.bits)} bits`}
           />
 
-          <View className="flex-row gap-sm">
+          <View className="flex-row gap-2.5">
             <Button
               className="flex-1"
               variant="outline"

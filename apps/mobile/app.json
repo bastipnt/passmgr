@@ -33,13 +33,23 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#4B36D6",
+          "backgroundColor": "#6E56F5",
           "dark": {
-            "backgroundColor": "#3417A8"
+            "backgroundColor": "#6E56F5"
           }
         }
       ],
-      "expo-font",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/BricolageGrotesque-Bold.ttf",
+            "./assets/fonts/BricolageGrotesque-ExtraBold.ttf",
+            "./assets/fonts/JetBrainsMono-Regular.ttf",
+            "./assets/fonts/JetBrainsMono-Medium.ttf"
+          ]
+        }
+      ],
       [
         "expo-secure-store",
         {

@@ -13,16 +13,16 @@ export type OptionToggleProps = {
 /** Label + platform switch on one row — the native counterpart of web's `Field` + `Switch`. */
 export function OptionToggle({ label, checked, onChange, className }: OptionToggleProps) {
   const primary = useCSSVariable("--color-primary") as string;
-  const border = useCSSVariable("--color-border") as string;
+  const input = useCSSVariable("--color-input") as string;
 
   return (
-    <View className={cn("flex-row items-center justify-between gap-md", className)}>
-      <Text className="flex-1 text-foreground text-md">{label}</Text>
+    <View className={cn("flex-row items-center justify-between gap-4", className)}>
+      <Text className="flex-1 text-[16px] text-foreground">{label}</Text>
       <Switch
         value={checked}
         onValueChange={onChange}
         accessibilityLabel={label}
-        trackColor={{ true: primary, false: border }}
+        trackColor={{ true: primary, false: input }}
       />
     </View>
   );

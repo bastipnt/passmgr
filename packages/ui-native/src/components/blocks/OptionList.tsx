@@ -1,9 +1,9 @@
 import { Check } from "lucide-react-native";
-import { Fragment } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Pressable, Text } from "react-native";
 import { useCSSVariable } from "uniwind";
 
 import { cn } from "../../lib/utils";
+import { SectionGroup } from "./Section";
 
 export type Option<T> = { label: string; value: T };
 
@@ -28,34 +28,31 @@ export function OptionList<T extends string | number>({
   const primary = useCSSVariable("--color-primary") as string;
 
   return (
-    <View className={cn("overflow-hidden rounded-md border border-border", className)}>
-      {options.map((option, i) => {
+    <SectionGroup className={className}>
+      {options.map((option) => {
         const selected = option.value === value;
 
         return (
-          <Fragment key={option.value}>
-            {i > 0 && <View className="h-px bg-border" />}
-            <Pressable
-              accessibilityRole="radio"
-              accessibilityState={{ selected }}
-              accessibilityLabel={option.label}
-              onPress={() => onChange(option.value)}
-              className="flex-row items-center gap-md px-md py-sm"
-              style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+          <Pressable
+            key={option.value}
+            accessibilityRole="radio"
+            accessibilityState={{ selected }}
+            accessibilityLabel={option.label}
+            onPress={() => onChange(option.value)}
+            className="h-12 flex-row items-center gap-4 px-5 active:bg-foreground/5"
+          >
+            <Text
+              className={cn(
+                "flex-1 text-[16px]",
+                selected ? "font-semibold text-foreground" : "text-foreground",
+              )}
             >
-              <Text
-                className={cn(
-                  "flex-1 text-md",
-                  selected ? "font-semibold text-foreground" : "text-muted-foreground",
-                )}
-              >
-                {option.label}
-              </Text>
-              {selected && <Check size={18} color={primary} />}
-            </Pressable>
-          </Fragment>
+              {option.label}
+            </Text>
+            {selected && <Check size={18} color={primary} />}
+          </Pressable>
         );
       })}
-    </View>
+    </SectionGroup>
   );
 }

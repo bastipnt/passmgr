@@ -3,7 +3,9 @@ import { useResolveClassNames } from "uniwind";
 import { PasswordGeneratorProvider } from "@/features/password-generation/PasswordGeneratorContext";
 
 export default function RecordsLayout() {
-  const contentStyle = useResolveClassNames("bg-background");
+  const contentStyle = useResolveClassNames("bg-edge-tint");
+  // Sheets are solid popover panels, like web's phone drawer.
+  const sheetStyle = useResolveClassNames("bg-popover");
 
   // The provider sits above the whole stack so the create sheet and the record
   // stack below it both hand generated passwords back to their own field.
@@ -26,7 +28,7 @@ export default function RecordsLayout() {
           options={{
             presentation: "formSheet",
             sheetGrabberVisible: true,
-            contentStyle,
+            contentStyle: sheetStyle,
           }}
         />
         <Stack.Screen
@@ -34,7 +36,7 @@ export default function RecordsLayout() {
           options={{
             presentation: "formSheet",
             sheetGrabberVisible: true,
-            contentStyle,
+            contentStyle: sheetStyle,
           }}
         />
       </Stack>

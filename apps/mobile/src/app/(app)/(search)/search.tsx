@@ -1,6 +1,14 @@
 import { useRecordSearch } from "@repo/client";
-import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from "@repo/ui-native";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+  Screen,
+} from "@repo/ui-native";
 import { Stack, useFocusEffect, useRouter } from "expo-router";
+import { SearchX } from "lucide-react-native";
 import { useCallback, useRef, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
@@ -23,7 +31,7 @@ export default function SearchScreen() {
   const hasResults = recordGroups.some((recordGroup) => recordGroup.records.length > 0);
   const searchBarRef = useRef<SearchBarCommands>(null);
   const router = useRouter();
-  const background = useCSSVariable("--color-background") as string;
+  const edgeTint = useCSSVariable("--color-edge-tint") as string;
   const foreground = useCSSVariable("--color-foreground") as string;
   const primary = useCSSVariable("--color-primary") as string;
 
@@ -44,7 +52,7 @@ export default function SearchScreen() {
   });
 
   return (
-    <>
+    <Screen>
       {/* `integrated` (+ toolbar integration, which `stacked` would force off) lets
           UIKit host the field in the tab bar of the `role="search"` trigger, so the
           header is left with nothing to show and is hidden below. */}
@@ -66,7 +74,7 @@ export default function SearchScreen() {
       {/* `Stack.SearchBar` forces `headerShown: true`, and the native header does not
           follow the Uniwind theme on its own — without this it renders as a white strip.
           Must stay after the search bar: composition options merge in registration order. */}
-      <Stack.Header style={{ backgroundColor: background, shadowColor: "transparent" }} />
+      <Stack.Header style={{ backgroundColor: edgeTint, shadowColor: "transparent" }} />
       <KeyboardAwareScrollView
         contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
@@ -76,9 +84,12 @@ export default function SearchScreen() {
             hasResults ? (
               <RecordsList recordGroups={recordGroups} onSelect={addRecentRecord} />
             ) : (
-              <View className="p-md">
+              <View className="px-5 pt-10">
                 <Empty>
                   <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                      <SearchX size={20} color="#ffffff" />
+                    </EmptyMedia>
                     <EmptyTitle>No results found</EmptyTitle>
                     <EmptyDescription>Nothing matches “{query.trim()}”.</EmptyDescription>
                   </EmptyHeader>
@@ -92,7 +103,7 @@ export default function SearchScreen() {
               onClear={clearRecentRecords}
             />
           ) : (
-            <View className="p-md">
+            <View className="px-5 pt-10">
               <Empty>
                 <EmptyHeader>
                   <EmptyDescription>Type to search</EmptyDescription>
@@ -102,6 +113,6 @@ export default function SearchScreen() {
           )}
         </View>
       </KeyboardAwareScrollView>
-    </>
+    </Screen>
   );
 }

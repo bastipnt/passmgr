@@ -1,4 +1,4 @@
-import { useRecordHistory } from "@repo/client";
+import { describeVersionChanges, useRecordHistory, type VersionChange } from "@repo/client";
 import { Badge } from "@repo/ui/components/Badge";
 import {
   Item,
@@ -15,7 +15,6 @@ import { toLocalDateStr } from "@repo/util";
 import { ChevronRightIcon, ClockCheckIcon, PencilIcon, SparklesIcon } from "lucide-react";
 import { Link } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { describeVersionChanges, type VersionChange } from "./version-changes";
 
 const CHANGE_BADGE: Record<VersionChange["status"], "warning" | "success" | "destructive"> = {
   edited: "warning",

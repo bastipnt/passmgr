@@ -4,6 +4,7 @@ import {
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
   usePreference,
 } from "@repo/client";
+import { getStrengthFromString } from "@repo/crypto";
 import { RecordDetailsItem } from "@repo/ui-native";
 import { Earth, Key, Lock, Mail, NotebookPen, NotebookText, Tag } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
@@ -35,7 +36,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "title":
       return (
         <RecordDetailsItem
-          icon={<Tag size={20} color={iconColor} />}
+          icon={<Tag size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
           variant="noAction"
@@ -45,7 +46,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "username":
       return (
         <RecordDetailsItem
-          icon={<Mail size={20} color={iconColor} />}
+          icon={<Mail size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
           onCopy={copy}
@@ -55,11 +56,13 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "password":
       return (
         <RecordDetailsItem
-          icon={<Key size={20} color={iconColor} />}
+          icon={<Key size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
-          variant="password"
+          variant={spec.value ? "password" : "noAction"}
+          strength={spec.value ? getStrengthFromString(spec.value) : undefined}
           revealTimeoutMs={revealTimeoutMs}
+          mono
           onCopy={copy}
         />
       );
@@ -70,7 +73,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "websites":
       return (
         <RecordDetailsItem
-          icon={<Earth size={20} color={iconColor} />}
+          icon={<Earth size={18} color={iconColor} />}
           title={spec.label}
           value={spec.values}
           variant="websites"
@@ -80,7 +83,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "note":
       return (
         <RecordDetailsItem
-          icon={<NotebookPen size={20} color={iconColor} />}
+          icon={<NotebookPen size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
           onCopy={copy}
@@ -90,7 +93,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "extra-text":
       return (
         <RecordDetailsItem
-          icon={<NotebookText size={20} color={iconColor} />}
+          icon={<NotebookText size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
           onCopy={copy}
@@ -100,11 +103,12 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     case "extra-secret":
       return (
         <RecordDetailsItem
-          icon={<Lock size={20} color={iconColor} />}
+          icon={<Lock size={18} color={iconColor} />}
           title={spec.label}
           value={spec.value}
           variant="hidden"
           revealTimeoutMs={revealTimeoutMs}
+          mono
           onCopy={copy}
         />
       );

@@ -124,6 +124,17 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
 - Read tokens in JS via `useCSSVariable(name)` (in components) or
   `Uniwind.getCSSVariable(name)` (outside). Wrap non-core third-party components with
   `withUniwind` to give them `className`.
+- **Look = web at phone width.** Screens wrap in `Screen` (`@repo/ui-native`, renders the
+  `LightField` blob backdrop; `field="vivid"` on auth). Stack `contentStyle`: pages `bg-edge-tint`,
+  formSheets `bg-popover`. Lists and field groups are flush (`Section` / `SectionGroup`,
+  `RecordListItem`, `RecordDetailsItem` — whole row copies), not boxed cards. Prefer native chrome:
+  header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with
+  the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once
+  scrolled). Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one shared frost).
+- **Fonts**: Bricolage Grotesque (display) + JetBrains Mono are vendored in `apps/mobile/assets/fonts`
+  (named by PostScript name so iOS and Android resolve the same family) and embedded via the
+  `expo-font` plugin. Classes `font-display`, `font-display-bold`, `font-mono`; `FONT` constant for
+  native options (`headerLargeTitleStyle`). Body text stays the system font.
 - The generated `apps/mobile/src/uniwind-types.d.ts` (dtsFile) is git-ignored;
   `className` prop augmentations come from `uniwind/types` (referenced in the
   `*-env.d.ts` files).

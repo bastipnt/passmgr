@@ -5,13 +5,15 @@ import { Text, View, type ViewProps } from "react-native";
 import { cn } from "../lib/utils";
 
 const badgeVariants = cva(
-  "h-[20px] flex-row items-center justify-center gap-md overflow-hidden rounded-full border border-transparent px-md",
+  "h-5 flex-row items-center justify-center gap-1 overflow-hidden rounded-full border border-transparent px-2",
   {
     variants: {
       variant: {
         default: "bg-primary",
         secondary: "bg-secondary",
-        destructive: "bg-destructive/10",
+        destructive: "border-destructive/30 bg-destructive/10 dark:bg-destructive/20",
+        success: "border-success/35 bg-success/10 dark:border-strength-very-strong/35",
+        warning: "border-warning/45 bg-warning/10 dark:border-warning/40",
         outline: "border-border",
         ghost: "bg-transparent",
         link: "bg-transparent",
@@ -29,6 +31,8 @@ const badgeTextVariants = cva("font-medium text-xs", {
       default: "text-primary-foreground",
       secondary: "text-secondary-foreground",
       destructive: "text-destructive",
+      success: "text-[#047857] dark:text-strength-very-strong",
+      warning: "text-[#b45309] dark:text-strength-strong",
       outline: "text-foreground",
       ghost: "text-foreground",
       link: "text-primary underline",

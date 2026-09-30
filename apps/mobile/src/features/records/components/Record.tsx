@@ -1,102 +1,138 @@
-import { getLoginFieldSpecs, LOGIN_FIELD_GROUPS, useGetRecord } from "@repo/client";
-import { DecryptedRecord } from "@repo/schema";
-import { Button } from "@repo/ui-native";
+import { getLoginFieldSpecs, type LoginFieldGroup, useGetRecord } from "@repo/client";
+import type { DecryptedRecord } from "@repo/schema";
+import { Section, SectionHeading, WebsiteAvatar } from "@repo/ui-native";
 import { toLocalDateStr } from "@repo/util";
 import { router } from "expo-router";
-import { Pen, Rocket, Wand } from "lucide-react-native";
-import { Fragment, type ReactNode } from "react";
-import { Text, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { ChevronRight, ExternalLink, History } from "lucide-react-native";
+import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { recordPaths } from "@/route-paths";
 import { useCopyField } from "../use-copy-field";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 
-function Fallback() {
+// The title is the page heading, so it isn't repeated as a field.
+const SECTIONS: { group: LoginFieldGroup; label: string }[] = [
+  { group: "credentials", label: "Credentials" },
+  { group: "extra", label: "Extra fields" },
+  { group: "websites", label: "Websites" },
+  { group: "note", label: "Note" },
+];
+
+/**
+ * The record's first website as `{ url, host }`, or `undefined`. Only http(s):
+ * the in-app browser opens nothing else, and a record can hold any string.
+ */
+export function firstWebsite(record: DecryptedRecord) {
+  const url = record.websites?.find((w) => w.value !== "")?.value;
+  if (!url) return undefined;
+  try {
+    const { protocol, hostname } = new URL(url);
+    if (protocol !== "http:" && protocol !== "https:") return undefined;
+    return { url, host: hostname };
+  } catch {
+    return undefined;
+  }
+}
+
+function Hero({ record }: { record: DecryptedRecord }) {
+  const muted = useCSSVariable("--color-muted-foreground") as string;
+  const website = firstWebsite(record);
+
   return (
-    <View>
-      <Text className="text-foreground">Fallback</Text>
+    <View className="flex-row items-center gap-4 px-5 pt-2 pb-2">
+      <WebsiteAvatar title={record.title} websites={record.websites} size="lg" />
+      <View className="flex-1 gap-1">
+        <Text
+          numberOfLines={2}
+          className="font-display text-[28px] text-foreground leading-[30px] tracking-[-0.6px]"
+        >
+          {record.title}
+        </Text>
+        {website && (
+          <Pressable
+            onPress={() => WebBrowser.openBrowserAsync(website.url).catch(() => {})}
+            hitSlop={6}
+            className="flex-row items-center gap-1.5 self-start"
+          >
+            <Text numberOfLines={1} className="text-muted-foreground text-sm">
+              {website.host}
+            </Text>
+            <ExternalLink size={14} color={muted} />
+          </Pressable>
+        )}
+      </View>
     </View>
   );
 }
 
-function RecordLIGroup({ children }: { children: ReactNode }) {
-  return <View className="overflow-hidden rounded-lg">{children}</View>;
-}
-
-function Separator() {
-  return <View className="h-px bg-border" />;
-}
-
-function VersionsItem({ record }: { record: DecryptedRecord }) {
-  const iconColor = useCSSVariable("--color-foreground") as string;
+function HistorySection({ record }: { record: DecryptedRecord }) {
+  const muted = useCSSVariable("--color-muted-foreground") as string;
+  // Versions are numbered from 1, so the latest number is the count.
+  const versionCount = record.version;
 
   return (
-    <View className="flex flex-col gap-sm rounded-lg bg-card p-md">
-      <View className="flex flex-row items-center gap-2">
-        <Wand size={20} color={iconColor} />
-        <Text className="text-foreground">Date last used: TBA</Text>
-      </View>
-      <View className="flex flex-row items-center gap-2">
-        <Pen size={20} color={iconColor} />
-        <Text className="text-foreground">
-          Date last changed: {toLocalDateStr(record.clientUpdatedAt)}
-        </Text>
-      </View>
-      <View className="flex flex-row items-center gap-2">
-        <Rocket size={20} color={iconColor} />
-        <Text className="text-foreground">
-          Date created: {toLocalDateStr(record.firstCreatedAt)}
-        </Text>
-      </View>
-
-      <Button
-        variant="glass"
-        className="mt-2"
+    <View className="gap-2">
+      <SectionHeading>History</SectionHeading>
+      <Pressable
+        accessibilityRole="button"
         onPress={() => router.navigate(recordPaths.recordVersions(record.recordId))}
+        className="flex-row items-center gap-3 border-foreground/10 border-y px-5 py-3 active:bg-primary/8 dark:border-white/10 dark:active:bg-foreground/5"
       >
-        Versions
-      </Button>
+        <View className="h-6 w-6 items-center justify-center rounded-full bg-foreground/8">
+          <History size={14} color={muted} />
+        </View>
+        <Text className="flex-1 font-semibold text-foreground text-sm">Version history</Text>
+        <Text className="text-muted-foreground text-sm" style={{ fontVariant: ["tabular-nums"] }}>
+          {versionCount} {versionCount === 1 ? "version" : "versions"}
+        </Text>
+        <ChevronRight size={16} color={muted} />
+      </Pressable>
+      <Text className="px-5 text-muted-foreground text-xs">
+        Created {toLocalDateStr(record.firstCreatedAt)} · Last changed{" "}
+        {toLocalDateStr(record.clientUpdatedAt)}
+      </Text>
     </View>
   );
 }
 
 type RecordProps = {
-  recordId?: string | string[];
+  record: DecryptedRecord;
 };
 
-export default function Record({ recordId }: RecordProps) {
-  if (!recordId || typeof recordId !== "string") return <Fallback />;
-  return <RecordBody recordId={recordId} />;
-}
-
-function RecordBody({ recordId }: { recordId: string }) {
-  const { record, ready } = useGetRecord(recordId);
-  // Above the `ready` guard: that flips mid-mount, and a hook after it would
-  // change the hook order between renders.
+/** Record detail body: hero, field sections and history — web's `MobileRecordPage`. */
+export default function Record({ record }: RecordProps) {
   const onCopy = useCopyField();
-  if (!ready || !record) return <Fallback />;
-
   const specs = getLoginFieldSpecs(record);
 
   return (
-    <View className="gap-lg">
-      {LOGIN_FIELD_GROUPS.map((group) => {
+    <View className="gap-6 pb-6">
+      <Hero record={record} />
+
+      {SECTIONS.map(({ group, label }) => {
         const groupSpecs = specs.filter((spec) => spec.group === group);
         if (groupSpecs.length === 0) return null;
 
         return (
-          <RecordLIGroup key={group}>
-            {groupSpecs.map((spec, i) => (
-              <Fragment key={spec.key}>
-                {i > 0 && <Separator />}
-                <LoginFieldDisplay spec={spec} onCopy={onCopy} />
-              </Fragment>
+          <Section key={group} title={label}>
+            {groupSpecs.map((spec) => (
+              <LoginFieldDisplay key={spec.key} spec={spec} onCopy={onCopy} />
             ))}
-          </RecordLIGroup>
+          </Section>
         );
       })}
 
-      <VersionsItem record={record} />
+      <HistorySection record={record} />
     </View>
   );
+}
+
+/**
+ * Loads the record behind a `recordId` route param. `record` stays undefined
+ * until the vault is `ready`, and after that when no such record exists.
+ */
+export function useRecordParam(recordId: string | string[] | undefined) {
+  const id = typeof recordId === "string" ? recordId : "";
+  const { record, ready } = useGetRecord(id);
+  return { record: ready ? record : undefined, ready };
 }

@@ -3,6 +3,7 @@ import { type Control, Controller, type FieldPath, type FieldValues } from "reac
 import { Text, TextInput, type TextInputProps, View } from "react-native";
 
 import { cn } from "../../lib/utils";
+import { fieldBorder, fieldLabel, fieldSurface } from "./field-styles";
 
 export type InputProps = TextInputProps & {
   label?: string;
@@ -31,15 +32,14 @@ export function Input({
 }: InputProps) {
   return (
     <View className="flex-auto gap-2">
-      {label && !hideLabel && <Text className="font-bold text-foreground text-md">{label}</Text>}
+      {label && !hideLabel && <Text className={fieldLabel}>{label}</Text>}
 
       <View className="relative flex-row items-center">
         <TextInput
           className={cn(
-            "h-[52px] flex-1 rounded-lg border-[1.5px] bg-background px-md text-foreground text-md",
-            error
-              ? "border-destructive focus:border-destructive"
-              : "border-border focus:border-primary",
+            "h-12 flex-1 px-3.5",
+            fieldSurface,
+            fieldBorder(!!error),
             addon && "pr-[46px]",
             inputClassName,
           )}

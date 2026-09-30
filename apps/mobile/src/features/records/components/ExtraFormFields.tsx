@@ -88,7 +88,7 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
         onPress={() => sheetRef.current?.triggerShowHide(true)}
       >
         <PlusIcon size={20} color={iconColor} />
-        <Text className="text-foreground">Add</Text>
+        <Text className="font-semibold text-primary">Add</Text>
       </Button>
 
       <BottomSheet ref={sheetRef} className="gap-4 py-8">

@@ -5,7 +5,7 @@ Cross-platform design tokens for [passmgr](../../README.md). Source of truth for
 ## What's in here
 
 - **`src/tokens/theme.css`** — the semantic color palette (`--color-background`, `--color-primary`, …) as CSS custom properties, defined once for both platforms. Exported as `@repo/ui-shared/theme.css`.
-- **`src/tokens/colors.ts`** — only the colors JS reads directly: `BRAND_GRADIENT`, `LEVEL_COLOR`.
+- **`src/tokens/colors.ts`** — only the colors JS reads directly: `BRAND_COLOR`, `LEVEL_COLOR`, `FIELD_COLORS` (light-field blobs / spectrum text).
 - **`src/hooks/use-website-avatar.ts`** — favicon lookup + fallback hue.
 
 ## Consumers

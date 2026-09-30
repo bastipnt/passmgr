@@ -6,25 +6,19 @@ import { cn } from "../lib/utils";
 
 export function Empty({ className, ...props }: ViewProps & { className?: string }) {
   return (
-    <View
-      className={cn(
-        "w-full items-center justify-center gap-lg rounded-lg border border-border border-dashed p-lg",
-        className,
-      )}
-      {...props}
-    />
+    <View className={cn("w-full items-center justify-center gap-6 p-6", className)} {...props} />
   );
 }
 
 export function EmptyHeader({ className, ...props }: ViewProps & { className?: string }) {
-  return <View className={cn("max-w-[320px] items-center gap-md", className)} {...props} />;
+  return <View className={cn("max-w-[320px] items-center gap-2", className)} {...props} />;
 }
 
 const emptyMediaVariants = cva("items-center justify-center", {
   variants: {
     variant: {
       default: "bg-transparent",
-      icon: "h-[32px] w-[32px] rounded-lg bg-muted",
+      icon: "mb-2 h-12 w-12 rounded-2xl bg-primary",
     },
   },
   defaultVariants: {
@@ -41,11 +35,24 @@ export function EmptyMedia({
 }
 
 export function EmptyTitle({ className, ...props }: TextProps & { className?: string }) {
-  return <Text className={cn("font-medium text-foreground text-md", className)} {...props} />;
+  return (
+    <Text
+      className={cn(
+        "text-center font-display-bold text-[24px] text-foreground tracking-[-0.5px]",
+        className,
+      )}
+      {...props}
+    />
+  );
 }
 
 export function EmptyDescription({ className, ...props }: TextProps & { className?: string }) {
-  return <Text className={cn("text-md text-muted-foreground", className)} {...props} />;
+  return (
+    <Text
+      className={cn("text-center text-muted-foreground text-sm leading-5", className)}
+      {...props}
+    />
+  );
 }
 
 export function EmptyContent({
@@ -54,7 +61,7 @@ export function EmptyContent({
   ...props
 }: ViewProps & { className?: string; children?: ReactNode }) {
   return (
-    <View className={cn("w-full max-w-[320px] items-center gap-md", className)} {...props}>
+    <View className={cn("w-full max-w-[320px] items-center gap-3", className)} {...props}>
       {children}
     </View>
   );

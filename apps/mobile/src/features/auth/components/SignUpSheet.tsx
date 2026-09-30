@@ -83,25 +83,21 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
       <BottomSheet
         ref={sheetRef}
         snapPoints={["full"]}
-        className="gap-lg p-lg"
+        className="gap-6 px-6 pt-7 pb-6"
         footer={
-          <Button
-            size="lg"
-            textClassName="font-bold"
-            disabled={!agreed}
-            loading={loading}
-            onPress={handleSubmit(onSubmit)}
-          >
+          <Button size="lg" disabled={!agreed} loading={loading} onPress={handleSubmit(onSubmit)}>
             Create account
           </Button>
         }
       >
         <View className="gap-1">
-          <Text className="font-bold text-2xl text-foreground">Create account</Text>
+          <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
+            Create account
+          </Text>
           <Text className="text-muted-foreground text-sm">Set up your secure vault.</Text>
         </View>
 
-        <FormLock locked={loading} className="gap-lg">
+        <FormLock locked={loading} className="gap-5">
           <ControlledInput
             control={control}
             name="email"
@@ -130,6 +126,7 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
 
         {registrationError && (
           <FieldError
+            variant="box"
             errors={[{ message: "Error when trying to register a new account please try again" }]}
           />
         )}

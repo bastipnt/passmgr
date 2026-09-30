@@ -35,7 +35,7 @@ export default function VersionScreen() {
         }}
       />
 
-      <ScrollView className="flex-1" contentContainerClassName="gap-md p-md">
+      <ScrollView className="flex-1" contentContainerClassName="gap-4 px-5 py-6">
         {typeof recordId === "string" && !Number.isNaN(versionNumber) && (
           <VersionDetail recordId={recordId} version={versionNumber} />
         )}

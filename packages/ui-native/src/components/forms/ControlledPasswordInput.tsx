@@ -44,15 +44,15 @@ export function ControlledPasswordInput<TFieldValues extends FieldValues>({
             autoCorrect={false}
             // The addon sits absolutely inside the field, so extra actions need
             // the input's trailing padding widened by hand.
-            inputClassName={cn(actions && "pr-[76px]", inputClassName)}
+            inputClassName={cn("font-mono", actions && "pr-[76px]", inputClassName)}
             addon={
-              <View className="flex-row items-center gap-xs">
+              <View className="flex-row items-center gap-1">
                 {actions}
                 <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={visible ? "Hide password" : "Show password"}
                   hitSlop={8}
-                  className="p-xs"
+                  className="p-0.5"
                   style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
                   onPress={() => setVisible((v) => !v)}
                 >

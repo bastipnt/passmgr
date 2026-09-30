@@ -20,33 +20,40 @@ import {
 } from "@expo/ui/swift-ui/modifiers";
 import { cva, type VariantProps } from "class-variance-authority";
 import { type ReactNode } from "react";
-import { Platform, Pressable, type PressableProps, Text } from "react-native";
+import { Platform, Pressable, type PressableProps, Text, useColorScheme } from "react-native";
 import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";
 import { Spinner } from "./Spinner";
 
+/*
+ * The pressable fallback (Android, RN-node children, `native={false}`) mirrors
+ * web's `Button` (packages/ui): solid violet primary, frosted white outline,
+ * round floating glass.
+ */
 const buttonVariants = cva(
-  "shrink-0 flex-row items-center justify-center gap-sm rounded-lg border border-transparent px-[10px]",
+  "shrink-0 flex-row items-center justify-center gap-2 rounded-lg border border-transparent px-4",
   {
     variants: {
       variant: {
-        default: "bg-primary",
-        outline: "border-border bg-background",
-        secondary: "bg-secondary",
+        default: "border-primary-pressed/70 bg-primary",
+        outline: "border-foreground/8 bg-white/55 dark:border-white/14 dark:bg-white/5",
+        secondary: "border-foreground/8 bg-white/55 dark:border-white/14 dark:bg-white/5",
         ghost: "bg-transparent",
         "ghost-destructive": "bg-transparent",
-        destructive: "bg-destructive/20",
+        destructive: "border-destructive/16 bg-destructive/9",
         link: "bg-transparent",
-        glass: "border-border bg-muted/80",
-        "glass-primary": "border-border bg-muted/80",
+        glass:
+          "rounded-full border-foreground/8 bg-white/70 dark:border-white/14 dark:bg-[rgba(28,26,40,0.62)]",
+        "glass-primary":
+          "rounded-full border-foreground/8 bg-white/70 dark:border-white/14 dark:bg-[rgba(28,26,40,0.62)]",
       },
       size: {
-        sm: "h-[32px]",
+        sm: "h-[32px] px-3",
         default: "h-[40px]",
-        lg: "h-[52px]",
+        lg: "h-[48px] px-5",
         icon: "h-[40px] w-[40px] px-0",
-        "icon-lg": "h-[52px] w-[52px] px-0",
+        "icon-lg": "h-[48px] w-[48px] px-0",
       },
     },
     defaultVariants: {
@@ -56,8 +63,23 @@ const buttonVariants = cva(
   },
 );
 
+/** Web's lifted violet glow under the primary button — light mode only, as on web. */
+const PRIMARY_SHADOW = {
+  shadowColor: "#6e56f5",
+  shadowOffset: { width: 0, height: 8 },
+  shadowRadius: 9,
+  shadowOpacity: 0.45,
+} as const;
+
 const buttonTextVariants = cva("font-semibold text-sm", {
   variants: {
+    size: {
+      sm: "",
+      default: "",
+      lg: "text-[15px]",
+      icon: "",
+      "icon-lg": "",
+    },
     variant: {
       default: "text-primary-foreground",
       outline: "text-foreground",
@@ -99,9 +121,9 @@ const nativeHostVariants = cva("shrink-0", {
     size: {
       sm: "h-[32px]",
       default: "h-[40px]",
-      lg: "h-[52px]",
+      lg: "h-[48px]",
       icon: "h-[40px] w-[40px]",
-      "icon-lg": "h-[52px] w-[52px]",
+      "icon-lg": "h-[48px] w-[48px]",
     },
   },
   defaultVariants: {
@@ -228,6 +250,8 @@ export function Button({
   const contentColor = useCSSVariable(nativeVariant.contentVariable ?? nativeVariant.tintVariable);
 
   const isDisabled = disabled || loading;
+  const scheme = useColorScheme();
+  const glow = variant === "default" && !isDisabled && scheme !== "dark";
 
   /*
    * SwiftUI can only lay out its own children, so anything carrying RN nodes
@@ -307,13 +331,16 @@ export function Button({
     <Pressable
       className={cn(buttonVariants({ variant, size }), isDisabled && "opacity-50", className)}
       disabled={isDisabled}
-      style={({ pressed }) => (pressed && !isDisabled ? { opacity: 0.85 } : null)}
+      style={({ pressed }) => [
+        glow && PRIMARY_SHADOW,
+        pressed && !isDisabled && { opacity: 0.85, transform: [{ translateY: 1 }] },
+      ]}
       accessibilityRole="button"
       {...props}
     >
       {loading ? <Spinner colorClassName={spinnerColorClasses[variant ?? "default"]} /> : icon}
       {typeof children === "string" ? (
-        <Text className={cn(buttonTextVariants({ variant }), textClassName)}>{children}</Text>
+        <Text className={cn(buttonTextVariants({ variant, size }), textClassName)}>{children}</Text>
       ) : (
         children
       )}

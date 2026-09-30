@@ -25,7 +25,7 @@ export type TotpRingProps = {
  * arc drains in a single linear reanimated timing spanning the remaining
  * period, restarted at each rollover — smooth on the UI thread, no JS ticks.
  */
-export function TotpRing({ period, periodMs, seconds, size = 36 }: TotpRingProps) {
+export function TotpRing({ period, periodMs, seconds, size = 38 }: TotpRingProps) {
   const strokeWidth = 3;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
@@ -85,12 +85,7 @@ export function TotpRing({ period, periodMs, seconds, size = 36 }: TotpRingProps
           fill="none"
         />
       </Svg>
-      <Text
-        className="font-semibold text-muted-foreground text-xs"
-        style={{ fontVariant: ["tabular-nums"] }}
-      >
-        {seconds ?? ""}
-      </Text>
+      <Text className="font-mono-medium text-muted-foreground text-xs">{seconds ?? ""}</Text>
     </View>
   );
 }

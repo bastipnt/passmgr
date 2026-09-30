@@ -1,16 +1,12 @@
-import { useGetRecord } from "@repo/client";
-import { router, Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack } from "expo-router";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
-import { recordPaths } from "@/route-paths";
 
 export default function RecordLayout() {
-  const contentStyle = useResolveClassNames("bg-background");
-  const headerTitleStyle = useResolveClassNames("text-foreground");
-  const primaryColor = useCSSVariable("--color-primary") as string;
+  const contentStyle = useResolveClassNames("bg-edge-tint");
+  // Sheets are solid popover panels, like web's phone drawer.
+  const sheetStyle = useResolveClassNames("bg-popover");
+  const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
-
-  const { recordId } = useLocalSearchParams();
-  const { record } = useGetRecord((recordId as string) || "");
 
   // `PasswordGeneratorProvider` lives in the parent layout — shared with the
   // create sheet.
@@ -21,7 +17,8 @@ export default function RecordLayout() {
         options={{
           contentStyle,
           headerTitleStyle,
-          title: record?.title || "",
+          // The screen sets the title itself once its hero scrolls away.
+          title: "",
           headerTransparent: true,
           /*
            * The header buttons have to be native `UIBarButtonItem`s. A React
@@ -46,16 +43,7 @@ export default function RecordLayout() {
               onPress: () => router.back(),
             },
           ],
-          unstable_headerRightItems: () => [
-            {
-              type: "button",
-              label: "Edit",
-              // iOS 26 tinted glass; falls back to a plain button below it.
-              variant: "prominent",
-              tintColor: primaryColor,
-              onPress: () => router.navigate(recordPaths.editRecord(recordId as string)),
-            },
-          ],
+          // Right items (Edit, Copy password) come from the screen, which has the record.
         }}
       />
       <Stack.Screen
@@ -63,7 +51,7 @@ export default function RecordLayout() {
         options={{
           presentation: "formSheet",
           sheetGrabberVisible: true,
-          contentStyle,
+          contentStyle: sheetStyle,
         }}
       />
       <Stack.Screen
@@ -71,7 +59,7 @@ export default function RecordLayout() {
         options={{
           presentation: "formSheet",
           sheetGrabberVisible: true,
-          contentStyle,
+          contentStyle: sheetStyle,
         }}
       />
       <Stack.Screen
@@ -82,7 +70,7 @@ export default function RecordLayout() {
           sheetGrabberVisible: true,
           // Taller than the default half sheet — a diff of a full record runs long.
           sheetAllowedDetents: [0.6, 1],
-          contentStyle,
+          contentStyle: sheetStyle,
         }}
       />
     </Stack>

@@ -1,10 +1,6 @@
-import {
-  alignFieldSpecs,
-  type DiffStatus,
-  getLoginFieldSpecs,
-  type LoginFieldSpec,
-} from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
+import { alignFieldSpecs, type DiffStatus } from "./diff-fields";
+import { getLoginFieldSpecs, type LoginFieldSpec } from "./login-field-specs";
 
 export type VersionChange = {
   key: string;

@@ -1,15 +1,14 @@
+import { FONT } from "@repo/ui-native";
 import { router, Stack } from "expo-router";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 
 export default function SettingsLayout() {
-  const contentStyle = useResolveClassNames("bg-background");
+  const contentStyle = useResolveClassNames("bg-edge-tint");
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
 
-  // The index is a tab root and paints its own status-bar strip, so it keeps the
-  // header hidden. The sub-screens show one — that is where the back button
-  // comes from; every other stack in the app hand-rolls one in `PageActions`
-  // because it has no header to hang it on.
+  // The index is a tab root with a native large title (web's display-font
+  // page title); sub-screens get the back item.
   return (
     <Stack
       screenOptions={{
@@ -31,7 +30,12 @@ export default function SettingsLayout() {
     >
       <Stack.Screen
         name="index"
-        options={{ title: "Settings", unstable_headerLeftItems: () => [] }}
+        options={{
+          title: "Settings",
+          headerLargeTitle: true,
+          headerLargeTitleStyle: { fontFamily: FONT.display, color: foregroundColor },
+          unstable_headerLeftItems: () => [],
+        }}
       />
       <Stack.Screen name="general" options={{ title: "General" }} />
       <Stack.Screen name="generator" options={{ title: "Password Generator" }} />

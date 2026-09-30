@@ -24,10 +24,11 @@ export default function TotpField({ totpData, onCopy }: TotpFieldProps) {
 
   return (
     <RecordDetailsItem
-      icon={<Lock size={20} color={iconColor} />}
+      icon={<Lock size={18} color={iconColor} />}
       title="2FA token (TOTP)"
       value={formatTotpToken(token)}
       onCopy={() => onCopy(token)}
+      mono
       accessory={
         isInvalid ? undefined : (
           <TotpRing period={period} periodMs={TOTP_PERIOD_MS} seconds={seconds} />

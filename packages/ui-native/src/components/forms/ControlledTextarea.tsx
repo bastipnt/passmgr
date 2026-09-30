@@ -3,6 +3,7 @@ import { type Control, Controller, type FieldPath, type FieldValues } from "reac
 import { Text, TextInput, type TextInputProps, View } from "react-native";
 
 import { cn } from "../../lib/utils";
+import { fieldBorder, fieldLabel, fieldSurface } from "./field-styles";
 
 export type TextareaProps = TextInputProps & {
   label?: string;
@@ -25,17 +26,12 @@ export function Textarea({
 }: TextareaProps) {
   return (
     <View className="flex-auto gap-2">
-      {label && !hideLabel && <Text className="font-bold text-foreground text-md">{label}</Text>}
+      {label && !hideLabel && <Text className={fieldLabel}>{label}</Text>}
 
       <TextInput
         multiline
         textAlignVertical="top"
-        className={cn(
-          "min-h-[104px] rounded-lg border-[1.5px] bg-background px-md py-md text-foreground text-md",
-          error
-            ? "border-destructive focus:border-destructive"
-            : "border-border focus:border-primary",
-        )}
+        className={cn("min-h-[104px] px-3.5 py-3", fieldSurface, fieldBorder(!!error))}
         placeholderTextColorClassName="text-muted-foreground"
         {...rest}
       />

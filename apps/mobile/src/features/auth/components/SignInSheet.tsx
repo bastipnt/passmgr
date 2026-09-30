@@ -72,24 +72,21 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   return (
     <BottomSheet
       ref={sheetRef}
-      className="gap-lg p-lg"
+      className="gap-6 px-6 pt-7 pb-6"
       footer={
-        <Button
-          size="lg"
-          textClassName="font-bold"
-          loading={loading}
-          onPress={handleSubmit(onSubmit)}
-        >
+        <Button size="lg" loading={loading} onPress={handleSubmit(onSubmit)}>
           Sign in
         </Button>
       }
     >
       <View className="gap-1">
-        <Text className="font-bold text-2xl text-foreground">Sign in</Text>
+        <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
+          Sign in
+        </Text>
         <Text className="text-muted-foreground text-sm">Welcome back to Passmgr.</Text>
       </View>
 
-      <FormLock locked={loading} className="gap-lg">
+      <FormLock locked={loading} className="gap-5">
         <ControlledInput
           control={control}
           name="email"
@@ -107,24 +104,27 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           textContentType="password"
           note={
             <Pressable
-              className="mt-xs self-end"
+              className="mt-1 self-end"
               hitSlop={8}
               onPress={() => {
                 sheetRef.current?.triggerShowHide(false);
                 onForgotPassword();
               }}
             >
-              <Text className="font-bold text-primary text-xs">Forgot password?</Text>
+              <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
             </Pressable>
           }
         />
       </FormLock>
 
       {loginThrottled ? (
-        <FieldError errors={[{ message: "Too many login attempts. Please wait and try again." }]} />
+        <FieldError
+          variant="box"
+          errors={[{ message: "Too many login attempts. Please wait and try again." }]}
+        />
       ) : (
         (loginError || unlockError) && (
-          <FieldError errors={[{ message: "Login error please try again" }]} />
+          <FieldError variant="box" errors={[{ message: "Login error please try again" }]} />
         )
       )}
     </BottomSheet>

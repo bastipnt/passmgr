@@ -1,6 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
-import { describeVersionChanges } from "./version-changes";
+import { describeVersionChanges } from "../src/records/version-changes";
 
 function makeRecord(version: number, fields: Partial<DecryptedRecord> = {}): DecryptedRecord {
   return {

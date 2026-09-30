@@ -7,7 +7,7 @@ import { useResolveClassNames } from "uniwind";
  * one on top of it — matching web, where a single sheet swaps its content.
  */
 export default function VersionsLayout() {
-  const contentStyle = useResolveClassNames("bg-background");
+  const contentStyle = useResolveClassNames("bg-popover");
 
   return (
     <Stack screenOptions={{ contentStyle }}>

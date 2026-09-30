@@ -87,7 +87,7 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
       </FieldGroup>
       <Button variant="ghost" className="self-start" onPress={() => append({ value: "" })}>
         <PlusIcon size={20} color={iconColor} />
-        <Text className="text-foreground">Add</Text>
+        <Text className="font-semibold text-primary">Add</Text>
       </Button>
     </FieldSet>
   );

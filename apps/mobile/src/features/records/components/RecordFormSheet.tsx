@@ -85,7 +85,7 @@ export default function RecordFormSheet({
 
       <KeyboardAwareScrollView
         mode="layout"
-        contentContainerClassName="grow gap-md p-md"
+        contentContainerClassName="grow gap-6 px-5 py-6"
         bottomOffset={24}
       >
         <LoginRecordForm

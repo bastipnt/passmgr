@@ -1,38 +1,48 @@
-import { useWebsiteAvatar } from "@repo/ui-shared";
+import { ChevronRight } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
-import { Avatar, AvatarFallback, AvatarImage } from "../../components/Avatar";
+import { useCSSVariable } from "uniwind";
 
+import { WebsiteAvatar } from "../../components/WebsiteAvatar";
 import { cn } from "../../lib/utils";
 
 type RecordLIProps = {
   title: string;
   username?: string;
   websites?: { value: string }[];
-  active?: boolean;
+  /** First row of its group: drops the hairline above it. */
+  first?: boolean;
   onClick?: () => void;
 };
 
-export function RecordListItem({ title, username, websites, active, onClick }: RecordLIProps) {
-  const { src, status, hue } = useWebsiteAvatar({ title, websites });
+/**
+ * Full-bleed table-view row, as on web at phone width: favicon tile, title +
+ * username, chevron, and a hairline inset past the avatar.
+ */
+export function RecordListItem({ title, username, websites, first, onClick }: RecordLIProps) {
+  const chevron = useCSSVariable("--color-muted-foreground") as string;
 
   return (
     <Pressable
       onPress={onClick}
-      className={cn("flex-row items-center gap-lg p-md", active ? "bg-accent" : "bg-background")}
-      style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+      accessibilityRole="button"
+      className="h-16 flex-row items-center gap-3.5 pl-5 active:bg-foreground/5"
     >
-      <Avatar size="lg">
-        {status === "ok" && src ? (
-          <AvatarImage src={src} />
-        ) : (
-          <AvatarFallback style={{ backgroundColor: `hsl(${hue}, 100%, 80%)` }}>
-            <Text style={{ color: `hsl(${hue}, 80%, 20%)` }}>{title.charAt(0)}</Text>
-          </AvatarFallback>
+      <WebsiteAvatar title={title} websites={websites} size="md" />
+      <View
+        className={cn(
+          "flex-1 flex-row items-center gap-2 self-stretch pr-4",
+          !first && "border-foreground/8 border-t dark:border-white/8",
         )}
-      </Avatar>
-      <View className="flex-1">
-        <Text className="font-medium text-foreground text-md">{title}</Text>
-        <Text className="text-muted-foreground text-sm">{username ?? "-"}</Text>
+      >
+        <View className="flex-1">
+          <Text numberOfLines={1} className="font-semibold text-[16px] text-foreground">
+            {title}
+          </Text>
+          <Text numberOfLines={1} className="text-muted-foreground text-sm">
+            {username || "—"}
+          </Text>
+        </View>
+        <ChevronRight size={18} color={chevron} style={{ opacity: 0.6 }} />
       </View>
     </Pressable>
   );

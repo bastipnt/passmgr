@@ -167,9 +167,12 @@ function FieldError({
   className,
   children,
   errors,
+  variant = "inline",
   ...props
 }: ViewProps & {
   errors?: Array<{ message?: string } | undefined>;
+  /** `box`: web's tinted error panel, for form-level errors. */
+  variant?: "inline" | "box";
 }) {
   const content = useMemo(() => {
     if (children) {
@@ -204,10 +207,17 @@ function FieldError({
     <View
       role="alert"
       data-slot="field-error"
-      className={cn("font-normal text-destructive text-sm", className)}
+      className={cn(
+        variant === "box" && "rounded-xl border border-destructive/30 bg-destructive/8 px-3.5 py-3",
+        className,
+      )}
       {...props}
     >
-      {content}
+      {typeof content === "string" ? (
+        <Text className="text-destructive text-sm">{content}</Text>
+      ) : (
+        content
+      )}
     </View>
   );
 }

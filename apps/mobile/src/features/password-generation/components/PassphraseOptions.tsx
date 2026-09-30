@@ -1,6 +1,6 @@
 import { type PassphraseOptions, SEPARATORS } from "@repo/crypto";
-import { cn, OptionToggle, Slider } from "@repo/ui-native";
-import { Pressable, Text, View } from "react-native";
+import { OptionToggle, SegmentedControl, Slider } from "@repo/ui-native";
+import { Text, View } from "react-native";
 
 type PassphraseOptionsFormProps = {
   phOpts: PassphraseOptions;
@@ -9,10 +9,10 @@ type PassphraseOptionsFormProps = {
 
 export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseOptionsFormProps) {
   return (
-    <View className="gap-md">
-      <View className="gap-sm">
+    <View className="gap-5">
+      <View className="gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-foreground text-md">Words</Text>
+          <Text className="text-[16px] text-foreground">Words</Text>
           <Text className="text-muted-foreground text-sm">{phOpts.wordCount}</Text>
         </View>
         <Slider
@@ -25,37 +25,17 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
         />
       </View>
 
-      <View className="gap-sm">
-        <Text className="text-foreground text-md">Separator</Text>
-        <View className="flex-row gap-xs rounded-lg border border-border bg-card p-xs">
-          {SEPARATORS.map(({ label, value }) => {
-            const selected = phOpts.separator === value;
-
-            return (
-              <Pressable
-                key={value}
-                accessibilityRole="button"
-                accessibilityState={{ selected }}
-                accessibilityLabel={`Separator ${label}`}
-                onPress={() => setPhOpts((o) => ({ ...o, separator: value }))}
-                className={cn(
-                  "h-[36px] flex-1 items-center justify-center rounded-md",
-                  selected && "bg-primary",
-                )}
-                style={({ pressed }) => (pressed ? { opacity: 0.85 } : null)}
-              >
-                <Text
-                  className={cn(
-                    "font-semibold text-sm",
-                    selected ? "text-primary-foreground" : "text-muted-foreground",
-                  )}
-                >
-                  {label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </View>
+      <View className="gap-2">
+        <Text className="text-[16px] text-foreground">Separator</Text>
+        <SegmentedControl
+          value={phOpts.separator}
+          options={SEPARATORS.map(({ label, value }) => ({
+            value,
+            label,
+            accessibilityLabel: `Separator ${label}`,
+          }))}
+          onChange={(value) => setPhOpts((o) => ({ ...o, separator: value }))}
+        />
       </View>
 
       <OptionToggle

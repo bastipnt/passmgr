@@ -4,6 +4,7 @@ import { TextInput, View } from "react-native";
 
 import { cn } from "../../lib/utils";
 import { Field, FieldError } from "./Field";
+import { fieldBorder } from "./field-styles";
 
 export type ControlledExtraFieldProps<
   TFieldValues extends FieldValues = FieldValues,
@@ -39,8 +40,8 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
               <Field data-invalid={isInvalid} className="flex-1">
                 <View
                   className={cn(
-                    "gap-xs rounded-lg border-[1.5px] bg-background px-md py-md",
-                    isInvalid ? "border-destructive" : "border-border",
+                    "gap-1 rounded-lg border bg-field px-3.5 py-3 dark:bg-white/5",
+                    fieldBorder(isInvalid),
                   )}
                 >
                   <TextInput
@@ -64,7 +65,8 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                     autoCapitalize="none"
                     autoCorrect={false}
                     className={cn(
-                      "text-foreground text-md",
+                      "text-[16px] text-foreground",
+                      type === "secret" && "font-mono",
                       valueState.invalid && "text-destructive",
                     )}
                   />

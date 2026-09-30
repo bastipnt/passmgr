@@ -45,6 +45,9 @@
   --color-input: unset;
   --color-field: unset;
   --color-ring: unset;
+  /* Page ground behind the light-field: background tinted toward violet
+     (web: --edge-tint in globals.css, a color-mix of the same values). */
+  --color-edge-tint: unset;
 }
 
 /*
@@ -108,6 +111,7 @@
       --color-input: #d6d3e0;
       --color-field: #f1eff7;
       --color-ring: #6e56f5;
+      --color-edge-tint: #eae8fc;
     }
 
     @variant dark {
@@ -131,6 +135,7 @@
       --color-input: #2e2d38;
       --color-field: #16151f;
       --color-ring: #8b78ff;
+      --color-edge-tint: #18162f;
     }
   }
 }

@@ -20,7 +20,7 @@ export function SettingsChoice({
   const [value, setValue] = usePreference<number>(prefKey, fallback);
 
   return (
-    <SettingsSection title={title} description={description}>
+    <SettingsSection flush title={title} description={description}>
       <OptionList options={choices} value={value} onChange={setValue} />
     </SettingsSection>
   );

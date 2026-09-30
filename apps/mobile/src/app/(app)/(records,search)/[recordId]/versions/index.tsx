@@ -32,7 +32,7 @@ export default function VersionsScreen() {
         }}
       />
 
-      <ScrollView className="flex-1" contentContainerClassName="gap-md p-md">
+      <ScrollView className="flex-1" contentContainerClassName="gap-4 px-5 py-6">
         {typeof recordId === "string" && <VersionList recordId={recordId} />}
       </ScrollView>
     </View>

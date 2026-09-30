@@ -36,4 +36,17 @@
   --text-lg: 18px;
   --text-xl: 22px;
   --text-xxl: 28px;
+
+  /*
+   * Web's display + mono faces (Bricolage Grotesque, JetBrains Mono), embedded
+   * by the expo-font config plugin from assets/fonts. RN can't pair a custom
+   * family with fontWeight, so every weight is its own family — named after the
+   * font's PostScript name (iOS resolves by it; Android by the file name, which
+   * matches). Body text stays the system font so it blends with native chrome.
+   * Mirrored as `FONT` in packages/ui-native/src/lib/fonts.ts for raw styles.
+   */
+  --font-display: BricolageGrotesque-ExtraBold;
+  --font-display-bold: BricolageGrotesque-Bold;
+  --font-mono: JetBrainsMono-Regular;
+  --font-mono-medium: JetBrainsMono-Medium;
 }

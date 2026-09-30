@@ -32,7 +32,7 @@ const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 function Routes() {
   const { loggedIn } = useContext(SessionContext);
   const { status, tryRestore } = useSessionRestore();
-  const contentStyle = useResolveClassNames("bg-background");
+  const contentStyle = useResolveClassNames("bg-edge-tint");
   const headerStyle = contentStyle;
   const { preference } = useThemePreference();
 

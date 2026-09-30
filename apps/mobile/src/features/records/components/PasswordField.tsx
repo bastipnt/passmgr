@@ -2,7 +2,7 @@ import { getStrengthFromString } from "@repo/crypto";
 import { type LoginRecord as FormValues } from "@repo/schema";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
 import { type Href, useRouter } from "expo-router";
-import { DicesIcon, KeyIcon } from "lucide-react-native";
+import { KeyIcon, WandSparkles } from "lucide-react-native";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import { Pressable } from "react-native";
 import { useCSSVariable } from "uniwind";
@@ -37,17 +37,25 @@ export default function PasswordField({ control, setValue, generatorPath }: Pass
       label="Password"
       autoComplete="off"
       icon={<KeyIcon size={18} color={iconColor} />}
-      note={strength && <StrengthMeter level={strength.level} label={strength.label} />}
+      note={
+        strength && (
+          <StrengthMeter
+            level={strength.level}
+            label={`Strength: ${strength.label}`}
+            detail={`${password.length} characters`}
+          />
+        )
+      }
       actions={
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Generate password"
           hitSlop={8}
-          className="p-xs"
+          className="p-0.5"
           style={({ pressed }) => (pressed ? { opacity: 0.6 } : null)}
           onPress={openGenerator}
         >
-          <DicesIcon size={20} color={iconColor} />
+          <WandSparkles size={20} color={iconColor} />
         </Pressable>
       }
     />

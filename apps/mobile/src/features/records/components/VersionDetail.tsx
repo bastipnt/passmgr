@@ -12,10 +12,10 @@ import { Text, View } from "react-native";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 
 const CARD_CLASS: Record<DiffStatus, string> = {
-  unchanged: "border-border",
-  edited: "border-warning",
-  added: "border-success bg-success/10",
-  removed: "border-error bg-error/10",
+  unchanged: "border-foreground/10 bg-white/60 dark:border-white/10 dark:bg-white/3",
+  edited: "border-warning/45 bg-warning/10",
+  added: "border-success/35 bg-success/10",
+  removed: "border-destructive/30 bg-destructive/10",
 };
 
 const STATUS_LABEL: Record<DiffStatus, string> = {
@@ -29,7 +29,7 @@ const STATUS_LABEL_CLASS: Record<DiffStatus, string> = {
   unchanged: "",
   edited: "text-warning",
   added: "text-success",
-  removed: "text-error",
+  removed: "text-destructive",
 };
 
 /** One revision's value for a field. Copying from history is not offered. */
@@ -43,9 +43,9 @@ function DiffCard({
   caption?: string;
 }) {
   return (
-    <View className="gap-xs">
+    <View className="gap-1">
       {caption && <Text className="text-muted-foreground text-xs">{caption}</Text>}
-      <View className={`overflow-hidden rounded-lg border ${CARD_CLASS[status]}`}>
+      <View className={`overflow-hidden rounded-2xl border ${CARD_CLASS[status]}`}>
         <LoginFieldDisplay spec={spec} />
       </View>
     </View>
@@ -54,7 +54,7 @@ function DiffCard({
 
 function VersionHeading({ record, isCurrent }: { record: DecryptedRecord; isCurrent: boolean }) {
   return (
-    <View className="gap-xs">
+    <View className="gap-1">
       <Text className="font-semibold text-foreground text-sm">
         {isCurrent ? "Current version" : `Version ${record.version}`}
       </Text>
@@ -97,14 +97,14 @@ export default function VersionDetail({ recordId, version }: VersionDetailProps)
   );
 
   return (
-    <View className="gap-lg">
-      <View className="flex-row justify-between gap-md">
+    <View className="gap-6">
+      <View className="flex-row justify-between gap-4">
         <VersionHeading record={previousRecord} isCurrent={false} />
         <VersionHeading record={record} isCurrent={index === 0} />
       </View>
 
       {rows.map((row) => (
-        <View key={`${row.status}:${row.key}`} className="gap-sm">
+        <View key={`${row.status}:${row.key}`} className="gap-2">
           {STATUS_LABEL[row.status] !== "" && (
             <Text className={`font-semibold text-xs ${STATUS_LABEL_CLASS[row.status]}`}>
               {STATUS_LABEL[row.status]}

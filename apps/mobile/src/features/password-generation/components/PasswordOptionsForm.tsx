@@ -10,10 +10,10 @@ type PasswordOptionsFormProps = {
 
 export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptionsFormProps) {
   return (
-    <View className="gap-md">
-      <View className="gap-sm">
+    <View className="gap-5">
+      <View className="gap-2">
         <View className="flex-row items-center justify-between">
-          <Text className="text-foreground text-md">Length</Text>
+          <Text className="text-[16px] text-foreground">Length</Text>
           <Text className="text-muted-foreground text-sm">{pwOpts.length}</Text>
         </View>
         <Slider
@@ -53,7 +53,7 @@ export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptio
       />
 
       {(pwOpts.digits || pwOpts.symbols) && (
-        <View className="flex-row gap-md">
+        <View className="flex-row gap-4">
           {pwOpts.digits && (
             <Input
               label="Min digits"

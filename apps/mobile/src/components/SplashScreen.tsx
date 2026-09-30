@@ -1,55 +1,24 @@
-import { BlurView, BrandMark, SpinnerRing, SplashGradient, Wordmark } from "@repo/ui-native";
+import { BrandGlyph, SpinnerRing } from "@repo/ui-native";
+import { BRAND_COLOR } from "@repo/ui-shared";
 import { Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 /**
  * Branded splash shown while the persisted session is being restored, and as the
- * JS hand-off from the native boot splash. Purple brand gradient with floating
- * decor, a frosted-glass logo tile, the Passmgr wordmark, and a footer.
+ * JS hand-off from the native boot splash (same solid violet, see app.json).
  */
 export function SplashScreen() {
   const insets = useSafeAreaInsets();
 
   return (
-    <View className="flex-1 items-center justify-center bg-[#4B36D6]">
-      <SplashGradient />
-
-      {/* floating decor */}
-      <View
-        className="absolute top-[120px] left-[-40px] h-[150px] w-[150px] rounded-[44px] border-2 border-[rgba(255,255,255,0.18)]"
-        style={{ transform: [{ rotate: "18deg" }] }}
-      />
-      <View
-        className="absolute right-[-50px] bottom-[150px] h-[190px] w-[190px] rounded-[56px] border-2 border-[rgba(255,255,255,0.14)]"
-        style={{ transform: [{ rotate: "-12deg" }] }}
-      />
-      <View className="absolute top-[250px] right-[40px] h-[14px] w-[14px] rounded-[5px] bg-[rgba(255,255,255,0.5)]" />
-      <View className="absolute bottom-[280px] left-[44px] h-[10px] w-[10px] rounded-[4px] bg-[rgba(255,255,255,0.4)]" />
-
-      {/* logo + wordmark */}
-      <View className="items-center gap-[26px]">
-        <BlurView
-          intensity={18}
-          tint="light"
-          className="h-[118px] w-[118px] items-center justify-center overflow-hidden rounded-[30px] border-[1.5px] border-[rgba(255,255,255,0.35)] bg-[rgba(255,255,255,0.14)]"
-          style={{
-            shadowColor: "rgba(40,30,120,0.4)",
-            shadowOffset: { width: 0, height: 18 },
-            shadowRadius: 30,
-            shadowOpacity: 1,
-          }}
-        >
-          <BrandMark size={70} />
-        </BlurView>
-        <Wordmark size={40} />
+    <View className="flex-1 items-center justify-center" style={{ backgroundColor: BRAND_COLOR }}>
+      <View className="items-center gap-5">
+        <BrandGlyph size={88} />
+        <Text className="font-display-bold text-[40px] text-white tracking-[-0.8px]">passmgr</Text>
       </View>
 
-      {/* footer */}
-      <View className="absolute items-center gap-[14px]" style={{ bottom: insets.bottom + 64 }}>
-        <Text
-          className="text-[rgba(255,255,255,0.78)]"
-          style={{ fontSize: 14, fontWeight: "600", letterSpacing: 0.3 }}
-        >
+      <View className="absolute items-center gap-3.5" style={{ bottom: insets.bottom + 64 }}>
+        <Text className="font-semibold text-sm text-white/80 tracking-[0.3px]">
           End-to-end encrypted
         </Text>
         <SpinnerRing size={26} />

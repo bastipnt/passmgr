@@ -1,37 +1,18 @@
 import { ChevronRight } from "lucide-react-native";
-import { Children, Fragment, type ReactElement, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
-import { cn } from "../../lib/utils";
+import { SectionGroup, SectionHeading } from "./Section";
 
 type SettingsGroupProps = {
   children: ReactNode;
   className?: string;
 };
 
-/**
- * Card wrapping a run of settings rows, hairline-separated — the native shape of
- * web's `ItemGroup`.
- *
- * The separator is a plain `View` rather than the exported `Separator`, which
- * wraps a SwiftUI `Divider` and so renders nothing on Android.
- */
+/** Flush run of settings rows — web's settings overview list at phone width. */
 export function SettingsGroup({ children, className }: SettingsGroupProps) {
-  // `toArray` assigns every child a stable key, so the separators keyed off it
-  // survive a reorder — `children` here is JSX, not a mapped list.
-  const rows = Children.toArray(children) as ReactElement[];
-
-  return (
-    <View className={cn("overflow-hidden rounded-lg border border-border bg-card", className)}>
-      {rows.map((row, i) => (
-        <Fragment key={row.key}>
-          {i > 0 && <View className="h-px bg-border" />}
-          {row}
-        </Fragment>
-      ))}
-    </View>
-  );
+  return <SectionGroup className={className}>{children}</SectionGroup>;
 }
 
 type SettingsNavRowProps = {
@@ -41,7 +22,7 @@ type SettingsNavRowProps = {
   onPress: () => void;
 };
 
-/** Tappable row that pushes another screen — web's sidebar `Item` with a chevron. */
+/** Full-bleed row that pushes another screen, with a chevron. */
 export function SettingsNavRow({ title, description, icon, onPress }: SettingsNavRowProps) {
   const mutedForeground = useCSSVariable("--color-muted-foreground") as string;
 
@@ -49,15 +30,14 @@ export function SettingsNavRow({ title, description, icon, onPress }: SettingsNa
     <Pressable
       accessibilityRole="button"
       onPress={onPress}
-      className="flex-row items-center gap-lg p-md"
-      style={({ pressed }) => (pressed ? { opacity: 0.7 } : null)}
+      className="min-h-14 flex-row items-center gap-3.5 px-5 py-2 active:bg-foreground/5"
     >
       {icon}
       <View className="flex-1">
-        <Text className="text-foreground text-md">{title}</Text>
+        <Text className="text-[16px] text-foreground">{title}</Text>
         {description ? <Text className="text-muted-foreground text-sm">{description}</Text> : null}
       </View>
-      <ChevronRight size={18} color={mutedForeground} />
+      <ChevronRight size={18} color={mutedForeground} style={{ opacity: 0.6 }} />
     </Pressable>
   );
 }
@@ -66,15 +46,19 @@ type SettingsSectionProps = {
   title: string;
   description?: string;
   children: ReactNode;
+  /** Children run edge to edge (a `SectionGroup`/`OptionList`); otherwise they get the 20px gutter. */
+  flush?: boolean;
 };
 
-/** Titled block holding one control — web's `Item` + `ItemTitle` + `ItemDescription`. */
-export function SettingsSection({ title, description, children }: SettingsSectionProps) {
+/** Titled block holding one control: uppercase heading, the control, a muted hint. */
+export function SettingsSection({ title, description, children, flush }: SettingsSectionProps) {
   return (
-    <View className="gap-sm rounded-lg border border-border bg-card p-md">
-      <Text className="font-semibold text-foreground text-md">{title}</Text>
-      {description ? <Text className="text-muted-foreground text-sm">{description}</Text> : null}
-      {children}
+    <View className="gap-2">
+      <SectionHeading>{title}</SectionHeading>
+      {flush ? children : <View className="px-5">{children}</View>}
+      {description ? (
+        <Text className="px-5 text-muted-foreground text-xs leading-4">{description}</Text>
+      ) : null}
     </View>
   );
 }
