@@ -96,6 +96,35 @@
   html {
     @apply font-sans antialiased;
   }
+  /* index.html declares `color-scheme: light dark`, so with a forced theme the
+   * UA would still paint system-scheme widgets (e.g. dark autofill on a light
+   * page). Pin it to the active theme class. */
+  :root.light {
+    color-scheme: light;
+  }
+  :root.dark {
+    color-scheme: dark;
+  }
+
+  /* Browser autofill forces its own opaque highlight (`!important`, so it
+   * can't be overridden). Clip that background to the glyphs — hidden under
+   * the text fill — and repaint the field's own surface as an inset shadow
+   * (composed with the Tailwind shadow/ring stack via --tw-inset-shadow).
+   * Group controls stay transparent: the InputGroup paints the surface. */
+  input:is(:autofill, :-webkit-autofill) {
+    --tw-inset-shadow: inset 0 0 0 100vmax var(--autofill-fill, transparent);
+    -webkit-text-fill-color: var(--color-foreground);
+    caret-color: var(--color-foreground);
+    -webkit-background-clip: text;
+    background-clip: text;
+    box-shadow: var(--tw-inset-shadow);
+  }
+  [data-slot="input"] {
+    --autofill-fill: var(--color-field);
+    @variant dark {
+      --autofill-fill: rgb(255 255 255 / 0.05);
+    }
+  }
 }
 
 /*
