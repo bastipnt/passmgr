@@ -124,4 +124,18 @@ describe("RegisterPage", () => {
       expect(screen.getByText(/invite may be invalid, expired/i)).toBeInTheDocument();
     });
   });
+
+  it("locks the form while registering and unlocks it when registration fails", async () => {
+    let finish!: (key: Uint8Array | undefined) => void;
+    registerNewUser.mockReturnValue(new Promise((resolve) => (finish = resolve)));
+
+    renderWithProviders(<RegisterPage />);
+    await submitForm();
+
+    expect(screen.getByLabelText("Email")).toBeDisabled();
+    expect(screen.getByLabelText("Master password")).toBeDisabled();
+
+    finish(undefined);
+    await waitFor(() => expect(screen.getByLabelText("Email")).toBeEnabled());
+  });
 });

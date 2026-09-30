@@ -3,6 +3,7 @@ import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
+import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { toLocalDateStr } from "@repo/util";
 import { TrashIcon, XIcon } from "lucide-react";
@@ -22,7 +23,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
     (p) => recordPaths.record(p.recordId),
   );
 
-  const { deleteRecord, handleSubmit, updateRecordError } = useRecordActions({
+  const { deleteRecord, handleSubmit, updateRecordError, updatePending } = useRecordActions({
     recordId: record.recordId,
     actionCb: () => setOpen(false),
   });
@@ -42,6 +43,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
       onSubmit={handleSubmit}
       onCancel={() => setOpen(false)}
       serverError={updateRecordError?.message}
+      disabled={updatePending}
       defaultValues={defaultValues}
       action="Save"
       ref={formRef}
@@ -59,6 +61,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
         variant={isMobile ? "destructive" : "ghost-destructive"}
         type="button"
         className="text-destructive"
+        disabled={updatePending}
       >
         <TrashIcon /> Delete
       </Button>
@@ -90,8 +93,13 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
               </Button>
             </>
           )}
-          <Button size="lg" onClick={() => formRef.current?.triggerSubmit()}>
+          <Button
+            size="lg"
+            disabled={updatePending}
+            onClick={() => formRef.current?.triggerSubmit()}
+          >
             Save changes
+            {updatePending && <Spinner data-icon="inline-end" />}
           </Button>
         </div>
       </div>

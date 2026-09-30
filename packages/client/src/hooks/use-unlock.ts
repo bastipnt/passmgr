@@ -29,6 +29,7 @@ export function useUnlock() {
   const trpc = useTRPCClient();
 
   async function unlock({ email, password, userPasswordKeys }: VaultUnlockInfo) {
+    setUnlockError(false);
     let passwordKek: Uint8Array;
 
     try {
@@ -52,11 +53,18 @@ export function useUnlock() {
     if (store.needsBiometricEnroll) secretsStore.setPassword(password);
     await storeKeyMaterial(email, userPasswordKeys);
 
-    unlockVault(
-      passwordKek,
-      userPasswordKeys.encryptedVaultKey,
-      userPasswordKeys.vaultKeyEncryptionNonce,
-    );
+    try {
+      unlockVault(
+        passwordKek,
+        userPasswordKeys.encryptedVaultKey,
+        userPasswordKeys.vaultKeyEncryptionNonce,
+      );
+    } catch (e) {
+      // Wrong password on the offline path: the vault key fails to decrypt.
+      console.error("Vault unlock failed", e);
+      setUnlockError(true);
+      return;
+    }
 
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
 

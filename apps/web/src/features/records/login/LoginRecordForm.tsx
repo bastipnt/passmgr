@@ -3,6 +3,7 @@ import { type LoginRecord as FormValues, loginRecordSchema } from "@repo/schema"
 import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
+import { FormLock } from "@repo/ui/components/form/FormLock";
 import { normalizeWebsiteUrl } from "@repo/util";
 import { LockIcon, MailIcon, TagIcon } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef } from "react";
@@ -19,6 +20,8 @@ type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
   action: string;
   serverError?: string;
+  /** Locks every field while a save is in flight. */
+  disabled?: boolean;
   defaultValues?: Partial<FormValues>;
   onCancel: () => void;
   ref?: Ref<LoginRecordFormHandle>;
@@ -27,6 +30,7 @@ type LoginRecordFormProps = {
 export default function LoginRecordForm({
   onSubmit,
   serverError,
+  disabled = false,
   defaultValues,
   ref,
 }: LoginRecordFormProps) {
@@ -64,55 +68,57 @@ export default function LoginRecordForm({
       autoComplete="off"
       className="px-5 py-6 sm:px-7"
     >
-      <FieldGroup className="gap-6">
-        <FieldSet className="gap-5">
-          <div className="grid gap-5 sm:grid-cols-2">
-            <ControlledInput
-              control={control}
-              name="title"
-              label="Title"
-              autoComplete="off"
-              leadingIcon={<TagIcon />}
-            />
+      <FormLock locked={disabled}>
+        <FieldGroup className="gap-6">
+          <FieldSet className="gap-5">
+            <div className="grid gap-5 sm:grid-cols-2">
+              <ControlledInput
+                control={control}
+                name="title"
+                label="Title"
+                autoComplete="off"
+                leadingIcon={<TagIcon />}
+              />
+
+              <ControlledInput
+                control={control}
+                name="username"
+                label="Username"
+                autoComplete="off"
+                leadingIcon={<MailIcon />}
+              />
+            </div>
+
+            <PasswordField control={control} setValue={setValue} />
 
             <ControlledInput
               control={control}
-              name="username"
-              label="Username"
+              name="totp"
+              label="2FA token secret (TOTP)"
               autoComplete="off"
-              leadingIcon={<MailIcon />}
+              spellCheck={false}
+              className="font-mono"
+              leadingIcon={<LockIcon />}
             />
+          </FieldSet>
+
+          <FieldSeparator />
+
+          <div className="grid items-start gap-6 sm:grid-cols-2">
+            <WebsiteFormFields
+              control={control}
+              register={register}
+              errors={errors}
+              setValue={setValue}
+            />
+            <ExtraFormFields control={control} register={register} errors={errors} />
           </div>
 
-          <PasswordField control={control} setValue={setValue} />
+          <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
 
-          <ControlledInput
-            control={control}
-            name="totp"
-            label="2FA token secret (TOTP)"
-            autoComplete="off"
-            spellCheck={false}
-            className="font-mono"
-            leadingIcon={<LockIcon />}
-          />
-        </FieldSet>
-
-        <FieldSeparator />
-
-        <div className="grid items-start gap-6 sm:grid-cols-2">
-          <WebsiteFormFields
-            control={control}
-            register={register}
-            errors={errors}
-            setValue={setValue}
-          />
-          <ExtraFormFields control={control} register={register} errors={errors} />
-        </div>
-
-        <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
-
-        {serverError && <FieldError variant="box">{serverError}</FieldError>}
-      </FieldGroup>
+          {serverError && <FieldError variant="box">{serverError}</FieldError>}
+        </FieldGroup>
+      </FormLock>
     </form>
   );
 }

@@ -29,7 +29,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
     },
   });
 
-  const { updateRecord, updateRecordError } = useUpdateRecord({
+  const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
     onSuccess: () => {
       if (actionCb) actionCb();
       toast.success("Record saved");
@@ -61,6 +61,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
     record,
     ready,
     updateRecordError,
+    updatePending,
   };
 }
 

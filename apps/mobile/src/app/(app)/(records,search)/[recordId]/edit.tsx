@@ -38,7 +38,7 @@ export default function EditScreen() {
     extraFields: record.extraFields,
   };
 
-  const { updateRecord, updateRecordError } = useUpdateRecord({
+  const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
     onSuccess: () => {
       // TODO: add toast
       // toast.success("Record saved");
@@ -81,6 +81,7 @@ export default function EditScreen() {
     <RecordFormSheet
       onSubmit={onSubmit}
       defaultValues={defaultValues}
+      pending={updatePending}
       action="Save"
       title="Edit record"
       generatorPath={recordPaths.generatePassword(recordId)}
@@ -91,7 +92,7 @@ export default function EditScreen() {
         removeTitle="Delete"
         onRemove={onDelete}
       >
-        <Button variant="destructive">
+        <Button variant="destructive" disabled={updatePending}>
           <TrashIcon size={18} color={iconDestructiveColor} />
           <Text className="text-destructive">Delete</Text>
         </Button>

@@ -3,6 +3,7 @@ import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { ResponsiveSheet } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
+import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { isDefined } from "@repo/util";
 import { PlusIcon, XIcon } from "lucide-react";
@@ -43,7 +44,7 @@ export default function CreateRecordSheet() {
     setSearchParams(next, { replace: true });
   }
 
-  const { createRecord, createRecordError } = useCreateRecord({
+  const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: (recordId) => {
       // Straight to the new record — this also drops the `?new` param.
       navigate(recordPaths.record(recordId), { replace: true });
@@ -81,8 +82,9 @@ export default function CreateRecordSheet() {
             Cancel
           </Button>
         )}
-        <Button size="lg" onClick={() => formRef.current?.triggerSubmit()}>
+        <Button size="lg" disabled={createPending} onClick={() => formRef.current?.triggerSubmit()}>
           Create login
+          {createPending && <Spinner data-icon="inline-end" />}
         </Button>
       </div>
     </div>
@@ -111,6 +113,7 @@ export default function CreateRecordSheet() {
           onSubmit={handleSubmit}
           onCancel={close}
           serverError={createRecordError?.message}
+          disabled={createPending}
           defaultValues={initialTitle ? { title: initialTitle } : undefined}
           action="Create"
           ref={formRef}

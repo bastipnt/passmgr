@@ -8,6 +8,7 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
+  FormLock,
 } from "@repo/ui-native";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -38,8 +39,12 @@ export function RecoverSheet({ ref, onSwitchToSignIn }: RecoverSheetProps) {
 
   const onSubmit = async ({ email, recoveryKey, password }: RecoverFormValues) => {
     setLoading(true);
-    const key = await recover(email, recoveryKey, password);
-    setLoading(false);
+    let key: Uint8Array | undefined;
+    try {
+      key = await recover(email, recoveryKey, password);
+    } finally {
+      setLoading(false);
+    }
     if (!key) return;
     // Dismiss the form sheet, then present the new key over the welcome screen.
     sheetRef.current?.triggerShowHide(false);
@@ -80,36 +85,38 @@ export function RecoverSheet({ ref, onSwitchToSignIn }: RecoverSheetProps) {
           </Text>
         </View>
 
-        <ControlledInput
-          control={control}
-          name="email"
-          label="Email"
-          autoCapitalize="none"
-          autoComplete="username"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-        />
-        <ControlledInput
-          control={control}
-          name="recoveryKey"
-          label="Recovery key"
-          autoCapitalize="none"
-          autoComplete="off"
-          autoCorrect={false}
-          spellCheck={false}
-        />
-        <ControlledPasswordInput
-          control={control}
-          name="password"
-          label="New password"
-          textContentType="newPassword"
-        />
-        <ControlledPasswordInput
-          control={control}
-          name="confirmPassword"
-          label="Confirm new password"
-          textContentType="newPassword"
-        />
+        <FormLock locked={loading} className="gap-lg">
+          <ControlledInput
+            control={control}
+            name="email"
+            label="Email"
+            autoCapitalize="none"
+            autoComplete="username"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+          />
+          <ControlledInput
+            control={control}
+            name="recoveryKey"
+            label="Recovery key"
+            autoCapitalize="none"
+            autoComplete="off"
+            autoCorrect={false}
+            spellCheck={false}
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="password"
+            label="New password"
+            textContentType="newPassword"
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="confirmPassword"
+            label="Confirm new password"
+            textContentType="newPassword"
+          />
+        </FormLock>
 
         {recoveryError && (
           <FieldError errors={[{ message: RECOVERY_ERROR_MESSAGES[recoveryError] }]} />

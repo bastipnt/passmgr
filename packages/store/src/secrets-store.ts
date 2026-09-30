@@ -39,8 +39,11 @@ class SecretsStore {
     encryptedVaultKeyB64: string,
     vaultKeyEncryptionNonceB64: string,
   ) {
-    this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
-    wipe(passwordKek);
+    try {
+      this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
+    } finally {
+      wipe(passwordKek);
+    }
   }
 
   /**

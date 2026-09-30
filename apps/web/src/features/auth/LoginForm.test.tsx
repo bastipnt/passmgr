@@ -87,4 +87,21 @@ describe("LoginForm", () => {
     );
     expect(screen.getByRole("button", { name: /unlock vault/i })).toBeDisabled();
   });
+
+  it("locks the fields while loading and restores focus afterwards", async () => {
+    const props = { onSubmit: vi.fn(), loginError: false, unlockError: false };
+    const { rerender } = renderWithProviders(<LoginForm {...props} loading={false} />);
+    const pw = screen.getByLabelText("Password");
+    await userEvent.click(pw);
+
+    rerender(<LoginForm {...props} loading />);
+    expect(pw).toBeDisabled();
+    expect(screen.getByLabelText("Email")).toBeDisabled();
+    // Browsers drop focus from a control once it's disabled; jsdom doesn't.
+    pw.blur();
+
+    rerender(<LoginForm {...props} loading={false} />);
+    expect(pw).toBeEnabled();
+    expect(pw).toHaveFocus();
+  });
 });

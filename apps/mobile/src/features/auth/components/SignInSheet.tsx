@@ -8,6 +8,7 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
+  FormLock,
 } from "@repo/ui-native";
 import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -77,34 +78,36 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         <Text className="text-muted-foreground text-sm">Welcome back to Passmgr.</Text>
       </View>
 
-      <ControlledInput
-        control={control}
-        name="email"
-        label="Email"
-        autoCapitalize="none"
-        autoComplete="username"
-        keyboardType="email-address"
-        textContentType="emailAddress"
-      />
+      <FormLock locked={loading} className="gap-lg">
+        <ControlledInput
+          control={control}
+          name="email"
+          label="Email"
+          autoCapitalize="none"
+          autoComplete="username"
+          keyboardType="email-address"
+          textContentType="emailAddress"
+        />
 
-      <ControlledPasswordInput
-        control={control}
-        name="password"
-        label="Password"
-        textContentType="password"
-        note={
-          <Pressable
-            className="mt-xs self-end"
-            hitSlop={8}
-            onPress={() => {
-              sheetRef.current?.triggerShowHide(false);
-              onForgotPassword();
-            }}
-          >
-            <Text className="font-bold text-primary text-xs">Forgot password?</Text>
-          </Pressable>
-        }
-      />
+        <ControlledPasswordInput
+          control={control}
+          name="password"
+          label="Password"
+          textContentType="password"
+          note={
+            <Pressable
+              className="mt-xs self-end"
+              hitSlop={8}
+              onPress={() => {
+                sheetRef.current?.triggerShowHide(false);
+                onForgotPassword();
+              }}
+            >
+              <Text className="font-bold text-primary text-xs">Forgot password?</Text>
+            </Pressable>
+          }
+        />
+      </FormLock>
 
       {loginThrottled ? (
         <FieldError errors={[{ message: "Too many login attempts. Please wait and try again." }]} />

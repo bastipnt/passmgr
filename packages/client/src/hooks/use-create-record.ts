@@ -12,7 +12,11 @@ export function useCreateRecord({ onSuccess }: UseCreateRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();
 
-  const { mutate, error: mutationError } = useMutation(
+  const {
+    mutate,
+    error: mutationError,
+    isPending,
+  } = useMutation(
     trpc.record.create.mutationOptions({
       onSuccess: async (result) => {
         await store.vault.upsertRecords([result]);
@@ -22,5 +26,5 @@ export function useCreateRecord({ onSuccess }: UseCreateRecordOpts) {
     }),
   );
 
-  return { createRecord: mutate, createRecordError: mutationError };
+  return { createRecord: mutate, createRecordError: mutationError, createPending: isPending };
 }

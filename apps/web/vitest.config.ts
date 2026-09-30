@@ -19,6 +19,9 @@ export default defineConfig({
     include: ["src/**/*.test.{ts,tsx}"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     setupFiles: ["./src/test/setup.ts"],
+    // Node 25+ ships its own `localStorage` global (undefined without
+    // `--localstorage-file`), which shadows jsdom's.
+    execArgv: ["--no-experimental-webstorage"],
     testTimeout: 10_000,
     coverage: {
       provider: "v8",

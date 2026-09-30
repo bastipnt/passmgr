@@ -13,6 +13,7 @@ import {
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
+import { FormLock } from "@repo/ui/components/form/FormLock";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
 import { Spinner } from "@repo/ui/components/Spinner";
 import {
@@ -62,9 +63,12 @@ export default function RecoverPage() {
 
   const onSubmit = async ({ email, recoveryKey, password }: RecoverFormValues) => {
     setLoading(true);
-    const key = await recover(email, recoveryKey, password);
-    setLoading(false);
-    if (key) setNewRecoveryKey(key);
+    try {
+      const key = await recover(email, recoveryKey, password);
+      if (key) setNewRecoveryKey(key);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const pasteRecoveryKey = async () => {
@@ -95,79 +99,84 @@ export default function RecoverPage() {
       </AuthHero>
 
       <form onSubmit={handleSubmit(onSubmit)}>
-        <Card variant="glass">
-          <CardHeader>
-            <CardTitle>Reset password</CardTitle>
-            <CardDescription>
-              Remembered it? <AuthTextLink href={authPaths.login}>Log in</AuthTextLink>
-            </CardDescription>
-          </CardHeader>
+        <FormLock locked={loading}>
+          <Card variant="glass">
+            <CardHeader>
+              <CardTitle>Reset password</CardTitle>
+              <CardDescription>
+                Remembered it? <AuthTextLink href={authPaths.login}>Log in</AuthTextLink>
+              </CardDescription>
+            </CardHeader>
 
-          <CardContent>
-            <FieldGroup className="gap-5">
-              <ControlledInput
-                control={control}
-                name="email"
-                label="Email"
-                type="email"
-                autoComplete="username"
-                leadingIcon={<MailIcon />}
-              />
-              <ControlledInput
-                control={control}
-                name="recoveryKey"
-                label="Recovery key"
-                autoComplete="off"
-                spellCheck={false}
-                className="font-mono"
-                leadingIcon={<KeyRoundIcon />}
-                addon={
-                  <InputGroupAddon align="inline-end">
-                    <InputGroupButton variant="outline" onClick={pasteRecoveryKey}>
-                      Paste
-                    </InputGroupButton>
-                  </InputGroupAddon>
-                }
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="password"
-                label="New password"
-                autoComplete="new-password"
-                leadingIcon={<LockIcon />}
-                labelAction={
-                  <span className="text-muted-foreground text-xs">min. 8 characters</span>
-                }
-                hint={<NewPasswordHint control={control} />}
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="confirmPassword"
-                label="Confirm new password"
-                autoComplete="new-password"
-                leadingIcon={<LockIcon />}
-                hint={<PasswordsMatch control={control} />}
-              />
+            <CardContent>
+              <FieldGroup className="gap-5">
+                <ControlledInput
+                  control={control}
+                  name="email"
+                  label="Email"
+                  type="email"
+                  autoComplete="username"
+                  leadingIcon={<MailIcon />}
+                />
+                <ControlledInput
+                  control={control}
+                  name="recoveryKey"
+                  label="Recovery key"
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="font-mono"
+                  leadingIcon={<KeyRoundIcon />}
+                  addon={
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton variant="outline" onClick={pasteRecoveryKey}>
+                        Paste
+                      </InputGroupButton>
+                    </InputGroupAddon>
+                  }
+                />
+                <ControlledPasswordInput
+                  control={control}
+                  name="password"
+                  label="New password"
+                  autoComplete="new-password"
+                  leadingIcon={<LockIcon />}
+                  labelAction={
+                    <span className="text-muted-foreground text-xs">min. 8 characters</span>
+                  }
+                  hint={<NewPasswordHint control={control} />}
+                />
+                <ControlledPasswordInput
+                  control={control}
+                  name="confirmPassword"
+                  label="Confirm new password"
+                  autoComplete="new-password"
+                  leadingIcon={<LockIcon />}
+                  hint={<PasswordsMatch control={control} />}
+                />
 
-              <AuthNote icon={<TriangleAlertIcon className="text-[#e0a100] dark:text-[#ffb23f]" />}>
-                You&apos;ll be <strong className="font-semibold">signed out on all devices</strong>.
-              </AuthNote>
+                <AuthNote
+                  icon={<TriangleAlertIcon className="text-[#e0a100] dark:text-[#ffb23f]" />}
+                >
+                  You&apos;ll be{" "}
+                  <strong className="font-semibold">signed out on all devices</strong>.
+                </AuthNote>
 
-              {recoveryError && (
-                <FieldError variant="box">{RECOVERY_ERROR_MESSAGES[recoveryError]}</FieldError>
-              )}
-
-              <Button type="submit" size="lg" className="w-full" disabled={loading}>
-                Reset password
-                {loading ? (
-                  <Spinner data-icon="inline-end" />
-                ) : (
-                  <ArrowRightIcon data-icon="inline-end" />
+                {recoveryError && (
+                  <FieldError variant="box">{RECOVERY_ERROR_MESSAGES[recoveryError]}</FieldError>
                 )}
-              </Button>
-            </FieldGroup>
-          </CardContent>
-        </Card>
+
+                <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                  Reset password
+                  {loading ? (
+                    <Spinner data-icon="inline-end" />
+                  ) : (
+                    <ArrowRightIcon data-icon="inline-end" />
+                  )}
+                </Button>
+              </FieldGroup>
+            </CardContent>
+          </Card>
+        </FormLock>
       </form>
     </>
   );

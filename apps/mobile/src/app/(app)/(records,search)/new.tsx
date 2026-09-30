@@ -8,7 +8,7 @@ import { recordPaths } from "@/route-paths";
 export default function NewRecordScreen() {
   const router = useRouter();
 
-  const { createRecord, createRecordError } = useCreateRecord({
+  const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: () => {
       // TODO: add toast
       // toast.success("Record created");
@@ -34,6 +34,7 @@ export default function NewRecordScreen() {
     <RecordFormSheet
       onSubmit={onSubmit}
       serverError={createRecordError?.message}
+      pending={createPending}
       action="Create"
       title="New record"
       generatorPath={recordPaths.createGeneratePassword}

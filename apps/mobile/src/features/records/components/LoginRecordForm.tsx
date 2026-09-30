@@ -7,12 +7,12 @@ import {
   FieldGroup,
   FieldSeparator,
   FieldSet,
+  FormLock,
 } from "@repo/ui-native";
 import type { Href } from "expo-router";
 import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react-native";
 import { type Ref, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
-import { View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import ExtraFormFields from "@/features/records/components/ExtraFormFields";
 import PasswordField from "@/features/records/components/PasswordField";
@@ -28,6 +28,8 @@ type LoginRecordFormProps = {
   /** Route of the generator sheet the password field opens. */
   generatorPath: Href;
   serverError?: string;
+  /** Locks every field while a save is in flight. */
+  disabled?: boolean;
   defaultValues?: Partial<FormValues>;
   ref?: Ref<LoginRecordFormHandle>;
 };
@@ -35,6 +37,7 @@ type LoginRecordFormProps = {
 export default function LoginRecordForm({
   onSubmit,
   serverError,
+  disabled = false,
   defaultValues,
   generatorPath,
   ref,
@@ -61,7 +64,7 @@ export default function LoginRecordForm({
   );
 
   return (
-    <View>
+    <FormLock locked={disabled}>
       <FieldGroup className="*:pr-8">
         <FieldSet>
           <ControlledInput
@@ -118,6 +121,6 @@ export default function LoginRecordForm({
 
         {serverError && <FieldError>{serverError}</FieldError>}
       </FieldGroup>
-    </View>
+    </FormLock>
   );
 }

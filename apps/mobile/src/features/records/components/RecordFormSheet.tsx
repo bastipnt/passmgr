@@ -17,6 +17,8 @@ type RecordFormSheetProps = {
   /** Title shown in the sheet's header. */
   title: string;
   serverError?: string;
+  /** A save is in flight: locks the form and its submit action. */
+  pending?: boolean;
   defaultValues?: Partial<LoginRecord>;
   /** Rendered below the form — e.g. the edit screen's delete button. */
   children?: ReactNode;
@@ -33,6 +35,7 @@ export default function RecordFormSheet({
   action,
   title,
   serverError,
+  pending = false,
   defaultValues,
   children,
 }: RecordFormSheetProps) {
@@ -73,6 +76,7 @@ export default function RecordFormSheet({
               label: action,
               variant: "prominent",
               tintColor: primaryColor,
+              disabled: pending,
               onPress: () => formRef.current?.triggerSubmit(),
             },
           ],
@@ -87,6 +91,7 @@ export default function RecordFormSheet({
         <LoginRecordForm
           onSubmit={onSubmit}
           serverError={serverError}
+          disabled={pending}
           defaultValues={defaultValues}
           action={action}
           generatorPath={generatorPath}

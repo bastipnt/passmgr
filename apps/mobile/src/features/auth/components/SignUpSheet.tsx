@@ -8,6 +8,7 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
+  FormLock,
   StrengthMeter,
 } from "@repo/ui-native";
 import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -57,8 +58,12 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);
-    const key = await registerNewUser(email, password);
-    setLoading(false);
+    let key: Uint8Array | undefined;
+    try {
+      key = await registerNewUser(email, password);
+    } finally {
+      setLoading(false);
+    }
     if (!key) return;
     // Dismiss the form sheet, then present the recovery key over the welcome screen.
     sheetRef.current?.triggerShowHide(false);
@@ -96,30 +101,32 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
           <Text className="text-muted-foreground text-sm">Set up your secure vault.</Text>
         </View>
 
-        <ControlledInput
-          control={control}
-          name="email"
-          label="Email"
-          autoCapitalize="none"
-          autoComplete="username"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-        />
-        <ControlledPasswordInput
-          control={control}
-          name="password"
-          label="Password"
-          textContentType="newPassword"
-          note={strength && <StrengthMeter level={strength.level} label={strength.label} />}
-        />
-        <ControlledPasswordInput
-          control={control}
-          name="confirmPassword"
-          label="Confirm password"
-          textContentType="newPassword"
-        />
+        <FormLock locked={loading} className="gap-lg">
+          <ControlledInput
+            control={control}
+            name="email"
+            label="Email"
+            autoCapitalize="none"
+            autoComplete="username"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="password"
+            label="Password"
+            textContentType="newPassword"
+            note={strength && <StrengthMeter level={strength.level} label={strength.label} />}
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="confirmPassword"
+            label="Confirm password"
+            textContentType="newPassword"
+          />
 
-        <TermsRow checked={agreed} onChange={setAgreed} />
+          <TermsRow checked={agreed} onChange={setAgreed} />
+        </FormLock>
 
         {registrationError && (
           <FieldError

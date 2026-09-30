@@ -27,34 +27,34 @@ export default function LoginPage() {
 
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
+    try {
+      let unlockVaultInfo: VaultUnlockInfo | undefined;
 
-    let unlockVaultInfo: VaultUnlockInfo | undefined;
+      if (isOffline && store.vaultKeyMaterial !== null) {
+        unlockVaultInfo = {
+          email,
+          password,
+          userPasswordKeys: store.vaultKeyMaterial,
+        };
 
-    if (isOffline && store.vaultKeyMaterial !== null) {
-      unlockVaultInfo = {
-        email,
-        password,
-        userPasswordKeys: store.vaultKeyMaterial,
-      };
+        // Session id gets set to "offline"
+        offlineLogin();
+        // Store password for auto-reconnect when back online
+        secretsStore.setPassword(password);
+      } else {
+        // only authentication with the server
+        unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
+      }
 
-      // Session id gets set to "offline"
-      offlineLogin();
-      // Store password for auto-reconnect when back online
-      secretsStore.setPassword(password);
-    } else {
-      // only authentication with the server
-      unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
-    }
+      // something went wrong
+      // TODO: error handling
+      if (!unlockVaultInfo) return;
 
-    // something went wrong
-    // TODO: error handling
-    if (!unlockVaultInfo) {
+      // unlock vault (store)
+      await timed("total unlock time", () => unlock(unlockVaultInfo));
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // unlock vault (store)
-    await timed("total unlock time", () => unlock(unlockVaultInfo));
   };
 
   const unlocking = !!storedEmail && loginWithStoredEmail;

@@ -34,4 +34,15 @@ describe("LoginRecordForm", () => {
       expect(ac === null || ac === "off").toBe(true);
     }
   });
+
+  it("disables every field while a save is in flight", () => {
+    const props = { onSubmit: vi.fn(), action: "Save", onCancel: vi.fn() };
+    const { rerender } = renderWithProviders(<LoginRecordForm {...props} disabled />);
+    for (const input of document.querySelectorAll("input, textarea")) {
+      expect(input).toBeDisabled();
+    }
+
+    rerender(<LoginRecordForm {...props} disabled={false} />);
+    expect(screen.getByLabelText("Title")).toBeEnabled();
+  });
 });
