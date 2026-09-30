@@ -29,6 +29,14 @@ class Argon2WorkerService {
         }
       };
 
+      // E.g. the worker script can't be fetched (offline, not yet cached). Without
+      // this the promise never settles. Drop the worker so the next call retries.
+      worker.onerror = (event: ErrorEvent) => {
+        event.preventDefault();
+        this.terminate();
+        reject(new Error(`Argon2 worker failed: ${event.message || "could not load"}`));
+      };
+
       const saltCopy = salt.slice();
       worker.postMessage({ type: "derive", password, salt: saltCopy.buffer, params }, [
         saltCopy.buffer,

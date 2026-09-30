@@ -43,7 +43,11 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   const [loggedIn, setLoggedIn] = useState(false);
   const [vaultUnlocked, setVaultUnlocked] = useState(false);
   // TODO: offline state should come from network?
-  const [isOffline, setIsOffline] = useState(false);
+  // Seeded from `navigator.onLine`: a page loaded while already offline (served by
+  // the service worker) never sees an `offline` event and would try the server.
+  const [isOffline, setIsOffline] = useState(
+    () => typeof navigator !== "undefined" && navigator.onLine === false,
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
