@@ -1,5 +1,5 @@
 import type { VaultUnlockInfo } from "@repo/schema";
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import {
   LoginFinishFailedError,
   LoginStartFailedError,
@@ -12,7 +12,7 @@ import { useTRPCClient } from "../util/trpc";
 
 export function useLogin() {
   const trpc = useTRPCClient();
-  const { loginSession, offlineLoginSession } = useContext(SessionContext);
+  const { loginSession } = useContext(SessionContext);
   const [loginError, setLoginError] = useState(false);
   const [loginThrottled, setLoginThrottled] = useState(false);
 
@@ -22,7 +22,7 @@ export function useLogin() {
    * so the caller can run it off the main thread.
    */
   async function loginUser(email: string, password: string): Promise<VaultUnlockInfo | undefined> {
-    setLoginThrottled(false);
+    clearLoginErrors();
     try {
       return await loginUserCore(trpc, loginSession, email, password);
     } catch (err) {
@@ -42,9 +42,17 @@ export function useLogin() {
     }
   }
 
-  function offlineLogin() {
-    offlineLoginSession();
-  }
+  /** Hide a previous attempt's error, e.g. once the user edits the credentials. */
+  const clearLoginError = useCallback(() => setLoginError(false), []);
 
-  return { loginUser, offlineLogin, loginError, loginThrottled };
+  /**
+   * Also hides the throttle warning — only when it no longer applies (a new
+   * attempt, another account). An edit alone doesn't lift the server's lock.
+   */
+  const clearLoginErrors = useCallback(() => {
+    setLoginError(false);
+    setLoginThrottled(false);
+  }, []);
+
+  return { loginUser, clearLoginError, clearLoginErrors, loginError, loginThrottled };
 }

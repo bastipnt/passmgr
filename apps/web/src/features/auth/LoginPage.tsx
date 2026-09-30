@@ -1,10 +1,8 @@
 import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
-import type { VaultUnlockInfo } from "@repo/schema";
-import { secretsStore } from "@repo/store";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ShieldCheckIcon, TrashIcon } from "lucide-react";
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
@@ -15,8 +13,8 @@ import LoginForm from "./LoginForm";
 import StoredAccountRow from "./StoredAccountRow";
 
 export default function LoginPage() {
-  const { loginUser, offlineLogin, loginError, loginThrottled } = useLogin();
-  const { unlock, unlockError } = useUnlock();
+  const { loginUser, clearLoginError, clearLoginErrors, loginError, loginThrottled } = useLogin();
+  const { unlock, offlineUnlock, unlockError, clearUnlockError } = useUnlock();
 
   const [loginWithStoredEmail, setLoginWithStoredEmail] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -28,23 +26,13 @@ export default function LoginPage() {
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
     try {
-      let unlockVaultInfo: VaultUnlockInfo | undefined;
-
       if (isOffline && store.vaultKeyMaterial !== null) {
-        unlockVaultInfo = {
-          email,
-          password,
-          userPasswordKeys: store.vaultKeyMaterial,
-        };
-
-        // Session id gets set to "offline"
-        offlineLogin();
-        // Store password for auto-reconnect when back online
-        secretsStore.setPassword(password);
-      } else {
-        // only authentication with the server
-        unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
+        await timed("total unlock time", () => offlineUnlock(email, password));
+        return;
       }
+
+      // only authentication with the server
+      const unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
 
       // something went wrong
       // TODO: error handling
@@ -58,7 +46,17 @@ export default function LoginPage() {
   };
 
   const unlocking = !!storedEmail && loginWithStoredEmail;
-  const toggleStoredLogin = () => setLoginWithStoredEmail((prev) => !prev);
+  // Stable: `LoginForm` subscribes to edits with it.
+  const onEdit = useCallback(() => {
+    clearLoginError();
+    clearUnlockError();
+  }, [clearLoginError, clearUnlockError]);
+  const toggleStoredLogin = () => {
+    // Another account: the throttle warning no longer applies either.
+    clearLoginErrors();
+    clearUnlockError();
+    setLoginWithStoredEmail((prev) => !prev);
+  };
 
   return (
     <>
@@ -129,6 +127,7 @@ export default function LoginPage() {
           loginThrottled={loginThrottled}
           unlockError={unlockError}
           loading={loading}
+          onEdit={onEdit}
         />
 
         {storedEmail && !unlocking && (

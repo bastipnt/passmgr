@@ -1,5 +1,5 @@
 import { encryptRecord, useDeleteRecord, useGetRecord, useUpdateRecord } from "@repo/client";
-import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import { CURRENT_CRYPTO_VERSION, type DecryptedRecord, type LoginRecord } from "@repo/schema";
 import { Button, RemoveDialog } from "@repo/ui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
@@ -18,15 +18,22 @@ function Fallback() {
 }
 
 export default function EditScreen() {
-  const iconDestructiveColor = useCSSVariable("--color-destructive") as string;
-  const router = useRouter();
-
   const { recordId } = useLocalSearchParams();
-
   if (!recordId || typeof recordId !== "string") return <Fallback />;
+  return <EditRecordLoader recordId={recordId} />;
+}
 
+/** Waits for the records to load; `ready` flips mid-mount, so no hooks may follow it here. */
+function EditRecordLoader({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
   if (!ready || !record) return <Fallback />;
+  return <EditRecord record={record} />;
+}
+
+function EditRecord({ record }: { record: DecryptedRecord }) {
+  const iconDestructiveColor = useCSSVariable("--color-destructive") as string;
+  const router = useRouter();
+  const { recordId } = record;
 
   const defaultValues: Partial<LoginRecord> = {
     title: record.title,
@@ -49,7 +56,7 @@ export default function EditScreen() {
   const onSubmit = (data: LoginRecord) => {
     const normalizedValues = normalizeFormValues(data);
     const { encryptedData, encryptionNonce } = encryptRecord({
-      schemaVersion: record!.schemaVersion,
+      schemaVersion: record.schemaVersion,
       ...normalizedValues,
     });
     updateRecord({
@@ -57,7 +64,7 @@ export default function EditScreen() {
       encryptedData,
       encryptionNonce,
       cryptoVersion: CURRENT_CRYPTO_VERSION,
-      version: record!.version,
+      version: record.version,
       clientUpdatedAt: new Date().toISOString(),
     });
   };
@@ -81,6 +88,7 @@ export default function EditScreen() {
     <RecordFormSheet
       onSubmit={onSubmit}
       defaultValues={defaultValues}
+      serverError={updateRecordError?.message}
       pending={updatePending}
       action="Save"
       title="Edit record"

@@ -1,6 +1,9 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import", "typescript", "unicorn", "eslint", "oxc"],
+  "rules": {
+    "react/rules-of-hooks": "error"
+  },
   "env": {
     "browser": true,
     "node": true

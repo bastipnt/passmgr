@@ -10,9 +10,7 @@ vi.mock("@repo/client", () => ({
 describe("LoginForm", () => {
   it("submits with form values on happy path", async () => {
     const onSubmit = vi.fn().mockResolvedValue(undefined);
-    renderWithProviders(
-      <LoginForm onSubmit={onSubmit} loginError={false} unlockError={false} loading={false} />,
-    );
+    renderWithProviders(<LoginForm onSubmit={onSubmit} loginError={false} loading={false} />);
 
     await userEvent.type(screen.getByLabelText("Email"), "user@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
@@ -28,7 +26,7 @@ describe("LoginForm", () => {
   it("renders generic error on loginError without leaking password to the DOM", async () => {
     const password = "supersecret123";
     const { container } = renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} loginError={true} unlockError={false} loading={false} />,
+      <LoginForm onSubmit={vi.fn()} loginError={true} loading={false} />,
     );
     await userEvent.type(screen.getByLabelText("Password"), password);
 
@@ -41,15 +39,13 @@ describe("LoginForm", () => {
 
   it("renders generic error on unlockError", () => {
     renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={true} loading={false} />,
+      <LoginForm onSubmit={vi.fn()} loginError={false} unlockError="failed" loading={false} />,
     );
     expect(screen.getByText(/check your email and password/i)).toBeInTheDocument();
   });
 
   it("password input has type=password and autocomplete=current-password", () => {
-    renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={false} loading={false} />,
-    );
+    renderWithProviders(<LoginForm onSubmit={vi.fn()} loginError={false} loading={false} />);
 
     const pw = screen.getByLabelText("Password") as HTMLInputElement;
     expect(pw.type).toBe("password");
@@ -57,9 +53,7 @@ describe("LoginForm", () => {
   });
 
   it("email input has autocomplete=username", () => {
-    renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={false} loading={false} />,
-    );
+    renderWithProviders(<LoginForm onSubmit={vi.fn()} loginError={false} loading={false} />);
 
     const email = screen.getByLabelText("Email") as HTMLInputElement;
     expect(email.autocomplete).toBe("username");
@@ -71,7 +65,6 @@ describe("LoginForm", () => {
         onSubmit={vi.fn()}
         storedEmail="stored@example.com"
         loginError={false}
-        unlockError={false}
         loading={false}
       />,
     );
@@ -82,14 +75,12 @@ describe("LoginForm", () => {
   });
 
   it("disables submit button while loading", () => {
-    renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} loginError={false} unlockError={false} loading={true} />,
-    );
+    renderWithProviders(<LoginForm onSubmit={vi.fn()} loginError={false} loading={true} />);
     expect(screen.getByRole("button", { name: /unlock vault/i })).toBeDisabled();
   });
 
   it("locks the fields while loading and restores focus afterwards", async () => {
-    const props = { onSubmit: vi.fn(), loginError: false, unlockError: false };
+    const props = { onSubmit: vi.fn(), loginError: false };
     const { rerender } = renderWithProviders(<LoginForm {...props} loading={false} />);
     const pw = screen.getByLabelText("Password");
     await userEvent.click(pw);
@@ -103,5 +94,30 @@ describe("LoginForm", () => {
     rerender(<LoginForm {...props} loading={false} />);
     expect(pw).toBeEnabled();
     expect(pw).toHaveFocus();
+  });
+
+  it("explains that only the stored account unlocks offline", () => {
+    renderWithProviders(
+      <LoginForm
+        onSubmit={vi.fn()}
+        loginError={false}
+        unlockError="wrong_account"
+        loading={false}
+      />,
+    );
+    expect(screen.getByText(/can't switch accounts offline/i)).toBeInTheDocument();
+    expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
+  });
+
+  it("reports user edits, but not the stored account being swapped in", async () => {
+    const onEdit = vi.fn();
+    const props = { onSubmit: vi.fn(), loginError: true, loading: false, onEdit };
+    const { rerender } = renderWithProviders(<LoginForm {...props} />);
+
+    rerender(<LoginForm {...props} storedEmail="alice@example.com" />);
+    expect(onEdit).not.toHaveBeenCalled();
+
+    await userEvent.type(screen.getByLabelText("Password"), "x");
+    expect(onEdit).toHaveBeenCalled();
   });
 });

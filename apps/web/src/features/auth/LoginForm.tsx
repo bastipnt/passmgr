@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAppConfig } from "@repo/client";
+import { type UnlockError, useAppConfig } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -37,8 +37,10 @@ type LoginFormProps = {
   footer?: ReactNode;
   loginError: boolean;
   loginThrottled?: boolean;
-  unlockError: boolean;
+  unlockError?: UnlockError;
   loading: boolean;
+  /** The user edited a field — a shown error no longer applies. */
+  onEdit?: () => void;
 };
 
 export default function LoginForm({
@@ -51,9 +53,10 @@ export default function LoginForm({
   loginThrottled = false,
   unlockError,
   loading,
+  onEdit,
 }: LoginFormProps) {
   const { registrationEnabled } = useAppConfig();
-  const { handleSubmit, control, setValue } = useForm<LoginFormValues>({
+  const { handleSubmit, control, setValue, watch } = useForm<LoginFormValues>({
     resolver: zodResolver(userCredentialsSchema),
     defaultValues: {
       email: storedEmail,
@@ -64,6 +67,16 @@ export default function LoginForm({
   useEffect(() => {
     setValue("email", storedEmail ?? "");
   }, [storedEmail, setValue]);
+
+  // User input only (`type === "change"`): the `setValue` above also fires when
+  // the stored account changes, e.g. right as a failed login reports its error.
+  useEffect(() => {
+    if (!onEdit) return;
+    const subscription = watch((_, { type }) => {
+      if (type === "change") onEdit();
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, onEdit]);
 
   const unlocking = !!storedEmail;
 
@@ -115,6 +128,11 @@ export default function LoginForm({
                   <strong className="font-semibold">Too many login attempts.</strong> Please wait
                   and try again.
                 </FieldWarning>
+              ) : unlockError === "wrong_account" ? (
+                <FieldError variant="box">
+                  <strong className="font-semibold">Can&apos;t switch accounts offline.</strong>{" "}
+                  Only the account stored on this device can be unlocked without a connection.
+                </FieldError>
               ) : (
                 (loginError || unlockError) && (
                   <FieldError variant="box">

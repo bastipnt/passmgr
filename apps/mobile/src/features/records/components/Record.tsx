@@ -66,7 +66,10 @@ type RecordProps = {
 
 export default function Record({ recordId }: RecordProps) {
   if (!recordId || typeof recordId !== "string") return <Fallback />;
+  return <RecordBody recordId={recordId} />;
+}
 
+function RecordBody({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
   // Above the `ready` guard: that flips mid-mount, and a hook after it would
   // change the hook order between renders.

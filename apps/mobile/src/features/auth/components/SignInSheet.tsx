@@ -10,7 +10,7 @@ import {
   FieldError,
   FormLock,
 } from "@repo/ui-native";
-import { type Ref, useImperativeHandle, useRef, useState } from "react";
+import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Pressable, Text, View } from "react-native";
 import z from "zod";
@@ -30,18 +30,29 @@ type SignInSheetProps = {
 
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { loginUser, loginError, loginThrottled } = useLogin();
-  const { unlock, unlockError } = useUnlock();
+  const { loginUser, clearLoginError, loginError, loginThrottled } = useLogin();
+  const { unlock, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
   }));
 
-  const { handleSubmit, control } = useForm<FormValues>({
+  const { handleSubmit, control, watch } = useForm<FormValues>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  // Editing the credentials makes a shown error stale. The throttle warning stays:
+  // an edit alone does not lift the server's lock.
+  useEffect(() => {
+    const subscription = watch((_, { type }) => {
+      if (type !== "change") return;
+      clearLoginError();
+      clearUnlockError();
+    });
+    return () => subscription.unsubscribe();
+  }, [watch, clearLoginError, clearUnlockError]);
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);
