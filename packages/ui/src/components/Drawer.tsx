@@ -47,10 +47,7 @@ function DrawerActions({ children, className }: { children: React.ReactNode; cla
   return (
     <div
       data-slot="drawer-actions"
-      className={cn(
-        "sticky-bar px-4 pt-2 pb-4 [--sticky-bar-fill:color-mix(in_oklab,var(--color-popover)_55%,transparent)] dark:[--sticky-bar-fill:color-mix(in_oklab,var(--color-popover)_85%,transparent)]",
-        className,
-      )}
+      className={cn("sticky-bar sticky-bar-popover px-4 pt-2 pb-4", className)}
     >
       <DrawerHandle />
       {children}

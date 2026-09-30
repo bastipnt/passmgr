@@ -20,13 +20,30 @@ type ResponsiveSheetProps = {
   title?: string;
   /** Subtitle under the sheet title (desktop). */
   description?: ReactNode;
-  /** Leading visual in the sheet header, e.g. the record's avatar (desktop). */
+  /** Leading slot in the sheet header, e.g. the record's avatar or a back button (desktop). */
   media?: ReactNode;
   children: ReactNode;
   actions?: ReactNode;
   drawerClassName?: string;
   sheetClassName?: string;
 };
+
+/**
+ * Publishes the sticky header's height as --sheet-header-h on the scroll
+ * content, so rows inside it can pin right beneath the header.
+ */
+function publishHeaderHeight(header: HTMLDivElement | null) {
+  const content = header?.parentElement;
+  if (!header || !content) return;
+  const observer = new ResizeObserver(() => {
+    content.style.setProperty("--sheet-header-h", `${header.offsetHeight}px`);
+  });
+  observer.observe(header);
+  return () => {
+    observer.disconnect();
+    content.style.removeProperty("--sheet-header-h");
+  };
+}
 
 function ResponsiveSheet({
   open,
@@ -65,7 +82,10 @@ function ResponsiveSheet({
     >
       <SheetContent side="right" className={sheetClassName}>
         {title && (
-          <SheetHeader className="flex-row items-center justify-start gap-4">
+          <SheetHeader
+            ref={publishHeaderHeight}
+            className="flex-row items-center justify-start gap-4"
+          >
             {media}
             <div className="flex min-w-0 flex-col gap-0.5">
               <SheetTitle>{title}</SheetTitle>

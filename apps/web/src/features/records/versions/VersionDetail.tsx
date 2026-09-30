@@ -7,13 +7,10 @@ import {
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
-import { Button } from "@repo/ui/components/Button";
 import { Skeleton } from "@repo/ui/components/Skeleton";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { toLocalDateStr } from "@repo/util";
-import { ChevronLeftIcon } from "lucide-react";
-import { Link } from "wouter";
-import { recordPaths } from "@/app/route-paths";
 import LoginFieldDisplay from "../login/LoginFieldDisplay";
 
 // Unchanged rows recede; diffs get a tinted card in their status colour.
@@ -82,6 +79,18 @@ function DiffCell({
   );
 }
 
+/** The opened revision and the one it replaced (newest first, so right after it). */
+function useVersionPair(recordId: string, version: number) {
+  const { versions, ready } = useRecordHistory(recordId);
+  const index = versions.findIndex((v) => v.version === version);
+  return {
+    ready,
+    record: versions[index],
+    previousRecord: versions[index + 1],
+    isCurrent: index === 0,
+  };
+}
+
 function VersionHeading({ record, isCurrent }: { record: DecryptedRecord; isCurrent: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 px-1">
@@ -93,6 +102,30 @@ function VersionHeading({ record, isCurrent }: { record: DecryptedRecord; isCurr
   );
 }
 
+/**
+ * "Version n ↔ version n+1" labels over the two diff columns. On phones they
+ * ride in the drawer's action bar; the sheet pins them under its header.
+ */
+export function VersionHeadings({
+  recordId,
+  version,
+  className,
+}: {
+  recordId: string;
+  version: number;
+  className?: string;
+}) {
+  const { record, previousRecord, isCurrent } = useVersionPair(recordId, version);
+  if (!record || !previousRecord) return null;
+
+  return (
+    <div className={cn("grid grid-cols-2 gap-x-4", className)}>
+      <VersionHeading record={previousRecord} isCurrent={false} />
+      <VersionHeading record={record} isCurrent={isCurrent} />
+    </div>
+  );
+}
+
 export default function VersionDetail({
   recordId,
   version,
@@ -100,14 +133,10 @@ export default function VersionDetail({
   recordId: string;
   version: number;
 }) {
-  const { versions, ready } = useRecordHistory(recordId);
+  const isMobile = useIsMobile();
+  const { ready, record, previousRecord } = useVersionPair(recordId, version);
 
   if (!ready) return <Skeleton className="m-7 h-40 rounded-2xl" />;
-
-  // Newest first, so the revision this one replaced sits right after it.
-  const index = versions.findIndex((v) => v.version === version);
-  const record = versions[index];
-  const previousRecord = versions[index + 1];
 
   if (!record) {
     return <p className="p-4 text-muted-foreground text-sm">This version no longer exists.</p>;
@@ -126,27 +155,20 @@ export default function VersionDetail({
   );
 
   return (
-    <div className="flex flex-col justify-stretch gap-4 px-5 py-6 sm:px-7">
-      <div className="flex items-center justify-between gap-4">
-        <Button
-          variant="outline"
-          size="sm"
-          nativeButton={false}
-          render={<Link href={recordPaths.recordVersions(recordId)} />}
-        >
-          <ChevronLeftIcon /> All versions
-        </Button>
-        <p className="text-muted-foreground text-xs">Unchanged fields are dimmed</p>
-      </div>
+    <div className="flex flex-col justify-stretch gap-4 px-5 pb-6 sm:px-7">
+      <p className="pt-6 text-muted-foreground text-xs">Unchanged fields are dimmed</p>
+
+      {!isMobile && (
+        <VersionHeadings
+          recordId={recordId}
+          version={version}
+          className="sticky-bar sticky-bar-popover top-(--sheet-header-h)! -mx-7 px-7 py-3"
+        />
+      )}
 
       <div className="flex flex-col gap-3 sm:grid sm:grid-cols-2 sm:items-start sm:gap-x-4">
         {/* `sm:contents` dissolves these wrappers back into grid cells, so the
             stacked layout can group a row without changing the grid. */}
-        <div className="flex flex-row items-start justify-between gap-4 sm:contents">
-          <VersionHeading record={previousRecord} isCurrent={false} />
-          <VersionHeading record={record} isCurrent={index === 0} />
-        </div>
-
         {rows.map((row) => (
           <div key={`${row.status}:${row.key}`} className="flex flex-col gap-1.5 sm:contents">
             {STATUS_LABEL[row.status] && (

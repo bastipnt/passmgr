@@ -399,6 +399,16 @@
   }
 }
 
+/* Sticky-bar frost tinted with the popover color, for bars inside sheets and
+ * drawers (lightly in light mode, so the bar at rest shows the popover ground). */
+@utility sticky-bar-popover {
+  --sticky-bar-fill: color-mix(in oklab, var(--color-popover) 55%, transparent);
+
+  @variant dark {
+    --sticky-bar-fill: color-mix(in oklab, var(--color-popover) 85%, transparent);
+  }
+}
+
 /* For a sticky bar whose frost reaches the viewport top on phones. Safari's
  * status bar there is one flat --edge-tint, so the frost starts as that color
  * (solid across the safe area) and clears toward its bottom, where the mask
