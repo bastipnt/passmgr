@@ -140,6 +140,12 @@
    * glass-tinted ground). Dark mode adds none: even the faint glass fill
    * reads as a strip there. */
   --sticky-bar-fill: var(--glass-fill);
+  /* Floating popups (menus, selects) sit over busy content, so they frost
+   * denser than the panels and carry a lit top edge like the floating buttons. */
+  --glass-popover-fill: rgb(255 255 255 / 0.72);
+  --glass-popover-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.9), 0 1px 2px rgb(22 20 31 / 0.06),
+    0 18px 40px -12px rgb(22 20 31 / 0.25);
   /* Body ground. iOS Safari fills its status bar and bottom toolbar with this
    * one flat color (page content never paints there, not even fixed layers),
    * so it's the light field's average tone rather than the bare background. */
@@ -153,6 +159,8 @@
   --field-opacity: 0.5;
   --sticky-bar-fill: transparent;
   --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
+  --glass-popover-fill: rgb(28 26 40 / 0.72);
+  --glass-popover-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 18px 40px -12px rgb(0 0 0 / 0.7);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -163,6 +171,9 @@
     --field-opacity: 0.5;
     --sticky-bar-fill: transparent;
     --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
+    --glass-popover-fill: rgb(28 26 40 / 0.72);
+    --glass-popover-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 0.1), 0 18px 40px -12px rgb(0 0 0 / 0.7);
   }
 }
 
@@ -259,6 +270,20 @@
 
   @media (prefers-reduced-transparency: reduce) {
     background-color: var(--color-card);
+    backdrop-filter: none;
+  }
+}
+
+/* Frosted popup (dropdown menus, select lists): denser than `glass` so items
+ * stay legible over whatever scrolls beneath. */
+@utility glass-popover {
+  background-color: var(--glass-popover-fill);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-popover-shadow);
+  backdrop-filter: blur(24px) saturate(1.6);
+
+  @media (prefers-reduced-transparency: reduce) {
+    background-color: var(--color-popover);
     backdrop-filter: none;
   }
 }
