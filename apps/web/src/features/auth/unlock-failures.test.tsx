@@ -2,7 +2,8 @@ import { SessionContext } from "@repo/client";
 import { useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
 import { useUnlock } from "@repo/client/src/hooks/use-unlock";
 import { loginUser as loginUserCore } from "@repo/client/src/login";
-import { genKey, wrapVaultKey } from "@repo/crypto";
+import { genKey, getPasswordKekParams, wrapAccountKey, wrapVaultKey } from "@repo/crypto";
+import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVaultKey } from "@repo/schema";
 import { clearLoginBundle, type LoginBundle, loadLoginBundle, secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
@@ -25,6 +26,9 @@ vi.mock("@repo/crypto", async (importActual) => ({
 vi.mock("@repo/client/src/login", async (importActual) => ({
   ...(await importActual<object>()),
   loginUser: vi.fn(),
+}));
+vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
+  argon2WorkerService: { derive: vi.fn() },
 }));
 vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
   decryptWorkerService: { init: vi.fn() },
@@ -79,6 +83,12 @@ const session = {
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadVaultKeys(wraps);
   }),
+  unlockVault: vi.fn(
+    (kek: Uint8Array, encrypted: string, nonce: string, wraps: readonly MemberVaultKey[]) => {
+      secretsStore.unlockAccount(kek, encrypted, nonce);
+      secretsStore.loadVaultKeys(wraps);
+    },
+  ),
   endSession: vi.fn(),
   loginSession: vi.fn(async () => {
     secretsStore.sessionId = "live-session";
@@ -180,5 +190,89 @@ describe("biometricUnlock failure path", () => {
     expect(secretsStore.sessionId).toBeUndefined();
     expect(secretsStore.isVaultUnlocked).toBe(false);
     await waitFor(() => expect(result.current.unlockError).toBe("failed"));
+  });
+});
+
+describe("unlock: whose local data is this?", () => {
+  /** A login result for a fresh account, plus the KEK the mocked Argon2 hands out. */
+  function account() {
+    const kek = genKey();
+    const { accountKey, wraps } = keyring();
+    const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(kek, accountKey);
+    const userPasswordKeys = {
+      // Current params: no background rekey kicks in.
+      passwordKekParams: getPasswordKekParams(),
+      passwordKekSalt: toBase64(genKey()),
+      encryptedAccountKey,
+      accountKeyEncryptionNonce,
+    };
+    vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
+    return { userPasswordKeys, wraps };
+  }
+
+  async function unlockWith(keys: ReturnType<typeof account>) {
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    let unlocked = false;
+    await act(async () => {
+      unlocked = await result.current.unlock({
+        email: "Alice@Example.com",
+        password: "pw",
+        userPasswordKeys: keys.userPasswordKeys,
+        vaultKeys: keys.wraps,
+      });
+    });
+    return unlocked;
+  }
+
+  it("clears leftover local data when nothing is cached for any account", async () => {
+    const keys = account();
+    Object.assign(store, { accountKeyMaterial: null });
+    store.vault.getVaultKeys.mockResolvedValue([]);
+
+    expect(await unlockWith(keys)).toBe(true);
+    expect(store.vault.clear).toHaveBeenCalledTimes(1);
+    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears the local data when the same email comes back with a new personal vault", async () => {
+    const previous = account();
+    const keys = account();
+    Object.assign(store, {
+      accountKeyMaterial: { ...previous.userPasswordKeys, email: "alice@example.com" },
+    });
+    store.vault.getVaultKeys.mockResolvedValue([
+      { ...previous.wraps[0]!, vaultId: "0199a3c4-0000-7000-8000-0000000000ff" },
+    ]);
+
+    expect(await unlockWith(keys)).toBe(true);
+    expect(store.vault.clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the local data for the same account and skips the unchanged write", async () => {
+    const keys = account();
+    Object.assign(store, {
+      accountKeyMaterial: { ...keys.userPasswordKeys, email: "alice@example.com" },
+    });
+    store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
+
+    expect(await unlockWith(keys)).toBe(true);
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
+  });
+
+  it("keeps the local data but stores the new wrap after a password change elsewhere", async () => {
+    const keys = account();
+    Object.assign(store, {
+      accountKeyMaterial: {
+        ...keys.userPasswordKeys,
+        passwordKekSalt: toBase64(genKey()),
+        email: "alice@example.com",
+      },
+    });
+    store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
+
+    expect(await unlockWith(keys)).toBe(true);
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledTimes(1);
   });
 });

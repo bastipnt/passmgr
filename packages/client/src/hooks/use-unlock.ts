@@ -30,6 +30,10 @@ function passwordKeysEqual(a: PasswordKeySchema, b: PasswordKeySchema): boolean 
   );
 }
 
+function personalVaultId(vaultKeys: readonly MemberVaultKey[]): string | undefined {
+  return vaultKeys.find((wrap) => wrap.kind === "personal")?.vaultId;
+}
+
 function vaultKeysEqual(a: readonly MemberVaultKey[], b: readonly MemberVaultKey[]): boolean {
   if (a.length !== b.length) return false;
   const byId = new Map(a.map((wrap) => [wrap.vaultId, wrap]));
@@ -265,14 +269,21 @@ export function useUnlock() {
   ) {
     // Offline unlock passes the typed email; compare in canonical form.
     const email = normalizeEmail(rawEmail);
-    // Clear previous user's data if a different account logs in
     const previous = store.accountKeyMaterial;
-    if (previous && previous.email !== email) await store.vault.clear();
+    const cachedVaultKeys = await store.vault.getVaultKeys();
+
+    // The local data belongs to another account unless both the email and the
+    // personal vault match: a personal vault never changes, so a new one means
+    // the account was replaced (e.g. re-registered after a server reset). With
+    // nothing cached there's no way to tell whose leftover data is in there.
+    // Either way, drop it before any of it is decrypted with the wrong keys.
+    const sameAccount =
+      previous?.email === email && personalVaultId(cachedVaultKeys) === personalVaultId(vaultKeys);
+    if (!sameAccount) await store.vault.clear();
     // Offline unlocks (and most logins) hand back what's already stored.
     else if (
-      previous &&
       passwordKeysEqual(previous, userPasswordKeys) &&
-      vaultKeysEqual(await store.vault.getVaultKeys(), vaultKeys)
+      vaultKeysEqual(cachedVaultKeys, vaultKeys)
     ) {
       return;
     }
