@@ -1,26 +1,25 @@
-import type { SqlDriver } from "../driver";
+import { eq, sql } from "drizzle-orm";
+import type { LocalDb } from "../local-db";
+import { syncMeta } from "./tables";
 
-export const CREATE_SYNC_META_SCHEMA_SQL = /* sql */ `
-  CREATE TABLE IF NOT EXISTS sync_meta (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-`;
+const LAST_SYNCED_AT = "lastSyncedAt";
 
-export async function clearSyncTable(db: SqlDriver) {
-  await db.run(`DELETE FROM sync_meta`);
+export async function clearSyncTable(db: LocalDb) {
+  await db.delete(syncMeta);
 }
 
-export async function getLastSyncTimestamp(db: SqlDriver): Promise<string | null> {
-  const rows = await db.all<{ value: string }>(/* sql */ `
-    SELECT value FROM sync_meta WHERE key = 'lastSyncedAt'
-  `);
-  return rows[0]?.value ?? null;
+export async function getLastSyncTimestamp(db: LocalDb): Promise<string | null> {
+  const row = await db
+    .select({ value: syncMeta.value })
+    .from(syncMeta)
+    .where(eq(syncMeta.key, LAST_SYNCED_AT))
+    .get();
+  return row?.value ?? null;
 }
 
-export async function setLastSyncTimestamp(ts: string, db: SqlDriver): Promise<void> {
-  await db.run(
-    /* sql */ `INSERT OR REPLACE INTO sync_meta (key, value) VALUES ('lastSyncedAt', ?)`,
-    [ts],
-  );
+export async function setLastSyncTimestamp(ts: string, db: LocalDb): Promise<void> {
+  await db
+    .insert(syncMeta)
+    .values({ key: LAST_SYNCED_AT, value: ts })
+    .onConflictDoUpdate({ target: syncMeta.key, set: { value: sql`excluded.value` } });
 }

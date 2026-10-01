@@ -1,8 +1,9 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
 import type { SqlDriver } from "./driver";
+import { createLocalDb, type LocalDb } from "./local-db";
+import { migrate } from "./migrations";
 import {
-  CREATE_KEYS_SCHEMA_SQL,
   clearBiometricKey,
   clearKeysTable,
   getBiometricKey,
@@ -11,42 +12,37 @@ import {
   upsertVaultKey,
 } from "./schema/keys-schema";
 import {
-  CREATE_RECORDS_SCHEMA_SQL,
   clearRecordsTable,
   getAllRecordsLatest,
   getByRecordId,
   upsertRecords,
 } from "./schema/records-schema";
-import {
-  CREATE_SYNC_META_SCHEMA_SQL,
-  clearSyncTable,
-  getLastSyncTimestamp,
-  setLastSyncTimestamp,
-} from "./schema/sync-schema";
-
-const SCHEMA_STATEMENTS = [
-  CREATE_RECORDS_SCHEMA_SQL,
-  CREATE_KEYS_SCHEMA_SQL,
-  CREATE_SYNC_META_SCHEMA_SQL,
-];
+import { clearSyncTable, getLastSyncTimestamp, setLastSyncTimestamp } from "./schema/sync-schema";
 
 export class Vault {
-  private db: SqlDriver;
-  private initialized: Promise<void>;
+  private driver: SqlDriver;
+  private db: LocalDb;
+  private initialized?: Promise<void>;
 
   constructor(driver: SqlDriver) {
-    this.db = driver;
-    this.initialized = this.init();
+    this.driver = driver;
+    this.db = createLocalDb(driver);
+    // Start migrating right away; callers see a failure through `ready()`.
+    this.ready().catch(() => undefined);
   }
 
-  private async init(): Promise<void> {
-    for (const stmt of SCHEMA_STATEMENTS) {
-      await this.db.run(stmt);
-    }
+  private ready(): Promise<void> {
+    this.initialized ??= migrate(this.driver).catch((error: unknown) => {
+      // Let the next call retry instead of failing forever (e.g. after a lock timeout).
+      this.initialized = undefined;
+      throw error;
+    });
+    return this.initialized;
   }
 
-  private async ready(): Promise<void> {
-    await this.initialized;
+  /** Run fn atomically against a Drizzle handle bound to the transaction. */
+  private async transaction<T>(fn: (tx: LocalDb) => Promise<T>): Promise<T> {
+    return await this.driver.transaction((tx) => fn(createLocalDb(tx)));
   }
 
   /**
@@ -55,7 +51,8 @@ export class Vault {
 
   async upsertRecords(records: EncryptedRecordSchema[]): Promise<void> {
     await this.ready();
-    await upsertRecords(records, this.db);
+    if (records.length === 0) return;
+    await this.transaction((tx) => upsertRecords(records, tx));
   }
 
   async getAllLatest(): Promise<EncryptedRecordSchema[]> {
@@ -121,12 +118,14 @@ export class Vault {
 
   async clear(): Promise<void> {
     await this.ready();
-    await clearRecordsTable(this.db);
-    await clearKeysTable(this.db);
-    await clearSyncTable(this.db);
+    await this.transaction(async (tx) => {
+      await clearRecordsTable(tx);
+      await clearKeysTable(tx);
+      await clearSyncTable(tx);
+    });
   }
 
   async destroy(): Promise<void> {
-    await this.db.destroy();
+    await this.driver.destroy();
   }
 }

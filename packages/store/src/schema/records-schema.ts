@@ -1,85 +1,93 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import type { SqlDriver } from "../driver";
+import { and, desc, eq, isNull, max, min, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/sqlite-core";
+import type { LocalDb } from "../local-db";
+import { records } from "./tables";
 
-export const CREATE_RECORDS_SCHEMA_SQL = /* sql */ `
-  CREATE TABLE IF NOT EXISTS records (
-    recordId TEXT NOT NULL,
+// 9 bound columns per row: well below SQLite's variable limit per statement.
+const UPSERT_CHUNK_SIZE = 500;
 
-    encryptedData TEXT NOT NULL,
-    encryptionNonce TEXT NOT NULL,
+/** Server-sent rows replace the local copy of the same (recordId, version). */
+const replaceOnConflict = {
+  target: [records.recordId, records.version],
+  set: {
+    encryptedData: sql`excluded.encryptedData`,
+    encryptionNonce: sql`excluded.encryptionNonce`,
+    cryptoVersion: sql`excluded.cryptoVersion`,
+    clientUpdatedAt: sql`excluded.clientUpdatedAt`,
+    created_at: sql`excluded.created_at`,
+    updated_at: sql`excluded.updated_at`,
+    deleted_at: sql`excluded.deleted_at`,
+  },
+};
 
-    cryptoVersion INTEGER NOT NULL DEFAULT 1,
-    version INTEGER NOT NULL DEFAULT 1,
-
-    clientUpdatedAt TEXT NOT NULL,
-    created_at TEXT,
-    updated_at TEXT,
-    deleted_at TEXT,
-
-    PRIMARY KEY (recordId, version)
-  );
-`;
-
-export async function clearRecordsTable(db: SqlDriver) {
-  await db.run(`DELETE FROM records`);
+export async function clearRecordsTable(db: LocalDb) {
+  await db.delete(records);
 }
 
-export async function upsertRecords(
-  records: EncryptedRecordSchema[],
-  db: SqlDriver,
-): Promise<void> {
-  if (records.length === 0) return;
-
-  await db.transaction(async (tx) => {
-    for (const record of records) {
-      await tx.run(
-        /* sql */ `
-          INSERT OR REPLACE INTO records (
-            recordId, encryptedData, encryptionNonce, cryptoVersion,
-            version, clientUpdatedAt, created_at, updated_at, deleted_at
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `,
-        [
-          record.recordId,
-          record.encryptedData,
-          record.encryptionNonce,
-          record.cryptoVersion,
-          record.version,
-          record.clientUpdatedAt,
-          record.created_at,
-          record.updated_at,
-          record.deleted_at,
-        ],
-      );
-    }
-  });
+/** Run inside a transaction: large inputs span several statements. */
+export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb): Promise<void> {
+  for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
+    const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE).map((r) => ({
+      recordId: r.recordId,
+      encryptedData: r.encryptedData,
+      encryptionNonce: r.encryptionNonce,
+      cryptoVersion: r.cryptoVersion,
+      version: r.version,
+      clientUpdatedAt: r.clientUpdatedAt,
+      created_at: r.created_at,
+      updated_at: r.updated_at,
+      deleted_at: r.deleted_at,
+    }));
+    await db.insert(records).values(chunk).onConflictDoUpdate(replaceOnConflict);
+  }
 }
 
-export async function getAllRecordsLatest(db: SqlDriver): Promise<EncryptedRecordSchema[]> {
-  return await db.all<EncryptedRecordSchema>(/* sql */ `
-    SELECT r.*, firstCreatedAt
-    FROM records r
-    INNER JOIN (
-      SELECT recordId, MAX(version) AS maxVersion, MIN(created_at) AS firstCreatedAt
-      FROM records
-      GROUP BY recordId
-    ) latest ON r.recordId = latest.recordId AND r.version = latest.maxVersion
-    WHERE r.deleted_at IS NULL
-  `);
+/** The latest version of every record that isn't deleted, with its first creation date. */
+export async function getAllRecordsLatest(db: LocalDb): Promise<EncryptedRecordSchema[]> {
+  const latest = db
+    .select({
+      recordId: records.recordId,
+      maxVersion: max(records.version).as("maxVersion"),
+      firstCreatedAt: min(records.created_at).as("firstCreatedAt"),
+    })
+    .from(records)
+    .groupBy(records.recordId)
+    .as("latest");
+
+  const rows = await db
+    .select({ record: records, firstCreatedAt: latest.firstCreatedAt })
+    .from(records)
+    .innerJoin(
+      latest,
+      and(eq(records.recordId, latest.recordId), eq(records.version, latest.maxVersion)),
+    )
+    .where(isNull(records.deleted_at));
+
+  return rows.map(({ record, firstCreatedAt }) => ({
+    ...record,
+    firstCreatedAt: firstCreatedAt ?? undefined,
+  }));
 }
 
+/** The latest version of one record (deleted or not), with its first creation date. */
 export async function getByRecordId(
   recordId: string,
-  db: SqlDriver,
+  db: LocalDb,
 ): Promise<EncryptedRecordSchema | undefined> {
-  const rows = await db.all<EncryptedRecordSchema>(
-    /* sql */ `
-      SELECT r.*, min(r.created_at) over (partition by r.recordId) as firstCreatedAt FROM records r
-      WHERE recordId = ?
-      ORDER BY version DESC
-      LIMIT 1
-    `,
-    [recordId],
-  );
-  return rows[0];
+  const versions = alias(records, "versions");
+  const firstCreatedAt = db
+    .select({ value: min(versions.created_at) })
+    .from(versions)
+    .where(eq(versions.recordId, records.recordId));
+
+  const row = await db
+    .select({ record: records, firstCreatedAt: sql<string | null>`(${firstCreatedAt})` })
+    .from(records)
+    .where(eq(records.recordId, recordId))
+    .orderBy(desc(records.version))
+    .limit(1)
+    .get();
+
+  return row && { ...row.record, firstCreatedAt: row.firstCreatedAt ?? undefined };
 }

@@ -1,6 +1,6 @@
 # ADR 0001 — Offline-first, local vaults, multiple vaults and record types
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 - **Tracking:** kanbot board "TODO", label `offline-first` / `multi-vault`
 
