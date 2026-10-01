@@ -60,12 +60,15 @@ const argonParams = z
 
 export type ArgonParams = z.infer<typeof argonParams>;
 
-// The recovery-key-wrapped copy of the vault key (handed back during recovery).
+// Key hierarchy (ADR 0001 D3): the password KEK and the recovery KEK each wrap
+// the account key; the account key wraps one key per vault.
+
+// The recovery-key-wrapped copy of the account key (handed back during recovery).
 export const recoveryWrapSchema = z.object({
   recoveryKekSalt: z.base64().length(44),
 
-  encryptedVaultKeyRecovery: z.base64().length(64),
-  vaultKeyEncryptionNonceRecovery: z.base64().length(32),
+  encryptedAccountKeyRecovery: z.base64().length(64),
+  accountKeyEncryptionNonceRecovery: z.base64().length(32),
 });
 
 export const recoveryKeySchema = z.object({
@@ -79,8 +82,8 @@ export const passwordKeySchema = z.object({
   passwordKekParams: argonParams,
   passwordKekSalt: z.base64().length(44),
 
-  encryptedVaultKey: z.base64().length(64),
-  vaultKeyEncryptionNonce: z.base64().length(32),
+  encryptedAccountKey: z.base64().length(64),
+  accountKeyEncryptionNonce: z.base64().length(32),
 });
 
 export const userKeySchema = z.object({
@@ -88,13 +91,32 @@ export const userKeySchema = z.object({
   ...passwordKeySchema.shape,
 });
 
+/** A vault key wrapped by the account key; the AAD binds it to vaultId + keyVersion. */
+export const vaultKeyWrapSchema = z.object({
+  vaultId: z.uuid(),
+  keyVersion: z.number().int().positive(),
+  encryptedVaultKey: z.base64().length(64),
+  vaultKeyEncryptionNonce: z.base64().length(32),
+});
+
+export const vaultKindSchema = z.enum(["personal", "shared"]);
+
+/** A vault key the user holds, as handed out at login. */
+export const memberVaultKeySchema = z.object({
+  ...vaultKeyWrapSchema.shape,
+  kind: vaultKindSchema,
+});
+
 export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
+export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
+export type VaultKind = z.infer<typeof vaultKindSchema>;
+export type MemberVaultKey = z.infer<typeof memberVaultKeySchema>;
 
-// for client
-export const VAULT_KEY = [...Object.keys(passwordKeySchema.shape), "email"];
+// for client: the account key material cached on the device for offline unlock
+export const ACCOUNT_KEY_MATERIAL_KEYS = [...Object.keys(passwordKeySchema.shape), "email"];
 
-export type VaultKeyMaterial = PasswordKeySchema & {
+export type AccountKeyMaterial = PasswordKeySchema & {
   email: string;
 };

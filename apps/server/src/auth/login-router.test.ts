@@ -5,7 +5,7 @@ import { truncateAll } from "../../test/setup/db-helpers";
 import { clientStartLogin, clientStartRegistration } from "../../test/setup/opaque-client";
 import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
 import { buildTestContext } from "../../test/setup/test-context";
-import { buildUserKeys } from "../../test/setup/user-keys";
+import { buildRegistrationKeys } from "../../test/setup/user-keys";
 import { redis } from "../redis";
 import { appRouter } from "../router";
 import { createCallerFactory } from "../trpc";
@@ -21,8 +21,8 @@ async function register(email: string, password: string) {
     registrationRequest: started.registrationRequest,
   });
   const { registrationRecord } = await started.finish(registrationResponse, email);
-  const { recoveryKey: _r, ...userKeys } = await buildUserKeys(password);
-  await caller.register.finishRegistration({ email, registrationRecord, userKeys });
+  const { userKeys, personalVault } = await buildRegistrationKeys(password);
+  await caller.register.finishRegistration({ email, registrationRecord, userKeys, personalVault });
 }
 
 beforeEach(async () => {

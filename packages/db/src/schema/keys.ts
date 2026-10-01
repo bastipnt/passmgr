@@ -22,11 +22,11 @@ export const keysTable = pgTable(
     passwordKekParams: json().notNull().$type<ArgonParams>(),
     passwordKekSalt: varchar().notNull().unique(),
 
-    encryptedVaultKey: varchar().notNull().unique(),
-    vaultKeyEncryptionNonce: varchar().notNull().unique(),
+    encryptedAccountKey: varchar().notNull().unique(),
+    accountKeyEncryptionNonce: varchar().notNull().unique(),
 
-    encryptedVaultKeyRecovery: varchar().notNull(),
-    vaultKeyEncryptionNonceRecovery: varchar().notNull(),
+    encryptedAccountKeyRecovery: varchar().notNull(),
+    accountKeyEncryptionNonceRecovery: varchar().notNull(),
 
     // SHA-256 of the client's recovery auth key (see `deriveRecoveryAuthKey`).
     // Null for accounts registered before recovery existed — those can't recover.

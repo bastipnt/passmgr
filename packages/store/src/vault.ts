@@ -1,15 +1,15 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVaultKey } from "@repo/schema";
 import type { SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate } from "./migrations";
 import {
   clearBiometricKey,
   clearKeysTable,
+  getAccountKey,
   getBiometricKey,
-  getVaultKey,
-  upsertBiometricVaultKey,
-  upsertVaultKey,
+  upsertAccountKey,
+  upsertBiometricKey,
 } from "./schema/keys-schema";
 import {
   clearRecordsTable,
@@ -18,6 +18,7 @@ import {
   upsertRecords,
 } from "./schema/records-schema";
 import { clearSyncTable, getLastSyncTimestamp, setLastSyncTimestamp } from "./schema/sync-schema";
+import { clearVaultsTable, getVaultKeys, replaceVaultKeys } from "./schema/vaults-schema";
 
 export class Vault {
   private driver: SqlDriver;
@@ -66,17 +67,29 @@ export class Vault {
   }
 
   /**
-   * VAULT KEY
+   * ACCOUNT KEY + VAULT KEYS (what an offline unlock needs)
    */
 
-  async setVaultKeyMaterial(vaultKey: VaultKeyMaterial): Promise<void> {
+  /** Store the account key wrap and the vault key wraps together, atomically. */
+  async setAccountKeyMaterial(
+    material: AccountKeyMaterial,
+    vaultKeys: readonly MemberVaultKey[],
+  ): Promise<void> {
     await this.ready();
-    await upsertVaultKey(vaultKey, this.db);
+    await this.transaction(async (tx) => {
+      await upsertAccountKey(material, tx);
+      await replaceVaultKeys(vaultKeys, tx);
+    });
   }
 
-  async getVaultKeyMaterial(): Promise<VaultKeyMaterial | null> {
+  async getAccountKeyMaterial(): Promise<AccountKeyMaterial | null> {
     await this.ready();
-    return await getVaultKey(this.db);
+    return await getAccountKey(this.db);
+  }
+
+  async getVaultKeys(): Promise<MemberVaultKey[]> {
+    await this.ready();
+    return await getVaultKeys(this.db);
   }
 
   /**
@@ -85,7 +98,7 @@ export class Vault {
 
   async setBiometricKeyMaterial(biometricKey: BiometricKeyMaterial): Promise<void> {
     await this.ready();
-    await upsertBiometricVaultKey(biometricKey, this.db);
+    await upsertBiometricKey(biometricKey, this.db);
   }
 
   async getBiometricKeyMaterial(): Promise<BiometricKeyMaterial | null> {
@@ -122,6 +135,7 @@ export class Vault {
       await clearRecordsTable(tx);
       await clearKeysTable(tx);
       await clearSyncTable(tx);
+      await clearVaultsTable(tx);
     });
   }
 

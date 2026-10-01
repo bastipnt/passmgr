@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripQuery } from "../logger";
-import { getConnectionParamsSave } from "./general";
+import { getConnectionParamsSave, isUniqueViolation } from "./general";
 
 describe("getConnectionParamsSave", () => {
   it("extracts the four auth fields", () => {
@@ -28,5 +28,22 @@ describe("stripQuery", () => {
       "/trpc/record.onRecordChange",
     );
     expect(stripQuery("/trpc/login.startLogin")).toBe("/trpc/login.startLogin");
+  });
+});
+
+describe("isUniqueViolation", () => {
+  it("detects the Postgres code directly and through wrapped causes", () => {
+    const pgError = Object.assign(new Error("duplicate key"), { code: "23505" });
+    expect(isUniqueViolation(pgError)).toBe(true);
+    expect(isUniqueViolation(new Error("query failed", { cause: pgError }))).toBe(true);
+  });
+
+  it.each([
+    ["another Postgres error", Object.assign(new Error("fk"), { code: "23503" })],
+    ["a plain error", new Error("boom")],
+    ["a non-error", "23505"],
+    ["undefined", undefined],
+  ])("is false for %s", (_label, error) => {
+    expect(isUniqueViolation(error)).toBe(false);
   });
 });

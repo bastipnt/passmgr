@@ -148,7 +148,7 @@ afterEach(() => {
 describe("BIOMETRIC_KEY", () => {
   it("lists the six material fields in a stable order", () => {
     expect(BIOMETRIC_KEY).toEqual([
-      "biometricEncryptedVaultKey",
+      "biometricEncryptedAccountKey",
       "biometricNonce",
       "biometricEncryptedPassword",
       "biometricPasswordNonce",
@@ -202,33 +202,33 @@ describe("isPrfSupported", () => {
 
 describe("enrollBiometric / authenticateBiometric", () => {
   it("returns all six BIOMETRIC_KEY material fields on enrollment", async () => {
-    const vaultKey = new Uint8Array(32).fill(7);
-    const material = await enrollBiometric(vaultKey, "hunter2");
+    const accountKey = new Uint8Array(32).fill(7);
+    const material = await enrollBiometric(accountKey, "hunter2");
     for (const k of BIOMETRIC_KEY) {
       expect(typeof material[k]).toBe("string");
       expect(material[k].length).toBeGreaterThan(0);
     }
   });
 
-  it("round-trips vaultKey and password through authenticateBiometric", async () => {
-    const vaultKey = new Uint8Array(32);
-    crypto.getRandomValues(vaultKey);
+  it("round-trips accountKey and password through authenticateBiometric", async () => {
+    const accountKey = new Uint8Array(32);
+    crypto.getRandomValues(accountKey);
     const password = "correct horse battery staple";
-    const material = await enrollBiometric(vaultKey, password);
+    const material = await enrollBiometric(accountKey, password);
 
     const recovered = await authenticateBiometric(material);
-    expect(recovered.vaultKey).toEqual(vaultKey);
+    expect(recovered.accountKey).toEqual(accountKey);
     expect(recovered.password).toBe(password);
   });
 
   it("produces distinct material across two enrollments of the same key+password", async () => {
-    const vaultKey = new Uint8Array(32).fill(9);
-    const a = await enrollBiometric(vaultKey, "p");
-    const b = await enrollBiometric(vaultKey, "p");
+    const accountKey = new Uint8Array(32).fill(9);
+    const a = await enrollBiometric(accountKey, "p");
+    const b = await enrollBiometric(accountKey, "p");
     expect(a.credentialId).not.toBe(b.credentialId);
     expect(a.prfSalt).not.toBe(b.prfSalt);
     expect(a.biometricNonce).not.toBe(b.biometricNonce);
-    expect(a.biometricEncryptedVaultKey).not.toBe(b.biometricEncryptedVaultKey);
+    expect(a.biometricEncryptedAccountKey).not.toBe(b.biometricEncryptedAccountKey);
   });
 
   it("throws when WebAuthn credential creation is cancelled", async () => {
@@ -255,11 +255,11 @@ describe("enrollBiometric / authenticateBiometric", () => {
 
   it("round-trips when PRF output is only obtained from a follow-up get() call", async () => {
     fakeAuthenticatorState.deferPrfToGet = true;
-    const vaultKey = new Uint8Array(32).fill(3);
-    const material = await enrollBiometric(vaultKey, "p");
+    const accountKey = new Uint8Array(32).fill(3);
+    const material = await enrollBiometric(accountKey, "p");
     fakeAuthenticatorState.deferPrfToGet = false; // authenticate uses normal get
     const recovered = await authenticateBiometric(material);
-    expect(recovered.vaultKey).toEqual(vaultKey);
+    expect(recovered.accountKey).toEqual(accountKey);
     expect(recovered.password).toBe("p");
   });
 
@@ -270,9 +270,9 @@ describe("enrollBiometric / authenticateBiometric", () => {
   });
 
   it("fails to authenticate against tampered material (wrong prfSalt)", async () => {
-    const vaultKey = new Uint8Array(32).fill(5);
+    const accountKey = new Uint8Array(32).fill(5);
     const material: BiometricKeyMaterial = {
-      ...(await enrollBiometric(vaultKey, "p")),
+      ...(await enrollBiometric(accountKey, "p")),
     };
     const tampered: BiometricKeyMaterial = {
       ...material,

@@ -1,5 +1,5 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVaultKey } from "@repo/schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
@@ -33,16 +33,28 @@ function record(
   };
 }
 
-const vaultKey: VaultKeyMaterial = {
+const accountKey: AccountKeyMaterial = {
   email: "a@b.c",
   passwordKekParams: { t: 3, m: 65536, p: 4 },
   passwordKekSalt: "salt",
-  encryptedVaultKey: "enc",
-  vaultKeyEncryptionNonce: "nonce",
+  encryptedAccountKey: "enc",
+  accountKeyEncryptionNonce: "nonce",
 };
 
+function vaultKey(vaultId: string, kind: MemberVaultKey["kind"] = "shared"): MemberVaultKey {
+  return {
+    vaultId,
+    kind,
+    keyVersion: 1,
+    encryptedVaultKey: `enc-${vaultId}`,
+    vaultKeyEncryptionNonce: `nonce-${vaultId}`,
+  };
+}
+
+const personal = vaultKey("v-personal", "personal");
+
 const biometricKey: BiometricKeyMaterial = {
-  biometricEncryptedVaultKey: "bvk",
+  biometricEncryptedAccountKey: "bak",
   biometricNonce: "bn",
   biometricEncryptedPassword: "bpw",
   biometricPasswordNonce: "bpn",
@@ -129,39 +141,60 @@ describe("records", () => {
 });
 
 describe("key material", () => {
-  it("round-trips the vault key material, including the Argon2 params", async () => {
-    await vault.setVaultKeyMaterial(vaultKey);
+  it("round-trips the account key material, including the Argon2 params, and the vault keys", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal, vaultKey("v-work")]);
 
-    expect(await vault.getVaultKeyMaterial()).toEqual(vaultKey);
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect((await vault.getVaultKeys()).sort((a, b) => a.vaultId.localeCompare(b.vaultId))).toEqual(
+      [personal, vaultKey("v-work")],
+    );
   });
 
-  it("returns null until the vault key material is complete", async () => {
-    expect(await vault.getVaultKeyMaterial()).toBeNull();
+  it("returns null until the account key material is complete", async () => {
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
 
     await vault.setBiometricKeyMaterial(biometricKey);
 
-    expect(await vault.getVaultKeyMaterial()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
   });
 
-  it("overwrites existing entries on a second set", async () => {
-    await vault.setVaultKeyMaterial(vaultKey);
-    await vault.setVaultKeyMaterial({ ...vaultKey, encryptedVaultKey: "rekeyed" });
+  it("a second set overwrites the account key and replaces the vault key list", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal, vaultKey("v-left")]);
+    await vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "rekeyed" }, [
+      personal,
+    ]);
 
-    expect(await vault.getVaultKeyMaterial()).toEqual({
-      ...vaultKey,
-      encryptedVaultKey: "rekeyed",
+    expect(await vault.getAccountKeyMaterial()).toEqual({
+      ...accountKey,
+      encryptedAccountKey: "rekeyed",
     });
+    expect(await vault.getVaultKeys()).toEqual([personal]);
   });
 
-  it("clears biometric material without touching the vault key", async () => {
-    await vault.setVaultKeyMaterial(vaultKey);
+  it("writes nothing when the vault key list is invalid", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+
+    // Duplicate vaultId violates the primary key, after the account key was upserted.
+    await expect(
+      vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "half" }, [
+        personal,
+        personal,
+      ]),
+    ).rejects.toThrow();
+
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect(await vault.getVaultKeys()).toEqual([personal]);
+  });
+
+  it("clears biometric material without touching the account key", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
     await vault.setBiometricKeyMaterial(biometricKey);
     expect(await vault.getBiometricKeyMaterial()).toEqual(biometricKey);
 
     await vault.clearBiometricKeyMaterial();
 
     expect(await vault.getBiometricKeyMaterial()).toBeNull();
-    expect(await vault.getVaultKeyMaterial()).toEqual(vaultKey);
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
   });
 });
 
@@ -177,16 +210,17 @@ describe("sync meta", () => {
 });
 
 describe("clear", () => {
-  it("removes records, key material and sync state", async () => {
+  it("removes records, key material, vault keys and sync state", async () => {
     await vault.upsertRecords([record("r1", 1)]);
-    await vault.setVaultKeyMaterial(vaultKey);
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
     await vault.setBiometricKeyMaterial(biometricKey);
     await vault.setLastSyncTimestamp("2026-10-01T00:00:00.000Z");
 
     await vault.clear();
 
     expect(await vault.getAllLatest()).toEqual([]);
-    expect(await vault.getVaultKeyMaterial()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
+    expect(await vault.getVaultKeys()).toEqual([]);
     expect(await vault.getBiometricKeyMaterial()).toBeNull();
     expect(await vault.getLastSyncTimestamp()).toBeNull();
   });

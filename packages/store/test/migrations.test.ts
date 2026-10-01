@@ -170,7 +170,7 @@ describe("MIGRATIONS", () => {
     await migrate(db);
 
     expect(await userVersion()).toBe(MIGRATIONS.length);
-    expect(await tableNames()).toEqual(["key_material", "records", "sync_meta"]);
+    expect(await tableNames()).toEqual(["key_material", "records", "sync_meta", "vaults"]);
   });
 
   it("rebuilds a database created by the pre-migration bootstrap", async () => {

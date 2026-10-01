@@ -16,9 +16,9 @@ beforeEach(async () => {
 });
 
 async function newPasswordKeys() {
-  const { passwordKekParams, passwordKekSalt, encryptedVaultKey, vaultKeyEncryptionNonce } =
+  const { passwordKekParams, passwordKekSalt, encryptedAccountKey, accountKeyEncryptionNonce } =
     await buildUserKeys(password);
-  return { passwordKekParams, passwordKekSalt, encryptedVaultKey, vaultKeyEncryptionNonce };
+  return { passwordKekParams, passwordKekSalt, encryptedAccountKey, accountKeyEncryptionNonce };
 }
 
 async function rekey(sessionId: string, authKey: Uint8Array) {
@@ -44,7 +44,7 @@ describe("user.rekeyPasswordKeys (real Postgres + Redis)", () => {
     expect(closed?.valid_to).not.toBeNull();
     expect(active).toMatchObject({ ...updated, valid_to: null });
     // Recovery copy of the vault key carries over unchanged.
-    expect(active?.encryptedVaultKeyRecovery).toBe(original.encryptedVaultKeyRecovery);
+    expect(active?.encryptedAccountKeyRecovery).toBe(original.encryptedAccountKeyRecovery);
     expect(active?.recoveryKekSalt).toBe(original.recoveryKekSalt);
     expect(active?.recoveryVerifier).toBe(original.recoveryVerifier);
   });

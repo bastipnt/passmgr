@@ -30,3 +30,15 @@ export const syncMeta = sqliteTable("sync_meta", {
   key: text().primaryKey(),
   value: text().notNull(),
 });
+
+/**
+ * The user's vaults with their key wrapped under the account key, cached for
+ * offline unlock. Vault metadata (name, icon) joins with the vault data model.
+ */
+export const vaults = sqliteTable("vaults", {
+  vaultId: text().primaryKey(),
+  kind: text({ enum: ["personal", "shared"] }).notNull(),
+  keyVersion: integer().notNull(),
+  encryptedVaultKey: text().notNull(),
+  vaultKeyEncryptionNonce: text().notNull(),
+});

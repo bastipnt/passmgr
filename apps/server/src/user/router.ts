@@ -13,8 +13,8 @@ export const userRouter = router({
     return { ok: true } as const;
   }),
 
-  // Re-wrap the vault key under new Argon2 params. The client re-derives the
-  // password KEK and re-encrypts the vault key locally (zero-knowledge — the
+  // Re-wrap the account key under new Argon2 params. The client re-derives the
+  // password KEK and re-encrypts the account key locally (zero-knowledge — the
   // server never sees the plaintext key or password).
   //
   // Requires a fresh OPAQUE login, and never overwrites: the active key set is
@@ -48,13 +48,13 @@ export const userRouter = router({
         await tx.insert(keysTable).values({
           userId: ctx.userId,
           recoveryKekSalt: active.recoveryKekSalt,
-          encryptedVaultKeyRecovery: active.encryptedVaultKeyRecovery,
-          vaultKeyEncryptionNonceRecovery: active.vaultKeyEncryptionNonceRecovery,
+          encryptedAccountKeyRecovery: active.encryptedAccountKeyRecovery,
+          accountKeyEncryptionNonceRecovery: active.accountKeyEncryptionNonceRecovery,
           recoveryVerifier: active.recoveryVerifier,
           passwordKekParams: input.passwordKekParams,
           passwordKekSalt: input.passwordKekSalt,
-          encryptedVaultKey: input.encryptedVaultKey,
-          vaultKeyEncryptionNonce: input.vaultKeyEncryptionNonce,
+          encryptedAccountKey: input.encryptedAccountKey,
+          accountKeyEncryptionNonce: input.accountKeyEncryptionNonce,
           valid_from: now,
         });
       });

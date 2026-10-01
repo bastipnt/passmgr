@@ -159,22 +159,22 @@ Registration:
 
 1. Client: `OpaqueClient.registerInit` → sends `registrationRequest` to server
 2. Server: `opaqueServer.registerInit` → returns `registrationResponse`
-3. Client: `registerFinish` → generates `registrationRecord` + derives key hierarchy (Argon2id password KEK → vault key encrypted twice: once with password KEK, once with recovery KEK)
-4. Server: stores `registrationRecord` + encrypted key material in DB
+3. Client: `registerFinish` → generates `registrationRecord` + key hierarchy: a new account key wrapped twice (password KEK, recovery KEK) and the personal vault (`createVault`: client-generated `vaultId` + vault key wrapped by the account key)
+4. Server: stores `registrationRecord`, the key set, and the personal vault (`vaults` + owner row in `vault_members`) in one transaction
 
 Login:
 
 1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
 2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
-4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + encrypted vault key material
-5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then decrypts the vault key with the Argon2id password KEK (in a worker). Memory only on web; mobile persists the session bundle in Keychain/Keystore
+4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership)
+5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys with the account key (`secretsStore.loadVaultKeys`). Both are cached in the local DB for offline unlock (`Vault.setAccountKeyMaterial`). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
 Recovery (forgotten password, `auth/recovery-router.ts`):
 
 1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`
-2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped vault key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
-3. Client: unwraps the **existing** vault key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, vaultKey)` (new password wrap + **new** recovery key + verifier) → `recovery.finishRecovery`
+2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped account key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
+3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
 4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
 
 ### Request Authentication
@@ -195,12 +195,19 @@ per user) — never `UPDATE` key material in place.
 ### Key Hierarchy
 
 ```
-password ──Argon2id──► passwordKEK ──encrypt──► vaultKey
-recoveryKey ──HKDF──► recoveryKEK ──encrypt──► vaultKey (backup)
+password ──Argon2id──► passwordKEK ──wrap──► accountKey
+recoveryKey ──HKDF──► recoveryKEK ──wrap──► accountKey (backup)
 recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► recoveryVerifier (server, recovery proof)
+accountKey ──wrap──► vaultKey[vaultId] ──encrypt──► records
+(biometric KEK / mobile login bundle also hold the accountKey, never a vault key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
 ```
+
+Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`): the account key's is
+purpose-only (`passmgr/account-key/v1`, same wrap on every device), a vault key's binds
+`vaultId` + `keyVersion`. Password change / rekey / recovery rewrap only the account key. Until
+records carry a `vaultId`, all records use the personal vault's key (`secretsStore.recordKey`).
 
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 

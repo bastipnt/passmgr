@@ -1,7 +1,7 @@
 import { type AuthClient, KE2, OpaqueClient } from "@cloudflare/opaque-ts";
 import { genSalt, normalizeEmail } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import type { PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type { MemberVaultKey, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
@@ -83,8 +83,9 @@ export async function loginUser(
 
   let sessionId: string;
   let userPasswordKeys: PasswordKeySchema;
+  let vaultKeys: MemberVaultKey[];
   try {
-    ({ sessionId, userPasswordKeys } = await timed("opaque finishLogin", () =>
+    ({ sessionId, userPasswordKeys, vaultKeys } = await timed("opaque finishLogin", () =>
       trpc.login.finishLogin.mutate({
         email,
         attemptId,
@@ -98,5 +99,5 @@ export async function loginUser(
 
   await loginSession(sessionId, sessionKey, authSalt);
 
-  return { email, password, userPasswordKeys };
+  return { email, password, userPasswordKeys, vaultKeys };
 }

@@ -21,12 +21,12 @@ export default function LoginPage() {
 
   const { isOffline } = useContext(SessionContext);
   const store = useStore();
-  const storedEmail = store.vaultKeyMaterial?.email;
+  const storedEmail = store.accountKeyMaterial?.email;
 
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
     try {
-      if (isOffline && store.vaultKeyMaterial !== null) {
+      if (isOffline && store.accountKeyMaterial !== null) {
         await timed("total unlock time", () => offlineUnlock(email, password));
         return;
       }

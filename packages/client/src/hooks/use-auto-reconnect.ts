@@ -20,7 +20,7 @@ export function useAutoReconnect() {
     if (isOffline || sessionId !== "offline") return;
 
     const password = secretsStore.getPassword();
-    const email = storeRef.current.vaultKeyMaterial?.email;
+    const email = storeRef.current.accountKeyMaterial?.email;
     if (!password || !email || reconnectingRef.current) return;
 
     reconnectingRef.current = true;
@@ -29,10 +29,10 @@ export function useAutoReconnect() {
       .then(async (unlockInfo) => {
         if (unlockInfo) {
           // Update stored key material (server may have newer values)
-          await storeRef.current.vault.setVaultKeyMaterial({
-            ...unlockInfo.userPasswordKeys,
-            email,
-          });
+          await storeRef.current.vault.setAccountKeyMaterial(
+            { ...unlockInfo.userPasswordKeys, email },
+            unlockInfo.vaultKeys,
+          );
 
           // Clear password from memory unless biometric enrollment is pending
           if (storeRef.current.biometricKeyMaterial || storeRef.current.biometricDismissed) {

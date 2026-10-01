@@ -1,4 +1,5 @@
-import { toBase64 } from "@repo/util";
+import { retrievePRK, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
+import { fromBase64, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { loginUser } from "../../../../packages/client/src/login";
 import { registerNewUser } from "../../../../packages/client/src/register";
@@ -76,7 +77,7 @@ beforeEach(async () => {
 });
 
 describe("no-secret-leak — real client code, real server (in-process)", () => {
-  it("password and recoveryKey never appear in any tRPC input crossing the boundary", async () => {
+  it("password, recoveryKey, accountKey and vault keys never appear in any tRPC input", async () => {
     const email = "alice@example.com";
     const password = "correct-horse-battery-staple-DO-NOT-LEAK-XYZ";
 
@@ -88,25 +89,45 @@ describe("no-secret-leak — real client code, real server (in-process)", () => 
     const recoveryKey = await registerNewUser(trpc, email, password);
 
     // @ts-expect-error — our shim matches the structural subset loginUser uses.
-    await loginUser(trpc, async () => {}, email, password);
+    const unlock = await loginUser(trpc, async () => {}, email, password);
 
     expect(captured.length).toBeGreaterThan(0);
 
-    const recoveryKeyHex = Buffer.from(recoveryKey).toString("hex");
-    const recoveryKeyB64 = toBase64(recoveryKey);
+    // Recover the plaintext keys the way the client does after login, so the
+    // captured traffic can be searched for them.
+    const keys = unlock.userPasswordKeys;
+    const kek = await retrievePRK(
+      password,
+      fromBase64(keys.passwordKekSalt),
+      keys.passwordKekParams,
+    );
+    const accountKey = unwrapAccountKey(
+      kek,
+      keys.encryptedAccountKey,
+      keys.accountKeyEncryptionNonce,
+    );
+    const vaultKeys = unlock.vaultKeys.map((wrap) => unwrapVaultKey(accountKey, wrap));
+    expect(vaultKeys).toHaveLength(1);
+
+    const secrets: [label: string, bytes: Uint8Array][] = [
+      ["recoveryKey", recoveryKey],
+      ["accountKey", accountKey],
+      ...vaultKeys.map((key, i): [string, Uint8Array] => [`vaultKey[${i}]`, key]),
+    ];
 
     for (const call of captured) {
       const serialized = JSON.stringify(call.input);
       expect(serialized.includes(password), `password plaintext leaked in ${call.path}`).toBe(
         false,
       );
-      expect(serialized.includes(recoveryKeyHex), `recoveryKey (hex) leaked in ${call.path}`).toBe(
-        false,
-      );
-      expect(
-        serialized.includes(recoveryKeyB64),
-        `recoveryKey (base64) leaked in ${call.path}`,
-      ).toBe(false);
+      for (const [label, bytes] of secrets) {
+        const hex = Buffer.from(bytes).toString("hex");
+        expect(serialized.includes(hex), `${label} (hex) leaked in ${call.path}`).toBe(false);
+        expect(
+          serialized.includes(toBase64(bytes)),
+          `${label} (base64) leaked in ${call.path}`,
+        ).toBe(false);
+      }
     }
   });
 });

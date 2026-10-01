@@ -19,8 +19,8 @@ export const startRecoveryOutputSchema = z.object({
 });
 
 /**
- * Finish recovery: replace the OPAQUE record and the key set (same vault key,
- * new password wrap, new recovery key).
+ * Finish recovery: replace the OPAQUE record and the key set (same account key,
+ * new password wrap, new recovery key). Vault keys are untouched.
  */
 export const finishRecoveryInputSchema = z.object({
   email: emailSchema,
