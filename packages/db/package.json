@@ -16,6 +16,7 @@
     "db:generate": "bunx drizzle-kit generate --config drizzle.config.ts",
     "db:migrate": "bunx drizzle-kit migrate",
     "db:reset": "bun ./devResetDB.ts",
+    "db:reset:hard": "bun ./devResetHard.ts",
     "db:seed": "bun ./devSeed.ts"
   },
   "keywords": [],

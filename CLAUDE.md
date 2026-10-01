@@ -32,8 +32,11 @@ pnpm --filter mobile start     # Expo dev server
 ### DB package (run from `packages/db/`)
 
 ```bash
-bun ./devResetDB.ts   # Reset dev database
+bun ./devResetDB.ts   # Reset dev database (truncate data, keep schema)
 ```
+
+`pnpm db:reset:hard` drops all tables and the migration log, then migrates from scratch (localhost
+only). Needed after migrations were squashed into a new baseline; follow with `pnpm db:seed`.
 
 ### Local (on-device) DB (`packages/store`)
 
