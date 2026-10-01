@@ -35,6 +35,18 @@ pnpm --filter mobile start     # Expo dev server
 bun ./devResetDB.ts   # Reset dev database
 ```
 
+### Local (on-device) DB (`packages/store`)
+
+```bash
+pnpm --filter @repo/store migrations:generate   # after editing src/schema/tables.ts
+```
+
+Drizzle (sqlite) schema in `src/schema/tables.ts`; drizzle-kit writes `drizzle/`, which is bundled
+into `src/migrations.generated.ts` (never edit either by hand; a test fails if they drift). Our own
+runner (`src/migrations.ts`, `PRAGMA user_version`) applies them. Queries go through
+`drizzle-orm/sqlite-proxy` over `SqlDriver` (array rows). **Never use Drizzle's `db.transaction()`**:
+it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.transaction`).
+
 ### Testing
 
 Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`. Test files live in `test/` dirs or alongside source as `*.test.ts`.

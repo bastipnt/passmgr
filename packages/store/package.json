@@ -11,12 +11,14 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "migrations:generate": "drizzle-kit generate --config drizzle.config.ts && node scripts/bundle-migrations.ts"
   },
   "dependencies": {
     "@repo/crypto": "workspace:*",
     "@repo/schema": "workspace:*",
-    "@repo/util": "workspace:*"
+    "@repo/util": "workspace:*",
+    "drizzle-orm": "catalog:"
   },
   "peerDependencies": {
     "expo-secure-store": "*",
@@ -36,6 +38,7 @@
   },
   "devDependencies": {
     "@vitest/coverage-v8": "catalog:",
+    "drizzle-kit": "catalog:",
     "vitest": "catalog:"
   }
 }

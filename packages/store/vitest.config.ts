@@ -11,7 +11,7 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "html", "lcov"],
       include: ["src/**/*.ts"],
-      exclude: ["src/schema/**", "src/vault.ts"],
+      exclude: ["src/migrations.generated.ts", "src/schema/tables.ts"],
       thresholds: {
         // 90% branch threshold accommodates two defensive guards in deriveAuthKey
         // that are unreachable from public callers (sessionSecret / authSalt are
