@@ -25,9 +25,6 @@ type SectionGroupProps = {
 /**
  * Edge-to-edge run of rows with hairlines between them and above/below — the
  * shape web's `ItemDisplayGroup flushOnMobile` takes at phone width.
- *
- * The separators are plain `View`s rather than the exported `Separator`, which
- * wraps a SwiftUI `Divider` and so renders nothing on Android.
  */
 export function SectionGroup({ children, className }: SectionGroupProps) {
   // `toArray` drops nulls and assigns stable keys, so separators keyed off it
