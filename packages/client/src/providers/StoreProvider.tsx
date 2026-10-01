@@ -43,7 +43,7 @@ type StoreProviderProps = {
 };
 
 export function StoreProvider({ vault, syncEnabled = true, children }: StoreProviderProps) {
-  const { loggedIn, isOffline } = useContext(SessionContext);
+  const { loggedIn, vaultUnlocked, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const preferences = usePreferences();
 
@@ -81,9 +81,12 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     void vault.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
   }, [vault]);
 
-  // Sync on login + start periodic sync + SSE subscription + resync when back online
+  // Sync once the vault is unlocked + start periodic sync + SSE subscription + resync
+  // when back online. Not right after the OPAQUE login: the unlock still has to
+  // decide whose data the local DB holds (and may clear it), and a sync that
+  // lands before that would be wiped with it.
   useEffect(() => {
-    if (!loggedIn || isOffline || !syncEnabled) return;
+    if (!loggedIn || !vaultUnlocked || isOffline || !syncEnabled) return;
 
     const onOnline = () => void syncManager.sync();
     if (typeof window !== "undefined" && typeof window.addEventListener === "function")
@@ -128,7 +131,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
         window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [loggedIn, isOffline, syncEnabled, syncManager, trpc]);
+  }, [loggedIn, vaultUnlocked, isOffline, syncEnabled, syncManager, trpc]);
 
   async function removeVault() {
     await vault.clear();
