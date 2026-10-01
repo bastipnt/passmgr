@@ -44,3 +44,18 @@ export function getConnectionParamsSave(query: FastifyRequest["query"]): Subscri
   }
   return params;
 }
+
+const PG_UNIQUE_VIOLATION = "23505";
+
+/**
+ * Whether a database error is a Postgres unique violation. Drizzle wraps the
+ * driver error (`DrizzleQueryError.cause`), so the cause chain is followed.
+ */
+export function isUniqueViolation(error: unknown): boolean {
+  for (let e: unknown = error, depth = 0; e && depth < 5; depth++) {
+    if (typeof e !== "object") return false;
+    if ("code" in e && e.code === PG_UNIQUE_VIOLATION) return true;
+    e = "cause" in e ? e.cause : undefined;
+  }
+  return false;
+}

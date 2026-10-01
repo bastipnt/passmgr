@@ -1,6 +1,6 @@
 import { fromBase64 } from "@repo/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { decryptXChaCha } from "../src/encryption";
+import { encryptXChaCha } from "../src/encryption";
 import {
   deriveRecoveryAuthKey,
   getPasswordKekParams,
@@ -8,11 +8,20 @@ import {
   retrievePRK,
   setPasswordKekParams,
 } from "../src/hash";
-import { generateUserKeys, unwrapVaultKeyWithRecoveryKey } from "../src/user-keys";
+import {
+  createVault,
+  generateUserKeys,
+  unwrapAccountKey,
+  unwrapAccountKeyWithRecoveryKey,
+  unwrapVaultKey,
+  wrapAccountKey,
+  wrapVaultKey,
+} from "../src/user-keys";
 import { genKey } from "../src/util/secrets-utils";
 
 const FAST_PARAMS = { t: 1, m: 8, p: 1 };
 const PASSWORD = "correct horse battery staple";
+const VAULT_ID = "0199a3c4-5b6d-7e8f-9a0b-1c2d3e4f5a6b";
 
 describe("generateUserKeys", () => {
   const previous = getPasswordKekParams();
@@ -25,48 +34,93 @@ describe("generateUserKeys", () => {
       fromBase64(keys.passwordKekSalt),
       keys.passwordKekParams,
     );
-    return decryptXChaCha(kek, keys.encryptedVaultKey, keys.vaultKeyEncryptionNonce);
+    return unwrapAccountKey(kek, keys.encryptedAccountKey, keys.accountKeyEncryptionNonce);
   }
 
-  it("wraps the same vault key under the password and the recovery key", async () => {
-    const keys = await generateUserKeys(PASSWORD);
-    const viaPassword = await unwrapWithPassword(keys);
-    const viaRecovery = await unwrapVaultKeyWithRecoveryKey(keys.recoveryKey, keys);
-    expect(viaPassword).toHaveLength(32);
-    expect(viaRecovery).toEqual(viaPassword);
+  it("wraps the given account key under the password and the recovery key, without wiping it", async () => {
+    const accountKey = genKey();
+    const copy = accountKey.slice();
+
+    const keys = await generateUserKeys(PASSWORD, accountKey);
+
+    expect(accountKey).toEqual(copy);
+    expect(await unwrapWithPassword(keys)).toEqual(copy);
+    expect(await unwrapAccountKeyWithRecoveryKey(keys.recoveryKey, keys)).toEqual(copy);
   });
 
   it("stores the hash of the recovery auth key as verifier", async () => {
-    const keys = await generateUserKeys(PASSWORD);
+    const keys = await generateUserKeys(PASSWORD, genKey());
     const authKey = await deriveRecoveryAuthKey(keys.recoveryKey);
     expect(fromBase64(keys.recoveryVerifier)).toEqual(await hashRecoveryAuthKey(authKey));
   });
 
-  it("re-wraps a given vault key without wiping it", async () => {
-    const vaultKey = genKey();
-    const copy = vaultKey.slice();
-    const keys = await generateUserKeys(PASSWORD, vaultKey);
-    expect(vaultKey).toEqual(copy);
-    expect(await unwrapWithPassword(keys)).toEqual(copy);
-    expect(await unwrapVaultKeyWithRecoveryKey(keys.recoveryKey, keys)).toEqual(copy);
-  });
-
   it("issues a fresh recovery key every time", async () => {
-    const vaultKey = genKey();
-    const a = await generateUserKeys(PASSWORD, vaultKey);
-    const b = await generateUserKeys(PASSWORD, vaultKey);
+    const accountKey = genKey();
+    const a = await generateUserKeys(PASSWORD, accountKey);
+    const b = await generateUserKeys(PASSWORD, accountKey);
     expect(a.recoveryKey).not.toEqual(b.recoveryKey);
     expect(a.recoveryVerifier).not.toEqual(b.recoveryVerifier);
   });
+
+  it("throws on a wrong recovery key", async () => {
+    const keys = await generateUserKeys(PASSWORD, genKey());
+    await expect(unwrapAccountKeyWithRecoveryKey(genKey(), keys)).rejects.toThrow();
+  });
 });
 
-describe("unwrapVaultKeyWithRecoveryKey", () => {
-  const previous = getPasswordKekParams();
-  beforeAll(() => setPasswordKekParams(FAST_PARAMS));
-  afterAll(() => setPasswordKekParams(previous));
+describe("account key wraps", () => {
+  it("round-trip under the same KEK", () => {
+    const kek = genKey();
+    const accountKey = genKey();
+    const [encrypted, nonce] = wrapAccountKey(kek, accountKey);
+    expect(unwrapAccountKey(kek, encrypted, nonce)).toEqual(accountKey);
+  });
 
-  it("throws for a wrong recovery key", async () => {
-    const keys = await generateUserKeys(PASSWORD);
-    await expect(unwrapVaultKeyWithRecoveryKey(genKey(), keys)).rejects.toThrow();
+  it("reject a plain (no-AAD) ciphertext of the same key", () => {
+    const kek = genKey();
+    const [encrypted, nonce] = encryptXChaCha(kek, genKey());
+    expect(() => unwrapAccountKey(kek, encrypted, nonce)).toThrow();
+  });
+});
+
+describe("vault key wraps", () => {
+  it("round-trip and carry vaultId + keyVersion", () => {
+    const accountKey = genKey();
+    const vaultKey = genKey();
+
+    const wrap = wrapVaultKey(accountKey, vaultKey, VAULT_ID, 3);
+
+    expect(wrap).toMatchObject({ vaultId: VAULT_ID, keyVersion: 3 });
+    expect(unwrapVaultKey(accountKey, wrap)).toEqual(vaultKey);
+  });
+
+  it.each([
+    ["another vault", { vaultId: "0199a3c4-0000-7000-8000-000000000000" }],
+    ["another key version", { keyVersion: 2 }],
+  ])("refuse to open when relabelled as %s", (_label, relabel) => {
+    const accountKey = genKey();
+    const wrap = wrapVaultKey(accountKey, genKey(), VAULT_ID, 1);
+
+    expect(() => unwrapVaultKey(accountKey, { ...wrap, ...relabel })).toThrow();
+  });
+
+  it("refuse a different account key", () => {
+    const wrap = wrapVaultKey(genKey(), genKey(), VAULT_ID, 1);
+    expect(() => unwrapVaultKey(genKey(), wrap)).toThrow();
+  });
+});
+
+describe("createVault", () => {
+  it("makes a new vault with a random id and a key only the account key opens", () => {
+    const accountKey = genKey();
+
+    const a = createVault(accountKey);
+    const b = createVault(accountKey);
+
+    expect(a.vaultId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(a.vaultId).not.toBe(b.vaultId);
+    expect(a.keyVersion).toBe(1);
+    expect(unwrapVaultKey(accountKey, a)).toHaveLength(32);
+    expect(unwrapVaultKey(accountKey, a)).not.toEqual(unwrapVaultKey(accountKey, b));
   });
 });

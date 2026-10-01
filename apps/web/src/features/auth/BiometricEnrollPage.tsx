@@ -1,5 +1,5 @@
 import { useStore } from "@repo/client";
-import { enrollBiometric } from "@repo/crypto";
+import { enrollBiometric, wipe } from "@repo/crypto";
 import { secretsStore } from "@repo/store";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -33,13 +33,18 @@ export default function BiometricEnrollPage() {
   async function onEnroll() {
     setEnrolling(true);
     try {
-      const vaultKey = secretsStore.exportVaultKeyForWorker();
       const password = secretsStore.getPassword();
       if (!password) {
         setError(true);
         return;
       }
-      const material = await enrollBiometric(vaultKey, password);
+      const accountKey = secretsStore.exportAccountKey();
+      let material: Awaited<ReturnType<typeof enrollBiometric>>;
+      try {
+        material = await enrollBiometric(accountKey, password);
+      } finally {
+        wipe(accountKey);
+      }
       await store.vault.setBiometricKeyMaterial(material);
       secretsStore.clearPassword();
 

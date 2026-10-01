@@ -8,7 +8,7 @@ const setBiometricKeyMaterial = vi.fn().mockResolvedValue(undefined);
 const setBiometricDismissed = vi.fn();
 const getPassword = vi.fn();
 const clearPassword = vi.fn();
-const exportVaultKeyForWorker = vi.fn(() => new Uint8Array(32));
+const exportAccountKey = vi.fn(() => new Uint8Array(32).fill(7));
 const credentialsCreate = vi.fn();
 
 vi.mock("@repo/client", () => ({
@@ -20,7 +20,7 @@ vi.mock("@repo/client", () => ({
 
 vi.mock("@repo/store", () => ({
   secretsStore: {
-    exportVaultKeyForWorker: () => exportVaultKeyForWorker(),
+    exportAccountKey: () => exportAccountKey(),
     getPassword: () => getPassword(),
     clearPassword: () => clearPassword(),
   },
@@ -87,9 +87,21 @@ describe("BiometricEnrollPage", () => {
       expect(navigate).toHaveBeenCalledWith("/");
     });
     const material = setBiometricKeyMaterial.mock.calls[0]?.[0] as Record<string, string>;
-    expect(typeof material.biometricEncryptedVaultKey).toBe("string");
+    expect(typeof material.biometricEncryptedAccountKey).toBe("string");
     expect(typeof material.credentialId).toBe("string");
     expect(typeof material.prfSalt).toBe("string");
+  });
+
+  it("enrolls the account key and wipes the exported copy afterwards", async () => {
+    getPassword.mockReturnValue("hunter2hunter2");
+    credentialsCreate.mockResolvedValue(fakeCredentialWithPrf());
+
+    renderWithProviders(<BiometricEnrollPage />);
+    await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
+
+    await waitFor(() => expect(setBiometricKeyMaterial).toHaveBeenCalledTimes(1));
+    const exported = exportAccountKey.mock.results[0]?.value as Uint8Array;
+    expect(exported.every((b) => b === 0)).toBe(true);
   });
 
   it("renders error when secretsStore has no cached password", async () => {

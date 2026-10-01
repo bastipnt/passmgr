@@ -1,5 +1,5 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { generateUserKeys, normalizeEmail, wipe } from "@repo/crypto";
+import { createVault, generateUserKeys, genKey, normalizeEmail, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
@@ -16,7 +16,9 @@ export class RegistrationFinishFailedError extends Error {
 }
 
 /**
- * Drive a full OPAQUE registration handshake + key derivation.
+ * Drive a full OPAQUE registration handshake + key derivation: a new account
+ * key, wrapped under the password and a fresh recovery key, plus the personal
+ * vault whose key is wrapped under the account key.
  *
  * Throws RegistrationStartFailedError or RegistrationFinishFailedError on tRPC failure;
  * on the finish-failure path the recoveryKey buffer has already been wiped.
@@ -63,19 +65,27 @@ export async function registerNewUser(
 
   const registrationRecord = bytesToB64(finished.record.serialize());
 
-  const { recoveryKey, ...userKeys } = await generateUserKeys(password);
-
+  // Only its wraps leave this function; the plaintext key is wiped below.
+  const accountKey = genKey();
   try {
-    await trpc.register.finishRegistration.mutate({
-      email,
-      registrationRecord,
-      userKeys,
-      invite,
-    });
-  } catch {
-    wipe(recoveryKey);
-    throw new RegistrationFinishFailedError();
-  }
+    const { recoveryKey, ...userKeys } = await generateUserKeys(password, accountKey);
+    const personalVault = createVault(accountKey);
 
-  return recoveryKey;
+    try {
+      await trpc.register.finishRegistration.mutate({
+        email,
+        registrationRecord,
+        userKeys,
+        personalVault,
+        invite,
+      });
+    } catch {
+      wipe(recoveryKey);
+      throw new RegistrationFinishFailedError();
+    }
+
+    return recoveryKey;
+  } finally {
+    wipe(accountKey);
+  }
 }

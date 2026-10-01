@@ -11,12 +11,20 @@ import {
   OpaqueID,
   OpaqueServer,
 } from "@cloudflare/opaque-ts";
-import { encryptEmail, encryptXChaCha, generateUserKeys, genKey, hashEmail } from "@repo/crypto";
+import {
+  createVault,
+  encryptEmail,
+  encryptXChaCha,
+  generateUserKeys,
+  genKey,
+  hashEmail,
+  unwrapVaultKey,
+} from "@repo/crypto";
 import { edgeCaseLoginRecords, exampleLoginRecords, type RecordSchema } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
-import { db, keysTable, recordsTable, schema, usersTable } from ".";
+import { db, keysTable, recordsTable, schema, usersTable, vaultMembersTable, vaultsTable } from ".";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
@@ -64,8 +72,10 @@ async function seed() {
   const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 
   // 3. Generate key hierarchy (same code path as client registration)
-  const vaultKey = genKey();
-  const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, vaultKey);
+  const accountKey = genKey();
+  const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, accountKey);
+  const personalVault = createVault(accountKey);
+  const vaultKey = unwrapVaultKey(accountKey, personalVault);
 
   // 4. Encrypt email
   const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(serverKey, EMAIL);
@@ -91,8 +101,12 @@ async function seed() {
   const { userId } = user;
   console.log(`User created: ${userId}`);
 
-  // 6. Insert keys
+  // 6. Insert keys + the personal vault
   await db.insert(keysTable).values({ userId, ...userKeys });
+  await db
+    .insert(vaultsTable)
+    .values({ vaultId: personalVault.vaultId, ownerId: userId, kind: "personal" });
+  await db.insert(vaultMembersTable).values({ userId, role: "owner", ...personalVault });
 
   // 7. Encrypt and insert seed records
   const loginRecords = WITH_EDGE_CASES

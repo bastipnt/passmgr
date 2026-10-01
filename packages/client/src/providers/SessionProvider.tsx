@@ -1,3 +1,4 @@
+import type { MemberVaultKey } from "@repo/schema";
 import { type LoginBundle, secretsStore } from "@repo/store";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -9,14 +10,19 @@ export const SessionContext = createContext<{
   isOffline: boolean;
 
   loginSession: (newSessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
-  restoreLogin: (bundle: Omit<LoginBundle, "email">) => void;
+  restoreLogin: (bundle: Omit<LoginBundle, "email">, vaultKeys: readonly MemberVaultKey[]) => void;
   offlineLoginSession: () => void;
   unlockVault: (
     passwordKek: Uint8Array,
-    encryptedVaultKeyB64: string,
-    vaultKeyEncryptionNonceB64: string,
+    encryptedAccountKeyB64: string,
+    accountKeyEncryptionNonceB64: string,
+    vaultKeys: readonly MemberVaultKey[],
   ) => void;
-  unlockWithVaultKey: (vaultKey: Uint8Array, offline?: boolean) => void;
+  unlockWithAccountKey: (
+    accountKey: Uint8Array,
+    vaultKeys: readonly MemberVaultKey[],
+    offline?: boolean,
+  ) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
   endSession: () => void;
 }>({
@@ -27,12 +33,22 @@ export const SessionContext = createContext<{
   restoreLogin() {},
   offlineLoginSession() {},
   unlockVault() {},
-  unlockWithVaultKey() {},
+  unlockWithAccountKey() {},
   async signRequest() {
     return new Uint8Array(32);
   },
   endSession() {},
 });
+
+/** Load the vault keys; on failure wipe the account key again before rethrowing. */
+function loadVaultKeysOrLock(vaultKeys: readonly MemberVaultKey[]) {
+  try {
+    secretsStore.loadVaultKeys(vaultKeys);
+  } catch (e) {
+    secretsStore.lockVault();
+    throw e;
+  }
+}
 
 type SessionProviderProps = {
   children: ReactNode;
@@ -80,37 +96,53 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   /**
    * Restore a persisted session on app reopen (mobile). Re-establishes both the
    * server session and the unlocked vault directly from secure-storage key
-   * material — no OPAQUE handshake, no Argon2.
+   * material plus the locally cached vault keys — no OPAQUE handshake, no Argon2.
+   * Throws when the vault keys don't open.
    */
-  const restoreLogin = useCallback((bundle: Omit<LoginBundle, "email">) => {
-    secretsStore.restoreSession(bundle);
-    setSessionId(bundle.sessionId);
-    setLoggedIn(true);
-    setVaultUnlocked(true);
-  }, []);
+  const restoreLogin = useCallback(
+    (bundle: Omit<LoginBundle, "email">, vaultKeys: readonly MemberVaultKey[]) => {
+      secretsStore.restoreSession(bundle);
+      loadVaultKeysOrLock(vaultKeys);
+      setSessionId(bundle.sessionId);
+      setLoggedIn(true);
+      setVaultUnlocked(true);
+    },
+    [],
+  );
 
   const offlineLoginSession = useCallback(() => {
     setSessionId("offline");
     setLoggedIn(true);
   }, []);
 
+  /** Throws (on a wrong password or a vault key that doesn't open) with nothing left in memory. */
   const unlockVault = useCallback(
-    (passwordKek: Uint8Array, encryptedVaultKeyB64: string, vaultKeyEncryptionNonceB64: string) => {
-      secretsStore.unlockVault(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
+    (
+      passwordKek: Uint8Array,
+      encryptedAccountKeyB64: string,
+      accountKeyEncryptionNonceB64: string,
+      vaultKeys: readonly MemberVaultKey[],
+    ) => {
+      secretsStore.unlockAccount(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64);
+      loadVaultKeysOrLock(vaultKeys);
       setVaultUnlocked(true);
     },
     [],
   );
 
   /**
-   * Unlock vault with a pre-decrypted key (e.g. from biometric).
+   * Unlock vault with a pre-decrypted account key (e.g. from biometric).
    * When offline, also sets sessionId to "offline".
    */
-  const unlockWithVaultKey = useCallback((vaultKey: Uint8Array, offline = false) => {
-    if (offline) setSessionId("offline");
-    secretsStore.unlockWithVaultKey(vaultKey);
-    setVaultUnlocked(true);
-  }, []);
+  const unlockWithAccountKey = useCallback(
+    (accountKey: Uint8Array, vaultKeys: readonly MemberVaultKey[], offline = false) => {
+      secretsStore.unlockWithAccountKey(accountKey);
+      loadVaultKeysOrLock(vaultKeys);
+      if (offline) setSessionId("offline");
+      setVaultUnlocked(true);
+    },
+    [],
+  );
 
   const signRequest = useCallback(async (message: string) => secretsStore.signRequest(message), []);
 
@@ -131,7 +163,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       restoreLogin,
       offlineLoginSession,
       unlockVault,
-      unlockWithVaultKey,
+      unlockWithAccountKey,
       signRequest,
       endSession,
     }),
@@ -144,7 +176,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       restoreLogin,
       offlineLoginSession,
       unlockVault,
-      unlockWithVaultKey,
+      unlockWithAccountKey,
       signRequest,
       endSession,
     ],

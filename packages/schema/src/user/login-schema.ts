@@ -1,6 +1,6 @@
 import z from "zod";
 import { emailSchema } from "./email-schema";
-import { passwordKeySchema } from "./key-schema";
+import { memberVaultKeySchema, passwordKeySchema } from "./key-schema";
 
 export const startLoginInputSchema = z.object({
   email: emailSchema,
@@ -24,4 +24,5 @@ export const finishLoginInputSchema = z.object({
 export const finishLoginOutputSchema = z.object({
   sessionId: z.string(),
   userPasswordKeys: passwordKeySchema,
+  vaultKeys: z.array(memberVaultKeySchema),
 });

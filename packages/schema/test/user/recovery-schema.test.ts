@@ -14,13 +14,13 @@ const ATTEMPT_ID = "3f1c2b4e-8a6d-4c1e-9b7a-2d5e6f708192";
 
 const VALID_USER_KEYS = {
   recoveryKekSalt: b64(32),
-  encryptedVaultKeyRecovery: b64(48),
-  vaultKeyEncryptionNonceRecovery: b64(24),
+  encryptedAccountKeyRecovery: b64(48),
+  accountKeyEncryptionNonceRecovery: b64(24),
   recoveryVerifier: b64(32),
   passwordKekParams: { t: 3, m: 128 * 1024, p: 1 },
   passwordKekSalt: b64(32),
-  encryptedVaultKey: b64(48),
-  vaultKeyEncryptionNonce: b64(24),
+  encryptedAccountKey: b64(48),
+  accountKeyEncryptionNonce: b64(24),
 };
 
 describe("startRecoveryInputSchema", () => {
@@ -40,8 +40,8 @@ describe("startRecoveryOutputSchema", () => {
   it("requires the wrap but not the verifier", () => {
     const recoveryKeys = {
       recoveryKekSalt: b64(32),
-      encryptedVaultKeyRecovery: b64(48),
-      vaultKeyEncryptionNonceRecovery: b64(24),
+      encryptedAccountKeyRecovery: b64(48),
+      accountKeyEncryptionNonceRecovery: b64(24),
     };
     const valid = { attemptId: ATTEMPT_ID, registrationResponse: "x", recoveryKeys };
     expect(() => startRecoveryOutputSchema.parse(valid)).not.toThrow();

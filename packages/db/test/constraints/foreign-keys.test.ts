@@ -32,8 +32,8 @@ describe("foreign-key constraints", () => {
     await expect(
       client.query(
         `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams",
-          "passwordKekSalt", "encryptedVaultKey", "vaultKeyEncryptionNonce",
-          "encryptedVaultKeyRecovery", "vaultKeyEncryptionNonceRecovery")
+          "passwordKekSalt", "encryptedAccountKey", "accountKeyEncryptionNonce",
+          "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orphan.keySetId,
@@ -41,10 +41,10 @@ describe("foreign-key constraints", () => {
           orphan.recoveryKekSalt,
           JSON.stringify(orphan.passwordKekParams),
           orphan.passwordKekSalt,
-          orphan.encryptedVaultKey,
-          orphan.vaultKeyEncryptionNonce,
-          orphan.encryptedVaultKeyRecovery,
-          orphan.vaultKeyEncryptionNonceRecovery,
+          orphan.encryptedAccountKey,
+          orphan.accountKeyEncryptionNonce,
+          orphan.encryptedAccountKeyRecovery,
+          orphan.accountKeyEncryptionNonceRecovery,
         ],
       ),
     ).rejects.toMatchObject({ code: FK_VIOLATION });

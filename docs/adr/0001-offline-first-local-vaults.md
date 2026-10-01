@@ -275,9 +275,15 @@ ciphertext to identity*) is part of the new baseline format from the start, inst
 
 - records: `recordId ‖ vaultId ‖ cryptoVersion`
 - vault-key wraps: `"vault-key" ‖ vaultId ‖ keyVersion`
-- the account-key wrap: `"account-key" ‖ profileId`
+- the account-key wrap: purpose only (`"account-key"` + format version)
 
-The AAD never uses the server `userId`, because it doesn't exist before linking. A record moved
+The AAD never uses the server `userId`, because it doesn't exist before linking.
+
+> **Amended 2026-10-01** (key hierarchy implementation): the account-key wrap was first bound to
+> `profileId`. That id is per device, but the same wrapped account key is unwrapped on every
+> device of the account, so the binding would break on the second one. Binding it to an identity
+> buys nothing anyway: a wrap belonging to another user fails on the wrong KEK. Vault keys keep
+> `vaultId ‖ keyVersion`, which stops the server from swapping wraps between the user's own vaults. A record moved
 to another vault is re-encrypted anyway (D6).
 
 ### D12 — Durability of local-only data

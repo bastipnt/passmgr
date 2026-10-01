@@ -7,6 +7,7 @@ import {
 } from "@repo/store";
 import { useCallback, useContext, useRef, useState } from "react";
 import { SessionContext } from "../providers/SessionProvider";
+import { useStore } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
 
 export type RestoreStatus = "restoring" | "restored" | "needs-login";
@@ -23,6 +24,7 @@ export type RestoreStatus = "restoring" | "restored" | "needs-login";
  */
 export function useSessionRestore() {
   const { restoreLogin } = useContext(SessionContext);
+  const { vault } = useStore();
   const trpc = useTRPCClient();
   const [status, setStatus] = useState<RestoreStatus>(
     isPersistentLoginAvailable() ? "restoring" : "needs-login",
@@ -46,11 +48,14 @@ export function useSessionRestore() {
 
     // Load the keys into memory so the heartbeat request can be signed, but
     // don't enter the app until the server confirms the session is still alive
-    // (24h sliding TTL). On failure, drop everything and fall back to login.
-    secretsStore.restoreSession(bundle);
-
+    // (24h sliding TTL). The vault keys come from the local DB, unwrapped with
+    // the bundle's account key. Any failure — a bundle from an older app version,
+    // a dead session, vault keys that don't open — drops everything and falls
+    // back to the normal login, instead of leaving the app on the splash screen.
     try {
+      secretsStore.restoreSession(bundle);
       await trpc.user.heartbeat.query();
+      restoreLogin(bundle, await vault.getVaultKeys());
     } catch {
       secretsStore.lock();
       await clearLoginBundle();
@@ -58,15 +63,13 @@ export function useSessionRestore() {
       return;
     }
 
-    restoreLogin(bundle);
-
     // Seed the decrypt worker with the restored vault key — normally done by
     // unlock(); the restore path bypasses it, so do it here or record
     // decryption fails with "Worker not initialized".
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
 
     setStatus("restored");
-  }, [restoreLogin, trpc]);
+  }, [restoreLogin, trpc, vault]);
 
   return { status, tryRestore };
 }

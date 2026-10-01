@@ -1,5 +1,5 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { VaultKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial } from "@repo/schema";
 import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { PREF_KEYS } from "../preferences/preference-keys";
@@ -12,7 +12,8 @@ type StoreContextValue = {
   vault: Vault;
   syncManager: SyncManager;
 
-  vaultKeyMaterial: VaultKeyMaterial | null;
+  /** The cached account key wrap + email: present once this device can unlock offline. */
+  accountKeyMaterial: AccountKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
   biometricDismissed: boolean;
 
@@ -46,7 +47,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
   const trpc = useTRPCClient();
   const preferences = usePreferences();
 
-  const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
+  const [accountKeyMaterial, setAccountKeyMaterial] = useState<AccountKeyMaterial | null>(null);
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
     null,
   );
@@ -74,9 +75,9 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
   }
   const syncManager = syncManagerRef.current;
 
-  // Load vault key material on mount to check if offline unlock is available
+  // Load the account key material on mount to check if offline unlock is available
   useEffect(() => {
-    void vault.getVaultKeyMaterial().then(setVaultKeyMaterial);
+    void vault.getAccountKeyMaterial().then(setAccountKeyMaterial);
     void vault.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
   }, [vault]);
 
@@ -134,7 +135,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     await clearLoginBundle();
     secretsStore.lock();
     preferences.remove(PREF_KEYS.biometricDismissed);
-    setVaultKeyMaterial(null);
+    setAccountKeyMaterial(null);
     setBiometricKeyMaterial(null);
   }
 
@@ -142,7 +143,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     vault,
     syncManager,
 
-    vaultKeyMaterial,
+    accountKeyMaterial,
     biometricKeyMaterial,
     biometricDismissed,
 

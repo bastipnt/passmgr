@@ -1,9 +1,9 @@
-import { db, usersTable } from "@repo/db";
+import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
 import { clientStartRegistration } from "../../test/setup/opaque-client";
 import { buildTestContext } from "../../test/setup/test-context";
-import { buildUserKeys } from "../../test/setup/user-keys";
+import { buildRegistrationKeys } from "../../test/setup/user-keys";
 import { redis } from "../redis";
 import { appRouter } from "../router";
 import { createCallerFactory } from "../trpc";
@@ -11,7 +11,7 @@ import { createInvite, getInvite } from "../util/redis-utils";
 
 const createCaller = createCallerFactory(appRouter);
 
-async function runRegistration(email: string, password: string, invite?: string) {
+async function runRegistration(email: string, password: string, invite?: string, vaultId?: string) {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartRegistration(password);
   const { registrationResponse } = await caller.register.startRegistration({
@@ -20,8 +20,16 @@ async function runRegistration(email: string, password: string, invite?: string)
     invite,
   });
   const { registrationRecord } = await started.finish(registrationResponse, email);
-  const { recoveryKey: _r, ...userKeys } = await buildUserKeys(password);
-  await caller.register.finishRegistration({ email, registrationRecord, userKeys, invite });
+  const keys = await buildRegistrationKeys(password);
+  const { userKeys } = keys;
+  const personalVault = { ...keys.personalVault, vaultId: vaultId ?? keys.personalVault.vaultId };
+  await caller.register.finishRegistration({
+    email,
+    registrationRecord,
+    userKeys,
+    personalVault,
+    invite,
+  });
 }
 
 beforeEach(async () => {
@@ -53,6 +61,30 @@ describe("registrationRouter — edge cases", () => {
 
     const users = await db.select().from(usersTable);
     expect(users).toHaveLength(1);
+  });
+
+  it("creates the personal vault with its owner membership", async () => {
+    await runRegistration("alice@example.com", "pw");
+
+    const [user] = await db.select().from(usersTable);
+    const [vault] = await db.select().from(vaultsTable);
+    expect(vault).toMatchObject({ ownerId: user!.userId, kind: "personal", keyVersion: 1 });
+    expect(await db.select().from(vaultMembersTable)).toEqual([
+      expect.objectContaining({ vaultId: vault!.vaultId, userId: user!.userId, role: "owner" }),
+    ]);
+  });
+
+  it("finishRegistration → BAD_REQUEST when the vaultId is taken, and rolls back the new user", async () => {
+    await runRegistration("alice@example.com", "pw");
+    const [taken] = await db.select().from(vaultsTable);
+
+    await expect(
+      runRegistration("bob@example.com", "pw", undefined, taken!.vaultId),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    expect(await db.select().from(usersTable)).toHaveLength(1);
+    expect(await db.select().from(vaultsTable)).toHaveLength(1);
+    expect(await db.select().from(vaultMembersTable)).toHaveLength(1);
   });
 
   it("finishRegistration → BAD_REQUEST on malformed userKeys (Zod)", async () => {

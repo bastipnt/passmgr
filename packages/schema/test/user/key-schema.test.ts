@@ -14,13 +14,13 @@ const VALID_ARGON = { t: 3, m: 128 * 1024, p: 1 };
 const VALID_PASSWORD_KEY = {
   passwordKekParams: VALID_ARGON,
   passwordKekSalt: b64(32),
-  encryptedVaultKey: b64(48),
-  vaultKeyEncryptionNonce: b64(24),
+  encryptedAccountKey: b64(48),
+  accountKeyEncryptionNonce: b64(24),
 };
 const VALID_RECOVERY_KEY = {
   recoveryKekSalt: b64(32),
-  encryptedVaultKeyRecovery: b64(48),
-  vaultKeyEncryptionNonceRecovery: b64(24),
+  encryptedAccountKeyRecovery: b64(48),
+  accountKeyEncryptionNonceRecovery: b64(24),
   recoveryVerifier: b64(32),
 };
 const VALID_USER_KEY = { ...VALID_PASSWORD_KEY, ...VALID_RECOVERY_KEY };

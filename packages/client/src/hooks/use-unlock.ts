@@ -7,7 +7,7 @@ import {
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
-import type { ArgonParams, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type { ArgonParams, MemberVaultKey, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
 import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
 import { fromBase64, toBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
@@ -21,13 +21,27 @@ function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
   return a.t === b.t && a.m === b.m && a.p === b.p;
 }
 
-function keyMaterialEqual(a: PasswordKeySchema, b: PasswordKeySchema): boolean {
+function passwordKeysEqual(a: PasswordKeySchema, b: PasswordKeySchema): boolean {
   return (
     paramsEqual(a.passwordKekParams, b.passwordKekParams) &&
     a.passwordKekSalt === b.passwordKekSalt &&
-    a.encryptedVaultKey === b.encryptedVaultKey &&
-    a.vaultKeyEncryptionNonce === b.vaultKeyEncryptionNonce
+    a.encryptedAccountKey === b.encryptedAccountKey &&
+    a.accountKeyEncryptionNonce === b.accountKeyEncryptionNonce
   );
+}
+
+function vaultKeysEqual(a: readonly MemberVaultKey[], b: readonly MemberVaultKey[]): boolean {
+  if (a.length !== b.length) return false;
+  const byId = new Map(a.map((wrap) => [wrap.vaultId, wrap]));
+  return b.every((wrap) => {
+    const other = byId.get(wrap.vaultId);
+    return (
+      other?.kind === wrap.kind &&
+      other.keyVersion === wrap.keyVersion &&
+      other.encryptedVaultKey === wrap.encryptedVaultKey &&
+      other.vaultKeyEncryptionNonce === wrap.vaultKeyEncryptionNonce
+    );
+  });
 }
 
 /**
@@ -38,14 +52,22 @@ export type UnlockError = "failed" | "wrong_account";
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState<UnlockError>();
-  const { unlockVault, unlockWithVaultKey, offlineLoginSession, endSession } =
+  const { unlockVault, unlockWithAccountKey, offlineLoginSession, endSession } =
     useContext(SessionContext);
   const store = useStore();
   const { loginUser } = useLogin();
   const trpc = useTRPCClient();
 
-  /** Derives the password KEK and decrypts the vault key. Resolves `false` on a wrong password. */
-  async function unlock({ email, password, userPasswordKeys }: VaultUnlockInfo): Promise<boolean> {
+  /**
+   * Derives the password KEK, unwraps the account key and with it the vault keys.
+   * Resolves `false` on a wrong password (or a vault key that doesn't open).
+   */
+  async function unlock({
+    email,
+    password,
+    userPasswordKeys,
+    vaultKeys,
+  }: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
     let passwordKek: Uint8Array;
 
@@ -66,16 +88,17 @@ export function useUnlock() {
       return false;
     }
 
-    await storeKeyMaterial(email, userPasswordKeys);
+    await storeKeyMaterial(email, userPasswordKeys, vaultKeys);
 
     try {
       unlockVault(
         passwordKek,
-        userPasswordKeys.encryptedVaultKey,
-        userPasswordKeys.vaultKeyEncryptionNonce,
+        userPasswordKeys.encryptedAccountKey,
+        userPasswordKeys.accountKeyEncryptionNonce,
+        vaultKeys,
       );
     } catch (e) {
-      // Wrong password on the offline path: the vault key fails to decrypt.
+      // Wrong password on the offline path: the account key fails to decrypt.
       console.error("Vault unlock failed", e);
       await failUnlock();
       return false;
@@ -92,7 +115,7 @@ export function useUnlock() {
     // Transparently migrate to the current Argon2 params if the stored ones are
     // stale (e.g. after a params bump). Best-effort — needs the server and the
     // unlocked vault key in memory; failures don't block login.
-    void rekeyIfParamsStale(email, password, userPasswordKeys.passwordKekParams);
+    void rekeyIfParamsStale(email, password, userPasswordKeys.passwordKekParams, vaultKeys);
     return true;
   }
 
@@ -103,7 +126,7 @@ export function useUnlock() {
    * server's login throttle once back online.
    */
   async function offlineUnlock(email: string, password: string): Promise<boolean> {
-    const keyMaterial = store.vaultKeyMaterial;
+    const keyMaterial = store.accountKeyMaterial;
     // A different account can't be unlocked offline — and must not reach
     // `storeKeyMaterial`, which clears the local vault on an email change.
     if (!keyMaterial || normalizeEmail(email) !== keyMaterial.email) {
@@ -111,7 +134,8 @@ export function useUnlock() {
       return false;
     }
 
-    const unlocked = await unlock({ email, password, userPasswordKeys: keyMaterial });
+    const vaultKeys = await store.vault.getVaultKeys();
+    const unlocked = await unlock({ email, password, userPasswordKeys: keyMaterial, vaultKeys });
     if (!unlocked) return false;
 
     // Session id gets set to "offline"
@@ -140,14 +164,16 @@ export function useUnlock() {
   }
 
   /**
-   * Re-derive the password KEK with the current params and re-wrap the vault
-   * key. Runs client-side only — the server never sees the key or password.
+   * Re-derive the password KEK with the current params and re-wrap the account
+   * key (vault keys are unaffected). Runs client-side only — the server never
+   * sees the key or password.
    * TODO: move into separate file (refactor)
    */
   async function rekeyIfParamsStale(
     email: string,
     password: string,
     storedParams: ArgonParams,
+    vaultKeys: readonly MemberVaultKey[],
   ): Promise<void> {
     const targetParams = getPasswordKekParams();
     if (paramsEqual(storedParams, targetParams)) return;
@@ -159,18 +185,19 @@ export function useUnlock() {
         () => genPasswordKek(password, targetParams),
       );
 
-      const [encryptedVaultKey, vaultKeyEncryptionNonce] = secretsStore.rewrapVaultKey(passwordKek);
+      const [encryptedAccountKey, accountKeyEncryptionNonce] =
+        secretsStore.rewrapAccountKey(passwordKek);
       wipe(passwordKek);
 
       const updated: PasswordKeySchema = {
         passwordKekParams,
         passwordKekSalt: toBase64(passwordKekSaltData),
-        encryptedVaultKey,
-        vaultKeyEncryptionNonce,
+        encryptedAccountKey,
+        accountKeyEncryptionNonce,
       };
 
       await trpc.user.rekeyPasswordKeys.mutate(updated);
-      await storeKeyMaterial(email, updated);
+      await storeKeyMaterial(email, updated, vaultKeys);
     } catch (e) {
       console.error("Argon2 param rekey failed (will retry next login)", e);
     }
@@ -179,18 +206,34 @@ export function useUnlock() {
   async function biometricUnlock() {
     if (!store.biometricKeyMaterial) return;
 
-    const { vaultKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
-    const email = store.vaultKeyMaterial?.email;
+    const { accountKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
+    const email = store.accountKeyMaterial?.email;
     let onlineAuthFailure = true;
+    let vaultKeys: readonly MemberVaultKey[] | undefined;
 
     if (navigator.onLine && email) {
       const unlockInfo = await timed("total login time", () => loginUser(email, password));
       onlineAuthFailure = !unlockInfo;
 
-      if (unlockInfo) await storeKeyMaterial(email, unlockInfo.userPasswordKeys);
+      if (unlockInfo) {
+        await storeKeyMaterial(email, unlockInfo.userPasswordKeys, unlockInfo.vaultKeys);
+        vaultKeys = unlockInfo.vaultKeys;
+      }
     }
 
-    unlockWithVaultKey(vaultKey, onlineAuthFailure);
+    try {
+      unlockWithAccountKey(
+        accountKey,
+        vaultKeys ?? (await store.vault.getVaultKeys()),
+        onlineAuthFailure,
+      );
+    } catch (e) {
+      // A vault key that doesn't open (or no personal vault). The online path
+      // already holds a live server session: revoke it, as on the password path.
+      console.error("Biometric vault unlock failed", e);
+      await failUnlock();
+      throw e;
+    }
     decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
 
     if (!onlineAuthFailure && email) await persistSession(email);
@@ -213,21 +256,28 @@ export function useUnlock() {
   }
 
   /**
-   * Persist encrypted vault key material for offline unlock
+   * Persist the wrapped account key and vault keys for offline unlock.
    */
-  async function storeKeyMaterial(rawEmail: string, userPasswordKeys: PasswordKeySchema) {
+  async function storeKeyMaterial(
+    rawEmail: string,
+    userPasswordKeys: PasswordKeySchema,
+    vaultKeys: readonly MemberVaultKey[],
+  ) {
     // Offline unlock passes the typed email; compare in canonical form.
     const email = normalizeEmail(rawEmail);
     // Clear previous user's data if a different account logs in
-    const previous = store.vaultKeyMaterial;
+    const previous = store.accountKeyMaterial;
     if (previous && previous.email !== email) await store.vault.clear();
     // Offline unlocks (and most logins) hand back what's already stored.
-    else if (previous && keyMaterialEqual(previous, userPasswordKeys)) return;
+    else if (
+      previous &&
+      passwordKeysEqual(previous, userPasswordKeys) &&
+      vaultKeysEqual(await store.vault.getVaultKeys(), vaultKeys)
+    ) {
+      return;
+    }
 
-    await store.vault.setVaultKeyMaterial({
-      ...userPasswordKeys,
-      email,
-    });
+    await store.vault.setAccountKeyMaterial({ ...userPasswordKeys, email }, vaultKeys);
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);

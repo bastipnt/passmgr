@@ -1,5 +1,5 @@
 import { BIOMETRIC_KEY, type BiometricKeyMaterial } from "@repo/crypto";
-import { VAULT_KEY, type VaultKeyMaterial } from "@repo/schema";
+import { ACCOUNT_KEY_MATERIAL_KEYS, type AccountKeyMaterial } from "@repo/schema";
 import { inArray, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { keyMaterial } from "./tables";
@@ -26,13 +26,13 @@ async function getEntries(keys: readonly string[], db: LocalDb): Promise<Record<
 }
 
 /**
- * VAULT KEYS
+ * ACCOUNT KEY (password wrap + email, for offline unlock)
  */
 
-export async function upsertVaultKey(vaultKey: VaultKeyMaterial, db: LocalDb): Promise<void> {
+export async function upsertAccountKey(material: AccountKeyMaterial, db: LocalDb): Promise<void> {
   await upsertEntries(
-    // Only `passwordKekParams` is structured; `getVaultKey` parses it back.
-    Object.entries(vaultKey).map(([key, value]) => [
+    // Only `passwordKekParams` is structured; `getAccountKey` parses it back.
+    Object.entries(material).map(([key, value]) => [
       key,
       typeof value === "string" ? value : JSON.stringify(value),
     ]),
@@ -40,21 +40,21 @@ export async function upsertVaultKey(vaultKey: VaultKeyMaterial, db: LocalDb): P
   );
 }
 
-export async function getVaultKey(db: LocalDb): Promise<VaultKeyMaterial | null> {
-  const res = await getEntries(VAULT_KEY, db);
-  if (Object.keys(res).length < VAULT_KEY.length) return null;
+export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | null> {
+  const res = await getEntries(ACCOUNT_KEY_MATERIAL_KEYS, db);
+  if (Object.keys(res).length < ACCOUNT_KEY_MATERIAL_KEYS.length) return null;
 
   return {
     ...res,
     passwordKekParams: JSON.parse(res.passwordKekParams ?? ""),
-  } as VaultKeyMaterial;
+  } as AccountKeyMaterial;
 }
 
 /**
  * BIOMETRIC KEYS
  */
 
-export async function upsertBiometricVaultKey(
+export async function upsertBiometricKey(
   biometricKey: BiometricKeyMaterial,
   db: LocalDb,
 ): Promise<void> {
