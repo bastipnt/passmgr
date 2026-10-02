@@ -142,3 +142,10 @@ overrides:
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
+
+auditConfig:
+  ignoreGhsas:
+    # node-forge <=1.4.0 (RSA PKCS#1 v1.5 signature check), only via @expo/cli
+    # build tooling, not shipped in any app. No patched release (1.4.1) on npm
+    # yet; drop this once Expo pulls in a fixed node-forge.
+    - GHSA-86w9-cpqp-85rv
