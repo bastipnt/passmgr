@@ -28,8 +28,9 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-https://${PUBLIC_HOSTNAME}}
       - REGISTRATION_DISABLED=${REGISTRATION_DISABLED:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
-      # Proxy hops in front of the server: web Caddy + host Caddy.
-      - TRUST_PROXY=${TRUST_PROXY:-2}
+      # Proxies in front of the server (web Caddy + host Caddy) sit on Docker
+      # bridge networks, i.e. private ranges.
+      - TRUST_PROXY=${TRUST_PROXY:-loopback,uniquelocal}
       - PREFIX=/trpc
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/trpc/appConfig.getConfig').then(r=>{if(!r.ok)process.exit(1)})\""]

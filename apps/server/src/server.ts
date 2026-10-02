@@ -11,10 +11,17 @@ import { redis } from "./redis";
 
 const isDev = process.env.NODE_ENV !== "production";
 
-// Number of reverse proxy hops to trust for X-Forwarded-For, so `req.ip` (the
-// rate-limit key) is the real client rather than the proxy. A hop count instead
-// of `true` keeps client-supplied X-Forwarded-For entries from being trusted.
-const trustProxy = process.env.TRUST_PROXY ? Number(process.env.TRUST_PROXY) : false;
+// Comma-separated IPs/CIDRs (or proxy-addr names like `loopback`, `uniquelocal`)
+// of the reverse proxies whose X-Forwarded-For to trust, so `req.ip` (the
+// rate-limit key) is the real client rather than the proxy. Fastify >=5.12 no
+// longer supports hop counts (it would silently trust nothing), so reject them.
+const trustProxyEnv = process.env.TRUST_PROXY?.trim();
+if (trustProxyEnv && /^\d+$/.test(trustProxyEnv)) {
+  throw new Error(
+    "TRUST_PROXY must list proxy IPs/CIDRs (e.g. `loopback,uniquelocal`), not a hop count",
+  );
+}
+const trustProxy = trustProxyEnv || false;
 
 export const server = fastify({
   trustProxy,
