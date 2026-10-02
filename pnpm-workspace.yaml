@@ -31,7 +31,7 @@ catalog:
   clsx: ^2.1.1
   drizzle-kit: 1.0.0-beta.15-859cf75
   drizzle-orm: 1.0.0-beta.15-859cf75
-  drizzle-seed: 1.0.0-beta.15-859cf75
+  drizzle-seed: 1.0.0-rc.5-ab785fc
   # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
   expo: ~56.0.15
