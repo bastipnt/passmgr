@@ -48,14 +48,16 @@ export function useSessionRestore() {
 
     // Load the keys into memory so the heartbeat request can be signed, but
     // don't enter the app until the server confirms the session is still alive
-    // (24h sliding TTL). The vault keys come from the local DB, unwrapped with
-    // the bundle's account key. Any failure — a bundle from an older app version,
-    // a dead session, vault keys that don't open — drops everything and falls
+    // (24h sliding TTL). The vault keys and keypair come from the local DB,
+    // unwrapped with the bundle's account key. Any failure — a bundle from an older
+    // app version, a dead session, keys that don't open — drops everything and falls
     // back to the normal login, instead of leaving the app on the splash screen.
     try {
       secretsStore.restoreSession(bundle);
       await trpc.user.heartbeat.query();
-      restoreLogin(bundle, await vault.getVaultKeys());
+      const keyMaterial = await vault.getAccountKeyMaterial();
+      if (!keyMaterial) throw new Error("No key material stored on this device");
+      restoreLogin(bundle, await vault.getVaultKeys(), keyMaterial.userKeyPair);
     } catch {
       secretsStore.lock();
       await clearLoginBundle();

@@ -213,6 +213,21 @@ the history must not leak into the target.
 - Sharing requires a linked account. In `local` mode the share action leads to "Create online
   account".
 
+> **Amended 2026-10-02** (keypair implementation): the keypair comes from its own
+> `createUserKeyPair(accountKey)`, next to `createVault`, not from `generateUserKeys`: recovery
+> calls `generateUserKeys` with the existing account key and must keep the published public key.
+> Server table `user_key_pairs (userId, keyVersion, publicKey, encryptedPrivateKey, nonce)`,
+> append-only, highest `keyVersion` is current; `user.publicKey` looks one up by email. The wrapped
+> keypair is cached locally with the account key material. Every unlock (password, biometric,
+> restore) loads it into `secretsStore` next to the vault keys and fails if the private key doesn't
+> match the public key, so a server can't make the app show (and the user confirm) a fingerprint
+> for a key the user doesn't hold.
+>
+> Open for the invite work: the seal is anonymous, so anyone (including the server) can seal a
+> vault key to a user and forge an invite to a vault whose key it knows. Invites need sender
+> authentication (e.g. the owner signs or authenticates the sealed key with a static key whose
+> fingerprint the invitee checks) before accepting.
+
 ### D8 — Sync protocol
 
 - **Outbox** (local table): every write is a single SQLite transaction that writes the record

@@ -1,5 +1,10 @@
 import { BIOMETRIC_KEY, type BiometricKeyMaterial } from "@repo/crypto";
-import { ACCOUNT_KEY_MATERIAL_KEYS, type AccountKeyMaterial } from "@repo/schema";
+import {
+  ACCOUNT_KEY_MATERIAL_KEYS,
+  type AccountKeyMaterial,
+  type ArgonParams,
+  userKeyPairSchema,
+} from "@repo/schema";
 import { inArray, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { keyMaterial } from "./tables";
@@ -26,12 +31,12 @@ async function getEntries(keys: readonly string[], db: LocalDb): Promise<Record<
 }
 
 /**
- * ACCOUNT KEY (password wrap + email, for offline unlock)
+ * ACCOUNT KEY (password wrap + email + keypair, for offline unlock)
  */
 
 export async function upsertAccountKey(material: AccountKeyMaterial, db: LocalDb): Promise<void> {
   await upsertEntries(
-    // Only `passwordKekParams` is structured; `getAccountKey` parses it back.
+    // `passwordKekParams` and `userKeyPair` are structured; `getAccountKey` parses them back.
     Object.entries(material).map(([key, value]) => [
       key,
       typeof value === "string" ? value : JSON.stringify(value),
@@ -44,10 +49,20 @@ export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | n
   const res = await getEntries(ACCOUNT_KEY_MATERIAL_KEYS, db);
   if (Object.keys(res).length < ACCOUNT_KEY_MATERIAL_KEYS.length) return null;
 
-  return {
-    ...res,
-    passwordKekParams: JSON.parse(res.passwordKekParams ?? ""),
-  } as AccountKeyMaterial;
+  // A corrupt entry counts as nothing stored (no offline unlock until the next
+  // online login rewrites it) instead of throwing at every app start.
+  let passwordKekParams: ArgonParams;
+  let userKeyPair: unknown;
+  try {
+    passwordKekParams = JSON.parse(res.passwordKekParams ?? "");
+    userKeyPair = JSON.parse(res.userKeyPair ?? "");
+  } catch {
+    return null;
+  }
+  const parsedKeyPair = userKeyPairSchema.safeParse(userKeyPair);
+  if (!parsedKeyPair.success) return null;
+
+  return { ...res, passwordKekParams, userKeyPair: parsedKeyPair.data } as AccountKeyMaterial;
 }
 
 /**

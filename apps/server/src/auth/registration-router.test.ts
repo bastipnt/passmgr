@@ -1,4 +1,4 @@
-import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, userKeyPairsTable, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
 import { clientStartRegistration } from "../../test/setup/opaque-client";
@@ -11,7 +11,13 @@ import { createInvite, getInvite } from "../util/redis-utils";
 
 const createCaller = createCallerFactory(appRouter);
 
-async function runRegistration(email: string, password: string, invite?: string, vaultId?: string) {
+async function runRegistration(
+  email: string,
+  password: string,
+  invite?: string,
+  vaultId?: string,
+  publicKey?: string,
+) {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartRegistration(password);
   const { registrationResponse } = await caller.register.startRegistration({
@@ -22,12 +28,14 @@ async function runRegistration(email: string, password: string, invite?: string,
   const { registrationRecord } = await started.finish(registrationResponse, email);
   const keys = await buildRegistrationKeys(password);
   const { userKeys } = keys;
+  const userKeyPair = { ...keys.userKeyPair, publicKey: publicKey ?? keys.userKeyPair.publicKey };
   const personalVault = { ...keys.personalVault, vaultId: vaultId ?? keys.personalVault.vaultId };
   await caller.register.finishRegistration({
     email,
     registrationRecord,
     userKeys,
     personalVault,
+    userKeyPair,
     invite,
   });
 }
@@ -85,6 +93,28 @@ describe("registrationRouter — edge cases", () => {
     expect(await db.select().from(usersTable)).toHaveLength(1);
     expect(await db.select().from(vaultsTable)).toHaveLength(1);
     expect(await db.select().from(vaultMembersTable)).toHaveLength(1);
+  });
+
+  it("stores the user's keypair (first key version)", async () => {
+    await runRegistration("alice@example.com", "pw");
+
+    const [user] = await db.select().from(usersTable);
+    expect(await db.select().from(userKeyPairsTable)).toEqual([
+      expect.objectContaining({ userId: user!.userId, keyVersion: 1 }),
+    ]);
+  });
+
+  it("finishRegistration → BAD_REQUEST when the public key is taken, and rolls back the new user", async () => {
+    await runRegistration("alice@example.com", "pw");
+    const [taken] = await db.select().from(userKeyPairsTable);
+
+    await expect(
+      runRegistration("bob@example.com", "pw", undefined, undefined, taken!.publicKey),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    expect(await db.select().from(usersTable)).toHaveLength(1);
+    expect(await db.select().from(vaultsTable)).toHaveLength(1);
+    expect(await db.select().from(userKeyPairsTable)).toHaveLength(1);
   });
 
   it("finishRegistration → BAD_REQUEST on malformed userKeys (Zod)", async () => {

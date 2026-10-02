@@ -1,6 +1,6 @@
 import { ExpectedAuthResult, KE1, KE3, RegistrationRecord } from "@cloudflare/opaque-ts";
 import { hashEmail, hkdf, wipe } from "@repo/crypto";
-import { db, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, userKeyPairsTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import {
   finishLoginInputSchema,
   finishLoginOutputSchema,
@@ -9,7 +9,7 @@ import {
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
@@ -163,6 +163,20 @@ export const loginRouter = router({
         .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
         .where(and(eq(vaultMembersTable.userId, userId), isNull(vaultsTable.deleted_at)));
 
+      // The current (highest-version) keypair.
+      const [userKeyPair] = await db
+        .select({
+          keyVersion: userKeyPairsTable.keyVersion,
+          publicKey: userKeyPairsTable.publicKey,
+          encryptedPrivateKey: userKeyPairsTable.encryptedPrivateKey,
+          privateKeyEncryptionNonce: userKeyPairsTable.privateKeyEncryptionNonce,
+        })
+        .from(userKeyPairsTable)
+        .where(eq(userKeyPairsTable.userId, userId))
+        .orderBy(desc(userKeyPairsTable.keyVersion))
+        .limit(1);
+      if (!userKeyPair) denyLogin(log, "finishLogin", "no_key_pair", emailHash);
+
       await resetLoginThrottle(emailHash);
 
       const sessionKey = bytesToB64(finResult.session_key);
@@ -179,7 +193,7 @@ export const loginRouter = router({
       wipe(authKey);
 
       log?.info({ emailHash }, "auth.login.success");
-      return { sessionId, userPasswordKeys: keyQueryRes, vaultKeys };
+      return { sessionId, userPasswordKeys: keyQueryRes, vaultKeys, userKeyPair };
     }),
 
   logout: protectedProcedure.mutation(async ({ ctx }) => {

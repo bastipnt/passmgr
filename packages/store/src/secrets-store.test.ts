@@ -1,4 +1,5 @@
 import {
+  createUserKeyPair,
   genKey,
   hkdf,
   unwrapAccountKey,
@@ -121,6 +122,58 @@ describe("replacing the account key", () => {
     expect(() => secretsStore.restoreSession(legacy)).toThrow();
     expect(secretsStore.sessionId).toBe("sid-live");
     expect(secretsStore.exportAccountKey()).toEqual(accountKey);
+  });
+});
+
+describe("loadUserKeyPair", () => {
+  it("needs the account key first", () => {
+    expect(() => secretsStore.loadUserKeyPair(createUserKeyPair(genKey()))).toThrow(
+      /SessionLocked/,
+    );
+  });
+
+  it("holds the private key and exposes the public key it proves", () => {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    secretsStore.loadUserKeyPair(keyPair);
+
+    expect(secretsStore.userPublicKey).toBe(keyPair.publicKey);
+    expect(secretsStore._peekBuffers().userPrivateKey).toHaveLength(32);
+  });
+
+  it("rejects a keypair whose public key was swapped, and keeps nothing", () => {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadUserKeyPair(keyPair);
+    const before = secretsStore._peekBuffers().userPrivateKey!;
+
+    const swapped = { ...keyPair, publicKey: createUserKeyPair(genKey()).publicKey };
+    expect(() => secretsStore.loadUserKeyPair(swapped)).toThrow("doesn't match");
+
+    expect(secretsStore.userPublicKey).toBeUndefined();
+    expect(secretsStore._peekBuffers().userPrivateKey).toBeUndefined();
+    expect(before.every((b) => b === 0)).toBe(true);
+  });
+
+  it("rejects a keypair wrapped under another account key", () => {
+    secretsStore.unlockWithAccountKey(genKey());
+    expect(() => secretsStore.loadUserKeyPair(createUserKeyPair(genKey()))).toThrow();
+    expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+
+  it("lockVault wipes the private key", () => {
+    const accountKey = genKey();
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadUserKeyPair(createUserKeyPair(accountKey));
+    const privateKey = secretsStore._peekBuffers().userPrivateKey!;
+
+    secretsStore.lockVault();
+
+    expect(privateKey.every((b) => b === 0)).toBe(true);
+    expect(secretsStore.userPublicKey).toBeUndefined();
   });
 });
 

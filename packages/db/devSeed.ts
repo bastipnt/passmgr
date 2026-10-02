@@ -12,6 +12,7 @@ import {
   OpaqueServer,
 } from "@cloudflare/opaque-ts";
 import {
+  createUserKeyPair,
   createVault,
   encryptEmail,
   encryptXChaCha,
@@ -24,7 +25,16 @@ import { edgeCaseLoginRecords, exampleLoginRecords, type RecordSchema } from "@r
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
-import { db, keysTable, recordsTable, schema, usersTable, vaultMembersTable, vaultsTable } from ".";
+import {
+  db,
+  keysTable,
+  recordsTable,
+  schema,
+  userKeyPairsTable,
+  usersTable,
+  vaultMembersTable,
+  vaultsTable,
+} from ".";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
@@ -76,6 +86,7 @@ async function seed() {
   const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, accountKey);
   const personalVault = createVault(accountKey);
   const vaultKey = unwrapVaultKey(accountKey, personalVault);
+  const userKeyPair = createUserKeyPair(accountKey);
 
   // 4. Encrypt email
   const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(serverKey, EMAIL);
@@ -101,8 +112,9 @@ async function seed() {
   const { userId } = user;
   console.log(`User created: ${userId}`);
 
-  // 6. Insert keys + the personal vault
+  // 6. Insert keys, the keypair + the personal vault
   await db.insert(keysTable).values({ userId, ...userKeys });
+  await db.insert(userKeyPairsTable).values({ userId, ...userKeyPair });
   await db
     .insert(vaultsTable)
     .values({ vaultId: personalVault.vaultId, ownerId: userId, kind: "personal" });

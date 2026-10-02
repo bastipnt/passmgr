@@ -1,6 +1,13 @@
 import { RegistrationRequest } from "@cloudflare/opaque-ts";
 import { encryptEmail, hashEmail, normalizeEmail } from "@repo/crypto";
-import { db, keysTable, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import {
+  db,
+  keysTable,
+  userKeyPairsTable,
+  usersTable,
+  vaultMembersTable,
+  vaultsTable,
+} from "@repo/db";
 import {
   finishRegistrationInputSchema,
   startRegistrationInputSchema,
@@ -65,7 +72,7 @@ export const registrationRouter = router({
     .input(finishRegistrationInputSchema)
     .mutation(async ({ input, ctx }) => {
       const log = ctx.req?.log;
-      const { email, registrationRecord, userKeys, personalVault, invite } = input;
+      const { email, registrationRecord, userKeys, personalVault, userKeyPair, invite } = input;
       await assertRegistrationAllowed(email, invite, { consume: true });
 
       const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(
@@ -90,6 +97,7 @@ export const registrationRouter = router({
           if (!user) return false;
 
           await tx.insert(keysTable).values({ userId: user.userId, ...userKeys });
+          await tx.insert(userKeyPairsTable).values({ userId: user.userId, ...userKeyPair });
           // The default vault: its key is already wrapped under the account key.
           await tx
             .insert(vaultsTable)
@@ -100,7 +108,7 @@ export const registrationRouter = router({
           return true;
         })
         .catch((error: unknown) => {
-          // A client-chosen vaultId (or wrap) that already exists: reject the
+          // A client-chosen vaultId (or wrap, or public key) that already exists: reject the
           // request instead of surfacing a 500. The transaction rolled back.
           if (!isUniqueViolation(error)) throw error;
           log?.warn({ emailHash }, "auth.register.key_conflict");

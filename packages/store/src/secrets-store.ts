@@ -4,11 +4,12 @@ import {
   hkdf,
   signHmac,
   unwrapAccountKey,
+  unwrapUserPrivateKey,
   unwrapVaultKey,
   wipe,
   wrapAccountKey,
 } from "@repo/crypto";
-import type { MemberVaultKey } from "@repo/schema";
+import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { LoginBundle } from "./session-persistence.types";
 
@@ -27,6 +28,9 @@ class SecretsStore {
   private accountKey?: Uint8Array;
   private vaultKeys = new Map<string, Uint8Array>();
   private personalVaultId?: string;
+  // The X25519 keypair (ADR 0001 D7), checked against each other on load.
+  private userPrivateKey?: Uint8Array;
+  private verifiedPublicKey?: string;
 
   // Temporary password for biometric enrollment
   private password?: string;
@@ -98,6 +102,27 @@ class SecretsStore {
 
     this.vaultKeys = keys;
     this.personalVaultId = personal.vaultId;
+  }
+
+  /**
+   * Unwrap the user's X25519 private key with the account key and keep it with
+   * its public key. Throws (leaving none loaded) when the wrap doesn't open or
+   * doesn't belong to the public key: the server handed out a keypair that
+   * isn't the user's, and a fingerprint shown for it would vouch for a key the
+   * user doesn't hold.
+   */
+  loadUserKeyPair(keyPair: UserKeyPair) {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+    this.wipeUserKeyPair();
+
+    this.userPrivateKey = unwrapUserPrivateKey(accountKey, keyPair);
+    this.verifiedPublicKey = keyPair.publicKey;
+  }
+
+  /** The user's own public key, as proven by the private key (for the fingerprint). */
+  get userPublicKey(): string | undefined {
+    return this.verifiedPublicKey;
   }
 
   /**
@@ -173,11 +198,12 @@ class SecretsStore {
     this.password = undefined;
   }
 
-  /** Wipe the account and vault keys; the server session (if any) stays. */
+  /** Wipe the account, vault and private keys; the server session (if any) stays. */
   lockVault() {
     if (this.accountKey) wipe(this.accountKey);
     this.accountKey = undefined;
     this.wipeVaultKeys();
+    this.wipeUserKeyPair();
   }
 
   async signRequest(message: string) {
@@ -236,6 +262,12 @@ class SecretsStore {
     this.personalVaultId = undefined;
   }
 
+  private wipeUserKeyPair() {
+    if (this.userPrivateKey) wipe(this.userPrivateKey);
+    this.userPrivateKey = undefined;
+    this.verifiedPublicKey = undefined;
+  }
+
   private async deriveAuthKey(): Promise<Uint8Array> {
     if (!this.sessionSecret) throw new SessionLockedError();
     if (!this.authSalt) throw new SessionLockedError();
@@ -251,6 +283,7 @@ class SecretsStore {
     authSalt?: Uint8Array;
     accountKey?: Uint8Array;
     vaultKeys: Uint8Array[];
+    userPrivateKey?: Uint8Array;
   } {
     return {
       sessionSecret: this.sessionSecret,
@@ -258,6 +291,7 @@ class SecretsStore {
       authSalt: this.authSalt,
       accountKey: this.accountKey,
       vaultKeys: [...this.vaultKeys.values()],
+      userPrivateKey: this.userPrivateKey,
     };
   }
 }
