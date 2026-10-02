@@ -2,9 +2,15 @@ import { SessionContext } from "@repo/client";
 import { useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
 import { useUnlock } from "@repo/client/src/hooks/use-unlock";
 import { loginUser as loginUserCore } from "@repo/client/src/login";
-import { genKey, getPasswordKekParams, wrapAccountKey, wrapVaultKey } from "@repo/crypto";
+import {
+  createUserKeyPair,
+  genKey,
+  getPasswordKekParams,
+  wrapAccountKey,
+  wrapVaultKey,
+} from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type { MemberVaultKey } from "@repo/schema";
+import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
 import { clearLoginBundle, type LoginBundle, loadLoginBundle, secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
 import { act, renderHook, waitFor } from "@testing-library/react";
@@ -51,8 +57,17 @@ const passwordKeys = {
 };
 
 const store = {
-  vault: { getVaultKeys: vi.fn(), setAccountKeyMaterial: vi.fn(), clear: vi.fn() },
-  accountKeyMaterial: { ...passwordKeys, email: "alice@example.com" },
+  vault: {
+    getVaultKeys: vi.fn(),
+    getAccountKeyMaterial: vi.fn(),
+    setAccountKeyMaterial: vi.fn(),
+    clear: vi.fn(),
+  },
+  accountKeyMaterial: {
+    ...passwordKeys,
+    email: "alice@example.com",
+    userKeyPair: createUserKeyPair(genKey()),
+  },
   biometricKeyMaterial: {},
   needsBiometricEnroll: false,
 };
@@ -68,28 +83,53 @@ function keyring() {
   const wraps: MemberVaultKey[] = [
     { ...wrapVaultKey(accountKey, genKey(), PERSONAL_ID, 1), kind: "personal" },
   ];
-  return { accountKey, wraps };
+  return { accountKey, wraps, userKeyPair: createUserKeyPair(accountKey) };
 }
 
 const B64_32 = toBase64(new Uint8Array(32));
 
-/** Mirrors SessionProvider: restoring a login loads the vault keys, which may throw. */
+/** Mirrors SessionProvider: loading the vault keys + keypair may throw, which locks again. */
+function loadKeyringOrLock(wraps: readonly MemberVaultKey[], keyPair: UserKeyPair) {
+  try {
+    secretsStore.loadVaultKeys(wraps);
+    secretsStore.loadUserKeyPair(keyPair);
+  } catch (e) {
+    secretsStore.lockVault();
+    throw e;
+  }
+}
+
 const session = {
-  restoreLogin: vi.fn((bundle: Omit<LoginBundle, "email">, wraps: readonly MemberVaultKey[]) => {
-    secretsStore.restoreSession(bundle);
-    secretsStore.loadVaultKeys(wraps);
-  }),
-  unlockWithAccountKey: vi.fn((accountKey: Uint8Array, wraps: readonly MemberVaultKey[]) => {
-    secretsStore.unlockWithAccountKey(accountKey);
-    secretsStore.loadVaultKeys(wraps);
-  }),
+  restoreLogin: vi.fn(
+    (
+      bundle: Omit<LoginBundle, "email">,
+      wraps: readonly MemberVaultKey[],
+      keyPair: UserKeyPair,
+    ) => {
+      secretsStore.restoreSession(bundle);
+      loadKeyringOrLock(wraps, keyPair);
+    },
+  ),
+  unlockWithAccountKey: vi.fn(
+    (accountKey: Uint8Array, wraps: readonly MemberVaultKey[], keyPair: UserKeyPair) => {
+      secretsStore.unlockWithAccountKey(accountKey);
+      loadKeyringOrLock(wraps, keyPair);
+    },
+  ),
   unlockVault: vi.fn(
-    (kek: Uint8Array, encrypted: string, nonce: string, wraps: readonly MemberVaultKey[]) => {
+    (
+      kek: Uint8Array,
+      encrypted: string,
+      nonce: string,
+      wraps: readonly MemberVaultKey[],
+      keyPair: UserKeyPair,
+    ) => {
       secretsStore.unlockAccount(kek, encrypted, nonce);
-      secretsStore.loadVaultKeys(wraps);
+      loadKeyringOrLock(wraps, keyPair);
     },
   ),
   endSession: vi.fn(),
+  offlineLoginSession: vi.fn(),
   loginSession: vi.fn(async () => {
     secretsStore.sessionId = "live-session";
   }),
@@ -128,7 +168,11 @@ describe("useSessionRestore failure paths", () => {
   });
 
   it("falls back to login when the cached vault keys don't open", async () => {
-    const { wraps } = keyring();
+    const { wraps, userKeyPair } = keyring();
+    store.vault.getAccountKeyMaterial.mockResolvedValue({
+      ...store.accountKeyMaterial,
+      userKeyPair,
+    });
     vi.mocked(loadLoginBundle).mockResolvedValue({
       sessionId: "sid",
       authKeyB64: B64_32,
@@ -144,8 +188,34 @@ describe("useSessionRestore failure paths", () => {
     expect(secretsStore.isVaultUnlocked).toBe(false);
   });
 
-  it("restores a valid bundle with the cached vault keys", async () => {
-    const { accountKey, wraps } = keyring();
+  it("falls back to login when the cached keypair isn't the user's", async () => {
+    const { accountKey, wraps, userKeyPair } = keyring();
+    const swapped = { ...userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey };
+    vi.mocked(loadLoginBundle).mockResolvedValue({
+      sessionId: "sid",
+      authKeyB64: B64_32,
+      authSaltB64: B64_32,
+      accountKeyB64: toBase64(accountKey),
+      email: "alice@example.com",
+    });
+    store.vault.getVaultKeys.mockResolvedValue(wraps);
+    store.vault.getAccountKeyMaterial.mockResolvedValue({
+      ...store.accountKeyMaterial,
+      userKeyPair: swapped,
+    });
+
+    expect(await restore()).toBe("needs-login");
+    expect(clearLoginBundle).toHaveBeenCalledTimes(1);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+
+  it("restores a valid bundle with the cached vault keys and keypair", async () => {
+    const { accountKey, wraps, userKeyPair } = keyring();
+    store.vault.getAccountKeyMaterial.mockResolvedValue({
+      ...store.accountKeyMaterial,
+      userKeyPair,
+    });
     vi.mocked(loadLoginBundle).mockResolvedValue({
       sessionId: "sid",
       authKeyB64: B64_32,
@@ -158,13 +228,14 @@ describe("useSessionRestore failure paths", () => {
     expect(await restore()).toBe("restored");
     expect(clearLoginBundle).not.toHaveBeenCalled();
     expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(secretsStore.userPublicKey).toBe(userKeyPair.publicKey);
   });
 });
 
 describe("biometricUnlock failure path", () => {
   it("revokes the fresh server session when the vault keys don't open", async () => {
     const { authenticateBiometric } = await import("@repo/crypto");
-    const { wraps } = keyring();
+    const { wraps, userKeyPair } = keyring();
     vi.mocked(authenticateBiometric).mockResolvedValue({
       accountKey: genKey(), // not the key the wraps were made with
       password: "right password",
@@ -176,6 +247,7 @@ describe("biometricUnlock failure path", () => {
         password: "right password",
         userPasswordKeys: passwordKeys,
         vaultKeys: wraps,
+        userKeyPair,
       };
     });
     store.vault.getVaultKeys.mockResolvedValue(wraps);
@@ -197,7 +269,7 @@ describe("unlock: whose local data is this?", () => {
   /** A login result for a fresh account, plus the KEK the mocked Argon2 hands out. */
   function account() {
     const kek = genKey();
-    const { accountKey, wraps } = keyring();
+    const { accountKey, wraps, userKeyPair } = keyring();
     const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(kek, accountKey);
     const userPasswordKeys = {
       // Current params: no background rekey kicks in.
@@ -207,7 +279,7 @@ describe("unlock: whose local data is this?", () => {
       accountKeyEncryptionNonce,
     };
     vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
-    return { userPasswordKeys, wraps };
+    return { userPasswordKeys, wraps, userKeyPair };
   }
 
   async function unlockWith(keys: ReturnType<typeof account>) {
@@ -219,6 +291,7 @@ describe("unlock: whose local data is this?", () => {
         password: "pw",
         userPasswordKeys: keys.userPasswordKeys,
         vaultKeys: keys.wraps,
+        userKeyPair: keys.userKeyPair,
       });
     });
     return unlocked;
@@ -238,7 +311,11 @@ describe("unlock: whose local data is this?", () => {
     const previous = account();
     const keys = account();
     Object.assign(store, {
-      accountKeyMaterial: { ...previous.userPasswordKeys, email: "alice@example.com" },
+      accountKeyMaterial: {
+        ...previous.userPasswordKeys,
+        email: "alice@example.com",
+        userKeyPair: previous.userKeyPair,
+      },
     });
     store.vault.getVaultKeys.mockResolvedValue([
       { ...previous.wraps[0]!, vaultId: "0199a3c4-0000-7000-8000-0000000000ff" },
@@ -251,7 +328,11 @@ describe("unlock: whose local data is this?", () => {
   it("keeps the local data for the same account and skips the unchanged write", async () => {
     const keys = account();
     Object.assign(store, {
-      accountKeyMaterial: { ...keys.userPasswordKeys, email: "alice@example.com" },
+      accountKeyMaterial: {
+        ...keys.userPasswordKeys,
+        email: "alice@example.com",
+        userKeyPair: keys.userKeyPair,
+      },
     });
     store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
 
@@ -267,6 +348,7 @@ describe("unlock: whose local data is this?", () => {
         ...keys.userPasswordKeys,
         passwordKekSalt: toBase64(genKey()),
         email: "alice@example.com",
+        userKeyPair: keys.userKeyPair,
       },
     });
     store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
@@ -274,5 +356,58 @@ describe("unlock: whose local data is this?", () => {
     expect(await unlockWith(keys)).toBe(true);
     expect(store.vault.clear).not.toHaveBeenCalled();
     expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledTimes(1);
+  });
+
+  it("stores a keypair the server rotated since the last unlock", async () => {
+    const keys = account();
+    Object.assign(store, {
+      accountKeyMaterial: {
+        ...keys.userPasswordKeys,
+        email: "alice@example.com",
+        userKeyPair: createUserKeyPair(genKey()),
+      },
+    });
+    store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
+
+    expect(await unlockWith(keys)).toBe(true);
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledWith(
+      expect.objectContaining({ userKeyPair: keys.userKeyPair }),
+      keys.wraps,
+    );
+  });
+
+  it("stays locked when the keypair's public key isn't the one its private key proves", async () => {
+    const keys = account();
+    const swapped = { ...keys.userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey };
+    store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
+
+    expect(await unlockWith({ ...keys, userKeyPair: swapped })).toBe(false);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+
+  it("offline: unlocks with the keypair cached on the device", async () => {
+    const keys = account();
+    Object.assign(store, {
+      accountKeyMaterial: {
+        ...keys.userPasswordKeys,
+        email: "alice@example.com",
+        userKeyPair: keys.userKeyPair,
+      },
+    });
+    store.vault.getVaultKeys.mockResolvedValue(keys.wraps);
+
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    let unlocked = false;
+    await act(async () => {
+      unlocked = await result.current.offlineUnlock("alice@example.com", "pw");
+    });
+
+    expect(unlocked).toBe(true);
+    expect(session.offlineLoginSession).toHaveBeenCalledTimes(1);
+    expect(secretsStore.userPublicKey).toBe(keys.userKeyPair.publicKey);
+    // Nothing changed, so nothing is rewritten.
+    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
   });
 });

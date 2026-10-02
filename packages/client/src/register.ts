@@ -1,5 +1,12 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { createVault, generateUserKeys, genKey, normalizeEmail, wipe } from "@repo/crypto";
+import {
+  createUserKeyPair,
+  createVault,
+  generateUserKeys,
+  genKey,
+  normalizeEmail,
+  wipe,
+} from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
@@ -18,7 +25,7 @@ export class RegistrationFinishFailedError extends Error {
 /**
  * Drive a full OPAQUE registration handshake + key derivation: a new account
  * key, wrapped under the password and a fresh recovery key, plus the personal
- * vault whose key is wrapped under the account key.
+ * vault key and the X25519 private key, both wrapped under the account key.
  *
  * Throws RegistrationStartFailedError or RegistrationFinishFailedError on tRPC failure;
  * on the finish-failure path the recoveryKey buffer has already been wiped.
@@ -70,6 +77,7 @@ export async function registerNewUser(
   try {
     const { recoveryKey, ...userKeys } = await generateUserKeys(password, accountKey);
     const personalVault = createVault(accountKey);
+    const userKeyPair = createUserKeyPair(accountKey);
 
     try {
       await trpc.register.finishRegistration.mutate({
@@ -77,6 +85,7 @@ export async function registerNewUser(
         registrationRecord,
         userKeys,
         personalVault,
+        userKeyPair,
         invite,
       });
     } catch {

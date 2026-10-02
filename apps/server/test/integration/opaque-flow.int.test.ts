@@ -1,4 +1,5 @@
 import {
+  createUserKeyPair,
   decryptXChaChaWithAAD,
   deriveRecoveryAuthKey,
   encryptXChaChaWithAAD,
@@ -8,8 +9,9 @@ import {
   hashRecoveryAuthKey,
   hkdf,
   retrievePRK,
+  unwrapUserPrivateKey,
 } from "@repo/crypto";
-import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, userKeyPairsTable, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { fromBase64, fromString, toBase64, UUIDV4_RE } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
@@ -23,6 +25,8 @@ import { createCaller, loginAndGetAuthKey } from "./_helpers";
 const ACCOUNT_KEY_AAD = fromString("passmgr/account-key/v1");
 const vaultKeyAad = (vaultId: string, keyVersion: number) =>
   fromString(`passmgr/vault-key/v1/${vaultId}/${keyVersion}`);
+const privateKeyAad = (keyVersion: number) =>
+  fromString(`passmgr/user-private-key/v1/${keyVersion}`);
 
 /**
  * Register a user the same way the client does, but keep the account key, the
@@ -62,6 +66,7 @@ async function registerCapturingKeys(email: string, password: string) {
     vaultKey,
     vaultKeyAad(vaultId, 1),
   );
+  const userKeyPair = createUserKeyPair(accountKey);
 
   await caller.register.finishRegistration({
     email,
@@ -79,9 +84,10 @@ async function registerCapturingKeys(email: string, password: string) {
       accountKeyEncryptionNonceRecovery,
     },
     personalVault: { vaultId, keyVersion: 1, encryptedVaultKey, vaultKeyEncryptionNonce },
+    userKeyPair,
   });
 
-  return { accountKey, recoveryKey, vaultId, vaultKey };
+  return { accountKey, recoveryKey, vaultId, vaultKey, userKeyPair };
 }
 
 beforeEach(async () => {
@@ -178,6 +184,26 @@ describe("opaque-flow — register + login round-trip (real crypto, real contain
         vaultKeyAad(vaultId, 1),
       ),
     ).toEqual(vaultKey);
+  });
+
+  it("registration stores the keypair, and login hands it back openable by the account key", async () => {
+    const { accountKey, userKeyPair } = await registerCapturingKeys(email, password);
+
+    const [user] = await db.select().from(usersTable);
+    expect(await db.select().from(userKeyPairsTable)).toEqual([
+      expect.objectContaining({ userId: user!.userId, ...userKeyPair }),
+    ]);
+
+    const { userKeyPair: returned } = await loginAndGetAuthKey(email, password);
+
+    expect(returned).toEqual(userKeyPair);
+    const privateKey = decryptXChaChaWithAAD(
+      accountKey,
+      returned.encryptedPrivateKey,
+      returned.privateKeyEncryptionNonce,
+      privateKeyAad(1),
+    );
+    expect(unwrapUserPrivateKey(accountKey, returned)).toEqual(privateKey);
   });
 
   it("login after register produces a working authKey + real-Redis session", async () => {

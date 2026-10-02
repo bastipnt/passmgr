@@ -8,7 +8,7 @@ export async function getClient(): Promise<Client> {
 
 export async function truncateAll(client: Client): Promise<void> {
   await client.query(
-    'TRUNCATE "users", "keys", "records", "vaults", "vault_members" RESTART IDENTITY CASCADE',
+    'TRUNCATE "users", "keys", "records", "vaults", "vault_members", "user_key_pairs" RESTART IDENTITY CASCADE',
   );
 }
 

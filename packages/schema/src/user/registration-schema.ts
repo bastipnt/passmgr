@@ -1,6 +1,6 @@
 import z from "zod";
 import { emailSchema } from "./email-schema";
-import { userKeySchema, vaultKeyWrapSchema } from "./key-schema";
+import { userKeyPairSchema, userKeySchema, vaultKeyWrapSchema } from "./key-schema";
 
 /**
  * Start registration
@@ -25,5 +25,7 @@ export const finishRegistrationInputSchema = z.object({
   userKeys: userKeySchema,
   // The default vault, created together with the account (first key version).
   personalVault: vaultKeyWrapSchema.extend({ keyVersion: z.literal(1) }),
+  // The X25519 keypair for sharing (first key version).
+  userKeyPair: userKeyPairSchema.extend({ keyVersion: z.literal(1) }),
   invite: z.string().max(128).optional(),
 });

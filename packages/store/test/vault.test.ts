@@ -1,5 +1,6 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVaultKey } from "@repo/schema";
+import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
@@ -39,6 +40,12 @@ const accountKey: AccountKeyMaterial = {
   passwordKekSalt: "salt",
   encryptedAccountKey: "enc",
   accountKeyEncryptionNonce: "nonce",
+  userKeyPair: {
+    keyVersion: 1,
+    publicKey: toBase64(new Uint8Array(32).fill(1)),
+    encryptedPrivateKey: toBase64(new Uint8Array(48).fill(2)),
+    privateKeyEncryptionNonce: toBase64(new Uint8Array(24).fill(3)),
+  },
 };
 
 function vaultKey(vaultId: string, kind: MemberVaultKey["kind"] = "shared"): MemberVaultKey {
@@ -154,6 +161,18 @@ describe("key material", () => {
     expect(await vault.getAccountKeyMaterial()).toBeNull();
 
     await vault.setBiometricKeyMaterial(biometricKey);
+
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
+  });
+
+  it.each([
+    ["isn't JSON", "{not json"],
+    ["fails the schema", JSON.stringify({ keyVersion: 1, publicKey: "short" })],
+  ])("treats a cached keypair that %s as no key material", async (_label, stored) => {
+    await vault.setAccountKeyMaterial(
+      { ...accountKey, userKeyPair: stored as unknown as AccountKeyMaterial["userKeyPair"] },
+      [personal],
+    );
 
     expect(await vault.getAccountKeyMaterial()).toBeNull();
   });

@@ -7,9 +7,10 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
-      // Only the pure record helpers are unit-tested here; the hooks and
-      // providers need a React environment and are covered by the apps.
-      include: ["src/records/**/*.ts"],
+      // Only the pure record helpers and the registration flow are unit-tested
+      // here; the hooks and providers need a React environment and are covered
+      // by the apps.
+      include: ["src/records/**/*.ts", "src/register.ts"],
     },
   },
 });

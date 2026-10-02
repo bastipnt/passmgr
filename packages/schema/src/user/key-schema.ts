@@ -1,4 +1,5 @@
 import z from "zod";
+import { emailSchema } from "./email-schema";
 
 type ArgonBounds = {
   tMin: number;
@@ -107,16 +108,40 @@ export const memberVaultKeySchema = z.object({
   kind: vaultKindSchema,
 });
 
+/**
+ * The user's X25519 keypair (ADR 0001 D7). The private key is wrapped by the
+ * account key (AAD: key version) and checked against `publicKey` on unwrap.
+ */
+export const userKeyPairSchema = z.object({
+  keyVersion: z.number().int().positive(),
+  publicKey: z.base64().length(44),
+  encryptedPrivateKey: z.base64().length(64),
+  privateKeyEncryptionNonce: z.base64().length(32),
+});
+
+/** What other users get to see: the public half, for sealing a vault key to it. */
+export const userPublicKeySchema = userKeyPairSchema.pick({ keyVersion: true, publicKey: true });
+
+/** Look up another user's public key (to invite them). */
+export const userPublicKeyInputSchema = z.object({ email: emailSchema });
+
 export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
 export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
 export type VaultKind = z.infer<typeof vaultKindSchema>;
 export type MemberVaultKey = z.infer<typeof memberVaultKeySchema>;
+export type UserKeyPair = z.infer<typeof userKeyPairSchema>;
+export type UserPublicKey = z.infer<typeof userPublicKeySchema>;
 
 // for client: the account key material cached on the device for offline unlock
-export const ACCOUNT_KEY_MATERIAL_KEYS = [...Object.keys(passwordKeySchema.shape), "email"];
+export const ACCOUNT_KEY_MATERIAL_KEYS = [
+  ...Object.keys(passwordKeySchema.shape),
+  "email",
+  "userKeyPair",
+];
 
 export type AccountKeyMaterial = PasswordKeySchema & {
   email: string;
+  userKeyPair: UserKeyPair;
 };

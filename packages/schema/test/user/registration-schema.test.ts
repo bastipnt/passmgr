@@ -27,6 +27,13 @@ const VALID_PERSONAL_VAULT = {
   vaultKeyEncryptionNonce: b64(24),
 };
 
+const VALID_USER_KEY_PAIR = {
+  keyVersion: 1,
+  publicKey: b64(32),
+  encryptedPrivateKey: b64(48),
+  privateKeyEncryptionNonce: b64(24),
+};
+
 describe("registration/login email symmetry", () => {
   it.each(["alice@example.com", "bob.smith@example.co.uk", "user+tag@sub.example.io"])(
     "%s parses on both schemas",
@@ -51,6 +58,7 @@ describe("email normalization", () => {
         registrationRecord: "r",
         userKeys: VALID_USER_KEYS,
         personalVault: VALID_PERSONAL_VAULT,
+        userKeyPair: VALID_USER_KEY_PAIR,
       }).email,
     ).toBe("alice@example.com");
   });
@@ -62,6 +70,7 @@ describe("email normalization", () => {
         registrationRecord: "r",
         userKeys: VALID_USER_KEYS,
         personalVault: VALID_PERSONAL_VAULT,
+        userKeyPair: VALID_USER_KEY_PAIR,
       }),
     ).toThrow();
   });
@@ -73,6 +82,7 @@ describe("finishRegistrationInputSchema composes key-schema", () => {
     registrationRecord: "opaque-record-blob",
     userKeys: VALID_USER_KEYS,
     personalVault: VALID_PERSONAL_VAULT,
+    userKeyPair: VALID_USER_KEY_PAIR,
   };
 
   it("accepts a complete registration", () => {
@@ -113,6 +123,25 @@ describe("finishRegistrationInputSchema composes key-schema", () => {
       finishRegistrationInputSchema.parse({
         ...valid,
         personalVault: { ...VALID_PERSONAL_VAULT, ...override },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a missing keypair", () => {
+    const { userKeyPair: _, ...withoutKeyPair } = valid;
+    expect(() => finishRegistrationInputSchema.parse(withoutKeyPair)).toThrow();
+  });
+
+  it.each([
+    ["keyVersion 2 (a new keypair starts at 1)", { keyVersion: 2 }],
+    ["a truncated public key", { publicKey: b64(32).slice(0, -1) }],
+    ["a truncated wrapped private key", { encryptedPrivateKey: b64(48).slice(0, -1) }],
+    ["a wrong-length nonce", { privateKeyEncryptionNonce: b64(12) }],
+  ])("rejects a keypair with %s", (_label, override) => {
+    expect(() =>
+      finishRegistrationInputSchema.parse({
+        ...valid,
+        userKeyPair: { ...VALID_USER_KEY_PAIR, ...override },
       }),
     ).toThrow();
   });

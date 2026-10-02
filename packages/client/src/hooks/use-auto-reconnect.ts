@@ -30,7 +30,7 @@ export function useAutoReconnect() {
         if (unlockInfo) {
           // Update stored key material (server may have newer values)
           await storeRef.current.vault.setAccountKeyMaterial(
-            { ...unlockInfo.userPasswordKeys, email },
+            { ...unlockInfo.userPasswordKeys, email, userKeyPair: unlockInfo.userKeyPair },
             unlockInfo.vaultKeys,
           );
 

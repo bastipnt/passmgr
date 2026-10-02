@@ -7,7 +7,13 @@ import {
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
-import type { ArgonParams, MemberVaultKey, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type {
+  ArgonParams,
+  MemberVaultKey,
+  PasswordKeySchema,
+  UserKeyPair,
+  VaultUnlockInfo,
+} from "@repo/schema";
 import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
 import { fromBase64, toBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
@@ -27,6 +33,15 @@ function passwordKeysEqual(a: PasswordKeySchema, b: PasswordKeySchema): boolean 
     a.passwordKekSalt === b.passwordKekSalt &&
     a.encryptedAccountKey === b.encryptedAccountKey &&
     a.accountKeyEncryptionNonce === b.accountKeyEncryptionNonce
+  );
+}
+
+function keyPairsEqual(a: UserKeyPair, b: UserKeyPair): boolean {
+  return (
+    a.keyVersion === b.keyVersion &&
+    a.publicKey === b.publicKey &&
+    a.encryptedPrivateKey === b.encryptedPrivateKey &&
+    a.privateKeyEncryptionNonce === b.privateKeyEncryptionNonce
   );
 }
 
@@ -71,6 +86,7 @@ export function useUnlock() {
     password,
     userPasswordKeys,
     vaultKeys,
+    userKeyPair,
   }: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
     let passwordKek: Uint8Array;
@@ -92,7 +108,7 @@ export function useUnlock() {
       return false;
     }
 
-    await storeKeyMaterial(email, userPasswordKeys, vaultKeys);
+    await storeKeyMaterial(email, userPasswordKeys, vaultKeys, userKeyPair);
 
     try {
       unlockVault(
@@ -100,9 +116,11 @@ export function useUnlock() {
         userPasswordKeys.encryptedAccountKey,
         userPasswordKeys.accountKeyEncryptionNonce,
         vaultKeys,
+        userKeyPair,
       );
     } catch (e) {
       // Wrong password on the offline path: the account key fails to decrypt.
+      // Or a vault key / keypair that doesn't open with it.
       console.error("Vault unlock failed", e);
       await failUnlock();
       return false;
@@ -119,7 +137,13 @@ export function useUnlock() {
     // Transparently migrate to the current Argon2 params if the stored ones are
     // stale (e.g. after a params bump). Best-effort — needs the server and the
     // unlocked vault key in memory; failures don't block login.
-    void rekeyIfParamsStale(email, password, userPasswordKeys.passwordKekParams, vaultKeys);
+    void rekeyIfParamsStale(
+      email,
+      password,
+      userPasswordKeys.passwordKekParams,
+      vaultKeys,
+      userKeyPair,
+    );
     return true;
   }
 
@@ -139,7 +163,13 @@ export function useUnlock() {
     }
 
     const vaultKeys = await store.vault.getVaultKeys();
-    const unlocked = await unlock({ email, password, userPasswordKeys: keyMaterial, vaultKeys });
+    const unlocked = await unlock({
+      email,
+      password,
+      userPasswordKeys: keyMaterial,
+      vaultKeys,
+      userKeyPair: keyMaterial.userKeyPair,
+    });
     if (!unlocked) return false;
 
     // Session id gets set to "offline"
@@ -178,6 +208,7 @@ export function useUnlock() {
     password: string,
     storedParams: ArgonParams,
     vaultKeys: readonly MemberVaultKey[],
+    userKeyPair: UserKeyPair,
   ): Promise<void> {
     const targetParams = getPasswordKekParams();
     if (paramsEqual(storedParams, targetParams)) return;
@@ -201,7 +232,7 @@ export function useUnlock() {
       };
 
       await trpc.user.rekeyPasswordKeys.mutate(updated);
-      await storeKeyMaterial(email, updated, vaultKeys);
+      await storeKeyMaterial(email, updated, vaultKeys, userKeyPair);
     } catch (e) {
       console.error("Argon2 param rekey failed (will retry next login)", e);
     }
@@ -214,25 +245,34 @@ export function useUnlock() {
     const email = store.accountKeyMaterial?.email;
     let onlineAuthFailure = true;
     let vaultKeys: readonly MemberVaultKey[] | undefined;
+    let userKeyPair = store.accountKeyMaterial?.userKeyPair;
 
     if (navigator.onLine && email) {
       const unlockInfo = await timed("total login time", () => loginUser(email, password));
       onlineAuthFailure = !unlockInfo;
 
       if (unlockInfo) {
-        await storeKeyMaterial(email, unlockInfo.userPasswordKeys, unlockInfo.vaultKeys);
+        await storeKeyMaterial(
+          email,
+          unlockInfo.userPasswordKeys,
+          unlockInfo.vaultKeys,
+          unlockInfo.userKeyPair,
+        );
         vaultKeys = unlockInfo.vaultKeys;
+        userKeyPair = unlockInfo.userKeyPair;
       }
     }
 
     try {
+      if (!userKeyPair) throw new Error("No keypair stored on this device");
       unlockWithAccountKey(
         accountKey,
         vaultKeys ?? (await store.vault.getVaultKeys()),
+        userKeyPair,
         onlineAuthFailure,
       );
     } catch (e) {
-      // A vault key that doesn't open (or no personal vault). The online path
+      // A vault key or keypair that doesn't open (or no personal vault). The online path
       // already holds a live server session: revoke it, as on the password path.
       console.error("Biometric vault unlock failed", e);
       await failUnlock();
@@ -260,12 +300,13 @@ export function useUnlock() {
   }
 
   /**
-   * Persist the wrapped account key and vault keys for offline unlock.
+   * Persist the wrapped account key, vault keys and keypair for offline unlock.
    */
   async function storeKeyMaterial(
     rawEmail: string,
     userPasswordKeys: PasswordKeySchema,
     vaultKeys: readonly MemberVaultKey[],
+    userKeyPair: UserKeyPair,
   ) {
     // Offline unlock passes the typed email; compare in canonical form.
     const email = normalizeEmail(rawEmail);
@@ -283,12 +324,13 @@ export function useUnlock() {
     // Offline unlocks (and most logins) hand back what's already stored.
     else if (
       passwordKeysEqual(previous, userPasswordKeys) &&
-      vaultKeysEqual(cachedVaultKeys, vaultKeys)
+      vaultKeysEqual(cachedVaultKeys, vaultKeys) &&
+      keyPairsEqual(previous.userKeyPair, userKeyPair)
     ) {
       return;
     }
 
-    await store.vault.setAccountKeyMaterial({ ...userPasswordKeys, email }, vaultKeys);
+    await store.vault.setAccountKeyMaterial({ ...userPasswordKeys, email, userKeyPair }, vaultKeys);
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);

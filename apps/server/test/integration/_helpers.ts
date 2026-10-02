@@ -1,5 +1,5 @@
 import { genKey } from "@repo/crypto";
-import type { MemberVaultKey } from "@repo/schema";
+import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { appRouter } from "../../src/router";
 import { createCallerFactory } from "../../src/trpc";
@@ -21,16 +21,27 @@ export async function register(
     registrationRequest: started.registrationRequest,
   });
   const { registrationRecord } = await started.finish(registrationResponse, email);
-  const { recoveryKey, accountKey, userKeys, personalVault } =
+  const { recoveryKey, accountKey, userKeys, personalVault, userKeyPair } =
     await buildRegistrationKeys(password);
-  await caller.register.finishRegistration({ email, registrationRecord, userKeys, personalVault });
+  await caller.register.finishRegistration({
+    email,
+    registrationRecord,
+    userKeys,
+    personalVault,
+    userKeyPair,
+  });
   return { recoveryKey, accountKey };
 }
 
 export async function loginAndGetAuthKey(
   email: string,
   password: string,
-): Promise<{ sessionId: string; authKey: Uint8Array; vaultKeys: MemberVaultKey[] }> {
+): Promise<{
+  sessionId: string;
+  authKey: Uint8Array;
+  vaultKeys: MemberVaultKey[];
+  userKeyPair: UserKeyPair;
+}> {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartLogin(password);
   const { loginResponse, attemptId } = await caller.login.startLogin({
@@ -47,7 +58,12 @@ export async function loginAndGetAuthKey(
     authSalt: toBase64(authSalt),
   });
   const authKey = await deriveAuthKey(result.sessionKey, authSalt);
-  return { sessionId: finished.sessionId, authKey, vaultKeys: finished.vaultKeys };
+  return {
+    sessionId: finished.sessionId,
+    authKey,
+    vaultKeys: finished.vaultKeys,
+    userKeyPair: finished.userKeyPair,
+  };
 }
 
 export async function callSigned(

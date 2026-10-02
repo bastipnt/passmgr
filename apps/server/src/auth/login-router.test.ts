@@ -21,8 +21,14 @@ async function register(email: string, password: string) {
     registrationRequest: started.registrationRequest,
   });
   const { registrationRecord } = await started.finish(registrationResponse, email);
-  const { userKeys, personalVault } = await buildRegistrationKeys(password);
-  await caller.register.finishRegistration({ email, registrationRecord, userKeys, personalVault });
+  const { userKeys, personalVault, userKeyPair } = await buildRegistrationKeys(password);
+  await caller.register.finishRegistration({
+    email,
+    registrationRecord,
+    userKeys,
+    personalVault,
+    userKeyPair,
+  });
 }
 
 beforeEach(async () => {

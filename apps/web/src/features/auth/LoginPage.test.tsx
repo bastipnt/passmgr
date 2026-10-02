@@ -26,6 +26,12 @@ const store = {
     passwordKekSalt: "AAAAAAAAAAAAAAAAAAAAAA==",
     encryptedAccountKey: "AAAA",
     accountKeyEncryptionNonce: "AAAA",
+    userKeyPair: {
+      keyVersion: 1,
+      publicKey: "AAAA",
+      encryptedPrivateKey: "AAAA",
+      privateKeyEncryptionNonce: "AAAA",
+    },
   },
   biometricKeyMaterial: null,
   needsBiometricEnroll: false,
@@ -171,6 +177,7 @@ describe("LoginPage online", () => {
         password: "right password",
         userPasswordKeys: store.accountKeyMaterial,
         vaultKeys: [personalVault],
+        userKeyPair: store.accountKeyMaterial.userKeyPair,
       };
     });
   });

@@ -24,6 +24,7 @@
   "license": "ISC",
   "dependencies": {
     "@noble/ciphers": "^2.2.0",
+    "@noble/curves": "^2.4.0",
     "@noble/hashes": "^2.2.0",
     "@otplib/core": "^13.4.1",
     "@otplib/totp": "^13.4.1",
