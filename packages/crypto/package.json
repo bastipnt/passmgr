@@ -23,11 +23,11 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "@noble/ciphers": "^2.2.0",
-    "@noble/hashes": "^2.2.0",
-    "@otplib/core": "^13.4.1",
-    "@otplib/totp": "^13.4.1",
-    "otplib": "^13.4.1"
+    "@noble/ciphers": "^2.4.0",
+    "@noble/hashes": "^2.4.0",
+    "@otplib/core": "^13.5.0",
+    "@otplib/totp": "^13.5.0",
+    "otplib": "^13.5.0"
   },
   "exports": {
     ".": "./index.ts",
