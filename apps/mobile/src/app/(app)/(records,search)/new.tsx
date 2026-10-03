@@ -1,5 +1,5 @@
-import { encryptRecord, useCreateRecord } from "@repo/client";
-import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import { useCreateRecord } from "@repo/client";
+import type { LoginRecord } from "@repo/schema";
 import { useRouter } from "expo-router";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { normalizeFormValues } from "@/features/records/normalize-form-values";
@@ -17,17 +17,7 @@ export default function NewRecordScreen() {
   });
 
   const onSubmit = (data: LoginRecord) => {
-    const { encryptedData, encryptionNonce } = encryptRecord({
-      schemaVersion: 1,
-      ...normalizeFormValues(data),
-    });
-    createRecord({
-      recordId: crypto.randomUUID(),
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: CURRENT_CRYPTO_VERSION,
-      clientUpdatedAt: new Date().toISOString(),
-    });
+    createRecord({ schemaVersion: 1, ...normalizeFormValues(data) });
   };
 
   return (

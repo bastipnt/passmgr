@@ -1,5 +1,11 @@
-import { decryptXChaCha, deriveRecoveryAuthKey, genKey, retrievePRK } from "@repo/crypto";
-import { db, keysTable } from "@repo/db";
+import {
+  deriveRecoveryAuthKey,
+  genKey,
+  retrievePRK,
+  unwrapAccountKey,
+  unwrapVaultKey,
+} from "@repo/crypto";
+import { db, keysTable, vaultMembersTable } from "@repo/db";
 import { fromBase64, toBase64 } from "@repo/util";
 import { and, isNull } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -56,11 +62,11 @@ async function activeKeySet() {
   return active;
 }
 
-/** Unwrap the vault key from the active key set with a master password. */
-async function vaultKeyViaPassword(pw: string): Promise<Uint8Array> {
+/** Unwrap the account key from the active key set with a master password. */
+async function accountKeyViaPassword(pw: string): Promise<Uint8Array> {
   const keys = await activeKeySet();
   const kek = await retrievePRK(pw, fromBase64(keys.passwordKekSalt), keys.passwordKekParams);
-  return decryptXChaCha(kek, keys.encryptedVaultKey, keys.vaultKeyEncryptionNonce);
+  return unwrapAccountKey(kek, keys.encryptedAccountKey, keys.accountKeyEncryptionNonce);
 }
 
 /** Drive startRecovery by hand (for tests that need to interleave other calls). */
@@ -83,10 +89,12 @@ beforeEach(async () => {
 });
 
 describe("account recovery (real Postgres + Redis)", () => {
-  it("resets the password, keeps the vault key and revokes existing sessions", async () => {
+  it("resets the password, keeps the account and vault keys and revokes existing sessions", async () => {
     const { recoveryKey } = await register(email, password);
     const oldSession = await loginAndGetAuthKey(email, password);
-    const vaultKeyBefore = await vaultKeyViaPassword(password);
+    const accountKeyBefore = await accountKeyViaPassword(password);
+    const [personalVault] = await db.select().from(vaultMembersTable);
+    if (!personalVault) throw new Error("no personal vault");
 
     const newRecoveryKey = await recoverAccount(
       recoveryClient(),
@@ -96,8 +104,12 @@ describe("account recovery (real Postgres + Redis)", () => {
     );
     expect(newRecoveryKey).toHaveLength(32);
 
-    // Same vault key under the new password — existing records stay readable.
-    expect(await vaultKeyViaPassword(newPassword)).toEqual(vaultKeyBefore);
+    // Same account key under the new password, and the vault key wraps are
+    // untouched — existing records stay readable.
+    const accountKeyAfter = await accountKeyViaPassword(newPassword);
+    expect(accountKeyAfter).toEqual(accountKeyBefore);
+    expect(await db.select().from(vaultMembersTable)).toEqual([personalVault]);
+    expect(unwrapVaultKey(accountKeyAfter, personalVault)).toHaveLength(32);
 
     // OPAQUE record replaced: old password fails, new one works.
     await expect(loginAndGetAuthKey(email, password)).rejects.toThrow();
@@ -233,13 +245,13 @@ describe("account recovery (real Postgres + Redis)", () => {
     const { caller, finishInput } = await startRecoveryManually(recoveryKey);
 
     // Concurrent Argon2 rekey from a logged-in device closes the key set.
-    const { passwordKekParams, passwordKekSalt, encryptedVaultKey, vaultKeyEncryptionNonce } =
+    const { passwordKekParams, passwordKekSalt, encryptedAccountKey, accountKeyEncryptionNonce } =
       await buildUserKeys(password);
     const rekeyInput = {
       passwordKekParams,
       passwordKekSalt,
-      encryptedVaultKey,
-      vaultKeyEncryptionNonce,
+      encryptedAccountKey,
+      accountKeyEncryptionNonce,
     };
     const cc = await callSigned(
       sessionId,

@@ -8,9 +8,10 @@ import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpe
 const email = "alice@example.com";
 const password = "correct horse battery staple";
 
-function newRecordInput() {
+function newRecordInput(vaultId: string) {
   return {
     recordId: crypto.randomUUID(),
+    vaultId,
     encryptedData: "ENC",
     encryptionNonce: "NONCE",
     cryptoVersion: 1,
@@ -42,9 +43,9 @@ describe("replay protection", () => {
 
   it("rejects a second call that reuses the same signed bundle (same nonce)", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     const headers = await signRequest({
       authKey,
       sessionId,
@@ -75,9 +76,9 @@ describe("replay protection", () => {
 
   it("rejects when the captured headers are reused against a different procedure", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     const headers = await signRequest({
       authKey,
       sessionId,

@@ -14,8 +14,8 @@ const UNIQUE_VIOLATION = "23505";
 async function attemptInsert(client: Client, row: KeyRow): Promise<void> {
   await client.query(
     `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams",
-      "passwordKekSalt", "encryptedVaultKey", "vaultKeyEncryptionNonce",
-      "encryptedVaultKeyRecovery", "vaultKeyEncryptionNonceRecovery")
+      "passwordKekSalt", "encryptedAccountKey", "accountKeyEncryptionNonce",
+      "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       row.keySetId,
@@ -23,10 +23,10 @@ async function attemptInsert(client: Client, row: KeyRow): Promise<void> {
       row.recoveryKekSalt,
       JSON.stringify(row.passwordKekParams),
       row.passwordKekSalt,
-      row.encryptedVaultKey,
-      row.vaultKeyEncryptionNonce,
-      row.encryptedVaultKeyRecovery,
-      row.vaultKeyEncryptionNonceRecovery,
+      row.encryptedAccountKey,
+      row.accountKeyEncryptionNonce,
+      row.encryptedAccountKeyRecovery,
+      row.accountKeyEncryptionNonceRecovery,
     ],
   );
 }
@@ -48,8 +48,8 @@ describe("keys unique constraints", () => {
 
   const uniqueFields: Array<keyof KeyRow> = [
     "passwordKekSalt",
-    "encryptedVaultKey",
-    "vaultKeyEncryptionNonce",
+    "encryptedAccountKey",
+    "accountKeyEncryptionNonce",
   ];
 
   for (const field of uniqueFields) {
@@ -77,8 +77,8 @@ describe("keys unique constraints", () => {
     ]);
     const next = makeKeyRow(user.userId, {
       recoveryKekSalt: first.recoveryKekSalt,
-      encryptedVaultKeyRecovery: first.encryptedVaultKeyRecovery,
-      vaultKeyEncryptionNonceRecovery: first.vaultKeyEncryptionNonceRecovery,
+      encryptedAccountKeyRecovery: first.encryptedAccountKeyRecovery,
+      accountKeyEncryptionNonceRecovery: first.accountKeyEncryptionNonceRecovery,
     });
     await expect(attemptInsert(client, next)).resolves.toBeUndefined();
   });

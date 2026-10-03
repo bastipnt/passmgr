@@ -40,7 +40,7 @@ function denyRecovery(
  * The client proves possession of the recovery key with an HKDF-derived auth
  * key, which the server checks against the stored SHA-256 verifier — the
  * recovery key itself never leaves the client. On success the client gets the
- * recovery-wrapped vault key back, re-wraps the same vault key under the new
+ * recovery-wrapped account key back, re-wraps the same account key under the new
  * password and a fresh recovery key, and finishes a new OPAQUE registration.
  * The server then swaps the OPAQUE record and key set atomically and revokes
  * all existing sessions.
@@ -66,8 +66,8 @@ export const recoveryRouter = router({
           keySetId: true,
           recoveryVerifier: true,
           recoveryKekSalt: true,
-          encryptedVaultKeyRecovery: true,
-          vaultKeyEncryptionNonceRecovery: true,
+          encryptedAccountKeyRecovery: true,
+          accountKeyEncryptionNonceRecovery: true,
         },
         where: { userId: user.userId, valid_to: { isNull: true }, deleted_at: { isNull: true } },
       });
@@ -104,8 +104,8 @@ export const recoveryRouter = router({
         registrationResponse: bytesToB64(resp.serialize()),
         recoveryKeys: {
           recoveryKekSalt: keys.recoveryKekSalt,
-          encryptedVaultKeyRecovery: keys.encryptedVaultKeyRecovery,
-          vaultKeyEncryptionNonceRecovery: keys.vaultKeyEncryptionNonceRecovery,
+          encryptedAccountKeyRecovery: keys.encryptedAccountKeyRecovery,
+          accountKeyEncryptionNonceRecovery: keys.accountKeyEncryptionNonceRecovery,
         },
       };
     }),
@@ -137,7 +137,7 @@ export const recoveryRouter = router({
           .for("update");
 
         // The key set changed since startRecovery (concurrent rekey/recovery):
-        // the client wrapped a vault key the server no longer vouches for.
+        // the client wrapped an account key the server no longer vouches for.
         if (active?.keySetId !== attempt.keySetId) return false;
 
         const now = new Date();

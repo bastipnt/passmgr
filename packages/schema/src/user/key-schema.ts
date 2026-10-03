@@ -1,4 +1,5 @@
 import z from "zod";
+import { emailSchema } from "./email-schema";
 
 type ArgonBounds = {
   tMin: number;
@@ -60,12 +61,15 @@ const argonParams = z
 
 export type ArgonParams = z.infer<typeof argonParams>;
 
-// The recovery-key-wrapped copy of the vault key (handed back during recovery).
+// Key hierarchy (ADR 0001 D3): the password KEK and the recovery KEK each wrap
+// the account key; the account key wraps one key per vault.
+
+// The recovery-key-wrapped copy of the account key (handed back during recovery).
 export const recoveryWrapSchema = z.object({
   recoveryKekSalt: z.base64().length(44),
 
-  encryptedVaultKeyRecovery: z.base64().length(64),
-  vaultKeyEncryptionNonceRecovery: z.base64().length(32),
+  encryptedAccountKeyRecovery: z.base64().length(64),
+  accountKeyEncryptionNonceRecovery: z.base64().length(32),
 });
 
 export const recoveryKeySchema = z.object({
@@ -79,8 +83,8 @@ export const passwordKeySchema = z.object({
   passwordKekParams: argonParams,
   passwordKekSalt: z.base64().length(44),
 
-  encryptedVaultKey: z.base64().length(64),
-  vaultKeyEncryptionNonce: z.base64().length(32),
+  encryptedAccountKey: z.base64().length(64),
+  accountKeyEncryptionNonce: z.base64().length(32),
 });
 
 export const userKeySchema = z.object({
@@ -88,13 +92,46 @@ export const userKeySchema = z.object({
   ...passwordKeySchema.shape,
 });
 
+/** A vault key wrapped by the account key; the AAD binds it to vaultId + keyVersion. */
+export const vaultKeyWrapSchema = z.object({
+  vaultId: z.uuid(),
+  keyVersion: z.number().int().positive(),
+  encryptedVaultKey: z.base64().length(64),
+  vaultKeyEncryptionNonce: z.base64().length(32),
+});
+
+/**
+ * The user's X25519 keypair (ADR 0001 D7). The private key is wrapped by the
+ * account key (AAD: key version) and checked against `publicKey` on unwrap.
+ */
+export const userKeyPairSchema = z.object({
+  keyVersion: z.number().int().positive(),
+  publicKey: z.base64().length(44),
+  encryptedPrivateKey: z.base64().length(64),
+  privateKeyEncryptionNonce: z.base64().length(32),
+});
+
+/** What other users get to see: the public half, for sealing a vault key to it. */
+export const userPublicKeySchema = userKeyPairSchema.pick({ keyVersion: true, publicKey: true });
+
+/** Look up another user's public key (to invite them). */
+export const userPublicKeyInputSchema = z.object({ email: emailSchema });
+
 export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
+export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
+export type UserKeyPair = z.infer<typeof userKeyPairSchema>;
+export type UserPublicKey = z.infer<typeof userPublicKeySchema>;
 
-// for client
-export const VAULT_KEY = [...Object.keys(passwordKeySchema.shape), "email"];
+// for client: the account key material cached on the device for offline unlock
+export const ACCOUNT_KEY_MATERIAL_KEYS = [
+  ...Object.keys(passwordKeySchema.shape),
+  "email",
+  "userKeyPair",
+];
 
-export type VaultKeyMaterial = PasswordKeySchema & {
+export type AccountKeyMaterial = PasswordKeySchema & {
   email: string;
+  userKeyPair: UserKeyPair;
 };

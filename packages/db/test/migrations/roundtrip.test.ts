@@ -37,10 +37,17 @@ describe("migration round-trip", () => {
       }
     }
 
-    // Sanity: the three tables exist after replay.
+    // Sanity: the tables exist after replay.
     const tables = await client.query<{ tablename: string }>(
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
-    expect(tables.rows.map((r) => r.tablename)).toEqual(["keys", "records", "users"]);
+    expect(tables.rows.map((r) => r.tablename)).toEqual([
+      "keys",
+      "records",
+      "user_key_pairs",
+      "users",
+      "vault_members",
+      "vaults",
+    ]);
   });
 });

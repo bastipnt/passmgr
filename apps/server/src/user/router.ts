@@ -1,8 +1,11 @@
-import { db, keysTable } from "@repo/db";
-import { passwordKeySchema } from "@repo/schema";
+import { hashEmail } from "@repo/crypto";
+import { db, keysTable, userKeyPairsTable, usersTable } from "@repo/db";
+import { passwordKeySchema, userPublicKeyInputSchema, userPublicKeySchema } from "@repo/schema";
+import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull } from "drizzle-orm";
 import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware";
+import { serverKey } from "../opaque";
 import { router } from "../trpc";
 
 export const userRouter = router({
@@ -13,8 +16,32 @@ export const userRouter = router({
     return { ok: true } as const;
   }),
 
-  // Re-wrap the vault key under new Argon2 params. The client re-derives the
-  // password KEK and re-encrypts the vault key locally (zero-knowledge — the
+  // Another user's current public key, to seal a vault key to when inviting
+  // them (ADR 0001 D7). The client shows its fingerprint for out-of-band
+  // verification before trusting it. Reveals to a logged-in user whether an
+  // email has an account, which an invite flow can't avoid.
+  publicKey: protectedProcedure
+    .input(userPublicKeyInputSchema)
+    .output(userPublicKeySchema)
+    .query(async ({ input }) => {
+      const emailHash = toBase64(await hashEmail(serverKey, input.email));
+      const [found] = await db
+        .select({
+          keyVersion: userKeyPairsTable.keyVersion,
+          publicKey: userKeyPairsTable.publicKey,
+        })
+        .from(userKeyPairsTable)
+        .innerJoin(usersTable, eq(usersTable.userId, userKeyPairsTable.userId))
+        .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deleted_at)))
+        .orderBy(desc(userKeyPairsTable.keyVersion))
+        .limit(1);
+
+      if (!found) throw new TRPCError({ code: "NOT_FOUND" });
+      return found;
+    }),
+
+  // Re-wrap the account key under new Argon2 params. The client re-derives the
+  // password KEK and re-encrypts the account key locally (zero-knowledge — the
   // server never sees the plaintext key or password).
   //
   // Requires a fresh OPAQUE login, and never overwrites: the active key set is
@@ -48,13 +75,13 @@ export const userRouter = router({
         await tx.insert(keysTable).values({
           userId: ctx.userId,
           recoveryKekSalt: active.recoveryKekSalt,
-          encryptedVaultKeyRecovery: active.encryptedVaultKeyRecovery,
-          vaultKeyEncryptionNonceRecovery: active.vaultKeyEncryptionNonceRecovery,
+          encryptedAccountKeyRecovery: active.encryptedAccountKeyRecovery,
+          accountKeyEncryptionNonceRecovery: active.accountKeyEncryptionNonceRecovery,
           recoveryVerifier: active.recoveryVerifier,
           passwordKekParams: input.passwordKekParams,
           passwordKekSalt: input.passwordKekSalt,
-          encryptedVaultKey: input.encryptedVaultKey,
-          vaultKeyEncryptionNonce: input.vaultKeyEncryptionNonce,
+          encryptedAccountKey: input.encryptedAccountKey,
+          accountKeyEncryptionNonce: input.accountKeyEncryptionNonce,
           valid_from: now,
         });
       });

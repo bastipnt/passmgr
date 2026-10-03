@@ -7,6 +7,7 @@ export const hkdfInfo = {
   emailEncryptionKey: fromString("email-encryption-key"),
   recoveryRootKey: fromString("recovery-root-key"),
   recoveryAuth: fromString("recovery-auth"),
+  sealKey: fromString("passmgr/seal/v1"),
   biometricKek: fromString("biometric-kek"),
   opaqueFakeRecordKey: fromString("opaque-fake-record-key"),
   opaqueFakeKeySeed: fromString("opaque-fake-key-seed"),

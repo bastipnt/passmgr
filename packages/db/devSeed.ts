@@ -11,12 +11,30 @@ import {
   OpaqueID,
   OpaqueServer,
 } from "@cloudflare/opaque-ts";
-import { encryptEmail, encryptXChaCha, generateUserKeys, genKey, hashEmail } from "@repo/crypto";
+import {
+  createUserKeyPair,
+  createVault,
+  encryptEmail,
+  encryptRecordData,
+  generateUserKeys,
+  genKey,
+  hashEmail,
+  unwrapVaultKey,
+} from "@repo/crypto";
 import { edgeCaseLoginRecords, exampleLoginRecords, type RecordSchema } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
-import { db, keysTable, recordsTable, schema, usersTable } from ".";
+import {
+  db,
+  keysTable,
+  recordsTable,
+  schema,
+  userKeyPairsTable,
+  usersTable,
+  vaultMembersTable,
+  vaultsTable,
+} from ".";
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
@@ -64,8 +82,11 @@ async function seed() {
   const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 
   // 3. Generate key hierarchy (same code path as client registration)
-  const vaultKey = genKey();
-  const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, vaultKey);
+  const accountKey = genKey();
+  const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, accountKey);
+  const personalVault = createVault(accountKey, { name: "Personal" });
+  const vaultKey = unwrapVaultKey(accountKey, personalVault);
+  const userKeyPair = createUserKeyPair(accountKey);
 
   // 4. Encrypt email
   const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(serverKey, EMAIL);
@@ -91,8 +112,16 @@ async function seed() {
   const { userId } = user;
   console.log(`User created: ${userId}`);
 
-  // 6. Insert keys
+  // 6. Insert keys, the keypair + the personal vault
   await db.insert(keysTable).values({ userId, ...userKeys });
+  await db.insert(userKeyPairsTable).values({ userId, ...userKeyPair });
+  const { vaultId, encryptedMeta, metaEncryptionNonce, ...personalVaultKey } = personalVault;
+  await db
+    .insert(vaultsTable)
+    .values({ vaultId, ownerId: userId, kind: "personal", encryptedMeta, metaEncryptionNonce });
+  await db
+    .insert(vaultMembersTable)
+    .values({ vaultId, userId, role: "owner", ...personalVaultKey });
 
   // 7. Encrypt and insert seed records
   const loginRecords = WITH_EDGE_CASES
@@ -105,11 +134,17 @@ async function seed() {
   const now = Date.now();
   const recordRows = loginRecords.map((loginRecord, i) => {
     const payload: RecordSchema = { schemaVersion: 1, ...loginRecord };
-    const [encryptedData, encryptionNonce] = encryptXChaCha(vaultKey, JSON.stringify(payload));
+    const recordId = crypto.randomUUID();
+    const [encryptedData, encryptionNonce] = encryptRecordData(
+      vaultKey,
+      { recordId, vaultId, cryptoVersion: 1 },
+      JSON.stringify(payload),
+    );
     const createdAt = new Date(now - ((i * 37) % 730) * DAY_MS - i * 60_000);
 
     return {
-      recordId: crypto.randomUUID(),
+      recordId,
+      vaultId,
       userId,
       encryptedData,
       encryptionNonce,

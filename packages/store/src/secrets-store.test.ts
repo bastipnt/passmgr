@@ -1,7 +1,74 @@
-import { encryptXChaCha, genKey, hkdf, verifyHmac } from "@repo/crypto";
+import {
+  createUserKeyPair,
+  decryptRecordData,
+  encryptVaultMeta,
+  genKey,
+  hkdf,
+  unwrapAccountKey,
+  verifyHmac,
+  wrapAccountKey,
+  wrapVaultKey,
+} from "@repo/crypto";
+import type { MemberVault } from "@repo/schema";
 import { fromString } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { secretsStore } from "./secrets-store";
+
+const PERSONAL_ID = "0199a3c4-0000-7000-8000-00000000000a";
+const WORK_ID = "0199a3c4-0000-7000-8000-00000000000b";
+
+/** A vault as the server hands it out: the key wrapped under the account key, plus metadata. */
+function memberVault(
+  accountKey: Uint8Array,
+  vaultKey: Uint8Array,
+  vaultId: string,
+  kind: MemberVault["kind"],
+  name: string = kind,
+): MemberVault {
+  return {
+    ...wrapVaultKey(accountKey, vaultKey, vaultId, 1),
+    ...encryptVaultMeta(vaultKey, vaultId, { name }),
+    kind,
+    role: "owner",
+  };
+}
+
+/** Fresh account + vault keys and their wraps, as the server would hand them out. */
+function keyring() {
+  const accountKey = genKey();
+  const personalKey = genKey();
+  const workKey = genKey();
+  const wraps: MemberVault[] = [
+    memberVault(accountKey, personalKey, PERSONAL_ID, "personal", "Personal"),
+    memberVault(accountKey, workKey, WORK_ID, "shared", "Work"),
+  ];
+  return { accountKey, personalKey, workKey, wraps };
+}
+
+const RECORD_ID = "0199a3c4-0000-7000-8000-0000000000aa";
+
+function decryptAs(
+  [encryptedData, encryptionNonce]: [string, string],
+  vaultId: string,
+  recordId = RECORD_ID,
+): string {
+  const bytes = secretsStore.decryptRecord({
+    recordId,
+    vaultId,
+    cryptoVersion: 1,
+    encryptedData,
+    encryptionNonce,
+  });
+  return new TextDecoder().decode(bytes);
+}
+
+/** Unlock the store with a fresh keyring (biometric-style: account key set directly). */
+function unlockWithKeyring() {
+  const ring = keyring();
+  secretsStore.unlockWithAccountKey(ring.accountKey.slice());
+  secretsStore.loadVaultKeys(ring.wraps);
+  return ring;
+}
 
 beforeEach(() => {
   secretsStore.lock();
@@ -29,32 +96,234 @@ describe("unlockSession", () => {
   });
 });
 
-describe("unlockVault", () => {
-  it("decrypts the vault key and wipes the passwordKek buffer", () => {
+describe("unlockAccount", () => {
+  it("unwraps the account key and wipes the passwordKek buffer", () => {
     const passwordKek = genKey();
-    const vaultKey = genKey();
-    const [encVault, nonce] = encryptXChaCha(passwordKek, vaultKey);
-
-    // make a working copy of the kek because encrypt+decrypt share key state via reference
+    const { accountKey, wraps } = keyring();
+    const [encrypted, nonce] = wrapAccountKey(passwordKek, accountKey);
     const kekCopy = passwordKek.slice();
 
-    secretsStore.unlockVault(kekCopy, encVault, nonce);
+    secretsStore.unlockAccount(kekCopy, encrypted, nonce);
+    secretsStore.loadVaultKeys(wraps);
 
     expect(secretsStore.isVaultUnlocked).toBe(true);
-    // passwordKek buffer was wiped in place
     expect(Array.from(kekCopy).every((b) => b === 0)).toBe(true);
+    expect(secretsStore.exportAccountKey()).toEqual(accountKey);
   });
 
-  it("throws when the passwordKek is tampered (single byte flip)", () => {
+  it("throws when the passwordKek is tampered (single byte flip), and wipes it anyway", () => {
     const passwordKek = genKey();
-    const vaultKey = genKey();
-    const [encVault, nonce] = encryptXChaCha(passwordKek, vaultKey);
-
+    const [encrypted, nonce] = wrapAccountKey(passwordKek, genKey());
     const tampered = passwordKek.slice();
     tampered[0] = tampered[0]! ^ 0x01;
 
-    expect(() => secretsStore.unlockVault(tampered, encVault, nonce)).toThrow();
+    expect(() => secretsStore.unlockAccount(tampered, encrypted, nonce)).toThrow();
     expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(tampered.every((b) => b === 0)).toBe(true);
+  });
+});
+
+describe("replacing the account key", () => {
+  it("wipes the previous account key buffer", () => {
+    const first = genKey();
+    secretsStore.unlockWithAccountKey(first);
+
+    secretsStore.unlockWithAccountKey(genKey());
+
+    expect(first.every((b) => b === 0)).toBe(true);
+  });
+
+  it("keeps the buffer when the same one is set again", () => {
+    const key = genKey();
+    const copy = key.slice();
+    secretsStore.unlockWithAccountKey(key);
+
+    secretsStore.unlockWithAccountKey(key);
+
+    expect(key).toEqual(copy);
+  });
+
+  it("restoreSession leaves the store untouched when the bundle is malformed", async () => {
+    await secretsStore.unlockSession("sid-live", "k", genKey());
+    const { accountKey } = unlockWithKeyring();
+
+    // A bundle persisted before the account key existed has no accountKeyB64.
+    const legacy = {
+      sessionId: "sid-old",
+      authKeyB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+      authSaltB64: "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=",
+    } as unknown as Parameters<typeof secretsStore.restoreSession>[0];
+
+    expect(() => secretsStore.restoreSession(legacy)).toThrow();
+    expect(secretsStore.sessionId).toBe("sid-live");
+    expect(secretsStore.exportAccountKey()).toEqual(accountKey);
+  });
+});
+
+describe("loadUserKeyPair", () => {
+  it("needs the account key first", () => {
+    expect(() => secretsStore.loadUserKeyPair(createUserKeyPair(genKey()))).toThrow(
+      /SessionLocked/,
+    );
+  });
+
+  it("holds the private key and exposes the public key it proves", () => {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    secretsStore.loadUserKeyPair(keyPair);
+
+    expect(secretsStore.userPublicKey).toBe(keyPair.publicKey);
+    expect(secretsStore._peekBuffers().userPrivateKey).toHaveLength(32);
+  });
+
+  it("rejects a keypair whose public key was swapped, and keeps nothing", () => {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadUserKeyPair(keyPair);
+    const before = secretsStore._peekBuffers().userPrivateKey!;
+
+    const swapped = { ...keyPair, publicKey: createUserKeyPair(genKey()).publicKey };
+    expect(() => secretsStore.loadUserKeyPair(swapped)).toThrow("doesn't match");
+
+    expect(secretsStore.userPublicKey).toBeUndefined();
+    expect(secretsStore._peekBuffers().userPrivateKey).toBeUndefined();
+    expect(before.every((b) => b === 0)).toBe(true);
+  });
+
+  it("rejects a keypair wrapped under another account key", () => {
+    secretsStore.unlockWithAccountKey(genKey());
+    expect(() => secretsStore.loadUserKeyPair(createUserKeyPair(genKey()))).toThrow();
+    expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+
+  it("lockVault wipes the private key", () => {
+    const accountKey = genKey();
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadUserKeyPair(createUserKeyPair(accountKey));
+    const privateKey = secretsStore._peekBuffers().userPrivateKey!;
+
+    secretsStore.lockVault();
+
+    expect(privateKey.every((b) => b === 0)).toBe(true);
+    expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+});
+
+describe("loadVaultKeys", () => {
+  it("needs the account key first", () => {
+    expect(() => secretsStore.loadVaultKeys(keyring().wraps)).toThrow(/SessionLocked/);
+  });
+
+  it("the vault counts as unlocked only once the vault keys are loaded", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+
+    secretsStore.loadVaultKeys(wraps);
+
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+  });
+
+  it("skips another vault whose wrap doesn't open and reports it", () => {
+    const { accountKey, wraps } = keyring();
+    const foreign = memberVault(genKey(), genKey(), WORK_ID, "shared");
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    expect(secretsStore.loadVaultKeys([wraps[0]!, foreign])).toEqual([WORK_ID]);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(() =>
+      secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: WORK_ID }, "x"),
+    ).toThrow(/SessionLocked/);
+  });
+
+  it("refuses a personal vault whose wrap doesn't open and keeps nothing", () => {
+    const { accountKey, wraps } = keyring();
+    const foreign = memberVault(genKey(), genKey(), PERSONAL_ID, "personal");
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    expect(() => secretsStore.loadVaultKeys([foreign, wraps[1]!])).toThrow();
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(secretsStore._peekBuffers().vaultKeys).toEqual([]);
+  });
+
+  it("refuses a key list with two personal vaults", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    expect(() =>
+      secretsStore.loadVaultKeys([wraps[0]!, { ...wraps[1]!, kind: "personal" }]),
+    ).toThrow(/personal vault/);
+  });
+
+  it("refuses a key list without a personal vault", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    expect(() => secretsStore.loadVaultKeys([wraps[1]!])).toThrow(/personal vault/);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+  });
+
+  it("rejects a key list that names a vault twice and keeps nothing", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+
+    expect(() => secretsStore.loadVaultKeys([...wraps, wraps[1]!])).toThrow(/Duplicate vault/);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(secretsStore._peekBuffers().vaultKeys).toEqual([]);
+  });
+
+  it("wipes the previously loaded vault keys when replacing them", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadVaultKeys(wraps);
+    const before = secretsStore._peekBuffers().vaultKeys;
+
+    secretsStore.loadVaultKeys(wraps);
+
+    expect(before.every((key) => key.every((b) => b === 0))).toBe(true);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+  });
+
+  it("keeps the loaded keys when a replacement list's personal vault doesn't open", () => {
+    const { accountKey, wraps } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadVaultKeys(wraps);
+    const sealed = secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: WORK_ID }, "kept");
+
+    const foreign = memberVault(genKey(), genKey(), PERSONAL_ID, "personal");
+    expect(() => secretsStore.loadVaultKeys([foreign, wraps[1]!])).toThrow();
+
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(decryptAs(sealed, WORK_ID)).toBe("kept");
+  });
+});
+
+describe("decryptVaultMeta / encryptVaultMeta", () => {
+  it("opens each vault's metadata with its own key", () => {
+    const { wraps } = unlockWithKeyring();
+
+    expect(secretsStore.decryptVaultMeta(wraps[0]!)).toEqual({ name: "Personal" });
+    expect(secretsStore.decryptVaultMeta(wraps[1]!)).toEqual({ name: "Work" });
+  });
+
+  it("refuses metadata moved to another vault", () => {
+    const { wraps } = unlockWithKeyring();
+    const swapped = { ...wraps[1]!, vaultId: PERSONAL_ID };
+
+    expect(() => secretsStore.decryptVaultMeta(swapped)).toThrow();
+  });
+
+  it("round-trips new metadata", () => {
+    unlockWithKeyring();
+    const meta = secretsStore.encryptVaultMeta(WORK_ID, { name: "Job", color: "red" });
+
+    expect(secretsStore.decryptVaultMeta({ vaultId: WORK_ID, ...meta })).toEqual({
+      name: "Job",
+      color: "red",
+    });
   });
 });
 
@@ -79,21 +348,49 @@ describe("signRequest", () => {
 
 describe("encryptRecord / decryptRecord", () => {
   it("throws when the vault is locked", () => {
-    expect(() => secretsStore.encryptRecord("data")).toThrow(/SessionLocked/);
-    expect(() => secretsStore.decryptRecord("x", "y")).toThrow(/SessionLocked/);
+    expect(() =>
+      secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: PERSONAL_ID }, "data"),
+    ).toThrow(/SessionLocked/);
+    expect(() => decryptAs(["x", "y"], PERSONAL_ID)).toThrow(/SessionLocked/);
   });
 
-  it("round-trips after unlockWithVaultKey (biometric path)", () => {
-    const vaultKey = genKey();
-    secretsStore.unlockWithVaultKey(vaultKey);
+  it("round-trips in each vault", () => {
+    unlockWithKeyring();
 
-    const [enc, nonce] = secretsStore.encryptRecord("hello");
-    const plain = secretsStore.decryptRecord(enc, nonce);
-    expect(new TextDecoder().decode(plain)).toBe("hello");
+    for (const vaultId of [PERSONAL_ID, WORK_ID]) {
+      const sealed = secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId }, "hello");
+      expect(decryptAs(sealed, vaultId)).toBe("hello");
+    }
+  });
+
+  it("encrypts under the record's vault key, bound to record and vault", () => {
+    const { workKey } = unlockWithKeyring();
+
+    const [enc, nonce] = secretsStore.encryptRecord(
+      { recordId: RECORD_ID, vaultId: WORK_ID },
+      "hello",
+    );
+
+    const context = { recordId: RECORD_ID, vaultId: WORK_ID, cryptoVersion: 1 };
+    expect(new TextDecoder().decode(decryptRecordData(workKey, context, enc, nonce))).toBe("hello");
+    expect(() => decryptAs([enc, nonce], PERSONAL_ID)).toThrow();
+    expect(() => decryptAs([enc, nonce], WORK_ID, crypto.randomUUID())).toThrow();
+  });
+
+  it("refuses a vault it holds no key for", () => {
+    unlockWithKeyring();
+    expect(() =>
+      secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: crypto.randomUUID() }, "x"),
+    ).toThrow(/SessionLocked/);
+  });
+
+  it("defaults new records to the personal vault", () => {
+    unlockWithKeyring();
+    expect(secretsStore.defaultVaultId).toBe(PERSONAL_ID);
   });
 
   it("biometric unlock does not enable signRequest (no authKey)", async () => {
-    secretsStore.unlockWithVaultKey(genKey());
+    unlockWithKeyring();
     await expect(secretsStore.signRequest("x")).rejects.toThrow(/SessionLocked/);
   });
 });
@@ -101,7 +398,7 @@ describe("encryptRecord / decryptRecord", () => {
 describe("lock", () => {
   it("clears sessionId and disables signing + record decryption", async () => {
     await secretsStore.unlockSession("sid", "k", genKey());
-    secretsStore.unlockWithVaultKey(genKey());
+    unlockWithKeyring();
 
     expect(secretsStore.isVaultUnlocked).toBe(true);
     expect(secretsStore.sessionId).toBe("sid");
@@ -111,35 +408,55 @@ describe("lock", () => {
     expect(secretsStore.sessionId).toBeUndefined();
     expect(secretsStore.isVaultUnlocked).toBe(false);
     await expect(secretsStore.signRequest("x")).rejects.toThrow(/SessionLocked/);
-    expect(() => secretsStore.encryptRecord("x")).toThrow(/SessionLocked/);
+    expect(() =>
+      secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: PERSONAL_ID }, "x"),
+    ).toThrow(/SessionLocked/);
   });
 
-  it("wipes every internal buffer (sessionSecret, authKey, authSalt, vaultKey)", async () => {
+  it("wipes every internal buffer (session keys, account key, vault keys)", async () => {
     const authSalt = genKey();
-    const vaultKey = genKey();
+    const { accountKey, wraps } = keyring();
 
     await secretsStore.unlockSession("sid", "session-key", authSalt);
-    secretsStore.unlockWithVaultKey(vaultKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadVaultKeys(wraps);
 
     // Grab live references to every internal buffer before lock().
     const internal = secretsStore._peekBuffers();
     expect(internal.sessionSecret).toBeDefined();
     expect(internal.authKey).toBeDefined();
     expect(internal.authSalt).toBeDefined();
-    expect(internal.vaultKey).toBeDefined();
+    expect(internal.accountKey).toBeDefined();
+    expect(internal.vaultKeys).toHaveLength(2);
 
     secretsStore.lock();
 
     // Every internal buffer must be zeroed in place.
-    expect(internal.sessionSecret!.every((b) => b === 0)).toBe(true);
-    expect(internal.authKey!.every((b) => b === 0)).toBe(true);
-    expect(internal.authSalt!.every((b) => b === 0)).toBe(true);
-    expect(internal.vaultKey!.every((b) => b === 0)).toBe(true);
+    const zeroed = (buf: Uint8Array) => buf.every((b) => b === 0);
+    expect(zeroed(internal.sessionSecret!)).toBe(true);
+    expect(zeroed(internal.authKey!)).toBe(true);
+    expect(zeroed(internal.authSalt!)).toBe(true);
+    expect(zeroed(internal.accountKey!)).toBe(true);
+    expect(internal.vaultKeys.every(zeroed)).toBe(true);
 
     // The input buffers we still hold references to are the same memory and
     // are therefore zeroed too.
-    expect(authSalt.every((b) => b === 0)).toBe(true);
-    expect(vaultKey.every((b) => b === 0)).toBe(true);
+    expect(zeroed(authSalt)).toBe(true);
+    expect(zeroed(accountKey)).toBe(true);
+  });
+
+  it("lockVault wipes the account and vault keys but keeps the session", async () => {
+    await secretsStore.unlockSession("sid", "k", genKey());
+    unlockWithKeyring();
+    const internal = secretsStore._peekBuffers();
+
+    secretsStore.lockVault();
+
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    expect(internal.accountKey!.every((b) => b === 0)).toBe(true);
+    expect(internal.vaultKeys.every((key) => key.every((b) => b === 0))).toBe(true);
+    expect(secretsStore.sessionId).toBe("sid");
+    await expect(secretsStore.signRequest("x")).resolves.toBeDefined();
   });
 
   it("is idempotent (calling lock twice does not throw)", () => {
@@ -175,20 +492,28 @@ describe("exportPersistableBundle / restoreSession", () => {
     expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
   });
 
-  it("round-trips: a restored store signs and decrypts identically (no OPAQUE/Argon2)", async () => {
+  it("round-trips: a restored store signs and, after reloading vault keys, decrypts (no OPAQUE/Argon2)", async () => {
     const sessionKey = "persist-session-key";
     const authSalt = genKey();
     const authSaltCopy = authSalt.slice(); // lock() will zero the stored authSalt
-    const vaultKey = genKey();
 
     await secretsStore.unlockSession("sid-persist", sessionKey, authSalt);
-    secretsStore.unlockWithVaultKey(vaultKey.slice());
+    const { wraps } = unlockWithKeyring();
 
     // Capture a record ciphertext under the live session before exporting.
-    const [enc, nonce] = secretsStore.encryptRecord("secret-data");
+    const sealed = secretsStore.encryptRecord(
+      { recordId: RECORD_ID, vaultId: PERSONAL_ID },
+      "secret-data",
+    );
 
     const bundle = secretsStore.exportPersistableBundle();
     expect(bundle.sessionId).toBe("sid-persist");
+    expect(Object.keys(bundle).sort()).toEqual([
+      "accountKeyB64",
+      "authKeyB64",
+      "authSaltB64",
+      "sessionId",
+    ]);
 
     secretsStore.lock();
     await expect(secretsStore.signRequest("x")).rejects.toThrow(/SessionLocked/);
@@ -203,28 +528,53 @@ describe("exportPersistableBundle / restoreSession", () => {
     const sig = await secretsStore.signRequest(message);
     expect(await verifyHmac(expectedAuthKey, sig, message)).toBe(true);
 
-    // vault key restored — decrypts the record encrypted before the lock
-    expect(new TextDecoder().decode(secretsStore.decryptRecord(enc, nonce))).toBe("secret-data");
+    // Vault keys come from the local DB, unwrapped with the restored account key.
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+    secretsStore.loadVaultKeys(wraps);
+    expect(decryptAs(sealed, PERSONAL_ID)).toBe("secret-data");
   });
 });
 
-describe("exportVaultKeyForWorker", () => {
-  it("throws when the vault is locked", () => {
-    expect(() => secretsStore.exportVaultKeyForWorker()).toThrow(/SessionLocked/);
+describe("exportVaultKeysForWorker / exportAccountKey", () => {
+  it("throw when the vault is locked", () => {
+    expect(() => secretsStore.exportVaultKeysForWorker()).toThrow(/SessionLocked/);
+    expect(() => secretsStore.exportAccountKey()).toThrow(/SessionLocked/);
   });
 
-  it("returns a copy of the vault key (mutation does not affect internal state)", () => {
-    const vk = genKey();
-    secretsStore.unlockWithVaultKey(vk.slice());
+  it("return copies (mutation does not affect internal state)", () => {
+    const { accountKey, personalKey, workKey } = unlockWithKeyring();
 
-    const exported = secretsStore.exportVaultKeyForWorker();
-    expect(Array.from(exported)).toEqual(Array.from(vk));
+    const exportedVaults = secretsStore.exportVaultKeysForWorker();
+    const exportedAccount = secretsStore.exportAccountKey();
+    expect(exportedVaults).toEqual(
+      new Map([
+        [PERSONAL_ID, personalKey],
+        [WORK_ID, workKey],
+      ]),
+    );
+    expect(exportedAccount).toEqual(accountKey);
 
-    // mutate the exported copy
-    exported.fill(0);
-    // internal still usable
-    const [enc, nonce] = secretsStore.encryptRecord("hi");
-    expect(new TextDecoder().decode(secretsStore.decryptRecord(enc, nonce))).toBe("hi");
+    for (const key of exportedVaults.values()) key.fill(0);
+    exportedAccount.fill(0);
+
+    const sealed = secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: WORK_ID }, "hi");
+    expect(decryptAs(sealed, WORK_ID)).toBe("hi");
+    expect(secretsStore.exportAccountKey()).toEqual(accountKey);
+  });
+});
+
+describe("rewrapAccountKey", () => {
+  it("wraps the in-memory account key under a new KEK", () => {
+    const { accountKey } = unlockWithKeyring();
+    const newKek = genKey();
+
+    const [encrypted, nonce] = secretsStore.rewrapAccountKey(newKek);
+
+    expect(unwrapAccountKey(newKek, encrypted, nonce)).toEqual(accountKey);
+  });
+
+  it("throws when locked", () => {
+    expect(() => secretsStore.rewrapAccountKey(genKey())).toThrow(/SessionLocked/);
   });
 });
 

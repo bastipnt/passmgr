@@ -1,40 +1,44 @@
 import type { TransactionHandle } from "sqlocal";
-import { SQLocal } from "sqlocal";
-import type { SqlDriver } from "../driver";
-
-/** Underlying connection: top-level SQLocal or a tx handle from `SQLocal.transaction`. */
-type SqlocalConn = SQLocal | TransactionHandle;
+import { SQLocalDrizzle } from "sqlocal/drizzle";
+import type { QueryMethod, QueryResult, SqlDriver } from "../driver";
 
 class SQLocalDriver implements SqlDriver {
-  private readonly conn: SqlocalConn;
+  private readonly client: SQLocalDrizzle;
+  /** Set on drivers handed out by `transaction`; queries then run inside it. */
+  private readonly tx?: TransactionHandle;
 
-  constructor(conn: SqlocalConn) {
-    this.conn = conn;
+  constructor(client: SQLocalDrizzle, tx?: TransactionHandle) {
+    this.client = client;
+    this.tx = tx;
   }
 
-  async all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
-    const rows = await this.conn.sql<Record<string, unknown>>(sql, ...params);
-    return rows as T[];
-  }
+  async query(sql: string, params: unknown[], method: QueryMethod): Promise<QueryResult> {
+    if (!this.tx) return await this.client.driver(sql, params, method);
 
-  async run(sql: string, params: unknown[] = []): Promise<void> {
-    await this.conn.sql(sql, ...params);
+    // SQLocal runs Drizzle queries in a transaction via `tx.query(drizzleQuery)`:
+    // it queues the transaction key and calls the query's `all()`, whose driver
+    // call takes that key. Our statement is already compiled, so pass a minimal
+    // Drizzle-shaped wrapper. `all()` calls the driver synchronously, so no
+    // outside query can take the queued key in between.
+    const statement = {
+      getSQL: () => undefined,
+      toSQL: () => ({ sql, params }),
+      all: () => this.client.driver(sql, params, method),
+    };
+    return (await this.tx.query(statement as never)) as unknown as QueryResult;
   }
 
   async transaction<T>(fn: (tx: SqlDriver) => Promise<T>): Promise<T> {
-    if (!isTopLevel(this.conn)) throw new Error("nested transactions are not supported");
-    return await this.conn.transaction(async (tx) => fn(new SQLocalDriver(tx)));
+    if (this.tx) throw new Error("nested transactions are not supported");
+    // Outside queries wait in SQLocal's worker until the transaction ends.
+    return await this.client.transaction((tx) => fn(new SQLocalDriver(this.client, tx)));
   }
 
   async destroy(): Promise<void> {
-    if (isTopLevel(this.conn)) await this.conn.destroy();
+    if (!this.tx) await this.client.destroy();
   }
 }
 
-function isTopLevel(conn: SqlocalConn): conn is SQLocal {
-  return conn instanceof SQLocal;
-}
-
 export function createWebDriver(databasePath: string = "pass-mgr.sqlite3"): SqlDriver {
-  return new SQLocalDriver(new SQLocal({ databasePath }));
+  return new SQLocalDriver(new SQLocalDrizzle({ databasePath }));
 }

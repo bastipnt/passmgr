@@ -32,8 +32,23 @@ pnpm --filter mobile start     # Expo dev server
 ### DB package (run from `packages/db/`)
 
 ```bash
-bun ./devResetDB.ts   # Reset dev database
+bun ./devResetDB.ts   # Reset dev database (truncate data, keep schema)
 ```
+
+`pnpm db:reset:hard` drops all tables and the migration log, then migrates from scratch (localhost
+only). Needed after migrations were squashed into a new baseline; follow with `pnpm db:seed`.
+
+### Local (on-device) DB (`packages/store`)
+
+```bash
+pnpm --filter @repo/store migrations:generate   # after editing src/schema/tables.ts
+```
+
+Drizzle (sqlite) schema in `src/schema/tables.ts`; drizzle-kit writes `drizzle/`, which is bundled
+into `src/migrations.generated.ts` (never edit either by hand; a test fails if they drift). Our own
+runner (`src/migrations.ts`, `PRAGMA user_version`) applies them. Queries go through
+`drizzle-orm/sqlite-proxy` over `SqlDriver` (array rows). **Never use Drizzle's `db.transaction()`**:
+it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.transaction`).
 
 ### Testing
 
@@ -147,22 +162,22 @@ Registration:
 
 1. Client: `OpaqueClient.registerInit` → sends `registrationRequest` to server
 2. Server: `opaqueServer.registerInit` → returns `registrationResponse`
-3. Client: `registerFinish` → generates `registrationRecord` + derives key hierarchy (Argon2id password KEK → vault key encrypted twice: once with password KEK, once with recovery KEK)
-4. Server: stores `registrationRecord` + encrypted key material in DB
+3. Client: `registerFinish` → generates `registrationRecord` + key hierarchy: a new account key wrapped twice (password KEK, recovery KEK), the personal vault (`createVault`: client-generated `vaultId` + vault key wrapped by the account key) and the X25519 keypair (`createUserKeyPair`: private key wrapped by the account key)
+4. Server: stores `registrationRecord`, the key set, the keypair (`user_key_pairs`) and the personal vault (`vaults` + owner row in `vault_members`) in one transaction
 
 Login:
 
 1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
 2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
-4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + encrypted vault key material
-5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then decrypts the vault key with the Argon2id password KEK (in a worker). Memory only on web; mobile persists the session bundle in Keychain/Keystore
+4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
+5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the local DB for offline unlock (`Vault.setAccountKeyMaterial`). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
 Recovery (forgotten password, `auth/recovery-router.ts`):
 
 1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`
-2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped vault key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
-3. Client: unwraps the **existing** vault key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, vaultKey)` (new password wrap + **new** recovery key + verifier) → `recovery.finishRecovery`
+2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped account key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
+3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
 4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
 
 ### Request Authentication
@@ -183,12 +198,37 @@ per user) — never `UPDATE` key material in place.
 ### Key Hierarchy
 
 ```
-password ──Argon2id──► passwordKEK ──encrypt──► vaultKey
-recoveryKey ──HKDF──► recoveryKEK ──encrypt──► vaultKey (backup)
+password ──Argon2id──► passwordKEK ──wrap──► accountKey
+recoveryKey ──HKDF──► recoveryKEK ──wrap──► accountKey (backup)
 recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► recoveryVerifier (server, recovery proof)
+accountKey ──wrap──► vaultKey[vaultId] ──encrypt──► records
+accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
+memberPublicKey ──seal──► vaultKey      (invites, `sealToPublicKey`; not wired up yet)
+(biometric KEK / mobile login bundle also hold the accountKey, never a vault key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
 ```
+
+Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the
+account key's is purpose-only (`passmgr/account-key/v1`, same wrap on every device), a vault key's binds
+`vaultId` + `keyVersion`, the private key's its `keyVersion` (`unwrapUserPrivateKey` also checks it
+against the public key). Password change / rekey / recovery rewrap only the account key; the keypair
+is created once and `generateUserKeys` never touches it. A public key is verified out of band by its
+`publicKeyFingerprint` (30 digits).
+
+### Vaults
+
+Every record lives in one vault (`records.vaultId`, local + server) and is encrypted with that vault's key;
+the AAD binds `cryptoVersion/vaultId/recordId` (`packages/crypto/src/vault-data.ts`), so a record never
+opens in another vault — a move (`record.move`) re-encrypts it as a new record and tombstones the source,
+whose history stays behind. Vault name/icon/colour are `encryptedMeta` (vault key, AAD `vaultId`).
+`personal` = the default vault (one per user, `secretsStore.defaultVaultId`); every other vault is `shared`.
+Server access is **membership-based** (`apps/server/src/vault/access.ts`: active `vault_members` row of a
+live vault; roles `owner > manage > write > read`), never `records.userId` (that's the version's author).
+Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a role gets `FORBIDDEN`.
+`record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
+vault list; `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads
+the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 
@@ -200,8 +240,9 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `login` → `loginRouter` (startLogin, finishLogin, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, all, getById, history, create, update, delete, onRecordChange SSE) — uses `protectedProcedure`
-- `user` → `userRouter` (heartbeat, rekeyPasswordKeys)
+- `record` → `recordRouter` (sync, all, getById, history, create, update, delete, move, onRecordChange SSE) — uses `protectedProcedure`
+- `vault` → `vaultRouter` (list, create, updateMeta)
+- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure`
 

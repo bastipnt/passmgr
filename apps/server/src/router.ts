@@ -5,11 +5,13 @@ import { registrationRouter } from "./auth/registration-router";
 import { recordRouter } from "./record/router";
 import { router } from "./trpc";
 import { userRouter } from "./user/router";
+import { vaultRouter } from "./vault/router";
 
 export const appRouter = router({
   appConfig: appConfigRouter,
   user: userRouter,
   record: recordRouter,
+  vault: vaultRouter,
   login: loginRouter,
   register: registrationRouter,
   recovery: recoveryRouter,

@@ -29,17 +29,15 @@ export function useRecordsContext() {
 }
 
 function buildFingerprint(record: EncryptedRecordSchema): string {
-  return `${record.encryptedData}|${record.encryptionNonce}`;
+  return `${record.vaultId}|${record.encryptedData}|${record.encryptionNonce}`;
 }
 
 async function decryptRecord(encrypted: EncryptedRecordSchema): Promise<DecryptedRecord> {
-  const decrypted = await decryptRecordWithWorker(
-    encrypted.encryptedData,
-    encrypted.encryptionNonce,
-  );
+  const decrypted = await decryptRecordWithWorker(encrypted);
   return {
     ...decrypted,
     recordId: encrypted.recordId,
+    vaultId: encrypted.vaultId,
     version: encrypted.version,
     clientUpdatedAt: encrypted.clientUpdatedAt,
     created_at: encrypted.created_at ?? null,
@@ -75,21 +73,27 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
       activeIds.add(record.recordId);
       const fp = buildFingerprint(record);
 
-      if (fingerprintMapRef.current.get(record.recordId) !== fp) {
-        toDecrypt.push(record);
-        fingerprintMapRef.current.set(record.recordId, fp);
-      }
+      if (fingerprintMapRef.current.get(record.recordId) !== fp) toDecrypt.push(record);
     }
 
-    // Decrypt changed/new records
+    // Decrypt changed/new records. One that fails (wrong key, tampered) is left
+    // out and retried on the next run, instead of hiding every other record.
     if (toDecrypt.length > 0) {
-      const decrypted = await timed(`decrypt ${toDecrypt.length} records`, () =>
-        Promise.all(toDecrypt.map(decryptRecord)),
+      const results = await timed(`decrypt ${toDecrypt.length} records`, () =>
+        Promise.allSettled(toDecrypt.map(decryptRecord)),
       );
 
-      for (const record of decrypted) {
-        recordsMapRef.current.set(record.recordId, record);
-      }
+      let failed = 0;
+      results.forEach((result, i) => {
+        const encryptedRecord = toDecrypt[i]!;
+        if (result.status === "rejected") {
+          failed++;
+          return;
+        }
+        recordsMapRef.current.set(result.value.recordId, result.value);
+        fingerprintMapRef.current.set(encryptedRecord.recordId, buildFingerprint(encryptedRecord));
+      });
+      if (failed > 0) console.error(`${failed} record(s) could not be decrypted and are hidden`);
     }
 
     // Remove deleted records

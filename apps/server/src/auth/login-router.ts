@@ -1,6 +1,6 @@
 import { ExpectedAuthResult, KE1, KE3, RegistrationRecord } from "@cloudflare/opaque-ts";
 import { hashEmail, hkdf, wipe } from "@repo/crypto";
-import { db } from "@repo/db";
+import { db, userKeyPairsTable } from "@repo/db";
 import {
   finishLoginInputSchema,
   finishLoginOutputSchema,
@@ -9,6 +9,7 @@ import {
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
+import { desc, eq } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
@@ -21,6 +22,7 @@ import {
   setSession,
   takeLoginAttempt,
 } from "../util/redis-utils";
+import { memberVaults } from "../vault/access";
 import { protectedProcedure } from "./auth-middleware";
 import { fakeRegistrationRecord } from "./fake-record";
 
@@ -138,8 +140,8 @@ export const loginRouter = router({
         columns: {
           passwordKekParams: true,
           passwordKekSalt: true,
-          encryptedVaultKey: true,
-          vaultKeyEncryptionNonce: true,
+          encryptedAccountKey: true,
+          accountKeyEncryptionNonce: true,
         },
         where: {
           userId,
@@ -148,6 +150,23 @@ export const loginRouter = router({
         },
       });
       if (!keyQueryRes) denyLogin(log, "finishLogin", "no_keys", emailHash);
+
+      // Every vault the user can access, with their wrap of its key.
+      const vaultKeys = await memberVaults(userId);
+
+      // The current (highest-version) keypair.
+      const [userKeyPair] = await db
+        .select({
+          keyVersion: userKeyPairsTable.keyVersion,
+          publicKey: userKeyPairsTable.publicKey,
+          encryptedPrivateKey: userKeyPairsTable.encryptedPrivateKey,
+          privateKeyEncryptionNonce: userKeyPairsTable.privateKeyEncryptionNonce,
+        })
+        .from(userKeyPairsTable)
+        .where(eq(userKeyPairsTable.userId, userId))
+        .orderBy(desc(userKeyPairsTable.keyVersion))
+        .limit(1);
+      if (!userKeyPair) denyLogin(log, "finishLogin", "no_key_pair", emailHash);
 
       await resetLoginThrottle(emailHash);
 
@@ -165,7 +184,7 @@ export const loginRouter = router({
       wipe(authKey);
 
       log?.info({ emailHash }, "auth.login.success");
-      return { sessionId, userPasswordKeys: keyQueryRes };
+      return { sessionId, userPasswordKeys: keyQueryRes, vaultKeys, userKeyPair };
     }),
 
   logout: protectedProcedure.mutation(async ({ ctx }) => {

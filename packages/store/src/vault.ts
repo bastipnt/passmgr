@@ -1,52 +1,75 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { EncryptedRecordSchema, VaultKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import type { SqlDriver } from "./driver";
+import { createLocalDb, type LocalDb } from "./local-db";
+import { migrate } from "./migrations";
 import {
-  CREATE_KEYS_SCHEMA_SQL,
   clearBiometricKey,
   clearKeysTable,
+  getAccountKey,
   getBiometricKey,
-  getVaultKey,
-  upsertBiometricVaultKey,
-  upsertVaultKey,
+  upsertAccountKey,
+  upsertBiometricKey,
 } from "./schema/keys-schema";
 import {
-  CREATE_RECORDS_SCHEMA_SQL,
   clearRecordsTable,
+  deleteVaultRecords,
   getAllRecordsLatest,
   getByRecordId,
   upsertRecords,
 } from "./schema/records-schema";
 import {
-  CREATE_SYNC_META_SCHEMA_SQL,
   clearSyncTable,
-  getLastSyncTimestamp,
-  setLastSyncTimestamp,
+  deleteSyncCursors,
+  getSyncCursors,
+  setSyncCursors,
 } from "./schema/sync-schema";
+import { clearVaultsTable, getVaults, replaceVaults } from "./schema/vaults-schema";
 
-const SCHEMA_STATEMENTS = [
-  CREATE_RECORDS_SCHEMA_SQL,
-  CREATE_KEYS_SCHEMA_SQL,
-  CREATE_SYNC_META_SCHEMA_SQL,
-];
+/** One pull from the server: changed records plus the full list of the user's vaults. */
+export type SyncBatch = {
+  records: EncryptedRecordSchema[];
+  vaults: MemberVault[];
+  serverTimestamp: string;
+};
+
+/** Whether two vault lists hold the same vaults with the same wraps, roles and metadata. */
+export function sameVaults(a: readonly MemberVault[], b: readonly MemberVault[]): boolean {
+  if (a.length !== b.length) return false;
+  const byId = new Map(a.map((vault) => [vault.vaultId, vault]));
+  return b.every((vault) => {
+    const other = byId.get(vault.vaultId);
+    return (
+      other !== undefined &&
+      (Object.keys(vault) as (keyof MemberVault)[]).every((key) => other[key] === vault[key])
+    );
+  });
+}
 
 export class Vault {
-  private db: SqlDriver;
-  private initialized: Promise<void>;
+  private driver: SqlDriver;
+  private db: LocalDb;
+  private initialized?: Promise<void>;
 
   constructor(driver: SqlDriver) {
-    this.db = driver;
-    this.initialized = this.init();
+    this.driver = driver;
+    this.db = createLocalDb(driver);
+    // Start migrating right away; callers see a failure through `ready()`.
+    this.ready().catch(() => undefined);
   }
 
-  private async init(): Promise<void> {
-    for (const stmt of SCHEMA_STATEMENTS) {
-      await this.db.run(stmt);
-    }
+  private ready(): Promise<void> {
+    this.initialized ??= migrate(this.driver).catch((error: unknown) => {
+      // Let the next call retry instead of failing forever (e.g. after a lock timeout).
+      this.initialized = undefined;
+      throw error;
+    });
+    return this.initialized;
   }
 
-  private async ready(): Promise<void> {
-    await this.initialized;
+  /** Run fn atomically against a Drizzle handle bound to the transaction. */
+  private async transaction<T>(fn: (tx: LocalDb) => Promise<T>): Promise<T> {
+    return await this.driver.transaction((tx) => fn(createLocalDb(tx)));
   }
 
   /**
@@ -55,12 +78,14 @@ export class Vault {
 
   async upsertRecords(records: EncryptedRecordSchema[]): Promise<void> {
     await this.ready();
-    await upsertRecords(records, this.db);
+    if (records.length === 0) return;
+    await this.transaction((tx) => upsertRecords(records, tx));
   }
 
-  async getAllLatest(): Promise<EncryptedRecordSchema[]> {
+  /** The current records of one vault, or of all vaults when `vaultId` is omitted. */
+  async getAllLatest(vaultId?: string): Promise<EncryptedRecordSchema[]> {
     await this.ready();
-    return await getAllRecordsLatest(this.db);
+    return await getAllRecordsLatest(this.db, vaultId);
   }
 
   async getByRecordId(recordId: string): Promise<EncryptedRecordSchema | undefined> {
@@ -69,17 +94,29 @@ export class Vault {
   }
 
   /**
-   * VAULT KEY
+   * ACCOUNT KEY + VAULT KEYS (what an offline unlock needs)
    */
 
-  async setVaultKeyMaterial(vaultKey: VaultKeyMaterial): Promise<void> {
+  /** Store the account key wrap and the vaults (with their key wraps) together, atomically. */
+  async setAccountKeyMaterial(
+    material: AccountKeyMaterial,
+    vaults: readonly MemberVault[],
+  ): Promise<void> {
     await this.ready();
-    await upsertVaultKey(vaultKey, this.db);
+    await this.transaction(async (tx) => {
+      await upsertAccountKey(material, tx);
+      await replaceVaults(vaults, tx);
+    });
   }
 
-  async getVaultKeyMaterial(): Promise<VaultKeyMaterial | null> {
+  async getAccountKeyMaterial(): Promise<AccountKeyMaterial | null> {
     await this.ready();
-    return await getVaultKey(this.db);
+    return await getAccountKey(this.db);
+  }
+
+  async getVaults(): Promise<MemberVault[]> {
+    await this.ready();
+    return await getVaults(this.db);
   }
 
   /**
@@ -88,7 +125,7 @@ export class Vault {
 
   async setBiometricKeyMaterial(biometricKey: BiometricKeyMaterial): Promise<void> {
     await this.ready();
-    await upsertBiometricVaultKey(biometricKey, this.db);
+    await upsertBiometricKey(biometricKey, this.db);
   }
 
   async getBiometricKeyMaterial(): Promise<BiometricKeyMaterial | null> {
@@ -105,14 +142,37 @@ export class Vault {
    * SYNC META
    */
 
-  async getLastSyncTimestamp(): Promise<string | null> {
+  /** vaultId → pull cursor, for every vault synced before. */
+  async getSyncCursors(): Promise<Record<string, string>> {
     await this.ready();
-    return await getLastSyncTimestamp(this.db);
+    return await getSyncCursors(this.db);
   }
 
-  async setLastSyncTimestamp(ts: string): Promise<void> {
+  /**
+   * Apply one pull atomically: vaults the user lost access to are dropped with
+   * their records and cursors, the vault list is replaced, records upserted and
+   * every vault's cursor advanced. Resolves whether the vault list changed (the
+   * keys in memory then need reloading).
+   */
+  async applySync({ records, vaults, serverTimestamp }: SyncBatch): Promise<boolean> {
     await this.ready();
-    await setLastSyncTimestamp(ts, this.db);
+    return await this.transaction(async (tx) => {
+      const cached = await getVaults(tx);
+      const current = new Set(vaults.map((v) => v.vaultId));
+      const removed = cached.map((v) => v.vaultId).filter((id) => !current.has(id));
+
+      await deleteVaultRecords(removed, tx);
+      await deleteSyncCursors(removed, tx);
+      const vaultsChanged = !sameVaults(cached, vaults);
+      if (vaultsChanged) await replaceVaults(vaults, tx);
+
+      await upsertRecords(
+        records.filter((r) => current.has(r.vaultId)),
+        tx,
+      );
+      await setSyncCursors([...current], serverTimestamp, tx);
+      return vaultsChanged;
+    });
   }
 
   /**
@@ -121,12 +181,15 @@ export class Vault {
 
   async clear(): Promise<void> {
     await this.ready();
-    await clearRecordsTable(this.db);
-    await clearKeysTable(this.db);
-    await clearSyncTable(this.db);
+    await this.transaction(async (tx) => {
+      await clearRecordsTable(tx);
+      await clearKeysTable(tx);
+      await clearSyncTable(tx);
+      await clearVaultsTable(tx);
+    });
   }
 
   async destroy(): Promise<void> {
-    await this.db.destroy();
+    await this.driver.destroy();
   }
 }

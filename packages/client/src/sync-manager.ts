@@ -1,12 +1,14 @@
-import type { EncryptedRecordSchema } from "@repo/schema";
-import type { Vault } from "@repo/store";
+import type { MemberVault } from "@repo/schema";
+import type { SyncBatch, Vault } from "@repo/store";
 
-export type SyncFetcher = (lastSyncedAt?: string) => Promise<{
-  records: EncryptedRecordSchema[];
-  serverTimestamp: string;
-}>;
+/** Pull every vault's changes since its cursor (vaultId → cursor). */
+export type SyncFetcher = (cursors: Record<string, string>) => Promise<SyncBatch>;
 
-export type SyncListener = () => void;
+/** Runs before the listeners when the vault list changed, e.g. to load new vault keys. */
+export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
+
+/** `vaultsChanged`: the vault list (membership, key wraps, metadata) changed in this pull. */
+export type SyncListener = (event: { vaultsChanged: boolean }) => void;
 
 export class SyncManager {
   private syncing = false;
@@ -14,10 +16,12 @@ export class SyncManager {
   private listeners: Set<SyncListener> = new Set();
   private store: Vault;
   private fetcher: SyncFetcher;
+  private onVaultsChanged?: VaultsChangedHandler;
 
-  constructor(store: Vault, fetcher: SyncFetcher) {
+  constructor(store: Vault, fetcher: SyncFetcher, onVaultsChanged?: VaultsChangedHandler) {
     this.store = store;
     this.fetcher = fetcher;
+    this.onVaultsChanged = onVaultsChanged;
   }
 
   /** Register a callback invoked after each successful sync. */
@@ -32,16 +36,12 @@ export class SyncManager {
     this.syncing = true;
 
     try {
-      const lastSyncedAt = (await this.store.getLastSyncTimestamp()) ?? undefined;
-      const { records, serverTimestamp } = await this.fetcher(lastSyncedAt);
-
-      if (records.length > 0) {
-        await this.store.upsertRecords(records);
-      }
-      await this.store.setLastSyncTimestamp(serverTimestamp);
+      const batch = await this.fetcher(await this.store.getSyncCursors());
+      const vaultsChanged = await this.store.applySync(batch);
+      if (vaultsChanged) await this.onVaultsChanged?.(batch.vaults);
 
       for (const listener of this.listeners) {
-        listener();
+        listener({ vaultsChanged });
       }
       return true;
     } catch {

@@ -11,13 +11,29 @@ function b64(bytes: number): string {
 
 const VALID_USER_KEYS = {
   recoveryKekSalt: b64(32),
-  encryptedVaultKeyRecovery: b64(48),
-  vaultKeyEncryptionNonceRecovery: b64(24),
+  encryptedAccountKeyRecovery: b64(48),
+  accountKeyEncryptionNonceRecovery: b64(24),
   recoveryVerifier: b64(32),
   passwordKekParams: { t: 3, m: 128 * 1024, p: 1 },
   passwordKekSalt: b64(32),
+  encryptedAccountKey: b64(48),
+  accountKeyEncryptionNonce: b64(24),
+};
+
+const VALID_PERSONAL_VAULT = {
+  vaultId: "0199a3c4-5b6d-7e8f-9a0b-1c2d3e4f5a6b",
+  keyVersion: 1,
   encryptedVaultKey: b64(48),
   vaultKeyEncryptionNonce: b64(24),
+  encryptedMeta: b64(40),
+  metaEncryptionNonce: b64(24),
+};
+
+const VALID_USER_KEY_PAIR = {
+  keyVersion: 1,
+  publicKey: b64(32),
+  encryptedPrivateKey: b64(48),
+  privateKeyEncryptionNonce: b64(24),
 };
 
 describe("registration/login email symmetry", () => {
@@ -43,6 +59,8 @@ describe("email normalization", () => {
         email,
         registrationRecord: "r",
         userKeys: VALID_USER_KEYS,
+        personalVault: VALID_PERSONAL_VAULT,
+        userKeyPair: VALID_USER_KEY_PAIR,
       }).email,
     ).toBe("alice@example.com");
   });
@@ -53,31 +71,81 @@ describe("email normalization", () => {
         email: "not-an-email",
         registrationRecord: "r",
         userKeys: VALID_USER_KEYS,
+        personalVault: VALID_PERSONAL_VAULT,
+        userKeyPair: VALID_USER_KEY_PAIR,
       }),
     ).toThrow();
   });
 });
 
 describe("finishRegistrationInputSchema composes key-schema", () => {
+  const valid = {
+    email: "alice@example.com",
+    registrationRecord: "opaque-record-blob",
+    userKeys: VALID_USER_KEYS,
+    personalVault: VALID_PERSONAL_VAULT,
+    userKeyPair: VALID_USER_KEY_PAIR,
+  };
+
+  it("accepts a complete registration", () => {
+    expect(() => finishRegistrationInputSchema.parse(valid)).not.toThrow();
+  });
+
   it("rejects when userKeys has out-of-range Argon t", () => {
     expect(() =>
       finishRegistrationInputSchema.parse({
-        email: "alice@example.com",
-        registrationRecord: "opaque-record-blob",
+        ...valid,
         userKeys: { ...VALID_USER_KEYS, passwordKekParams: { t: 99, m: 128 * 1024, p: 1 } },
       }),
     ).toThrow();
   });
 
-  it("rejects when userKeys recovery vault key is wrong length", () => {
+  it("rejects when userKeys recovery account key is wrong length", () => {
     expect(() =>
       finishRegistrationInputSchema.parse({
-        email: "alice@example.com",
-        registrationRecord: "opaque-record-blob",
-        userKeys: {
-          ...VALID_USER_KEYS,
-          encryptedVaultKeyRecovery: b64(48).slice(0, -1),
-        },
+        ...valid,
+        userKeys: { ...VALID_USER_KEYS, encryptedAccountKeyRecovery: b64(48).slice(0, -1) },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a missing personal vault", () => {
+    const { personalVault: _, ...withoutVault } = valid;
+    expect(() => finishRegistrationInputSchema.parse(withoutVault)).toThrow();
+  });
+
+  it.each([
+    ["a non-UUID vaultId", { vaultId: "personal" }],
+    ["keyVersion 0", { keyVersion: 0 }],
+    ["keyVersion 2 (a new vault starts at 1)", { keyVersion: 2 }],
+    ["a truncated wrapped vault key", { encryptedVaultKey: b64(48).slice(0, -1) }],
+    ["no vault metadata", { encryptedMeta: undefined }],
+    ["oversized vault metadata", { encryptedMeta: b64(3000) }],
+    ["a wrong-length nonce", { vaultKeyEncryptionNonce: b64(12) }],
+  ])("rejects a personal vault with %s", (_label, override) => {
+    expect(() =>
+      finishRegistrationInputSchema.parse({
+        ...valid,
+        personalVault: { ...VALID_PERSONAL_VAULT, ...override },
+      }),
+    ).toThrow();
+  });
+
+  it("rejects a missing keypair", () => {
+    const { userKeyPair: _, ...withoutKeyPair } = valid;
+    expect(() => finishRegistrationInputSchema.parse(withoutKeyPair)).toThrow();
+  });
+
+  it.each([
+    ["keyVersion 2 (a new keypair starts at 1)", { keyVersion: 2 }],
+    ["a truncated public key", { publicKey: b64(32).slice(0, -1) }],
+    ["a truncated wrapped private key", { encryptedPrivateKey: b64(48).slice(0, -1) }],
+    ["a wrong-length nonce", { privateKeyEncryptionNonce: b64(12) }],
+  ])("rejects a keypair with %s", (_label, override) => {
+    expect(() =>
+      finishRegistrationInputSchema.parse({
+        ...valid,
+        userKeyPair: { ...VALID_USER_KEY_PAIR, ...override },
       }),
     ).toThrow();
   });

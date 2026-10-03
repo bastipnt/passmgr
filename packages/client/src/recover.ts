@@ -3,7 +3,7 @@ import {
   deriveRecoveryAuthKey,
   generateUserKeys,
   normalizeEmail,
-  unwrapVaultKeyWithRecoveryKey,
+  unwrapAccountKeyWithRecoveryKey,
   wipe,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
@@ -57,10 +57,11 @@ export function parseRecoveryKey(input: string): Uint8Array {
  * Reset the master password with the recovery key.
  *
  * Proves possession of the recovery key (HKDF-derived auth key, checked
- * against the server's verifier), unwraps the existing vault key with it and
- * re-wraps that same key under the new password and a fresh recovery key, so
- * all records stay readable. The server swaps the OPAQUE record and key set
- * and revokes every existing session.
+ * against the server's verifier), unwraps the existing account key with it and
+ * re-wraps that same key under the new password and a fresh recovery key. Vault
+ * keys (wrapped by the account key) stay untouched, so all records stay
+ * readable. The server swaps the OPAQUE record and key set and revokes every
+ * existing session.
  *
  * @returns the new recoveryKey (show once, never send to the server; the
  *   old one no longer works)
@@ -73,7 +74,7 @@ export async function recoverAccount(
 ): Promise<Uint8Array> {
   const email = normalizeEmail(rawEmail);
   const recoveryKey = parseRecoveryKey(rawRecoveryKey);
-  let vaultKey: Uint8Array | undefined;
+  let accountKey: Uint8Array | undefined;
 
   try {
     const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
@@ -100,7 +101,7 @@ export async function recoverAccount(
     }
 
     try {
-      vaultKey = await unwrapVaultKeyWithRecoveryKey(recoveryKey, recoveryKeys);
+      accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, recoveryKeys);
     } catch {
       // Verifier matched but the wrap doesn't — corrupt or tampered key set.
       throw new RecoveryFailedError();
@@ -117,7 +118,7 @@ export async function recoverAccount(
 
     const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(
       newPassword,
-      vaultKey,
+      accountKey,
     );
 
     try {
@@ -136,6 +137,6 @@ export async function recoverAccount(
     return newRecoveryKey;
   } finally {
     wipe(recoveryKey);
-    if (vaultKey) wipe(vaultKey);
+    if (accountKey) wipe(accountKey);
   }
 }

@@ -5,6 +5,7 @@ import {
   insertKey,
   insertRecord,
   insertUser,
+  insertVault,
   makeKeyRow,
   makeRecordRow,
   truncateAll,
@@ -32,8 +33,8 @@ describe("foreign-key constraints", () => {
     await expect(
       client.query(
         `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams",
-          "passwordKekSalt", "encryptedVaultKey", "vaultKeyEncryptionNonce",
-          "encryptedVaultKeyRecovery", "vaultKeyEncryptionNonceRecovery")
+          "passwordKekSalt", "encryptedAccountKey", "accountKeyEncryptionNonce",
+          "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orphan.keySetId,
@@ -41,25 +42,33 @@ describe("foreign-key constraints", () => {
           orphan.recoveryKekSalt,
           JSON.stringify(orphan.passwordKekParams),
           orphan.passwordKekSalt,
-          orphan.encryptedVaultKey,
-          orphan.vaultKeyEncryptionNonce,
-          orphan.encryptedVaultKeyRecovery,
-          orphan.vaultKeyEncryptionNonceRecovery,
+          orphan.encryptedAccountKey,
+          orphan.accountKeyEncryptionNonce,
+          orphan.encryptedAccountKeyRecovery,
+          orphan.accountKeyEncryptionNonceRecovery,
         ],
       ),
     ).rejects.toMatchObject({ code: FK_VIOLATION });
   });
 
-  it("rejects records row with userId not in users", async () => {
-    const orphan = makeRecordRow(crypto.randomUUID());
+  it.each([
+    ["userId not in users", "user"],
+    ["vaultId not in vaults", "vault"],
+  ])("rejects records row with %s", async (_label, missing) => {
+    const owner = await insertUser(client);
+    const vaultId = await insertVault(client, owner.userId);
+    const orphan = makeRecordRow(missing === "user" ? crypto.randomUUID() : owner.userId, {
+      vaultId: missing === "vault" ? crypto.randomUUID() : vaultId,
+    });
     await expect(
       client.query(
-        `INSERT INTO "records" ("rowId", "recordId", "userId", "encryptedData", "encryptionNonce",
-          "cryptoVersion", "version", "clientUpdatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData",
+          "encryptionNonce", "cryptoVersion", "version", "clientUpdatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
         [
           orphan.rowId,
           orphan.recordId,
+          orphan.vaultId,
           orphan.userId,
           orphan.encryptedData,
           orphan.encryptionNonce,
@@ -89,5 +98,19 @@ describe("foreign-key constraints", () => {
     );
     expect(keysLeft.rows[0].n).toBe(0);
     expect(recordsLeft.rows[0].n).toBe(0);
+  });
+
+  it("deleting a vault removes its records", async () => {
+    const user = await insertUser(client);
+    const vaultId = await insertVault(client, user.userId);
+    await insertRecord(client, user.userId, { vaultId });
+
+    await client.query(`DELETE FROM "vaults" WHERE "vaultId" = $1`, [vaultId]);
+
+    const left = await client.query(
+      `SELECT count(*)::int AS n FROM "records" WHERE "vaultId" = $1`,
+      [vaultId],
+    );
+    expect(left.rows[0].n).toBe(0);
   });
 });

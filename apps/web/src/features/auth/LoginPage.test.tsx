@@ -2,6 +2,7 @@ import { SessionContext } from "@repo/client";
 import { LoginThrottledError, loginUser as loginUserCore } from "@repo/client/src/login";
 import { getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
+import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
@@ -10,17 +11,38 @@ import { renderWithProviders, screen, waitFor } from "@/test/render";
 import LoginPage from "./LoginPage";
 
 // Real `useUnlock` / `useLogin`; only the layers below them are replaced.
+const personalVault: MemberVault = {
+  vaultId: "0199a3c4-0000-7000-8000-00000000000a",
+  kind: "personal",
+  keyVersion: 1,
+  role: "owner",
+  encryptedVaultKey: "AAAA",
+  vaultKeyEncryptionNonce: "AAAA",
+  encryptedMeta: "AAAA",
+  metaEncryptionNonce: "AAAA",
+};
+
 const store = {
-  vaultKeyMaterial: {
+  accountKeyMaterial: {
     email: "alice@example.com",
     passwordKekParams: getPasswordKekParams(),
     passwordKekSalt: "AAAAAAAAAAAAAAAAAAAAAA==",
-    encryptedVaultKey: "AAAA",
-    vaultKeyEncryptionNonce: "AAAA",
+    encryptedAccountKey: "AAAA",
+    accountKeyEncryptionNonce: "AAAA",
+    userKeyPair: {
+      keyVersion: 1,
+      publicKey: "AAAA",
+      encryptedPrivateKey: "AAAA",
+      privateKeyEncryptionNonce: "AAAA",
+    },
   },
   biometricKeyMaterial: null,
   needsBiometricEnroll: false,
-  vault: { setVaultKeyMaterial: vi.fn(), clear: vi.fn() },
+  vault: {
+    setAccountKeyMaterial: vi.fn(),
+    getVaults: vi.fn(async () => [personalVault]),
+    clear: vi.fn(),
+  },
   removeVault: vi.fn(),
 };
 
@@ -56,7 +78,7 @@ const session: ContextType<typeof SessionContext> = {
   restoreLogin: vi.fn(),
   offlineLoginSession: vi.fn(),
   unlockVault: vi.fn(),
-  unlockWithVaultKey: vi.fn(),
+  unlockWithAccountKey: vi.fn(),
   signRequest: vi.fn(),
   endSession: vi.fn(),
 };
@@ -81,7 +103,7 @@ describe("LoginPage offline", () => {
     vi.mocked(session.unlockVault).mockReset();
     vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
     vi.spyOn(secretsStore, "setPassword");
-    vi.spyOn(secretsStore, "exportVaultKeyForWorker").mockReturnValue(new Uint8Array(32));
+    vi.spyOn(secretsStore, "exportVaultKeysForWorker").mockReturnValue(new Map());
   });
 
   it("commits no offline session or password when the password is wrong", async () => {
@@ -104,7 +126,7 @@ describe("LoginPage offline", () => {
     await screen.findByText(/can't switch accounts offline/i);
     expect(argon2WorkerService.derive).not.toHaveBeenCalled();
     expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.vault.setVaultKeyMaterial).not.toHaveBeenCalled();
+    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
     expect(session.offlineLoginSession).not.toHaveBeenCalled();
   });
 
@@ -116,7 +138,7 @@ describe("LoginPage offline", () => {
     expect(session.unlockVault).toHaveBeenCalled();
     expect(secretsStore.setPassword).toHaveBeenCalledWith("right password");
     // Unchanged key material isn't rewritten.
-    expect(store.vault.setVaultKeyMaterial).not.toHaveBeenCalled();
+    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
   });
 });
@@ -156,7 +178,9 @@ describe("LoginPage online", () => {
       return {
         email: "alice@example.com",
         password: "right password",
-        userPasswordKeys: store.vaultKeyMaterial,
+        userPasswordKeys: store.accountKeyMaterial,
+        vaultKeys: [personalVault],
+        userKeyPair: store.accountKeyMaterial.userKeyPair,
       };
     });
   });

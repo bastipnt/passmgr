@@ -1,12 +1,11 @@
 import {
-  encryptRecord,
   SessionContext,
   useDeleteRecord,
   useGetRecord,
   useShortcut,
   useUpdateRecord,
 } from "@repo/client";
-import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import type { LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
@@ -41,18 +40,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
   }, [updateRecordError]);
 
   function handleSubmit(formValues: LoginRecord) {
-    const { encryptedData, encryptionNonce } = encryptRecord({
-      schemaVersion: record!.schemaVersion,
-      ...formValues,
-    });
-    updateRecord({
-      recordId,
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: CURRENT_CRYPTO_VERSION,
-      version: record!.version,
-      clientUpdatedAt: new Date().toISOString(),
-    });
+    updateRecord(record!, { schemaVersion: record!.schemaVersion, ...formValues });
   }
 
   return {

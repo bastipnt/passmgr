@@ -37,8 +37,9 @@ export function useRecordHistory(recordId: string | undefined) {
     queryFn: async (): Promise<DecryptedRecord[]> =>
       Promise.all(
         encrypted!.map(async (row) => ({
-          ...(await decryptRecordWithWorker(row.encryptedData, row.encryptionNonce)),
+          ...(await decryptRecordWithWorker(row)),
           recordId: row.recordId,
+          vaultId: row.vaultId,
           version: row.version,
           clientUpdatedAt: row.clientUpdatedAt,
           created_at: row.created_at ?? null,

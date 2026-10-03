@@ -1,4 +1,26 @@
-import { decryptXChaCha, encryptXChaCha, hkdf, signHmac, wipe } from "@repo/crypto";
+import {
+  createVault,
+  decryptRecordData,
+  decryptVaultMeta,
+  encryptRecordData,
+  encryptVaultMeta,
+  hkdf,
+  type RecordCipherContext,
+  signHmac,
+  unwrapAccountKey,
+  unwrapUserPrivateKey,
+  unwrapVaultKey,
+  wipe,
+  wrapAccountKey,
+} from "@repo/crypto";
+import {
+  CURRENT_CRYPTO_VERSION,
+  type EncryptedVaultMeta,
+  type MemberVault,
+  type UserKeyPair,
+  type VaultMeta,
+  vaultMetaSchema,
+} from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { LoginBundle } from "./session-persistence.types";
 
@@ -13,8 +35,13 @@ class SecretsStore {
   private authKey?: Uint8Array;
   private authSalt?: Uint8Array;
 
-  // Vault related keys
-  private vaultKey?: Uint8Array;
+  // Vault related keys (ADR 0001 D3): the account key unwraps the vault keys.
+  private accountKey?: Uint8Array;
+  private vaultKeys = new Map<string, Uint8Array>();
+  private personalVaultId?: string;
+  // The X25519 keypair (ADR 0001 D7), checked against each other on load.
+  private userPrivateKey?: Uint8Array;
+  private verifiedPublicKey?: string;
 
   // Temporary password for biometric enrollment
   private password?: string;
@@ -31,36 +58,103 @@ class SecretsStore {
   }
 
   /**
-   * Phase 2: Derive vault key (slow — Argon2id).
-   * Must be called after unlockSession. Can run off main thread.
+   * Phase 2: Unwrap the account key with the password KEK (slow part: the
+   * Argon2id derivation of the KEK happens before). Wipes the KEK. Throws on a
+   * wrong password. Follow with `loadVaultKeys`.
    */
-  unlockVault(
+  unlockAccount(
     passwordKek: Uint8Array,
-    encryptedVaultKeyB64: string,
-    vaultKeyEncryptionNonceB64: string,
+    encryptedAccountKeyB64: string,
+    accountKeyEncryptionNonceB64: string,
   ) {
     try {
-      this.vaultKey = decryptXChaCha(passwordKek, encryptedVaultKeyB64, vaultKeyEncryptionNonceB64);
+      this.setAccountKey(
+        unwrapAccountKey(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64),
+      );
     } finally {
       wipe(passwordKek);
     }
   }
 
   /**
-   * Biometric unlock: set vault key directly (already decrypted via WebAuthn PRF).
-   * No server session is established — only item decryption works.
+   * Biometric / restored unlock: set the account key directly (already
+   * decrypted via WebAuthn PRF or OS secure storage). No server session.
    */
-  unlockWithVaultKey(vaultKey: Uint8Array) {
-    this.vaultKey = vaultKey;
+  unlockWithAccountKey(accountKey: Uint8Array) {
+    this.setAccountKey(accountKey);
   }
 
   /**
-   * Export the in-memory session + vault keys for persistence to OS secure
+   * Unwrap the user's vault keys with the account key, replacing any loaded
+   * before. Only the personal vault is required: when its wrap is missing or
+   * doesn't open, or the list names a vault twice, this throws and the keys
+   * loaded before stay in place. Any other vault whose wrap doesn't open is
+   * left out (its records stay hidden) and returned, so one bad membership
+   * row can't lock the user out of everything else.
+   *
+   * @returns the ids of the vaults that were skipped
+   */
+  loadVaultKeys(wraps: readonly MemberVault[]): string[] {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+
+    const personal = wraps.filter((wrap) => wrap.kind === "personal");
+    if (personal.length !== 1) throw new Error("Expected exactly one personal vault");
+
+    const keys = new Map<string, Uint8Array>();
+    const skipped: string[] = [];
+    try {
+      for (const wrap of wraps) {
+        if (keys.has(wrap.vaultId) || skipped.includes(wrap.vaultId)) {
+          throw new Error(`Duplicate vault ${wrap.vaultId}`);
+        }
+        try {
+          keys.set(wrap.vaultId, unwrapVaultKey(accountKey, wrap));
+        } catch (e) {
+          if (wrap.kind === "personal") throw e;
+          skipped.push(wrap.vaultId);
+        }
+      }
+    } catch (e) {
+      for (const key of keys.values()) wipe(key);
+      throw e;
+    }
+
+    this.wipeVaultKeys();
+    this.vaultKeys = keys;
+    this.personalVaultId = personal[0]!.vaultId;
+    return skipped;
+  }
+
+  /**
+   * Unwrap the user's X25519 private key with the account key and keep it with
+   * its public key. Throws (leaving none loaded) when the wrap doesn't open or
+   * doesn't belong to the public key: the server handed out a keypair that
+   * isn't the user's, and a fingerprint shown for it would vouch for a key the
+   * user doesn't hold.
+   */
+  loadUserKeyPair(keyPair: UserKeyPair) {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+    this.wipeUserKeyPair();
+
+    this.userPrivateKey = unwrapUserPrivateKey(accountKey, keyPair);
+    this.verifiedPublicKey = keyPair.publicKey;
+  }
+
+  /** The user's own public key, as proven by the private key (for the fingerprint). */
+  get userPublicKey(): string | undefined {
+    return this.verifiedPublicKey;
+  }
+
+  /**
+   * Export the in-memory session + account key for persistence to OS secure
    * storage. Returns base64 material (minus the account email, which the caller
-   * supplies). Throws unless both the session and vault are unlocked.
+   * supplies). Vault keys aren't included: they're re-unwrapped from the local
+   * database after a restore. Throws unless both the session and vault are unlocked.
    */
   exportPersistableBundle(): Omit<LoginBundle, "email"> {
-    if (!this.sessionId || !this.authKey || !this.authSalt || !this.vaultKey) {
+    if (!this.sessionId || !this.authKey || !this.authSalt || !this.accountKey) {
       throw new SessionLockedError();
     }
 
@@ -68,22 +162,29 @@ class SecretsStore {
       sessionId: this.sessionId,
       authKeyB64: toBase64(this.authKey),
       authSaltB64: toBase64(this.authSalt),
-      vaultKeyB64: toBase64(this.vaultKey),
+      accountKeyB64: toBase64(this.accountKey),
     };
   }
 
   /**
    * Restore a previously-persisted session straight from key material — no
-   * OPAQUE handshake, no Argon2. After this, both authenticated requests
-   * (`signRequest`) and item decryption work, exactly as after a full login +
-   * vault unlock. `sessionSecret` is intentionally not restored: it is only an
-   * intermediate used to derive `authKey`, which we already have.
+   * OPAQUE handshake, no Argon2. After this, authenticated requests
+   * (`signRequest`) work; follow with `loadVaultKeys` for item decryption.
+   * `sessionSecret` is intentionally not restored: it is only an intermediate
+   * used to derive `authKey`, which we already have.
    */
   restoreSession(bundle: Omit<LoginBundle, "email">) {
+    // Decode everything first: a malformed bundle throws without touching state.
+    const authKey = fromBase64(bundle.authKeyB64);
+    const authSalt = fromBase64(bundle.authSaltB64);
+    const accountKey = fromBase64(bundle.accountKeyB64);
+
+    if (this.authKey) wipe(this.authKey);
+    if (this.authSalt) wipe(this.authSalt);
     this.sessionId = bundle.sessionId;
-    this.authKey = fromBase64(bundle.authKeyB64);
-    this.authSalt = fromBase64(bundle.authSaltB64);
-    this.vaultKey = fromBase64(bundle.vaultKeyB64);
+    this.authKey = authKey;
+    this.authSalt = authSalt;
+    this.setAccountKey(accountKey);
   }
 
   setPassword(pw: string) {
@@ -99,7 +200,7 @@ class SecretsStore {
   }
 
   get isVaultUnlocked(): boolean {
-    return this.vaultKey !== undefined;
+    return this.accountKey !== undefined && this.personalVaultId !== undefined;
   }
 
   lock() {
@@ -114,10 +215,17 @@ class SecretsStore {
     if (this.authSalt) wipe(this.authSalt);
     this.authSalt = undefined;
 
-    if (this.vaultKey) wipe(this.vaultKey);
-    this.vaultKey = undefined;
+    this.lockVault();
 
     this.password = undefined;
+  }
+
+  /** Wipe the account, vault and private keys; the server session (if any) stays. */
+  lockVault() {
+    if (this.accountKey) wipe(this.accountKey);
+    this.accountKey = undefined;
+    this.wipeVaultKeys();
+    this.wipeUserKeyPair();
   }
 
   async signRequest(message: string) {
@@ -125,30 +233,99 @@ class SecretsStore {
     return await signHmac(this.authKey, message);
   }
 
-  encryptRecord(data: string): [encryptedData: string, nonce: string] {
-    if (!this.vaultKey) throw new SessionLockedError();
-    return encryptXChaCha(this.vaultKey, data);
+  /** The personal vault: where records go unless the user picks another vault. */
+  get defaultVaultId(): string | undefined {
+    return this.personalVaultId;
   }
 
-  decryptRecord(encryptedData: string, nonce: string): Uint8Array {
-    if (!this.vaultKey) throw new SessionLockedError();
-    return decryptXChaCha(this.vaultKey, encryptedData, nonce);
+  private vaultKey(vaultId: string): Uint8Array {
+    const key = this.vaultKeys.get(vaultId);
+    if (!key) throw new SessionLockedError();
+    return key;
   }
 
-  exportVaultKeyForWorker(): Uint8Array {
-    if (!this.vaultKey) throw new SessionLockedError();
-    return this.vaultKey.slice();
+  /** Encrypt a record payload under its vault's key, bound to the record and vault. */
+  encryptRecord(
+    context: Omit<RecordCipherContext, "cryptoVersion">,
+    data: string,
+  ): [encryptedData: string, nonce: string] {
+    return encryptRecordData(
+      this.vaultKey(context.vaultId),
+      { ...context, cryptoVersion: CURRENT_CRYPTO_VERSION },
+      data,
+    );
+  }
+
+  decryptRecord(
+    row: RecordCipherContext & { encryptedData: string; encryptionNonce: string },
+  ): Uint8Array {
+    return decryptRecordData(
+      this.vaultKey(row.vaultId),
+      row,
+      row.encryptedData,
+      row.encryptionNonce,
+    );
+  }
+
+  /** Copies of every vault key, for the decrypt worker. */
+  exportVaultKeysForWorker(): Map<string, Uint8Array> {
+    if (this.vaultKeys.size === 0) throw new SessionLockedError();
+    return new Map([...this.vaultKeys].map(([vaultId, key]) => [vaultId, key.slice()]));
+  }
+
+  /** Throws when the metadata doesn't open with the vault's key or isn't valid. */
+  decryptVaultMeta(vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta): VaultMeta {
+    return vaultMetaSchema.parse(
+      decryptVaultMeta(this.vaultKey(vault.vaultId), vault.vaultId, vault),
+    );
+  }
+
+  encryptVaultMeta(vaultId: string, meta: VaultMeta): EncryptedVaultMeta {
+    return encryptVaultMeta(this.vaultKey(vaultId), vaultId, meta);
   }
 
   /**
-   * Re-encrypt the in-memory vault key under a new password KEK (e.g. after
-   * Argon2 params change). The plaintext vault key never leaves memory; only
-   * the returned ciphertext is persisted. Caller is responsible for wiping
-   * `passwordKek` afterwards.
+   * A new vault for `vault.create`: fresh id and key, wrapped under the account
+   * key. Its key is loaded with the vault list after the next sync.
    */
-  rewrapVaultKey(passwordKek: Uint8Array): [encryptedVaultKey: string, nonce: string] {
-    if (!this.vaultKey) throw new SessionLockedError();
-    return encryptXChaCha(passwordKek, this.vaultKey);
+  createVault(meta: VaultMeta): ReturnType<typeof createVault> {
+    if (!this.accountKey) throw new SessionLockedError();
+    return createVault(this.accountKey, meta);
+  }
+
+  /** A copy of the account key, for biometric enrollment. The caller wipes it. */
+  exportAccountKey(): Uint8Array {
+    if (!this.accountKey) throw new SessionLockedError();
+    return this.accountKey.slice();
+  }
+
+  /**
+   * Re-encrypt the in-memory account key under a new password KEK (e.g. after
+   * Argon2 params change). The plaintext key never leaves memory; only the
+   * returned ciphertext is persisted. Vault keys are unaffected. Caller is
+   * responsible for wiping `passwordKek` afterwards.
+   */
+  rewrapAccountKey(passwordKek: Uint8Array): [encryptedAccountKey: string, nonce: string] {
+    if (!this.accountKey) throw new SessionLockedError();
+    return wrapAccountKey(passwordKek, this.accountKey);
+  }
+
+  /** Replace the account key, wiping the previous buffer (unless it is the same one). */
+  private setAccountKey(accountKey: Uint8Array) {
+    if (this.accountKey && this.accountKey !== accountKey) wipe(this.accountKey);
+    this.accountKey = accountKey;
+  }
+
+  private wipeVaultKeys() {
+    for (const key of this.vaultKeys.values()) wipe(key);
+    this.vaultKeys = new Map();
+    this.personalVaultId = undefined;
+  }
+
+  private wipeUserKeyPair() {
+    if (this.userPrivateKey) wipe(this.userPrivateKey);
+    this.userPrivateKey = undefined;
+    this.verifiedPublicKey = undefined;
   }
 
   private async deriveAuthKey(): Promise<Uint8Array> {
@@ -164,13 +341,17 @@ class SecretsStore {
     sessionSecret?: Uint8Array;
     authKey?: Uint8Array;
     authSalt?: Uint8Array;
-    vaultKey?: Uint8Array;
+    accountKey?: Uint8Array;
+    vaultKeys: Uint8Array[];
+    userPrivateKey?: Uint8Array;
   } {
     return {
       sessionSecret: this.sessionSecret,
       authKey: this.authKey,
       authSalt: this.authSalt,
-      vaultKey: this.vaultKey,
+      accountKey: this.accountKey,
+      vaultKeys: [...this.vaultKeys.values()],
+      userPrivateKey: this.userPrivateKey,
     };
   }
 }

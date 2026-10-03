@@ -7,7 +7,9 @@ export async function getClient(): Promise<Client> {
 }
 
 export async function truncateAll(client: Client): Promise<void> {
-  await client.query('TRUNCATE "users", "keys", "records" RESTART IDENTITY CASCADE');
+  await client.query(
+    'TRUNCATE "users", "keys", "records", "vaults", "vault_members", "user_key_pairs" RESTART IDENTITY CASCADE',
+  );
 }
 
 export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
@@ -55,10 +57,10 @@ export function makeKeyRow(userId: string, overrides: Partial<KeyRow> = {}): Key
     recoveryKekSalt: `rec-kek-salt-${uniq}`,
     passwordKekParams: { t: 1, m: 8, p: 1 },
     passwordKekSalt: `pwd-kek-salt-${uniq}`,
-    encryptedVaultKey: `enc-vk-${uniq}`,
-    vaultKeyEncryptionNonce: `vk-nonce-${uniq}`,
-    encryptedVaultKeyRecovery: `enc-vk-rec-${uniq}`,
-    vaultKeyEncryptionNonceRecovery: `vk-rec-nonce-${uniq}`,
+    encryptedAccountKey: `enc-ak-${uniq}`,
+    accountKeyEncryptionNonce: `ak-nonce-${uniq}`,
+    encryptedAccountKeyRecovery: `enc-ak-rec-${uniq}`,
+    accountKeyEncryptionNonceRecovery: `ak-rec-nonce-${uniq}`,
     ...overrides,
   };
 }
@@ -71,8 +73,8 @@ export async function insertKey(
   const row = makeKeyRow(userId, overrides);
   await client.query(
     `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams", "passwordKekSalt",
-                        "encryptedVaultKey", "vaultKeyEncryptionNonce",
-                        "encryptedVaultKeyRecovery", "vaultKeyEncryptionNonceRecovery")
+                        "encryptedAccountKey", "accountKeyEncryptionNonce",
+                        "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       row.keySetId,
@@ -80,10 +82,10 @@ export async function insertKey(
       row.recoveryKekSalt,
       JSON.stringify(row.passwordKekParams),
       row.passwordKekSalt,
-      row.encryptedVaultKey,
-      row.vaultKeyEncryptionNonce,
-      row.encryptedVaultKeyRecovery,
-      row.vaultKeyEncryptionNonceRecovery,
+      row.encryptedAccountKey,
+      row.accountKeyEncryptionNonce,
+      row.encryptedAccountKeyRecovery,
+      row.accountKeyEncryptionNonceRecovery,
     ],
   );
   return row;
@@ -94,6 +96,7 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
   return {
     rowId: crypto.randomUUID(),
     recordId: `record-${uniq}`,
+    vaultId: crypto.randomUUID(),
     userId,
     encryptedData: `enc-data-${uniq}`,
     encryptionNonce: `enc-nonce-${uniq}`,
@@ -104,19 +107,22 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
   };
 }
 
+/** Insert a record; without a `vaultId` override it goes into a new vault of `userId`. */
 export async function insertRecord(
   client: Client,
   userId: string,
   overrides: Partial<RecordRow> = {},
 ): Promise<RecordRow> {
-  const row = makeRecordRow(userId, overrides);
+  const vaultId = overrides.vaultId ?? (await insertVault(client, userId, "shared"));
+  const row = makeRecordRow(userId, { ...overrides, vaultId });
   await client.query(
-    `INSERT INTO "records" ("rowId", "recordId", "userId", "encryptedData", "encryptionNonce",
+    `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData", "encryptionNonce",
                            "cryptoVersion", "version", "clientUpdatedAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       row.rowId,
       row.recordId,
+      row.vaultId,
       row.userId,
       row.encryptedData,
       row.encryptionNonce,
@@ -145,15 +151,16 @@ export type KeyRow = {
   recoveryKekSalt: string;
   passwordKekParams: { t: number; m: number; p: number };
   passwordKekSalt: string;
-  encryptedVaultKey: string;
-  vaultKeyEncryptionNonce: string;
-  encryptedVaultKeyRecovery: string;
-  vaultKeyEncryptionNonceRecovery: string;
+  encryptedAccountKey: string;
+  accountKeyEncryptionNonce: string;
+  encryptedAccountKeyRecovery: string;
+  accountKeyEncryptionNonceRecovery: string;
 };
 
 export type RecordRow = {
   rowId: string;
   recordId: string;
+  vaultId: string;
   userId: string;
   encryptedData: string;
   encryptionNonce: string;
@@ -161,3 +168,32 @@ export type RecordRow = {
   version: number;
   clientUpdatedAt: Date;
 };
+
+export async function insertVault(
+  client: Client,
+  ownerId: string,
+  kind: "personal" | "shared" = "personal",
+): Promise<string> {
+  const vaultId = crypto.randomUUID();
+  await client.query(
+    `INSERT INTO "vaults" ("vaultId", "ownerId", "kind", "encryptedMeta", "metaEncryptionNonce")
+     VALUES ($1, $2, $3, $4, $5)`,
+    [vaultId, ownerId, kind, `enc-meta-${vaultId}`, `meta-nonce-${vaultId}`],
+  );
+  return vaultId;
+}
+
+export async function insertVaultMember(
+  client: Client,
+  vaultId: string,
+  userId: string,
+  role = "owner",
+): Promise<void> {
+  const uniq = crypto.randomUUID();
+  await client.query(
+    `INSERT INTO "vault_members" ("vaultId", "userId", "role", "keyVersion",
+                                  "encryptedVaultKey", "vaultKeyEncryptionNonce")
+     VALUES ($1, $2, $3, 1, $4, $5)`,
+    [vaultId, userId, role, `enc-vault-key-${uniq}`, `vault-key-nonce-${uniq}`],
+  );
+}

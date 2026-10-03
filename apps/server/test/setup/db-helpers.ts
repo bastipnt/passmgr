@@ -3,5 +3,7 @@ import { sql } from "drizzle-orm";
 
 /** Wipe every row across users/keys/records. Call in `beforeEach` for isolation. */
 export async function truncateAll() {
-  await db.execute(sql`TRUNCATE "users", "keys", "records" RESTART IDENTITY CASCADE`);
+  await db.execute(
+    sql`TRUNCATE "users", "keys", "records", "vaults", "vault_members", "user_key_pairs" RESTART IDENTITY CASCADE`,
+  );
 }

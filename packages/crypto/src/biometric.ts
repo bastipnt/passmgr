@@ -1,10 +1,11 @@
 import { fromBase64, toBase64 } from "@repo/util";
 import { decryptXChaCha, encryptXChaCha } from "./encryption";
 import { hkdf } from "./hash";
+import { unwrapAccountKey, wrapAccountKey } from "./user-keys";
 import { wipe } from "./util/secrets-utils";
 
 export const BIOMETRIC_KEY = [
-  "biometricEncryptedVaultKey",
+  "biometricEncryptedAccountKey",
   "biometricNonce",
   "biometricEncryptedPassword",
   "biometricPasswordNonce",
@@ -32,7 +33,7 @@ export async function isPrfSupported(): Promise<boolean> {
 }
 
 export async function enrollBiometric(
-  vaultKey: Uint8Array,
+  accountKey: Uint8Array,
   password: string,
 ): Promise<BiometricKeyMaterial> {
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
@@ -98,7 +99,7 @@ export async function enrollBiometric(
   }
 
   const biometricKek = await hkdf(new Uint8Array(prfOutput), "biometricKek");
-  const [biometricEncryptedVaultKey, biometricNonce] = encryptXChaCha(biometricKek, vaultKey);
+  const [biometricEncryptedAccountKey, biometricNonce] = wrapAccountKey(biometricKek, accountKey);
   const [biometricEncryptedPassword, biometricPasswordNonce] = encryptXChaCha(
     biometricKek,
     password,
@@ -106,7 +107,7 @@ export async function enrollBiometric(
   wipe(biometricKek);
 
   return {
-    biometricEncryptedVaultKey,
+    biometricEncryptedAccountKey,
     biometricNonce,
     biometricEncryptedPassword,
     biometricPasswordNonce,
@@ -117,7 +118,7 @@ export async function enrollBiometric(
 
 export async function authenticateBiometric(
   material: BiometricKeyMaterial,
-): Promise<{ vaultKey: Uint8Array; password: string }> {
+): Promise<{ accountKey: Uint8Array; password: string }> {
   const credentialId = fromBase64(material.credentialId);
   const prfSalt = fromBase64(material.prfSalt);
 
@@ -142,9 +143,9 @@ export async function authenticateBiometric(
   }
 
   const biometricKek = await hkdf(new Uint8Array(prfResult.results.first), "biometricKek");
-  const vaultKey = decryptXChaCha(
+  const accountKey = unwrapAccountKey(
     biometricKek,
-    material.biometricEncryptedVaultKey,
+    material.biometricEncryptedAccountKey,
     material.biometricNonce,
   );
   const passwordBytes = decryptXChaCha(
@@ -157,5 +158,5 @@ export async function authenticateBiometric(
   const password = new TextDecoder().decode(passwordBytes);
   wipe(passwordBytes);
 
-  return { vaultKey, password };
+  return { accountKey, password };
 }

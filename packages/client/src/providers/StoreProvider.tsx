@@ -1,9 +1,10 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { VaultKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, MemberVault } from "@repo/schema";
 import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { SyncManager } from "../sync-manager";
+import { initDecryptWorker } from "../util/decrypt-record";
 import { useTRPCClient } from "../util/trpc";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
@@ -12,7 +13,8 @@ type StoreContextValue = {
   vault: Vault;
   syncManager: SyncManager;
 
-  vaultKeyMaterial: VaultKeyMaterial | null;
+  /** The cached account key wrap + email: present once this device can unlock offline. */
+  accountKeyMaterial: AccountKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
   biometricDismissed: boolean;
 
@@ -22,6 +24,24 @@ type StoreContextValue = {
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
+
+/**
+ * A sync brought a changed vault list (a vault added, removed, renamed, rekeyed):
+ * load its keys into memory and the decrypt worker. A vault whose wrap doesn't
+ * open is skipped (its records stay hidden); a broken personal vault keeps the
+ * keys loaded before.
+ */
+function reloadVaultKeys(vaults: MemberVault[]) {
+  if (!secretsStore.isVaultUnlocked) return;
+  try {
+    const skipped = secretsStore.loadVaultKeys(vaults);
+    if (skipped.length > 0)
+      console.error(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
+    initDecryptWorker();
+  } catch (e) {
+    console.error("Vault keys from sync could not be loaded", e);
+  }
+}
 
 export function useStore(): StoreContextValue {
   const store = useContext(StoreContext);
@@ -42,11 +62,11 @@ type StoreProviderProps = {
 };
 
 export function StoreProvider({ vault, syncEnabled = true, children }: StoreProviderProps) {
-  const { loggedIn, isOffline } = useContext(SessionContext);
+  const { loggedIn, vaultUnlocked, isOffline } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const preferences = usePreferences();
 
-  const [vaultKeyMaterial, setVaultKeyMaterial] = useState<VaultKeyMaterial | null>(null);
+  const [accountKeyMaterial, setAccountKeyMaterial] = useState<AccountKeyMaterial | null>(null);
   const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
     null,
   );
@@ -66,23 +86,30 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
 
   const syncManagerRef = useRef<SyncManager | null>(null);
   if (!syncManagerRef.current) {
-    syncManagerRef.current = new SyncManager(vault, async (lastSyncedAt) => {
-      if (typeof navigator !== "undefined" && navigator.onLine === false)
-        throw new Error("offline");
-      return await trpc.record.sync.query({ lastSyncedAt });
-    });
+    syncManagerRef.current = new SyncManager(
+      vault,
+      async (cursors) => {
+        if (typeof navigator !== "undefined" && navigator.onLine === false)
+          throw new Error("offline");
+        return await trpc.record.sync.query({ cursors });
+      },
+      reloadVaultKeys,
+    );
   }
   const syncManager = syncManagerRef.current;
 
-  // Load vault key material on mount to check if offline unlock is available
+  // Load the account key material on mount to check if offline unlock is available
   useEffect(() => {
-    void vault.getVaultKeyMaterial().then(setVaultKeyMaterial);
+    void vault.getAccountKeyMaterial().then(setAccountKeyMaterial);
     void vault.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
   }, [vault]);
 
-  // Sync on login + start periodic sync + SSE subscription + resync when back online
+  // Sync once the vault is unlocked + start periodic sync + SSE subscription + resync
+  // when back online. Not right after the OPAQUE login: the unlock still has to
+  // decide whose data the local DB holds (and may clear it), and a sync that
+  // lands before that would be wiped with it.
   useEffect(() => {
-    if (!loggedIn || isOffline || !syncEnabled) return;
+    if (!loggedIn || !vaultUnlocked || isOffline || !syncEnabled) return;
 
     const onOnline = () => void syncManager.sync();
     if (typeof window !== "undefined" && typeof window.addEventListener === "function")
@@ -127,14 +154,14 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
         window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
     };
-  }, [loggedIn, isOffline, syncEnabled, syncManager, trpc]);
+  }, [loggedIn, vaultUnlocked, isOffline, syncEnabled, syncManager, trpc]);
 
   async function removeVault() {
     await vault.clear();
     await clearLoginBundle();
     secretsStore.lock();
     preferences.remove(PREF_KEYS.biometricDismissed);
-    setVaultKeyMaterial(null);
+    setAccountKeyMaterial(null);
     setBiometricKeyMaterial(null);
   }
 
@@ -142,7 +169,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     vault,
     syncManager,
 
-    vaultKeyMaterial,
+    accountKeyMaterial,
     biometricKeyMaterial,
     biometricDismissed,
 

@@ -1,6 +1,6 @@
 # ADR 0001 — Offline-first, local vaults, multiple vaults and record types
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-10-01
 - **Tracking:** kanbot board "TODO", label `offline-first` / `multi-vault`
 
@@ -190,6 +190,14 @@ the history must not leak into the target.
 
 **Existing data:** none to migrate. The new tables are part of the reset baseline.
 
+> **Amended 2026-10-02** (vault data model implementation): every vault other than the default one
+> has `kind = shared`, whether or not it has other members yet. `vault_members.status` is `active` or
+> `pending`; only `active` grants access. Until `record.push` lands, a move is its own `record.move`
+> mutation (one transaction: new record in the target, tombstone in the source); the moved payload
+> doesn't reference the old `recordId` yet, that comes with the typed payload (D4). `record.sync` takes
+> one cursor per vault and returns the full vault list; the cursor is still `updated_at` until the
+> sequence cursor (D8).
+
 ### D7 — Sharing (design now, build after offline-first)
 
 - Every user has an **X25519 keypair**, generated at local vault creation or at registration,
@@ -212,6 +220,21 @@ the history must not leak into the target.
   later if needed. Organisations reuse the same model.
 - Sharing requires a linked account. In `local` mode the share action leads to "Create online
   account".
+
+> **Amended 2026-10-02** (keypair implementation): the keypair comes from its own
+> `createUserKeyPair(accountKey)`, next to `createVault`, not from `generateUserKeys`: recovery
+> calls `generateUserKeys` with the existing account key and must keep the published public key.
+> Server table `user_key_pairs (userId, keyVersion, publicKey, encryptedPrivateKey, nonce)`,
+> append-only, highest `keyVersion` is current; `user.publicKey` looks one up by email. The wrapped
+> keypair is cached locally with the account key material. Every unlock (password, biometric,
+> restore) loads it into `secretsStore` next to the vault keys and fails if the private key doesn't
+> match the public key, so a server can't make the app show (and the user confirm) a fingerprint
+> for a key the user doesn't hold.
+>
+> Open for the invite work: the seal is anonymous, so anyone (including the server) can seal a
+> vault key to a user and forge an invite to a vault whose key it knows. Invites need sender
+> authentication (e.g. the owner signs or authenticates the sealed key with a static key whose
+> fingerprint the invitee checks) before accepting.
 
 ### D8 — Sync protocol
 
@@ -275,9 +298,15 @@ ciphertext to identity*) is part of the new baseline format from the start, inst
 
 - records: `recordId ‖ vaultId ‖ cryptoVersion`
 - vault-key wraps: `"vault-key" ‖ vaultId ‖ keyVersion`
-- the account-key wrap: `"account-key" ‖ profileId`
+- the account-key wrap: purpose only (`"account-key"` + format version)
 
-The AAD never uses the server `userId`, because it doesn't exist before linking. A record moved
+The AAD never uses the server `userId`, because it doesn't exist before linking.
+
+> **Amended 2026-10-01** (key hierarchy implementation): the account-key wrap was first bound to
+> `profileId`. That id is per device, but the same wrapped account key is unwrapped on every
+> device of the account, so the binding would break on the second one. Binding it to an identity
+> buys nothing anyway: a wrap belonging to another user fails on the wrong KEK. Vault keys keep
+> `vaultId ‖ keyVersion`, which stops the server from swapping wraps between the user's own vaults. A record moved
 to another vault is re-encrypted anyway (D6).
 
 ### D12 — Durability of local-only data
