@@ -2,7 +2,7 @@ import { SessionContext } from "@repo/client";
 import { LoginThrottledError, loginUser as loginUserCore } from "@repo/client/src/login";
 import { getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type { MemberVaultKey } from "@repo/schema";
+import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
@@ -11,12 +11,15 @@ import { renderWithProviders, screen, waitFor } from "@/test/render";
 import LoginPage from "./LoginPage";
 
 // Real `useUnlock` / `useLogin`; only the layers below them are replaced.
-const personalVault: MemberVaultKey = {
+const personalVault: MemberVault = {
   vaultId: "0199a3c4-0000-7000-8000-00000000000a",
   kind: "personal",
   keyVersion: 1,
+  role: "owner",
   encryptedVaultKey: "AAAA",
   vaultKeyEncryptionNonce: "AAAA",
+  encryptedMeta: "AAAA",
+  metaEncryptionNonce: "AAAA",
 };
 
 const store = {
@@ -37,7 +40,7 @@ const store = {
   needsBiometricEnroll: false,
   vault: {
     setAccountKeyMaterial: vi.fn(),
-    getVaultKeys: vi.fn(async () => [personalVault]),
+    getVaults: vi.fn(async () => [personalVault]),
     clear: vi.fn(),
   },
   removeVault: vi.fn(),
@@ -100,7 +103,7 @@ describe("LoginPage offline", () => {
     vi.mocked(session.unlockVault).mockReset();
     vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
     vi.spyOn(secretsStore, "setPassword");
-    vi.spyOn(secretsStore, "exportVaultKeyForWorker").mockReturnValue(new Uint8Array(32));
+    vi.spyOn(secretsStore, "exportVaultKeysForWorker").mockReturnValue(new Map());
   });
 
   it("commits no offline session or password when the password is wrong", async () => {

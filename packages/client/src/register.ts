@@ -12,6 +12,9 @@ import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 
+/** The default vault's metadata; the user can rename it later. */
+const PERSONAL_VAULT_META = { name: "Personal" };
+
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
 export class RegistrationStartFailedError extends Error {
@@ -76,7 +79,7 @@ export async function registerNewUser(
   const accountKey = genKey();
   try {
     const { recoveryKey, ...userKeys } = await generateUserKeys(password, accountKey);
-    const personalVault = createVault(accountKey);
+    const personalVault = createVault(accountKey, PERSONAL_VAULT_META);
     const userKeyPair = createUserKeyPair(accountKey);
 
     try {

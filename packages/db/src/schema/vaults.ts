@@ -28,6 +28,10 @@ export const vaultsTable = pgTable(
     // Bumped by a key rotation; members' wraps carry the version they hold.
     keyVersion: integer().notNull().default(1),
 
+    // Name, icon, colour: encrypted with the vault key (AAD: vaultId).
+    encryptedMeta: varchar().notNull(),
+    metaEncryptionNonce: varchar().notNull(),
+
     ...timestamps,
   },
   (table) => [
@@ -41,7 +45,8 @@ export const vaultsTable = pgTable(
 
 /**
  * A user's access to a vault. `encryptedVaultKey` is the vault key wrapped
- * under that member's account key (AAD: vaultId + keyVersion).
+ * under that member's account key (AAD: vaultId + keyVersion). Only `active`
+ * members get access; `pending` is an invite not yet accepted (ADR 0001 D7).
  */
 export const vaultMembersTable = pgTable(
   "vault_members",
@@ -54,6 +59,9 @@ export const vaultMembersTable = pgTable(
       .references(() => usersTable.userId, { onDelete: "cascade" }),
 
     role: varchar({ enum: ["owner", "manage", "write", "read"] }).notNull(),
+    status: varchar({ enum: ["active", "pending"] })
+      .notNull()
+      .default("active"),
 
     keyVersion: integer().notNull(),
     encryptedVaultKey: varchar().notNull().unique(),

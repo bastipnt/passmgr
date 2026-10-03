@@ -7,12 +7,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const decryptRecordWithWorker = vi.fn();
 vi.mock("@repo/client/src/util/decrypt-record", () => ({
-  decryptRecordWithWorker: (data: string, nonce: string) => decryptRecordWithWorker(data, nonce),
+  decryptRecordWithWorker: (row: EncryptedRecordSchema) => decryptRecordWithWorker(row),
 }));
 
 function encrypted(recordId: string): EncryptedRecordSchema {
   return {
     recordId,
+    vaultId: "0199a3c4-0000-7000-8000-00000000000a",
     version: 1,
     encryptedData: `data-${recordId}`,
     encryptionNonce: `nonce-${recordId}`,
@@ -24,11 +25,12 @@ function encrypted(recordId: string): EncryptedRecordSchema {
   };
 }
 
-let syncListener: (() => void) | undefined;
+type SyncListener = (event: { vaultsChanged: boolean }) => void;
+let syncListener: SyncListener | undefined;
 const store = {
   vault: { getAllLatest: vi.fn() },
   syncManager: {
-    onSync: (listener: () => void) => {
+    onSync: (listener: SyncListener) => {
       syncListener = listener;
       return () => undefined;
     },
@@ -52,9 +54,9 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   store.vault.getAllLatest.mockResolvedValue([encrypted("good"), encrypted("bad")]);
-  decryptRecordWithWorker.mockImplementation(async (data: string) => {
-    if (data === "data-bad") throw new Error("invalid tag");
-    return { schemaVersion: 1, title: data };
+  decryptRecordWithWorker.mockImplementation(async ({ encryptedData }: EncryptedRecordSchema) => {
+    if (encryptedData === "data-bad") throw new Error("invalid tag");
+    return { schemaVersion: 1, title: encryptedData };
   });
 });
 
@@ -73,10 +75,12 @@ describe("RecordsProvider", () => {
     decryptRecordWithWorker.mockClear();
     decryptRecordWithWorker.mockResolvedValue({ schemaVersion: 1, title: "recovered" });
 
-    syncListener?.();
+    syncListener?.({ vaultsChanged: false });
 
     await waitFor(() => expect(result.current.records).toHaveLength(2));
     expect(decryptRecordWithWorker).toHaveBeenCalledTimes(1);
-    expect(decryptRecordWithWorker).toHaveBeenCalledWith("data-bad", "nonce-bad");
+    expect(decryptRecordWithWorker).toHaveBeenCalledWith(
+      expect.objectContaining({ recordId: "bad", encryptedData: "data-bad" }),
+    );
   });
 });

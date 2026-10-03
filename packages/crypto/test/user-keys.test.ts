@@ -18,6 +18,7 @@ import {
   wrapVaultKey,
 } from "../src/user-keys";
 import { genKey } from "../src/util/secrets-utils";
+import { decryptVaultMeta } from "../src/vault-data";
 
 const FAST_PARAMS = { t: 1, m: 8, p: 1 };
 const PASSWORD = "correct horse battery staple";
@@ -114,13 +115,25 @@ describe("createVault", () => {
   it("makes a new vault with a random id and a key only the account key opens", () => {
     const accountKey = genKey();
 
-    const a = createVault(accountKey);
-    const b = createVault(accountKey);
+    const a = createVault(accountKey, { name: "A" });
+    const b = createVault(accountKey, { name: "B" });
 
     expect(a.vaultId).toMatch(/^[0-9a-f-]{36}$/);
     expect(a.vaultId).not.toBe(b.vaultId);
     expect(a.keyVersion).toBe(1);
     expect(unwrapVaultKey(accountKey, a)).toHaveLength(32);
     expect(unwrapVaultKey(accountKey, a)).not.toEqual(unwrapVaultKey(accountKey, b));
+  });
+
+  it("encrypts the metadata with the new vault key, bound to the vault", () => {
+    const accountKey = genKey();
+    const vault = createVault(accountKey, { name: "Work", color: "blue" });
+    const vaultKey = unwrapVaultKey(accountKey, vault);
+
+    expect(decryptVaultMeta(vaultKey, vault.vaultId, vault)).toEqual({
+      name: "Work",
+      color: "blue",
+    });
+    expect(() => decryptVaultMeta(vaultKey, crypto.randomUUID(), vault)).toThrow();
   });
 });

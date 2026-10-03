@@ -9,6 +9,7 @@ export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-generator-defaults";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-logout";
+export * from "./src/hooks/use-move-record";
 export * from "./src/hooks/use-preference";
 export * from "./src/hooks/use-record-history";
 export * from "./src/hooks/use-records";

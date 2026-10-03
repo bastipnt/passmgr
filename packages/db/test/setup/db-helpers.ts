@@ -96,6 +96,7 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
   return {
     rowId: crypto.randomUUID(),
     recordId: `record-${uniq}`,
+    vaultId: crypto.randomUUID(),
     userId,
     encryptedData: `enc-data-${uniq}`,
     encryptionNonce: `enc-nonce-${uniq}`,
@@ -106,19 +107,22 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
   };
 }
 
+/** Insert a record; without a `vaultId` override it goes into a new vault of `userId`. */
 export async function insertRecord(
   client: Client,
   userId: string,
   overrides: Partial<RecordRow> = {},
 ): Promise<RecordRow> {
-  const row = makeRecordRow(userId, overrides);
+  const vaultId = overrides.vaultId ?? (await insertVault(client, userId, "shared"));
+  const row = makeRecordRow(userId, { ...overrides, vaultId });
   await client.query(
-    `INSERT INTO "records" ("rowId", "recordId", "userId", "encryptedData", "encryptionNonce",
+    `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData", "encryptionNonce",
                            "cryptoVersion", "version", "clientUpdatedAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
     [
       row.rowId,
       row.recordId,
+      row.vaultId,
       row.userId,
       row.encryptedData,
       row.encryptionNonce,
@@ -156,6 +160,7 @@ export type KeyRow = {
 export type RecordRow = {
   rowId: string;
   recordId: string;
+  vaultId: string;
   userId: string;
   encryptedData: string;
   encryptionNonce: string;
@@ -170,11 +175,11 @@ export async function insertVault(
   kind: "personal" | "shared" = "personal",
 ): Promise<string> {
   const vaultId = crypto.randomUUID();
-  await client.query(`INSERT INTO "vaults" ("vaultId", "ownerId", "kind") VALUES ($1, $2, $3)`, [
-    vaultId,
-    ownerId,
-    kind,
-  ]);
+  await client.query(
+    `INSERT INTO "vaults" ("vaultId", "ownerId", "kind", "encryptedMeta", "metaEncryptionNonce")
+     VALUES ($1, $2, $3, $4, $5)`,
+    [vaultId, ownerId, kind, `enc-meta-${vaultId}`, `meta-nonce-${vaultId}`],
+  );
   return vaultId;
 }
 

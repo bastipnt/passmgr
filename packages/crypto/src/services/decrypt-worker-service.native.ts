@@ -3,27 +3,35 @@
 // Mirrors the message contract of decrypt.worker.ts.
 
 import type { RecordSchema } from "@repo/schema";
-import { decryptXChaCha } from "../encryption";
+import { decryptRecordData, type RecordCipherContext } from "../vault-data";
 
 class DecryptNativeService {
-  private vaultKey: Uint8Array | null = null;
+  private vaultKeys = new Map<string, Uint8Array>();
 
-  init(vaultKeyBytes: Uint8Array): void {
-    this.vaultKey = vaultKeyBytes.slice();
+  /** Take over the given vault keys (vaultId → key), replacing any held. */
+  init(vaultKeys: Map<string, Uint8Array>): void {
+    this.wipe();
+    this.vaultKeys = vaultKeys;
   }
 
-  decrypt(encryptedData: string, nonce: string): Promise<RecordSchema> {
-    if (!this.vaultKey) return Promise.reject(new Error("Worker not initialized"));
-    const bytes = decryptXChaCha(this.vaultKey, encryptedData, nonce);
-    const payload = JSON.parse(new TextDecoder().decode(bytes)) as RecordSchema;
-    return Promise.resolve(payload);
+  decrypt(
+    context: RecordCipherContext,
+    encryptedData: string,
+    nonce: string,
+  ): Promise<RecordSchema> {
+    const key = this.vaultKeys.get(context.vaultId);
+    if (!key) return Promise.reject(new Error("No key for vault"));
+    try {
+      const bytes = decryptRecordData(key, context, encryptedData, nonce);
+      return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)) as RecordSchema);
+    } catch (e) {
+      return Promise.reject(e instanceof Error ? e : new Error("Decryption failed"));
+    }
   }
 
   wipe(): void {
-    if (this.vaultKey) {
-      this.vaultKey.fill(0);
-      this.vaultKey = null;
-    }
+    for (const key of this.vaultKeys.values()) key.fill(0);
+    this.vaultKeys = new Map();
   }
 }
 

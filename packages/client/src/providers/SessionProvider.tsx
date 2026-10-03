@@ -1,4 +1,4 @@
-import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
+import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { type LoginBundle, secretsStore } from "@repo/store";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
@@ -12,7 +12,7 @@ export const SessionContext = createContext<{
   loginSession: (newSessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
   restoreLogin: (
     bundle: Omit<LoginBundle, "email">,
-    vaultKeys: readonly MemberVaultKey[],
+    vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ) => void;
   offlineLoginSession: () => void;
@@ -20,12 +20,12 @@ export const SessionContext = createContext<{
     passwordKek: Uint8Array,
     encryptedAccountKeyB64: string,
     accountKeyEncryptionNonceB64: string,
-    vaultKeys: readonly MemberVaultKey[],
+    vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ) => void;
   unlockWithAccountKey: (
     accountKey: Uint8Array,
-    vaultKeys: readonly MemberVaultKey[],
+    vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
     offline?: boolean,
   ) => void;
@@ -50,9 +50,11 @@ export const SessionContext = createContext<{
  * Load the vault keys and the keypair (checked against its public key); on
  * failure wipe the account key again before rethrowing.
  */
-function loadKeyringOrLock(vaultKeys: readonly MemberVaultKey[], userKeyPair: UserKeyPair) {
+function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserKeyPair) {
   try {
-    secretsStore.loadVaultKeys(vaultKeys);
+    const skipped = secretsStore.loadVaultKeys(vaultKeys);
+    if (skipped.length > 0)
+      console.error(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
     secretsStore.loadUserKeyPair(userKeyPair);
   } catch (e) {
     secretsStore.lockVault();
@@ -112,7 +114,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   const restoreLogin = useCallback(
     (
       bundle: Omit<LoginBundle, "email">,
-      vaultKeys: readonly MemberVaultKey[],
+      vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
     ) => {
       secretsStore.restoreSession(bundle);
@@ -138,7 +140,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       passwordKek: Uint8Array,
       encryptedAccountKeyB64: string,
       accountKeyEncryptionNonceB64: string,
-      vaultKeys: readonly MemberVaultKey[],
+      vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
     ) => {
       secretsStore.unlockAccount(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64);
@@ -155,7 +157,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   const unlockWithAccountKey = useCallback(
     (
       accountKey: Uint8Array,
-      vaultKeys: readonly MemberVaultKey[],
+      vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
       offline = false,
     ) => {

@@ -1,5 +1,5 @@
-import { encryptRecord, ShortcutLayer, useCreateRecord } from "@repo/client";
-import { CURRENT_CRYPTO_VERSION, type LoginRecord } from "@repo/schema";
+import { ShortcutLayer, useCreateRecord } from "@repo/client";
+import type { LoginRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
@@ -57,15 +57,7 @@ export default function CreateRecordSheet() {
   }, [createRecordError]);
 
   function handleSubmit(formValues: LoginRecord) {
-    const recordId = crypto.randomUUID();
-    const { encryptedData, encryptionNonce } = encryptRecord({ schemaVersion: 1, ...formValues });
-    createRecord({
-      recordId,
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: CURRENT_CRYPTO_VERSION,
-      clientUpdatedAt: new Date().toISOString(),
-    });
+    createRecord({ schemaVersion: 1, ...formValues });
   }
 
   const formActions = (

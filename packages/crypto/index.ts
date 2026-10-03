@@ -16,3 +16,4 @@ export {
 export { getMessage } from "./src/util/general";
 export * from "./src/util/secrets-utils";
 export { normalize, normalizeEmail } from "./src/util/string-utils";
+export * from "./src/vault-data";

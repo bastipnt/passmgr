@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "6172314e-6f36-4879-a8c3-046fd3c26819",
+  "id": "e2fc0f19-ea40-4563-a01b-0a92297d7bdc",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -15,6 +15,12 @@
     {
       "isRlsEnabled": false,
       "name": "records",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "user_key_pairs",
       "entityType": "tables",
       "schema": "public"
     },
@@ -265,6 +271,19 @@
       "default": null,
       "generated": null,
       "identity": null,
+      "name": "vaultId",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "records"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
       "name": "userId",
       "entityType": "columns",
       "schema": "public",
@@ -373,6 +392,84 @@
       "entityType": "columns",
       "schema": "public",
       "table": "records"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "userId",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "keyVersion",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "publicKey",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "encryptedPrivateKey",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "privateKeyEncryptionNonce",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
+    },
+    {
+      "type": "timestamp",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "user_key_pairs"
     },
     {
       "type": "varchar",
@@ -570,6 +667,19 @@
       "table": "vault_members"
     },
     {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "'active'",
+      "generated": null,
+      "identity": null,
+      "name": "status",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "vault_members"
+    },
+    {
       "type": "integer",
       "typeSchema": null,
       "notNull": true,
@@ -687,6 +797,32 @@
       "table": "vaults"
     },
     {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "encryptedMeta",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "vaults"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "metaEncryptionNonce",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "vaults"
+    },
+    {
       "type": "timestamp",
       "typeSchema": null,
       "notNull": true,
@@ -797,27 +933,6 @@
           "asc": true,
           "nullsFirst": false,
           "opclass": null
-        }
-      ],
-      "isUnique": false,
-      "where": null,
-      "with": "",
-      "method": "btree",
-      "concurrently": false,
-      "name": "records_record_id_idx",
-      "entityType": "indexes",
-      "schema": "public",
-      "table": "records"
-    },
-    {
-      "nameExplicit": true,
-      "columns": [
-        {
-          "value": "recordId",
-          "isExpression": false,
-          "asc": true,
-          "nullsFirst": false,
-          "opclass": null
         },
         {
           "value": "version",
@@ -841,7 +956,7 @@
       "nameExplicit": true,
       "columns": [
         {
-          "value": "userId",
+          "value": "vaultId",
           "isExpression": false,
           "asc": true,
           "nullsFirst": false,
@@ -867,7 +982,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "records_user_record_version_idx",
+      "name": "records_vault_record_version_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "records"
@@ -876,7 +991,7 @@
       "nameExplicit": true,
       "columns": [
         {
-          "value": "userId",
+          "value": "vaultId",
           "isExpression": false,
           "asc": true,
           "nullsFirst": false,
@@ -895,7 +1010,7 @@
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "records_user_updated_at_idx",
+      "name": "records_vault_updated_at_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "records"
@@ -983,6 +1098,23 @@
     {
       "nameExplicit": false,
       "columns": [
+        "vaultId"
+      ],
+      "schemaTo": "public",
+      "tableTo": "vaults",
+      "columnsTo": [
+        "vaultId"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "records_vaultId_vaults_vaultId_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "records"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
         "userId"
       ],
       "schemaTo": "public",
@@ -996,6 +1128,23 @@
       "entityType": "fks",
       "schema": "public",
       "table": "records"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "userId"
+      ],
+      "schemaTo": "public",
+      "tableTo": "users",
+      "columnsTo": [
+        "userId"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "user_key_pairs_userId_users_userId_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "user_key_pairs"
     },
     {
       "nameExplicit": false,
@@ -1047,6 +1196,17 @@
       "entityType": "fks",
       "schema": "public",
       "table": "vaults"
+    },
+    {
+      "columns": [
+        "userId",
+        "keyVersion"
+      ],
+      "nameExplicit": false,
+      "name": "user_key_pairs_pkey",
+      "entityType": "pks",
+      "schema": "public",
+      "table": "user_key_pairs"
     },
     {
       "columns": [
@@ -1130,6 +1290,39 @@
       "name": "keys_accountKeyEncryptionNonce_key",
       "schema": "public",
       "table": "keys",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "publicKey"
+      ],
+      "nullsNotDistinct": false,
+      "name": "user_key_pairs_publicKey_key",
+      "schema": "public",
+      "table": "user_key_pairs",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "encryptedPrivateKey"
+      ],
+      "nullsNotDistinct": false,
+      "name": "user_key_pairs_encryptedPrivateKey_key",
+      "schema": "public",
+      "table": "user_key_pairs",
+      "entityType": "uniques"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "privateKeyEncryptionNonce"
+      ],
+      "nullsNotDistinct": false,
+      "name": "user_key_pairs_privateKeyEncryptionNonce_key",
+      "schema": "public",
+      "table": "user_key_pairs",
       "entityType": "uniques"
     },
     {

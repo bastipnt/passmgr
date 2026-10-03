@@ -1,5 +1,5 @@
 import { genKey } from "@repo/crypto";
-import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
+import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { appRouter } from "../../src/router";
 import { createCallerFactory } from "../../src/trpc";
@@ -39,7 +39,7 @@ export async function loginAndGetAuthKey(
 ): Promise<{
   sessionId: string;
   authKey: Uint8Array;
-  vaultKeys: MemberVaultKey[];
+  vaultKeys: MemberVault[];
   userKeyPair: UserKeyPair;
 }> {
   const caller = createCaller(buildTestContext(undefined));

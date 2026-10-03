@@ -2,16 +2,28 @@ import { db, type RecordType, recordsTable } from "@repo/db";
 import {
   createRecordInputSchema,
   encryptedRecordSchema,
+  moveRecordInputSchema,
   syncInputSchema,
   syncOutputSchema,
   updateRecordInputSchema,
+  VAULT_WRITE_ROLES,
+  vaultRoleSchema,
 } from "@repo/schema";
 import { TRPCError, tracked } from "@trpc/server";
-import { and, desc, eq, gt, isNull } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import z from "zod";
 import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
-import { emitRecordsChanged, onRecordsChanged } from "../events/record-events";
+import { onRecordsChanged } from "../events/record-events";
 import { router } from "../trpc";
+import { isUniqueViolation } from "../util/general";
+import {
+  type DbExecutor,
+  memberVaults,
+  notifyVaultMembers,
+  requireVaultRole,
+} from "../vault/access";
+
+const ANY_ROLE = vaultRoleSchema.options;
 
 function serializeRecord(record: RecordType) {
   const {
@@ -33,35 +45,80 @@ function serializeRecord(record: RecordType) {
   };
 }
 
+/**
+ * The latest version of a record (deleted or not) the user may access with one
+ * of `roles`. NOT_FOUND for a record that doesn't exist or lives in a vault the
+ * user isn't a member of, so ids from other vaults can't be probed.
+ */
+async function latestAccessibleVersion(
+  userId: string,
+  recordId: string,
+  roles: Parameters<typeof requireVaultRole>[2],
+  tx: DbExecutor = db,
+): Promise<RecordType> {
+  const [latest] = await tx
+    .select()
+    .from(recordsTable)
+    .where(eq(recordsTable.recordId, recordId))
+    .orderBy(desc(recordsTable.version))
+    .limit(1);
+  if (!latest) throw new TRPCError({ code: "NOT_FOUND" });
+
+  await requireVaultRole(userId, latest.vaultId, roles, tx);
+  return latest;
+}
+
+/**
+ * Run a write transaction, answering a `(recordId, version)` that already exists
+ * with CONFLICT instead of a 500: a client-chosen id that is taken, or two
+ * writes racing for the same next version.
+ */
+async function writeRecords<T>(fn: (tx: DbExecutor) => Promise<T>): Promise<T> {
+  try {
+    return await db.transaction(fn);
+  } catch (error) {
+    if (isUniqueViolation(error)) throw new TRPCError({ code: "CONFLICT" });
+    throw error;
+  }
+}
+
 export const recordRouter = router({
   sync: protectedProcedure
     .input(syncInputSchema)
     .output(syncOutputSchema)
     .query(async ({ ctx, input }) => {
       const serverTimestamp = new Date().toISOString();
+      const vaults = await memberVaults(ctx.userId);
+      if (vaults.length === 0) return { records: [], vaults, serverTimestamp };
 
-      const conditions = [eq(recordsTable.userId, ctx.userId)];
-      if (input.lastSyncedAt) {
-        conditions.push(gt(recordsTable.updated_at, new Date(input.lastSyncedAt)));
-      }
+      // Each vault from its own cursor; one this device hasn't synced yet in full.
+      const perVault = vaults.map(({ vaultId }) => {
+        const cursor = input.cursors[vaultId];
+        return cursor
+          ? and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.updated_at, new Date(cursor)))
+          : eq(recordsTable.vaultId, vaultId);
+      });
 
       const records = await db
         .select()
         .from(recordsTable)
-        .where(and(...conditions))
+        .where(or(...perVault))
         .orderBy(recordsTable.recordId, desc(recordsTable.version));
 
-      return { records: records.map(serializeRecord), serverTimestamp };
+      return { records: records.map(serializeRecord), vaults, serverTimestamp };
     }),
 
   all: protectedProcedure
     .output(z.object({ records: z.array(encryptedRecordSchema) }))
     .query(async ({ ctx }) => {
+      const vaultIds = (await memberVaults(ctx.userId)).map((v) => v.vaultId);
+      if (vaultIds.length === 0) return { records: [] };
+
       // DISTINCT ON gets the latest version (highest) per recordId, then filter out deleted
       const latestPerRecord = db
         .selectDistinctOn([recordsTable.recordId])
         .from(recordsTable)
-        .where(eq(recordsTable.userId, ctx.userId))
+        .where(inArray(recordsTable.vaultId, vaultIds))
         .orderBy(recordsTable.recordId, desc(recordsTable.version))
         .as("latest_per_record");
 
@@ -77,19 +134,8 @@ export const recordRouter = router({
     .input(z.uuid())
     .output(encryptedRecordSchema)
     .query(async ({ ctx, input }) => {
-      const latestForRecord = db
-        .selectDistinctOn([recordsTable.recordId])
-        .from(recordsTable)
-        .where(and(eq(recordsTable.recordId, input), eq(recordsTable.userId, ctx.userId)))
-        .orderBy(recordsTable.recordId, desc(recordsTable.version))
-        .as("latest_for_record");
-
-      const [record] = await db
-        .select()
-        .from(latestForRecord)
-        .where(isNull(latestForRecord.deleted_at));
-
-      if (!record) throw new TRPCError({ code: "NOT_FOUND" });
+      const record = await latestAccessibleVersion(ctx.userId, input, ANY_ROLE);
+      if (record.deleted_at) throw new TRPCError({ code: "NOT_FOUND" });
       return serializeRecord(record);
     }),
 
@@ -97,10 +143,11 @@ export const recordRouter = router({
     .input(z.uuid())
     .output(z.array(encryptedRecordSchema))
     .query(async ({ ctx, input }) => {
+      await latestAccessibleVersion(ctx.userId, input, ANY_ROLE);
       const records = await db
         .select()
         .from(recordsTable)
-        .where(and(eq(recordsTable.recordId, input), eq(recordsTable.userId, ctx.userId)))
+        .where(eq(recordsTable.recordId, input))
         .orderBy(desc(recordsTable.version));
       return records.map(serializeRecord);
     }),
@@ -109,17 +156,21 @@ export const recordRouter = router({
     .input(createRecordInputSchema)
     .output(encryptedRecordSchema)
     .mutation(async ({ ctx, input }) => {
-      const [record] = await db
-        .insert(recordsTable)
-        .values({
-          ...input,
-          userId: ctx.userId,
-          clientUpdatedAt: new Date(input.clientUpdatedAt),
-          version: 1,
-        })
-        .returning();
+      const record = await writeRecords(async (tx) => {
+        await requireVaultRole(ctx.userId, input.vaultId, VAULT_WRITE_ROLES, tx);
+        const [created] = await tx
+          .insert(recordsTable)
+          .values({
+            ...input,
+            userId: ctx.userId,
+            clientUpdatedAt: new Date(input.clientUpdatedAt),
+            version: 1,
+          })
+          .returning();
+        return created;
+      });
       if (!record) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      emitRecordsChanged(ctx.userId);
+      await notifyVaultMembers(record.vaultId);
       return serializeRecord(record);
     }),
 
@@ -129,61 +180,79 @@ export const recordRouter = router({
     .mutation(async ({ ctx, input }) => {
       const { recordId, version, clientUpdatedAt, ...data } = input;
 
-      const [current] = await db
-        .select({ version: recordsTable.version, deletedAt: recordsTable.deleted_at })
-        .from(recordsTable)
-        .where(and(eq(recordsTable.recordId, recordId), eq(recordsTable.userId, ctx.userId)))
-        .orderBy(desc(recordsTable.version))
-        .limit(1);
+      const record = await writeRecords(async (tx) => {
+        const current = await latestAccessibleVersion(ctx.userId, recordId, VAULT_WRITE_ROLES, tx);
+        if (current.deleted_at !== null) throw new TRPCError({ code: "NOT_FOUND" });
+        // TODO: make this not a conflict
+        if (current.version !== version) throw new TRPCError({ code: "CONFLICT" });
 
-      if (!current || current.deletedAt !== null) throw new TRPCError({ code: "NOT_FOUND" });
-      // TODO: make this not a conflict
-      if (current.version !== version) throw new TRPCError({ code: "CONFLICT" });
-
-      const [record] = await db
-        .insert(recordsTable)
-        .values({
-          recordId,
-          userId: ctx.userId,
-          ...data,
-          version: version + 1,
-          clientUpdatedAt: new Date(clientUpdatedAt),
-        })
-        .returning();
+        const [updated] = await tx
+          .insert(recordsTable)
+          .values({
+            recordId,
+            vaultId: current.vaultId,
+            userId: ctx.userId,
+            ...data,
+            version: version + 1,
+            clientUpdatedAt: new Date(clientUpdatedAt),
+          })
+          .returning();
+        return updated;
+      });
       if (!record) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-      emitRecordsChanged(ctx.userId);
+      await notifyVaultMembers(record.vaultId);
       return serializeRecord(record);
     }),
 
   delete: protectedProcedure.input(z.uuid()).mutation(async ({ ctx, input }) => {
-    const [current] = await db
-      .select()
-      .from(recordsTable)
-      .where(
-        and(
-          eq(recordsTable.recordId, input),
-          eq(recordsTable.userId, ctx.userId),
-          isNull(recordsTable.deleted_at),
-        ),
-      )
-      .orderBy(desc(recordsTable.version))
-      .limit(1);
-
-    if (!current) throw new TRPCError({ code: "NOT_FOUND" });
-
-    await db.insert(recordsTable).values({
-      recordId: input,
-      userId: ctx.userId,
-      encryptedData: current.encryptedData,
-      encryptionNonce: current.encryptionNonce,
-      cryptoVersion: current.cryptoVersion,
-      clientUpdatedAt: current.clientUpdatedAt,
-      version: current.version + 1,
-      deleted_at: new Date(),
+    const vaultId = await writeRecords(async (tx) => {
+      const current = await latestAccessibleVersion(ctx.userId, input, VAULT_WRITE_ROLES, tx);
+      if (current.deleted_at !== null) throw new TRPCError({ code: "NOT_FOUND" });
+      await tx.insert(recordsTable).values(tombstoneOf(current, ctx.userId));
+      return current.vaultId;
     });
 
-    emitRecordsChanged(ctx.userId);
+    await notifyVaultMembers(vaultId);
   }),
+
+  /**
+   * Move a record to another vault (ADR 0001 D6): the re-encrypted copy becomes
+   * a new record in the target, the source is tombstoned and keeps its history,
+   * which must not leak to the target vault's members.
+   */
+  move: protectedProcedure
+    .input(moveRecordInputSchema)
+    .output(encryptedRecordSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { recordId, version, target } = input;
+
+      const { moved, sourceVaultId } = await writeRecords(async (tx) => {
+        const source = await latestAccessibleVersion(ctx.userId, recordId, VAULT_WRITE_ROLES, tx);
+        if (source.deleted_at !== null) throw new TRPCError({ code: "NOT_FOUND" });
+        if (source.version !== version) throw new TRPCError({ code: "CONFLICT" });
+        if (source.vaultId === target.vaultId || target.recordId === recordId) {
+          throw new TRPCError({ code: "BAD_REQUEST", message: "not a move" });
+        }
+        await requireVaultRole(ctx.userId, target.vaultId, VAULT_WRITE_ROLES, tx);
+
+        const [created] = await tx
+          .insert(recordsTable)
+          .values({
+            ...target,
+            userId: ctx.userId,
+            clientUpdatedAt: new Date(target.clientUpdatedAt),
+            version: 1,
+          })
+          .returning();
+        await tx.insert(recordsTable).values(tombstoneOf(source, ctx.userId));
+        return { moved: created, sourceVaultId: source.vaultId };
+      });
+      if (!moved) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
+
+      await notifyVaultMembers(sourceVaultId);
+      await notifyVaultMembers(moved.vaultId);
+      return serializeRecord(moved);
+    }),
 
   onRecordChange: protectedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
     yield tracked("connected", { type: "connected" as const });
@@ -212,3 +281,18 @@ export const recordRouter = router({
     }
   }),
 });
+
+/** The next version of `current`, marked deleted (same ciphertext, so history still opens). */
+function tombstoneOf(current: RecordType, userId: string) {
+  return {
+    recordId: current.recordId,
+    vaultId: current.vaultId,
+    userId,
+    encryptedData: current.encryptedData,
+    encryptionNonce: current.encryptionNonce,
+    cryptoVersion: current.cryptoVersion,
+    clientUpdatedAt: current.clientUpdatedAt,
+    version: current.version + 1,
+    deleted_at: new Date(),
+  };
+}

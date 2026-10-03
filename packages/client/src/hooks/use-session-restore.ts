@@ -1,4 +1,3 @@
-import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import {
   clearLoginBundle,
   isPersistentLoginAvailable,
@@ -8,6 +7,7 @@ import {
 import { useCallback, useContext, useRef, useState } from "react";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
+import { initDecryptWorker } from "../util/decrypt-record";
 import { useTRPCClient } from "../util/trpc";
 
 export type RestoreStatus = "restoring" | "restored" | "needs-login";
@@ -57,7 +57,7 @@ export function useSessionRestore() {
       await trpc.user.heartbeat.query();
       const keyMaterial = await vault.getAccountKeyMaterial();
       if (!keyMaterial) throw new Error("No key material stored on this device");
-      restoreLogin(bundle, await vault.getVaultKeys(), keyMaterial.userKeyPair);
+      restoreLogin(bundle, await vault.getVaults(), keyMaterial.userKeyPair);
     } catch {
       secretsStore.lock();
       await clearLoginBundle();
@@ -65,10 +65,10 @@ export function useSessionRestore() {
       return;
     }
 
-    // Seed the decrypt worker with the restored vault key — normally done by
+    // Seed the decrypt worker with the restored vault keys — normally done by
     // unlock(); the restore path bypasses it, so do it here or record
-    // decryption fails with "Worker not initialized".
-    decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+    // decryption fails with "No key for vault".
+    initDecryptWorker();
 
     setStatus("restored");
   }, [restoreLogin, trpc, vault]);

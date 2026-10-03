@@ -1,5 +1,7 @@
+import type { DecryptedRecord, RecordSchema } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useStore } from "../providers/StoreProvider";
+import { encryptRecord } from "../util/encrypt-record";
 import { useTRPC } from "../util/trpc";
 import { useRefreshRecord } from "./use-records";
 
@@ -27,5 +29,16 @@ export function useUpdateRecord({ onSuccess }: UseUpdateRecordOpts) {
     }),
   );
 
-  return { updateRecord: mutate, updateRecordError: mutationError, updatePending: isPending };
+  /** Encrypt `payload` as the next version of `record`, in the vault it lives in. */
+  function updateRecord(record: DecryptedRecord, payload: RecordSchema) {
+    const { recordId, vaultId, version } = record;
+    mutate({
+      recordId,
+      ...encryptRecord(payload, { recordId, vaultId }),
+      version,
+      clientUpdatedAt: new Date().toISOString(),
+    });
+  }
+
+  return { updateRecord, updateRecordError: mutationError, updatePending: isPending };
 }

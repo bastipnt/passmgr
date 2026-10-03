@@ -1,6 +1,6 @@
 import { ExpectedAuthResult, KE1, KE3, RegistrationRecord } from "@cloudflare/opaque-ts";
 import { hashEmail, hkdf, wipe } from "@repo/crypto";
-import { db, userKeyPairsTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, userKeyPairsTable } from "@repo/db";
 import {
   finishLoginInputSchema,
   finishLoginOutputSchema,
@@ -9,7 +9,7 @@ import {
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
@@ -22,6 +22,7 @@ import {
   setSession,
   takeLoginAttempt,
 } from "../util/redis-utils";
+import { memberVaults } from "../vault/access";
 import { protectedProcedure } from "./auth-middleware";
 import { fakeRegistrationRecord } from "./fake-record";
 
@@ -150,18 +151,8 @@ export const loginRouter = router({
       });
       if (!keyQueryRes) denyLogin(log, "finishLogin", "no_keys", emailHash);
 
-      // Every live vault the user is a member of, with their wrap of its key.
-      const vaultKeys = await db
-        .select({
-          vaultId: vaultMembersTable.vaultId,
-          keyVersion: vaultMembersTable.keyVersion,
-          encryptedVaultKey: vaultMembersTable.encryptedVaultKey,
-          vaultKeyEncryptionNonce: vaultMembersTable.vaultKeyEncryptionNonce,
-          kind: vaultsTable.kind,
-        })
-        .from(vaultMembersTable)
-        .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
-        .where(and(eq(vaultMembersTable.userId, userId), isNull(vaultsTable.deleted_at)));
+      // Every vault the user can access, with their wrap of its key.
+      const vaultKeys = await memberVaults(userId);
 
       // The current (highest-version) keypair.
       const [userKeyPair] = await db

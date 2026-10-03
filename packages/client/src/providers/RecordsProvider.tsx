@@ -29,17 +29,15 @@ export function useRecordsContext() {
 }
 
 function buildFingerprint(record: EncryptedRecordSchema): string {
-  return `${record.encryptedData}|${record.encryptionNonce}`;
+  return `${record.vaultId}|${record.encryptedData}|${record.encryptionNonce}`;
 }
 
 async function decryptRecord(encrypted: EncryptedRecordSchema): Promise<DecryptedRecord> {
-  const decrypted = await decryptRecordWithWorker(
-    encrypted.encryptedData,
-    encrypted.encryptionNonce,
-  );
+  const decrypted = await decryptRecordWithWorker(encrypted);
   return {
     ...decrypted,
     recordId: encrypted.recordId,
+    vaultId: encrypted.vaultId,
     version: encrypted.version,
     clientUpdatedAt: encrypted.clientUpdatedAt,
     created_at: encrypted.created_at ?? null,

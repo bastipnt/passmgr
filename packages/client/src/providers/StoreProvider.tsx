@@ -1,9 +1,10 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, MemberVault } from "@repo/schema";
 import { clearLoginBundle, secretsStore, Vault } from "@repo/store";
 import { createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { SyncManager } from "../sync-manager";
+import { initDecryptWorker } from "../util/decrypt-record";
 import { useTRPCClient } from "../util/trpc";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
@@ -23,6 +24,24 @@ type StoreContextValue = {
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
+
+/**
+ * A sync brought a changed vault list (a vault added, removed, renamed, rekeyed):
+ * load its keys into memory and the decrypt worker. A vault whose wrap doesn't
+ * open is skipped (its records stay hidden); a broken personal vault keeps the
+ * keys loaded before.
+ */
+function reloadVaultKeys(vaults: MemberVault[]) {
+  if (!secretsStore.isVaultUnlocked) return;
+  try {
+    const skipped = secretsStore.loadVaultKeys(vaults);
+    if (skipped.length > 0)
+      console.error(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
+    initDecryptWorker();
+  } catch (e) {
+    console.error("Vault keys from sync could not be loaded", e);
+  }
+}
 
 export function useStore(): StoreContextValue {
   const store = useContext(StoreContext);
@@ -67,11 +86,15 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
 
   const syncManagerRef = useRef<SyncManager | null>(null);
   if (!syncManagerRef.current) {
-    syncManagerRef.current = new SyncManager(vault, async (lastSyncedAt) => {
-      if (typeof navigator !== "undefined" && navigator.onLine === false)
-        throw new Error("offline");
-      return await trpc.record.sync.query({ lastSyncedAt });
-    });
+    syncManagerRef.current = new SyncManager(
+      vault,
+      async (cursors) => {
+        if (typeof navigator !== "undefined" && navigator.onLine === false)
+          throw new Error("offline");
+        return await trpc.record.sync.query({ cursors });
+      },
+      reloadVaultKeys,
+    );
   }
   const syncManager = syncManagerRef.current;
 

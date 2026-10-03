@@ -100,14 +100,6 @@ export const vaultKeyWrapSchema = z.object({
   vaultKeyEncryptionNonce: z.base64().length(32),
 });
 
-export const vaultKindSchema = z.enum(["personal", "shared"]);
-
-/** A vault key the user holds, as handed out at login. */
-export const memberVaultKeySchema = z.object({
-  ...vaultKeyWrapSchema.shape,
-  kind: vaultKindSchema,
-});
-
 /**
  * The user's X25519 keypair (ADR 0001 D7). The private key is wrapped by the
  * account key (AAD: key version) and checked against `publicKey` on unwrap.
@@ -129,8 +121,6 @@ export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
 export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
-export type VaultKind = z.infer<typeof vaultKindSchema>;
-export type MemberVaultKey = z.infer<typeof memberVaultKeySchema>;
 export type UserKeyPair = z.infer<typeof userKeyPairSchema>;
 export type UserPublicKey = z.infer<typeof userPublicKeySchema>;
 

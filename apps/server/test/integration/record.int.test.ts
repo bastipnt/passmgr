@@ -3,9 +3,10 @@ import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
 
-function newRecordInput() {
+function newRecordInput(vaultId: string) {
   return {
     recordId: crypto.randomUUID(),
+    vaultId,
     encryptedData: "ENC",
     encryptionNonce: "NONCE",
     cryptoVersion: 1,
@@ -24,9 +25,9 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
 
   it("create → getById returns the same record", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     const createCaller = await callSigned(sessionId, authKey, "mutation", "record.create", input);
     const created = await createCaller.record.create(input);
     expect(created.recordId).toBe(input.recordId);
@@ -46,9 +47,9 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
 
   it("update increments version and getById returns the latest", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
     await cc.record.create(input);
 
@@ -72,9 +73,9 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
 
   it("delete soft-deletes and excludes from `all`", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
     await cc.record.create(input);
 
@@ -88,9 +89,9 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
 
   it("history returns every version of the record", async () => {
     await register(email, password);
-    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
 
-    const input = newRecordInput();
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
     let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
     await cc.record.create(input);
 
@@ -119,7 +120,7 @@ describe("record router — cross-user isolation", () => {
     const a = await loginAndGetAuthKey("a@example.com", "pwA");
     const b = await loginAndGetAuthKey("b@example.com", "pwB");
 
-    const input = newRecordInput();
+    const input = newRecordInput(a.vaultKeys[0]!.vaultId);
     const aCreate = await callSigned(a.sessionId, a.authKey, "mutation", "record.create", input);
     await aCreate.record.create(input);
 

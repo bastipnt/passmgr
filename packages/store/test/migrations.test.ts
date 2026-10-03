@@ -184,6 +184,26 @@ describe("MIGRATIONS", () => {
     expect((await db.query("SELECT * FROM key_material", [], "all")).rows).toEqual([]);
   });
 
+  it("moves a pre-vault cache to the vault-scoped schema by emptying it", async () => {
+    // Version 2: records without a vault, vaults without role / metadata.
+    await migrate(db, MIGRATIONS.slice(0, 2));
+    await run(
+      "INSERT INTO records (recordId, encryptedData, encryptionNonce, clientUpdatedAt) VALUES ('r', 'd', 'n', 't')",
+    );
+    await run("INSERT INTO vaults VALUES ('v', 'personal', 1, 'enc', 'nonce')");
+    await run("INSERT INTO key_material VALUES ('email', 'a@b.c')");
+    await run("INSERT INTO sync_meta VALUES ('lastSyncedAt', 't')");
+
+    await migrate(db);
+
+    for (const table of ["records", "vaults", "key_material", "sync_meta"]) {
+      const { rows } = await db.query(`SELECT count(*) FROM ${table}`, [], "get");
+      expect(Number(rows[0]), table).toBe(0);
+    }
+    const { rows } = await db.query("SELECT name FROM pragma_table_info('records')", [], "values");
+    expect((rows as [string][]).map(([name]) => name)).toContain("vaultId");
+  });
+
   it("bundled module matches the drizzle-kit output (run `pnpm migrations:generate`)", () => {
     const root = join(import.meta.dirname, "..");
     const bundled = readFileSync(join(root, "src/migrations.generated.ts"), "utf8");
@@ -196,9 +216,9 @@ describe("Vault", () => {
   it("migrates on construction before serving queries", async () => {
     const vault = new Vault(db);
 
-    await vault.setLastSyncTimestamp("2026-10-01T00:00:00.000Z");
+    await vault.applySync({ records: [], vaults: [], serverTimestamp: "2026-10-01T00:00:00.000Z" });
 
-    expect(await vault.getLastSyncTimestamp()).toBe("2026-10-01T00:00:00.000Z");
+    expect(await vault.getSyncCursors()).toEqual({});
     expect(await userVersion()).toBe(MIGRATIONS.length);
   });
 
@@ -213,10 +233,10 @@ describe("Vault", () => {
     };
     const vault = new Vault(flaky);
 
-    await expect(vault.getLastSyncTimestamp()).rejects.toThrow("disk I/O error");
+    await expect(vault.getSyncCursors()).rejects.toThrow("disk I/O error");
 
     failing = false;
-    expect(await vault.getLastSyncTimestamp()).toBeNull();
+    expect(await vault.getSyncCursors()).toEqual({});
     expect(await userVersion()).toBe(MIGRATIONS.length);
   });
 });
