@@ -139,6 +139,11 @@ overrides:
   metro-source-map: "0.84.5"
   metro-transform-worker: "0.84.5"
   react-dom: "catalog:"
+  # Security floors for transitive deps (dev/build tooling only):
+  # shell-quote GHSA-395f-4hp3-45gv (concurrently pins 1.8.4),
+  # undici 7.x GHSA-4cwx-7wf7-3272 / -rfgv-xxqx-mfg5 / -w293-vg96-wgc3 (via jsdom).
+  shell-quote: "^1.8.5"
+  "undici@7": "^7.29.1"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
@@ -149,3 +154,8 @@ auditConfig:
     # build tooling, not shipped in any app. No patched release (1.4.1) on npm
     # yet; drop this once Expo pulls in a fixed node-forge.
     - GHSA-86w9-cpqp-85rv
+    # braces <=3.0.3 (stack-exhaustion DoS on deeply nested patterns), only via
+    # micromatch/chokidar in metro and dev tooling, never fed untrusted globs.
+    # Advisory names 3.0.4 as patched but it isn't on npm (latest 3.0.3); drop
+    # this once a fixed braces is published.
+    - GHSA-vfj7-8cjw-p6xm
