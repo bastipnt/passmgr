@@ -1,5 +1,5 @@
 import {
-  type LoginFieldSpec,
+  type FieldSpec,
   PREF_KEYS,
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
   usePreference,
@@ -24,13 +24,13 @@ export type OnCopy = (value: string | undefined, label: string) => void;
 const noCopy: OnCopy = () => {};
 
 type LoginFieldDisplayProps = {
-  spec: LoginFieldSpec;
+  spec: FieldSpec;
   /** Omit to render the field without a copy action. */
   onCopy?: OnCopy;
 };
 
 /**
- * Renders one `LoginFieldSpec`. The specs themselves are shared with mobile
+ * Renders one `FieldSpec`. The specs themselves are shared with mobile
  * (`@repo/client`), so everything web-specific — components, icons, copy
  * behaviour — lives here.
  */
@@ -105,15 +105,15 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
         />
       );
 
-    case "extra-text":
-    case "extra-secret":
+    case "text":
+    case "secret":
       return (
         <ItemDisplay
           title={spec.label}
           value={spec.value}
           onClick={({ type }) => type === "copy" && onCopy(spec.value, spec.label)}
-          icon={spec.kind === "extra-secret" ? <LockIcon /> : <TextIcon />}
-          variant={spec.kind === "extra-secret" ? "hidden" : "default"}
+          icon={spec.kind === "secret" ? <LockIcon /> : <TextIcon />}
+          variant={spec.kind === "secret" ? "hidden" : "default"}
           revealTimeoutMs={revealTimeoutMs}
         />
       );

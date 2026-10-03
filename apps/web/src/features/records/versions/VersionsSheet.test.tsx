@@ -22,6 +22,7 @@ vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
 function makeRecord(version: number): DecryptedRecord {
   return {
     schemaVersion: 1,
+    type: "login",
     recordId: "r1",
     vaultId: "v1",
     version,

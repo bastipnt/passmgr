@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { LoginRecord } from "./login-record-schema";
+import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
 import { memberVaultSchema } from "./vault-schema";
 
 export const encryptedRecordSchema = z.object({
@@ -37,9 +37,54 @@ export const updateRecordInputSchema = z.object({
   clientUpdatedAt: z.string(),
 });
 
-export type RecordSchema = { schemaVersion: 1 } & LoginRecord;
+/** The payload format written by the current code. */
+export const CURRENT_SCHEMA_VERSION = 1;
 
-export type DecryptedRecord = RecordSchema & {
+/** The decrypted plaintext of a record: the typed record data plus its format version. */
+export type RecordPayload = RecordData & { schemaVersion: typeof CURRENT_SCHEMA_VERSION };
+
+export class UnsupportedSchemaVersionError extends Error {
+  readonly schemaVersion: unknown;
+
+  constructor(schemaVersion: unknown) {
+    super(`Unsupported record schema version: ${String(schemaVersion)}`);
+    this.name = "UnsupportedSchemaVersionError";
+    this.schemaVersion = schemaVersion;
+  }
+}
+
+export class UnknownRecordTypeError extends Error {
+  readonly recordType: unknown;
+
+  constructor(recordType: unknown) {
+    super(`Unknown record type: ${String(recordType)}`);
+    this.name = "UnknownRecordTypeError";
+    this.recordType = recordType;
+  }
+}
+
+/**
+ * Bring a freshly decrypted payload up to the current format (ADR 0001 D4).
+ * Upgrades run lazily on the client: in memory on decrypt, written back in the
+ * new format on the next edit. Version 1 is the first typed format, so there
+ * is nothing to upgrade yet. A payload from a newer client is rejected rather
+ * than shown half-understood, where an edit would drop its unknown fields.
+ *
+ * The record type is checked too: everything that renders a record switches
+ * on it, and any vault member with write access can author a payload. A
+ * rejected record takes the same path as one that fails to decrypt (skipped).
+ * Fields are not validated here; that would cost a schema parse per record.
+ */
+export function upgradeRecordPayload(payload: unknown): RecordPayload {
+  const { schemaVersion, type } = (payload ?? {}) as { schemaVersion?: unknown; type?: unknown };
+  if (schemaVersion !== CURRENT_SCHEMA_VERSION) {
+    throw new UnsupportedSchemaVersionError(schemaVersion);
+  }
+  if (!RECORD_TYPES.includes(type as RecordType)) throw new UnknownRecordTypeError(type);
+  return payload as RecordPayload;
+}
+
+export type DecryptedRecord = RecordPayload & {
   recordId: string;
   vaultId: string;
   version: number;

@@ -1,4 +1,4 @@
-import type { RecordGroup } from "@repo/client";
+import { getRecordSubtitle, getRecordWebsites, type RecordGroup } from "@repo/client";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { Fragment } from "react";
@@ -43,8 +43,8 @@ export function RecordsList({ recordGroups, onSelect, scrollY }: RecordsListProp
             key={record.recordId}
             first={index === 0}
             title={record.title}
-            username={record.username}
-            websites={record.websites}
+            username={getRecordSubtitle(record)}
+            websites={getRecordWebsites(record)}
             // [recordId] lives in the (records,search) group, so the same href
             // resolves inside whichever tab is currently active.
             onClick={() => {

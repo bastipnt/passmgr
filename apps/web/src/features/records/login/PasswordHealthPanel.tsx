@@ -1,5 +1,5 @@
 import { useGetRecords } from "@repo/client";
-import type { DecryptedRecord } from "@repo/schema";
+import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
@@ -64,7 +64,11 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
           tone={strong ? "good" : "warn"}
           title={`${health.strength.label} password`}
           detail={
-            <PasswordStrengthMeter password={record.password ?? ""} compact className="ml-auto" />
+            <PasswordStrengthMeter
+              password={isRecordType(record, "login") ? (record.password ?? "") : ""}
+              compact
+              className="ml-auto"
+            />
           }
         />
         <HealthRow

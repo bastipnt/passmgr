@@ -1,11 +1,13 @@
 import {
+  hasEditForm,
+  loginRecordFromForm,
   SessionContext,
   useDeleteRecord,
   useGetRecord,
   useShortcut,
   useUpdateRecord,
 } from "@repo/client";
-import type { LoginRecord } from "@repo/schema";
+import { isRecordType, type LoginFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useContext, useEffect } from "react";
@@ -39,8 +41,8 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
     if (isDefined(updateRecordError)) toast.error("Error saving");
   }, [updateRecordError]);
 
-  function handleSubmit(formValues: LoginRecord) {
-    updateRecord(record!, { schemaVersion: record!.schemaVersion, ...formValues });
+  function handleSubmit(formValues: LoginFormValues) {
+    updateRecord(record!, loginRecordFromForm(formValues, record));
   }
 
   return {
@@ -66,22 +68,23 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
   const copyField = useCopyField();
+  const login = record && isRecordType(record, "login") ? record : undefined;
 
-  useShortcut("$mod+Shift+c", () => copyField(record?.password, "Password"), {
+  useShortcut("$mod+Shift+c", () => copyField(login?.password, "Password"), {
     description: "Copy password",
-    enabled: ready && !!record?.password,
+    enabled: ready && !!login?.password,
     allowInInput: true,
   });
 
-  useShortcut("$mod+Shift+u", () => copyField(record?.username, "Username"), {
+  useShortcut("$mod+Shift+u", () => copyField(login?.username, "Username"), {
     description: "Copy username",
-    enabled: ready && !!record?.username,
+    enabled: ready && !!login?.username,
     allowInInput: true,
   });
 
   useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
     description: "Edit record",
-    enabled: ready && !!record?.username && !isOffline,
+    enabled: ready && !!record && hasEditForm(record) && !isOffline,
     allowInInput: true,
   });
 }

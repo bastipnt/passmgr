@@ -1,3 +1,4 @@
+import { hasEditForm } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import VersionsSheet from "@/features/records/versions/VersionsSheet";
 import EditRecordSheet from "./EditRecordSheet";
@@ -13,7 +14,7 @@ export default function Record({ record }: RecordProps) {
       <LoginRecordFields record={record} />
 
       {/* Sheets: */}
-      <EditRecordSheet record={record} />
+      {hasEditForm(record) && <EditRecordSheet record={record} />}
       <VersionsSheet />
     </div>
   );

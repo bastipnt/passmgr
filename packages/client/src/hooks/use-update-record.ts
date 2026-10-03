@@ -1,4 +1,4 @@
-import type { DecryptedRecord, RecordSchema } from "@repo/schema";
+import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useStore } from "../providers/StoreProvider";
 import { encryptRecord } from "../util/encrypt-record";
@@ -29,12 +29,12 @@ export function useUpdateRecord({ onSuccess }: UseUpdateRecordOpts) {
     }),
   );
 
-  /** Encrypt `payload` as the next version of `record`, in the vault it lives in. */
-  function updateRecord(record: DecryptedRecord, payload: RecordSchema) {
+  /** Encrypt `data` as the next version of `record`, in the vault it lives in. */
+  function updateRecord(record: DecryptedRecord, data: RecordData) {
     const { recordId, vaultId, version } = record;
     mutate({
       recordId,
-      ...encryptRecord(payload, { recordId, vaultId }),
+      ...encryptRecord(data, { recordId, vaultId }),
       version,
       clientUpdatedAt: new Date().toISOString(),
     });

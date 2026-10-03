@@ -1,10 +1,9 @@
-import type { RecordSchema } from "@repo/schema";
 import type { RecordCipherContext } from "../vault-data";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import DecryptWorker from "../workers/decrypt.worker.ts?worker";
 
 type PendingDecrypt = {
-  resolve: (payload: RecordSchema) => void;
+  resolve: (payload: unknown) => void;
   reject: (reason: Error) => void;
 };
 
@@ -18,7 +17,7 @@ class DecryptWorkerService {
       this.worker = new DecryptWorker();
       this.worker.onmessage = (event: MessageEvent) => {
         const msg = event.data as
-          | { type: "result"; id: string; payload: RecordSchema }
+          | { type: "result"; id: string; payload: unknown }
           | { type: "error"; id: string; message: string };
 
         const callbacks = this.pending.get(msg.id);
@@ -51,11 +50,8 @@ class DecryptWorkerService {
     );
   }
 
-  decrypt(
-    context: RecordCipherContext,
-    encryptedData: string,
-    nonce: string,
-  ): Promise<RecordSchema> {
+  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
+  decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     const id = this.createRequestId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });

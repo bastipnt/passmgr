@@ -1,4 +1,4 @@
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -26,7 +26,7 @@ type ExtraFormFieldsProps = {
 export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "extraFields",
+    name: "customFields",
   });
 
   return (
@@ -40,8 +40,8 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
             <div className="min-w-0 flex-1">
               <ControlledExtraField
                 control={control}
-                titleName={`extraFields.${index}.title`}
-                valueName={`extraFields.${index}.value`}
+                titleName={`customFields.${index}.title`}
+                valueName={`customFields.${index}.value`}
                 type={field.type}
                 icon={field.type === "secret" ? <LockIcon /> : <TextIcon />}
               />

@@ -1,5 +1,5 @@
-import { useCreateRecord } from "@repo/client";
-import type { LoginRecord } from "@repo/schema";
+import { loginRecordFromForm, useCreateRecord } from "@repo/client";
+import type { LoginFormValues } from "@repo/schema";
 import { useRouter } from "expo-router";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { normalizeFormValues } from "@/features/records/normalize-form-values";
@@ -16,8 +16,8 @@ export default function NewRecordScreen() {
     },
   });
 
-  const onSubmit = (data: LoginRecord) => {
-    createRecord({ schemaVersion: 1, ...normalizeFormValues(data) });
+  const onSubmit = (data: LoginFormValues) => {
+    createRecord(loginRecordFromForm(normalizeFormValues(data)));
   };
 
   return (

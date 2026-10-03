@@ -1,4 +1,10 @@
-import { getLoginFieldSpecs, type LoginFieldGroup, useGetRecord } from "@repo/client";
+import {
+  type FieldGroup,
+  getRecordFieldSpecs,
+  getRecordWebsites,
+  RECORD_TYPE_LABELS,
+  useGetRecord,
+} from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Section, SectionHeading, WebsiteAvatar } from "@repo/ui-native";
 import { toLocalDateStr } from "@repo/util";
@@ -11,10 +17,11 @@ import { recordPaths } from "@/route-paths";
 import { useCopyField } from "../use-copy-field";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 
-// The title is the page heading, so it isn't repeated as a field.
-const SECTIONS: { group: LoginFieldGroup; label: string }[] = [
-  { group: "credentials", label: "Credentials" },
-  { group: "extra", label: "Extra fields" },
+// The title is the page heading, so it isn't repeated as a field. The
+// type-specific group takes its label from the record type.
+const SECTIONS: { group: FieldGroup; label?: string }[] = [
+  { group: "fields" },
+  { group: "custom", label: "Extra fields" },
   { group: "websites", label: "Websites" },
   { group: "note", label: "Note" },
 ];
@@ -24,7 +31,7 @@ const SECTIONS: { group: LoginFieldGroup; label: string }[] = [
  * the in-app browser opens nothing else, and a record can hold any string.
  */
 export function firstWebsite(record: DecryptedRecord) {
-  const url = record.websites?.find((w) => w.value !== "")?.value;
+  const url = getRecordWebsites(record)?.find((w) => w.value !== "")?.value;
   if (!url) return undefined;
   try {
     const { protocol, hostname } = new URL(url);
@@ -41,7 +48,7 @@ function Hero({ record }: { record: DecryptedRecord }) {
 
   return (
     <View className="flex-row items-center gap-4 px-5 pt-2 pb-2">
-      <WebsiteAvatar title={record.title} websites={record.websites} size="lg" />
+      <WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} size="lg" />
       <View className="flex-1 gap-1">
         <Text
           numberOfLines={2}
@@ -103,7 +110,7 @@ type RecordProps = {
 /** Record detail body: hero, field sections and history — web's `MobileRecordPage`. */
 export default function Record({ record }: RecordProps) {
   const onCopy = useCopyField();
-  const specs = getLoginFieldSpecs(record);
+  const specs = getRecordFieldSpecs(record);
 
   return (
     <View className="gap-6 pb-6">
@@ -114,7 +121,7 @@ export default function Record({ record }: RecordProps) {
         if (groupSpecs.length === 0) return null;
 
         return (
-          <Section key={group} title={label}>
+          <Section key={group} title={label ?? RECORD_TYPE_LABELS[record.type].fields}>
             {groupSpecs.map((spec) => (
               <LoginFieldDisplay key={spec.key} spec={spec} onCopy={onCopy} />
             ))}

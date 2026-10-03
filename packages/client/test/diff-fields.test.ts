@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { alignFieldSpecs } from "../src/records/diff-fields";
-import type { LoginFieldKey, LoginFieldSpec } from "../src/records/login-field-specs";
+import type { FieldSpec } from "../src/records/record-field-specs";
 
-function spec(key: LoginFieldKey, compare: string): LoginFieldSpec {
-  return { key, group: "extra", compare, kind: "extra-text", label: key };
+function spec(key: string, compare: string): FieldSpec {
+  return { key, group: "custom", compare, kind: "text", label: key };
 }
 
 describe("alignFieldSpecs", () => {
@@ -63,15 +63,15 @@ describe("alignFieldSpecs", () => {
     ]);
   });
 
-  it("keeps duplicate extra-field titles apart by occurrence", () => {
+  it("keeps duplicate custom-field titles apart by occurrence", () => {
     const rows = alignFieldSpecs(
-      [spec("extra:PIN:0", "text 1"), spec("extra:PIN:1", "text 2")],
-      [spec("extra:PIN:0", "text 1"), spec("extra:PIN:1", "text 9")],
+      [spec("custom:PIN:0", "text 1"), spec("custom:PIN:1", "text 2")],
+      [spec("custom:PIN:0", "text 1"), spec("custom:PIN:1", "text 9")],
     );
 
     expect(rows.map((r) => [r.key, r.status])).toEqual([
-      ["extra:PIN:0", "unchanged"],
-      ["extra:PIN:1", "edited"],
+      ["custom:PIN:0", "unchanged"],
+      ["custom:PIN:1", "edited"],
     ]);
   });
 

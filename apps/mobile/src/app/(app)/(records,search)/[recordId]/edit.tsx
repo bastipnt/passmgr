@@ -1,5 +1,12 @@
-import { useDeleteRecord, useGetRecord, useUpdateRecord } from "@repo/client";
-import type { DecryptedRecord, LoginRecord } from "@repo/schema";
+import {
+  hasEditForm,
+  loginFormDefaults,
+  loginRecordFromForm,
+  useDeleteRecord,
+  useGetRecord,
+  useUpdateRecord,
+} from "@repo/client";
+import type { DecryptedRecord, LoginFormValues } from "@repo/schema";
 import { Button, RemoveDialog } from "@repo/ui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
@@ -26,7 +33,8 @@ export default function EditScreen() {
 /** Waits for the records to load; `ready` flips mid-mount, so no hooks may follow it here. */
 function EditRecordLoader({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
-  if (!ready || !record) return <Fallback />;
+  // No edit form for this record type yet (deep link): never save it as a login.
+  if (!ready || !record || !hasEditForm(record)) return <Fallback />;
   return <EditRecord record={record} />;
 }
 
@@ -35,15 +43,7 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
   const router = useRouter();
   const { recordId } = record;
 
-  const defaultValues: Partial<LoginRecord> = {
-    title: record.title,
-    username: record.username,
-    password: record.password,
-    totp: record.totp,
-    websites: record.websites,
-    note: record.note,
-    extraFields: record.extraFields,
-  };
+  const defaultValues = loginFormDefaults(record);
 
   const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
     onSuccess: () => {
@@ -53,8 +53,8 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
     },
   });
 
-  const onSubmit = (data: LoginRecord) => {
-    updateRecord(record, { schemaVersion: record.schemaVersion, ...normalizeFormValues(data) });
+  const onSubmit = (data: LoginFormValues) => {
+    updateRecord(record, loginRecordFromForm(normalizeFormValues(data), record));
   };
 
   const { deleteRecord } = useDeleteRecord({

@@ -1,6 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { alignFieldSpecs, type DiffStatus } from "./diff-fields";
-import { getLoginFieldSpecs, type LoginFieldSpec } from "./login-field-specs";
+import { type FieldSpec, getRecordFieldSpecs } from "./record-field-specs";
 
 export type VersionChange = {
   key: string;
@@ -14,8 +14,8 @@ const STATUS_WORD: Record<VersionChange["status"], string> = {
   removed: "removed",
 };
 
-// Tag-sized names; extra fields keep their own title.
-const SHORT_NAME: Partial<Record<LoginFieldSpec["kind"], string>> = {
+// Tag-sized names; every other field keeps its own label.
+const SHORT_NAME: Partial<Record<FieldSpec["kind"], string>> = {
   title: "Title",
   username: "Username",
   password: "Password",
@@ -35,8 +35,8 @@ export function describeVersionChanges(
   if (!previous) return [];
 
   const rows = alignFieldSpecs(
-    getLoginFieldSpecs(previous, { includeTitle: true }),
-    getLoginFieldSpecs(version, { includeTitle: true }),
+    getRecordFieldSpecs(previous, { includeTitle: true }),
+    getRecordFieldSpecs(version, { includeTitle: true }),
   );
 
   return rows.flatMap((row) => {

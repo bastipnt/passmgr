@@ -1,12 +1,13 @@
-import type { DecryptedRecord } from "@repo/schema";
+import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import { getPasswordHealth } from "./password-health";
 
-function makeRecord(recordId: string, fields: Partial<DecryptedRecord> = {}): DecryptedRecord {
+function makeRecord(recordId: string, fields: Partial<LoginRecord> = {}): DecryptedRecord {
   return {
     recordId,
     version: 1,
     schemaVersion: 1,
+    type: "login",
     title: recordId,
     clientUpdatedAt: "2026-09-01T10:00:00.000Z",
     created_at: null,
@@ -30,6 +31,17 @@ describe("getPasswordHealth", () => {
 
     expect(health?.reusedIn.map((r) => r.recordId)).toEqual(["figma"]);
     expect(health?.checkedCount).toBe(3);
+  });
+
+  it("only checks logins: other types neither get a health nor count as reuse", () => {
+    const github = makeRecord("github", { password: "shared-secret-1" });
+    const wifi = { ...makeRecord("wifi"), type: "wifi", password: "shared-secret-1" } as const;
+
+    expect(getPasswordHealth(wifi, [github, wifi])).toBeNull();
+    expect(getPasswordHealth(github, [github, wifi])).toMatchObject({
+      reusedIn: [],
+      checkedCount: 1,
+    });
   });
 
   it("reports whether a TOTP secret is set", () => {

@@ -1,4 +1,4 @@
-import { useGetRecords, useShortcut } from "@repo/client";
+import { getRecordSubtitle, getRecordWebsites, useGetRecords, useShortcut } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
 import {
@@ -48,7 +48,7 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
       <ItemMedia className="max-sm:self-center! max-sm:translate-y-0!">
         <WebsiteAvatar
           title={record.title}
-          websites={record.websites}
+          websites={getRecordWebsites(record)}
           size={isMobile ? "md" : "default"}
         />
       </ItemMedia>
@@ -58,7 +58,7 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
             {record.title}
           </ItemTitle>
           <ItemDescription className="line-clamp-1 text-[0.8rem] max-sm:text-sm">
-            {record.username || "—"}
+            {getRecordSubtitle(record) || "—"}
           </ItemDescription>
         </div>
         <ChevronRightIcon

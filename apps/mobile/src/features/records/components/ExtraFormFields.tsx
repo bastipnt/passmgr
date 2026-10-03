@@ -1,4 +1,4 @@
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import {
   BottomSheet,
   BottomSheetRef,
@@ -31,7 +31,7 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
   const { fields, append, remove } = useFieldArray({
     control,
-    name: "extraFields",
+    name: "customFields",
   });
 
   const sheetRef = useRef<BottomSheetRef>(null);
@@ -53,8 +53,8 @@ export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
             <ButtonGroup className="flex-1">
               <ControlledExtraField
                 control={control}
-                titleName={`extraFields.${index}.title`}
-                valueName={`extraFields.${index}.value`}
+                titleName={`customFields.${index}.title`}
+                valueName={`customFields.${index}.value`}
                 type={field.type}
                 icon={
                   field.type === "secret" ? (

@@ -1,4 +1,4 @@
-import { getLoginFieldSpecs, type LoginFieldGroup } from "@repo/client";
+import { type FieldGroup, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
 import { useCopyField } from "../record-utils";
@@ -10,12 +10,10 @@ type LoginRecordFieldsProps = {
   record: DecryptedRecord;
 };
 
-// The title is the page heading, so it isn't repeated as a field.
-const COLUMNS: { group: LoginFieldGroup; label: string }[][] = [
-  [
-    { group: "credentials", label: "Credentials" },
-    { group: "extra", label: "Extra fields" },
-  ],
+// The title is the page heading, so it isn't repeated as a field. The
+// type-specific group takes its label from the record type.
+const COLUMNS: { group: FieldGroup; label?: string }[][] = [
+  [{ group: "fields" }, { group: "custom", label: "Extra fields" }],
   [
     { group: "websites", label: "Websites" },
     { group: "note", label: "Note" },
@@ -23,7 +21,7 @@ const COLUMNS: { group: LoginFieldGroup; label: string }[][] = [
 ];
 
 export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
-  const specs = getLoginFieldSpecs(record);
+  const specs = getRecordFieldSpecs(record);
   const copyField = useCopyField();
 
   return (
@@ -37,7 +35,7 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
             return (
               <section key={group} className="flex flex-col gap-2">
                 <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-                  {label}
+                  {label ?? RECORD_TYPE_LABELS[record.type].fields}
                 </h2>
                 {/* Full-bleed rows on phones, like a native grouped list. */}
                 <ItemDisplayGroup flushOnMobile>

@@ -1,9 +1,9 @@
-import type { LoginRecord } from "@repo/schema";
+import type { LoginFormValues } from "@repo/schema";
 import { normalizeWebsiteUrl } from "@repo/util";
 
 // TODO: move into useUpdateRecord / useCreateRecord
 /** Drops blank website rows and normalizes the remaining URLs. */
-export function normalizeFormValues(data: LoginRecord): LoginRecord {
+export function normalizeFormValues(data: LoginFormValues): LoginFormValues {
   return {
     ...data,
     websites: data.websites

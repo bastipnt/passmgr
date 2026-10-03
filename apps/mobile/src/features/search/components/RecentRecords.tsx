@@ -1,3 +1,4 @@
+import { getRecordSubtitle, getRecordWebsites } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
@@ -28,8 +29,8 @@ export function RecentRecords({ records, onOpen, onClear }: RecentRecordsProps) 
           key={record.recordId}
           first={index === 0}
           title={record.title}
-          username={record.username}
-          websites={record.websites}
+          username={getRecordSubtitle(record)}
+          websites={getRecordWebsites(record)}
           onClick={() => {
             onOpen(record.recordId);
             router.navigate(recordPaths.record(record.recordId));

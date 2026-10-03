@@ -56,7 +56,7 @@ beforeEach(() => {
   store.vault.getAllLatest.mockResolvedValue([encrypted("good"), encrypted("bad")]);
   decryptRecordWithWorker.mockImplementation(async ({ encryptedData }: EncryptedRecordSchema) => {
     if (encryptedData === "data-bad") throw new Error("invalid tag");
-    return { schemaVersion: 1, title: encryptedData };
+    return { schemaVersion: 1, type: "login", title: encryptedData };
   });
 });
 
@@ -73,7 +73,11 @@ describe("RecordsProvider", () => {
     const { result } = renderHook(() => useRecordsContext(), { wrapper });
     await waitFor(() => expect(result.current.ready).toBe(true));
     decryptRecordWithWorker.mockClear();
-    decryptRecordWithWorker.mockResolvedValue({ schemaVersion: 1, title: "recovered" });
+    decryptRecordWithWorker.mockResolvedValue({
+      schemaVersion: 1,
+      type: "login",
+      title: "recovered",
+    });
 
     syncListener?.({ vaultsChanged: false });
 

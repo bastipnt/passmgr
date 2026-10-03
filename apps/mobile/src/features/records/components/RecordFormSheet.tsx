@@ -1,4 +1,4 @@
-import type { LoginRecord } from "@repo/schema";
+import type { LoginFormValues } from "@repo/schema";
 import { type Href, Stack, useRouter } from "expo-router";
 import { type ReactNode, useRef } from "react";
 import { View } from "react-native";
@@ -9,7 +9,7 @@ import LoginRecordForm, {
 } from "@/features/records/components/LoginRecordForm";
 
 type RecordFormSheetProps = {
-  onSubmit: (data: LoginRecord) => void;
+  onSubmit: (data: LoginFormValues) => void;
   /** Route of the generator sheet this screen's password field opens. */
   generatorPath: Href;
   /** Label of the submit button, and of the sheet's header. */
@@ -19,7 +19,7 @@ type RecordFormSheetProps = {
   serverError?: string;
   /** A save is in flight: locks the form and its submit action. */
   pending?: boolean;
-  defaultValues?: Partial<LoginRecord>;
+  defaultValues?: Partial<LoginFormValues>;
   /** Rendered below the form — e.g. the edit screen's delete button. */
   children?: ReactNode;
 };

@@ -122,6 +122,21 @@ can't be shared or rotated like any other vault.
 - Field specs, diff and version-change helpers (`login-field-specs.ts`, `diff-fields.ts`,
   `version-changes.ts`) become per-type, so history works for every type.
 
+> **Amended 2026-10-03** (typed payload implementation): schemas in
+> `packages/schema/src/record-types.ts` (`recordDataSchema`, `RecordData`; `RecordPayload` adds
+> `schemaVersion`). The old `extraFields` are the base `customFields`; `attachments` is an
+> always-empty placeholder. `upgradeRecordPayload` runs on every decrypt (client side, the
+> decrypt worker returns raw JSON) and **rejects** an unknown `schemaVersion` rather than showing a
+> newer client's payload half-understood, where an edit would drop its unknown fields, and an
+> unknown `type` (any writing vault member can author payloads); rejected records are skipped like
+> undecryptable ones, in the list and in history.
+> `encryptRecord` always stamps the current version. Field specs are `getRecordFieldSpecs`
+> (`packages/client/src/records/record-field-specs.ts`): one table of fields per type, groups
+> `title | fields | websites | note | custom`, kinds generic (`text`, `secret`) next to the login
+> ones. Lists and search use `getRecordSubtitle` / `getRecordWebsites`. The forms are still
+> login-only (`loginFormSchema`, `loginRecordFromForm` keeps favourite/tags/attachments on edit);
+> `hasEditForm` hides Edit for other types, and `loginRecordFromForm` refuses them.
+
 ### D5 — Record versioning and conflict resolution
 
 **Versions.**

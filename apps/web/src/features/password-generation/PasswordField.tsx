@@ -1,4 +1,4 @@
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";

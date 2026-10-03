@@ -1,6 +1,6 @@
 export * from "./src/app-config-schema";
-export * from "./src/login-record-schema";
 export * from "./src/record-payload";
+export * from "./src/record-types";
 // Seeds
 export * from "./src/seed/login-record-seed";
 export * from "./src/user/email-schema";
