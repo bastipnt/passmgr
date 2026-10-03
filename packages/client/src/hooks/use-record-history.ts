@@ -34,8 +34,8 @@ export function useRecordHistory(recordId: string | undefined) {
       encrypted?.[0]?.encryptedData,
     ],
     enabled: !!encrypted,
-    queryFn: async (): Promise<DecryptedRecord[]> =>
-      Promise.all(
+    queryFn: async (): Promise<DecryptedRecord[]> => {
+      const results = await Promise.allSettled(
         encrypted!.map(async (row) => ({
           ...(await decryptRecordWithWorker(row)),
           recordId: row.recordId,
@@ -47,7 +47,17 @@ export function useRecordHistory(recordId: string | undefined) {
           // `created_at` is when that revision was written.
           firstCreatedAt: null,
         })),
-      ),
+      );
+      // A revision that doesn't open (or is in a format this client can't
+      // read) is left out, like in the record list, rather than failing the
+      // whole history.
+      const versions = results.flatMap((result) =>
+        result.status === "fulfilled" ? [result.value] : [],
+      );
+      const failed = results.length - versions.length;
+      if (failed > 0) console.error(`${failed} revision(s) could not be decrypted and are hidden`);
+      return versions;
+    },
   });
 
   return {

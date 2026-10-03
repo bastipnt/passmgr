@@ -1,5 +1,5 @@
-import { ShortcutLayer } from "@repo/client";
-import type { DecryptedRecord, LoginRecord } from "@repo/schema";
+import { getRecordWebsites, loginFormDefaults, ShortcutLayer } from "@repo/client";
+import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
@@ -28,15 +28,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
     actionCb: () => setOpen(false),
   });
 
-  const defaultValues: Partial<LoginRecord> = {
-    title: record.title,
-    username: record.username,
-    password: record.password,
-    totp: record.totp,
-    websites: record.websites,
-    note: record.note,
-    extraFields: record.extraFields,
-  };
+  const defaultValues = loginFormDefaults(record);
 
   const form = (
     <LoginRecordForm
@@ -107,7 +99,7 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
         sheetClassName="sm:max-w-3xl!"
         title="Edit login"
         description={`${record.title} · last changed ${toLocalDateStr(record.clientUpdatedAt)}`}
-        media={<WebsiteAvatar title={record.title} websites={record.websites} />}
+        media={<WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} />}
         actions={formActions}
       >
         {form}

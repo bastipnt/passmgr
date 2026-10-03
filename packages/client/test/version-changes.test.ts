@@ -1,12 +1,16 @@
-import type { DecryptedRecord } from "@repo/schema";
+import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import { describeVersionChanges } from "../src/records/version-changes";
 
-function makeRecord(version: number, fields: Partial<DecryptedRecord> = {}): DecryptedRecord {
+function makeRecord(
+  version: number,
+  fields: Partial<DecryptedRecord & LoginRecord> = {},
+): DecryptedRecord {
   return {
     recordId: "r1",
     version,
     schemaVersion: 1,
+    type: "login",
     title: "GitHub",
     username: "jana",
     password: "old-password",
@@ -37,14 +41,26 @@ describe("describeVersionChanges", () => {
     ]);
   });
 
-  it("uses an extra field's own title", () => {
+  it("uses a custom field's own title", () => {
     const previous = makeRecord(1);
     const version = makeRecord(2, {
-      extraFields: [{ title: "Recovery codes", type: "secret", value: "a1b2" }],
+      customFields: [{ title: "Recovery codes", type: "secret", value: "a1b2" }],
     });
 
     expect(describeVersionChanges(version, previous)).toEqual([
-      { key: "extra:Recovery codes:0", status: "added", label: "Recovery codes added" },
+      { key: "custom:Recovery codes:0", status: "added", label: "Recovery codes added" },
+    ]);
+  });
+
+  it("names the fields of other record types by their label", () => {
+    const card = { ...makeRecord(1), type: "card" as const, title: "Visa" };
+    const previous: DecryptedRecord = { ...card, number: "4111", expiry: "01/27" };
+    const version: DecryptedRecord = { ...card, version: 2, number: "4242", pin: "1234" };
+
+    expect(describeVersionChanges(version, previous).map((c) => c.label)).toEqual([
+      "Card number changed",
+      "PIN added",
+      "Expiry date removed",
     ]);
   });
 });

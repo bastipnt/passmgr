@@ -2,7 +2,6 @@
 // is fast enough to run on the JS thread, so no web worker is needed here.
 // Mirrors the message contract of decrypt.worker.ts.
 
-import type { RecordSchema } from "@repo/schema";
 import { decryptRecordData, type RecordCipherContext } from "../vault-data";
 
 class DecryptNativeService {
@@ -14,16 +13,13 @@ class DecryptNativeService {
     this.vaultKeys = vaultKeys;
   }
 
-  decrypt(
-    context: RecordCipherContext,
-    encryptedData: string,
-    nonce: string,
-  ): Promise<RecordSchema> {
+  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
+  decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     const key = this.vaultKeys.get(context.vaultId);
     if (!key) return Promise.reject(new Error("No key for vault"));
     try {
       const bytes = decryptRecordData(key, context, encryptedData, nonce);
-      return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)) as RecordSchema);
+      return Promise.resolve(JSON.parse(new TextDecoder().decode(bytes)));
     } catch (e) {
       return Promise.reject(e instanceof Error ? e : new Error("Decryption failed"));
     }

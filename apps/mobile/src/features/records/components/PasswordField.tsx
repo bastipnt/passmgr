@@ -1,5 +1,5 @@
 import { getStrengthFromString } from "@repo/crypto";
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
 import { type Href, useRouter } from "expo-router";
 import { KeyIcon, WandSparkles } from "lucide-react-native";

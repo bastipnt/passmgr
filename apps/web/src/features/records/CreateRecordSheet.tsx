@@ -1,5 +1,5 @@
-import { ShortcutLayer, useCreateRecord } from "@repo/client";
-import type { LoginRecord } from "@repo/schema";
+import { loginRecordFromForm, ShortcutLayer, useCreateRecord } from "@repo/client";
+import type { LoginFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
@@ -56,8 +56,8 @@ export default function CreateRecordSheet() {
     if (isDefined(createRecordError)) toast.error("Error saving");
   }, [createRecordError]);
 
-  function handleSubmit(formValues: LoginRecord) {
-    createRecord({ schemaVersion: 1, ...formValues });
+  function handleSubmit(formValues: LoginFormValues) {
+    createRecord(loginRecordFromForm(formValues));
   }
 
   const formActions = (

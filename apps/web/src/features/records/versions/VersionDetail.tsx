@@ -1,8 +1,8 @@
 import {
   alignFieldSpecs,
   type DiffStatus,
-  getLoginFieldSpecs,
-  type LoginFieldSpec,
+  type FieldSpec,
+  getRecordFieldSpecs,
   useRecordHistory,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
@@ -48,7 +48,7 @@ function DiffCell({
   status,
   side,
 }: {
-  spec: LoginFieldSpec | undefined;
+  spec: FieldSpec | undefined;
   status: DiffStatus;
   side: "old" | "latest";
 }) {
@@ -150,8 +150,8 @@ export default function VersionDetail({
   }
 
   const rows = alignFieldSpecs(
-    getLoginFieldSpecs(previousRecord, { includeTitle: true }),
-    getLoginFieldSpecs(record, { includeTitle: true }),
+    getRecordFieldSpecs(previousRecord, { includeTitle: true }),
+    getRecordFieldSpecs(record, { includeTitle: true }),
   );
 
   return (

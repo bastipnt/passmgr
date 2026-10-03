@@ -1,5 +1,5 @@
-import { SessionContext } from "@repo/client";
-import type { DecryptedRecord } from "@repo/schema";
+import { getRecordWebsites, hasEditForm, SessionContext } from "@repo/client";
+import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
@@ -33,8 +33,10 @@ type MobileRecordScreenProps = {
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
   const { isOffline } = useContext(SessionContext);
   const copyField = useCopyField();
-  const primaryWebsite = record.websites?.find((website) => website.value)?.value;
-  const hasDock = Boolean(record.password || primaryWebsite);
+  const websites = getRecordWebsites(record);
+  const password = isRecordType(record, "login") ? record.password : undefined;
+  const primaryWebsite = websites?.find((website) => website.value)?.value;
+  const hasDock = Boolean(password || primaryWebsite);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   useScrollCollapse(titleRef);
@@ -64,10 +66,12 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         <span className="flex-1" />
         {!isOffline && (
           <div ref={actionsRef} className="flex items-center gap-2">
-            <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
-              <PencilLineIcon />
-              Edit
-            </Link>
+            {hasEditForm(record) && (
+              <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
+                <PencilLineIcon />
+                Edit
+              </Link>
+            )}
             <MoreDropdown recordId={record.recordId} onDelete={onDelete} variant="floating" />
           </div>
         )}
@@ -99,7 +103,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           primaryWebsite ? "-mt-9" : "-mt-[2.875rem]",
         )}
       >
-        <WebsiteAvatar title={record.title} websites={record.websites} size="lg" />
+        <WebsiteAvatar title={record.title} websites={websites} size="lg" />
         <div className="flex min-w-0 flex-col pt-9">
           {primaryWebsite && (
             <a
@@ -122,11 +126,11 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       {hasDock && (
         // Sticky, not fixed: see `MobileVault` on `DrawerProvider`'s containment.
         <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 mx-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
-          {record.password && (
+          {password && (
             <Button
               size="lg"
               className="h-14 flex-1 rounded-full bg-primary text-base"
-              onClick={() => copyField(record.password, "Password")}
+              onClick={() => copyField(password, "Password")}
             >
               <CopyIcon className="size-5" />
               Copy password
@@ -136,7 +140,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
             <Button
               variant="floating"
               size="fab"
-              className={record.password ? undefined : "w-auto flex-1 gap-2 text-base"}
+              className={password ? undefined : "w-auto flex-1 gap-2 text-base"}
               nativeButton={false}
               render={
                 <a
@@ -148,7 +152,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
               }
             >
               <ExternalLinkIcon className="size-5" />
-              {!record.password && "Open website"}
+              {!password && "Open website"}
             </Button>
           )}
         </div>

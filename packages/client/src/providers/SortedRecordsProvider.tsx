@@ -3,6 +3,7 @@ import { createContext, type ReactNode, useContext, useMemo, useState } from "re
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
 import { PREF_KEYS } from "../preferences/preference-keys";
+import { getRecordSubtitle } from "../records/record-summary";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
@@ -173,12 +174,12 @@ function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRec
   if (!query.trim()) return records;
   const q = query.toLowerCase().trim();
   const titleMatches: DecryptedRecord[] = [];
-  const usernameMatches: DecryptedRecord[] = [];
+  const subtitleMatches: DecryptedRecord[] = [];
   for (const record of records) {
     if (record.title.toLowerCase().includes(q)) titleMatches.push(record);
-    else if (record.username?.toLowerCase().includes(q)) usernameMatches.push(record);
+    else if (getRecordSubtitle(record)?.toLowerCase().includes(q)) subtitleMatches.push(record);
   }
-  return [...titleMatches, ...usernameMatches];
+  return [...titleMatches, ...subtitleMatches];
 }
 
 type SortedRecordsContextValue = {

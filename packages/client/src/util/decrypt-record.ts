@@ -1,5 +1,5 @@
 import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
-import type { EncryptedRecordSchema, RecordSchema } from "@repo/schema";
+import { type EncryptedRecordSchema, type RecordPayload, upgradeRecordPayload } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 
 type EncryptedRow = Pick<
@@ -7,18 +7,19 @@ type EncryptedRow = Pick<
   "recordId" | "vaultId" | "cryptoVersion" | "encryptedData" | "encryptionNonce"
 >;
 
-export function decryptRecord(row: EncryptedRow): RecordSchema {
+export function decryptRecord(row: EncryptedRow): RecordPayload {
   const bytes = secretsStore.decryptRecord(row);
-  return JSON.parse(new TextDecoder().decode(bytes)) as RecordSchema;
+  return upgradeRecordPayload(JSON.parse(new TextDecoder().decode(bytes)));
 }
 
-export function decryptRecordWithWorker(row: EncryptedRow): Promise<RecordSchema> {
+export async function decryptRecordWithWorker(row: EncryptedRow): Promise<RecordPayload> {
   const { recordId, vaultId, cryptoVersion } = row;
-  return decryptWorkerService.decrypt(
+  const payload = await decryptWorkerService.decrypt(
     { recordId, vaultId, cryptoVersion },
     row.encryptedData,
     row.encryptionNonce,
   );
+  return upgradeRecordPayload(payload);
 }
 
 /** Hand the decrypt worker the current vault keys (after an unlock or a vault list change). */

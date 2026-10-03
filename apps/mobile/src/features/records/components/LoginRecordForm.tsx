@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type LoginRecord as FormValues, loginRecordSchema } from "@repo/schema";
+import { type LoginFormValues as FormValues, loginFormSchema } from "@repo/schema";
 import {
   ControlledInput,
   ControlledTextarea,
@@ -51,7 +51,7 @@ export default function LoginRecordForm({
     control,
     setValue,
   } = useForm<FormValues>({
-    resolver: zodResolver(loginRecordSchema),
+    resolver: zodResolver(loginFormSchema),
     defaultValues,
   });
 

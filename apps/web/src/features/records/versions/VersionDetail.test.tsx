@@ -1,4 +1,4 @@
-import type { DecryptedRecord } from "@repo/schema";
+import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import VersionDetail from "./VersionDetail";
@@ -10,9 +10,10 @@ vi.mock("@repo/client", async (importOriginal) => ({
   useRecordHistory: () => useRecordHistory(),
 }));
 
-function makeRecord(version: number, fields: Partial<DecryptedRecord>): DecryptedRecord {
+function makeRecord(version: number, fields: Partial<LoginRecord>): DecryptedRecord {
   return {
     schemaVersion: 1,
+    type: "login",
     recordId: "r1",
     vaultId: "v1",
     version,

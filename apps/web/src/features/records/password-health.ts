@@ -1,5 +1,5 @@
 import { getStrengthFromString } from "@repo/crypto";
-import type { DecryptedRecord } from "@repo/schema";
+import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import type { PasswordStrength } from "@repo/util";
 
 export type PasswordHealth = {
@@ -16,14 +16,15 @@ export function getPasswordHealth(
   record: DecryptedRecord,
   allRecords: DecryptedRecord[],
 ): PasswordHealth | null {
-  if (!record.password) return null;
+  if (!isRecordType(record, "login") || !record.password) return null;
+  const logins = allRecords.filter((other) => isRecordType(other, "login"));
 
   return {
     strength: getStrengthFromString(record.password),
-    reusedIn: allRecords.filter(
+    reusedIn: logins.filter(
       (other) => other.recordId !== record.recordId && other.password === record.password,
     ),
-    checkedCount: allRecords.length,
+    checkedCount: logins.length,
     hasTotp: !!record.totp,
   };
 }

@@ -1,4 +1,4 @@
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";

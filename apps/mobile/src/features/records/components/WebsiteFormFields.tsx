@@ -1,4 +1,4 @@
-import { type LoginRecord as FormValues } from "@repo/schema";
+import { type LoginFormValues as FormValues } from "@repo/schema";
 import {
   Button,
   ButtonGroup,

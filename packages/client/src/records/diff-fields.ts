@@ -1,4 +1,4 @@
-import type { LoginFieldSpec } from "./login-field-specs";
+import type { FieldSpec } from "./record-field-specs";
 
 export type DiffStatus = "unchanged" | "edited" | "added" | "removed";
 
@@ -9,23 +9,20 @@ export type DiffStatus = "unchanged" | "edited" | "added" | "removed";
  */
 export type DiffRow = {
   key: string;
-  old?: LoginFieldSpec;
-  latest?: LoginFieldSpec;
+  old?: FieldSpec;
+  latest?: FieldSpec;
   status: DiffStatus;
 };
 
 /**
  * Pair two revisions' field specs by key, preserving render order.
  *
- * Both lists come out of `getLoginFieldSpecs` and so share a fixed field
- * order; only extra fields can genuinely move. A key that exists on both sides
- * but out of order is emitted as a removal of the old one, which keeps the walk
- * terminating and still shows both revisions' values.
+ * Both lists come out of `getRecordFieldSpecs` and so share a fixed field
+ * order per type; only custom fields can genuinely move. A key that exists on
+ * both sides but out of order is emitted as a removal of the old one, which
+ * keeps the walk terminating and still shows both revisions' values.
  */
-export function alignFieldSpecs(
-  oldSpecs: LoginFieldSpec[],
-  latestSpecs: LoginFieldSpec[],
-): DiffRow[] {
+export function alignFieldSpecs(oldSpecs: FieldSpec[], latestSpecs: FieldSpec[]): DiffRow[] {
   const oldKeys = new Set(oldSpecs.map((spec) => spec.key));
 
   const rows: DiffRow[] = [];

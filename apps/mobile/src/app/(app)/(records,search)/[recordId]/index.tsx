@@ -1,3 +1,5 @@
+import { hasEditForm } from "@repo/client";
+import { isRecordType } from "@repo/schema";
 import {
   Empty,
   EmptyDescription,
@@ -22,6 +24,7 @@ const TITLE_IN_BAR_OFFSET = 64;
 export default function RecordScreen() {
   const { recordId } = useLocalSearchParams();
   const { record, ready } = useRecordParam(recordId);
+  const password = record && isRecordType(record, "login") ? record.password : undefined;
   const onCopy = useCopyField();
   const [primary, foreground] = useCSSVariable([
     "--color-primary",
@@ -43,15 +46,20 @@ export default function RecordScreen() {
           unstable_headerRightItems: () =>
             record
               ? [
-                  {
-                    type: "button",
-                    label: "Edit",
-                    // iOS 26 tinted glass; falls back to a plain button below it.
-                    variant: "prominent",
-                    tintColor: primary,
-                    onPress: () => router.navigate(recordPaths.editRecord(recordId as string)),
-                  },
-                  ...(record?.password
+                  ...(hasEditForm(record)
+                    ? [
+                        {
+                          type: "button" as const,
+                          label: "Edit",
+                          // iOS 26 tinted glass; falls back to a plain button below it.
+                          variant: "prominent" as const,
+                          tintColor: primary,
+                          onPress: () =>
+                            router.navigate(recordPaths.editRecord(recordId as string)),
+                        },
+                      ]
+                    : []),
+                  ...(password
                     ? [
                         {
                           type: "button" as const,
@@ -59,7 +67,7 @@ export default function RecordScreen() {
                           accessibilityLabel: "Copy password",
                           icon: { type: "sfSymbol" as const, name: "doc.on.doc" as const },
                           tintColor: foreground,
-                          onPress: () => onCopy(record.password),
+                          onPress: () => onCopy(password),
                         },
                       ]
                     : []),

@@ -67,6 +67,8 @@ type RecordActionsProps = {
   recordId: string;
   title: string;
   websites?: { value: string }[];
+  /** Offer "Edit": false for record types without an edit form yet. */
+  editable: boolean;
   onDelete: () => void;
   className?: string;
 };
@@ -75,6 +77,7 @@ export function RecordActions({
   recordId,
   title,
   websites,
+  editable,
   onDelete,
   className,
 }: RecordActionsProps) {
@@ -103,16 +106,18 @@ export function RecordActions({
 
       {!isOffline && (
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            variant="outline"
-            size="lg"
-            className="h-10 font-medium text-sm"
-            aria-label="Edit"
-            href={recordPaths.editRecord(recordId)}
-          >
-            <PencilLineIcon />
-            Edit
-          </Link>
+          {editable && (
+            <Link
+              variant="outline"
+              size="lg"
+              className="h-10 font-medium text-sm"
+              aria-label="Edit"
+              href={recordPaths.editRecord(recordId)}
+            >
+              <PencilLineIcon />
+              Edit
+            </Link>
+          )}
           <MoreDropdown recordId={recordId} onDelete={onDelete} />
         </div>
       )}

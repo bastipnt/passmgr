@@ -1,5 +1,5 @@
 import {
-  type LoginFieldSpec,
+  type FieldSpec,
   PREF_KEYS,
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
   usePreference,
@@ -13,13 +13,13 @@ import TotpField from "./TotpField";
 export type OnCopy = (value?: string) => void;
 
 type LoginFieldDisplayProps = {
-  spec: LoginFieldSpec;
+  spec: FieldSpec;
   /** Omit to render the field without a copy action, as the version diff does. */
   onCopy?: OnCopy;
 };
 
 /**
- * Renders one `LoginFieldSpec`. The specs themselves are shared with web
+ * Renders one `FieldSpec`. The specs themselves are shared with web
  * (`@repo/client`), so everything native-specific — components, icons, copy
  * behaviour — lives here.
  */
@@ -90,7 +90,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
         />
       );
 
-    case "extra-text":
+    case "text":
       return (
         <RecordDetailsItem
           icon={<NotebookText size={18} color={iconColor} />}
@@ -100,7 +100,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
         />
       );
 
-    case "extra-secret":
+    case "secret":
       return (
         <RecordDetailsItem
           icon={<Lock size={18} color={iconColor} />}

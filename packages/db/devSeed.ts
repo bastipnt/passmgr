@@ -21,7 +21,7 @@ import {
   hashEmail,
   unwrapVaultKey,
 } from "@repo/crypto";
-import { edgeCaseLoginRecords, exampleLoginRecords, type RecordSchema } from "@repo/schema";
+import { edgeCaseLoginRecords, exampleLoginRecords, type RecordPayload } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
@@ -133,7 +133,7 @@ async function seed() {
   // views have something to show.
   const now = Date.now();
   const recordRows = loginRecords.map((loginRecord, i) => {
-    const payload: RecordSchema = { schemaVersion: 1, ...loginRecord };
+    const payload: RecordPayload = { schemaVersion: 1, ...loginRecord };
     const recordId = crypto.randomUUID();
     const [encryptedData, encryptionNonce] = encryptRecordData(
       vaultKey,
