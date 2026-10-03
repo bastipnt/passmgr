@@ -9,3 +9,4 @@ export * from "./src/user/login-schema";
 export * from "./src/user/recovery-schema";
 export * from "./src/user/registration-schema";
 export * from "./src/user/unlock-schema";
+export * from "./src/vault-schema";

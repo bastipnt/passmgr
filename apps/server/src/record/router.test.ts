@@ -11,6 +11,7 @@ describe("recordRouter — auth gating", () => {
     await expect(
       caller.record.create({
         recordId: crypto.randomUUID(),
+        vaultId: crypto.randomUUID(),
         encryptedData: "ENC",
         encryptionNonce: "NONCE",
         cryptoVersion: 1,

@@ -1,5 +1,5 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVaultKey } from "@repo/schema";
+import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { Vault } from "../src/vault";
@@ -22,6 +22,7 @@ function record(
 ): EncryptedRecordSchema {
   return {
     recordId,
+    vaultId: "v-personal",
     version,
     encryptedData: `data-${recordId}-${version}`,
     encryptionNonce: `nonce-${recordId}-${version}`,
@@ -48,13 +49,16 @@ const accountKey: AccountKeyMaterial = {
   },
 };
 
-function vaultKey(vaultId: string, kind: MemberVaultKey["kind"] = "shared"): MemberVaultKey {
+function vaultKey(vaultId: string, kind: MemberVault["kind"] = "shared"): MemberVault {
   return {
     vaultId,
     kind,
+    role: "owner",
     keyVersion: 1,
     encryptedVaultKey: `enc-${vaultId}`,
     vaultKeyEncryptionNonce: `nonce-${vaultId}`,
+    encryptedMeta: `meta-${vaultId}`,
+    metaEncryptionNonce: `meta-nonce-${vaultId}`,
   };
 }
 
@@ -91,6 +95,20 @@ describe("records", () => {
       encryptedData: "data-r1-2",
       deleted_at: null,
     });
+  });
+
+  it("getAllLatest narrows to one vault when given its id", async () => {
+    await vault.upsertRecords([
+      record("r1", 1),
+      record("r2", 1, { vaultId: "v-work" }),
+      record("r2", 2, { vaultId: "v-work" }),
+    ]);
+
+    expect((await vault.getAllLatest("v-work")).map((r) => [r.recordId, r.version])).toEqual([
+      ["r2", 2],
+    ]);
+    expect(await vault.getAllLatest("v-other")).toEqual([]);
+    expect(await vault.getAllLatest()).toHaveLength(2);
   });
 
   it("getAllLatest hides records whose latest version is a tombstone", async () => {
@@ -152,9 +170,10 @@ describe("key material", () => {
     await vault.setAccountKeyMaterial(accountKey, [personal, vaultKey("v-work")]);
 
     expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
-    expect((await vault.getVaultKeys()).sort((a, b) => a.vaultId.localeCompare(b.vaultId))).toEqual(
-      [personal, vaultKey("v-work")],
-    );
+    expect((await vault.getVaults()).sort((a, b) => a.vaultId.localeCompare(b.vaultId))).toEqual([
+      personal,
+      vaultKey("v-work"),
+    ]);
   });
 
   it("returns null until the account key material is complete", async () => {
@@ -187,7 +206,7 @@ describe("key material", () => {
       ...accountKey,
       encryptedAccountKey: "rekeyed",
     });
-    expect(await vault.getVaultKeys()).toEqual([personal]);
+    expect(await vault.getVaults()).toEqual([personal]);
   });
 
   it("writes nothing when the vault key list is invalid", async () => {
@@ -202,7 +221,7 @@ describe("key material", () => {
     ).rejects.toThrow();
 
     expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
-    expect(await vault.getVaultKeys()).toEqual([personal]);
+    expect(await vault.getVaults()).toEqual([personal]);
   });
 
   it("clears biometric material without touching the account key", async () => {
@@ -217,14 +236,68 @@ describe("key material", () => {
   });
 });
 
-describe("sync meta", () => {
-  it("stores and overwrites the last sync timestamp", async () => {
-    expect(await vault.getLastSyncTimestamp()).toBeNull();
+describe("applySync", () => {
+  const work = vaultKey("v-work");
+  const T1 = "2026-10-01T00:00:00.000Z";
+  const T2 = "2026-10-02T00:00:00.000Z";
 
-    await vault.setLastSyncTimestamp("2026-10-01T00:00:00.000Z");
-    await vault.setLastSyncTimestamp("2026-10-02T00:00:00.000Z");
+  it("stores records, the vault list and one cursor per vault", async () => {
+    const changed = await vault.applySync({
+      records: [record("r1", 1), record("r2", 1, { vaultId: "v-work" })],
+      vaults: [personal, work],
+      serverTimestamp: T1,
+    });
 
-    expect(await vault.getLastSyncTimestamp()).toBe("2026-10-02T00:00:00.000Z");
+    expect(changed).toBe(true);
+    expect((await vault.getAllLatest()).map((r) => r.recordId).sort()).toEqual(["r1", "r2"]);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T1, "v-work": T1 });
+  });
+
+  it("reports an unchanged vault list and advances every cursor", async () => {
+    await vault.applySync({ records: [], vaults: [personal, work], serverTimestamp: T1 });
+
+    const changed = await vault.applySync({
+      records: [],
+      vaults: [work, personal],
+      serverTimestamp: T2,
+    });
+
+    expect(changed).toBe(false);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T2, "v-work": T2 });
+  });
+
+  it("reports a renamed (re-encrypted metadata) vault as a change", async () => {
+    await vault.applySync({ records: [], vaults: [personal, work], serverTimestamp: T1 });
+
+    const renamed = { ...work, encryptedMeta: "renamed" };
+    expect(
+      await vault.applySync({ records: [], vaults: [personal, renamed], serverTimestamp: T2 }),
+    ).toBe(true);
+    expect(await vault.getVaults()).toContainEqual(renamed);
+  });
+
+  it("drops a vault the user lost, with its records and cursor", async () => {
+    await vault.applySync({
+      records: [record("r1", 1), record("r2", 1, { vaultId: "v-work" })],
+      vaults: [personal, work],
+      serverTimestamp: T1,
+    });
+
+    await vault.applySync({ records: [], vaults: [personal], serverTimestamp: T2 });
+
+    expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r1"]);
+    expect(await vault.getVaults()).toEqual([personal]);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T2 });
+  });
+
+  it("ignores records of vaults outside the list", async () => {
+    await vault.applySync({
+      records: [record("r1", 1), record("r2", 1, { vaultId: "v-gone" })],
+      vaults: [personal],
+      serverTimestamp: T1,
+    });
+
+    expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r1"]);
   });
 });
 
@@ -233,14 +306,18 @@ describe("clear", () => {
     await vault.upsertRecords([record("r1", 1)]);
     await vault.setAccountKeyMaterial(accountKey, [personal]);
     await vault.setBiometricKeyMaterial(biometricKey);
-    await vault.setLastSyncTimestamp("2026-10-01T00:00:00.000Z");
+    await vault.applySync({
+      records: [],
+      vaults: [personal],
+      serverTimestamp: "2026-10-01T00:00:00.000Z",
+    });
 
     await vault.clear();
 
     expect(await vault.getAllLatest()).toEqual([]);
     expect(await vault.getAccountKeyMaterial()).toBeNull();
-    expect(await vault.getVaultKeys()).toEqual([]);
+    expect(await vault.getVaults()).toEqual([]);
     expect(await vault.getBiometricKeyMaterial()).toBeNull();
-    expect(await vault.getLastSyncTimestamp()).toBeNull();
+    expect(await vault.getSyncCursors()).toEqual({});
   });
 });

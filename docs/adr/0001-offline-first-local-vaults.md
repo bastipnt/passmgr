@@ -190,6 +190,14 @@ the history must not leak into the target.
 
 **Existing data:** none to migrate. The new tables are part of the reset baseline.
 
+> **Amended 2026-10-02** (vault data model implementation): every vault other than the default one
+> has `kind = shared`, whether or not it has other members yet. `vault_members.status` is `active` or
+> `pending`; only `active` grants access. Until `record.push` lands, a move is its own `record.move`
+> mutation (one transaction: new record in the target, tombstone in the source); the moved payload
+> doesn't reference the old `recordId` yet, that comes with the typed payload (D4). `record.sync` takes
+> one cursor per vault and returns the full vault list; the cursor is still `updated_at` until the
+> sequence cursor (D8).
+
 ### D7 — Sharing (design now, build after offline-first)
 
 - Every user has an **X25519 keypair**, generated at local vault creation or at registration,

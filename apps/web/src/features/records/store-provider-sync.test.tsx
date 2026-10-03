@@ -19,9 +19,8 @@ vi.mock("@repo/client/src/util/trpc", () => ({
 const vault = {
   getAccountKeyMaterial: vi.fn(async () => null),
   getBiometricKeyMaterial: vi.fn(async () => null),
-  getLastSyncTimestamp: vi.fn(async () => null),
-  setLastSyncTimestamp: vi.fn(),
-  upsertRecords: vi.fn(),
+  getSyncCursors: vi.fn(async () => ({})),
+  applySync: vi.fn(async () => false),
 } as unknown as Vault;
 
 function session(vaultUnlocked: boolean) {
@@ -40,6 +39,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   trpcClient.record.sync.query.mockResolvedValue({
     records: [],
+    vaults: [],
     serverTimestamp: "2026-10-01T00:00:00.000Z",
   });
 });

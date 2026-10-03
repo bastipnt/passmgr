@@ -13,7 +13,7 @@ export async function buildRegistrationKeys(password: string) {
     accountKey,
     recoveryKey,
     userKeys,
-    personalVault: createVault(accountKey),
+    personalVault: createVault(accountKey, { name: "Personal" }),
     userKeyPair: createUserKeyPair(accountKey),
   };
 }

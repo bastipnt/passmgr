@@ -1,7 +1,11 @@
 import {
-  decryptXChaCha,
-  encryptXChaCha,
+  createVault,
+  decryptRecordData,
+  decryptVaultMeta,
+  encryptRecordData,
+  encryptVaultMeta,
   hkdf,
+  type RecordCipherContext,
   signHmac,
   unwrapAccountKey,
   unwrapUserPrivateKey,
@@ -9,7 +13,14 @@ import {
   wipe,
   wrapAccountKey,
 } from "@repo/crypto";
-import type { MemberVaultKey, UserKeyPair } from "@repo/schema";
+import {
+  CURRENT_CRYPTO_VERSION,
+  type EncryptedVaultMeta,
+  type MemberVault,
+  type UserKeyPair,
+  type VaultMeta,
+  vaultMetaSchema,
+} from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { LoginBundle } from "./session-persistence.types";
 
@@ -75,33 +86,44 @@ class SecretsStore {
 
   /**
    * Unwrap the user's vault keys with the account key, replacing any loaded
-   * before. Throws (leaving none loaded) when a wrap fails to open or there is
-   * no personal vault: the vault can't be used then.
+   * before. Only the personal vault is required: when its wrap is missing or
+   * doesn't open, or the list names a vault twice, this throws and the keys
+   * loaded before stay in place. Any other vault whose wrap doesn't open is
+   * left out (its records stay hidden) and returned, so one bad membership
+   * row can't lock the user out of everything else.
+   *
+   * @returns the ids of the vaults that were skipped
    */
-  loadVaultKeys(wraps: readonly MemberVaultKey[]) {
+  loadVaultKeys(wraps: readonly MemberVault[]): string[] {
     const accountKey = this.accountKey;
     if (!accountKey) throw new SessionLockedError();
-    this.wipeVaultKeys();
+
+    const personal = wraps.filter((wrap) => wrap.kind === "personal");
+    if (personal.length !== 1) throw new Error("Expected exactly one personal vault");
 
     const keys = new Map<string, Uint8Array>();
+    const skipped: string[] = [];
     try {
       for (const wrap of wraps) {
-        if (keys.has(wrap.vaultId)) throw new Error(`Duplicate vault ${wrap.vaultId}`);
-        keys.set(wrap.vaultId, unwrapVaultKey(accountKey, wrap));
+        if (keys.has(wrap.vaultId) || skipped.includes(wrap.vaultId)) {
+          throw new Error(`Duplicate vault ${wrap.vaultId}`);
+        }
+        try {
+          keys.set(wrap.vaultId, unwrapVaultKey(accountKey, wrap));
+        } catch (e) {
+          if (wrap.kind === "personal") throw e;
+          skipped.push(wrap.vaultId);
+        }
       }
     } catch (e) {
       for (const key of keys.values()) wipe(key);
       throw e;
     }
 
-    const personal = wraps.find((wrap) => wrap.kind === "personal");
-    if (!personal) {
-      for (const key of keys.values()) wipe(key);
-      throw new Error("No personal vault");
-    }
-
+    this.wipeVaultKeys();
     this.vaultKeys = keys;
-    this.personalVaultId = personal.vaultId;
+    this.personalVaultId = personal[0]!.vaultId;
+    return skipped;
   }
 
   /**
@@ -211,26 +233,64 @@ class SecretsStore {
     return await signHmac(this.authKey, message);
   }
 
-  /**
-   * The key records are encrypted with. Until records carry a `vaultId` (vault
-   * data model, ADR 0001 D6) every record lives in the personal vault.
-   */
-  private recordKey(): Uint8Array {
-    const key = this.personalVaultId && this.vaultKeys.get(this.personalVaultId);
+  /** The personal vault: where records go unless the user picks another vault. */
+  get defaultVaultId(): string | undefined {
+    return this.personalVaultId;
+  }
+
+  private vaultKey(vaultId: string): Uint8Array {
+    const key = this.vaultKeys.get(vaultId);
     if (!key) throw new SessionLockedError();
     return key;
   }
 
-  encryptRecord(data: string): [encryptedData: string, nonce: string] {
-    return encryptXChaCha(this.recordKey(), data);
+  /** Encrypt a record payload under its vault's key, bound to the record and vault. */
+  encryptRecord(
+    context: Omit<RecordCipherContext, "cryptoVersion">,
+    data: string,
+  ): [encryptedData: string, nonce: string] {
+    return encryptRecordData(
+      this.vaultKey(context.vaultId),
+      { ...context, cryptoVersion: CURRENT_CRYPTO_VERSION },
+      data,
+    );
   }
 
-  decryptRecord(encryptedData: string, nonce: string): Uint8Array {
-    return decryptXChaCha(this.recordKey(), encryptedData, nonce);
+  decryptRecord(
+    row: RecordCipherContext & { encryptedData: string; encryptionNonce: string },
+  ): Uint8Array {
+    return decryptRecordData(
+      this.vaultKey(row.vaultId),
+      row,
+      row.encryptedData,
+      row.encryptionNonce,
+    );
   }
 
-  exportVaultKeyForWorker(): Uint8Array {
-    return this.recordKey().slice();
+  /** Copies of every vault key, for the decrypt worker. */
+  exportVaultKeysForWorker(): Map<string, Uint8Array> {
+    if (this.vaultKeys.size === 0) throw new SessionLockedError();
+    return new Map([...this.vaultKeys].map(([vaultId, key]) => [vaultId, key.slice()]));
+  }
+
+  /** Throws when the metadata doesn't open with the vault's key or isn't valid. */
+  decryptVaultMeta(vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta): VaultMeta {
+    return vaultMetaSchema.parse(
+      decryptVaultMeta(this.vaultKey(vault.vaultId), vault.vaultId, vault),
+    );
+  }
+
+  encryptVaultMeta(vaultId: string, meta: VaultMeta): EncryptedVaultMeta {
+    return encryptVaultMeta(this.vaultKey(vaultId), vaultId, meta);
+  }
+
+  /**
+   * A new vault for `vault.create`: fresh id and key, wrapped under the account
+   * key. Its key is loaded with the vault list after the next sync.
+   */
+  createVault(meta: VaultMeta): ReturnType<typeof createVault> {
+    if (!this.accountKey) throw new SessionLockedError();
+    return createVault(this.accountKey, meta);
   }
 
   /** A copy of the account key, for biometric enrollment. The caller wipes it. */

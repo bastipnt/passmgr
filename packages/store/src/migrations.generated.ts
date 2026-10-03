@@ -15,5 +15,17 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "CREATE TABLE `vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`keyVersion` integer NOT NULL,\n\t`encryptedVaultKey` text NOT NULL,\n\t`vaultKeyEncryptionNonce` text NOT NULL\n);"
     ]
+  },
+  {
+    "name": "20261002210015_vault_data",
+    "statements": [
+      "-- Hand-edited: SQLite can't ADD a NOT NULL column without a default. Everything\n-- here is a cache of the server (no local-only vaults exist yet, ADR 0001), so\n-- the tables are rebuilt empty and the next online login refills them.\nDROP TABLE `records`;",
+      "CREATE TABLE `records` (\n\t`recordId` text NOT NULL,\n\t`vaultId` text NOT NULL,\n\t`encryptedData` text NOT NULL,\n\t`encryptionNonce` text NOT NULL,\n\t`cryptoVersion` integer DEFAULT 1 NOT NULL,\n\t`version` integer DEFAULT 1 NOT NULL,\n\t`clientUpdatedAt` text NOT NULL,\n\t`created_at` text,\n\t`updated_at` text,\n\t`deleted_at` text,\n\tCONSTRAINT `records_pk` PRIMARY KEY(`recordId`, `version`)\n);",
+      "CREATE INDEX `records_vault_idx` ON `records` (`vaultId`);",
+      "DROP TABLE `vaults`;",
+      "CREATE TABLE `vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`role` text NOT NULL,\n\t`keyVersion` integer NOT NULL,\n\t`encryptedVaultKey` text NOT NULL,\n\t`vaultKeyEncryptionNonce` text NOT NULL,\n\t`encryptedMeta` text NOT NULL,\n\t`metaEncryptionNonce` text NOT NULL\n);",
+      "DELETE FROM `sync_meta`;",
+      "DELETE FROM `key_material`;"
+    ]
   }
 ];

@@ -1,9 +1,10 @@
-import type { MemberVaultKey, PasswordKeySchema, UserKeyPair } from "./key-schema";
+import type { MemberVault } from "../vault-schema";
+import type { PasswordKeySchema, UserKeyPair } from "./key-schema";
 
 export type VaultUnlockInfo = {
   email: string;
   password: string;
   userPasswordKeys: PasswordKeySchema;
-  vaultKeys: MemberVaultKey[];
+  vaultKeys: MemberVault[];
   userKeyPair: UserKeyPair;
 };

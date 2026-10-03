@@ -1,5 +1,5 @@
-import { encryptRecord, useDeleteRecord, useGetRecord, useUpdateRecord } from "@repo/client";
-import { CURRENT_CRYPTO_VERSION, type DecryptedRecord, type LoginRecord } from "@repo/schema";
+import { useDeleteRecord, useGetRecord, useUpdateRecord } from "@repo/client";
+import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { Button, RemoveDialog } from "@repo/ui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
@@ -54,19 +54,7 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
   });
 
   const onSubmit = (data: LoginRecord) => {
-    const normalizedValues = normalizeFormValues(data);
-    const { encryptedData, encryptionNonce } = encryptRecord({
-      schemaVersion: record.schemaVersion,
-      ...normalizedValues,
-    });
-    updateRecord({
-      recordId,
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: CURRENT_CRYPTO_VERSION,
-      version: record.version,
-      clientUpdatedAt: new Date().toISOString(),
-    });
+    updateRecord(record, { schemaVersion: record.schemaVersion, ...normalizeFormValues(data) });
   };
 
   const { deleteRecord } = useDeleteRecord({

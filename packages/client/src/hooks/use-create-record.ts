@@ -1,5 +1,8 @@
+import type { RecordSchema } from "@repo/schema";
+import { secretsStore } from "@repo/store";
 import { useMutation } from "@tanstack/react-query";
 import { useStore } from "../providers/StoreProvider";
+import { encryptRecord } from "../util/encrypt-record";
 import { useTRPC } from "../util/trpc";
 import { useRefreshRecord } from "./use-records";
 
@@ -26,5 +29,17 @@ export function useCreateRecord({ onSuccess }: UseCreateRecordOpts) {
     }),
   );
 
-  return { createRecord: mutate, createRecordError: mutationError, createPending: isPending };
+  /** Encrypt and create a new record, in the personal vault unless `vaultId` is given. */
+  function createRecord(payload: RecordSchema, vaultId = secretsStore.defaultVaultId) {
+    if (!vaultId) throw new Error("Vault is locked");
+    const recordId = crypto.randomUUID();
+    mutate({
+      recordId,
+      vaultId,
+      ...encryptRecord(payload, { recordId, vaultId }),
+      clientUpdatedAt: new Date().toISOString(),
+    });
+  }
+
+  return { createRecord, createRecordError: mutationError, createPending: isPending };
 }

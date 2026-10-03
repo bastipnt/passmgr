@@ -25,6 +25,8 @@ const VALID_PERSONAL_VAULT = {
   keyVersion: 1,
   encryptedVaultKey: b64(48),
   vaultKeyEncryptionNonce: b64(24),
+  encryptedMeta: b64(40),
+  metaEncryptionNonce: b64(24),
 };
 
 const VALID_USER_KEY_PAIR = {
@@ -117,6 +119,8 @@ describe("finishRegistrationInputSchema composes key-schema", () => {
     ["keyVersion 0", { keyVersion: 0 }],
     ["keyVersion 2 (a new vault starts at 1)", { keyVersion: 2 }],
     ["a truncated wrapped vault key", { encryptedVaultKey: b64(48).slice(0, -1) }],
+    ["no vault metadata", { encryptedMeta: undefined }],
+    ["oversized vault metadata", { encryptedMeta: b64(3000) }],
     ["a wrong-length nonce", { vaultKeyEncryptionNonce: b64(12) }],
   ])("rejects a personal vault with %s", (_label, override) => {
     expect(() =>

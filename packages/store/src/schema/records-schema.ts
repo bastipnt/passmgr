@@ -1,16 +1,17 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, desc, eq, isNull, max, min, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, max, min, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalDb } from "../local-db";
 import { records } from "./tables";
 
-// 9 bound columns per row: well below SQLite's variable limit per statement.
+// 10 bound columns per row: well below SQLite's variable limit per statement.
 const UPSERT_CHUNK_SIZE = 500;
 
 /** Server-sent rows replace the local copy of the same (recordId, version). */
 const replaceOnConflict = {
   target: [records.recordId, records.version],
   set: {
+    vaultId: sql`excluded.vaultId`,
     encryptedData: sql`excluded.encryptedData`,
     encryptionNonce: sql`excluded.encryptionNonce`,
     cryptoVersion: sql`excluded.cryptoVersion`,
@@ -25,11 +26,18 @@ export async function clearRecordsTable(db: LocalDb) {
   await db.delete(records);
 }
 
+/** Drop every version of every record in these vaults (e.g. access was revoked). */
+export async function deleteVaultRecords(vaultIds: readonly string[], db: LocalDb) {
+  if (vaultIds.length === 0) return;
+  await db.delete(records).where(inArray(records.vaultId, [...vaultIds]));
+}
+
 /** Run inside a transaction: large inputs span several statements. */
 export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb): Promise<void> {
   for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
     const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE).map((r) => ({
       recordId: r.recordId,
+      vaultId: r.vaultId,
       encryptedData: r.encryptedData,
       encryptionNonce: r.encryptionNonce,
       cryptoVersion: r.cryptoVersion,
@@ -43,8 +51,14 @@ export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb):
   }
 }
 
-/** The latest version of every record that isn't deleted, with its first creation date. */
-export async function getAllRecordsLatest(db: LocalDb): Promise<EncryptedRecordSchema[]> {
+/**
+ * The latest version of every record that isn't deleted, with its first
+ * creation date: of one vault, or of all of them ("All vaults").
+ */
+export async function getAllRecordsLatest(
+  db: LocalDb,
+  vaultId?: string,
+): Promise<EncryptedRecordSchema[]> {
   const latest = db
     .select({
       recordId: records.recordId,
@@ -62,7 +76,12 @@ export async function getAllRecordsLatest(db: LocalDb): Promise<EncryptedRecordS
       latest,
       and(eq(records.recordId, latest.recordId), eq(records.version, latest.maxVersion)),
     )
-    .where(isNull(records.deleted_at));
+    .where(
+      and(
+        isNull(records.deleted_at),
+        vaultId === undefined ? undefined : eq(records.vaultId, vaultId),
+      ),
+    );
 
   return rows.map(({ record, firstCreatedAt }) => ({
     ...record,

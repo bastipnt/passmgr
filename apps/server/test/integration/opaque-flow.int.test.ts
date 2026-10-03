@@ -66,6 +66,11 @@ async function registerCapturingKeys(email: string, password: string) {
     vaultKey,
     vaultKeyAad(vaultId, 1),
   );
+  const [encryptedMeta, metaEncryptionNonce] = encryptXChaChaWithAAD(
+    vaultKey,
+    JSON.stringify({ name: "Personal" }),
+    fromString(`passmgr/vault-meta/v1/${vaultId}`),
+  );
   const userKeyPair = createUserKeyPair(accountKey);
 
   await caller.register.finishRegistration({
@@ -83,7 +88,14 @@ async function registerCapturingKeys(email: string, password: string) {
       encryptedAccountKeyRecovery,
       accountKeyEncryptionNonceRecovery,
     },
-    personalVault: { vaultId, keyVersion: 1, encryptedVaultKey, vaultKeyEncryptionNonce },
+    personalVault: {
+      vaultId,
+      keyVersion: 1,
+      encryptedVaultKey,
+      vaultKeyEncryptionNonce,
+      encryptedMeta,
+      metaEncryptionNonce,
+    },
     userKeyPair,
   });
 
@@ -173,7 +185,7 @@ describe("opaque-flow — register + login round-trip (real crypto, real contain
     const { vaultKeys } = await loginAndGetAuthKey(email, password);
 
     expect(vaultKeys).toEqual([
-      expect.objectContaining({ vaultId, keyVersion: 1, kind: "personal" }),
+      expect.objectContaining({ vaultId, keyVersion: 1, kind: "personal", role: "owner" }),
     ]);
     const [wrap] = vaultKeys;
     expect(

@@ -15,7 +15,7 @@ import {
   createUserKeyPair,
   createVault,
   encryptEmail,
-  encryptXChaCha,
+  encryptRecordData,
   generateUserKeys,
   genKey,
   hashEmail,
@@ -84,7 +84,7 @@ async function seed() {
   // 3. Generate key hierarchy (same code path as client registration)
   const accountKey = genKey();
   const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, accountKey);
-  const personalVault = createVault(accountKey);
+  const personalVault = createVault(accountKey, { name: "Personal" });
   const vaultKey = unwrapVaultKey(accountKey, personalVault);
   const userKeyPair = createUserKeyPair(accountKey);
 
@@ -115,10 +115,13 @@ async function seed() {
   // 6. Insert keys, the keypair + the personal vault
   await db.insert(keysTable).values({ userId, ...userKeys });
   await db.insert(userKeyPairsTable).values({ userId, ...userKeyPair });
+  const { vaultId, encryptedMeta, metaEncryptionNonce, ...personalVaultKey } = personalVault;
   await db
     .insert(vaultsTable)
-    .values({ vaultId: personalVault.vaultId, ownerId: userId, kind: "personal" });
-  await db.insert(vaultMembersTable).values({ userId, role: "owner", ...personalVault });
+    .values({ vaultId, ownerId: userId, kind: "personal", encryptedMeta, metaEncryptionNonce });
+  await db
+    .insert(vaultMembersTable)
+    .values({ vaultId, userId, role: "owner", ...personalVaultKey });
 
   // 7. Encrypt and insert seed records
   const loginRecords = WITH_EDGE_CASES
@@ -131,11 +134,17 @@ async function seed() {
   const now = Date.now();
   const recordRows = loginRecords.map((loginRecord, i) => {
     const payload: RecordSchema = { schemaVersion: 1, ...loginRecord };
-    const [encryptedData, encryptionNonce] = encryptXChaCha(vaultKey, JSON.stringify(payload));
+    const recordId = crypto.randomUUID();
+    const [encryptedData, encryptionNonce] = encryptRecordData(
+      vaultKey,
+      { recordId, vaultId, cryptoVersion: 1 },
+      JSON.stringify(payload),
+    );
     const createdAt = new Date(now - ((i * 37) % 730) * DAY_MS - i * 60_000);
 
     return {
-      recordId: crypto.randomUUID(),
+      recordId,
+      vaultId,
       userId,
       encryptedData,
       encryptionNonce,

@@ -1,8 +1,15 @@
-import type { RecoveryWrapSchema, UserKeySchema, VaultKeyWrap } from "@repo/schema";
+import type {
+  EncryptedVaultMeta,
+  RecoveryWrapSchema,
+  UserKeySchema,
+  VaultKeyWrap,
+  VaultMeta,
+} from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { decryptXChaChaWithAAD, encryptXChaChaWithAAD } from "./encryption";
 import { deriveRecoveryAuthKey, genPasswordKek, hashRecoveryAuthKey, hkdf } from "./hash";
 import { genKey, genSalt, wipe } from "./util/secrets-utils";
+import { encryptVaultMeta } from "./vault-data";
 
 /*
  * Key hierarchy (ADR 0001 D3):
@@ -64,11 +71,22 @@ export function unwrapVaultKey(accountKey: Uint8Array, wrap: VaultKeyWrap): Uint
   );
 }
 
-/** A fresh vault (random id + key, first key version), its key wrapped under the account key. */
-export function createVault(accountKey: Uint8Array): VaultKeyWrap & { keyVersion: 1 } {
+/**
+ * A fresh vault (random id + key, first key version): its key wrapped under the
+ * account key and its metadata encrypted with the vault key.
+ */
+export function createVault(
+  accountKey: Uint8Array,
+  meta: VaultMeta,
+): VaultKeyWrap & EncryptedVaultMeta & { keyVersion: 1 } {
   const vaultKey = genKey();
+  const vaultId = crypto.randomUUID();
   try {
-    return { ...wrapVaultKey(accountKey, vaultKey, crypto.randomUUID(), 1), keyVersion: 1 };
+    return {
+      ...wrapVaultKey(accountKey, vaultKey, vaultId, 1),
+      ...encryptVaultMeta(vaultKey, vaultId, meta),
+      keyVersion: 1,
+    };
   } finally {
     wipe(vaultKey);
   }

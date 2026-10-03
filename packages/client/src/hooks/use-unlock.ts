@@ -6,19 +6,24 @@ import {
   wipe,
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import type {
   ArgonParams,
-  MemberVaultKey,
+  MemberVault,
   PasswordKeySchema,
   UserKeyPair,
   VaultUnlockInfo,
 } from "@repo/schema";
-import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
+import {
+  isPersistentLoginAvailable,
+  persistLoginBundle,
+  sameVaults,
+  secretsStore,
+} from "@repo/store";
 import { fromBase64, toBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
+import { initDecryptWorker } from "../util/decrypt-record";
 import { timed } from "../util/perf";
 import { useTRPCClient } from "../util/trpc";
 import { useLogin } from "./use-login";
@@ -45,22 +50,8 @@ function keyPairsEqual(a: UserKeyPair, b: UserKeyPair): boolean {
   );
 }
 
-function personalVaultId(vaultKeys: readonly MemberVaultKey[]): string | undefined {
+function personalVaultId(vaultKeys: readonly MemberVault[]): string | undefined {
   return vaultKeys.find((wrap) => wrap.kind === "personal")?.vaultId;
-}
-
-function vaultKeysEqual(a: readonly MemberVaultKey[], b: readonly MemberVaultKey[]): boolean {
-  if (a.length !== b.length) return false;
-  const byId = new Map(a.map((wrap) => [wrap.vaultId, wrap]));
-  return b.every((wrap) => {
-    const other = byId.get(wrap.vaultId);
-    return (
-      other?.kind === wrap.kind &&
-      other.keyVersion === wrap.keyVersion &&
-      other.encryptedVaultKey === wrap.encryptedVaultKey &&
-      other.vaultKeyEncryptionNonce === wrap.vaultKeyEncryptionNonce
-    );
-  });
 }
 
 /**
@@ -130,7 +121,7 @@ export function useUnlock() {
     // Same tick as `unlockVault`, so the enroll redirect already sees it.
     if (store.needsBiometricEnroll) secretsStore.setPassword(password);
 
-    decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+    initDecryptWorker();
 
     await persistSession(email);
 
@@ -162,7 +153,7 @@ export function useUnlock() {
       return false;
     }
 
-    const vaultKeys = await store.vault.getVaultKeys();
+    const vaultKeys = await store.vault.getVaults();
     const unlocked = await unlock({
       email,
       password,
@@ -207,7 +198,7 @@ export function useUnlock() {
     email: string,
     password: string,
     storedParams: ArgonParams,
-    vaultKeys: readonly MemberVaultKey[],
+    vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ): Promise<void> {
     const targetParams = getPasswordKekParams();
@@ -244,7 +235,7 @@ export function useUnlock() {
     const { accountKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
     const email = store.accountKeyMaterial?.email;
     let onlineAuthFailure = true;
-    let vaultKeys: readonly MemberVaultKey[] | undefined;
+    let vaultKeys: readonly MemberVault[] | undefined;
     let userKeyPair = store.accountKeyMaterial?.userKeyPair;
 
     if (navigator.onLine && email) {
@@ -267,7 +258,7 @@ export function useUnlock() {
       if (!userKeyPair) throw new Error("No keypair stored on this device");
       unlockWithAccountKey(
         accountKey,
-        vaultKeys ?? (await store.vault.getVaultKeys()),
+        vaultKeys ?? (await store.vault.getVaults()),
         userKeyPair,
         onlineAuthFailure,
       );
@@ -278,7 +269,7 @@ export function useUnlock() {
       await failUnlock();
       throw e;
     }
-    decryptWorkerService.init(secretsStore.exportVaultKeyForWorker());
+    initDecryptWorker();
 
     if (!onlineAuthFailure && email) await persistSession(email);
   }
@@ -305,13 +296,13 @@ export function useUnlock() {
   async function storeKeyMaterial(
     rawEmail: string,
     userPasswordKeys: PasswordKeySchema,
-    vaultKeys: readonly MemberVaultKey[],
+    vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ) {
     // Offline unlock passes the typed email; compare in canonical form.
     const email = normalizeEmail(rawEmail);
     const previous = store.accountKeyMaterial;
-    const cachedVaultKeys = await store.vault.getVaultKeys();
+    const cachedVaultKeys = await store.vault.getVaults();
 
     // The local data belongs to another account unless both the email and the
     // personal vault match: a personal vault never changes, so a new one means
@@ -324,7 +315,7 @@ export function useUnlock() {
     // Offline unlocks (and most logins) hand back what's already stored.
     else if (
       passwordKeysEqual(previous, userPasswordKeys) &&
-      vaultKeysEqual(cachedVaultKeys, vaultKeys) &&
+      sameVaults(cachedVaultKeys, vaultKeys) &&
       keyPairsEqual(previous.userKeyPair, userKeyPair)
     ) {
       return;

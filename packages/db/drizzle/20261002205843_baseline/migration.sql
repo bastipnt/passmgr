@@ -19,6 +19,7 @@ CREATE TABLE "keys" (
 CREATE TABLE "records" (
 	"rowId" varchar PRIMARY KEY,
 	"recordId" varchar NOT NULL,
+	"vaultId" varchar NOT NULL,
 	"userId" varchar NOT NULL,
 	"encryptedData" varchar NOT NULL,
 	"encryptionNonce" varchar NOT NULL,
@@ -28,6 +29,16 @@ CREATE TABLE "records" (
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"deleted_at" timestamp
+);
+--> statement-breakpoint
+CREATE TABLE "user_key_pairs" (
+	"userId" varchar,
+	"keyVersion" integer,
+	"publicKey" varchar NOT NULL UNIQUE,
+	"encryptedPrivateKey" varchar NOT NULL UNIQUE,
+	"privateKeyEncryptionNonce" varchar NOT NULL UNIQUE,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "user_key_pairs_pkey" PRIMARY KEY("userId","keyVersion")
 );
 --> statement-breakpoint
 CREATE TABLE "users" (
@@ -49,6 +60,7 @@ CREATE TABLE "vault_members" (
 	"vaultId" varchar,
 	"userId" varchar,
 	"role" varchar NOT NULL,
+	"status" varchar DEFAULT 'active' NOT NULL,
 	"keyVersion" integer NOT NULL,
 	"encryptedVaultKey" varchar NOT NULL UNIQUE,
 	"vaultKeyEncryptionNonce" varchar NOT NULL UNIQUE,
@@ -62,6 +74,8 @@ CREATE TABLE "vaults" (
 	"ownerId" varchar NOT NULL,
 	"kind" varchar NOT NULL,
 	"keyVersion" integer DEFAULT 1 NOT NULL,
+	"encryptedMeta" varchar NOT NULL,
+	"metaEncryptionNonce" varchar NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"deleted_at" timestamp
@@ -70,15 +84,16 @@ CREATE TABLE "vaults" (
 CREATE INDEX "key_user_id_idx" ON "keys" ("userId");--> statement-breakpoint
 CREATE UNIQUE INDEX "key_active_user_idx" ON "keys" ("userId") WHERE "valid_to" IS NULL AND "deleted_at" IS NULL;--> statement-breakpoint
 CREATE INDEX "records_user_id_idx" ON "records" ("userId");--> statement-breakpoint
-CREATE INDEX "records_record_id_idx" ON "records" ("recordId");--> statement-breakpoint
 CREATE UNIQUE INDEX "records_record_id_version_idx" ON "records" ("recordId","version");--> statement-breakpoint
-CREATE INDEX "records_user_record_version_idx" ON "records" ("userId","recordId","version");--> statement-breakpoint
-CREATE INDEX "records_user_updated_at_idx" ON "records" ("userId","updated_at");--> statement-breakpoint
+CREATE INDEX "records_vault_record_version_idx" ON "records" ("vaultId","recordId","version");--> statement-breakpoint
+CREATE INDEX "records_vault_updated_at_idx" ON "records" ("vaultId","updated_at");--> statement-breakpoint
 CREATE INDEX "vault_members_user_idx" ON "vault_members" ("userId");--> statement-breakpoint
 CREATE INDEX "vaults_owner_idx" ON "vaults" ("ownerId");--> statement-breakpoint
 CREATE UNIQUE INDEX "vaults_one_personal_per_owner_idx" ON "vaults" ("ownerId") WHERE "kind" = 'personal' AND "deleted_at" IS NULL;--> statement-breakpoint
 ALTER TABLE "keys" ADD CONSTRAINT "keys_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "records" ADD CONSTRAINT "records_vaultId_vaults_vaultId_fkey" FOREIGN KEY ("vaultId") REFERENCES "vaults"("vaultId") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "records" ADD CONSTRAINT "records_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;--> statement-breakpoint
+ALTER TABLE "user_key_pairs" ADD CONSTRAINT "user_key_pairs_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "vault_members" ADD CONSTRAINT "vault_members_vaultId_vaults_vaultId_fkey" FOREIGN KEY ("vaultId") REFERENCES "vaults"("vaultId") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "vault_members" ADD CONSTRAINT "vault_members_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE CASCADE;--> statement-breakpoint
 ALTER TABLE "vaults" ADD CONSTRAINT "vaults_ownerId_users_userId_fkey" FOREIGN KEY ("ownerId") REFERENCES "users"("userId") ON DELETE CASCADE;

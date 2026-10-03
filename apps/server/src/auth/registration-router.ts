@@ -99,12 +99,17 @@ export const registrationRouter = router({
           await tx.insert(keysTable).values({ userId: user.userId, ...userKeys });
           await tx.insert(userKeyPairsTable).values({ userId: user.userId, ...userKeyPair });
           // The default vault: its key is already wrapped under the account key.
-          await tx
-            .insert(vaultsTable)
-            .values({ vaultId: personalVault.vaultId, ownerId: user.userId, kind: "personal" });
+          const { vaultId, encryptedMeta, metaEncryptionNonce, ...vaultKey } = personalVault;
+          await tx.insert(vaultsTable).values({
+            vaultId,
+            ownerId: user.userId,
+            kind: "personal",
+            encryptedMeta,
+            metaEncryptionNonce,
+          });
           await tx
             .insert(vaultMembersTable)
-            .values({ ...personalVault, userId: user.userId, role: "owner" });
+            .values({ vaultId, ...vaultKey, userId: user.userId, role: "owner" });
           return true;
         })
         .catch((error: unknown) => {

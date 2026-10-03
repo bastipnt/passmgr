@@ -14,6 +14,7 @@ function makeRecord(version: number, fields: Partial<DecryptedRecord>): Decrypte
   return {
     schemaVersion: 1,
     recordId: "r1",
+    vaultId: "v1",
     version,
     title: "Example",
     clientUpdatedAt: `2026-0${version}-01T10:00:00.000Z`,
