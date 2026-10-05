@@ -21,11 +21,11 @@ export default function LoginPage() {
 
   const { networkOffline } = useContext(SessionContext);
   const store = useStore();
-  // TODO(offline-first): a `local` profile (no email) gets its unlock screen
-  // with local vault creation.
+  // A vault without an account: it unlocks here, signing in elsewhere would replace it.
+  const localVault = store.profile?.mode === "local" && store.accountKeyMaterial !== null;
   const storedEmail =
     store.profile?.mode === "linked" && store.accountKeyMaterial ? store.profile.email : undefined;
-  const unlocking = !!storedEmail && loginWithStoredEmail;
+  const unlocking = localVault || (!!storedEmail && loginWithStoredEmail);
 
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
@@ -98,9 +98,15 @@ export default function LoginPage() {
 
       <div className="flex w-full flex-col gap-4">
         <LoginForm
+          localVault={localVault}
           storedEmail={unlocking ? storedEmail : undefined}
           account={
-            unlocking && <StoredAccountRow email={storedEmail} onSwitch={toggleStoredLogin} />
+            unlocking &&
+            (localVault ? (
+              <StoredAccountRow />
+            ) : (
+              <StoredAccountRow email={storedEmail} onSwitch={toggleStoredLogin} />
+            ))
           }
           alternative={
             unlocking &&
@@ -112,7 +118,11 @@ export default function LoginPage() {
             unlocking ? (
               <RemoveDialog
                 title="Remove vault"
-                description="This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+                description={
+                  localVault
+                    ? "This deletes the vault from this device. It has no account, so this is its only copy: everything in it is lost for good."
+                    : "This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+                }
                 removeTitle="Remove vault"
                 onRemove={() => store.removeVault()}
               >

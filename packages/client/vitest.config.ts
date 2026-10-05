@@ -10,7 +10,12 @@ export default defineConfig({
       // Only the pure record helpers, the registration flow and the sync manager
       // are unit-tested here; the hooks and providers need a React environment
       // and are covered by the apps.
-      include: ["src/records/**/*.ts", "src/register.ts", "src/sync-manager.ts"],
+      include: [
+        "src/records/**/*.ts",
+        "src/account/*.ts",
+        "src/register.ts",
+        "src/sync-manager.ts",
+      ],
     },
   },
 });

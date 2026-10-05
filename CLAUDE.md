@@ -173,6 +173,11 @@ Login:
 4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
 5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the local DB for offline unlock (`Vault.setAccountKeyMaterial`). Memory only on web; mobile persists the session bundle in Keychain/Keystore
 
+Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `generateKeyring` (same
+keyring as registration) → `Vault.createLocalVault` stores a `local` profile, the password wrap, the
+recovery wrap + verifier (local profiles only) and the personal vault atomically; refuses a device that
+already holds a vault. Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
+
 Recovery (forgotten password, `auth/recovery-router.ts`):
 
 1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`

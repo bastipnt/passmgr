@@ -1,9 +1,14 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  EncryptedRecordSchema,
+  MemberVault,
+  RecoveryKeySchema,
+} from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalProfile } from "../src/schema/profile-schema";
-import { Vault } from "../src/vault";
+import { Vault, VaultExistsError } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
 let vault: Vault;
@@ -282,6 +287,94 @@ describe("profile", () => {
       vault.setAccountKeyMaterial(accountKey, [personal, personal], linked),
     ).rejects.toThrow();
 
+    expect(await vault.getProfile()).toBeNull();
+  });
+});
+
+describe("createLocalVault", () => {
+  const local = { profileId: "p-local", mode: "local", email: null, userId: null } as const;
+  const recovery: RecoveryKeySchema = {
+    recoveryKekSalt: toBase64(new Uint8Array(32).fill(4)),
+    encryptedAccountKeyRecovery: toBase64(new Uint8Array(48).fill(5)),
+    accountKeyEncryptionNonceRecovery: toBase64(new Uint8Array(24).fill(6)),
+    recoveryVerifier: toBase64(new Uint8Array(32).fill(7)),
+  };
+
+  it("stores the profile, both account key wraps and the personal vault", async () => {
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+
+    expect(await vault.getProfile()).toEqual(local);
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect(await vault.getRecoveryKeyMaterial()).toEqual(recovery);
+    expect(await vault.getVaults()).toEqual([personal]);
+  });
+
+  it("never replaces a vault already on the device", async () => {
+    const linked: LocalProfile = { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u" };
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+
+    await expect(
+      vault.createLocalVault(
+        { ...accountKey, encryptedAccountKey: "other" },
+        recovery,
+        [vaultKey("v-new", "personal")],
+        local,
+      ),
+    ).rejects.toThrow(/already holds a vault/);
+
+    expect(await vault.getProfile()).toEqual(linked);
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect(await vault.getRecoveryKeyMaterial()).toBeNull();
+    expect(await vault.getVaults()).toEqual([personal]);
+  });
+
+  it("counts leftovers as a vault: records, or a malformed profile row", async () => {
+    await vault.upsertRecords([record("r1", 1)]);
+    await expect(vault.createLocalVault(accountKey, recovery, [personal], local)).rejects.toThrow(
+      VaultExistsError,
+    );
+
+    const driver = createTestDriver();
+    const other = new Vault(driver);
+    try {
+      await other.getProfile(); // migrated
+      // A linked row without email reads as no profile, but it is still there.
+      await driver.query(
+        "INSERT INTO profile (profileId, mode, email, userId) VALUES ('p', 'linked', NULL, NULL)",
+        [],
+        "run",
+      );
+      expect(await other.getProfile()).toBeNull();
+      await expect(other.createLocalVault(accountKey, recovery, [personal], local)).rejects.toThrow(
+        VaultExistsError,
+      );
+    } finally {
+      await other.destroy();
+    }
+  });
+
+  it("ignores a leftover biometric enrollment: it opens nothing on its own", async () => {
+    await vault.setBiometricKeyMaterial(biometricKey);
+
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+
+    expect(await vault.getProfile()).toEqual(local);
+  });
+
+  it("refuses malformed recovery material without writing anything", async () => {
+    await expect(
+      vault.createLocalVault(accountKey, { ...recovery, recoveryVerifier: "x" }, [personal], local),
+    ).rejects.toThrow();
+
+    expect(await vault.getProfile()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
+  });
+
+  it("is gone after clear()", async () => {
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+    await vault.clear();
+
+    expect(await vault.getRecoveryKeyMaterial()).toBeNull();
     expect(await vault.getProfile()).toBeNull();
   });
 });

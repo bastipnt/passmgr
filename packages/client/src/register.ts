@@ -1,19 +1,10 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import {
-  createUserKeyPair,
-  createVault,
-  generateUserKeys,
-  genKey,
-  normalizeEmail,
-  wipe,
-} from "@repo/crypto";
+import { normalizeEmail, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
+import { generateKeyring } from "./account/new-keyring";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
-
-/** The default vault's metadata; the user can rename it later. */
-const PERSONAL_VAULT_META = { name: "Personal" };
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
@@ -75,29 +66,24 @@ export async function registerNewUser(
 
   const registrationRecord = bytesToB64(finished.record.serialize());
 
-  // Only its wraps leave this function; the plaintext key is wiped below.
-  const accountKey = genKey();
+  // Only its wraps leave this function.
+  const { accountKey, recoveryKey, userKeys, personalVault, userKeyPair } =
+    await generateKeyring(password);
+  wipe(accountKey);
+
   try {
-    const { recoveryKey, ...userKeys } = await generateUserKeys(password, accountKey);
-    const personalVault = createVault(accountKey, PERSONAL_VAULT_META);
-    const userKeyPair = createUserKeyPair(accountKey);
-
-    try {
-      await trpc.register.finishRegistration.mutate({
-        email,
-        registrationRecord,
-        userKeys,
-        personalVault,
-        userKeyPair,
-        invite,
-      });
-    } catch {
-      wipe(recoveryKey);
-      throw new RegistrationFinishFailedError();
-    }
-
-    return recoveryKey;
-  } finally {
-    wipe(accountKey);
+    await trpc.register.finishRegistration.mutate({
+      email,
+      registrationRecord,
+      userKeys,
+      personalVault,
+      userKeyPair,
+      invite,
+    });
+  } catch {
+    wipe(recoveryKey);
+    throw new RegistrationFinishFailedError();
   }
+
+  return recoveryKey;
 }

@@ -1,4 +1,5 @@
-import { genPasswordKek, getPasswordKekParams, wipe } from "@repo/crypto";
+import { genSalt, getPasswordKekParams, wipe } from "@repo/crypto";
+import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { AccountKeyMaterial, ArgonParams } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
@@ -8,6 +9,32 @@ import { timed } from "../util/perf";
 
 export function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
   return a.t === b.t && a.m === b.m && a.p === b.p;
+}
+
+type PasswordWrap = Omit<AccountKeyMaterial, "userKeyPair">;
+
+/** The account key rewrapped under a KEK derived with the current Argon2 params. */
+async function rewrapWithCurrentParams(password: string): Promise<PasswordWrap> {
+  const passwordKekParams = getPasswordKekParams();
+  const passwordKekSaltData = genSalt();
+  // In the worker (native: off the JS thread): the unlock this follows stays responsive.
+  const passwordKek = await timed(
+    `argon2 rekey (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
+    () => argon2WorkerService.derive(password, passwordKekSaltData, passwordKekParams),
+  );
+  try {
+    const [encryptedAccountKey, accountKeyEncryptionNonce] =
+      secretsStore.rewrapAccountKey(passwordKek);
+    return {
+      passwordKekParams,
+      passwordKekSalt: toBase64(passwordKekSaltData),
+      encryptedAccountKey,
+      accountKeyEncryptionNonce,
+    };
+  } finally {
+    wipe(passwordKek);
+    wipe(passwordKekSaltData);
+  }
 }
 
 /**
@@ -26,29 +53,33 @@ export async function rekeyIfParamsStale(
   password: string,
   material: AccountKeyMaterial,
 ): Promise<AccountKeyMaterial | undefined> {
-  const targetParams = getPasswordKekParams();
-  if (paramsEqual(material.passwordKekParams, targetParams)) return;
+  if (paramsEqual(material.passwordKekParams, getPasswordKekParams())) return;
   if (!secretsStore.hasServerSession) return;
 
   try {
-    const { passwordKek, passwordKekParams, passwordKekSaltData } = await timed(
-      `argon2 rekey (t:${targetParams.t} m:${targetParams.m} p:${targetParams.p})`,
-      () => genPasswordKek(password, targetParams),
-    );
-
-    const [encryptedAccountKey, accountKeyEncryptionNonce] =
-      secretsStore.rewrapAccountKey(passwordKek);
-    wipe(passwordKek);
-
-    const updated = {
-      passwordKekParams,
-      passwordKekSalt: toBase64(passwordKekSaltData),
-      encryptedAccountKey,
-      accountKeyEncryptionNonce,
-    };
+    const updated = await rewrapWithCurrentParams(password);
     await trpc.user.rekeyPasswordKeys.mutate(updated);
     return { ...updated, userKeyPair: material.userKeyPair };
   } catch (e) {
     console.error("Argon2 param rekey failed (will retry next login)", e);
+  }
+}
+
+/**
+ * The same rekey for a `local` profile (ADR 0001 D10): the device holds the
+ * only copy of the key set, so no server is involved. Only the password wrap
+ * changes; the recovery wrap stays.
+ */
+export async function rekeyLocalIfParamsStale(
+  password: string,
+  material: AccountKeyMaterial,
+): Promise<AccountKeyMaterial | undefined> {
+  if (paramsEqual(material.passwordKekParams, getPasswordKekParams())) return;
+
+  try {
+    const updated = await rewrapWithCurrentParams(password);
+    return { ...updated, userKeyPair: material.userKeyPair };
+  } catch (e) {
+    console.error("Argon2 param rekey failed (will retry next unlock)", e);
   }
 }

@@ -2,6 +2,8 @@ export const authPaths = {
   login: "/login",
   enrollBiometric: "/enroll-biometric",
   register: "/register",
+  /** A vault on this device only, no account (ADR 0001 D2). */
+  createLocal: "/local-vault",
   recover: "/recover",
 } as const;
 

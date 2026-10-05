@@ -3,9 +3,10 @@ import { type BottomSheetRef, BrandLockup, Button, Screen, SpectrumText } from "
 import { FIELD_COLORS } from "@repo/ui-shared";
 import { ShieldCheck } from "lucide-react-native";
 import { useRef } from "react";
-import { Text, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
+import { CreateLocalVaultSheet } from "@/features/auth/components/CreateLocalVaultSheet";
 import { RecoverSheet } from "@/features/auth/components/RecoverSheet";
 import { SignInSheet } from "@/features/auth/components/SignInSheet";
 import { SignUpSheet } from "@/features/auth/components/SignUpSheet";
@@ -35,8 +36,9 @@ export default function LoginScreen() {
   const signInRef = useRef<BottomSheetRef>(null);
   const signUpRef = useRef<BottomSheetRef>(null);
   const recoverRef = useRef<BottomSheetRef>(null);
+  const localVaultRef = useRef<BottomSheetRef>(null);
   const { profile, accountKeyMaterial } = useStore();
-  const hasStoredVault = profile?.mode === "linked" && accountKeyMaterial !== null;
+  const hasStoredVault = profile !== null && accountKeyMaterial !== null;
 
   return (
     <Screen field="vivid">
@@ -89,6 +91,18 @@ export default function LoginScreen() {
           >
             Create account
           </Button>
+          {profile === null && (
+            <Pressable
+              className="self-center pt-1"
+              hitSlop={8}
+              accessibilityRole="button"
+              onPress={() => localVaultRef.current?.triggerShowHide(true)}
+            >
+              <Text className="text-muted-foreground text-sm underline">
+                Start without an account
+              </Text>
+            </Pressable>
+          )}
           <View className="flex-row items-center justify-center gap-1.5 pt-2">
             <ShieldCheck size={14} color={muted} />
             <Text className="text-muted-foreground text-xs">
@@ -110,6 +124,7 @@ export default function LoginScreen() {
         ref={signUpRef}
         onSwitchToSignIn={() => signInRef.current?.triggerShowHide(true)}
       />
+      <CreateLocalVaultSheet ref={localVaultRef} />
     </Screen>
   );
 }

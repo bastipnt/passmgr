@@ -1,5 +1,5 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, MemberVault } from "@repo/schema";
+import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
 import { clearLoginBundle, type LocalProfile, secretsStore, Vault } from "@repo/store";
 import {
   createContext,
@@ -40,6 +40,16 @@ type StoreContextValue = {
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     profile?: LocalProfile,
+  ) => Promise<void>;
+  /**
+   * Set up a vault on this device only (`local` profile, ADR 0001 D2) and update
+   * `profile` / `accountKeyMaterial`. Rejects when the device already holds one.
+   */
+  createLocalVault: (
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+    vaults: readonly MemberVault[],
+    profile: Extract<LocalProfile, { mode: "local" }>,
   ) => Promise<void>;
   /**
    * Delete the local vault, profile, persisted login and biometric enrollment.
@@ -211,6 +221,17 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     if (nextProfile) setProfile(nextProfile);
   }
 
+  async function createLocalVault(
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+    vaults: readonly MemberVault[],
+    nextProfile: Extract<LocalProfile, { mode: "local" }>,
+  ) {
+    await vault.createLocalVault(material, recovery, vaults, nextProfile);
+    setAccountKeyMaterial(material);
+    setProfile(nextProfile);
+  }
+
   async function removeVault() {
     await vault.clear();
     await clearLoginBundle();
@@ -232,6 +253,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     needsBiometricEnroll,
     setBiometricDismissed,
     saveAccount,
+    createLocalVault,
     removeVault,
   };
 

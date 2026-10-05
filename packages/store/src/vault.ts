@@ -1,5 +1,12 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import {
+  ACCOUNT_KEY_MATERIAL_KEYS,
+  type AccountKeyMaterial,
+  type EncryptedRecordSchema,
+  type MemberVault,
+  type RecoveryKeySchema,
+} from "@repo/schema";
+import { inArray } from "drizzle-orm";
 import type { SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate } from "./migrations";
@@ -8,8 +15,10 @@ import {
   clearKeysTable,
   getAccountKey,
   getBiometricKey,
+  getRecoveryKey,
   upsertAccountKey,
   upsertBiometricKey,
+  upsertRecoveryKey,
 } from "./schema/keys-schema";
 import {
   clearProfileTable,
@@ -30,7 +39,18 @@ import {
   getSyncCursors,
   setSyncCursors,
 } from "./schema/sync-schema";
+import {
+  keyMaterial,
+  profile as profileTable,
+  records,
+  vaults as vaultsTable,
+} from "./schema/tables";
 import { clearVaultsTable, getVaults, replaceVaults } from "./schema/vaults-schema";
+
+/** `createLocalVault` on a device that already holds a vault. */
+export class VaultExistsError extends Error {
+  override message = "This device already holds a vault";
+}
 
 /** One pull from the server: changed records plus the full list of the user's vaults. */
 export type SyncBatch = {
@@ -50,6 +70,28 @@ export function sameVaults(a: readonly MemberVault[], b: readonly MemberVault[])
       (Object.keys(vault) as (keyof MemberVault)[]).every((key) => other[key] === vault[key])
     );
   });
+}
+
+/**
+ * Whether any trace of a vault is on the device: raw rows, not the parsed
+ * profile or key material (those read as "nothing" when a row is malformed).
+ * Biometric key rows alone don't count: without an account key they open nothing.
+ * Sequential: the queries share one (transaction) connection.
+ */
+async function holdsAnyData(db: LocalDb): Promise<boolean> {
+  const probes = [
+    () => db.select({ id: profileTable.profileId }).from(profileTable).limit(1),
+    () =>
+      db
+        .select({ key: keyMaterial.key })
+        .from(keyMaterial)
+        .where(inArray(keyMaterial.key, ACCOUNT_KEY_MATERIAL_KEYS))
+        .limit(1),
+    () => db.select({ id: vaultsTable.vaultId }).from(vaultsTable).limit(1),
+    () => db.select({ id: records.recordId }).from(records).limit(1),
+  ];
+  for (const probe of probes) if ((await probe()).length > 0) return true;
+  return false;
 }
 
 export class Vault {
@@ -127,6 +169,35 @@ export class Vault {
       await upsertAccountKey(material, tx);
       await replaceVaults(vaults, tx);
     });
+  }
+
+  /**
+   * Set up a vault that lives on this device only (ADR 0001 D2, `local`
+   * profile): the profile, the account key wraps (password + recovery, with the
+   * recovery verifier kept for linking later) and the personal vault, in one
+   * transaction. Refuses (throws) when the device already holds a vault: that
+   * one is never replaced silently.
+   */
+  async createLocalVault(
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+    vaults: readonly MemberVault[],
+    profile: LocalProfile & { mode: "local" },
+  ): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => {
+      if (await holdsAnyData(tx)) throw new VaultExistsError();
+      await replaceProfile(profile, tx);
+      await upsertAccountKey(material, tx);
+      await upsertRecoveryKey(recovery, tx);
+      await replaceVaults(vaults, tx);
+    });
+  }
+
+  /** The recovery wrap + verifier of a local vault; null for a linked one (the server holds it). */
+  async getRecoveryKeyMaterial(): Promise<RecoveryKeySchema | null> {
+    await this.ready();
+    return await getRecoveryKey(this.db);
   }
 
   async getAccountKeyMaterial(): Promise<AccountKeyMaterial | null> {

@@ -5,6 +5,7 @@ import { authPaths } from "@/app/route-paths";
 import AuthLayout from "./AuthLayout";
 
 const BiometricEnrollPage = lazy(() => import("./BiometricEnrollPage"));
+const CreateLocalVaultPage = lazy(() => import("./CreateLocalVaultPage"));
 const LoginPage = lazy(() => import("./LoginPage"));
 const RecoverPage = lazy(() => import("./RecoverPage"));
 const RegisterPage = lazy(() => import("./RegisterPage"));
@@ -31,6 +32,8 @@ export default function AuthRoutes() {
           <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
           <Route path={authPaths.recover} component={RecoverPage} />
           {canRegister && <Route path={authPaths.register} component={RegisterPage} />}
+          {/* Needs no server: always there, whatever the app config says. */}
+          <Route path={authPaths.createLocal} component={CreateLocalVaultPage} />
 
           <Route>
             <Redirect to={authPaths.login} />

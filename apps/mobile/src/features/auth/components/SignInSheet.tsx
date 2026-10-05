@@ -20,6 +20,12 @@ const credentialsSchema = z.object({
   password: z.string().min(8),
 });
 
+// A local vault opens with the password alone: the email isn't checked.
+const localUnlockSchema = z.object({
+  email: z.string(),
+  password: z.string().min(8),
+});
+
 type FormValues = z.infer<typeof credentialsSchema>;
 
 type SignInSheetProps = {
@@ -34,24 +40,27 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const { unlock, unlockLocal, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
   const { profile, accountKeyMaterial } = useStore();
-  // This device's vault opens with the password alone (ADR 0001 D2).
-  // TODO(offline-first): a `local` profile gets its unlock with local vault creation.
+  // This device's vault opens with the password alone (ADR 0001 D2). A vault
+  // without an account has nothing else to sign in to: signing in to an
+  // account would replace it. May flip once the profile loads: the resolver is
+  // read on every render.
+  const localVault = profile?.mode === "local" && accountKeyMaterial !== null;
   const storedEmail = profile?.mode === "linked" && accountKeyMaterial ? profile.email : undefined;
   const [otherAccount, setOtherAccount] = useState(false);
-  const unlocking = storedEmail !== undefined && !otherAccount;
+  const unlocking = localVault || (storedEmail !== undefined && !otherAccount);
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
   }));
 
   const { handleSubmit, control, watch, setValue } = useForm<FormValues>({
-    resolver: zodResolver(credentialsSchema),
+    resolver: zodResolver(localVault ? localUnlockSchema : credentialsSchema),
     defaultValues: { email: "", password: "" },
   });
 
   // The hidden email field carries the stored account while unlocking.
   useEffect(() => {
-    setValue("email", unlocking ? storedEmail : "");
+    setValue("email", unlocking ? (storedEmail ?? "") : "");
   }, [unlocking, storedEmail, setValue]);
 
   // Editing the credentials makes a shown error stale. The throttle warning stays:
@@ -104,7 +113,11 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           {unlocking ? "Unlock" : "Sign in"}
         </Text>
         <Text className="text-muted-foreground text-sm">
-          {unlocking ? storedEmail : "Welcome back to Passmgr."}
+          {localVault
+            ? "Vault on this device · no account"
+            : unlocking
+              ? storedEmail
+              : "Welcome back to Passmgr."}
         </Text>
       </View>
 
@@ -127,16 +140,19 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           label="Password"
           textContentType="password"
           note={
-            <Pressable
-              className="mt-1 self-end"
-              hitSlop={8}
-              onPress={() => {
-                sheetRef.current?.triggerShowHide(false);
-                onForgotPassword();
-              }}
-            >
-              <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
-            </Pressable>
+            // TODO(offline-first): local recovery with the recovery key (ADR 0001 D10).
+            !localVault && (
+              <Pressable
+                className="mt-1 self-end"
+                hitSlop={8}
+                onPress={() => {
+                  sheetRef.current?.triggerShowHide(false);
+                  onForgotPassword();
+                }}
+              >
+                <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
+              </Pressable>
+            )
           }
         />
       </FormLock>
@@ -173,7 +189,9 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
                     ? "This device holds a vault without an account. Signing in here would replace it."
                     : unlockError === "account_changed"
                       ? "This email now belongs to another account. Remove the vault on this device to sign in to it."
-                      : "Login error please try again",
+                      : localVault
+                        ? "Wrong password, please try again"
+                        : "Login error please try again",
               },
             ]}
           />

@@ -6,6 +6,7 @@ export * from "./src/hooks/use-auto-reconnect";
 export * from "./src/hooks/use-can-write";
 export * from "./src/hooks/use-clipboard-clear";
 export * from "./src/hooks/use-connect-server";
+export * from "./src/hooks/use-create-local-vault";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-generator-defaults";

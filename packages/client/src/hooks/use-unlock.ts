@@ -4,7 +4,7 @@ import type { AccountKeyMaterial, PasswordKeySchema, VaultUnlockInfo } from "@re
 import { type LocalProfile, secretsStore } from "@repo/store";
 import { fromBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
-import { rekeyIfParamsStale } from "../account/rekey-password-keys";
+import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
@@ -114,6 +114,7 @@ export function useUnlock() {
     if (await unlockWithPassword(profile, material, password)) {
       afterUnlock(password);
       await persistSession();
+      if (profile.mode === "local") void rekeyLocal(password, material);
       if (profile.mode === "linked") {
         // Kept for the reconnect: `useAutoReconnect` retries with it once online.
         secretsStore.setPassword(password);
@@ -201,6 +202,16 @@ export function useUnlock() {
           };
     await store.saveAccount(material, info.vaultKeys, nextProfile);
     return true;
+  }
+
+  /** Local profile: move the password wrap to the current Argon2 params, on the device only. */
+  async function rekeyLocal(password: string, material: AccountKeyMaterial) {
+    try {
+      const rekeyed = await rekeyLocalIfParamsStale(password, material);
+      if (rekeyed) await store.saveAccount(rekeyed, await store.vault.getVaults());
+    } catch (e) {
+      console.error("Storing the rekeyed password wrap failed", e);
+    }
   }
 
   function afterUnlock(password: string) {

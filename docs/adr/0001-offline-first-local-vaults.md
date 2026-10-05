@@ -88,6 +88,19 @@ server, apart from account operations that genuinely need it (registration, logi
 > (`LoginBundle.server`). Until the local-first repository lands, record writes still need
 > `online` (`useCanWrite`). Actions: `useLock`, `useSignOut` (server logout + lock + drop the
 > persisted mobile login, local data kept), `useRemoveFromDevice`.
+>
+> **Amended 2026-10-05** (local vault creation): `generateKeyring` (`packages/client/src/account/new-keyring.ts`)
+> builds the same keyring for registration and for a local vault, so linking (D9) reuses it as is.
+> `useCreateLocalVault` stores it with `Vault.createLocalVault` in one transaction: the `local`
+> profile, the password wrap + keypair (`AccountKeyMaterial`) and the recovery wrap + verifier
+> (`RecoveryKeySchema`, kept only for local profiles: for D9's upload and D10's local recovery). It
+> refuses (`VaultExistsError`) when the device holds any trace of a vault (raw profile, account key,
+> vault or record rows). The vault unlocks only after the
+> recovery key is confirmed, with the account key kept from creation (no second Argon2). A `local`
+> profile's unlock is password-only (no email field, no server fallback) and rekeys stale Argon2
+> params on the device (`rekeyLocalIfParamsStale`; every rekey derives in the Argon2 worker). `useAppConfig` retries once, then reads as "no
+> registration"; the local vault route (`/local-vault` on web, "Start without an account" on mobile)
+> never depends on it. No display name on the profile yet.
 
 ### D3 — Key hierarchy v2: account key wrapping per-vault keys
 

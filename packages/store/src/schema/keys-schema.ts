@@ -3,6 +3,8 @@ import {
   ACCOUNT_KEY_MATERIAL_KEYS,
   type AccountKeyMaterial,
   type ArgonParams,
+  type RecoveryKeySchema,
+  recoveryKeySchema,
   userKeyPairSchema,
 } from "@repo/schema";
 import { inArray, sql } from "drizzle-orm";
@@ -63,6 +65,23 @@ export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | n
   if (!parsedKeyPair.success) return null;
 
   return { ...res, passwordKekParams, userKeyPair: parsedKeyPair.data } as AccountKeyMaterial;
+}
+
+/**
+ * RECOVERY KEY (local profile only: the recovery wrap of the account key and
+ * the verifier, kept on the device until linking uploads them, ADR 0001 D9)
+ */
+
+const RECOVERY_KEY_MATERIAL_KEYS = Object.keys(recoveryKeySchema.shape);
+
+export async function upsertRecoveryKey(material: RecoveryKeySchema, db: LocalDb): Promise<void> {
+  await upsertEntries(Object.entries(recoveryKeySchema.parse(material)), db);
+}
+
+export async function getRecoveryKey(db: LocalDb): Promise<RecoveryKeySchema | null> {
+  const res = await getEntries(RECOVERY_KEY_MATERIAL_KEYS, db);
+  const parsed = recoveryKeySchema.safeParse(res);
+  return parsed.success ? parsed.data : null;
 }
 
 /**

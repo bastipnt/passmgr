@@ -314,19 +314,6 @@ describe("LoginPage online", () => {
     expect(store.saveAccount.mock.calls[0]?.[2].profileId).not.toBe(linkedProfile.profileId);
   });
 
-  it("never replaces a vault without an account", async () => {
-    vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
-    store.profile = { profileId: "local-1", mode: "local", email: null, userId: null };
-    renderPage({ networkOffline: false });
-    await login("alice@example.com", "right password");
-
-    await screen.findByText(/vault without an account/i);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).not.toHaveBeenCalled();
-    expect(unlockVault).not.toHaveBeenCalled();
-    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
-  });
-
   it("keeps the throttle warning on edits, but drops it for the stored account", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new LoginThrottledError());
     renderPage({ networkOffline: false });
@@ -338,5 +325,101 @@ describe("LoginPage online", () => {
 
     await userEvent.click(screen.getByRole("button", { name: /alice@example.com/i }));
     expect(screen.queryByText(/too many login attempts/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("LoginPage local vault", () => {
+  const localProfile = { profileId: "local-1", mode: "local", email: null, userId: null } as const;
+
+  beforeEach(() => {
+    resetMocks();
+    store.profile = localProfile;
+  });
+
+  async function unlockLocalVault(password: string) {
+    await userEvent.type(screen.getByLabelText("Password"), password);
+    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+  }
+
+  it("asks for the password only, with no account to switch to", () => {
+    renderPage({ networkOffline: false });
+
+    expect(screen.getByText("Vault on this device")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /switch/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/forgot password/i)).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).not.toBeVisible();
+  });
+
+  it("unlocks with the password alone and never talks to the server", async () => {
+    renderPage({ networkOffline: false });
+    await unlockLocalVault("right password");
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(unlockVault.mock.calls[0]?.[0]).toBe("local");
+    expect(loginUserCore).not.toHaveBeenCalled();
+    expect(attachServer).not.toHaveBeenCalled();
+    // Nothing to reconnect with: the password isn't kept.
+    expect(secretsStore.setPassword).not.toHaveBeenCalled();
+  });
+
+  it("says the password is wrong without falling back to a server login", async () => {
+    unlockVault.mockImplementation(() => {
+      throw new Error("decrypt failed");
+    });
+    renderPage({ networkOffline: false });
+    await unlockLocalVault("wrong password");
+
+    await screen.findByText(/check your password and try again/i);
+    expect(loginUserCore).not.toHaveBeenCalled();
+  });
+
+  it("rekeys stale Argon2 params on the device, without the server", async () => {
+    // Stored with params other than the current ones (the derivation itself is mocked).
+    const current = getPasswordKekParams();
+    const stale = { ...accountKeyMaterial, passwordKekParams: { ...current, t: current.t + 1 } };
+    store.accountKeyMaterial = stale;
+    vi.spyOn(secretsStore, "rewrapAccountKey").mockReturnValue(["rewrapped", "nonce"]);
+    try {
+      renderPage({ networkOffline: false });
+      await unlockLocalVault("right password");
+
+      await waitFor(() => expect(store.saveAccount).toHaveBeenCalledTimes(1));
+      const [saved, vaults, profile] = store.saveAccount.mock.calls[0] ?? [];
+      expect(saved).toMatchObject({
+        passwordKekParams: current,
+        encryptedAccountKey: "rewrapped",
+        userKeyPair: stale.userKeyPair,
+      });
+      expect(vaults).toEqual([personalVault]);
+      expect(profile).toBeUndefined();
+      // Unlock + rekey, both in the worker; no server involved.
+      expect(argon2WorkerService.derive).toHaveBeenCalledTimes(2);
+      expect(loginUserCore).not.toHaveBeenCalled();
+    } finally {
+      store.accountKeyMaterial = accountKeyMaterial;
+    }
+  });
+
+  it("keeps the typed password when the profile loads after the form", async () => {
+    store.profile = null;
+    const { rerender } = renderWithProviders(
+      <SessionContext.Provider value={{ ...session, networkOffline: false }}>
+        <LoginPage />
+      </SessionContext.Provider>,
+    );
+    await userEvent.type(screen.getByLabelText("Password"), "right password");
+
+    store.profile = localProfile;
+    rerender(
+      <SessionContext.Provider value={{ ...session, networkOffline: false }}>
+        <LoginPage />
+      </SessionContext.Provider>,
+    );
+    expect(screen.getByLabelText("Password")).toHaveValue("right password");
+    // The local schema applies now: no email needed.
+    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(unlockVault.mock.calls[0]?.[0]).toBe("local");
   });
 });

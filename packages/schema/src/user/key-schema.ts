@@ -118,6 +118,7 @@ export const userPublicKeySchema = userKeyPairSchema.pick({ keyVersion: true, pu
 export const userPublicKeyInputSchema = z.object({ email: emailSchema });
 
 export type RecoveryWrapSchema = z.infer<typeof recoveryWrapSchema>;
+export type RecoveryKeySchema = z.infer<typeof recoveryKeySchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
 export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
