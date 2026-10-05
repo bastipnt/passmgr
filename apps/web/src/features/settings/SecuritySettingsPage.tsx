@@ -19,6 +19,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
+import AccountSettings from "./AccountSettings";
 
 type ChoiceSettingProps = {
   title: string;
@@ -101,6 +102,8 @@ export default function SecuritySettingsPage() {
             value={revealTimeoutSeconds}
             onValueChange={setRevealTimeoutSeconds}
           />
+
+          <AccountSettings />
         </ItemGroup>
       </div>
     </>

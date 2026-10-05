@@ -24,7 +24,17 @@ export const finishLoginInputSchema = z.object({
 
 export const finishLoginOutputSchema = z.object({
   sessionId: z.string(),
+  // Ties the device profile to the account (ADR 0001 D2), so a login into
+  // another account is noticed before its keys meet this device's data.
+  userId: z.string(),
   userPasswordKeys: passwordKeySchema,
   vaultKeys: z.array(memberVaultSchema),
   userKeyPair: userKeyPairSchema,
 });
+
+/**
+ * `logout` has nothing to send, but clients send `{}`: a POST without a body
+ * is rejected by the HTTP adapter ("Unexpected end of JSON input") before the
+ * procedure runs.
+ */
+export const logoutInputSchema = z.object({}).strict().optional();

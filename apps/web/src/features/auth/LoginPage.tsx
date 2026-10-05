@@ -14,19 +14,29 @@ import StoredAccountRow from "./StoredAccountRow";
 
 export default function LoginPage() {
   const { loginUser, clearLoginError, clearLoginErrors, loginError, loginThrottled } = useLogin();
-  const { unlock, offlineUnlock, unlockError, clearUnlockError } = useUnlock();
+  const { unlock, unlockLocal, offlineUnlock, unlockError, clearUnlockError } = useUnlock();
 
   const [loginWithStoredEmail, setLoginWithStoredEmail] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const { isOffline } = useContext(SessionContext);
+  const { networkOffline } = useContext(SessionContext);
   const store = useStore();
-  const storedEmail = store.accountKeyMaterial?.email;
+  // TODO(offline-first): a `local` profile (no email) gets its unlock screen
+  // with local vault creation.
+  const storedEmail =
+    store.profile?.mode === "linked" && store.accountKeyMaterial ? store.profile.email : undefined;
+  const unlocking = !!storedEmail && loginWithStoredEmail;
 
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
     try {
-      if (isOffline && store.accountKeyMaterial !== null) {
+      // This device's vault: unlock it locally, the server session follows.
+      if (unlocking) {
+        await timed("total unlock time", () => unlockLocal(password));
+        return;
+      }
+
+      if (networkOffline && storedEmail) {
         await timed("total unlock time", () => offlineUnlock(email, password));
         return;
       }
@@ -45,7 +55,6 @@ export default function LoginPage() {
     }
   };
 
-  const unlocking = !!storedEmail && loginWithStoredEmail;
   // Stable: `LoginForm` subscribes to edits with it.
   const onEdit = useCallback(() => {
     clearLoginError();

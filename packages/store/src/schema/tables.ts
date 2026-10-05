@@ -50,3 +50,16 @@ export const vaults = sqliteTable("vaults", {
   encryptedMeta: text().notNull(),
   metaEncryptionNonce: text().notNull(),
 });
+
+/**
+ * The device profile (ADR 0001 D2): at most one row, the one user of this
+ * device. `local` has no account yet; `linked` belongs to the account
+ * `userId` / `email`. Separate from the session: the profile says whose vault
+ * this is, the session whether it is unlocked and talking to the server.
+ */
+export const profile = sqliteTable("profile", {
+  profileId: text().primaryKey(),
+  mode: text({ enum: ["local", "linked"] }).notNull(),
+  email: text(),
+  userId: text(),
+});

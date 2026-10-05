@@ -73,6 +73,22 @@ server, apart from account operations that genuinely need it (registration, logi
 - Multiple profiles per device are out of scope. Signing into an existing account on a device
   that has an unlinked local profile is handled in D9.
 
+> **Amended 2026-10-03** (session modes implementation): the profile is the local `profile` table
+> (`LocalProfile`, at most one row, written atomically with the key material); the email moved
+> there from `key_material`, and `finishLogin` returns the `userId` so "same account" means same
+> `userId`, not same email. `SessionProvider` exposes `vaultUnlocked`, `mode` (derived from the
+> profile mode and whether server auth is attached) and `networkOffline`; the old `sessionId ===
+> "offline"` marker is gone. A device's vault unlocks by password alone (`unlockLocal`); a linked
+> one then attaches server auth in the background (`useConnectServer`, single-flight), and falls
+> back to the server login when the local wrap doesn't open (password changed elsewhere). An online
+> login never replaces a `local` profile: it fails with `local_vault` until D9's merge/replace
+> exists. `UNAUTHORIZED` from sync or the mobile restore heartbeat only detaches the server
+> (`online` → `offline`); without a password in memory (restored mobile session) the user signs in
+> again from settings. The mobile bundle persists the server session only optionally
+> (`LoginBundle.server`). Until the local-first repository lands, record writes still need
+> `online` (`useCanWrite`). Actions: `useLock`, `useSignOut` (server logout + lock + drop the
+> persisted mobile login, local data kept), `useRemoveFromDevice`.
+
 ### D3 — Key hierarchy v2: account key wrapping per-vault keys
 
 ```

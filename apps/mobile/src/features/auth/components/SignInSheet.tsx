@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLogin, useUnlock } from "@repo/client";
+import { useLogin, useStore, useUnlock } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import {
   BottomSheet,
@@ -31,17 +31,28 @@ type SignInSheetProps = {
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
   const { loginUser, clearLoginError, loginError, loginThrottled } = useLogin();
-  const { unlock, unlockError, clearUnlockError } = useUnlock();
+  const { unlock, unlockLocal, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
+  const { profile, accountKeyMaterial } = useStore();
+  // This device's vault opens with the password alone (ADR 0001 D2).
+  // TODO(offline-first): a `local` profile gets its unlock with local vault creation.
+  const storedEmail = profile?.mode === "linked" && accountKeyMaterial ? profile.email : undefined;
+  const [otherAccount, setOtherAccount] = useState(false);
+  const unlocking = storedEmail !== undefined && !otherAccount;
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
   }));
 
-  const { handleSubmit, control, watch } = useForm<FormValues>({
+  const { handleSubmit, control, watch, setValue } = useForm<FormValues>({
     resolver: zodResolver(credentialsSchema),
     defaultValues: { email: "", password: "" },
   });
+
+  // The hidden email field carries the stored account while unlocking.
+  useEffect(() => {
+    setValue("email", unlocking ? storedEmail : "");
+  }, [unlocking, storedEmail, setValue]);
 
   // Editing the credentials makes a shown error stale. The throttle warning stays:
   // an edit alone does not lift the server's lock.
@@ -57,6 +68,15 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);
     try {
+      if (unlocking) {
+        // Unlocks without the server; the session follows in the background.
+        // Same sheet-first dismissal as below.
+        sheetRef.current?.triggerShowHide(false);
+        const unlocked = await timed("total unlock time", () => unlockLocal(password));
+        if (!unlocked) sheetRef.current?.triggerShowHide(true);
+        return;
+      }
+
       const unlockInfo = await timed("total login time", () => loginUser(email, password));
       if (!unlockInfo) return;
       // Close the sheet before unlocking. `unlock()` flips `loggedIn`, which makes the
@@ -75,27 +95,31 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
       className="gap-6 px-6 pt-7 pb-6"
       footer={
         <Button size="lg" loading={loading} onPress={handleSubmit(onSubmit)}>
-          Sign in
+          {unlocking ? "Unlock" : "Sign in"}
         </Button>
       }
     >
       <View className="gap-1">
         <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
-          Sign in
+          {unlocking ? "Unlock" : "Sign in"}
         </Text>
-        <Text className="text-muted-foreground text-sm">Welcome back to Passmgr.</Text>
+        <Text className="text-muted-foreground text-sm">
+          {unlocking ? storedEmail : "Welcome back to Passmgr."}
+        </Text>
       </View>
 
       <FormLock locked={loading} className="gap-5">
-        <ControlledInput
-          control={control}
-          name="email"
-          label="Email"
-          autoCapitalize="none"
-          autoComplete="username"
-          keyboardType="email-address"
-          textContentType="emailAddress"
-        />
+        {!unlocking && (
+          <ControlledInput
+            control={control}
+            name="email"
+            label="Email"
+            autoCapitalize="none"
+            autoComplete="username"
+            keyboardType="email-address"
+            textContentType="emailAddress"
+          />
+        )}
 
         <ControlledPasswordInput
           control={control}
@@ -117,6 +141,22 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         />
       </FormLock>
 
+      {storedEmail !== undefined && (
+        <Pressable
+          className="self-center"
+          hitSlop={8}
+          onPress={() => {
+            clearLoginError();
+            clearUnlockError();
+            setOtherAccount((other) => !other);
+          }}
+        >
+          <Text className="text-muted-foreground text-xs underline">
+            {unlocking ? "Use another account" : `Unlock ${storedEmail} instead`}
+          </Text>
+        </Pressable>
+      )}
+
       {loginThrottled ? (
         <FieldError
           variant="box"
@@ -124,7 +164,19 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         />
       ) : (
         (loginError || unlockError) && (
-          <FieldError variant="box" errors={[{ message: "Login error please try again" }]} />
+          <FieldError
+            variant="box"
+            errors={[
+              {
+                message:
+                  unlockError === "local_vault"
+                    ? "This device holds a vault without an account. Signing in here would replace it."
+                    : unlockError === "account_changed"
+                      ? "This email now belongs to another account. Remove the vault on this device to sign in to it."
+                      : "Login error please try again",
+              },
+            ]}
+          />
         )
       )}
     </BottomSheet>

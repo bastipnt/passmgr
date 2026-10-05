@@ -27,5 +27,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "DELETE FROM `sync_meta`;",
       "DELETE FROM `key_material`;"
     ]
+  },
+  {
+    "name": "20261003205432_device_profile",
+    "statements": [
+      "CREATE TABLE `profile` (\n\t`profileId` text PRIMARY KEY,\n\t`mode` text NOT NULL,\n\t`email` text,\n\t`userId` text\n);"
+    ]
   }
 ];

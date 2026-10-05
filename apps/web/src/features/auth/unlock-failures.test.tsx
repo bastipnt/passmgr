@@ -1,7 +1,17 @@
 import { SessionContext } from "@repo/client";
+import {
+  type ConnectResult,
+  canReleasePassword,
+  useConnectServer,
+} from "@repo/client/src/hooks/use-connect-server";
 import { useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
 import { useUnlock } from "@repo/client/src/hooks/use-unlock";
-import { loginUser as loginUserCore } from "@repo/client/src/login";
+import {
+  LoginStartFailedError,
+  LoginThrottledError,
+  loginUser as loginUserCore,
+  OpaqueLoginFailedError,
+} from "@repo/client/src/login";
 import {
   createUserKeyPair,
   genKey,
@@ -11,11 +21,20 @@ import {
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
-import { clearLoginBundle, type LoginBundle, loadLoginBundle, secretsStore } from "@repo/store";
+import {
+  clearLoginBundle,
+  type LocalProfile,
+  type LoginBundle,
+  loadLoginBundle,
+  type ProfileMode,
+  persistLoginBundle,
+  secretsStore,
+} from "@repo/store";
 import { toBase64 } from "@repo/util";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
 // Real hooks and the real secretsStore; only I/O at the edges is replaced.
 vi.mock("@repo/store", async (importActual) => ({
@@ -50,26 +69,42 @@ vi.mock("@repo/client/src/util/trpc", () => ({
 }));
 
 const passwordKeys = {
-  passwordKekParams: { t: 3, m: 65536, p: 1 },
+  passwordKekParams: getPasswordKekParams(),
   passwordKekSalt: "salt",
   encryptedAccountKey: "enc",
   accountKeyEncryptionNonce: "nonce",
 };
 
-const store = {
+const ALICE: LocalProfile = {
+  profileId: "profile-alice",
+  mode: "linked",
+  email: "alice@example.com",
+  userId: "user-alice",
+};
+
+type StoreMock = {
+  vault: { getVaults: Mock; getProfile: Mock; getAccountKeyMaterial: Mock; clear: Mock };
+  profile: LocalProfile | null;
+  accountKeyMaterial: unknown;
+  saveAccount: Mock;
+  biometricKeyMaterial: unknown;
+  needsBiometricEnroll: boolean;
+  biometricDismissed: boolean;
+};
+
+const store: StoreMock = {
   vault: {
     getVaults: vi.fn(),
+    getProfile: vi.fn(),
     getAccountKeyMaterial: vi.fn(),
-    setAccountKeyMaterial: vi.fn(),
     clear: vi.fn(),
   },
-  accountKeyMaterial: {
-    ...passwordKeys,
-    email: "alice@example.com",
-    userKeyPair: createUserKeyPair(genKey()),
-  },
+  profile: ALICE,
+  accountKeyMaterial: null,
+  saveAccount: vi.fn(),
   biometricKeyMaterial: {},
   needsBiometricEnroll: false,
+  biometricDismissed: false,
 };
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
@@ -77,6 +112,7 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
 }));
 
 const PERSONAL_ID = "0199a3c4-0000-7000-8000-00000000000a";
+const B64_32 = toBase64(new Uint8Array(32));
 
 function keyring() {
   const accountKey = genKey();
@@ -92,8 +128,6 @@ function keyring() {
   return { accountKey, wraps, userKeyPair: createUserKeyPair(accountKey) };
 }
 
-const B64_32 = toBase64(new Uint8Array(32));
-
 /** Mirrors SessionProvider: loading the vault keys + keypair may throw, which locks again. */
 function loadKeyringOrLock(wraps: readonly MemberVault[], keyPair: UserKeyPair) {
   try {
@@ -106,20 +140,32 @@ function loadKeyringOrLock(wraps: readonly MemberVault[], keyPair: UserKeyPair) 
 }
 
 const session = {
+  networkOffline: false,
   restoreLogin: vi.fn(
-    (bundle: Omit<LoginBundle, "email">, wraps: readonly MemberVault[], keyPair: UserKeyPair) => {
+    (
+      _mode: ProfileMode,
+      bundle: LoginBundle,
+      wraps: readonly MemberVault[],
+      keyPair: UserKeyPair,
+    ) => {
       secretsStore.restoreSession(bundle);
       loadKeyringOrLock(wraps, keyPair);
     },
   ),
   unlockWithAccountKey: vi.fn(
-    (accountKey: Uint8Array, wraps: readonly MemberVault[], keyPair: UserKeyPair) => {
+    (
+      _mode: ProfileMode,
+      accountKey: Uint8Array,
+      wraps: readonly MemberVault[],
+      keyPair: UserKeyPair,
+    ) => {
       secretsStore.unlockWithAccountKey(accountKey);
       loadKeyringOrLock(wraps, keyPair);
     },
   ),
   unlockVault: vi.fn(
     (
+      _mode: ProfileMode,
       kek: Uint8Array,
       encrypted: string,
       nonce: string,
@@ -130,10 +176,10 @@ const session = {
       loadKeyringOrLock(wraps, keyPair);
     },
   ),
-  endSession: vi.fn(),
-  offlineLoginSession: vi.fn(),
-  loginSession: vi.fn(async () => {
-    secretsStore.sessionId = "live-session";
+  lock: vi.fn(() => secretsStore.lock()),
+  detachServer: vi.fn(() => secretsStore.detachServer()),
+  attachServer: vi.fn(async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+    await secretsStore.unlockSession(sessionId, sessionKey, salt);
   }),
 } as unknown as ContextType<typeof SessionContext>;
 
@@ -141,69 +187,87 @@ function wrapper({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }
 
+function unauthorized() {
+  return TRPCClientError.from({
+    error: {
+      code: -32001,
+      message: "UNAUTHORIZED",
+      data: { code: "UNAUTHORIZED", httpStatus: 401 },
+    },
+  });
+}
+
 beforeEach(() => {
   vi.clearAllMocks();
   secretsStore.lock();
+  Object.assign(store, { profile: ALICE, accountKeyMaterial: null });
+  store.vault.getProfile.mockResolvedValue(ALICE);
   trpcClient.user.heartbeat.query.mockResolvedValue({ ok: true });
 });
 
-describe("useSessionRestore failure paths", () => {
+describe("useSessionRestore", () => {
   async function restore() {
     const { result } = renderHook(() => useSessionRestore(), { wrapper });
     await act(() => result.current.tryRestore());
     return result.current.status;
   }
 
-  it("falls back to login for a bundle from before the account key existed", async () => {
+  /** A bundle + the local key material it opens. */
+  function persisted({ server = true } = {}) {
+    const { accountKey, wraps, userKeyPair } = keyring();
+    store.vault.getVaults.mockResolvedValue(wraps);
+    store.vault.getAccountKeyMaterial.mockResolvedValue({ ...passwordKeys, userKeyPair });
+    const bundle: LoginBundle = {
+      accountKeyB64: toBase64(accountKey),
+      ...(server && {
+        server: { sessionId: "sid", authKeyB64: B64_32, authSaltB64: B64_32 },
+      }),
+    };
+    vi.mocked(loadLoginBundle).mockResolvedValue(bundle);
+    return { userKeyPair, wraps };
+  }
+
+  it("falls back to the password unlock for a bundle from an older app version", async () => {
     vi.mocked(loadLoginBundle).mockResolvedValue({
       sessionId: "sid",
       authKeyB64: B64_32,
       authSaltB64: B64_32,
       vaultKeyB64: B64_32,
-      email: "alice@example.com",
     } as unknown as LoginBundle);
 
     expect(await restore()).toBe("needs-login");
     expect(clearLoginBundle).toHaveBeenCalledTimes(1);
     expect(trpcClient.user.heartbeat.query).not.toHaveBeenCalled();
-    expect(secretsStore.sessionId).toBeUndefined();
+    expect(secretsStore.hasServerSession).toBe(false);
   });
 
-  it("falls back to login when the cached vault keys don't open", async () => {
-    const { wraps, userKeyPair } = keyring();
-    store.vault.getAccountKeyMaterial.mockResolvedValue({
-      ...store.accountKeyMaterial,
-      userKeyPair,
-    });
-    vi.mocked(loadLoginBundle).mockResolvedValue({
-      sessionId: "sid",
-      authKeyB64: B64_32,
-      authSaltB64: B64_32,
-      accountKeyB64: toBase64(genKey()), // not the key the wraps were made with
-      email: "alice@example.com",
-    });
-    store.vault.getVaults.mockResolvedValue(wraps);
+  it("falls back to the password unlock without a profile", async () => {
+    persisted();
+    store.vault.getProfile.mockResolvedValue(null);
 
     expect(await restore()).toBe("needs-login");
     expect(clearLoginBundle).toHaveBeenCalledTimes(1);
-    expect(secretsStore.sessionId).toBeUndefined();
     expect(secretsStore.isVaultUnlocked).toBe(false);
   });
 
-  it("falls back to login when the cached keypair isn't the user's", async () => {
-    const { accountKey, wraps, userKeyPair } = keyring();
-    const swapped = { ...userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey };
+  it("falls back to the password unlock when the cached vault keys don't open", async () => {
+    persisted();
     vi.mocked(loadLoginBundle).mockResolvedValue({
-      sessionId: "sid",
-      authKeyB64: B64_32,
-      authSaltB64: B64_32,
-      accountKeyB64: toBase64(accountKey),
-      email: "alice@example.com",
+      accountKeyB64: toBase64(genKey()), // not the key the wraps were made with
+      server: { sessionId: "sid", authKeyB64: B64_32, authSaltB64: B64_32 },
     });
-    store.vault.getVaults.mockResolvedValue(wraps);
+
+    expect(await restore()).toBe("needs-login");
+    expect(clearLoginBundle).toHaveBeenCalledTimes(1);
+    expect(secretsStore.hasServerSession).toBe(false);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+  });
+
+  it("falls back to the password unlock when the cached keypair isn't the user's", async () => {
+    const { userKeyPair } = persisted();
     store.vault.getAccountKeyMaterial.mockResolvedValue({
-      ...store.accountKeyMaterial,
-      userKeyPair: swapped,
+      ...passwordKeys,
+      userKeyPair: { ...userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey },
     });
 
     expect(await restore()).toBe("needs-login");
@@ -212,46 +276,59 @@ describe("useSessionRestore failure paths", () => {
     expect(secretsStore.userPublicKey).toBeUndefined();
   });
 
-  it("restores a valid bundle with the cached vault keys and keypair", async () => {
-    const { accountKey, wraps, userKeyPair } = keyring();
-    store.vault.getAccountKeyMaterial.mockResolvedValue({
-      ...store.accountKeyMaterial,
-      userKeyPair,
-    });
-    vi.mocked(loadLoginBundle).mockResolvedValue({
-      sessionId: "sid",
-      authKeyB64: B64_32,
-      authSaltB64: B64_32,
-      accountKeyB64: toBase64(accountKey),
-      email: "alice@example.com",
-    });
-    store.vault.getVaults.mockResolvedValue(wraps);
+  it("restores the vault and the server session, then checks the session", async () => {
+    const { userKeyPair } = persisted();
 
     expect(await restore()).toBe("restored");
     expect(clearLoginBundle).not.toHaveBeenCalled();
     expect(secretsStore.isVaultUnlocked).toBe(true);
     expect(secretsStore.userPublicKey).toBe(userKeyPair.publicKey);
+    expect(vi.mocked(session.restoreLogin).mock.calls[0]?.[0]).toBe("linked");
+    expect(trpcClient.user.heartbeat.query).toHaveBeenCalledTimes(1);
+    expect(secretsStore.hasServerSession).toBe(true);
+  });
+
+  it("goes offline, not to the login, when the server rejects the session", async () => {
+    persisted();
+    trpcClient.user.heartbeat.query.mockRejectedValue(unauthorized());
+
+    expect(await restore()).toBe("restored");
+    expect(session.detachServer).toHaveBeenCalledTimes(1);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(secretsStore.hasServerSession).toBe(false);
+    // The dead session isn't restored again next time.
+    expect(persistLoginBundle).toHaveBeenCalledWith({
+      accountKeyB64: expect.any(String),
+    });
+  });
+
+  it("keeps the session on a network error", async () => {
+    persisted();
+    trpcClient.user.heartbeat.query.mockRejectedValue(new TypeError("Network request failed"));
+
+    expect(await restore()).toBe("restored");
+    expect(session.detachServer).not.toHaveBeenCalled();
+    expect(secretsStore.hasServerSession).toBe(true);
+  });
+
+  it("restores a bundle without a server session without asking the server", async () => {
+    persisted({ server: false });
+
+    expect(await restore()).toBe("restored");
+    expect(trpcClient.user.heartbeat.query).not.toHaveBeenCalled();
+    expect(secretsStore.isVaultUnlocked).toBe(true);
   });
 });
 
-describe("biometricUnlock failure path", () => {
-  it("revokes the fresh server session when the vault keys don't open", async () => {
+describe("biometricUnlock", () => {
+  it("fails without touching the server when the vault keys don't open", async () => {
     const { authenticateBiometric } = await import("@repo/crypto");
     const { wraps, userKeyPair } = keyring();
     vi.mocked(authenticateBiometric).mockResolvedValue({
       accountKey: genKey(), // not the key the wraps were made with
       password: "right password",
     });
-    vi.mocked(loginUserCore).mockImplementation(async (_trpc, loginSession) => {
-      await loginSession("live-session", "session-key", new Uint8Array(32));
-      return {
-        email: "alice@example.com",
-        password: "right password",
-        userPasswordKeys: passwordKeys,
-        vaultKeys: wraps,
-        userKeyPair,
-      };
-    });
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     store.vault.getVaults.mockResolvedValue(wraps);
 
     const { result } = renderHook(() => useUnlock(), { wrapper });
@@ -259,12 +336,181 @@ describe("biometricUnlock failure path", () => {
       await expect(result.current.biometricUnlock()).rejects.toThrow();
     });
 
-    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
-    expect(session.endSession).toHaveBeenCalledTimes(1);
-    expect(secretsStore.sessionId).toBeUndefined();
+    expect(loginUserCore).not.toHaveBeenCalled();
     expect(secretsStore.isVaultUnlocked).toBe(false);
     await waitFor(() => expect(result.current.unlockError).toBe("failed"));
   });
+
+  it("unlocks locally, then attaches the server session", async () => {
+    const { authenticateBiometric } = await import("@repo/crypto");
+    const { accountKey, wraps, userKeyPair } = keyring();
+    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, password: "pw" });
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
+    store.vault.getVaults.mockResolvedValue(wraps);
+    vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
+      await attach("live-session", "session-key", new Uint8Array(32));
+      return {
+        email: "alice@example.com",
+        userId: ALICE.userId,
+        password: "pw",
+        userPasswordKeys: passwordKeys,
+        vaultKeys: wraps,
+        userKeyPair,
+      };
+    });
+
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    await act(() => result.current.biometricUnlock());
+
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    await waitFor(() => expect(secretsStore.hasServerSession).toBe(true));
+    expect(store.saveAccount).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useConnectServer", () => {
+  /** An unlocked linked vault and a server login that hands out `userId`'s keys. */
+  function unlockedVault({ userId = "user-alice" }: { userId?: string } = {}) {
+    const { accountKey, wraps, userKeyPair } = keyring();
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadVaultKeys(wraps);
+    store.vault.getVaults.mockResolvedValue(wraps);
+    vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
+      await attach("live-session", "session-key", new Uint8Array(32));
+      return {
+        email: "alice@example.com",
+        userId,
+        password: "pw",
+        userPasswordKeys: passwordKeys,
+        vaultKeys: wraps,
+        userKeyPair,
+      };
+    });
+  }
+
+  function renderConnect() {
+    return renderHook(() => useConnectServer(), { wrapper }).result;
+  }
+
+  async function connectOnce(password = "pw") {
+    const result = renderConnect();
+    let outcome: ConnectResult | undefined;
+    await act(async () => {
+      outcome = await result.current.connect(password);
+    });
+    return outcome;
+  }
+
+  it("attaches the session after storing the account's key material", async () => {
+    unlockedVault();
+
+    expect(await connectOnce()).toBe("online");
+    expect(store.saveAccount).toHaveBeenCalledTimes(1);
+    expect(session.attachServer).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(store.saveAccount).mock.invocationCallOrder[0]).toBeLessThan(
+      vi.mocked(session.attachServer).mock.invocationCallOrder[0] ?? 0,
+    );
+    expect(secretsStore.hasServerSession).toBe(true);
+  });
+
+  it("runs one OPAQUE login when the unlock and the auto-reconnect both connect", async () => {
+    unlockedVault();
+    const { result } = renderHook(
+      () => ({ unlock: useConnectServer(), reconnect: useConnectServer() }),
+      { wrapper },
+    );
+    let outcomes: ConnectResult[] = [];
+    await act(async () => {
+      outcomes = await Promise.all([
+        result.current.unlock.connect("pw"),
+        result.current.reconnect.connect("pw"),
+      ]);
+    });
+
+    expect(outcomes).toEqual(["online", "online"]);
+    expect(loginUserCore).toHaveBeenCalledTimes(1);
+  });
+
+  it("never attaches a session of another account, so nothing syncs with it", async () => {
+    unlockedVault({ userId: "user-alice-reregistered" });
+
+    expect(await connectOnce()).toBe("rejected");
+    expect(session.attachServer).not.toHaveBeenCalled();
+    expect(secretsStore.hasServerSession).toBe(false);
+    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(store.vault.clear).not.toHaveBeenCalled();
+  });
+
+  it("attaches nothing when the vault was locked while the login ran", async () => {
+    unlockedVault();
+    const login = vi.mocked(loginUserCore).getMockImplementation()!;
+    vi.mocked(loginUserCore).mockImplementation(async (...args) => {
+      const info = await login(...args);
+      secretsStore.lock(); // the user locks (or signs out) mid-connect
+      return info;
+    });
+
+    expect(await connectOnce()).toBe("cancelled");
+    expect(session.attachServer).not.toHaveBeenCalled();
+    expect(secretsStore.hasServerSession).toBe(false);
+    expect(store.saveAccount).not.toHaveBeenCalled();
+  });
+
+  it("doesn't hand a connect from before a lock to the next unlock", async () => {
+    unlockedVault();
+    let release!: () => void;
+    const login = vi.mocked(loginUserCore).getMockImplementation()!;
+    vi.mocked(loginUserCore).mockImplementationOnce(async (...args) => {
+      await new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return await login(...args);
+    });
+    const result = renderConnect();
+
+    let stale: Promise<ConnectResult> | undefined;
+    act(() => {
+      stale = result.current.connect("pw");
+    });
+    secretsStore.lock();
+    unlockedVault();
+    let fresh: ConnectResult | undefined;
+    await act(async () => {
+      const next = result.current.connect("pw");
+      release();
+      fresh = await next;
+    });
+
+    expect(await stale).toBe("cancelled");
+    expect(fresh).toBe("online");
+    expect(loginUserCore).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    ["rejected", new OpaqueLoginFailedError()],
+    ["throttled", new LoginThrottledError()],
+    ["unreachable", new LoginStartFailedError()],
+  ] as const)("reports %s for a failed login", async (expected, error) => {
+    unlockedVault();
+    vi.mocked(loginUserCore).mockRejectedValue(error);
+
+    expect(await connectOnce()).toBe(expected);
+    expect(session.attachServer).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["online", false, true],
+    ["rejected", false, true],
+    ["online", true, false],
+    ["throttled", false, false],
+    ["unreachable", false, false],
+    ["cancelled", false, false],
+  ] as const)(
+    "a %s connect (enrollment pending: %s) releases the password: %s",
+    (result, enroll, release) => {
+      expect(canReleasePassword(result, enroll)).toBe(release);
+    },
+  );
 });
 
 describe("unlock: whose local data is this?", () => {
@@ -284,132 +530,110 @@ describe("unlock: whose local data is this?", () => {
     return { userPasswordKeys, wraps, userKeyPair };
   }
 
-  async function unlockWith(keys: ReturnType<typeof account>) {
+  async function unlockWith(keys: ReturnType<typeof account>, userId = "user-alice") {
     const { result } = renderHook(() => useUnlock(), { wrapper });
     let unlocked = false;
     await act(async () => {
       unlocked = await result.current.unlock({
         email: "Alice@Example.com",
+        userId,
         password: "pw",
         userPasswordKeys: keys.userPasswordKeys,
         vaultKeys: keys.wraps,
         userKeyPair: keys.userKeyPair,
       });
     });
-    return unlocked;
+    return { unlocked, error: result.current.unlockError };
   }
 
-  it("clears leftover local data when nothing is cached for any account", async () => {
+  it("clears leftover local data and creates a profile when there is none", async () => {
     const keys = account();
-    Object.assign(store, { accountKeyMaterial: null });
-    store.vault.getVaults.mockResolvedValue([]);
+    store.profile = null;
 
-    expect(await unlockWith(keys)).toBe(true);
+    expect((await unlockWith(keys)).unlocked).toBe(true);
     expect(store.vault.clear).toHaveBeenCalledTimes(1);
-    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledTimes(1);
-  });
-
-  it("clears the local data when the same email comes back with a new personal vault", async () => {
-    const previous = account();
-    const keys = account();
-    Object.assign(store, {
-      accountKeyMaterial: {
-        ...previous.userPasswordKeys,
-        email: "alice@example.com",
-        userKeyPair: previous.userKeyPair,
-      },
-    });
-    store.vault.getVaults.mockResolvedValue([
-      { ...previous.wraps[0]!, vaultId: "0199a3c4-0000-7000-8000-0000000000ff" },
-    ]);
-
-    expect(await unlockWith(keys)).toBe(true);
-    expect(store.vault.clear).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the local data for the same account and skips the unchanged write", async () => {
-    const keys = account();
-    Object.assign(store, {
-      accountKeyMaterial: {
-        ...keys.userPasswordKeys,
-        email: "alice@example.com",
-        userKeyPair: keys.userKeyPair,
-      },
-    });
-    store.vault.getVaults.mockResolvedValue(keys.wraps);
-
-    expect(await unlockWith(keys)).toBe(true);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
-  });
-
-  it("keeps the local data but stores the new wrap after a password change elsewhere", async () => {
-    const keys = account();
-    Object.assign(store, {
-      accountKeyMaterial: {
-        ...keys.userPasswordKeys,
-        passwordKekSalt: toBase64(genKey()),
-        email: "alice@example.com",
-        userKeyPair: keys.userKeyPair,
-      },
-    });
-    store.vault.getVaults.mockResolvedValue(keys.wraps);
-
-    expect(await unlockWith(keys)).toBe(true);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledTimes(1);
-  });
-
-  it("stores a keypair the server rotated since the last unlock", async () => {
-    const keys = account();
-    Object.assign(store, {
-      accountKeyMaterial: {
-        ...keys.userPasswordKeys,
-        email: "alice@example.com",
-        userKeyPair: createUserKeyPair(genKey()),
-      },
-    });
-    store.vault.getVaults.mockResolvedValue(keys.wraps);
-
-    expect(await unlockWith(keys)).toBe(true);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.vault.setAccountKeyMaterial).toHaveBeenCalledWith(
-      expect.objectContaining({ userKeyPair: keys.userKeyPair }),
+    expect(store.saveAccount).toHaveBeenCalledWith(
+      { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
       keys.wraps,
+      expect.objectContaining({ mode: "linked", email: "alice@example.com", userId: ALICE.userId }),
     );
+  });
+
+  it("clears the local data when the server account is another one (same email, new userId)", async () => {
+    const keys = account();
+
+    expect((await unlockWith(keys, "user-alice-reregistered")).unlocked).toBe(true);
+    expect(store.vault.clear).toHaveBeenCalledTimes(1);
+    const profile = store.saveAccount.mock.calls[0]?.[2] as LocalProfile;
+    expect(profile.userId).toBe("user-alice-reregistered");
+    expect(profile.profileId).not.toBe(ALICE.profileId);
+  });
+
+  it("keeps the local data and the profile for the same account", async () => {
+    const keys = account();
+
+    expect((await unlockWith(keys)).unlocked).toBe(true);
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.saveAccount).toHaveBeenCalledWith(
+      { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
+      keys.wraps,
+      undefined,
+    );
+  });
+
+  it("updates the profile's email when the account's email changed", async () => {
+    const keys = account();
+    store.profile = { ...ALICE, email: "old@example.com" };
+
+    expect((await unlockWith(keys)).unlocked).toBe(true);
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.saveAccount.mock.calls[0]?.[2]).toEqual({ ...ALICE, email: "alice@example.com" });
+  });
+
+  it("never replaces a vault without an account, and revokes the session", async () => {
+    const keys = account();
+    store.profile = { profileId: "local", mode: "local", email: null, userId: null };
+    await secretsStore.unlockSession("live-session", "k", genKey());
+
+    const { unlocked, error } = await unlockWith(keys);
+    expect(unlocked).toBe(false);
+    expect(error).toBe("local_vault");
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
+    expect(secretsStore.hasServerSession).toBe(false);
   });
 
   it("stays locked when the keypair's public key isn't the one its private key proves", async () => {
     const keys = account();
     const swapped = { ...keys.userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey };
-    store.vault.getVaults.mockResolvedValue(keys.wraps);
 
-    expect(await unlockWith({ ...keys, userKeyPair: swapped })).toBe(false);
+    expect((await unlockWith({ ...keys, userKeyPair: swapped })).unlocked).toBe(false);
     expect(secretsStore.isVaultUnlocked).toBe(false);
     expect(secretsStore.userPublicKey).toBeUndefined();
   });
 
-  it("offline: unlocks with the keypair cached on the device", async () => {
+  it("offline: unlocks with the keypair cached on the device, without the server", async () => {
     const keys = account();
-    Object.assign(store, {
-      accountKeyMaterial: {
-        ...keys.userPasswordKeys,
-        email: "alice@example.com",
-        userKeyPair: keys.userKeyPair,
-      },
-    });
+    store.accountKeyMaterial = { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair };
     store.vault.getVaults.mockResolvedValue(keys.wraps);
+    const offline = { ...session, networkOffline: true };
 
-    const { result } = renderHook(() => useUnlock(), { wrapper });
+    const { result } = renderHook(() => useUnlock(), {
+      wrapper: ({ children }) => (
+        <SessionContext.Provider value={offline}>{children}</SessionContext.Provider>
+      ),
+    });
     let unlocked = false;
     await act(async () => {
       unlocked = await result.current.offlineUnlock("alice@example.com", "pw");
     });
 
     expect(unlocked).toBe(true);
-    expect(session.offlineLoginSession).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(session.unlockVault).mock.calls[0]?.[0]).toBe("linked");
     expect(secretsStore.userPublicKey).toBe(keys.userKeyPair.publicKey);
+    expect(loginUserCore).not.toHaveBeenCalled();
     // Nothing changed, so nothing is rewritten.
-    expect(store.vault.setAccountKeyMaterial).not.toHaveBeenCalled();
+    expect(store.saveAccount).not.toHaveBeenCalled();
   });
 });

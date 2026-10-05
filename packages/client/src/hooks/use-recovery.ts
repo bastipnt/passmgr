@@ -16,7 +16,7 @@ export const RECOVERY_ERROR_MESSAGES: Record<RecoveryError, string> = {
 
 export function useRecovery() {
   const trpc = useTRPCClient();
-  const { accountKeyMaterial, removeVault } = useStore();
+  const { profile, removeVault } = useStore();
   const [recoveryError, setRecoveryError] = useState<RecoveryError | undefined>();
 
   /**
@@ -41,10 +41,11 @@ export function useRecovery() {
       return;
     }
 
-    // This device's cached copy of the account is now stale: the offline wrap
+    // This device's cached copy of the account is now stale: the local wrap
     // needs the old password and biometric material holds it. Drop it so the
-    // next login starts clean. Another account's cache is left alone.
-    if (accountKeyMaterial?.email === normalizeEmail(email)) await removeVault();
+    // next login starts clean. Another account's vault is left alone.
+    // TODO(offline-first): keep the local data and rewrap instead (ADR 0001 D10).
+    if (profile?.mode === "linked" && profile.email === normalizeEmail(email)) await removeVault();
 
     return newRecoveryKey;
   }

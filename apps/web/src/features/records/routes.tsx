@@ -15,11 +15,11 @@ const RecordsEmptyState = lazy(() => import("./RecordsEmptyState"));
 const RecordPage = lazy(() => import("./RecordPage"));
 
 export default function RecordRoutes() {
-  const { sessionId } = useContext(SessionContext);
+  const { vaultUnlocked } = useContext(SessionContext);
   useAutoReconnect();
   const isMobile = useIsMobile();
 
-  if (!sessionId) return <Redirect to={authPaths.login} />;
+  if (!vaultUnlocked) return <Redirect to={authPaths.login} />;
 
   return (
     <RecordLayout>

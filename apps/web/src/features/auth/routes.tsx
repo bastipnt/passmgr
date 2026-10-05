@@ -10,14 +10,14 @@ const RecoverPage = lazy(() => import("./RecoverPage"));
 const RegisterPage = lazy(() => import("./RegisterPage"));
 
 export default function AuthRoutes() {
-  const { loggedIn, vaultUnlocked } = useContext(SessionContext);
+  const { vaultUnlocked } = useContext(SessionContext);
   const { needsBiometricEnroll } = useStore();
   const { registrationEnabled } = useAppConfig();
   const [isEnrollBiometricRoute] = useRoute(authPaths.enrollBiometric);
   const [searchParams] = useSearchParams();
   const canRegister = registrationEnabled || searchParams.has("invite");
 
-  if (loggedIn && vaultUnlocked) {
+  if (vaultUnlocked) {
     if (needsBiometricEnroll) {
       if (!isEnrollBiometricRoute) return <Redirect to={authPaths.enrollBiometric} />;
     } else return <Redirect to="/" />;

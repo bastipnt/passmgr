@@ -12,6 +12,12 @@ import {
   upsertBiometricKey,
 } from "./schema/keys-schema";
 import {
+  clearProfileTable,
+  getProfile,
+  type LocalProfile,
+  replaceProfile,
+} from "./schema/profile-schema";
+import {
   clearRecordsTable,
   deleteVaultRecords,
   getAllRecordsLatest,
@@ -94,16 +100,30 @@ export class Vault {
   }
 
   /**
-   * ACCOUNT KEY + VAULT KEYS (what an offline unlock needs)
+   * PROFILE (whose vault this is, ADR 0001 D2)
    */
 
-  /** Store the account key wrap and the vaults (with their key wraps) together, atomically. */
+  async getProfile(): Promise<LocalProfile | null> {
+    await this.ready();
+    return await getProfile(this.db);
+  }
+
+  /**
+   * ACCOUNT KEY + VAULT KEYS (what an unlock without the server needs)
+   */
+
+  /**
+   * Store the account key wrap and the vaults (with their key wraps) together,
+   * atomically. With `profile`, the profile is replaced in the same transaction.
+   */
   async setAccountKeyMaterial(
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
+    profile?: LocalProfile,
   ): Promise<void> {
     await this.ready();
     await this.transaction(async (tx) => {
+      if (profile) await replaceProfile(profile, tx);
       await upsertAccountKey(material, tx);
       await replaceVaults(vaults, tx);
     });
@@ -186,6 +206,7 @@ export class Vault {
       await clearKeysTable(tx);
       await clearSyncTable(tx);
       await clearVaultsTable(tx);
+      await clearProfileTable(tx);
     });
   }
 

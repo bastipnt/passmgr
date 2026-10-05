@@ -1,11 +1,11 @@
-import { getRecordWebsites, hasEditForm, SessionContext } from "@repo/client";
+import { getRecordWebsites, hasEditForm, useCanWrite } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
-import { useContext, useLayoutEffect, useRef } from "react";
+import { useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
@@ -31,7 +31,7 @@ type MobileRecordScreenProps = {
  * and website scroll away.
  */
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
-  const { isOffline } = useContext(SessionContext);
+  const readOnly = !useCanWrite();
   const copyField = useCopyField();
   const websites = getRecordWebsites(record);
   const password = isRecordType(record, "login") ? record.password : undefined;
@@ -54,7 +54,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       observer.disconnect();
       title.style.removeProperty("--title-end");
     };
-  }, [isOffline]);
+  }, [readOnly]);
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
@@ -64,7 +64,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           <ChevronLeftIcon className="size-5" />
         </Button>
         <span className="flex-1" />
-        {!isOffline && (
+        {!readOnly && (
           <div ref={actionsRef} className="flex items-center gap-2">
             {hasEditForm(record) && (
               <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>

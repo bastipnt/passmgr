@@ -4,6 +4,7 @@ import { db, userKeyPairsTable } from "@repo/db";
 import {
   finishLoginInputSchema,
   finishLoginOutputSchema,
+  logoutInputSchema,
   startLoginInputSchema,
   startLoginOutputSchema,
 } from "@repo/schema";
@@ -184,10 +185,10 @@ export const loginRouter = router({
       wipe(authKey);
 
       log?.info({ emailHash }, "auth.login.success");
-      return { sessionId, userPasswordKeys: keyQueryRes, vaultKeys, userKeyPair };
+      return { sessionId, userId, userPasswordKeys: keyQueryRes, vaultKeys, userKeyPair };
     }),
 
-  logout: protectedProcedure.mutation(async ({ ctx }) => {
+  logout: protectedProcedure.input(logoutInputSchema).mutation(async ({ ctx }) => {
     await deleteSession(ctx.sessionId);
     ctx.req?.log?.info({ sidHash: await shortHash(ctx.sessionId) }, "auth.logout");
     return { ok: true } as const;

@@ -1,7 +1,7 @@
 import {
   hasEditForm,
   loginRecordFromForm,
-  SessionContext,
+  useCanWrite,
   useDeleteRecord,
   useGetRecord,
   useShortcut,
@@ -10,7 +10,7 @@ import {
 import { isRecordType, type LoginFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
-import { useContext, useEffect } from "react";
+import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { useCopyField } from "./record-utils";
@@ -64,7 +64,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
  * `enabled` — `enabled` here only means "this action is impossible right now".
  */
 export function useRecordShortcuts({ recordId }: { recordId: string }) {
-  const { isOffline } = useContext(SessionContext);
+  const readOnly = !useCanWrite();
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
   const copyField = useCopyField();
@@ -84,7 +84,7 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
 
   useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
     description: "Edit record",
-    enabled: ready && !!record && hasEditForm(record) && !isOffline,
+    enabled: ready && !!record && hasEditForm(record) && !readOnly,
     allowInInput: true,
   });
 }

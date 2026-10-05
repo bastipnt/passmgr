@@ -12,7 +12,7 @@ import { useTRPCClient } from "../util/trpc";
 
 export function useLogin() {
   const trpc = useTRPCClient();
-  const { loginSession } = useContext(SessionContext);
+  const { attachServer } = useContext(SessionContext);
   const [loginError, setLoginError] = useState(false);
   const [loginThrottled, setLoginThrottled] = useState(false);
 
@@ -24,7 +24,7 @@ export function useLogin() {
   async function loginUser(email: string, password: string): Promise<VaultUnlockInfo | undefined> {
     clearLoginErrors();
     try {
-      return await loginUserCore(trpc, loginSession, email, password);
+      return await loginUserCore(trpc, attachServer, email, password);
     } catch (err) {
       if (err instanceof LoginThrottledError) {
         setLoginThrottled(true);

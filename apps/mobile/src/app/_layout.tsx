@@ -30,7 +30,7 @@ import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
 
 function Routes() {
-  const { loggedIn } = useContext(SessionContext);
+  const { vaultUnlocked } = useContext(SessionContext);
   const { status, tryRestore } = useSessionRestore();
   const contentStyle = useResolveClassNames("bg-edge-tint");
   const headerStyle = contentStyle;
@@ -60,10 +60,10 @@ function Routes() {
           headerStyle,
         }}
       >
-        <Stack.Protected guard={loggedIn}>
+        <Stack.Protected guard={vaultUnlocked}>
           <Stack.Screen name="(app)" />
         </Stack.Protected>
-        <Stack.Protected guard={!loggedIn}>
+        <Stack.Protected guard={!vaultUnlocked}>
           <Stack.Screen name="(auth)" />
         </Stack.Protected>
       </Stack>

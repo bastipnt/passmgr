@@ -2,6 +2,7 @@ import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import type { LocalProfile } from "../src/schema/profile-schema";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
@@ -36,7 +37,6 @@ function record(
 }
 
 const accountKey: AccountKeyMaterial = {
-  email: "a@b.c",
   passwordKekParams: { t: 3, m: 65536, p: 4 },
   passwordKekSalt: "salt",
   encryptedAccountKey: "enc",
@@ -236,6 +236,56 @@ describe("key material", () => {
   });
 });
 
+describe("profile", () => {
+  const linked: LocalProfile = {
+    profileId: "p-1",
+    mode: "linked",
+    email: "a@b.c",
+    userId: "u-1",
+  };
+
+  it("is null until set, then round-trips with the key material", async () => {
+    expect(await vault.getProfile()).toBeNull();
+
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+
+    expect(await vault.getProfile()).toEqual(linked);
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+  });
+
+  it("round-trips a local profile without email or userId", async () => {
+    const local: LocalProfile = { profileId: "p-2", mode: "local", email: null, userId: null };
+    await vault.setAccountKeyMaterial(accountKey, [personal], local);
+
+    expect(await vault.getProfile()).toEqual(local);
+  });
+
+  it("keeps the profile when the key material is set without one", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "rekeyed" }, [
+      personal,
+    ]);
+
+    expect(await vault.getProfile()).toEqual(linked);
+  });
+
+  it("replaces the profile: there is only ever one", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    const other: LocalProfile = { ...linked, profileId: "p-3", userId: "u-2" };
+    await vault.setAccountKeyMaterial(accountKey, [personal], other);
+
+    expect(await vault.getProfile()).toEqual(other);
+  });
+
+  it("writes no profile when the rest of the write fails", async () => {
+    await expect(
+      vault.setAccountKeyMaterial(accountKey, [personal, personal], linked),
+    ).rejects.toThrow();
+
+    expect(await vault.getProfile()).toBeNull();
+  });
+});
+
 describe("applySync", () => {
   const work = vaultKey("v-work");
   const T1 = "2026-10-01T00:00:00.000Z";
@@ -302,9 +352,14 @@ describe("applySync", () => {
 });
 
 describe("clear", () => {
-  it("removes records, key material, vault keys and sync state", async () => {
+  it("removes records, profile, key material, vault keys and sync state", async () => {
     await vault.upsertRecords([record("r1", 1)]);
-    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.setAccountKeyMaterial(accountKey, [personal], {
+      profileId: "p-1",
+      mode: "linked",
+      email: "a@b.c",
+      userId: "u-1",
+    });
     await vault.setBiometricKeyMaterial(biometricKey);
     await vault.applySync({
       records: [],
@@ -315,6 +370,7 @@ describe("clear", () => {
     await vault.clear();
 
     expect(await vault.getAllLatest()).toEqual([]);
+    expect(await vault.getProfile()).toBeNull();
     expect(await vault.getAccountKeyMaterial()).toBeNull();
     expect(await vault.getVaults()).toEqual([]);
     expect(await vault.getBiometricKeyMaterial()).toBeNull();

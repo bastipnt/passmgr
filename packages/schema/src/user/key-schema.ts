@@ -124,14 +124,10 @@ export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
 export type UserKeyPair = z.infer<typeof userKeyPairSchema>;
 export type UserPublicKey = z.infer<typeof userPublicKeySchema>;
 
-// for client: the account key material cached on the device for offline unlock
-export const ACCOUNT_KEY_MATERIAL_KEYS = [
-  ...Object.keys(passwordKeySchema.shape),
-  "email",
-  "userKeyPair",
-];
+// for client: the account key material cached on the device for unlocking
+// without the server. Whose account it is lives in the device profile.
+export const ACCOUNT_KEY_MATERIAL_KEYS = [...Object.keys(passwordKeySchema.shape), "userKeyPair"];
 
 export type AccountKeyMaterial = PasswordKeySchema & {
-  email: string;
   userKeyPair: UserKeyPair;
 };

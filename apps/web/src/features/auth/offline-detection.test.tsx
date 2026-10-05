@@ -4,8 +4,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@/test/render";
 
 function OfflineState() {
-  const { isOffline } = useContext(SessionContext);
-  return <span>{isOffline ? "offline" : "online"}</span>;
+  const { networkOffline } = useContext(SessionContext);
+  return <span>{networkOffline ? "offline" : "online"}</span>;
 }
 
 function renderSession() {

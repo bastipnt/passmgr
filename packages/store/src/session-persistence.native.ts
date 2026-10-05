@@ -46,7 +46,10 @@ export async function loadLoginBundle(): Promise<LoginBundle | null> {
   try {
     const raw = await SecureStore.getItemAsync(LOGIN_BUNDLE_KEY, writeOptions());
     if (!raw) return null;
-    return JSON.parse(raw) as LoginBundle;
+    const bundle = JSON.parse(raw) as Partial<LoginBundle>;
+    // A bundle from an older app version: start over with a normal unlock.
+    if (typeof bundle.accountKeyB64 !== "string") return null;
+    return bundle as LoginBundle;
   } catch {
     // User cancelled the prompt or authentication failed — treat as no session.
     return null;

@@ -16,11 +16,11 @@ const DuplicatesPage = lazy(() => import("./DuplicatesPage"));
 const WeakPasswordsPage = lazy(() => import("./WeakPasswordsPage"));
 
 export default function SettingsRoutes() {
-  const { sessionId } = useContext(SessionContext);
+  const { vaultUnlocked } = useContext(SessionContext);
   const isMobile = useIsMobile();
   useAutoReconnect();
 
-  if (!sessionId) return <Redirect to={authPaths.login} />;
+  if (!vaultUnlocked) return <Redirect to={authPaths.login} />;
 
   return (
     <SettingsLayout>

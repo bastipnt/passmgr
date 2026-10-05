@@ -1,7 +1,7 @@
 import {
   AUTO_LOCK_DEFAULT_MINUTES,
   PREF_KEYS,
-  SessionContext,
+  useCanWrite,
   usePreference,
   useShortcut,
 } from "@repo/client";
@@ -29,7 +29,7 @@ import {
   SlidersHorizontalIcon,
   XIcon,
 } from "lucide-react";
-import { type ReactNode, useContext, useRef, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Link as RouterLink, useLocation } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
@@ -97,7 +97,7 @@ function MainContent({ children }: { children: ReactNode }) {
 }
 
 export default function RecordLayout({ children }: RecordLayoutProps) {
-  const { isOffline } = useContext(SessionContext);
+  const readOnly = !useCanWrite();
   const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -110,7 +110,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
 
   useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
     description: "Create new record",
-    enabled: !isOffline,
+    enabled: !readOnly,
   });
 
   useShortcut("$mod+l", lockVault, {
@@ -171,7 +171,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
                 <LockIcon />
               </Button>
               <ThemeToggle className="hidden md:inline-flex" />
-              {!isOffline && (
+              {!readOnly && (
                 <Link variant="default" href={createSheetSearch()} aria-label="New record">
                   <PlusIcon />
                   <span className="hidden sm:inline">New record</span>

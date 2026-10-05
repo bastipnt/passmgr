@@ -1,4 +1,4 @@
-import { SessionContext, ShortcutLayer } from "@repo/client";
+import { ShortcutLayer, useCanWrite } from "@repo/client";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -10,7 +10,7 @@ import {
 import Link from "@repo/ui/components/Link";
 import { cn } from "@repo/ui/lib/utils";
 import { EllipsisIcon, ExternalLinkIcon, PencilLineIcon, Timeline, TrashIcon } from "lucide-react";
-import { useContext, useState } from "react";
+import { useState } from "react";
 import { recordPaths } from "@/app/route-paths";
 import { displayHost } from "./record-utils";
 import { WebsiteAvatar } from "./WebsiteAvatar";
@@ -82,7 +82,7 @@ export function RecordActions({
   className,
 }: RecordActionsProps) {
   const primaryWebsite = websites?.find((website) => website.value)?.value;
-  const { isOffline } = useContext(SessionContext);
+  const readOnly = !useCanWrite();
 
   return (
     <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
@@ -104,7 +104,7 @@ export function RecordActions({
         </div>
       </div>
 
-      {!isOffline && (
+      {!readOnly && (
         <div className="flex shrink-0 items-center gap-2">
           {editable && (
             <Link

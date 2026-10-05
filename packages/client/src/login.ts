@@ -82,11 +82,12 @@ export async function loginUser(
   const authSalt = genSalt();
 
   let sessionId: string;
+  let userId: string;
   let userPasswordKeys: PasswordKeySchema;
   let vaultKeys: MemberVault[];
   let userKeyPair: UserKeyPair;
   try {
-    ({ sessionId, userPasswordKeys, vaultKeys, userKeyPair } = await timed(
+    ({ sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } = await timed(
       "opaque finishLogin",
       () =>
         trpc.login.finishLogin.mutate({
@@ -102,5 +103,5 @@ export async function loginUser(
 
   await loginSession(sessionId, sessionKey, authSalt);
 
-  return { email, password, userPasswordKeys, vaultKeys, userKeyPair };
+  return { email, userId, password, userPasswordKeys, vaultKeys, userKeyPair };
 }

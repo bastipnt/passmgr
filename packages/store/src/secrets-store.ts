@@ -22,10 +22,18 @@ import {
   vaultMetaSchema,
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
-import type { LoginBundle } from "./session-persistence.types";
+import type { LoginBundle, ServerSessionBundle } from "./session-persistence.types";
 
 class SessionLockedError extends Error {
   override message: string = "SessionLockedError";
+}
+
+function decodeServerSession(server: ServerSessionBundle) {
+  return {
+    sessionId: server.sessionId,
+    authKey: fromBase64(server.authKeyB64),
+    authSalt: fromBase64(server.authSaltB64),
+  };
 }
 
 class SecretsStore {
@@ -46,15 +54,45 @@ class SecretsStore {
   // Temporary password for biometric enrollment
   private password?: string;
 
+  // Bumped on every lock: work started before a lock (a background server
+  // connect) compares it to tell that its unlock is gone.
+  private epoch = 0;
+
   /**
-   * Phase 1: Establish session (fast — HKDF only).
-   * After this, authenticated requests work but item decryption does not.
+   * Attach server auth (ADR 0001 D2): derive the request-signing key from a
+   * fresh OPAQUE session (fast, HKDF only). Independent of the vault: it can
+   * come before the unlock (login) or after it (reconnect).
    */
   async unlockSession(sessionId: string, sessionKey: string, authSalt: Uint8Array) {
+    const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    const authKey = await hkdf(sessionSecret, "sessionAuth", authSalt);
+    this.detachServer();
     this.sessionId = sessionId;
-    this.sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    this.sessionSecret = sessionSecret;
     this.authSalt = authSalt;
-    this.authKey = await this.deriveAuthKey();
+    this.authKey = authKey;
+  }
+
+  /** Whether requests can be signed: a server session is attached. */
+  get hasServerSession(): boolean {
+    return this.sessionId !== undefined && this.authKey !== undefined;
+  }
+
+  /**
+   * Drop the server session keys (the session ended or expired). The vault
+   * stays unlocked: the session goes from `online` to `offline`.
+   */
+  detachServer() {
+    this.sessionId = undefined;
+
+    if (this.sessionSecret) wipe(this.sessionSecret);
+    this.sessionSecret = undefined;
+
+    if (this.authKey) wipe(this.authKey);
+    this.authKey = undefined;
+
+    if (this.authSalt) wipe(this.authSalt);
+    this.authSalt = undefined;
   }
 
   /**
@@ -148,42 +186,43 @@ class SecretsStore {
   }
 
   /**
-   * Export the in-memory session + account key for persistence to OS secure
-   * storage. Returns base64 material (minus the account email, which the caller
-   * supplies). Vault keys aren't included: they're re-unwrapped from the local
-   * database after a restore. Throws unless both the session and vault are unlocked.
+   * Export the account key (and the server session, when one is attached) for
+   * persistence to OS secure storage. Vault keys aren't included: they're
+   * re-unwrapped from the local database after a restore. Throws while the
+   * vault is locked.
    */
-  exportPersistableBundle(): Omit<LoginBundle, "email"> {
-    if (!this.sessionId || !this.authKey || !this.authSalt || !this.accountKey) {
-      throw new SessionLockedError();
-    }
+  exportPersistableBundle(): LoginBundle {
+    if (!this.accountKey) throw new SessionLockedError();
 
-    return {
-      sessionId: this.sessionId,
-      authKeyB64: toBase64(this.authKey),
-      authSaltB64: toBase64(this.authSalt),
-      accountKeyB64: toBase64(this.accountKey),
-    };
+    const bundle: LoginBundle = { accountKeyB64: toBase64(this.accountKey) };
+    if (this.sessionId && this.authKey && this.authSalt) {
+      bundle.server = {
+        sessionId: this.sessionId,
+        authKeyB64: toBase64(this.authKey),
+        authSaltB64: toBase64(this.authSalt),
+      };
+    }
+    return bundle;
   }
 
   /**
-   * Restore a previously-persisted session straight from key material — no
-   * OPAQUE handshake, no Argon2. After this, authenticated requests
-   * (`signRequest`) work; follow with `loadVaultKeys` for item decryption.
-   * `sessionSecret` is intentionally not restored: it is only an intermediate
-   * used to derive `authKey`, which we already have.
+   * Restore a persisted bundle straight from key material — no OPAQUE
+   * handshake, no Argon2. Sets the account key, and the server session when
+   * the bundle has one (any previous one is dropped either way). Follow with
+   * `loadVaultKeys` for item decryption. `sessionSecret` is intentionally not
+   * restored: it is only an intermediate used to derive `authKey`.
    */
-  restoreSession(bundle: Omit<LoginBundle, "email">) {
+  restoreSession(bundle: LoginBundle) {
     // Decode everything first: a malformed bundle throws without touching state.
-    const authKey = fromBase64(bundle.authKeyB64);
-    const authSalt = fromBase64(bundle.authSaltB64);
     const accountKey = fromBase64(bundle.accountKeyB64);
+    const server = bundle.server && decodeServerSession(bundle.server);
 
-    if (this.authKey) wipe(this.authKey);
-    if (this.authSalt) wipe(this.authSalt);
-    this.sessionId = bundle.sessionId;
-    this.authKey = authKey;
-    this.authSalt = authSalt;
+    this.detachServer();
+    if (server) {
+      this.sessionId = server.sessionId;
+      this.authKey = server.authKey;
+      this.authSalt = server.authSalt;
+    }
     this.setAccountKey(accountKey);
   }
 
@@ -203,25 +242,21 @@ class SecretsStore {
     return this.accountKey !== undefined && this.personalVaultId !== undefined;
   }
 
+  /** Wipe everything: server session, account, vault and private keys, password. */
   lock() {
-    this.sessionId = undefined;
-
-    if (this.sessionSecret) wipe(this.sessionSecret);
-    this.sessionSecret = undefined;
-
-    if (this.authKey) wipe(this.authKey);
-    this.authKey = undefined;
-
-    if (this.authSalt) wipe(this.authSalt);
-    this.authSalt = undefined;
-
+    this.detachServer();
     this.lockVault();
-
     this.password = undefined;
+  }
+
+  /** Changes whenever the vault is locked; see `epoch`. */
+  get lockEpoch(): number {
+    return this.epoch;
   }
 
   /** Wipe the account, vault and private keys; the server session (if any) stays. */
   lockVault() {
+    this.epoch += 1;
     if (this.accountKey) wipe(this.accountKey);
     this.accountKey = undefined;
     this.wipeVaultKeys();
@@ -326,13 +361,6 @@ class SecretsStore {
     if (this.userPrivateKey) wipe(this.userPrivateKey);
     this.userPrivateKey = undefined;
     this.verifiedPublicKey = undefined;
-  }
-
-  private async deriveAuthKey(): Promise<Uint8Array> {
-    if (!this.sessionSecret) throw new SessionLockedError();
-    if (!this.authSalt) throw new SessionLockedError();
-
-    return await hkdf(this.sessionSecret, "sessionAuth", this.authSalt);
   }
 
   // Test-only: hand out live references to internal buffers so tests can

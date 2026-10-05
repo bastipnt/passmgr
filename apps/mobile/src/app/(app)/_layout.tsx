@@ -1,4 +1,4 @@
-import { RecordsProvider, SortedRecordsProvider } from "@repo/client";
+import { RecordsProvider, SortedRecordsProvider, useAutoReconnect } from "@repo/client";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCSSVariable } from "uniwind";
 import { useAutoLock } from "@/hooks/use-auto-lock";
@@ -9,6 +9,8 @@ export default function AppLayout() {
 
   // Mounted once for the whole signed-in tree; unmounts with it on lock.
   useAutoLock();
+  // Back online after an unlock without the server: attach the session.
+  useAutoReconnect();
 
   return (
     <RecordsProvider>

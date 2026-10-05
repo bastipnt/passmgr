@@ -1,108 +1,75 @@
-import {
-  authenticateBiometric,
-  genPasswordKek,
-  getPasswordKekParams,
-  normalizeEmail,
-  wipe,
-} from "@repo/crypto";
+import { authenticateBiometric, normalizeEmail, wipe } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type {
-  ArgonParams,
-  MemberVault,
-  PasswordKeySchema,
-  UserKeyPair,
-  VaultUnlockInfo,
-} from "@repo/schema";
-import {
-  isPersistentLoginAvailable,
-  persistLoginBundle,
-  sameVaults,
-  secretsStore,
-} from "@repo/store";
-import { fromBase64, toBase64 } from "@repo/util";
+import type { AccountKeyMaterial, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import { type LocalProfile, secretsStore } from "@repo/store";
+import { fromBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
+import { rekeyIfParamsStale } from "../account/rekey-password-keys";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
+import { endServerSession } from "../util/end-server-session";
 import { timed } from "../util/perf";
+import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
+import { type ConnectResult, canReleasePassword, useConnectServer } from "./use-connect-server";
 import { useLogin } from "./use-login";
-
-function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
-  return a.t === b.t && a.m === b.m && a.p === b.p;
-}
-
-function passwordKeysEqual(a: PasswordKeySchema, b: PasswordKeySchema): boolean {
-  return (
-    paramsEqual(a.passwordKekParams, b.passwordKekParams) &&
-    a.passwordKekSalt === b.passwordKekSalt &&
-    a.encryptedAccountKey === b.encryptedAccountKey &&
-    a.accountKeyEncryptionNonce === b.accountKeyEncryptionNonce
-  );
-}
-
-function keyPairsEqual(a: UserKeyPair, b: UserKeyPair): boolean {
-  return (
-    a.keyVersion === b.keyVersion &&
-    a.publicKey === b.publicKey &&
-    a.encryptedPrivateKey === b.encryptedPrivateKey &&
-    a.privateKeyEncryptionNonce === b.privateKeyEncryptionNonce
-  );
-}
-
-function personalVaultId(vaultKeys: readonly MemberVault[]): string | undefined {
-  return vaultKeys.find((wrap) => wrap.kind === "personal")?.vaultId;
-}
 
 /**
  * - `failed`: wrong password, or the key derivation failed
  * - `wrong_account`: offline, the email isn't the account stored on this device
+ * - `local_vault`: this device holds a vault without an account; signing in to
+ *   an account would replace it (merging comes with account linking)
+ * - `account_changed`: the stored vault's email now belongs to another account
+ *   on the server; unlocking it there would replace this device's vault
  */
-export type UnlockError = "failed" | "wrong_account";
+export type UnlockError = "failed" | "wrong_account" | "local_vault" | "account_changed";
+
+async function derivePasswordKek(password: string, keys: PasswordKeySchema): Promise<Uint8Array> {
+  const { passwordKekParams } = keys;
+  return await timed(
+    `argon2 derive (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
+    () => argon2WorkerService.derive(password, fromBase64(keys.passwordKekSalt), passwordKekParams),
+  );
+}
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState<UnlockError>();
-  const { unlockVault, unlockWithAccountKey, offlineLoginSession, endSession } =
-    useContext(SessionContext);
+  const { unlockVault, unlockWithAccountKey, lock, networkOffline } = useContext(SessionContext);
   const store = useStore();
   const { loginUser } = useLogin();
+  const { connect } = useConnectServer();
   const trpc = useTRPCClient();
 
   /**
-   * Derives the password KEK, unwraps the account key and with it the vault keys.
-   * Resolves `false` on a wrong password (or a vault key that doesn't open).
+   * After an online login (`loginUser`, server session attached): make this
+   * device the account's, derive the password KEK, unwrap the account key and
+   * with it the vault keys. Resolves `false` on a wrong password (or a vault
+   * key that doesn't open), with the server session revoked again.
    */
-  async function unlock({
-    email,
-    password,
-    userPasswordKeys,
-    vaultKeys,
-    userKeyPair,
-  }: VaultUnlockInfo): Promise<boolean> {
+  async function unlock(info: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
-    let passwordKek: Uint8Array;
+    const { password, userPasswordKeys, vaultKeys, userKeyPair } = info;
 
+    let passwordKek: Uint8Array;
     try {
-      const { passwordKekParams } = userPasswordKeys;
-      passwordKek = await timed(
-        `argon2 derive (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
-        () =>
-          argon2WorkerService.derive(
-            password,
-            fromBase64(userPasswordKeys.passwordKekSalt),
-            passwordKekParams,
-          ),
-      );
+      passwordKek = await derivePasswordKek(password, userPasswordKeys);
     } catch (e) {
       console.error("Vault unlock failed", e);
-      await failUnlock();
+      await failUnlock("failed");
       return false;
     }
 
-    await storeKeyMaterial(email, userPasswordKeys, vaultKeys, userKeyPair);
+    const material: AccountKeyMaterial = { ...userPasswordKeys, userKeyPair };
+    if (!(await adoptAccount(info, material))) {
+      wipe(passwordKek);
+      await failUnlock("local_vault");
+      return false;
+    }
 
     try {
       unlockVault(
+        "linked",
         passwordKek,
         userPasswordKeys.encryptedAccountKey,
         userPasswordKeys.accountKeyEncryptionNonce,
@@ -110,221 +77,184 @@ export function useUnlock() {
         userKeyPair,
       );
     } catch (e) {
-      // Wrong password on the offline path: the account key fails to decrypt.
-      // Or a vault key / keypair that doesn't open with it.
+      // A vault key or keypair that doesn't open with the account key.
       console.error("Vault unlock failed", e);
-      await failUnlock();
+      await failUnlock("failed");
       return false;
     }
 
-    // Store password temporarily for biometric enrollment (only if enrollment is upcoming).
-    // Same tick as `unlockVault`, so the enroll redirect already sees it.
-    if (store.needsBiometricEnroll) secretsStore.setPassword(password);
+    afterUnlock(password);
+    await persistSession();
 
-    initDecryptWorker();
-
-    await persistSession(email);
-
-    // Transparently migrate to the current Argon2 params if the stored ones are
-    // stale (e.g. after a params bump). Best-effort — needs the server and the
-    // unlocked vault key in memory; failures don't block login.
-    void rekeyIfParamsStale(
-      email,
-      password,
-      userPasswordKeys.passwordKekParams,
-      vaultKeys,
-      userKeyPair,
-    );
+    // Transparently migrate to the current Argon2 params if the stored ones
+    // are stale. Best-effort; failures don't block login.
+    void rekeyIfParamsStale(trpc, password, material).then(async (rekeyed) => {
+      if (rekeyed) await store.saveAccount(rekeyed, vaultKeys);
+    });
     return true;
   }
 
   /**
-   * Unlock the locally stored vault without the server. Nothing is committed —
-   * offline session, password kept for auto-reconnect — until the password has
-   * decrypted the vault key; a wrong one would otherwise be replayed against the
-   * server's login throttle once back online.
+   * Unlock this device's vault with the password, without the server (ADR 0001
+   * D2): the profile says whose vault it is, no email needed. A linked vault
+   * then attaches server auth in the background; until that works the session
+   * is `offline`.
+   *
+   * When the password doesn't open the local copy of a linked vault, it may
+   * have been changed on another device: online, the server login decides.
    */
-  async function offlineUnlock(email: string, password: string): Promise<boolean> {
-    const keyMaterial = store.accountKeyMaterial;
-    // A different account can't be unlocked offline — and must not reach
-    // `storeKeyMaterial`, which clears the local vault on an email change.
-    if (!keyMaterial || normalizeEmail(email) !== keyMaterial.email) {
-      setUnlockError("wrong_account");
+  async function unlockLocal(password: string): Promise<boolean> {
+    setUnlockError(undefined);
+    const { profile, accountKeyMaterial: material } = store;
+    if (!profile || !material) {
+      setUnlockError("failed");
       return false;
     }
 
-    const vaultKeys = await store.vault.getVaults();
-    const unlocked = await unlock({
-      email,
-      password,
-      userPasswordKeys: keyMaterial,
-      vaultKeys,
-      userKeyPair: keyMaterial.userKeyPair,
-    });
-    if (!unlocked) return false;
+    if (await unlockWithPassword(profile, material, password)) {
+      afterUnlock(password);
+      await persistSession();
+      if (profile.mode === "linked") {
+        // Kept for the reconnect: `useAutoReconnect` retries with it once online.
+        secretsStore.setPassword(password);
+        if (!networkOffline) void connect(password).then(clearPasswordIfDone);
+      }
+      return true;
+    }
 
-    // Session id gets set to "offline"
-    offlineLoginSession();
-    // Store password for auto-reconnect when back online
-    secretsStore.setPassword(password);
+    if (profile.mode === "linked" && !networkOffline) {
+      const info = await loginUser(profile.email, password);
+      if (info) {
+        // Unlocking this device's vault never switches accounts: that would
+        // clear the vault without the user ever asking for another account.
+        // The server session attached by the login is revoked again (the vault
+        // is still locked, so nothing synced with it).
+        if (info.userId !== profile.userId) {
+          await failUnlock("account_changed");
+          return false;
+        }
+        return await unlock(info);
+      }
+    }
+    setUnlockError("failed");
+    return false;
+  }
+
+  /**
+   * Unlock by email + password while the server can't be reached. Only the
+   * account stored on this device can be unlocked like this.
+   */
+  async function offlineUnlock(email: string, password: string): Promise<boolean> {
+    const { profile } = store;
+    if (profile?.mode !== "linked" || normalizeEmail(email) !== profile.email) {
+      setUnlockError("wrong_account");
+      return false;
+    }
+    return await unlockLocal(password);
+  }
+
+  /** Derive the KEK and open the local copy of the keyring. Resolves `false` on a wrong password. */
+  async function unlockWithPassword(
+    profile: LocalProfile,
+    material: AccountKeyMaterial,
+    password: string,
+  ): Promise<boolean> {
+    try {
+      const passwordKek = await derivePasswordKek(password, material);
+      unlockVault(
+        profile.mode,
+        passwordKek,
+        material.encryptedAccountKey,
+        material.accountKeyEncryptionNonce,
+        await store.vault.getVaults(),
+        material.userKeyPair,
+      );
+      return true;
+    } catch (e) {
+      console.error("Vault unlock failed", e);
+      return false;
+    }
+  }
+
+  /**
+   * Make the local database the logged-in account's: keep it when it already
+   * is (same `userId`), otherwise clear the other account's leftovers before any
+   * of it is decrypted with the wrong keys. A vault without an account is never
+   * replaced silently: resolves `false`.
+   */
+  async function adoptAccount(info: VaultUnlockInfo, material: AccountKeyMaterial) {
+    const { profile } = store;
+    if (profile?.mode === "local") return false;
+
+    const email = normalizeEmail(info.email);
+    const sameAccount = profile?.mode === "linked" && profile.userId === info.userId;
+    if (!sameAccount) await store.vault.clear();
+
+    const nextProfile: LocalProfile | undefined =
+      sameAccount && profile.email === email
+        ? undefined
+        : {
+            profileId: sameAccount ? profile.profileId : crypto.randomUUID(),
+            mode: "linked",
+            email,
+            userId: info.userId,
+          };
+    await store.saveAccount(material, info.vaultKeys, nextProfile);
     return true;
+  }
+
+  function afterUnlock(password: string) {
+    // Store password temporarily for biometric enrollment (only if enrollment is upcoming).
+    // Same tick as the unlock, so the enroll redirect already sees it.
+    if (store.needsBiometricEnroll) secretsStore.setPassword(password);
+    initDecryptWorker();
+  }
+
+  function clearPasswordIfDone(result: ConnectResult) {
+    if (canReleasePassword(result, store.needsBiometricEnroll)) secretsStore.clearPassword();
   }
 
   /**
    * After an online login the server session is already live, but a locked vault
    * can't use it: revoke it (best-effort) and drop its keys so the app doesn't sit
-   * in a logged-in-but-locked state. Offline there is no session to discard.
+   * with a server session and a locked vault.
    */
-  async function failUnlock() {
-    setUnlockError("failed");
-    if (!secretsStore.sessionId) return;
+  async function failUnlock(error: UnlockError) {
+    setUnlockError(error);
+    if (!secretsStore.hasServerSession) return;
 
-    try {
-      await trpc.login.logout.mutate();
-    } catch {
-      // Best-effort: the Redis session dies via its TTL.
-    }
-    secretsStore.lock();
-    endSession();
+    await endServerSession(trpc);
+    lock();
   }
 
-  /**
-   * Re-derive the password KEK with the current params and re-wrap the account
-   * key (vault keys are unaffected). Runs client-side only — the server never
-   * sees the key or password.
-   * TODO: move into separate file (refactor)
-   */
-  async function rekeyIfParamsStale(
-    email: string,
-    password: string,
-    storedParams: ArgonParams,
-    vaultKeys: readonly MemberVault[],
-    userKeyPair: UserKeyPair,
-  ): Promise<void> {
-    const targetParams = getPasswordKekParams();
-    if (paramsEqual(storedParams, targetParams)) return;
-    if (typeof navigator !== "undefined" && !navigator.onLine) return;
-
-    try {
-      const { passwordKek, passwordKekParams, passwordKekSaltData } = await timed(
-        `argon2 rekey (t:${targetParams.t} m:${targetParams.m} p:${targetParams.p})`,
-        () => genPasswordKek(password, targetParams),
-      );
-
-      const [encryptedAccountKey, accountKeyEncryptionNonce] =
-        secretsStore.rewrapAccountKey(passwordKek);
-      wipe(passwordKek);
-
-      const updated: PasswordKeySchema = {
-        passwordKekParams,
-        passwordKekSalt: toBase64(passwordKekSaltData),
-        encryptedAccountKey,
-        accountKeyEncryptionNonce,
-      };
-
-      await trpc.user.rekeyPasswordKeys.mutate(updated);
-      await storeKeyMaterial(email, updated, vaultKeys, userKeyPair);
-    } catch (e) {
-      console.error("Argon2 param rekey failed (will retry next login)", e);
-    }
-  }
-
+  /** Unlock with the account key behind the platform authenticator (web, WebAuthn PRF). */
   async function biometricUnlock() {
-    if (!store.biometricKeyMaterial) return;
+    const { profile, accountKeyMaterial: material, biometricKeyMaterial } = store;
+    if (!biometricKeyMaterial || !profile || !material) return;
 
-    const { accountKey, password } = await authenticateBiometric(store.biometricKeyMaterial);
-    const email = store.accountKeyMaterial?.email;
-    let onlineAuthFailure = true;
-    let vaultKeys: readonly MemberVault[] | undefined;
-    let userKeyPair = store.accountKeyMaterial?.userKeyPair;
-
-    if (navigator.onLine && email) {
-      const unlockInfo = await timed("total login time", () => loginUser(email, password));
-      onlineAuthFailure = !unlockInfo;
-
-      if (unlockInfo) {
-        await storeKeyMaterial(
-          email,
-          unlockInfo.userPasswordKeys,
-          unlockInfo.vaultKeys,
-          unlockInfo.userKeyPair,
-        );
-        vaultKeys = unlockInfo.vaultKeys;
-        userKeyPair = unlockInfo.userKeyPair;
-      }
-    }
-
+    const { accountKey, password } = await authenticateBiometric(biometricKeyMaterial);
     try {
-      if (!userKeyPair) throw new Error("No keypair stored on this device");
       unlockWithAccountKey(
+        profile.mode,
         accountKey,
-        vaultKeys ?? (await store.vault.getVaults()),
-        userKeyPair,
-        onlineAuthFailure,
+        await store.vault.getVaults(),
+        material.userKeyPair,
       );
     } catch (e) {
-      // A vault key or keypair that doesn't open (or no personal vault). The online path
-      // already holds a live server session: revoke it, as on the password path.
+      // A vault key or keypair that doesn't open (or no personal vault).
       console.error("Biometric vault unlock failed", e);
-      await failUnlock();
+      setUnlockError("failed");
       throw e;
     }
     initDecryptWorker();
 
-    if (!onlineAuthFailure && email) await persistSession(email);
-  }
-
-  /**
-   * Persist the live session + vault keys to OS secure storage (mobile only —
-   * no-op on web) so the next app launch can restore a logged-in, unlocked
-   * state behind a single biometric prompt, skipping OPAQUE + Argon2.
-   * Best-effort: failures never block unlock.
-   */
-  async function persistSession(email: string) {
-    if (!isPersistentLoginAvailable()) return;
-
-    try {
-      await persistLoginBundle({ ...secretsStore.exportPersistableBundle(), email });
-    } catch (e) {
-      console.error("Persisting session for fast unlock failed", e);
+    if (profile.mode === "linked") {
+      secretsStore.setPassword(password);
+      if (!networkOffline) void connect(password).then(clearPasswordIfDone);
     }
-  }
-
-  /**
-   * Persist the wrapped account key, vault keys and keypair for offline unlock.
-   */
-  async function storeKeyMaterial(
-    rawEmail: string,
-    userPasswordKeys: PasswordKeySchema,
-    vaultKeys: readonly MemberVault[],
-    userKeyPair: UserKeyPair,
-  ) {
-    // Offline unlock passes the typed email; compare in canonical form.
-    const email = normalizeEmail(rawEmail);
-    const previous = store.accountKeyMaterial;
-    const cachedVaultKeys = await store.vault.getVaults();
-
-    // The local data belongs to another account unless both the email and the
-    // personal vault match: a personal vault never changes, so a new one means
-    // the account was replaced (e.g. re-registered after a server reset). With
-    // nothing cached there's no way to tell whose leftover data is in there.
-    // Either way, drop it before any of it is decrypted with the wrong keys.
-    const sameAccount =
-      previous?.email === email && personalVaultId(cachedVaultKeys) === personalVaultId(vaultKeys);
-    if (!sameAccount) await store.vault.clear();
-    // Offline unlocks (and most logins) hand back what's already stored.
-    else if (
-      passwordKeysEqual(previous, userPasswordKeys) &&
-      sameVaults(cachedVaultKeys, vaultKeys) &&
-      keyPairsEqual(previous.userKeyPair, userKeyPair)
-    ) {
-      return;
-    }
-
-    await store.vault.setAccountKeyMaterial({ ...userPasswordKeys, email, userKeyPair }, vaultKeys);
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);
 
-  return { unlockError, clearUnlockError, unlock, offlineUnlock, biometricUnlock };
+  return { unlockError, clearUnlockError, unlock, unlockLocal, offlineUnlock, biometricUnlock };
 }

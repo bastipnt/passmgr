@@ -1,49 +1,82 @@
 import type { MemberVault, UserKeyPair } from "@repo/schema";
-import { type LoginBundle, secretsStore } from "@repo/store";
+import { type LoginBundle, type ProfileMode, secretsStore } from "@repo/store";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 
-export const SessionContext = createContext<{
-  sessionId?: string;
+/**
+ * The state of an unlocked session (ADR 0001 D2):
+ * - `local`: no account exists, the vault lives on this device only
+ * - `online`: the profile is linked and a server session is attached
+ * - `offline`: the profile is linked, but no server session (no connection,
+ *   or it expired). Reading works, the server waits for a reconnect.
+ */
+export type SessionMode = "local" | "online" | "offline";
 
+type SessionContextValue = {
   vaultUnlocked: boolean;
-  loggedIn: boolean;
-  isOffline: boolean;
+  /** Undefined while the vault is locked. */
+  mode?: SessionMode;
+  /** The device has no network (browser `offline` event). Says nothing about the server session. */
+  networkOffline: boolean;
 
-  loginSession: (newSessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
+  /**
+   * Attach server auth from a fresh OPAQUE session. Can come before the vault
+   * is unlocked (login) or after it (reconnect).
+   */
+  attachServer: (sessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
+  /** Drop the server session keys (ended or expired): `online` → `offline`. */
+  detachServer: () => void;
+
+  /**
+   * Restore a persisted bundle on app reopen (mobile): the vault from the
+   * bundle's account key plus the locally cached vault keys and keypair, and
+   * the server session when the bundle has one. No OPAQUE handshake, no
+   * Argon2. Throws when the vault keys or the keypair don't open.
+   */
   restoreLogin: (
-    bundle: Omit<LoginBundle, "email">,
+    profileMode: ProfileMode,
+    bundle: LoginBundle,
     vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ) => void;
-  offlineLoginSession: () => void;
+  /**
+   * Unwrap the account key with the password KEK. Throws (on a wrong password,
+   * or a vault key or keypair that doesn't open) with nothing left in memory.
+   */
   unlockVault: (
+    profileMode: ProfileMode,
     passwordKek: Uint8Array,
     encryptedAccountKeyB64: string,
     accountKeyEncryptionNonceB64: string,
     vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
   ) => void;
+  /** Unlock with an already decrypted account key (e.g. from biometrics). */
   unlockWithAccountKey: (
+    profileMode: ProfileMode,
     accountKey: Uint8Array,
     vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
-    offline?: boolean,
   ) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
-  endSession: () => void;
-}>({
-  loggedIn: false,
+  /**
+   * Wipe every key from memory and reset the session state. The local data
+   * stays; see `useLock()` for the decrypt worker and the query cache.
+   */
+  lock: () => void;
+};
+
+export const SessionContext = createContext<SessionContextValue>({
   vaultUnlocked: false,
-  isOffline: false,
-  async loginSession() {},
+  networkOffline: false,
+  async attachServer() {},
+  detachServer() {},
   restoreLogin() {},
-  offlineLoginSession() {},
   unlockVault() {},
   unlockWithAccountKey() {},
   async signRequest() {
     return new Uint8Array(32);
   },
-  endSession() {},
+  lock() {},
 });
 
 /**
@@ -62,26 +95,34 @@ function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserK
   }
 }
 
+export function sessionMode(
+  profileMode: ProfileMode | undefined,
+  serverAttached: boolean,
+): SessionMode | undefined {
+  if (!profileMode) return undefined;
+  if (profileMode === "local") return "local";
+  return serverAttached ? "online" : "offline";
+}
+
 type SessionProviderProps = {
   children: ReactNode;
 };
 
 export default function SessionProvider({ children }: SessionProviderProps) {
-  const [sessionId, setSessionId] = useState<string>();
-  const [loggedIn, setLoggedIn] = useState(false);
-  const [vaultUnlocked, setVaultUnlocked] = useState(false);
-  // TODO: offline state should come from network?
+  // Set once the vault is unlocked: whose vault it is decides the mode.
+  const [profileMode, setProfileMode] = useState<ProfileMode>();
+  const [serverAttached, setServerAttached] = useState(false);
   // Seeded from `navigator.onLine`: a page loaded while already offline (served by
   // the service worker) never sees an `offline` event and would try the server.
-  const [isOffline, setIsOffline] = useState(
+  const [networkOffline, setNetworkOffline] = useState(
     () => typeof navigator !== "undefined" && navigator.onLine === false,
   );
 
   useEffect(() => {
     if (typeof window === "undefined" || typeof window.addEventListener !== "function") return;
 
-    const handleOnline = () => setIsOffline(false);
-    const handleOffline = () => setIsOffline(true);
+    const handleOnline = () => setNetworkOffline(false);
+    const handleOffline = () => setNetworkOffline(true);
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -92,51 +133,38 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     };
   }, []);
 
-  /**
-   * Called after a successful login
-   * ⚠️ online only ⚠️
-   */
-  const loginSession = useCallback(
-    async (newSessionId: string, sessionKey: string, salt: Uint8Array) => {
-      await secretsStore.unlockSession(newSessionId, sessionKey, salt);
-      setSessionId(newSessionId);
-      setLoggedIn(true);
+  const attachServer = useCallback(
+    async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+      await secretsStore.unlockSession(sessionId, sessionKey, salt);
+      setServerAttached(true);
     },
     [],
   );
 
-  /**
-   * Restore a persisted session on app reopen (mobile). Re-establishes both the
-   * server session and the unlocked vault directly from secure-storage key
-   * material plus the locally cached vault keys and keypair — no OPAQUE
-   * handshake, no Argon2. Throws when the vault keys or the keypair don't open.
-   */
+  const detachServer = useCallback(() => {
+    secretsStore.detachServer();
+    setServerAttached(false);
+  }, []);
+
   const restoreLogin = useCallback(
     (
-      bundle: Omit<LoginBundle, "email">,
+      mode: ProfileMode,
+      bundle: LoginBundle,
       vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
     ) => {
-      secretsStore.restoreSession(bundle);
+      // A local profile never talks to the server, whatever the bundle holds.
+      secretsStore.restoreSession(mode === "linked" ? bundle : { ...bundle, server: undefined });
       loadKeyringOrLock(vaultKeys, userKeyPair);
-      setSessionId(bundle.sessionId);
-      setLoggedIn(true);
-      setVaultUnlocked(true);
+      setServerAttached(secretsStore.hasServerSession);
+      setProfileMode(mode);
     },
     [],
   );
 
-  const offlineLoginSession = useCallback(() => {
-    setSessionId("offline");
-    setLoggedIn(true);
-  }, []);
-
-  /**
-   * Throws (on a wrong password, or a vault key or keypair that doesn't open)
-   * with nothing left in memory.
-   */
   const unlockVault = useCallback(
     (
+      mode: ProfileMode,
       passwordKek: Uint8Array,
       encryptedAccountKeyB64: string,
       accountKeyEncryptionNonceB64: string,
@@ -145,65 +173,57 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     ) => {
       secretsStore.unlockAccount(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64);
       loadKeyringOrLock(vaultKeys, userKeyPair);
-      setVaultUnlocked(true);
+      setProfileMode(mode);
     },
     [],
   );
 
-  /**
-   * Unlock vault with a pre-decrypted account key (e.g. from biometric).
-   * When offline, also sets sessionId to "offline".
-   */
   const unlockWithAccountKey = useCallback(
     (
+      mode: ProfileMode,
       accountKey: Uint8Array,
       vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
-      offline = false,
     ) => {
       secretsStore.unlockWithAccountKey(accountKey);
       loadKeyringOrLock(vaultKeys, userKeyPair);
-      if (offline) setSessionId("offline");
-      setVaultUnlocked(true);
+      setProfileMode(mode);
     },
     [],
   );
 
   const signRequest = useCallback(async (message: string) => secretsStore.signRequest(message), []);
 
-  /** Reset all session state. Does NOT wipe keys/storage — see useLogout(). */
-  const endSession = useCallback(() => {
-    setSessionId(undefined);
-    setLoggedIn(false);
-    setVaultUnlocked(false);
+  const lock = useCallback(() => {
+    secretsStore.lock();
+    setProfileMode(undefined);
+    setServerAttached(false);
   }, []);
 
   const value = useMemo(
     () => ({
-      sessionId,
-      loggedIn,
-      vaultUnlocked,
-      isOffline,
-      loginSession,
+      vaultUnlocked: profileMode !== undefined,
+      mode: sessionMode(profileMode, serverAttached),
+      networkOffline,
+      attachServer,
+      detachServer,
       restoreLogin,
-      offlineLoginSession,
       unlockVault,
       unlockWithAccountKey,
       signRequest,
-      endSession,
+      lock,
     }),
     [
-      sessionId,
-      loggedIn,
-      vaultUnlocked,
-      isOffline,
-      loginSession,
+      profileMode,
+      serverAttached,
+      networkOffline,
+      attachServer,
+      detachServer,
       restoreLogin,
-      offlineLoginSession,
       unlockVault,
       unlockWithAccountKey,
       signRequest,
-      endSession,
+      lock,
     ],
   );
 

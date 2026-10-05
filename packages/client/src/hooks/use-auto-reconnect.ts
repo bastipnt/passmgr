@@ -2,50 +2,41 @@ import { secretsStore } from "@repo/store";
 import { useContext, useEffect, useRef } from "react";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
-import { useLogin } from "./use-login";
+import { canReleasePassword, useConnectServer } from "./use-connect-server";
 
 /**
- * Automatically performs OPAQUE login when transitioning from offline to online
- * while the vault is unlocked with sessionId === "offline".
+ * Reattach server auth while a linked vault is unlocked `offline` and the
+ * network is up (after an unlock without the server, or once a session
+ * expired), using the password kept in memory by the unlock. Without one
+ * (e.g. a restored mobile session) the user reconnects by hand.
  */
 export function useAutoReconnect() {
-  const { sessionId, isOffline } = useContext(SessionContext);
-  const { loginUser } = useLogin();
+  const { mode, networkOffline } = useContext(SessionContext);
+  const { connect } = useConnectServer();
   const store = useStore();
-  const reconnectingRef = useRef(false);
+  const connectRef = useRef(connect);
+  connectRef.current = connect;
   const storeRef = useRef(store);
+  storeRef.current = store;
+  const reconnectingRef = useRef(false);
 
   useEffect(() => {
-    // Only reconnect when: online, session is "offline", password available
-    if (isOffline || sessionId !== "offline") return;
+    if (mode !== "offline" || networkOffline) return;
 
     const password = secretsStore.getPassword();
-    const email = storeRef.current.accountKeyMaterial?.email;
-    if (!password || !email || reconnectingRef.current) return;
+    if (!password || reconnectingRef.current) return;
 
     reconnectingRef.current = true;
-
-    loginUser(email, password)
-      .then(async (unlockInfo) => {
-        if (unlockInfo) {
-          // Update stored key material (server may have newer values)
-          await storeRef.current.vault.setAccountKeyMaterial(
-            { ...unlockInfo.userPasswordKeys, email, userKeyPair: unlockInfo.userKeyPair },
-            unlockInfo.vaultKeys,
-          );
-
-          // Clear password from memory unless biometric enrollment is pending
-          if (storeRef.current.biometricKeyMaterial || storeRef.current.biometricDismissed) {
-            secretsStore.clearPassword();
-          }
-        }
-        // If loginUser returns undefined (OPAQUE failed), stay in offline mode silently
-      })
-      .catch(() => {
-        // Network error or server error — stay in offline mode
+    void connectRef
+      .current(password)
+      .then((result) => {
+        // Drop the password once it got us online or never will (unless
+        // biometric enrollment still needs it).
+        if (canReleasePassword(result, storeRef.current.needsBiometricEnroll))
+          secretsStore.clearPassword();
       })
       .finally(() => {
         reconnectingRef.current = false;
       });
-  }, [isOffline, sessionId, loginUser]);
+  }, [mode, networkOffline]);
 }

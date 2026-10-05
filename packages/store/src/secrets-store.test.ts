@@ -10,7 +10,7 @@ import {
   wrapVaultKey,
 } from "@repo/crypto";
 import type { MemberVault } from "@repo/schema";
-import { fromString } from "@repo/util";
+import { fromString, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { secretsStore } from "./secrets-store";
 
@@ -484,12 +484,22 @@ describe("password helpers (biometric enrollment)", () => {
 });
 
 describe("exportPersistableBundle / restoreSession", () => {
-  it("throws unless both the session and vault are unlocked", async () => {
+  it("throws while the vault is locked, even with a server session", async () => {
     expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
 
-    // session unlocked but vault still locked
     await secretsStore.unlockSession("sid", "k", genKey());
     expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
+  });
+
+  it("exports only the account key without a server session (local / offline)", () => {
+    const { accountKey } = unlockWithKeyring();
+
+    const bundle = secretsStore.exportPersistableBundle();
+    expect(bundle).toEqual({ accountKeyB64: toBase64(accountKey) });
+
+    secretsStore.lock();
+    secretsStore.restoreSession(bundle);
+    expect(secretsStore.hasServerSession).toBe(false);
   });
 
   it("round-trips: a restored store signs and, after reloading vault keys, decrypts (no OPAQUE/Argon2)", async () => {
@@ -507,9 +517,9 @@ describe("exportPersistableBundle / restoreSession", () => {
     );
 
     const bundle = secretsStore.exportPersistableBundle();
-    expect(bundle.sessionId).toBe("sid-persist");
-    expect(Object.keys(bundle).sort()).toEqual([
-      "accountKeyB64",
+    expect(Object.keys(bundle).sort()).toEqual(["accountKeyB64", "server"]);
+    expect(bundle.server?.sessionId).toBe("sid-persist");
+    expect(Object.keys(bundle.server ?? {}).sort()).toEqual([
       "authKeyB64",
       "authSaltB64",
       "sessionId",
@@ -520,6 +530,7 @@ describe("exportPersistableBundle / restoreSession", () => {
 
     secretsStore.restoreSession(bundle);
     expect(secretsStore.sessionId).toBe("sid-persist");
+    expect(secretsStore.hasServerSession).toBe(true);
 
     // signRequest verifies against the independently-derived authKey
     const message = "query\n/user.heartbeat\n123\nabc\n{}";
@@ -532,6 +543,39 @@ describe("exportPersistableBundle / restoreSession", () => {
     expect(secretsStore.isVaultUnlocked).toBe(false);
     secretsStore.loadVaultKeys(wraps);
     expect(decryptAs(sealed, PERSONAL_ID)).toBe("secret-data");
+  });
+
+  it("restoring a bundle without a server session drops the one attached before", async () => {
+    const { accountKey } = unlockWithKeyring();
+    await secretsStore.unlockSession("sid-old", "k", genKey());
+
+    secretsStore.restoreSession({ accountKeyB64: toBase64(accountKey) });
+
+    expect(secretsStore.hasServerSession).toBe(false);
+    await expect(secretsStore.signRequest("x")).rejects.toThrow(/SessionLocked/);
+  });
+});
+
+describe("detachServer", () => {
+  it("wipes the server session keys in place and keeps the vault unlocked", async () => {
+    await secretsStore.unlockSession("sid", "k", genKey());
+    unlockWithKeyring();
+    const { sessionSecret, authKey, authSalt } = secretsStore._peekBuffers();
+
+    secretsStore.detachServer();
+
+    expect(secretsStore.hasServerSession).toBe(false);
+    expect(secretsStore.sessionId).toBeUndefined();
+    for (const buffer of [sessionSecret, authKey, authSalt]) {
+      expect(buffer?.every((b) => b === 0)).toBe(true);
+    }
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(
+      decryptAs(
+        secretsStore.encryptRecord({ recordId: RECORD_ID, vaultId: PERSONAL_ID }, "x"),
+        PERSONAL_ID,
+      ),
+    ).toBe("x");
   });
 });
 
@@ -591,5 +635,24 @@ describe("concurrent unlockSession calls (last write wins)", () => {
     expect(sig.length).toBeGreaterThan(0);
     // sessionId reflects one of the two attempts (whichever wrote last to the field)
     expect(["sidA", "sidB"]).toContain(secretsStore.sessionId);
+  });
+});
+
+describe("lockEpoch", () => {
+  it("changes on every lock, and not on detaching the server", async () => {
+    unlockWithKeyring();
+    const before = secretsStore.lockEpoch;
+
+    await secretsStore.unlockSession("sid", "k", genKey());
+    secretsStore.detachServer();
+    expect(secretsStore.lockEpoch).toBe(before);
+
+    secretsStore.lock();
+    const afterLock = secretsStore.lockEpoch;
+    expect(afterLock).not.toBe(before);
+
+    unlockWithKeyring();
+    secretsStore.lockVault();
+    expect(secretsStore.lockEpoch).not.toBe(afterLock);
   });
 });

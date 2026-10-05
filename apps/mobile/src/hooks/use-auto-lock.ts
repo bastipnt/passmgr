@@ -1,6 +1,5 @@
-import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, SessionContext, usePreference } from "@repo/client";
-import { secretsStore } from "@repo/store";
-import { useContext, useEffect, useRef } from "react";
+import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, useLock, usePreference } from "@repo/client";
+import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
 /**
@@ -13,14 +12,14 @@ import { AppState } from "react-native";
  * foreground, so how long it was away is both the measurable signal and the one
  * that matters.
  *
- * This is a lock, not `useLogout()` — the persisted vault stays on the device.
+ * This is a lock, not a sign-out — the vault and the persisted login stay on the device.
  */
 export function useAutoLock() {
   const [minutes] = usePreference<number>(PREF_KEYS.autoLockMinutes, AUTO_LOCK_DEFAULT_MINUTES);
-  const { endSession } = useContext(SessionContext);
+  const lock = useLock();
 
-  const lockRef = useRef(endSession);
-  lockRef.current = endSession;
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
 
   useEffect(() => {
     if (minutes <= 0) return;
@@ -41,7 +40,6 @@ export function useAutoLock() {
       leftAt = null;
       if (awayFor < timeoutMs) return;
 
-      secretsStore.lock();
       lockRef.current();
     });
 

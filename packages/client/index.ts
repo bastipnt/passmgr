@@ -3,12 +3,14 @@
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
+export * from "./src/hooks/use-can-write";
 export * from "./src/hooks/use-clipboard-clear";
+export * from "./src/hooks/use-connect-server";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-generator-defaults";
+export * from "./src/hooks/use-lock";
 export * from "./src/hooks/use-login";
-export * from "./src/hooks/use-logout";
 export * from "./src/hooks/use-move-record";
 export * from "./src/hooks/use-preference";
 export * from "./src/hooks/use-record-history";
@@ -17,6 +19,7 @@ export * from "./src/hooks/use-recovery";
 export * from "./src/hooks/use-register";
 export * from "./src/hooks/use-session-restore";
 export * from "./src/hooks/use-shortcut";
+export * from "./src/hooks/use-sign-out";
 export * from "./src/hooks/use-totp";
 export * from "./src/hooks/use-unlock";
 export * from "./src/hooks/use-update-record";
@@ -27,7 +30,11 @@ export * from "./src/preferences/security-choices";
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export * from "./src/providers/PreferencesProvider";
 export * from "./src/providers/RecordsProvider";
-export { default as SessionProvider, SessionContext } from "./src/providers/SessionProvider";
+export {
+  default as SessionProvider,
+  SessionContext,
+  type SessionMode,
+} from "./src/providers/SessionProvider";
 export type { ShortcutEntry } from "./src/providers/ShortcutProvider";
 export {
   default as ShortcutProvider,

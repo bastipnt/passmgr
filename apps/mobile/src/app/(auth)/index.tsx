@@ -1,3 +1,4 @@
+import { useStore } from "@repo/client";
 import { type BottomSheetRef, BrandLockup, Button, Screen, SpectrumText } from "@repo/ui-native";
 import { FIELD_COLORS } from "@repo/ui-shared";
 import { ShieldCheck } from "lucide-react-native";
@@ -34,6 +35,8 @@ export default function LoginScreen() {
   const signInRef = useRef<BottomSheetRef>(null);
   const signUpRef = useRef<BottomSheetRef>(null);
   const recoverRef = useRef<BottomSheetRef>(null);
+  const { profile, accountKeyMaterial } = useStore();
+  const hasStoredVault = profile?.mode === "linked" && accountKeyMaterial !== null;
 
   return (
     <Screen field="vivid">
@@ -77,7 +80,7 @@ export default function LoginScreen() {
 
         <View className="gap-3">
           <Button size="lg" onPress={() => signInRef.current?.triggerShowHide(true)}>
-            Sign in
+            {hasStoredVault ? "Unlock" : "Sign in"}
           </Button>
           <Button
             variant="glass"
