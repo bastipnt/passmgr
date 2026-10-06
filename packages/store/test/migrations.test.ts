@@ -172,6 +172,7 @@ describe("MIGRATIONS", () => {
     expect(await userVersion()).toBe(MIGRATIONS.length);
     expect(await tableNames()).toEqual([
       "key_material",
+      "outbox",
       "profile",
       "records",
       "sync_meta",

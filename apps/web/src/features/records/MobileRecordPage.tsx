@@ -1,4 +1,4 @@
-import { getRecordWebsites, hasEditForm, useCanWrite } from "@repo/client";
+import { getRecordWebsites, hasEditForm } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
@@ -31,7 +31,6 @@ type MobileRecordScreenProps = {
  * and website scroll away.
  */
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
-  const readOnly = !useCanWrite();
   const copyField = useCopyField();
   const websites = getRecordWebsites(record);
   const password = isRecordType(record, "login") ? record.password : undefined;
@@ -54,7 +53,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       observer.disconnect();
       title.style.removeProperty("--title-end");
     };
-  }, [readOnly]);
+  }, []);
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
@@ -64,17 +63,15 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           <ChevronLeftIcon className="size-5" />
         </Button>
         <span className="flex-1" />
-        {!readOnly && (
-          <div ref={actionsRef} className="flex items-center gap-2">
-            {hasEditForm(record) && (
-              <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
-                <PencilLineIcon />
-                Edit
-              </Link>
-            )}
-            <MoreDropdown recordId={record.recordId} onDelete={onDelete} variant="floating" />
-          </div>
-        )}
+        <div ref={actionsRef} className="flex items-center gap-2">
+          {hasEditForm(record) && (
+            <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
+              <PencilLineIcon />
+              Edit
+            </Link>
+          )}
+          <MoreDropdown recordId={record.recordId} onDelete={onDelete} variant="floating" />
+        </div>
       </header>
 
       {/* Sticky as a direct child of the page, so it can pin inside the bar,

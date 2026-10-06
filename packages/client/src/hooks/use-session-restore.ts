@@ -5,12 +5,12 @@ import {
   secretsStore,
 } from "@repo/store";
 import { useCallback, useContext, useRef, useState } from "react";
-import { isUnauthorized } from "../opaque";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
+import { isUnauthorized } from "../util/trpc-errors";
 
 export type RestoreStatus = "restoring" | "restored" | "needs-login";
 

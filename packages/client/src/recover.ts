@@ -12,13 +12,8 @@ import type { AppRouter } from "@repo/types";
 import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { LoginThrottledError } from "./login";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  isThrottled,
-  SERVER_IDENTITY,
-} from "./opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
+import { isThrottled } from "./util/trpc-errors";
 
 export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
 

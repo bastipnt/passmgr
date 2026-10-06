@@ -181,8 +181,9 @@ export const recordRouter = router({
       const { recordId, version, clientUpdatedAt, ...data } = input;
 
       const record = await writeRecords(async (tx) => {
+        // A deleted head is updated too: the edit restores the record (an edit
+        // beats a delete, ADR 0001 D5), e.g. one edited offline on another device.
         const current = await latestAccessibleVersion(ctx.userId, recordId, VAULT_WRITE_ROLES, tx);
-        if (current.deleted_at !== null) throw new TRPCError({ code: "NOT_FOUND" });
         // TODO: make this not a conflict
         if (current.version !== version) throw new TRPCError({ code: "CONFLICT" });
 

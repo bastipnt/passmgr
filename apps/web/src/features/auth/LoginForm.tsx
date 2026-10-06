@@ -168,6 +168,14 @@ export default function LoginForm({
                   </strong>{" "}
                   Signing in to an account here would replace it.
                 </FieldError>
+              ) : unlockError === "unsynced_changes" ? (
+                <FieldError variant="box">
+                  <strong className="font-semibold">
+                    This device has changes that haven&apos;t synced yet.
+                  </strong>{" "}
+                  Sign in to the account they belong to and let them sync, or remove the vault from
+                  this device first.
+                </FieldError>
               ) : unlockError === "wrong_account" ? (
                 <FieldError variant="box">
                   <strong className="font-semibold">Can&apos;t switch accounts offline.</strong>{" "}

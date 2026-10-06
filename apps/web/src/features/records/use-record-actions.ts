@@ -1,7 +1,6 @@
 import {
   hasEditForm,
   loginRecordFromForm,
-  useCanWrite,
   useDeleteRecord,
   useGetRecord,
   useShortcut,
@@ -64,7 +63,6 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
  * `enabled` — `enabled` here only means "this action is impossible right now".
  */
 export function useRecordShortcuts({ recordId }: { recordId: string }) {
-  const readOnly = !useCanWrite();
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
   const copyField = useCopyField();
@@ -84,7 +82,7 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
 
   useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
     description: "Edit record",
-    enabled: ready && !!record && hasEditForm(record) && !readOnly,
+    enabled: ready && !!record && hasEditForm(record),
     allowInInput: true,
   });
 }

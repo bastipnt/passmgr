@@ -300,6 +300,27 @@ the history must not leak into the target.
   `record.create`, `update` and `delete`, which are removed in the same change. `record.all` and
   `getById` are removed too, because clients read locally.
 
+> **Amended 2026-10-05** (local-first repository + outbox): `RecordRepository`
+> (`packages/client/src/records/record-repository.ts`) is the only record write path; it encrypts and
+> calls `Vault.writeLocalChanges`, which writes each change as the record's next version
+> (`syncState = pending`, version = local head + 1, computed inside the transaction) plus an `outbox`
+> row (`changeId`, write order `seq`), atomically; a move is a create + a delete in one transaction. An
+> update appends whatever the head is, a tombstone included (edit restores). History and every read
+> are local; nothing gates writes on the session mode anymore (`useCanWrite` is gone; role-based
+> gating comes with the sharing UI). `SyncManager` pushes the outbox oldest first, then pulls; a failed
+> change holds back its record's later changes and is retried once after the pull. A pull that brings
+> versions colliding with pending ones moves the pending chain above them (`rebasePendingVersions`):
+> both edits stay in the history, no field merge yet (D5 lands with the conflict strategy). Until
+> `record.push` exists, `StoreProvider` pushes through `record.create` / `update` (base = version − 1)
+> / `delete` (NOT_FOUND counts as done), so there is no idempotency yet: a lost response can leave a
+> duplicate version. `record.update` now appends to a tombstoned head too (edit restores, D5).
+> Offline, network failures and a rejected session stop the push round without counting against
+> the change; a change the server stored is never counted failed, even when its local ack fails.
+> Outbox entries of a vault the user lost are dropped with its records. Pending changes are the only
+> copy until pushed, so the device is never wiped while it holds them: a login to another account
+> fails with `unsynced_changes`, recovery keeps the vault (dropping only biometric + persisted
+> login), and "Remove from this device" names how many changes would be lost.
+
 ### D9 — Creating an account from a local vault ("linking")
 
 1. Enter an email (and an invite code if `REGISTRATION_DISABLED`), then re-enter the master

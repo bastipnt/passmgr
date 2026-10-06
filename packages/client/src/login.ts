@@ -5,14 +5,9 @@ import type { MemberVault, PasswordKeySchema, UserKeyPair, VaultUnlockInfo } fro
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  isThrottled,
-  SERVER_IDENTITY,
-} from "./opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 import { timed } from "./util/perf";
+import { isThrottled } from "./util/trpc-errors";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
 

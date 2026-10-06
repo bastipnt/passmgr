@@ -87,6 +87,32 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
     expect(records.find((r) => r.recordId === input.recordId)).toBeUndefined();
   });
 
+  it("update on a deleted record restores it (an edit beats a delete)", async () => {
+    await register(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
+
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
+    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
+    await cc.record.create(input);
+    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", input.recordId);
+    await cc.record.delete(input.recordId);
+
+    const update = {
+      recordId: input.recordId,
+      encryptedData: "ENC-V3",
+      encryptionNonce: "NONCE-V3",
+      cryptoVersion: 1,
+      version: 2,
+      clientUpdatedAt: new Date().toISOString(),
+    };
+    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
+    const restored = await cc.record.update(update);
+    expect(restored).toMatchObject({ version: 3, deleted_at: null });
+
+    cc = await callSigned(sessionId, authKey, "query", "record.getById", input.recordId);
+    expect((await cc.record.getById(input.recordId)).encryptedData).toBe("ENC-V3");
+  });
+
   it("history returns every version of the record", async () => {
     await register(email, password);
     const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);

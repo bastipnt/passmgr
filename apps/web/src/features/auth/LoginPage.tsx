@@ -1,4 +1,11 @@
-import { SessionContext, useLogin, useStore, useUnlock } from "@repo/client";
+import {
+  SessionContext,
+  unsyncedChangesWarning,
+  useLogin,
+  usePendingChangeCount,
+  useStore,
+  useUnlock,
+} from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ShieldCheckIcon, TrashIcon } from "lucide-react";
@@ -21,6 +28,7 @@ export default function LoginPage() {
 
   const { networkOffline } = useContext(SessionContext);
   const store = useStore();
+  const pendingChanges = usePendingChangeCount();
   // A vault without an account: it unlocks here, signing in elsewhere would replace it.
   const localVault = store.profile?.mode === "local" && store.accountKeyMaterial !== null;
   const storedEmail =
@@ -121,7 +129,7 @@ export default function LoginPage() {
                 description={
                   localVault
                     ? "This deletes the vault from this device. It has no account, so this is its only copy: everything in it is lost for good."
-                    : "This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials."
+                    : `This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials.${unsyncedChangesWarning(pendingChanges)}`
                 }
                 removeTitle="Remove vault"
                 onRemove={() => store.removeVault()}

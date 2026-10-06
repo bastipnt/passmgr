@@ -22,8 +22,16 @@ import { useLogin } from "./use-login";
  *   an account would replace it (merging comes with account linking)
  * - `account_changed`: the stored vault's email now belongs to another account
  *   on the server; unlocking it there would replace this device's vault
+ * - `unsynced_changes`: this device holds another account's vault with changes
+ *   that never reached its server; signing in to a different account would
+ *   delete them
  */
-export type UnlockError = "failed" | "wrong_account" | "local_vault" | "account_changed";
+export type UnlockError =
+  | "failed"
+  | "wrong_account"
+  | "local_vault"
+  | "account_changed"
+  | "unsynced_changes";
 
 async function derivePasswordKek(password: string, keys: PasswordKeySchema): Promise<Uint8Array> {
   const { passwordKekParams } = keys;
@@ -61,9 +69,10 @@ export function useUnlock() {
     }
 
     const material: AccountKeyMaterial = { ...userPasswordKeys, userKeyPair };
-    if (!(await adoptAccount(info, material))) {
+    const refused = await adoptAccount(info, material);
+    if (refused) {
       wipe(passwordKek);
-      await failUnlock("local_vault");
+      await failUnlock(refused);
       return false;
     }
 
@@ -180,16 +189,23 @@ export function useUnlock() {
   /**
    * Make the local database the logged-in account's: keep it when it already
    * is (same `userId`), otherwise clear the other account's leftovers before any
-   * of it is decrypted with the wrong keys. A vault without an account is never
-   * replaced silently: resolves `false`.
+   * of it is decrypted with the wrong keys. Data that exists nowhere else is
+   * never replaced silently: a vault without an account, or another account's
+   * changes that never reached the server. Resolves why it refused, if it did.
    */
-  async function adoptAccount(info: VaultUnlockInfo, material: AccountKeyMaterial) {
+  async function adoptAccount(
+    info: VaultUnlockInfo,
+    material: AccountKeyMaterial,
+  ): Promise<"local_vault" | "unsynced_changes" | undefined> {
     const { profile } = store;
-    if (profile?.mode === "local") return false;
+    if (profile?.mode === "local") return "local_vault";
 
     const email = normalizeEmail(info.email);
     const sameAccount = profile?.mode === "linked" && profile.userId === info.userId;
-    if (!sameAccount) await store.vault.clear();
+    if (!sameAccount) {
+      if ((await store.vault.countPendingChanges()) > 0) return "unsynced_changes";
+      await store.vault.clear();
+    }
 
     const nextProfile: LocalProfile | undefined =
       sameAccount && profile.email === email
@@ -201,7 +217,7 @@ export function useUnlock() {
             userId: info.userId,
           };
     await store.saveAccount(material, info.vaultKeys, nextProfile);
-    return true;
+    return undefined;
   }
 
   /** Local profile: move the password wrap to the current Argon2 params, on the device only. */

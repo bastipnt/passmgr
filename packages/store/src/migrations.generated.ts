@@ -33,5 +33,13 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "CREATE TABLE `profile` (\n\t`profileId` text PRIMARY KEY,\n\t`mode` text NOT NULL,\n\t`email` text,\n\t`userId` text\n);"
     ]
+  },
+  {
+    "name": "20261005202254_outbox",
+    "statements": [
+      "CREATE TABLE `outbox` (\n\t`seq` integer PRIMARY KEY,\n\t`changeId` text NOT NULL UNIQUE,\n\t`recordId` text NOT NULL,\n\t`version` integer NOT NULL,\n\t`attempts` integer DEFAULT 0 NOT NULL,\n\t`lastError` text,\n\t`createdAt` text NOT NULL\n);",
+      "ALTER TABLE `records` ADD `syncState` text DEFAULT 'synced' NOT NULL;",
+      "CREATE INDEX `outbox_record_idx` ON `outbox` (`recordId`,`version`);"
+    ]
   }
 ];

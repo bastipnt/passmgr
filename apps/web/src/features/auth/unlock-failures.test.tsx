@@ -83,7 +83,13 @@ const ALICE: LocalProfile = {
 };
 
 type StoreMock = {
-  vault: { getVaults: Mock; getProfile: Mock; getAccountKeyMaterial: Mock; clear: Mock };
+  vault: {
+    getVaults: Mock;
+    getProfile: Mock;
+    getAccountKeyMaterial: Mock;
+    countPendingChanges: Mock;
+    clear: Mock;
+  };
   profile: LocalProfile | null;
   accountKeyMaterial: unknown;
   saveAccount: Mock;
@@ -97,6 +103,7 @@ const store: StoreMock = {
     getVaults: vi.fn(),
     getProfile: vi.fn(),
     getAccountKeyMaterial: vi.fn(),
+    countPendingChanges: vi.fn(async () => 0),
     clear: vi.fn(),
   },
   profile: ALICE,
@@ -567,6 +574,19 @@ describe("unlock: whose local data is this?", () => {
     const profile = store.saveAccount.mock.calls[0]?.[2] as LocalProfile;
     expect(profile.userId).toBe("user-alice-reregistered");
     expect(profile.profileId).not.toBe(ALICE.profileId);
+  });
+
+  it("never deletes another account's unsynced changes, and revokes the session", async () => {
+    const keys = account();
+    store.vault.countPendingChanges.mockResolvedValueOnce(2);
+    await secretsStore.unlockSession("live-session", "k", genKey());
+
+    const { unlocked, error } = await unlockWith(keys, "user-bob");
+    expect(unlocked).toBe(false);
+    expect(error).toBe("unsynced_changes");
+    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the local data and the profile for the same account", async () => {

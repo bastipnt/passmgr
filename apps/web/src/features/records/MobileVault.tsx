@@ -1,4 +1,3 @@
-import { useCanWrite } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
@@ -70,7 +69,6 @@ function MobileSearchInput() {
  * for `position: fixed`, so "fixed" chrome would scroll away with the page.
  */
 export default function MobileVault() {
-  const readOnly = !useCanWrite();
   const { query, sortedRecords, hasGroupLabels } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
@@ -117,11 +115,9 @@ export default function MobileVault() {
       <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-25 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
         <MobileSearchInput />
         <RecordSortMenu variant="fab" />
-        {!readOnly && (
-          <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New login">
-            <PlusIcon />
-          </Link>
-        )}
+        <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New login">
+          <PlusIcon />
+        </Link>
       </div>
     </div>
   );

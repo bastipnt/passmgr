@@ -6,7 +6,8 @@
   "exports": {
     ".": "./index.ts",
     "./drivers/web": "./src/drivers/web.ts",
-    "./drivers/native": "./src/drivers/native.ts"
+    "./drivers/native": "./src/drivers/native.ts",
+    "./testing": "./test/node-sqlite-driver.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",

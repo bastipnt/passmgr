@@ -3,7 +3,6 @@
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
-export * from "./src/hooks/use-can-write";
 export * from "./src/hooks/use-clipboard-clear";
 export * from "./src/hooks/use-connect-server";
 export * from "./src/hooks/use-create-local-vault";
@@ -13,6 +12,7 @@ export * from "./src/hooks/use-generator-defaults";
 export * from "./src/hooks/use-lock";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-move-record";
+export * from "./src/hooks/use-pending-change-count";
 export * from "./src/hooks/use-preference";
 export * from "./src/hooks/use-record-history";
 export * from "./src/hooks/use-records";
@@ -50,6 +50,7 @@ export * from "./src/providers/StoreProvider";
 export * from "./src/records/diff-fields";
 export * from "./src/records/record-edit";
 export * from "./src/records/record-field-specs";
+export * from "./src/records/record-repository";
 export * from "./src/records/record-summary";
 export * from "./src/records/version-changes";
 export * from "./src/util/decrypt-record";

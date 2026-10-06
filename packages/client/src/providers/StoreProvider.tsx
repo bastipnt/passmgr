@@ -1,6 +1,12 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
-import { clearLoginBundle, type LocalProfile, secretsStore, Vault } from "@repo/store";
+import {
+  clearLoginBundle,
+  type LocalProfile,
+  type PendingChange,
+  secretsStore,
+  Vault,
+} from "@repo/store";
 import {
   createContext,
   type ReactNode,
@@ -10,18 +16,21 @@ import {
   useRef,
   useState,
 } from "react";
-import { isUnauthorized } from "../opaque";
 import { PREF_KEYS } from "../preferences/preference-keys";
+import { RecordRepository } from "../records/record-repository";
 import { SyncManager } from "../sync-manager";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
+import { isNotFound, isServerAnswer, isUnauthorized } from "../util/trpc-errors";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
 type StoreContextValue = {
   vault: Vault;
   syncManager: SyncManager;
+  /** Local-first record reads and writes (ADR 0001 D1). */
+  records: RecordRepository;
 
   /** Whose vault this device holds (ADR 0001 D2); null until there is one. */
   profile: LocalProfile | null;
@@ -56,6 +65,11 @@ type StoreContextValue = {
    * Doesn't lock: an unlocked caller locks first (`useRemoveFromDevice`).
    */
   removeVault: () => Promise<void>;
+  /**
+   * Forget what unlocks this device without the password: the biometric
+   * enrollment and the persisted login. Keeps the vault and its data.
+   */
+  forgetQuickUnlock: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -131,22 +145,62 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
 
   const syncManagerRef = useRef<SyncManager | null>(null);
   if (!syncManagerRef.current) {
-    syncManagerRef.current = new SyncManager(
-      vault,
-      async (cursors) => {
-        if (typeof navigator !== "undefined" && navigator.onLine === false)
-          throw new Error("offline");
+    // Requests fail fast offline, and an expired session detaches the server.
+    async function request<T>(send: () => Promise<T>): Promise<T> {
+      if (typeof navigator !== "undefined" && navigator.onLine === false)
+        throw new Error("offline");
+      try {
+        return await send();
+      } catch (e) {
+        if (isUnauthorized(e)) onUnauthorized();
+        throw e;
+      }
+    }
+
+    /**
+     * Interim push over the per-record mutations until `record.push` lands
+     * (ADR 0001 D8): a pending version is a create (version 1), an update of
+     * the version below it (restoring the record if that one is a tombstone),
+     * or a tombstone.
+     */
+    async function pushChange({ record }: PendingChange) {
+      const { recordId, vaultId, encryptedData, encryptionNonce, cryptoVersion } = record;
+      const body = { recordId, encryptedData, encryptionNonce, cryptoVersion };
+      const clientUpdatedAt = record.clientUpdatedAt;
+
+      if (record.deleted_at) {
         try {
-          return await trpc.record.sync.query({ cursors });
+          await request(() => trpc.record.delete.mutate(recordId));
         } catch (e) {
-          if (isUnauthorized(e)) onUnauthorized();
-          throw e;
+          // Deleted on the server already (or never got there): nothing left to do.
+          if (!isNotFound(e)) throw e;
         }
-      },
-      reloadVaultKeys,
-    );
+        return null;
+      }
+      if (record.version === 1) {
+        return await request(() =>
+          trpc.record.create.mutate({ ...body, vaultId, clientUpdatedAt }),
+        );
+      }
+      return await request(() =>
+        trpc.record.update.mutate({ ...body, version: record.version - 1, clientUpdatedAt }),
+      );
+    }
+
+    syncManagerRef.current = new SyncManager(vault, {
+      pull: (cursors) => request(() => trpc.record.sync.query({ cursors })),
+      push: pushChange,
+      // Offline, a network failure, an unsigned request (locked) or a rejected
+      // session: every other change would fail the same way.
+      stopsRound: (e) => !isServerAnswer(e) || isUnauthorized(e),
+      onVaultsChanged: reloadVaultKeys,
+    });
   }
   const syncManager = syncManagerRef.current;
+
+  const recordsRef = useRef<RecordRepository | null>(null);
+  recordsRef.current ??= new RecordRepository(vault, () => syncManager.requestSync());
+  const records = recordsRef.current;
 
   // Load the profile and key material on mount: they decide whether this device
   // can unlock without the server.
@@ -164,6 +218,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
   const online = mode === "online";
   useEffect(() => {
     if (!online || networkOffline || !syncEnabled) return;
+    syncManager.setEnabled(true);
 
     const onOnline = () => void syncManager.sync();
     if (typeof window !== "undefined" && typeof window.addEventListener === "function")
@@ -207,6 +262,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       if (typeof window !== "undefined" && typeof window.removeEventListener === "function")
         window.removeEventListener("online", onOnline);
       syncManager.stopPeriodicSync();
+      syncManager.setEnabled(false);
     };
   }, [online, networkOffline, syncEnabled, syncManager, trpc]);
 
@@ -241,9 +297,16 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     setBiometricKeyMaterial(null);
   }
 
+  async function forgetQuickUnlock() {
+    await vault.clearBiometricKeyMaterial();
+    await clearLoginBundle();
+    setBiometricKeyMaterial(null);
+  }
+
   const value: StoreContextValue = {
     vault,
     syncManager,
+    records,
 
     profile,
     accountKeyMaterial,
@@ -255,6 +318,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     saveAccount,
     createLocalVault,
     removeVault,
+    forgetQuickUnlock,
   };
 
   return <StoreContext value={value}>{children}</StoreContext>;

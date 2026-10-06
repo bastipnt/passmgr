@@ -16,7 +16,7 @@ export const RECOVERY_ERROR_MESSAGES: Record<RecoveryError, string> = {
 
 export function useRecovery() {
   const trpc = useTRPCClient();
-  const { profile, removeVault } = useStore();
+  const { profile, vault, removeVault, forgetQuickUnlock } = useStore();
   const [recoveryError, setRecoveryError] = useState<RecoveryError | undefined>();
 
   /**
@@ -43,9 +43,16 @@ export function useRecovery() {
 
     // This device's cached copy of the account is now stale: the local wrap
     // needs the old password and biometric material holds it. Drop it so the
-    // next login starts clean. Another account's vault is left alone.
+    // next login starts clean. Another account's vault is left alone. Changes
+    // that never reached the server exist only here, so then the vault stays:
+    // the next login with the new password replaces the stale wrap (the local
+    // one doesn't open, so the unlock goes through the server). Only the quick
+    // unlocks go, so nothing opens it without a password.
     // TODO(offline-first): keep the local data and rewrap instead (ADR 0001 D10).
-    if (profile?.mode === "linked" && profile.email === normalizeEmail(email)) await removeVault();
+    if (profile?.mode === "linked" && profile.email === normalizeEmail(email)) {
+      if ((await vault.countPendingChanges()) > 0) await forgetQuickUnlock();
+      else await removeVault();
+    }
 
     return newRecoveryKey;
   }

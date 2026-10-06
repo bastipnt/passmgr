@@ -18,6 +18,8 @@ type RecordsContextValue = {
   getRecord: (id: string) => DecryptedRecord | undefined;
   ready: boolean;
   refreshRecord: (id: string) => Promise<void>;
+  /** Bumps whenever the local records were re-read (a local write or a sync). */
+  revision: number;
 };
 
 const RecordsContext = createContext<RecordsContextValue | null>(null);
@@ -28,8 +30,9 @@ export function useRecordsContext() {
   return ctx;
 }
 
+// The version too: a sync can renumber a pending local version without touching its ciphertext.
 function buildFingerprint(record: EncryptedRecordSchema): string {
-  return `${record.vaultId}|${record.encryptedData}|${record.encryptionNonce}`;
+  return `${record.vaultId}|${record.version}|${record.encryptedData}|${record.encryptionNonce}`;
 }
 
 async function decryptRecord(encrypted: EncryptedRecordSchema): Promise<DecryptedRecord> {
@@ -165,6 +168,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     getRecord,
     ready,
     refreshRecord,
+    revision,
   };
 
   return <RecordsContext value={value}>{children}</RecordsContext>;

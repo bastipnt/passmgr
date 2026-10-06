@@ -17,11 +17,36 @@ export const records = sqliteTable(
     created_at: text(),
     updated_at: text(),
     deleted_at: text(),
+
+    // `pending`: written on this device and not acknowledged by the server yet
+    // (it has an `outbox` entry); its version is provisional (ADR 0001 D5).
+    syncState: text({ enum: ["synced", "pending"] })
+      .notNull()
+      .default("synced"),
   },
   (t) => [
     primaryKey({ columns: [t.recordId, t.version] }),
     index("records_vault_idx").on(t.vaultId),
   ],
+);
+
+/**
+ * Local record versions waiting to be pushed (ADR 0001 D8), in write order
+ * (`seq`). Each entry points at its `pending` row in `records`, written in the
+ * same transaction. `changeId` identifies the change to the server (retries).
+ */
+export const outbox = sqliteTable(
+  "outbox",
+  {
+    seq: integer().primaryKey(),
+    changeId: text().notNull().unique(),
+    recordId: text().notNull(),
+    version: integer().notNull(),
+    attempts: integer().notNull().default(0),
+    lastError: text(),
+    createdAt: text().notNull(),
+  },
+  (t) => [index("outbox_record_idx").on(t.recordId, t.version)],
 );
 
 /** Key/value store for the wrapped vault key and biometric key material. */

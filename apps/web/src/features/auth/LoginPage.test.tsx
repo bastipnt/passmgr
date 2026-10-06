@@ -49,7 +49,7 @@ const accountKeyMaterial = {
 const store: {
   profile: LocalProfile | null;
   [key: string]: unknown;
-  vault: { getVaults: Mock; clear: Mock };
+  vault: { getVaults: Mock; countPendingChanges: Mock; clear: Mock };
   saveAccount: Mock;
 } = {
   profile: linkedProfile,
@@ -58,8 +58,10 @@ const store: {
   needsBiometricEnroll: false,
   vault: {
     getVaults: vi.fn(async () => [personalVault]),
+    countPendingChanges: vi.fn(async () => 0),
     clear: vi.fn(),
   },
+  syncManager: { onSync: () => () => undefined },
   saveAccount: vi.fn(),
   removeVault: vi.fn(),
 };

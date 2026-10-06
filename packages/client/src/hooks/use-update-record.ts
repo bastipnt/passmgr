@@ -1,8 +1,6 @@
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useStore } from "../providers/StoreProvider";
-import { encryptRecord } from "../util/encrypt-record";
-import { useTRPC } from "../util/trpc";
 import { useRefreshRecord } from "./use-records";
 
 type UseUpdateRecordOpts = {
@@ -10,34 +8,27 @@ type UseUpdateRecordOpts = {
 };
 
 export function useUpdateRecord({ onSuccess }: UseUpdateRecordOpts) {
-  const trpc = useTRPC();
-  const store = useStore();
+  const { records } = useStore();
   const refreshRecord = useRefreshRecord();
 
   const {
     mutate,
     error: mutationError,
     isPending,
-  } = useMutation(
-    trpc.record.update.mutationOptions({
-      onSuccess: async (result) => {
-        await store.vault.upsertRecords([result]);
-        await refreshRecord(result.recordId);
-
-        onSuccess();
-      },
-    }),
-  );
+  } = useMutation({
+    // Local only (ADR 0001 D1): never paused while the browser reports offline.
+    networkMode: "always",
+    mutationFn: ({ record, data }: { record: DecryptedRecord; data: RecordData }) =>
+      records.update(record, data),
+    onSuccess: async (updated) => {
+      await refreshRecord(updated.recordId);
+      onSuccess();
+    },
+  });
 
   /** Encrypt `data` as the next version of `record`, in the vault it lives in. */
   function updateRecord(record: DecryptedRecord, data: RecordData) {
-    const { recordId, vaultId, version } = record;
-    mutate({
-      recordId,
-      ...encryptRecord(data, { recordId, vaultId }),
-      version,
-      clientUpdatedAt: new Date().toISOString(),
-    });
+    mutate({ record, data });
   }
 
   return { updateRecord, updateRecordError: mutationError, updatePending: isPending };

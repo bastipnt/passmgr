@@ -187,11 +187,13 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
                 message:
                   unlockError === "local_vault"
                     ? "This device holds a vault without an account. Signing in here would replace it."
-                    : unlockError === "account_changed"
-                      ? "This email now belongs to another account. Remove the vault on this device to sign in to it."
-                      : localVault
-                        ? "Wrong password, please try again"
-                        : "Login error please try again",
+                    : unlockError === "unsynced_changes"
+                      ? "This device has changes that haven't synced yet. Sign in to their account and let them sync, or remove the vault from this device first."
+                      : unlockError === "account_changed"
+                        ? "This email now belongs to another account. Remove the vault on this device to sign in to it."
+                        : localVault
+                          ? "Wrong password, please try again"
+                          : "Login error please try again",
               },
             ]}
           />

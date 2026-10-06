@@ -13,6 +13,16 @@ class SQLocalDriver implements SqlDriver {
   }
 
   async query(sql: string, params: unknown[], method: QueryMethod): Promise<QueryResult> {
+    const result = await this.run(sql, params, method);
+    // SQLocal answers a `get` that matched nothing with `[]`, which Drizzle maps
+    // to a row of undefined columns; the contract (and Drizzle) want `undefined`.
+    if (method === "get" && Array.isArray(result.rows) && result.rows.length === 0) {
+      return { rows: undefined as unknown as unknown[] };
+    }
+    return result;
+  }
+
+  private async run(sql: string, params: unknown[], method: QueryMethod): Promise<QueryResult> {
     if (!this.tx) return await this.client.driver(sql, params, method);
 
     // SQLocal runs Drizzle queries in a transaction via `tx.query(drizzleQuery)`:

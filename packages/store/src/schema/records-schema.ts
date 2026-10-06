@@ -7,7 +7,10 @@ import { records } from "./tables";
 // 10 bound columns per row: well below SQLite's variable limit per statement.
 const UPSERT_CHUNK_SIZE = 500;
 
-/** Server-sent rows replace the local copy of the same (recordId, version). */
+/**
+ * Server-sent rows replace the local copy of the same (recordId, version). A
+ * pull moves colliding pending rows out of the way first (`rebasePendingVersions`).
+ */
 const replaceOnConflict = {
   target: [records.recordId, records.version],
   set: {
@@ -19,6 +22,7 @@ const replaceOnConflict = {
     created_at: sql`excluded.created_at`,
     updated_at: sql`excluded.updated_at`,
     deleted_at: sql`excluded.deleted_at`,
+    syncState: sql`excluded.syncState`,
   },
 };
 

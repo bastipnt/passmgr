@@ -1,4 +1,4 @@
-import { ShortcutLayer, useCanWrite } from "@repo/client";
+import { ShortcutLayer } from "@repo/client";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -82,7 +82,6 @@ export function RecordActions({
   className,
 }: RecordActionsProps) {
   const primaryWebsite = websites?.find((website) => website.value)?.value;
-  const readOnly = !useCanWrite();
 
   return (
     <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
@@ -104,23 +103,21 @@ export function RecordActions({
         </div>
       </div>
 
-      {!readOnly && (
-        <div className="flex shrink-0 items-center gap-2">
-          {editable && (
-            <Link
-              variant="outline"
-              size="lg"
-              className="h-10 font-medium text-sm"
-              aria-label="Edit"
-              href={recordPaths.editRecord(recordId)}
-            >
-              <PencilLineIcon />
-              Edit
-            </Link>
-          )}
-          <MoreDropdown recordId={recordId} onDelete={onDelete} />
-        </div>
-      )}
+      <div className="flex shrink-0 items-center gap-2">
+        {editable && (
+          <Link
+            variant="outline"
+            size="lg"
+            className="h-10 font-medium text-sm"
+            aria-label="Edit"
+            href={recordPaths.editRecord(recordId)}
+          >
+            <PencilLineIcon />
+            Edit
+          </Link>
+        )}
+        <MoreDropdown recordId={recordId} onDelete={onDelete} />
+      </div>
     </div>
   );
 }

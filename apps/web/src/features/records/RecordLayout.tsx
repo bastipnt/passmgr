@@ -1,10 +1,4 @@
-import {
-  AUTO_LOCK_DEFAULT_MINUTES,
-  PREF_KEYS,
-  useCanWrite,
-  usePreference,
-  useShortcut,
-} from "@repo/client";
+import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, usePreference, useShortcut } from "@repo/client";
 import {
   SortedRecordsProvider,
   useSortedRecords,
@@ -97,7 +91,6 @@ function MainContent({ children }: { children: ReactNode }) {
 }
 
 export default function RecordLayout({ children }: RecordLayoutProps) {
-  const readOnly = !useCanWrite();
   const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
   const isMobile = useIsMobile();
@@ -110,7 +103,6 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
 
   useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
     description: "Create new record",
-    enabled: !readOnly,
   });
 
   useShortcut("$mod+l", lockVault, {
@@ -171,12 +163,10 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
                 <LockIcon />
               </Button>
               <ThemeToggle className="hidden md:inline-flex" />
-              {!readOnly && (
-                <Link variant="default" href={createSheetSearch()} aria-label="New record">
-                  <PlusIcon />
-                  <span className="hidden sm:inline">New record</span>
-                </Link>
-              )}
+              <Link variant="default" href={createSheetSearch()} aria-label="New record">
+                <PlusIcon />
+                <span className="hidden sm:inline">New record</span>
+              </Link>
             </div>
           </>
         }

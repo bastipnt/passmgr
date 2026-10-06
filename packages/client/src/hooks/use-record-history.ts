@@ -1,42 +1,37 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useQuery } from "@tanstack/react-query";
+import { useRecordsContext } from "../providers/RecordsProvider";
+import { useStore } from "../providers/StoreProvider";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
-import { useTRPC } from "../util/trpc";
 
 /**
  * Every stored revision of a record, newest first, decrypted client-side.
- *
- * Unlike `useGetRecord` this does not read the local vault — the vault only
- * holds the latest version of each record, so history has to come from the
- * server. Disabled until `recordId` is set, so callers can render before a
- * record is selected.
+ * Read from the local vault (pending local edits included), so it works
+ * without a server. Disabled until `recordId` is set, so callers can render
+ * before a record is selected.
  */
 export function useRecordHistory(recordId: string | undefined) {
-  const trpc = useTRPC();
+  const { records } = useStore();
+  // Re-read after every local write or sync: a sync can change a version
+  // without touching the head (renumbered, or the server's timestamps).
+  const { revision } = useRecordsContext();
 
   const {
-    data: encrypted,
+    data: versions,
     isPending,
     error,
   } = useQuery({
-    ...trpc.record.history.queryOptions(recordId!),
+    queryKey: ["record-history", recordId, revision],
+    // Keep showing this record's history while a re-read runs, never another record's.
+    placeholderData: (previous, previousQuery) =>
+      previousQuery?.queryKey[1] === recordId ? previous : undefined,
     enabled: !!recordId,
-  });
-
-  // Decryption runs off the main thread, so it is its own query rather than a
-  // render-time transform. Keyed by the ciphertext of the newest revision plus
-  // the row count, which together change whenever the history does.
-  const { data: versions, isPending: decrypting } = useQuery({
-    queryKey: [
-      "record-history-decrypted",
-      recordId,
-      encrypted?.length,
-      encrypted?.[0]?.encryptedData,
-    ],
-    enabled: !!encrypted,
+    // Reads the local vault only (ADR 0001 D1): never paused while the browser reports offline.
+    networkMode: "always",
     queryFn: async (): Promise<DecryptedRecord[]> => {
+      const encrypted = await records.history(recordId!);
       const results = await Promise.allSettled(
-        encrypted!.map(async (row) => ({
+        encrypted.map(async (row) => ({
           ...(await decryptRecordWithWorker(row)),
           recordId: row.recordId,
           vaultId: row.vaultId,
@@ -62,7 +57,7 @@ export function useRecordHistory(recordId: string | undefined) {
 
   return {
     versions: versions ?? [],
-    ready: !!recordId && !isPending && !decrypting && !!versions,
+    ready: !!recordId && !isPending && !!versions,
     error,
   };
 }

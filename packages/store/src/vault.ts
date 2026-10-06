@@ -21,6 +21,20 @@ import {
   upsertRecoveryKey,
 } from "./schema/keys-schema";
 import {
+  ackPendingChange,
+  clearOutboxTable,
+  countPendingChanges,
+  deleteVaultChanges,
+  failPendingChange,
+  getPendingChanges,
+  getRecordHistory,
+  type LocalRecordChange,
+  type LocalRecordVersion,
+  type PendingChange,
+  rebasePendingVersions,
+  writeLocalChange,
+} from "./schema/outbox-schema";
+import {
   clearProfileTable,
   getProfile,
   type LocalProfile,
@@ -124,10 +138,17 @@ export class Vault {
    * RECORDS
    */
 
+  /**
+   * Store server rows. Pending local versions they collide with move up first,
+   * as in a pull (`applySync`), so no unsynced change is overwritten.
+   */
   async upsertRecords(records: EncryptedRecordSchema[]): Promise<void> {
     await this.ready();
     if (records.length === 0) return;
-    await this.transaction((tx) => upsertRecords(records, tx));
+    await this.transaction(async (tx) => {
+      await rebasePendingVersions(records, tx);
+      await upsertRecords(records, tx);
+    });
   }
 
   /** The current records of one vault, or of all vaults when `vaultId` is omitted. */
@@ -139,6 +160,54 @@ export class Vault {
   async getByRecordId(recordId: string): Promise<EncryptedRecordSchema | undefined> {
     await this.ready();
     return await getByRecordId(recordId, this.db);
+  }
+
+  /** Every version of a record, newest first, unsynced local ones included. */
+  async getRecordHistory(recordId: string): Promise<LocalRecordVersion[]> {
+    await this.ready();
+    return await getRecordHistory(recordId, this.db);
+  }
+
+  /**
+   * LOCAL WRITES + OUTBOX (ADR 0001 D1, D8)
+   */
+
+  /**
+   * Write changes as new `pending` record versions and enqueue them for the
+   * server, all in one transaction (a move is a create plus a delete). Throws
+   * `RecordWriteError`, writing nothing, when a change doesn't fit the record.
+   * Resolves the written rows.
+   */
+  async writeLocalChanges(changes: readonly LocalRecordChange[]): Promise<EncryptedRecordSchema[]> {
+    await this.ready();
+    const now = new Date().toISOString();
+    return await this.transaction(async (tx) => {
+      const written: EncryptedRecordSchema[] = [];
+      for (const change of changes) written.push(await writeLocalChange(change, now, tx));
+      return written;
+    });
+  }
+
+  /** Changes waiting for the server, oldest first. */
+  async getPendingChanges(limit?: number): Promise<PendingChange[]> {
+    await this.ready();
+    return await getPendingChanges(this.db, limit);
+  }
+
+  async countPendingChanges(): Promise<number> {
+    await this.ready();
+    return await countPendingChanges(this.db);
+  }
+
+  /** The server stored this change; `serverRow` is its copy, when it returned one. */
+  async ackPendingChange(changeId: string, serverRow: EncryptedRecordSchema | null): Promise<void> {
+    await this.ready();
+    await this.transaction((tx) => ackPendingChange(changeId, serverRow, tx));
+  }
+
+  async failPendingChange(changeId: string, error: string): Promise<void> {
+    await this.ready();
+    await failPendingChange(changeId, error, this.db);
   }
 
   /**
@@ -241,8 +310,9 @@ export class Vault {
 
   /**
    * Apply one pull atomically: vaults the user lost access to are dropped with
-   * their records and cursors, the vault list is replaced, records upserted and
-   * every vault's cursor advanced. Resolves whether the vault list changed (the
+   * their records, unsent changes and cursors, the vault list is replaced,
+   * pending local versions that collide with pulled ones move up, records are
+   * upserted and every vault's cursor advanced. Resolves whether the vault list changed (the
    * keys in memory then need reloading).
    */
   async applySync({ records, vaults, serverTimestamp }: SyncBatch): Promise<boolean> {
@@ -252,15 +322,15 @@ export class Vault {
       const current = new Set(vaults.map((v) => v.vaultId));
       const removed = cached.map((v) => v.vaultId).filter((id) => !current.has(id));
 
+      await deleteVaultChanges(removed, tx);
       await deleteVaultRecords(removed, tx);
       await deleteSyncCursors(removed, tx);
       const vaultsChanged = !sameVaults(cached, vaults);
       if (vaultsChanged) await replaceVaults(vaults, tx);
 
-      await upsertRecords(
-        records.filter((r) => current.has(r.vaultId)),
-        tx,
-      );
+      const pulled = records.filter((r) => current.has(r.vaultId));
+      await rebasePendingVersions(pulled, tx);
+      await upsertRecords(pulled, tx);
       await setSyncCursors([...current], serverTimestamp, tx);
       return vaultsChanged;
     });
@@ -273,6 +343,7 @@ export class Vault {
   async clear(): Promise<void> {
     await this.ready();
     await this.transaction(async (tx) => {
+      await clearOutboxTable(tx);
       await clearRecordsTable(tx);
       await clearKeysTable(tx);
       await clearSyncTable(tx);
