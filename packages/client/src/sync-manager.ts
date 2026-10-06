@@ -2,7 +2,7 @@ import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import type { ConflictResolver, PendingChange, SyncBatch, Vault } from "@repo/store";
 
 /** Pull every vault's changes since its cursor (vaultId → cursor). */
-export type SyncFetcher = (cursors: Record<string, string>) => Promise<SyncBatch>;
+export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncBatch>;
 
 /**
  * Send one local change to the server. Resolves the server's copy of the

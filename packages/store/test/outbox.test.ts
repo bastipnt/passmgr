@@ -198,6 +198,7 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-1") }]);
@@ -207,6 +208,7 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 2), serverRow("r1", 3)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
 
@@ -227,6 +229,7 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-1") }]);
@@ -234,7 +237,12 @@ describe("applySync with pending changes", () => {
     const resolve = vi.fn((_conflict: RecordConflict) => ciphertext("r1", "merged"));
 
     await vault.applySync(
-      { records: [serverRow("r1", 2), serverRow("r1", 3)], vaults: [personal], serverTimestamp: T },
+      {
+        records: [serverRow("r1", 2), serverRow("r1", 3)],
+        vaults: [personal],
+        cursors: {},
+        serverTimestamp: T,
+      },
       resolve,
     );
 
@@ -259,12 +267,13 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
 
     await vault.applySync(
-      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      { records: [serverRow("r1", 2)], vaults: [personal], cursors: {}, serverTimestamp: T },
       () => null,
     );
 
@@ -275,13 +284,14 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
     await vault.applySync(
-      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      { records: [serverRow("r1", 2)], vaults: [personal], cursors: {}, serverTimestamp: T },
       () => {
         throw new Error("no key");
       },
@@ -298,12 +308,13 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
 
     await vault.applySync(
-      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      { records: [serverRow("r1", 2)], vaults: [personal], cursors: {}, serverTimestamp: T },
       () => ciphertext("r1", "server-r1-2"),
     );
 
@@ -329,6 +340,7 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
     await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
@@ -336,6 +348,7 @@ describe("applySync with pending changes", () => {
     await vault.applySync({
       records: [serverRow("r1", 1)],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: T,
     });
 
@@ -346,13 +359,18 @@ describe("applySync with pending changes", () => {
   });
 
   it("drops the unsent changes of a vault the user lost", async () => {
-    await vault.applySync({ records: [], vaults: [personal, work], serverTimestamp: T });
+    await vault.applySync({
+      records: [],
+      vaults: [personal, work],
+      cursors: {},
+      serverTimestamp: T,
+    });
     await vault.writeLocalChanges([
       { kind: "create", ...ciphertext("r1", "a") },
       { kind: "create", ...ciphertext("r2", "b", "v-work") },
     ]);
 
-    await vault.applySync({ records: [], vaults: [personal], serverTimestamp: T });
+    await vault.applySync({ records: [], vaults: [personal], cursors: {}, serverTimestamp: T });
 
     expect(await pending()).toEqual([["r1", 1, "a"]]);
   });

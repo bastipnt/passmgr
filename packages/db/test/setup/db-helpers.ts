@@ -102,23 +102,29 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
     encryptionNonce: `enc-nonce-${uniq}`,
     cryptoVersion: 1,
     version: 1,
+    seq: 1,
     clientUpdatedAt: new Date(),
     ...overrides,
   };
 }
 
-/** Insert a record; without a `vaultId` override it goes into a new vault of `userId`. */
+/**
+ * Insert a record; without a `vaultId` override it goes into a new vault of
+ * `userId`. Without a `seq` override it takes the vault's next one, as the
+ * server does (1 for a vault that doesn't exist, for FK tests).
+ */
 export async function insertRecord(
   client: Client,
   userId: string,
   overrides: Partial<RecordRow> = {},
 ): Promise<RecordRow> {
   const vaultId = overrides.vaultId ?? (await insertVault(client, userId, "shared"));
-  const row = makeRecordRow(userId, { ...overrides, vaultId });
+  const seq = overrides.seq ?? (await nextVaultSeq(client, vaultId));
+  const row = makeRecordRow(userId, { ...overrides, vaultId, seq });
   await client.query(
     `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData", "encryptionNonce",
-                           "cryptoVersion", "version", "clientUpdatedAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                           "cryptoVersion", "version", "seq", "clientUpdatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       row.rowId,
       row.recordId,
@@ -128,10 +134,19 @@ export async function insertRecord(
       row.encryptionNonce,
       row.cryptoVersion,
       row.version,
+      row.seq,
       row.clientUpdatedAt,
     ],
   );
   return row;
+}
+
+async function nextVaultSeq(client: Client, vaultId: string): Promise<number> {
+  const { rows } = await client.query<{ lastSeq: string }>(
+    `UPDATE "vaults" SET "lastSeq" = "lastSeq" + 1 WHERE "vaultId" = $1 RETURNING "lastSeq"`,
+    [vaultId],
+  );
+  return rows[0] ? Number(rows[0].lastSeq) : 1;
 }
 
 export type UserRow = {
@@ -166,6 +181,7 @@ export type RecordRow = {
   encryptionNonce: string;
   cryptoVersion: number;
   version: number;
+  seq: number;
   clientUpdatedAt: Date;
 };
 

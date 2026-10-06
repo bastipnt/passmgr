@@ -63,8 +63,8 @@ describe("foreign-key constraints", () => {
     await expect(
       client.query(
         `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData",
-          "encryptionNonce", "cryptoVersion", "version", "clientUpdatedAt")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+          "encryptionNonce", "cryptoVersion", "version", "seq", "clientUpdatedAt")
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
         [
           orphan.rowId,
           orphan.recordId,
@@ -74,6 +74,7 @@ describe("foreign-key constraints", () => {
           orphan.encryptionNonce,
           orphan.cryptoVersion,
           orphan.version,
+          orphan.seq,
           orphan.clientUpdatedAt,
         ],
       ),

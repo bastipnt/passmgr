@@ -118,17 +118,25 @@ export const moveRecordInputSchema = z.object({
 });
 
 /**
+ * A vault's pull cursor: the highest `seq` (the vault's server write order,
+ * ADR 0001 D8) the device has pulled from it.
+ */
+export const syncCursorSchema = z.number().int().nonnegative();
+
+/**
  * Pull changes per vault. A vault without a cursor (new to this device) is sent
  * in full; vaults the user is no longer a member of are ignored.
  */
 export const syncInputSchema = z.object({
-  cursors: z.record(z.uuid(), z.iso.datetime()).default({}),
+  cursors: z.record(z.uuid(), syncCursorSchema).default({}),
 });
 
 export const syncOutputSchema = z.object({
   records: z.array(encryptedRecordSchema),
   // Every vault the user is a member of: the client drops any it isn't in this list.
   vaults: z.array(memberVaultSchema),
-  // The cursor for every vault in `vaults`.
+  // The next cursor for every vault in `vaults`.
+  cursors: z.record(z.string(), syncCursorSchema),
+  // The server's clock at the pull (caps edit times from the future, ADR 0001 D5).
   serverTimestamp: z.string(),
 });

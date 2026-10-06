@@ -71,6 +71,8 @@ export class VaultExistsError extends Error {
 export type SyncBatch = {
   records: EncryptedRecordSchema[];
   vaults: MemberVault[];
+  /** vaultId → the vault's next pull cursor. */
+  cursors: Record<string, number>;
   serverTimestamp: string;
 };
 
@@ -304,7 +306,7 @@ export class Vault {
    */
 
   /** vaultId → pull cursor, for every vault synced before. */
-  async getSyncCursors(): Promise<Record<string, string>> {
+  async getSyncCursors(): Promise<Record<string, number>> {
     await this.ready();
     return await getSyncCursors(this.db);
   }
@@ -318,7 +320,7 @@ export class Vault {
    * keys in memory then need reloading).
    */
   async applySync(
-    { records, vaults, serverTimestamp }: SyncBatch,
+    { records, vaults, cursors, serverTimestamp }: SyncBatch,
     resolve?: ConflictResolver,
   ): Promise<boolean> {
     await this.ready();
@@ -336,7 +338,10 @@ export class Vault {
       const pulled = records.filter((r) => current.has(r.vaultId));
       await rebasePendingVersions(pulled, tx, { resolve, receivedAt: serverTimestamp });
       await upsertRecords(pulled, tx);
-      await setSyncCursors([...current], serverTimestamp, tx);
+      await setSyncCursors(
+        Object.fromEntries(Object.entries(cursors).filter(([vaultId]) => current.has(vaultId))),
+        tx,
+      );
       return vaultsChanged;
     });
   }

@@ -388,33 +388,50 @@ describe("applySync", () => {
     const changed = await vault.applySync({
       records: [record("r1", 1), record("r2", 1, { vaultId: "v-work" })],
       vaults: [personal, work],
+      cursors: { "v-personal": 4, "v-work": 1 },
       serverTimestamp: T1,
     });
 
     expect(changed).toBe(true);
     expect((await vault.getAllLatest()).map((r) => r.recordId).sort()).toEqual(["r1", "r2"]);
-    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T1, "v-work": T1 });
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 4, "v-work": 1 });
   });
 
-  it("reports an unchanged vault list and advances every cursor", async () => {
-    await vault.applySync({ records: [], vaults: [personal, work], serverTimestamp: T1 });
+  it("reports an unchanged vault list and advances the cursors", async () => {
+    await vault.applySync({
+      records: [],
+      vaults: [personal, work],
+      cursors: { "v-personal": 1, "v-work": 1 },
+      serverTimestamp: T1,
+    });
 
     const changed = await vault.applySync({
       records: [],
       vaults: [work, personal],
+      cursors: { "v-personal": 7, "v-work": 1 },
       serverTimestamp: T2,
     });
 
     expect(changed).toBe(false);
-    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T2, "v-work": T2 });
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 7, "v-work": 1 });
   });
 
   it("reports a renamed (re-encrypted metadata) vault as a change", async () => {
-    await vault.applySync({ records: [], vaults: [personal, work], serverTimestamp: T1 });
+    await vault.applySync({
+      records: [],
+      vaults: [personal, work],
+      cursors: {},
+      serverTimestamp: T1,
+    });
 
     const renamed = { ...work, encryptedMeta: "renamed" };
     expect(
-      await vault.applySync({ records: [], vaults: [personal, renamed], serverTimestamp: T2 }),
+      await vault.applySync({
+        records: [],
+        vaults: [personal, renamed],
+        cursors: {},
+        serverTimestamp: T2,
+      }),
     ).toBe(true);
     expect(await vault.getVaults()).toContainEqual(renamed);
   });
@@ -423,24 +440,61 @@ describe("applySync", () => {
     await vault.applySync({
       records: [record("r1", 1), record("r2", 1, { vaultId: "v-work" })],
       vaults: [personal, work],
+      cursors: { "v-personal": 1, "v-work": 1 },
       serverTimestamp: T1,
     });
 
-    await vault.applySync({ records: [], vaults: [personal], serverTimestamp: T2 });
+    await vault.applySync({
+      records: [],
+      vaults: [personal],
+      cursors: { "v-personal": 2 },
+      serverTimestamp: T2,
+    });
 
     expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r1"]);
     expect(await vault.getVaults()).toEqual([personal]);
-    expect(await vault.getSyncCursors()).toEqual({ "v-personal": T2 });
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 2 });
   });
 
-  it("ignores records of vaults outside the list", async () => {
+  it("ignores records and cursors of vaults outside the list", async () => {
     await vault.applySync({
       records: [record("r1", 1), record("r2", 1, { vaultId: "v-gone" })],
       vaults: [personal],
+      cursors: { "v-personal": 1, "v-gone": 1 },
       serverTimestamp: T1,
     });
 
     expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r1"]);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 1 });
+  });
+
+  it("skips a stored cursor that isn't a seq and drops legacy timestamp cursors", async () => {
+    const driver = createTestDriver();
+    const store = new Vault(driver);
+    await store.getSyncCursors(); // migrated
+    const put = (key: string, value: string) =>
+      driver.query("INSERT INTO sync_meta (key, value) VALUES (?, ?)", [key, value], "run");
+    await put("pullSeq:v-personal", "3");
+    await put("pullSeq:v-work", "garbage");
+    await put("lastSyncedAt:v-personal", T1);
+
+    // The broken cursor isn't sent; that vault is pulled in full.
+    expect(await store.getSyncCursors()).toEqual({ "v-personal": 3 });
+
+    await store.applySync({
+      records: [],
+      vaults: [personal, work],
+      cursors: { "v-personal": 3, "v-work": 2 },
+      serverTimestamp: T2,
+    });
+    expect(await store.getSyncCursors()).toEqual({ "v-personal": 3, "v-work": 2 });
+    const legacy = await driver.query(
+      "SELECT key FROM sync_meta WHERE key LIKE 'lastSyncedAt:%'",
+      [],
+      "all",
+    );
+    expect(legacy.rows).toEqual([]);
+    await store.destroy();
   });
 });
 
@@ -457,6 +511,7 @@ describe("clear", () => {
     await vault.applySync({
       records: [],
       vaults: [personal],
+      cursors: {},
       serverTimestamp: "2026-10-01T00:00:00.000Z",
     });
 

@@ -232,8 +232,9 @@ Server access is **membership-based** (`apps/server/src/vault/access.ts`: active
 live vault; roles `owner > manage > write > read`), never `records.userId` (that's the version's author).
 Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a role gets `FORBIDDEN`.
 `record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
-vault list; `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads
-the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+vault list; the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`nextVaultSeq`, row
+lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
+cursor. `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.

@@ -1,7 +1,7 @@
 import { db, vaultMembersTable, vaultsTable } from "@repo/db";
 import type { MemberVault, VaultRole } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, eq, isNull, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
@@ -54,6 +54,40 @@ export async function requireVaultRole(
   if (!member) throw new TRPCError({ code: "NOT_FOUND" });
   if (!allowed.includes(member.role)) throw new TRPCError({ code: "FORBIDDEN" });
   return member.role;
+}
+
+/**
+ * The next `records.seq` of each vault, for records written in `tx` (ADR 0001
+ * D8). Bumping `vaults.lastSeq` row-locks the vault until `tx` ends, so writers
+ * of one vault queue up and commit in `seq` order: a pull that sees a vault's
+ * seq N sees every seq below it. Vaults are locked in id order, so two moves
+ * between the same vaults in opposite directions can't deadlock.
+ */
+export async function nextVaultSeqs(
+  tx: DbExecutor,
+  ...vaultIds: string[]
+): Promise<(vaultId: string) => number> {
+  const seqs = new Map<string, number>();
+  for (const vaultId of [...new Set(vaultIds)].sort()) {
+    const [vault] = await tx
+      .update(vaultsTable)
+      .set({ lastSeq: sql`${vaultsTable.lastSeq} + 1` })
+      .where(eq(vaultsTable.vaultId, vaultId))
+      .returning({ lastSeq: vaultsTable.lastSeq });
+    if (!vault) throw new TRPCError({ code: "NOT_FOUND" });
+    seqs.set(vaultId, vault.lastSeq);
+  }
+  // Never a made-up seq: one that isn't the vault's next would break the cursor.
+  return (vaultId) => {
+    const seq = seqs.get(vaultId);
+    if (seq === undefined) throw new Error(`no seq taken for vault ${vaultId}`);
+    return seq;
+  };
+}
+
+/** `nextVaultSeqs` for a single vault. */
+export async function nextVaultSeq(tx: DbExecutor, vaultId: string): Promise<number> {
+  return (await nextVaultSeqs(tx, vaultId))(vaultId);
 }
 
 /** Ping every active member's sync stream after a vault's records or metadata changed. */

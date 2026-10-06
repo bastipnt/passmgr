@@ -20,6 +20,8 @@ import { isUniqueViolation } from "../util/general";
 import {
   type DbExecutor,
   memberVaults,
+  nextVaultSeq,
+  nextVaultSeqs,
   notifyVaultMembers,
   requireVaultRole,
 } from "../vault/access";
@@ -30,6 +32,7 @@ function serializeRecord(record: RecordType) {
   const {
     rowId: _rowId,
     userId: _userId,
+    seq: _seq,
     clientUpdatedAt,
     created_at,
     updated_at,
@@ -90,15 +93,15 @@ export const recordRouter = router({
     .query(async ({ ctx, input }) => {
       const serverTimestamp = new Date().toISOString();
       const vaults = await memberVaults(ctx.userId);
-      if (vaults.length === 0) return { records: [], vaults, serverTimestamp };
+      if (vaults.length === 0) return { records: [], vaults, cursors: {}, serverTimestamp };
 
       // Each vault from its own cursor; one this device hasn't synced yet in full.
-      const perVault = vaults.map(({ vaultId }) => {
-        const cursor = input.cursors[vaultId];
-        return cursor
-          ? and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.updated_at, new Date(cursor)))
-          : eq(recordsTable.vaultId, vaultId);
-      });
+      const cursors = Object.fromEntries(
+        vaults.map(({ vaultId }) => [vaultId, input.cursors[vaultId] ?? 0]),
+      );
+      const perVault = vaults.map(({ vaultId }) =>
+        and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.seq, cursors[vaultId] ?? 0)),
+      );
 
       const records = await db
         .select()
@@ -106,7 +109,12 @@ export const recordRouter = router({
         .where(or(...perVault))
         .orderBy(recordsTable.recordId, desc(recordsTable.version));
 
-      return { records: records.map(serializeRecord), vaults, serverTimestamp };
+      // A vault's next cursor is the highest seq pulled from it (ADR 0001 D8).
+      for (const { vaultId, seq } of records) {
+        cursors[vaultId] = Math.max(cursors[vaultId] ?? 0, seq);
+      }
+
+      return { records: records.map(serializeRecord), vaults, cursors, serverTimestamp };
     }),
 
   all: protectedProcedure
@@ -166,6 +174,7 @@ export const recordRouter = router({
             userId: ctx.userId,
             clientUpdatedAt: new Date(input.clientUpdatedAt),
             version: 1,
+            seq: await nextVaultSeq(tx, input.vaultId),
           })
           .returning();
         return created;
@@ -197,6 +206,7 @@ export const recordRouter = router({
             ...data,
             version: version + 1,
             clientUpdatedAt: new Date(clientUpdatedAt),
+            seq: await nextVaultSeq(tx, current.vaultId),
           })
           .returning();
         return updated;
@@ -219,7 +229,8 @@ export const recordRouter = router({
       if (version !== undefined && current.version !== version) {
         throw new TRPCError({ code: "CONFLICT" });
       }
-      await tx.insert(recordsTable).values(tombstoneOf(current, ctx.userId));
+      const seq = await nextVaultSeq(tx, current.vaultId);
+      await tx.insert(recordsTable).values(tombstoneOf(current, ctx.userId, seq));
       return current.vaultId;
     });
 
@@ -246,6 +257,7 @@ export const recordRouter = router({
         }
         await requireVaultRole(ctx.userId, target.vaultId, VAULT_WRITE_ROLES, tx);
 
+        const seqOf = await nextVaultSeqs(tx, source.vaultId, target.vaultId);
         const [created] = await tx
           .insert(recordsTable)
           .values({
@@ -253,9 +265,11 @@ export const recordRouter = router({
             userId: ctx.userId,
             clientUpdatedAt: new Date(target.clientUpdatedAt),
             version: 1,
+            seq: seqOf(target.vaultId),
           })
           .returning();
-        await tx.insert(recordsTable).values(tombstoneOf(source, ctx.userId));
+        const sourceSeq = seqOf(source.vaultId);
+        await tx.insert(recordsTable).values(tombstoneOf(source, ctx.userId, sourceSeq));
         return { moved: created, sourceVaultId: source.vaultId };
       });
       if (!moved) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
@@ -294,7 +308,7 @@ export const recordRouter = router({
 });
 
 /** The next version of `current`, marked deleted (same ciphertext, so history still opens). */
-function tombstoneOf(current: RecordType, userId: string) {
+function tombstoneOf(current: RecordType, userId: string, seq: number) {
   return {
     recordId: current.recordId,
     vaultId: current.vaultId,
@@ -304,6 +318,7 @@ function tombstoneOf(current: RecordType, userId: string) {
     cryptoVersion: current.cryptoVersion,
     clientUpdatedAt: current.clientUpdatedAt,
     version: current.version + 1,
+    seq,
     deleted_at: new Date(),
   };
 }

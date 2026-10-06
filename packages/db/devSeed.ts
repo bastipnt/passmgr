@@ -23,6 +23,7 @@ import {
 } from "@repo/crypto";
 import { edgeCaseLoginRecords, exampleLoginRecords, type RecordPayload } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
+import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
 import { reset } from "drizzle-seed";
 import {
@@ -150,6 +151,7 @@ async function seed() {
       encryptionNonce,
       cryptoVersion: 1,
       version: 1,
+      seq: i + 1,
       clientUpdatedAt: createdAt,
       created_at: createdAt,
       updated_at: createdAt,
@@ -157,6 +159,10 @@ async function seed() {
   });
 
   await db.insert(recordsTable).values(recordRows);
+  await db
+    .update(vaultsTable)
+    .set({ lastSeq: recordRows.length })
+    .where(eq(vaultsTable.vaultId, vaultId));
 
   console.log(`Done! Seeded user ${EMAIL} / ${PASSWORD} with ${recordRows.length} records.`);
   console.log(`Recovery key (dev only): ${toBase64(recoveryKey)}`);

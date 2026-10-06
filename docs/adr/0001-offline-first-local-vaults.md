@@ -336,6 +336,18 @@ the history must not leak into the target.
 > takes an optional base `version` (CONFLICT when stale), so a local delete no longer lands over an
 > edit it never saw; the interim push sends it.
 
+> **Amended 2026-10-06** (sequence cursor): the sequence is per vault, not one `bigserial`. A global
+> sequence still skips rows: a value is taken at insert but becomes visible at commit, so seq 6 can
+> commit (and be pulled) before seq 5. Each write instead bumps `vaults.lastSeq` in its transaction
+> (`nextVaultSeqs`, `apps/server/src/vault/access.ts`) and stores it as `records.seq` (unique per
+> vault). The bump row-locks the vault until commit, so a vault's writes commit in `seq` order and a
+> pull that sees seq N sees everything below it; a move locks both vaults in id order (no deadlock).
+> Writes to one vault are serialised, which is fine at password-manager write rates. `record.sync`
+> takes `cursors: vaultId → seq` and returns the next `cursors` (highest seq pulled per vault);
+> `serverTimestamp` stays only as the clock cap for the merge. The device stores them as
+> `pullSeq:<vaultId>` in `sync_meta`; the old `lastSyncedAt:` rows are ignored (one full pull).
+> Walkthrough: [`docs/sync-cursor.md`](../sync-cursor.md).
+
 ### D9 — Creating an account from a local vault ("linking")
 
 1. Enter an email (and an invite code if `REGISTRATION_DISABLED`), then re-enter the master

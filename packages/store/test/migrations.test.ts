@@ -223,7 +223,12 @@ describe("Vault", () => {
   it("migrates on construction before serving queries", async () => {
     const vault = new Vault(db);
 
-    await vault.applySync({ records: [], vaults: [], serverTimestamp: "2026-10-01T00:00:00.000Z" });
+    await vault.applySync({
+      records: [],
+      vaults: [],
+      cursors: {},
+      serverTimestamp: "2026-10-01T00:00:00.000Z",
+    });
 
     expect(await vault.getSyncCursors()).toEqual({});
     expect(await userVersion()).toBe(MIGRATIONS.length);

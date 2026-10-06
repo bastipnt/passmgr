@@ -1,9 +1,10 @@
 import { createVault, unwrapVaultKey, wrapVaultKey } from "@repo/crypto";
-import { db, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import type { VaultRole } from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
+import { nextVaultSeq } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
 
@@ -50,7 +51,7 @@ async function createRecord(user: User, vaultId: string, data?: string) {
   return await (await as(user, "mutation", "record.create", input)).record.create(input);
 }
 
-async function sync(user: User, cursors: Record<string, string> = {}) {
+async function sync(user: User, cursors: Record<string, number> = {}) {
   const input = { cursors };
   return await (await as(user, "query", "record.sync", input)).record.sync(input);
 }
@@ -222,25 +223,100 @@ describe("record.sync per vault", () => {
     const old = await createRecord(alice, alice.personalVaultId);
     const first = await sync(alice);
     expect(first.records.map((r) => r.recordId)).toEqual([old.recordId]);
+    expect(first.cursors).toEqual({ [alice.personalVaultId]: 1 });
 
     const work = await createVaultFor(alice);
     const inWork = await createRecord(alice, work.vaultId);
     const newer = await createRecord(alice, alice.personalVaultId);
 
     // The personal vault from its cursor; the work vault is new to this device.
-    const second = await sync(alice, { [alice.personalVaultId]: first.serverTimestamp });
+    const second = await sync(alice, first.cursors);
     expect(second.records.map((r) => r.recordId)).toHaveLength(2);
     expect(second.records.map((r) => r.recordId)).toEqual(
       expect.arrayContaining([inWork.recordId, newer.recordId]),
     );
+    expect(second.cursors).toEqual({ [alice.personalVaultId]: 2, [work.vaultId]: 1 });
+
+    // Nothing new: the same cursors come back.
+    const third = await sync(alice, second.cursors);
+    expect(third.records).toEqual([]);
+    expect(third.cursors).toEqual(second.cursors);
+  });
+
+  it("numbers each vault's writes on its own, deletes and moves included", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    const a = await createRecord(alice, alice.personalVaultId);
+    const b = await createRecord(alice, alice.personalVaultId);
+    await createRecord(alice, work.vaultId);
+
+    const del = { recordId: a.recordId, version: 1 };
+    await (await as(alice, "mutation", "record.delete", del)).record.delete(del);
+    const move = { recordId: b.recordId, version: 1, target: recordInput(work.vaultId) };
+    await (await as(alice, "mutation", "record.move", move)).record.move(move);
+
+    const rows = await db
+      .select({ vaultId: recordsTable.vaultId, seq: recordsTable.seq })
+      .from(recordsTable)
+      .orderBy(recordsTable.seq);
+    const seqsOf = (vaultId: string) => rows.filter((r) => r.vaultId === vaultId).map((r) => r.seq);
+    // create, create, delete tombstone, move tombstone
+    expect(seqsOf(alice.personalVaultId)).toEqual([1, 2, 3, 4]);
+    // create, moved copy
+    expect(seqsOf(work.vaultId)).toEqual([1, 2]);
+    expect((await sync(alice)).cursors).toEqual({ [alice.personalVaultId]: 4, [work.vaultId]: 2 });
+  });
+
+  it("holds a write back until an earlier one to the vault commits, so no pull skips it", async () => {
+    const alice = await signUp("alice@example.com");
+    const { cursors } = await sync(alice);
+
+    // A slow write took the vault's next seq and hasn't committed yet.
+    let commitSlowWrite!: () => void;
+    let seqTaken!: () => void;
+    const taken = new Promise<void>((r) => (seqTaken = r));
+    const slowWrite = db.transaction(async (tx) => {
+      const seq = await nextVaultSeq(tx, alice.personalVaultId);
+      await tx.insert(recordsTable).values({
+        ...recordInput(alice.personalVaultId, "SLOW"),
+        userId: alice.userId,
+        clientUpdatedAt: new Date(),
+        seq,
+      });
+      seqTaken();
+      await new Promise<void>((r) => (commitSlowWrite = r));
+    });
+    // A failing slow write rejects here instead of leaving `taken` pending.
+    await Promise.race([taken, slowWrite]);
+
+    // A later write to the same vault waits for it instead of committing first.
+    let fastDone = false;
+    const fastWrite = createRecord(alice, alice.personalVaultId, "FAST").then(() => {
+      fastDone = true;
+    });
+    try {
+      await new Promise((r) => setTimeout(r, 200));
+      expect(fastDone).toBe(false);
+      expect((await sync(alice, cursors)).records).toEqual([]);
+    } finally {
+      // Even on a failed expect: an open transaction would hang the test and hold a connection.
+      commitSlowWrite();
+      await slowWrite;
+      await fastWrite;
+    }
+
+    const pulled = await sync(alice, cursors);
+    expect(pulled.records.map((r) => r.encryptedData).sort()).toEqual(["FAST", "SLOW"]);
+    expect(pulled.cursors).toEqual({ [alice.personalVaultId]: 2 });
   });
 
   it("ignores cursors for vaults the user isn't a member of", async () => {
     const alice = await signUp("alice@example.com");
     await createRecord(alice, alice.personalVaultId);
 
-    const pulled = await sync(alice, { [crypto.randomUUID()]: new Date().toISOString() });
+    const pulled = await sync(alice, { [crypto.randomUUID()]: 5 });
     expect(pulled.records).toHaveLength(1);
+    expect(pulled.cursors).toEqual({ [alice.personalVaultId]: 1 });
   });
 });
 

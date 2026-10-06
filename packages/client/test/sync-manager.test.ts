@@ -4,12 +4,17 @@ import { describe, expect, it, vi } from "vitest";
 import { SyncManager } from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
-const batch: SyncBatch = { records: [], vaults, serverTimestamp: "2026-10-02T00:00:00.000Z" };
+const batch: SyncBatch = {
+  records: [],
+  vaults,
+  cursors: { v1: 4 },
+  serverTimestamp: "2026-10-02T00:00:00.000Z",
+};
 
 function fakeStore(vaultsChanged: boolean, outbox: PendingChange[] = []) {
   const queue = [...outbox];
   return {
-    getSyncCursors: vi.fn(async () => ({ v1: "2026-10-01T00:00:00.000Z" })),
+    getSyncCursors: vi.fn(async () => ({ v1: 3 })),
     applySync: vi.fn(async () => vaultsChanged),
     getPendingChanges: vi.fn(async () => [...queue]),
     ackPendingChange: vi.fn(async (changeId: string) => {
@@ -39,7 +44,7 @@ describe("SyncManager pull", () => {
 
     expect(await manager.sync()).toBe(true);
 
-    expect(pull).toHaveBeenCalledWith({ v1: "2026-10-01T00:00:00.000Z" });
+    expect(pull).toHaveBeenCalledWith({ v1: 3 });
     expect(store.applySync).toHaveBeenCalledWith(batch, undefined);
   });
 

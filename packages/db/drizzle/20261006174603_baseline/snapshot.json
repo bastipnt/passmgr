@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "e2fc0f19-ea40-4563-a01b-0a92297d7bdc",
+  "id": "38e1a46d-16f5-4dc2-a2a1-dc668d9bea39",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -350,6 +350,19 @@
       "generated": null,
       "identity": null,
       "name": "clientUpdatedAt",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "records"
+    },
+    {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "seq",
       "entityType": "columns",
       "schema": "public",
       "table": "records"
@@ -797,6 +810,19 @@
       "table": "vaults"
     },
     {
+      "type": "bigint",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "0",
+      "generated": null,
+      "identity": null,
+      "name": "lastSeq",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "vaults"
+    },
+    {
       "type": "varchar",
       "typeSchema": null,
       "notNull": true,
@@ -998,19 +1024,19 @@
           "opclass": null
         },
         {
-          "value": "updated_at",
+          "value": "seq",
           "isExpression": false,
           "asc": true,
           "nullsFirst": false,
           "opclass": null
         }
       ],
-      "isUnique": false,
+      "isUnique": true,
       "where": null,
       "with": "",
       "method": "btree",
       "concurrently": false,
-      "name": "records_vault_updated_at_idx",
+      "name": "records_vault_seq_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "records"

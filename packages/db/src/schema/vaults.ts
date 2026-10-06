@@ -1,5 +1,6 @@
 import { type InferSelectModel, sql } from "drizzle-orm";
 import {
+  bigint,
   index,
   integer,
   pgTable,
@@ -27,6 +28,10 @@ export const vaultsTable = pgTable(
     kind: varchar({ enum: ["personal", "shared"] }).notNull(),
     // Bumped by a key rotation; members' wraps carry the version they hold.
     keyVersion: integer().notNull().default(1),
+    // The last `records.seq` handed out in this vault. Taking the next one
+    // locks this row until the write commits, so a vault's records commit in
+    // `seq` order and a pull cursor never skips a row that commits late.
+    lastSeq: bigint({ mode: "number" }).notNull().default(0),
 
     // Name, icon, colour: encrypted with the vault key (AAD: vaultId).
     encryptedMeta: varchar().notNull(),

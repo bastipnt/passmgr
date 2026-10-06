@@ -27,6 +27,7 @@ class FakeServer {
   pull = async () => ({
     records: [...this.rows],
     vaults: this.vaults,
+    cursors: {},
     serverTimestamp: new Date().toISOString(),
   });
 

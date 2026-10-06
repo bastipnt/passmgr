@@ -56,6 +56,7 @@ beforeEach(() => {
   trpcClient.record.sync.query.mockResolvedValue({
     records: [],
     vaults: [],
+    cursors: {},
     serverTimestamp: "2026-10-01T00:00:00.000Z",
   });
 });
