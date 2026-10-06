@@ -97,6 +97,7 @@ minimumReleaseAgeExclude:
   - "@expo/ui@56.0.18"
   - expo-router@56.2.11
   - find-my-way@9.6.1
+  - source-map-js@1.2.2
 
 nodeLinker: hoisted
 
@@ -142,7 +143,9 @@ overrides:
   # Security floors for transitive deps (dev/build tooling only):
   # shell-quote GHSA-395f-4hp3-45gv (concurrently pins 1.8.4),
   # undici 7.x GHSA-4cwx-7wf7-3272 / -rfgv-xxqx-mfg5 / -w293-vg96-wgc3 (via jsdom).
+  # source-map-js GHSA-68fv-2mgg-jv7q (via postcss).
   shell-quote: "^1.8.5"
+  source-map-js: "^1.2.2"
   "undici@7": "^7.29.1"
 
 patchedDependencies:
