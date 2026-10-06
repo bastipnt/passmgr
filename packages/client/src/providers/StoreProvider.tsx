@@ -18,6 +18,7 @@ import {
 } from "react";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";
+import { resolveRecordConflict } from "../records/resolve-record-conflict";
 import { SyncManager } from "../sync-manager";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
@@ -161,7 +162,8 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
      * Interim push over the per-record mutations until `record.push` lands
      * (ADR 0001 D8): a pending version is a create (version 1), an update of
      * the version below it (restoring the record if that one is a tombstone),
-     * or a tombstone.
+     * or a tombstone of the version below it. Updates and deletes fail with
+     * CONFLICT when the server moved on; the pull then merges (D5).
      */
     async function pushChange({ record }: PendingChange) {
       const { recordId, vaultId, encryptedData, encryptionNonce, cryptoVersion } = record;
@@ -170,7 +172,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
 
       if (record.deleted_at) {
         try {
-          await request(() => trpc.record.delete.mutate(recordId));
+          await request(() => trpc.record.delete.mutate({ recordId, version: record.version - 1 }));
         } catch (e) {
           // Deleted on the server already (or never got there): nothing left to do.
           if (!isNotFound(e)) throw e;
@@ -194,6 +196,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       // session: every other change would fail the same way.
       stopsRound: (e) => !isServerAnswer(e) || isUnauthorized(e),
       onVaultsChanged: reloadVaultKeys,
+      resolveConflict: resolveRecordConflict,
     });
   }
   const syncManager = syncManagerRef.current;

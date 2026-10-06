@@ -48,10 +48,12 @@ export * from "./src/providers/SortedRecordsProvider";
 export * from "./src/providers/StoreProvider";
 // Records
 export * from "./src/records/diff-fields";
+export * from "./src/records/merge-record";
 export * from "./src/records/record-edit";
 export * from "./src/records/record-field-specs";
 export * from "./src/records/record-repository";
 export * from "./src/records/record-summary";
+export * from "./src/records/resolve-record-conflict";
 export * from "./src/records/version-changes";
 export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";

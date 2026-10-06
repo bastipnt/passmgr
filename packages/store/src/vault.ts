@@ -22,6 +22,7 @@ import {
 } from "./schema/keys-schema";
 import {
   ackPendingChange,
+  type ConflictResolver,
   clearOutboxTable,
   countPendingChanges,
   deleteVaultChanges,
@@ -311,11 +312,15 @@ export class Vault {
   /**
    * Apply one pull atomically: vaults the user lost access to are dropped with
    * their records, unsent changes and cursors, the vault list is replaced,
-   * pending local versions that collide with pulled ones move up, records are
-   * upserted and every vault's cursor advanced. Resolves whether the vault list changed (the
+   * pending local versions that collide with pulled ones move up (and, with
+   * `resolve`, get merged with them, ADR 0001 D5), records are upserted and
+   * every vault's cursor advanced. Resolves whether the vault list changed (the
    * keys in memory then need reloading).
    */
-  async applySync({ records, vaults, serverTimestamp }: SyncBatch): Promise<boolean> {
+  async applySync(
+    { records, vaults, serverTimestamp }: SyncBatch,
+    resolve?: ConflictResolver,
+  ): Promise<boolean> {
     await this.ready();
     return await this.transaction(async (tx) => {
       const cached = await getVaults(tx);
@@ -329,7 +334,7 @@ export class Vault {
       if (vaultsChanged) await replaceVaults(vaults, tx);
 
       const pulled = records.filter((r) => current.has(r.vaultId));
-      await rebasePendingVersions(pulled, tx);
+      await rebasePendingVersions(pulled, tx, { resolve, receivedAt: serverTimestamp });
       await upsertRecords(pulled, tx);
       await setSyncCursors([...current], serverTimestamp, tx);
       return vaultsChanged;

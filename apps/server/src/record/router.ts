@@ -1,6 +1,7 @@
 import { db, type RecordType, recordsTable } from "@repo/db";
 import {
   createRecordInputSchema,
+  deleteRecordInputSchema,
   encryptedRecordSchema,
   moveRecordInputSchema,
   syncInputSchema,
@@ -205,10 +206,19 @@ export const recordRouter = router({
       return serializeRecord(record);
     }),
 
-  delete: protectedProcedure.input(z.uuid()).mutation(async ({ ctx, input }) => {
+  /**
+   * Tombstone a record. With `version` it is compare-and-swap like `update`:
+   * CONFLICT when the head moved on, so an edit made meanwhile isn't deleted
+   * unseen (the client merges, and an edit beats a delete, ADR 0001 D5).
+   */
+  delete: protectedProcedure.input(deleteRecordInputSchema).mutation(async ({ ctx, input }) => {
+    const { recordId, version } = typeof input === "string" ? { recordId: input } : input;
     const vaultId = await writeRecords(async (tx) => {
-      const current = await latestAccessibleVersion(ctx.userId, input, VAULT_WRITE_ROLES, tx);
+      const current = await latestAccessibleVersion(ctx.userId, recordId, VAULT_WRITE_ROLES, tx);
       if (current.deleted_at !== null) throw new TRPCError({ code: "NOT_FOUND" });
+      if (version !== undefined && current.version !== version) {
+        throw new TRPCError({ code: "CONFLICT" });
+      }
       await tx.insert(recordsTable).values(tombstoneOf(current, ctx.userId));
       return current.vaultId;
     });

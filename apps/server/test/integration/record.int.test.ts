@@ -87,6 +87,35 @@ describe("record router — CRUD round-trip (authenticated, real services)", () 
     expect(records.find((r) => r.recordId === input.recordId)).toBeUndefined();
   });
 
+  it("delete with a version conflicts when the head moved on", async () => {
+    await register(email, password);
+    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
+
+    const input = newRecordInput(vaultKeys[0]!.vaultId);
+    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
+    await cc.record.create(input);
+    const update = {
+      recordId: input.recordId,
+      encryptedData: "ENC-V2",
+      encryptionNonce: "NONCE-V2",
+      cryptoVersion: 1,
+      version: 1,
+      clientUpdatedAt: new Date().toISOString(),
+    };
+    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
+    await cc.record.update(update);
+
+    const stale = { recordId: input.recordId, version: 1 };
+    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", stale);
+    await expect(cc.record.delete(stale)).rejects.toMatchObject({ code: "CONFLICT" });
+
+    const current = { recordId: input.recordId, version: 2 };
+    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", current);
+    await cc.record.delete(current);
+    cc = await callSigned(sessionId, authKey, "query", "record.history", input.recordId);
+    expect((await cc.record.history(input.recordId))[0]).toMatchObject({ version: 3 });
+  });
+
   it("update on a deleted record restores it (an edit beats a delete)", async () => {
     await register(email, password);
     const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);

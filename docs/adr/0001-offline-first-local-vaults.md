@@ -321,6 +321,21 @@ the history must not leak into the target.
 > fails with `unsynced_changes`, recovery keeps the vault (dropping only biometric + persisted
 > login), and "Remove from this device" names how many changes would be lost.
 
+> **Amended 2026-10-06** (field-level merge, D5): a pull that collides with pending versions still
+> moves the pending chain above the server's (kept as history, pushed first), then
+> `resolveRecordConflict` (`packages/client/src/records/`) decrypts base (the synced version below the
+> chain) × local chain × server versions, merges with `mergeRecord` and appends the merge as one more
+> pending version; nothing is appended when the local head already is the merge. Fields are the
+> payload keys (not `getRecordFieldSpecs`, which hides favourite/tags); `tags` merge per tag,
+> `websites`/`customFields` count as one field each (no stable item ids); a changed `type` makes the
+> whole record one field. A field's time is the last version on its side that changed it; a tie goes
+> to the server. Clock skew: a local edit is clamped to the pull's `serverTimestamp`, a server version
+> to its `created_at`; a clock running behind can still lose a field it should win. A conflict that
+> can't be merged (base missing, a version that doesn't open) keeps the plain move. The resolver runs
+> inside `applySync`'s transaction, passed in by `SyncManager` (`resolveConflict`). `record.delete`
+> takes an optional base `version` (CONFLICT when stale), so a local delete no longer lands over an
+> edit it never saw; the interim push sends it.
+
 ### D9 — Creating an account from a local vault ("linking")
 
 1. Enter an email (and an invite code if `REGISTRATION_DISABLED`), then re-enter the master

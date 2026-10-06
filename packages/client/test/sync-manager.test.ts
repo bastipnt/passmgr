@@ -40,7 +40,7 @@ describe("SyncManager pull", () => {
     expect(await manager.sync()).toBe(true);
 
     expect(pull).toHaveBeenCalledWith({ v1: "2026-10-01T00:00:00.000Z" });
-    expect(store.applySync).toHaveBeenCalledWith(batch);
+    expect(store.applySync).toHaveBeenCalledWith(batch, undefined);
   });
 
   it("reloads vault keys before notifying listeners when the vault list changed", async () => {

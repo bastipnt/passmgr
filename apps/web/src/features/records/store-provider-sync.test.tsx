@@ -130,7 +130,7 @@ describe("StoreProvider sync", () => {
     const body = { recordId: "r1", encryptedData, encryptionNonce, cryptoVersion, clientUpdatedAt };
     expect(trpcClient.record.create.mutate).toHaveBeenCalledWith({ ...body, vaultId: "v1" });
     expect(trpcClient.record.update.mutate).toHaveBeenCalledWith({ ...body, version: 1 });
-    expect(trpcClient.record.delete.mutate).toHaveBeenCalledWith("r1");
+    expect(trpcClient.record.delete.mutate).toHaveBeenCalledWith({ recordId: "r1", version: 2 });
     expect(vault.ackPendingChange.mock.calls).toEqual([
       ["c1", created],
       ["c2", { ...row, version: 2 }],

@@ -1,6 +1,6 @@
 import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { RecordWriteError } from "../src/schema/outbox-schema";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { type RecordConflict, RecordWriteError } from "../src/schema/outbox-schema";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
@@ -220,6 +220,95 @@ describe("applySync with pending changes", () => {
     expect(await pending()).toEqual([
       ["r1", 4, "mine-1"],
       ["r1", 5, "mine-2"],
+    ]);
+  });
+
+  it("hands a resolver base, local chain and server versions, and appends its merge", async () => {
+    await vault.applySync({
+      records: [serverRow("r1", 1)],
+      vaults: [personal],
+      serverTimestamp: T,
+    });
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-1") }]);
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-2") }]);
+    const resolve = vi.fn((_conflict: RecordConflict) => ciphertext("r1", "merged"));
+
+    await vault.applySync(
+      { records: [serverRow("r1", 2), serverRow("r1", 3)], vaults: [personal], serverTimestamp: T },
+      resolve,
+    );
+
+    expect(resolve).toHaveBeenCalledTimes(1);
+    const conflict = resolve.mock.calls[0]![0];
+    expect(conflict.base).toMatchObject({ version: 1, encryptedData: "server-r1-1" });
+    expect(conflict.local.map((r) => [r.version, r.encryptedData])).toEqual([
+      [4, "mine-1"],
+      [5, "mine-2"],
+    ]);
+    expect(conflict.remote.map((r) => r.version)).toEqual([2, 3]);
+    expect(conflict.receivedAt).toBe(T);
+    // The local edits stay as history, pushed before the merge.
+    expect(await pending()).toEqual([
+      ["r1", 4, "mine-1"],
+      ["r1", 5, "mine-2"],
+      ["r1", 6, "merged"],
+    ]);
+  });
+
+  it("appends nothing when the resolver finds the local head is the merge", async () => {
+    await vault.applySync({
+      records: [serverRow("r1", 1)],
+      vaults: [personal],
+      serverTimestamp: T,
+    });
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
+
+    await vault.applySync(
+      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      () => null,
+    );
+
+    expect(await pending()).toEqual([["r1", 3, "mine"]]);
+  });
+
+  it("keeps the plain move when the resolver throws", async () => {
+    await vault.applySync({
+      records: [serverRow("r1", 1)],
+      vaults: [personal],
+      serverTimestamp: T,
+    });
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    await vault.applySync(
+      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      () => {
+        throw new Error("no key");
+      },
+    );
+
+    expect(await history("r1")).toEqual([
+      [3, "mine", "pending"],
+      [2, "server-r1-2", "synced"],
+      [1, "server-r1-1", "synced"],
+    ]);
+  });
+
+  it("restores a record deleted here and edited on the server with the merge", async () => {
+    await vault.applySync({
+      records: [serverRow("r1", 1)],
+      vaults: [personal],
+      serverTimestamp: T,
+    });
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+
+    await vault.applySync(
+      { records: [serverRow("r1", 2)], vaults: [personal], serverTimestamp: T },
+      () => ciphertext("r1", "server-r1-2"),
+    );
+
+    expect(await vault.getAllLatest()).toMatchObject([
+      { version: 4, encryptedData: "server-r1-2", deleted_at: null },
     ]);
   });
 

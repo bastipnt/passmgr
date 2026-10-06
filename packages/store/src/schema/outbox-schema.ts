@@ -186,41 +186,77 @@ export async function deleteVaultChanges(vaultIds: readonly string[], db: LocalD
 }
 
 /**
+ * A record edited here (pending versions) and on the server since this device
+ * last synced it (ADR 0001 D5). Rows are encrypted, oldest first.
+ */
+export type RecordConflict = {
+  /** The synced version the local edits started from. */
+  base: EncryptedRecordSchema;
+  /** The pending chain. */
+  local: EncryptedRecordSchema[];
+  /** The server's versions above `base`, as far as this pull brought them. */
+  remote: EncryptedRecordSchema[];
+  /** The server's time of the pull: no local edit can be later. */
+  receivedAt: string;
+};
+
+/**
+ * Merge both sides of a conflict. Resolves the merged version to append on top
+ * of the local chain, or null when the local head already is the merge.
+ */
+export type ConflictResolver = (
+  conflict: RecordConflict,
+) => RecordCiphertext | null | Promise<RecordCiphertext | null>;
+
+type RebaseOptions = { resolve?: ConflictResolver; receivedAt?: string };
+
+/**
  * Make room for server versions that collide with local pending ones: a pulled
  * row takes its (recordId, version) slot, and the record's pending chain moves
  * up above the newest pulled version, keeping its order (and its outbox
- * entries in step). Nothing is lost; both edits stay in the history. The
- * field-level merge of D5 replaces this once the conflict strategy lands.
+ * entries in step). Nothing is lost; both edits stay in the history.
+ *
+ * With `resolve`, the two sides are then merged field by field (D5) and the
+ * merge is appended as one more pending version, so the server ends up with
+ * the server head, the local edits (pushed first, kept as history) and the
+ * merge on top. A conflict that can't be merged (no base version here, or the
+ * resolver throws, e.g. a vault key that doesn't open it) keeps the plain move.
  * Run inside a transaction, before the pulled rows are written.
  */
 export async function rebasePendingVersions(
   incoming: readonly EncryptedRecordSchema[],
   db: LocalDb,
+  { resolve, receivedAt = new Date().toISOString() }: RebaseOptions = {},
 ): Promise<void> {
-  const pending = await db
-    .select({ recordId: records.recordId, version: records.version })
+  const pending: EncryptedRecordSchema[] = await db
+    .select()
     .from(records)
     .where(eq(records.syncState, "pending"))
     .orderBy(asc(records.recordId), asc(records.version));
   if (pending.length === 0) return;
 
-  const newestIncoming = new Map<string, number>();
-  for (const row of incoming) {
-    newestIncoming.set(row.recordId, Math.max(newestIncoming.get(row.recordId) ?? 0, row.version));
-  }
+  const pulled = groupByRecord(incoming);
+  const chains = groupByRecord(pending);
 
-  const chains = new Map<string, number[]>();
-  for (const { recordId, version } of pending) {
-    chains.set(recordId, [...(chains.get(recordId) ?? []), version]);
-  }
   for (const [recordId, chain] of chains) {
-    const serverHead = newestIncoming.get(recordId);
+    const first = chain[0]!.version;
+    const remote = (pulled.get(recordId) ?? [])
+      .filter((row) => row.version >= first)
+      .sort((a, b) => a.version - b.version);
     // Pending versions always sit above the synced ones, so only pulled rows can collide.
-    if (serverHead === undefined || chain[0]! > serverHead) continue;
+    const serverHead = remote.at(-1)?.version;
+    if (serverHead === undefined) continue;
 
-    const shift = serverHead + 1 - chain[0]!;
+    const base =
+      (await db
+        .select()
+        .from(records)
+        .where(and(eq(records.recordId, recordId), eq(records.version, first - 1)))
+        .get()) ?? pulled.get(recordId)?.find((row) => row.version === first - 1);
+
+    const shift = serverHead + 1 - first;
     // Highest first: each row moves into a slot already vacated.
-    for (const version of chain.reverse()) {
+    for (const { version } of [...chain].reverse()) {
       await db
         .update(records)
         .set({ version: version + shift })
@@ -230,7 +266,28 @@ export async function rebasePendingVersions(
         .set({ version: version + shift })
         .where(and(eq(outbox.recordId, recordId), eq(outbox.version, version)));
     }
+
+    if (!resolve || !base) continue;
+    let merged: RecordCiphertext | null;
+    try {
+      const local = chain.map((row) => ({ ...row, version: row.version + shift }));
+      merged = await resolve({ base, local, remote, receivedAt });
+    } catch (error) {
+      console.warn(`Cannot merge record ${recordId}; the local edit stays on top`, error);
+      continue;
+    }
+    if (merged) await writeLocalChange({ kind: "update", ...merged }, new Date().toISOString(), db);
   }
+}
+
+function groupByRecord(rows: readonly EncryptedRecordSchema[]) {
+  const groups = new Map<string, EncryptedRecordSchema[]>();
+  for (const row of rows) {
+    const group = groups.get(row.recordId);
+    if (group) group.push(row);
+    else groups.set(row.recordId, [row]);
+  }
+  return groups;
 }
 
 /** Every version of a record, newest first, pending ones included. */

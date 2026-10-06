@@ -1,5 +1,5 @@
 import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
-import type { PendingChange, SyncBatch, Vault } from "@repo/store";
+import type { ConflictResolver, PendingChange, SyncBatch, Vault } from "@repo/store";
 
 /** Pull every vault's changes since its cursor (vaultId → cursor). */
 export type SyncFetcher = (cursors: Record<string, string>) => Promise<SyncBatch>;
@@ -26,6 +26,11 @@ type SyncManagerOptions = {
    */
   stopsRound?: (error: unknown) => boolean;
   onVaultsChanged?: VaultsChangedHandler;
+  /**
+   * Merges a record edited both here and on the server (ADR 0001 D5). Without
+   * one, the local edits only move above the server's and win as a whole.
+   */
+  resolveConflict?: ConflictResolver;
 };
 
 /**
@@ -33,7 +38,7 @@ type SyncManagerOptions = {
  * change the server refused stays queued, and its record's later changes wait
  * behind it. When a push failed, the outbox is pushed once more after the
  * pull: a stale change (another device wrote first) goes through once the
- * pull has moved it above the server's versions.
+ * pull has moved it above the server's versions and merged both sides.
  */
 export class SyncManager {
   private syncing = false;
@@ -46,16 +51,18 @@ export class SyncManager {
   private push?: ChangePusher;
   private stopsRound: (error: unknown) => boolean;
   private onVaultsChanged?: VaultsChangedHandler;
+  private resolveConflict?: ConflictResolver;
 
   constructor(
     store: Vault,
-    { pull, push, stopsRound = () => false, onVaultsChanged }: SyncManagerOptions,
+    { pull, push, stopsRound = () => false, onVaultsChanged, resolveConflict }: SyncManagerOptions,
   ) {
     this.store = store;
     this.pull = pull;
     this.push = push;
     this.stopsRound = stopsRound;
     this.onVaultsChanged = onVaultsChanged;
+    this.resolveConflict = resolveConflict;
   }
 
   /** Register a callback invoked after each successful sync. */
@@ -91,7 +98,7 @@ export class SyncManager {
       const pushed = await this.pushOutbox();
 
       const batch = await this.pull(await this.store.getSyncCursors());
-      const vaultsChanged = await this.store.applySync(batch);
+      const vaultsChanged = await this.store.applySync(batch, this.resolveConflict);
       if (vaultsChanged) await this.onVaultsChanged?.(batch.vaults);
 
       if (!pushed) await this.pushOutbox();

@@ -234,6 +234,9 @@ Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a ro
 `record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
 vault list; `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads
 the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
+`resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
+delete, and the local edits stay in the history below the merged version.
 
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 

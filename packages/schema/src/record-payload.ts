@@ -37,6 +37,15 @@ export const updateRecordInputSchema = z.object({
   clientUpdatedAt: z.string(),
 });
 
+/**
+ * A record to tombstone: its id, or its id and the version the client last
+ * saw (compare-and-swap, as for an update).
+ */
+export const deleteRecordInputSchema = z.union([
+  z.uuid(),
+  z.object({ recordId: z.uuid(), version: z.number().int().positive() }),
+]);
+
 /** The payload format written by the current code. */
 export const CURRENT_SCHEMA_VERSION = 1;
 
