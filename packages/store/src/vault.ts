@@ -24,15 +24,19 @@ import {
   ackPendingChange,
   type ConflictResolver,
   clearOutboxTable,
+  countParkedChanges,
   countPendingChanges,
   deleteVaultChanges,
   failPendingChange,
+  getParkedChanges,
   getPendingChanges,
   getRecordHistory,
   type LocalRecordChange,
   type LocalRecordVersion,
   type PendingChange,
+  parkPendingChange,
   rebasePendingVersions,
+  retryParkedChanges,
   writeLocalChange,
 } from "./schema/outbox-schema";
 import {
@@ -208,9 +212,40 @@ export class Vault {
     await this.transaction((tx) => ackPendingChange(changeId, serverRow, tx));
   }
 
-  async failPendingChange(changeId: string, error: string): Promise<void> {
+  /**
+   * A push of this change failed. `count: false` keeps the reason without
+   * counting an attempt (the next pull resolves it, e.g. stale).
+   */
+  async failPendingChange(
+    changeId: string,
+    error: string,
+    options?: { count?: boolean },
+  ): Promise<void> {
     await this.ready();
-    await failPendingChange(changeId, error, this.db);
+    await failPendingChange(changeId, error, this.db, options);
+  }
+
+  /** Stop pushing this change until `retryParkedChanges` (ADR 0001 D8). */
+  async parkPendingChange(changeId: string, error: string): Promise<void> {
+    await this.ready();
+    await parkPendingChange(changeId, error, this.db);
+  }
+
+  /** Parked changes, oldest first, with why they were parked (`lastError`). */
+  async getParkedChanges(): Promise<PendingChange[]> {
+    await this.ready();
+    return await getParkedChanges(this.db);
+  }
+
+  /** Parked changes, a subset of `countPendingChanges`. */
+  async countParkedChanges(): Promise<number> {
+    await this.ready();
+    return await countParkedChanges(this.db);
+  }
+
+  async retryParkedChanges(): Promise<void> {
+    await this.ready();
+    await retryParkedChanges(this.db);
   }
 
   /**

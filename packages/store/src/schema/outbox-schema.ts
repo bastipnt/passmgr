@@ -1,5 +1,5 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { upsertRecords } from "./records-schema";
 import { outbox, records } from "./tables";
@@ -12,6 +12,8 @@ export type PendingChange = {
   changeId: string;
   attempts: number;
   lastError: string | null;
+  /** When it was parked: not pushed again until `retryParkedChanges`. */
+  parkedAt: string | null;
   record: EncryptedRecordSchema;
 };
 
@@ -109,26 +111,44 @@ export async function writeLocalChange(
   return written;
 }
 
-/** Pending changes in write order, oldest first. */
-export async function getPendingChanges(db: LocalDb, limit?: number): Promise<PendingChange[]> {
-  const query = db
+function selectPendingChanges(db: LocalDb) {
+  return db
     .select({
       changeId: outbox.changeId,
       attempts: outbox.attempts,
       lastError: outbox.lastError,
+      parkedAt: outbox.parkedAt,
       record: records,
     })
     .from(outbox)
     .innerJoin(
       records,
       and(eq(records.recordId, outbox.recordId), eq(records.version, outbox.version)),
-    )
-    .orderBy(asc(outbox.seq));
+    );
+}
+
+/** Pending changes in write order, oldest first. */
+export async function getPendingChanges(db: LocalDb, limit?: number): Promise<PendingChange[]> {
+  const query = selectPendingChanges(db).orderBy(asc(outbox.seq));
   return limit === undefined ? await query : await query.limit(limit);
+}
+
+/** Parked changes in write order, oldest first. */
+export async function getParkedChanges(db: LocalDb): Promise<PendingChange[]> {
+  return await selectPendingChanges(db).where(isNotNull(outbox.parkedAt)).orderBy(asc(outbox.seq));
 }
 
 export async function countPendingChanges(db: LocalDb): Promise<number> {
   const row = await db.select({ n: sql<number>`count(*)` }).from(outbox).get();
+  return row?.n ?? 0;
+}
+
+export async function countParkedChanges(db: LocalDb): Promise<number> {
+  const row = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(outbox)
+    .where(isNotNull(outbox.parkedAt))
+    .get();
   return row?.n ?? 0;
 }
 
@@ -156,12 +176,40 @@ export async function ackPendingChange(
   await upsertRecords([serverRow], db);
 }
 
-/** A push of this change failed: count it and keep the reason for the UI. */
-export async function failPendingChange(changeId: string, error: string, db: LocalDb) {
+/**
+ * A push of this change failed: keep the reason for the UI and, unless
+ * `count` is false (a failure the next pull resolves, e.g. stale), count it.
+ */
+export async function failPendingChange(
+  changeId: string,
+  error: string,
+  db: LocalDb,
+  { count = true }: { count?: boolean } = {},
+) {
   await db
     .update(outbox)
-    .set({ attempts: sql`${outbox.attempts} + 1`, lastError: error })
+    .set(count ? { attempts: sql`${outbox.attempts} + 1`, lastError: error } : { lastError: error })
     .where(eq(outbox.changeId, changeId));
+}
+
+/**
+ * Stop pushing this change (it kept failing, or the server rejected it): count
+ * it, keep the reason and park it until `retryParkedChanges`.
+ */
+export async function parkPendingChange(changeId: string, error: string, db: LocalDb) {
+  await db
+    .update(outbox)
+    .set({
+      attempts: sql`${outbox.attempts} + 1`,
+      lastError: error,
+      parkedAt: new Date().toISOString(),
+    })
+    .where(eq(outbox.changeId, changeId));
+}
+
+/** Queue the parked changes again, with a fresh attempt count. */
+export async function retryParkedChanges(db: LocalDb) {
+  await db.update(outbox).set({ attempts: 0, parkedAt: null }).where(isNotNull(outbox.parkedAt));
 }
 
 /** Drop the outbox entries of records in these vaults (access was revoked). */

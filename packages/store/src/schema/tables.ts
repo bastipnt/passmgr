@@ -34,6 +34,8 @@ export const records = sqliteTable(
  * Local record versions waiting to be pushed (ADR 0001 D8), in write order
  * (`seq`). Each entry points at its `pending` row in `records`, written in the
  * same transaction. `changeId` identifies the change to the server (retries).
+ * `parkedAt`: the change kept failing or was rejected; it (and its record's
+ * later changes) isn't pushed again until the user retries it.
  */
 export const outbox = sqliteTable(
   "outbox",
@@ -44,6 +46,7 @@ export const outbox = sqliteTable(
     version: integer().notNull(),
     attempts: integer().notNull().default(0),
     lastError: text(),
+    parkedAt: text(),
     createdAt: text().notNull(),
   },
   (t) => [index("outbox_record_idx").on(t.recordId, t.version)],

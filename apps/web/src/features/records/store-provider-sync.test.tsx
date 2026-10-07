@@ -27,6 +27,9 @@ const vault = {
   getPendingChanges: vi.fn(async (): Promise<PendingChange[]> => []),
   ackPendingChange: vi.fn(async () => undefined),
   failPendingChange: vi.fn(async () => undefined),
+  parkPendingChange: vi.fn(async () => undefined),
+  countPendingChanges: vi.fn(async () => 0),
+  countParkedChanges: vi.fn(async () => 0),
 };
 
 const detachServer = vi.fn();
@@ -82,6 +85,34 @@ describe("StoreProvider sync", () => {
     expect(trpcClient.record.onRecordChange.subscribe).not.toHaveBeenCalled();
   });
 
+  it("catches up with a sync when the change stream comes back after dropping", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    try {
+      type Handlers = { onData: (event: { data: { type: string } }) => void; onError: () => void };
+      const streams: Handlers[] = [];
+      const subscribe = trpcClient.record.onRecordChange.subscribe as unknown as {
+        mockImplementation: (fn: (input: unknown, handlers: Handlers) => unknown) => void;
+      };
+      subscribe.mockImplementation((_input, handlers) => {
+        streams.push(handlers);
+        return { unsubscribe: () => undefined };
+      });
+      renderWithProviders(ui("online"));
+      await vi.waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalledTimes(1));
+
+      streams[0]!.onData({ data: { type: "connected" } });
+      streams[0]!.onError();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(streams).toHaveLength(2);
+      expect(trpcClient.record.sync.query).toHaveBeenCalledTimes(1);
+
+      streams[1]!.onData({ data: { type: "connected" } });
+      await vi.waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalledTimes(2));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("goes offline when the server rejects the session", async () => {
     trpcClient.record.sync.query.mockRejectedValue(
       TRPCClientError.from({
@@ -118,6 +149,7 @@ describe("StoreProvider sync", () => {
         changeId: `c${i + 1}`,
         attempts: 0,
         lastError: null,
+        parkedAt: null,
         record,
       })),
     );
@@ -149,41 +181,50 @@ describe("StoreProvider sync", () => {
     );
   });
 
-  it("stops the round when the server is busy, counting no change as failed", async () => {
-    vault.getPendingChanges.mockResolvedValueOnce([
-      {
-        changeId: "c1",
-        attempts: 0,
-        lastError: null,
-        record: {
-          recordId: "r1",
-          vaultId: "v1",
-          encryptedData: "data",
-          encryptionNonce: "nonce",
-          cryptoVersion: 1,
-          clientUpdatedAt: "2026-10-05T00:00:00.000Z",
-          version: 1,
+  it.each([
+    ["busy", "SERVICE_UNAVAILABLE", 503],
+    ["failing", "INTERNAL_SERVER_ERROR", 500],
+    ["throttling", "TOO_MANY_REQUESTS", 429],
+  ])(
+    "stops the round when the server is %s, counting no change as failed",
+    async (_, code, httpStatus) => {
+      vault.getPendingChanges.mockResolvedValueOnce([
+        {
+          changeId: "c1",
+          attempts: 0,
+          lastError: null,
+          parkedAt: null,
+          record: {
+            recordId: "r1",
+            vaultId: "v1",
+            encryptedData: "data",
+            encryptionNonce: "nonce",
+            cryptoVersion: 1,
+            clientUpdatedAt: "2026-10-05T00:00:00.000Z",
+            version: 1,
+          },
         },
-      },
-    ]);
-    trpcClient.record.push.mutate.mockRejectedValue(
-      TRPCClientError.from({
-        error: {
-          code: -32603,
-          message: "busy",
-          data: { code: "SERVICE_UNAVAILABLE", httpStatus: 503 },
-        },
-      }),
-    );
+      ]);
+      trpcClient.record.push.mutate.mockRejectedValue(
+        TRPCClientError.from({
+          error: {
+            code: -32603,
+            message: code,
+            data: { code, httpStatus },
+          },
+        }),
+      );
 
-    renderWithProviders(ui("online"));
+      renderWithProviders(ui("online"));
 
-    await waitFor(() => expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1));
-    await new Promise((resolve) => setTimeout(resolve, 20));
-    expect(vault.failPendingChange).not.toHaveBeenCalled();
-    expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
-    expect(detachServer).not.toHaveBeenCalled();
-  });
+      await waitFor(() => expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(vault.failPendingChange).not.toHaveBeenCalled();
+      expect(vault.parkPendingChange).not.toHaveBeenCalled();
+      expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
+      expect(detachServer).not.toHaveBeenCalled();
+    },
+  );
 
   it("stops pushing at a rejected session: detaches once, counts no change as failed", async () => {
     const record = {
@@ -196,8 +237,14 @@ describe("StoreProvider sync", () => {
       version: 1,
     };
     vault.getPendingChanges.mockResolvedValueOnce([
-      { changeId: "c1", attempts: 0, lastError: null, record },
-      { changeId: "c2", attempts: 0, lastError: null, record: { ...record, recordId: "r2" } },
+      { changeId: "c1", attempts: 0, lastError: null, parkedAt: null, record },
+      {
+        changeId: "c2",
+        attempts: 0,
+        lastError: null,
+        parkedAt: null,
+        record: { ...record, recordId: "r2" },
+      },
     ]);
     trpcClient.record.push.mutate.mockRejectedValue(
       TRPCClientError.from({

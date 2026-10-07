@@ -1,0 +1,481 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "id": "2732a39f-afe9-4464-bb8e-5a464bfc156e",
+  "prevIds": [
+    "55d0b068-0d1f-4c8d-aeb0-54463754e85f"
+  ],
+  "ddl": [
+    {
+      "name": "key_material",
+      "entityType": "tables"
+    },
+    {
+      "name": "outbox",
+      "entityType": "tables"
+    },
+    {
+      "name": "profile",
+      "entityType": "tables"
+    },
+    {
+      "name": "records",
+      "entityType": "tables"
+    },
+    {
+      "name": "sync_meta",
+      "entityType": "tables"
+    },
+    {
+      "name": "vaults",
+      "entityType": "tables"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "key_material"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "key_material"
+    },
+    {
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "seq",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "changeId",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "recordId",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "version",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "name": "attempts",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "lastError",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "parkedAt",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "createdAt",
+      "entityType": "columns",
+      "table": "outbox"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "profileId",
+      "entityType": "columns",
+      "table": "profile"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "mode",
+      "entityType": "columns",
+      "table": "profile"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "email",
+      "entityType": "columns",
+      "table": "profile"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "userId",
+      "entityType": "columns",
+      "table": "profile"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "recordId",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "vaultId",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryptedData",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryptionNonce",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "cryptoVersion",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "name": "version",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "clientUpdatedAt",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "deleted_at",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'synced'",
+      "generated": null,
+      "name": "syncState",
+      "entityType": "columns",
+      "table": "records"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "key",
+      "entityType": "columns",
+      "table": "sync_meta"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "value",
+      "entityType": "columns",
+      "table": "sync_meta"
+    },
+    {
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "vaultId",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "kind",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "role",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "keyVersion",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryptedVaultKey",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "vaultKeyEncryptionNonce",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "encryptedMeta",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "name": "metaEncryptionNonce",
+      "entityType": "columns",
+      "table": "vaults"
+    },
+    {
+      "columns": [
+        "recordId",
+        "version"
+      ],
+      "nameExplicit": false,
+      "name": "records_pk",
+      "entityType": "pks",
+      "table": "records"
+    },
+    {
+      "columns": [
+        "key"
+      ],
+      "nameExplicit": false,
+      "name": "key_material_pk",
+      "table": "key_material",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "seq"
+      ],
+      "nameExplicit": false,
+      "name": "outbox_pk",
+      "table": "outbox",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "profileId"
+      ],
+      "nameExplicit": false,
+      "name": "profile_pk",
+      "table": "profile",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "key"
+      ],
+      "nameExplicit": false,
+      "name": "sync_meta_pk",
+      "table": "sync_meta",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "vaultId"
+      ],
+      "nameExplicit": false,
+      "name": "vaults_pk",
+      "table": "vaults",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        {
+          "value": "recordId",
+          "isExpression": false
+        },
+        {
+          "value": "version",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "outbox_record_idx",
+      "entityType": "indexes",
+      "table": "outbox"
+    },
+    {
+      "columns": [
+        {
+          "value": "vaultId",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "name": "records_vault_idx",
+      "entityType": "indexes",
+      "table": "records"
+    },
+    {
+      "columns": [
+        "changeId"
+      ],
+      "nameExplicit": false,
+      "name": "outbox_changeId_unique",
+      "entityType": "uniques",
+      "table": "outbox"
+    }
+  ],
+  "renames": []
+}

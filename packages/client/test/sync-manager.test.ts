@@ -1,7 +1,19 @@
-import type { EncryptedRecordSchema, MemberVault, PushChange, PushResult } from "@repo/schema";
+import {
+  type EncryptedRecordSchema,
+  MAX_PUSH_CHANGES,
+  type MemberVault,
+  type PushChange,
+  type PushResult,
+} from "@repo/schema";
 import type { PendingChange, SyncBatch, Vault } from "@repo/store";
-import { describe, expect, it, vi } from "vitest";
-import { pushBatches, SyncManager, toPushChange } from "../src/sync-manager";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  MAX_PUSH_ATTEMPTS,
+  pushBatches,
+  SyncManager,
+  type SyncStatus,
+  toPushChange,
+} from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
 const batch: SyncBatch = {
@@ -13,17 +25,37 @@ const batch: SyncBatch = {
 
 function fakeStore(vaultsChanged: boolean, outbox: PendingChange[] = []) {
   const queue = [...outbox];
+  const entry = (changeId: string) => queue.find((c) => c.changeId === changeId)!;
   return {
+    queue,
     getSyncCursors: vi.fn(async () => ({ v1: 3 })),
     applySync: vi.fn(async () => vaultsChanged),
-    getPendingChanges: vi.fn(async () => [...queue]),
+    getPendingChanges: vi.fn(async () => queue.map((c) => ({ ...c }))),
+    countPendingChanges: vi.fn(async () => queue.length),
+    countParkedChanges: vi.fn(async () => queue.filter((c) => c.parkedAt).length),
     ackPendingChange: vi.fn(async (changeId: string) => {
       queue.splice(
         queue.findIndex((c) => c.changeId === changeId),
         1,
       );
     }),
-    failPendingChange: vi.fn(async () => {}),
+    failPendingChange: vi.fn(
+      async (changeId: string, error: string, { count = true }: { count?: boolean } = {}) => {
+        if (count) entry(changeId).attempts++;
+        entry(changeId).lastError = error;
+      },
+    ),
+    parkPendingChange: vi.fn(async (changeId: string, error: string) => {
+      entry(changeId).attempts++;
+      entry(changeId).lastError = error;
+      entry(changeId).parkedAt = "2026-10-07T00:00:00.000Z";
+    }),
+    retryParkedChanges: vi.fn(async () => {
+      for (const c of queue) {
+        c.parkedAt = null;
+        c.attempts = 0;
+      }
+    }),
   };
 }
 
@@ -32,6 +64,7 @@ function change(changeId: string, recordId: string, version: number): PendingCha
     changeId,
     attempts: 0,
     lastError: null,
+    parkedAt: null,
     record: {
       recordId,
       vaultId: "v1",
@@ -146,7 +179,7 @@ describe("SyncManager pull", () => {
 
     const first = manager.sync();
     await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(1));
-    manager.requestSync();
+    void manager.sync();
     manager.setEnabled(false);
     release();
     await first;
@@ -155,16 +188,26 @@ describe("SyncManager pull", () => {
     expect(pull).toHaveBeenCalledTimes(1);
   });
 
-  it("requestSync only syncs while enabled", async () => {
-    const pull = vi.fn(async () => batch);
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+  it("requestSync only syncs while enabled, once for writes in quick succession", async () => {
+    vi.useFakeTimers();
+    try {
+      const pull = vi.fn(async () => batch);
+      const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
 
-    manager.requestSync();
-    expect(pull).not.toHaveBeenCalled();
+      manager.requestSync();
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(pull).not.toHaveBeenCalled();
 
-    manager.setEnabled(true);
-    manager.requestSync();
-    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(1));
+      manager.setEnabled(true);
+      manager.requestSync();
+      await vi.advanceTimersByTimeAsync(500);
+      manager.requestSync();
+      expect(pull).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1_000);
+      expect(pull).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -209,8 +252,17 @@ describe("SyncManager push", () => {
 
     expect(await manager.sync()).toBe(true);
 
-    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "stale: the server is at version 2");
-    expect(store.failPendingChange).toHaveBeenCalledWith("c2", "stale: the server is at version 2");
+    const uncounted = { count: false };
+    expect(store.failPendingChange).toHaveBeenCalledWith(
+      "c1",
+      "stale: the server is at version 2",
+      uncounted,
+    );
+    expect(store.failPendingChange).toHaveBeenCalledWith(
+      "c2",
+      "stale: the server is at version 2",
+      uncounted,
+    );
     expect(ids(push)).toEqual([
       ["c1", "c2", "c3"],
       ["c1", "c2"],
@@ -218,7 +270,7 @@ describe("SyncManager push", () => {
     expect(store.ackPendingChange).toHaveBeenCalledTimes(3);
   });
 
-  it("fails a rejected change with its reason", async () => {
+  it("parks a rejected change with its reason", async () => {
     const store = fakeStore(false, [change("c1", "r1", 1)]);
     const push = pusher((c) => ({
       clientChangeId: c.clientChangeId,
@@ -229,7 +281,8 @@ describe("SyncManager push", () => {
 
     await manager.sync();
 
-    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "rejected: forbidden");
+    expect(store.parkPendingChange).toHaveBeenCalledWith("c1", "rejected: forbidden");
+    expect(store.failPendingChange).not.toHaveBeenCalled();
     expect(store.ackPendingChange).not.toHaveBeenCalled();
   });
 
@@ -264,6 +317,250 @@ describe("SyncManager push", () => {
     expect(push).toHaveBeenCalledTimes(1);
     expect(store.ackPendingChange).toHaveBeenCalledTimes(1);
     expect(store.failPendingChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("SyncManager poison changes", () => {
+  const badRequest = new Error("BAD_REQUEST");
+  /** Refuses any batch holding a change of record `bad` as a whole, like a malformed change. */
+  const refusing = (bad: string) =>
+    vi.fn(async (changes: PushChange[]) => {
+      if (changes.some((c) => c.recordId === bad)) throw badRequest;
+      return changes.map(applied);
+    });
+
+  it("splits a batch the server refuses as a whole, so the other records go through", async () => {
+    const store = fakeStore(false, [
+      change("a1", "a", 1),
+      change("b1", "b", 1),
+      change("b2", "b", 2),
+      change("c1", "c", 1),
+      change("d1", "d", 1),
+    ]);
+    const push = refusing("b");
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    expect(store.queue.map((c) => c.changeId)).toEqual(["b1", "b2"]);
+    expect(store.failPendingChange).toHaveBeenCalledWith("b1", "BAD_REQUEST");
+    expect(store.failPendingChange).toHaveBeenCalledWith("b2", "BAD_REQUEST");
+    // b's chain is never split: its changes go (and fail) together.
+    for (const [changes] of push.mock.calls) {
+      const b = changes.filter((c) => c.recordId === "b").map((c) => c.clientChangeId);
+      expect([[], ["b1", "b2"]]).toContainEqual(b);
+    }
+  });
+
+  it("parks a change after it failed MAX_PUSH_ATTEMPTS pushes", async () => {
+    const stuck = { ...change("b1", "b", 1), attempts: MAX_PUSH_ATTEMPTS - 2 };
+    const store = fakeStore(false, [stuck]);
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      push: refusing("b"),
+    });
+
+    await manager.sync(); // pushes it twice: before and after the pull
+
+    expect(store.failPendingChange).toHaveBeenCalledTimes(1);
+    expect(store.parkPendingChange).toHaveBeenCalledWith("b1", "BAD_REQUEST");
+    expect(store.queue[0]!.parkedAt).not.toBeNull();
+  });
+
+  it("never parks a change for being stale: the pull resolves that", async () => {
+    const contended = { ...change("c1", "r1", 2), attempts: MAX_PUSH_ATTEMPTS - 1 };
+    const store = fakeStore(false, [contended]);
+    const push = pusher((c) => ({
+      clientChangeId: c.clientChangeId,
+      status: "stale",
+      headVersion: 2,
+    }));
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    expect(store.parkPendingChange).not.toHaveBeenCalled();
+    expect(store.queue[0]).toMatchObject({ attempts: MAX_PUSH_ATTEMPTS - 1, parkedAt: null });
+  });
+
+  it("skips the rest of a chain too long for one batch once its first part failed", async () => {
+    const chain = Array.from({ length: MAX_PUSH_CHANGES + 1 }, (_, i) =>
+      change(`a${i + 1}`, "a", i + 1),
+    );
+    const store = fakeStore(false, [...chain, change("b1", "b", 1)]);
+    const push = vi.fn(async (changes: PushChange[]) => {
+      if (changes[0]!.clientChangeId === "a1") throw new Error("BAD_REQUEST");
+      return changes.map(applied);
+    });
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    // Before and after the pull: the first part fails, the tail (a501) is never sent.
+    expect(
+      push.mock.calls.flatMap(([changes]) => changes.map((c) => c.clientChangeId)),
+    ).not.toContain(`a${MAX_PUSH_CHANGES + 1}`);
+    expect(store.parkPendingChange).not.toHaveBeenCalled();
+    expect(store.queue.map((c) => c.changeId)).not.toContain("b1");
+  });
+
+  it("holds back a parked change and its record's later ones, but pushes the rest", async () => {
+    const parked = { ...change("a1", "a", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
+    const store = fakeStore(false, [parked, change("b1", "b", 1), change("a2", "a", 2)]);
+    const push = pusher();
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    expect(await manager.sync()).toBe(true);
+
+    expect(ids(push)).toEqual([["b1"]]);
+    expect(store.queue.map((c) => c.changeId)).toEqual(["a1", "a2"]);
+  });
+
+  it("pushes parked changes again after retryParked", async () => {
+    const parked = { ...change("a1", "a", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
+    const store = fakeStore(false, [parked]);
+    const push = pusher();
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    manager.setEnabled(true);
+
+    await manager.retryParked();
+
+    await vi.waitFor(() => expect(store.queue).toEqual([]));
+    expect(ids(push)).toEqual([["a1"]]);
+  });
+});
+
+describe("SyncManager retries", () => {
+  afterEach(() => void vi.useRealTimers());
+
+  it("retries a failed round with exponential backoff and stops once it goes through", async () => {
+    vi.useFakeTimers();
+    const pull = vi
+      .fn<() => Promise<SyncBatch>>()
+      .mockRejectedValueOnce(new Error("down"))
+      .mockRejectedValueOnce(new Error("down"))
+      .mockResolvedValue(batch);
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    manager.setEnabled(true);
+
+    await manager.sync();
+    expect(pull).toHaveBeenCalledTimes(1);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(pull).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(9_000);
+    expect(pull).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(pull).toHaveBeenCalledTimes(3);
+
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(pull).toHaveBeenCalledTimes(3);
+  });
+
+  it("retries a round that left changes queued", async () => {
+    vi.useFakeTimers();
+    const store = fakeStore(false, [change("c1", "r1", 2)]);
+    let stale = 2;
+    const push = pusher((c) =>
+      stale-- > 0
+        ? { clientChangeId: c.clientChangeId, status: "stale", headVersion: 2 }
+        : undefined,
+    );
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    manager.setEnabled(true);
+
+    expect(await manager.sync()).toBe(true);
+    expect(store.queue).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(5_000);
+    expect(store.queue).toEqual([]);
+  });
+
+  it("doesn't retry once disabled", async () => {
+    vi.useFakeTimers();
+    const pull = vi.fn(async (): Promise<SyncBatch> => {
+      throw new Error("down");
+    });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    manager.setEnabled(true);
+
+    await manager.sync();
+    manager.setEnabled(false);
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+
+    expect(pull).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SyncManager status", () => {
+  function track(manager: SyncManager) {
+    const phases: SyncStatus["phase"][] = [];
+    manager.onStatusChange((status) => {
+      if (phases.at(-1) !== status.phase) phases.push(status.phase);
+    });
+    return phases;
+  }
+
+  it("is offline until enabled, then reports syncing → idle with the outbox counts", async () => {
+    const parked = { ...change("p1", "p", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
+    const store = fakeStore(false, [parked, change("c1", "r1", 1)]);
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      push: pusher(),
+    });
+    expect(manager.getStatus().phase).toBe("offline");
+    const phases = track(manager);
+
+    manager.setEnabled(true);
+    await manager.sync();
+
+    expect(phases).toEqual(["idle", "syncing", "idle"]);
+    expect(manager.getStatus()).toMatchObject({ pending: 1, parked: 1, error: null });
+    expect(manager.getStatus().lastSyncedAt).not.toBeNull();
+  });
+
+  it("counts a local write while offline", async () => {
+    const store = fakeStore(false);
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch });
+
+    store.queue.push(change("c1", "r1", 1));
+    manager.requestSync();
+
+    await vi.waitFor(() =>
+      expect(manager.getStatus()).toMatchObject({ phase: "offline", pending: 1 }),
+    );
+  });
+
+  it("goes offline when disposed", async () => {
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      pull: async () => batch,
+    });
+    manager.setEnabled(true);
+    expect(manager.getStatus().phase).toBe("idle");
+
+    manager.dispose();
+
+    expect(manager.getStatus().phase).toBe("offline");
+  });
+
+  it("tells offline apart from an error", async () => {
+    const offline = new Error("offline");
+    const pull = vi
+      .fn<() => Promise<SyncBatch>>()
+      .mockRejectedValueOnce(offline)
+      .mockRejectedValueOnce(new Error("INTERNAL_SERVER_ERROR"));
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      pull,
+      isOffline: (e) => e === offline,
+    });
+    manager.setEnabled(true);
+
+    await manager.sync();
+    expect(manager.getStatus()).toMatchObject({ phase: "offline", error: null });
+
+    await manager.sync();
+    expect(manager.getStatus()).toMatchObject({ phase: "error", error: "INTERNAL_SERVER_ERROR" });
+    manager.dispose();
   });
 });
 

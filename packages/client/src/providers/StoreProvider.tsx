@@ -17,7 +17,13 @@ import { SyncManager } from "../sync-manager";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
-import { isRetryLater, isServerAnswer, isUnauthorized } from "../util/trpc-errors";
+import {
+  isRetryLater,
+  isServerAnswer,
+  isServerError,
+  isThrottled,
+  isUnauthorized,
+} from "../util/trpc-errors";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
@@ -156,8 +162,16 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       pull: (cursors) => request(() => trpc.record.sync.query({ cursors })),
       push: async (changes) => (await request(() => trpc.record.push.mutate({ changes }))).results,
       // Offline, a network failure, an unsigned request (locked), a rejected
-      // session or a busy server: every other batch would fail the same way.
-      stopsRound: (e) => !isServerAnswer(e) || isUnauthorized(e) || isRetryLater(e),
+      // session, a busy, throttling or failing server: every other batch would
+      // fail the same way. Only an answer about the batch itself (a 4xx) is
+      // split down to the bad change and counted against it.
+      stopsRound: (e) =>
+        !isServerAnswer(e) ||
+        isUnauthorized(e) ||
+        isRetryLater(e) ||
+        isThrottled(e) ||
+        isServerError(e),
+      isOffline: (e) => !isServerAnswer(e),
       onVaultsChanged: reloadVaultKeys,
       resolveConflict: resolveRecordConflict,
     });
@@ -195,9 +209,15 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     let currentSubscription: { unsubscribe: () => void } | null = null;
     let disposed = false;
 
+    let resubscribing = false;
     function subscribe() {
       currentSubscription = trpc.record.onRecordChange.subscribe(undefined, {
         onData: (event) => {
+          // Back after a dropped stream: catch up on what changed meanwhile.
+          if (event.data.type === "connected" && resubscribing) {
+            resubscribing = false;
+            void syncManager.sync();
+          }
           if (event.data.type === "changed") {
             // Only a real event proves the stream works. Resetting on "connected"
             // too would pin a server that accepts-then-drops at a flat 5s loop.
@@ -210,6 +230,7 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
           if (disposed) return;
           const delay = retryDelay;
           retryDelay = Math.min(retryDelay * 2, 60_000);
+          resubscribing = true;
           retryTimer = setTimeout(subscribe, delay);
         },
       });

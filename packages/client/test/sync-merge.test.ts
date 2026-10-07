@@ -293,6 +293,39 @@ describe("syncing a record edited on two devices", () => {
     expect(await a.read(recordId)).toMatchObject({ note: "once" });
   });
 
+  it("parks a rejected change with its record's later edits, until retried", async () => {
+    clock("10:00");
+    await edit(a, { note: "first" });
+    const push = server.push;
+    server.push = async (changes) =>
+      changes.map((c) => ({
+        clientChangeId: c.clientChangeId,
+        status: "rejected",
+        reason: "forbidden",
+      }));
+    await a.sync.sync();
+    server.push = push;
+
+    clock("10:05");
+    await edit(a, { note: "second" });
+    await a.sync.sync();
+
+    expect(server.rows).toHaveLength(1);
+    expect(a.sync.getStatus()).toMatchObject({ pending: 2, parked: 1 });
+    const parked = await a.vault.getParkedChanges();
+    expect(parked).toHaveLength(1);
+    expect(parked[0]).toMatchObject({ attempts: 1, lastError: "rejected: forbidden" });
+    expect(parked[0]!.record.recordId).toBe(recordId);
+
+    await a.sync.retryParked();
+    await a.sync.sync();
+
+    expect(server.rows).toHaveLength(3);
+    expect(a.sync.getStatus()).toMatchObject({ pending: 0, parked: 0 });
+    expect(await b.sync.sync()).toBe(true);
+    expect(await b.read(recordId)).toMatchObject({ note: "second" });
+  });
+
   it("keeps a record deleted on both devices deleted", async () => {
     clock("10:00");
     await a.records.delete(recordId);

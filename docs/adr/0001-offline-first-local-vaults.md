@@ -372,6 +372,27 @@ the history must not leak into the target.
 > all. One `notifyVaultMembers` per batch pings each member once. Records carry `clientChangeId`
 > (NOT NULL, unique per record), part of the reset baseline. A move is pushed as the target's put and
 > the source's delete; they share a transaction only when they land in the same batch.
+>
+> **Amended 2026-10-07** (two-way sync engine): `RecordRepository` writes call
+> `SyncManager.requestSync`, debounced 750 ms. SSE `changed`, the SSE stream coming back after a drop
+> (its `connected` event), the browser `online` event, app foreground (mobile re-enables sync) and a
+> 5-minute interval call `sync()`. A round that fails, or leaves changes queued, is retried while
+> enabled with backoff 5 s · 2ⁿ up to 5 min, reset by a round that pushes everything. A change is
+> **parked** (`outbox.parkedAt`) when the server rejects it (`not_found` / `forbidden`, a retry can't
+> help) or after `MAX_PUSH_ATTEMPTS` (8) failed pushes; a `stale` answer keeps its reason but isn't
+> counted (the pull resolves it). A parked change and its record's later
+> changes stay local and pending (they still count as unsynced) until `SyncManager.retryParked`
+> (`Vault.retryParkedChanges` resets `attempts`), so they never hold up other records. A batch the
+> server refuses as a whole (a 4xx such as `BAD_REQUEST`) is split in halves by record chain until
+> the refused chain is alone; only that chain counts the failure, and the rest of a chain too long
+> for one batch isn't sent that round. 5xx, 429, 503 and 401 answers stop the round (`stopsRound`)
+> instead, so an outage never counts against a change. `Vault.getParkedChanges` lists them for the UI.
+> `SyncManager.getStatus()` / `onStatusChange` (`useSyncStatus`) expose `phase`
+> (`idle | syncing | error | offline`; `offline` = disabled, or a round that didn't reach the
+> server, `isOffline`), `pending`, `parked`, `error` and `lastSyncedAt`; "pending(n)" is `idle`
+> with `pending > 0`. Sync is only enabled in `online` mode, so a `local` profile reads `offline`
+> and the UI shows no sync status for it. Discarding a parked change, or copying it to another
+> vault (D7), is left to the sync status UI.
 
 ### D9 — Creating an account from a local vault ("linking")
 

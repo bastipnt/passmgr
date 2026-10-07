@@ -41,5 +41,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "ALTER TABLE `records` ADD `syncState` text DEFAULT 'synced' NOT NULL;",
       "CREATE INDEX `outbox_record_idx` ON `outbox` (`recordId`,`version`);"
     ]
+  },
+  {
+    "name": "20261007173648_outbox_parked",
+    "statements": [
+      "ALTER TABLE `outbox` ADD `parkedAt` text;"
+    ]
   }
 ];

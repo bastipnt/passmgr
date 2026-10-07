@@ -16,6 +16,13 @@ export function isRetryLater(err: unknown): boolean {
   );
 }
 
+/** The server failed on its side (a 5xx), whatever the request held. */
+export function isServerError(err: unknown): boolean {
+  if (!(err instanceof TRPCClientError)) return false;
+  const status = err.data?.httpStatus;
+  return typeof status === "number" ? status >= 500 : err.data?.code === "INTERNAL_SERVER_ERROR";
+}
+
 /** Server rejected the call with TOO_MANY_REQUESTS (per-account or per-IP limit). */
 export function isThrottled(err: unknown): boolean {
   return (
