@@ -1,8 +1,11 @@
 import { MAX_PUSH_CHANGES, type MemberVault, type PushChange, type PushResult } from "@repo/schema";
 import type { ConflictResolver, PendingChange, SyncBatch, Vault } from "@repo/store";
 
-/** Pull every vault's changes since its cursor (vaultId → cursor). */
-export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncBatch>;
+/** One page of a pull; `hasMore`: the server has more changes past its cursors. */
+export type SyncPage = SyncBatch & { hasMore: boolean };
+
+/** Pull a page of every vault's changes since its cursor (vaultId → cursor). */
+export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncPage>;
 
 /**
  * Send a batch of local changes to the server (`record.push`). Resolves one
@@ -13,7 +16,7 @@ export type ChangePusher = (changes: PushChange[]) => Promise<PushResult[]>;
 /** Runs before the listeners when the vault list changed, e.g. to load new vault keys. */
 export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
 
-/** `vaultsChanged`: the vault list (membership, key wraps, metadata) changed in this pull. */
+/** `vaultsChanged`: the vault list (membership, key wraps, metadata) changed since the last event. */
 export type SyncListener = (event: { vaultsChanged: boolean }) => void;
 
 /**
@@ -62,7 +65,7 @@ type SyncManagerOptions = {
 };
 
 /**
- * One sync cycle (ADR 0001 D8): push the outbox in batches, then pull. A
+ * One sync cycle (ADR 0001 D8): push the outbox in batches, then pull page by page. A
  * record's pending changes always go in one batch, which the server applies
  * all or nothing, so no other device pulls half of them (e.g. a losing edit
  * without the merge on top). A change that wasn't applied stays queued. When
@@ -120,7 +123,7 @@ export class SyncManager {
     this.resolveConflict = resolveConflict;
   }
 
-  /** Register a callback invoked after each successful sync. */
+  /** Register a callback invoked after each successful sync and each pulled page before its last. */
   onSync(listener: SyncListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -191,16 +194,12 @@ export class SyncManager {
     try {
       let pushed = await this.pushOutbox();
 
-      const batch = await this.pull(await this.store.getSyncCursors());
-      const vaultsChanged = await this.store.applySync(batch, this.resolveConflict);
-      if (vaultsChanged) await this.onVaultsChanged?.(batch.vaults);
+      const vaultsChanged = await this.pullAll();
 
       if (!pushed) pushed = await this.pushOutbox();
       done = pushed;
 
-      for (const listener of this.listeners) {
-        listener({ vaultsChanged });
-      }
+      this.notify(vaultsChanged);
       this.setStatus({
         phase: this.enabled ? "idle" : "offline",
         error: null,
@@ -225,6 +224,34 @@ export class SyncManager {
         if (this.enabled) void this.sync();
       }
     }
+  }
+
+  /**
+   * Pull and apply pages until the server has no more. Each page is applied
+   * (and its cursors stored) on its own, so a round that fails midway resumes
+   * from the last page applied; listeners hear of every page but the last
+   * right away (the round reports that one). Throws when a page that claims
+   * more moved no cursor: pulling again would loop. Resolves whether the last
+   * page changed the vault list.
+   */
+  private async pullAll(): Promise<boolean> {
+    let cursors = await this.store.getSyncCursors();
+    for (;;) {
+      const page = await this.pull(cursors);
+      const vaultsChanged = await this.store.applySync(page, this.resolveConflict);
+      // Keys first: the next page's merges may need a vault this one added.
+      if (vaultsChanged) await this.onVaultsChanged?.(page.vaults);
+      if (!page.hasMore) return vaultsChanged;
+
+      const next = await this.store.getSyncCursors();
+      if (!advanced(cursors, next)) throw new Error("the pull made no progress");
+      cursors = next;
+      this.notify(vaultsChanged);
+    }
+  }
+
+  private notify(vaultsChanged: boolean): void {
+    for (const listener of this.listeners) listener({ vaultsChanged });
   }
 
   /**
@@ -413,6 +440,11 @@ export function pushBatches(
   }
   if (batch.length > 0) batches.push(batch);
   return batches;
+}
+
+/** Whether some vault's cursor moved forward (a vault without one is at 0). */
+function advanced(before: Record<string, number>, after: Record<string, number>): boolean {
+  return Object.entries(after).some(([vaultId, cursor]) => cursor > (before[vaultId] ?? 0));
 }
 
 /** Each record's changes, in order, by record id. */

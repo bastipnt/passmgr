@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { pushInputSchema, syncInputSchema } from "../src/record-payload";
+import {
+  MAX_SYNC_RECORDS,
+  MIN_SYNC_RECORDS,
+  pushInputSchema,
+  syncInputSchema,
+} from "../src/record-payload";
 import { vaultMetaSchema } from "../src/vault-schema";
 
 const UUID = "d4f5e9a0-1234-4abc-89ab-fedcba987654";
@@ -42,9 +47,16 @@ describe("pushInputSchema", () => {
 });
 
 describe("syncInputSchema", () => {
-  it("defaults to no cursors (pull everything)", () => {
-    expect(syncInputSchema.parse({})).toEqual({ cursors: {} });
+  it("defaults to no cursors (pull everything) in full pages", () => {
+    expect(syncInputSchema.parse({})).toEqual({ cursors: {}, limit: MAX_SYNC_RECORDS });
   });
+
+  it.each([MIN_SYNC_RECORDS - 1, MAX_SYNC_RECORDS + 1, 60.5])(
+    "rejects a page size of %s",
+    (limit) => {
+      expect(() => syncInputSchema.parse({ limit })).toThrow();
+    },
+  );
 
   it.each([
     ["a non-UUID vault id", { personal: 1 }],

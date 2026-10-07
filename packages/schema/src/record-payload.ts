@@ -163,12 +163,19 @@ export const CURRENT_CRYPTO_VERSION = 1;
  */
 export const syncCursorSchema = z.number().int().nonnegative();
 
+/** The most record versions one `record.sync` page returns. */
+export const MAX_SYNC_RECORDS = 500;
+/** The smallest page a client may ask for: tiny pages only multiply requests. */
+export const MIN_SYNC_RECORDS = 50;
+
 /**
- * Pull changes per vault. A vault without a cursor (new to this device) is sent
- * in full; vaults the user is no longer a member of are ignored.
+ * Pull changes per vault, one page at a time (`hasMore`: pull again from the
+ * returned cursors). A vault without a cursor (new to this device) is sent in
+ * full; vaults the user is no longer a member of are ignored.
  */
 export const syncInputSchema = z.object({
   cursors: z.record(z.uuid(), syncCursorSchema).default({}),
+  limit: z.number().int().min(MIN_SYNC_RECORDS).max(MAX_SYNC_RECORDS).default(MAX_SYNC_RECORDS),
 });
 
 export const syncOutputSchema = z.object({
@@ -177,6 +184,8 @@ export const syncOutputSchema = z.object({
   vaults: z.array(memberVaultSchema),
   // The next cursor for every vault in `vaults`.
   cursors: z.record(z.string(), syncCursorSchema),
+  // The page was full: more changes wait past `cursors`.
+  hasMore: z.boolean(),
   // The server's clock at the pull (caps edit times from the future, ADR 0001 D5).
   serverTimestamp: z.string(),
 });

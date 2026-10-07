@@ -41,6 +41,7 @@ class FakeServer {
     records: [...this.rows],
     vaults: this.vaults,
     cursors: {},
+    hasMore: false,
     serverTimestamp: new Date().toISOString(),
   });
 

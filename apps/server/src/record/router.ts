@@ -8,7 +8,7 @@ import {
   vaultRoleSchema,
 } from "@repo/schema";
 import { TRPCError, tracked } from "@trpc/server";
-import { and, desc, eq, gt, or } from "drizzle-orm";
+import { and, desc, eq, gt } from "drizzle-orm";
 import z from "zod";
 import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
 import { onRecordsChanged } from "../events/record-events";
@@ -44,28 +44,42 @@ export const recordRouter = router({
     .query(async ({ ctx, input }) => {
       const serverTimestamp = new Date().toISOString();
       const vaults = await memberVaults(ctx.userId);
-      if (vaults.length === 0) return { records: [], vaults, cursors: {}, serverTimestamp };
+      if (vaults.length === 0) {
+        return { records: [], vaults, cursors: {}, hasMore: false, serverTimestamp };
+      }
 
       // Each vault from its own cursor; one this device hasn't synced yet in full.
       const cursors = Object.fromEntries(
         vaults.map(({ vaultId }) => [vaultId, input.cursors[vaultId] ?? 0]),
       );
-      const perVault = vaults.map(({ vaultId }) =>
-        and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.seq, cursors[vaultId] ?? 0)),
-      );
 
-      const records = await db
-        .select()
-        .from(recordsTable)
-        .where(or(...perVault))
-        .orderBy(recordsTable.recordId, desc(recordsTable.version));
+      // A page is a prefix of the vaults' writes in (vault, seq) order, so every
+      // cursor stays a point below which the device holds all of a vault's rows.
+      // One range scan of `records_vault_seq_idx` per vault, each stopping early;
+      // one row past the page tells whether more wait.
+      const records: RecordType[] = [];
+      let hasMore = false;
+      for (const vaultId of vaults.map((v) => v.vaultId).sort()) {
+        const room = input.limit - records.length;
+        const rows = await db
+          .select()
+          .from(recordsTable)
+          .where(
+            and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.seq, cursors[vaultId] ?? 0)),
+          )
+          .orderBy(recordsTable.seq)
+          .limit(room + 1);
+        hasMore = rows.length > room;
+        records.push(...rows.slice(0, room));
+        if (hasMore) break;
+      }
 
       // A vault's next cursor is the highest seq pulled from it (ADR 0001 D8).
       for (const { vaultId, seq } of records) {
         cursors[vaultId] = Math.max(cursors[vaultId] ?? 0, seq);
       }
 
-      return { records: records.map(serializeRecord), vaults, cursors, serverTimestamp };
+      return { records: records.map(serializeRecord), vaults, cursors, hasMore, serverTimestamp };
     }),
 
   history: protectedProcedure

@@ -5,21 +5,23 @@ import {
   type PushChange,
   type PushResult,
 } from "@repo/schema";
-import type { PendingChange, SyncBatch, Vault } from "@repo/store";
+import type { PendingChange, Vault } from "@repo/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PUSH_ATTEMPTS,
   pushBatches,
   SyncManager,
+  type SyncPage,
   type SyncStatus,
   toPushChange,
 } from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
-const batch: SyncBatch = {
+const batch: SyncPage = {
   records: [],
   vaults,
   cursors: { v1: 4 },
+  hasMore: false,
   serverTimestamp: "2026-10-02T00:00:00.000Z",
 };
 
@@ -138,6 +140,74 @@ describe("SyncManager pull", () => {
     expect(listener).toHaveBeenCalledWith({ vaultsChanged: false });
   });
 
+  it("pulls page after page from the cursors each one stored", async () => {
+    const store = fakeStore(false);
+    store.getSyncCursors.mockResolvedValueOnce({ v1: 3 }).mockResolvedValueOnce({ v1: 5 });
+    const first = { ...batch, cursors: { v1: 5 }, hasMore: true };
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockResolvedValueOnce(first)
+      .mockResolvedValue(batch);
+    const manager = new SyncManager(store as unknown as Vault, { pull });
+
+    expect(await manager.sync()).toBe(true);
+
+    expect(pull.mock.calls).toEqual([[{ v1: 3 }], [{ v1: 5 }]]);
+    expect(store.applySync).toHaveBeenNthCalledWith(1, first, undefined);
+    expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined);
+  });
+
+  it("tells listeners of each page, and reloads keys before the next one", async () => {
+    const calls: string[] = [];
+    const store = fakeStore(false);
+    store.getSyncCursors.mockResolvedValueOnce({ v1: 3 }).mockResolvedValueOnce({ v1: 5 });
+    store.applySync.mockImplementation(async () => {
+      calls.push("apply");
+      return calls.length === 1;
+    });
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockResolvedValueOnce({ ...batch, hasMore: true })
+      .mockResolvedValue(batch);
+    const onVaultsChanged = vi.fn(async () => void calls.push("keys"));
+    const manager = new SyncManager(store as unknown as Vault, { pull, onVaultsChanged });
+    manager.onSync(({ vaultsChanged }) => void calls.push(`listener:${vaultsChanged}`));
+
+    await manager.sync();
+
+    expect(calls).toEqual(["apply", "keys", "listener:true", "apply", "listener:false"]);
+  });
+
+  it("fails the round when a page claiming more moved no cursor", async () => {
+    const store = fakeStore(false);
+    const pull = vi.fn(async () => ({ ...batch, hasMore: true }));
+    const manager = new SyncManager(store as unknown as Vault, { pull });
+    manager.setEnabled(true);
+
+    expect(await manager.sync()).toBe(false);
+    expect(pull).toHaveBeenCalledTimes(1);
+    expect(manager.getStatus()).toMatchObject({
+      phase: "error",
+      error: "the pull made no progress",
+    });
+    manager.dispose();
+  });
+
+  it("keeps the pages applied before a failed one", async () => {
+    const store = fakeStore(false);
+    store.getSyncCursors.mockResolvedValueOnce({ v1: 3 }).mockResolvedValueOnce({ v1: 5 });
+    const first = { ...batch, hasMore: true };
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockResolvedValueOnce(first)
+      .mockRejectedValue(new Error("offline"));
+    const manager = new SyncManager(store as unknown as Vault, { pull });
+
+    expect(await manager.sync()).toBe(false);
+    expect(store.applySync).toHaveBeenCalledTimes(1);
+    expect(store.applySync).toHaveBeenCalledWith(first, undefined);
+  });
+
   it("reports a failed pull without applying anything", async () => {
     const store = fakeStore(false);
     const manager = new SyncManager(store as unknown as Vault, {
@@ -153,7 +223,7 @@ describe("SyncManager pull", () => {
   it("runs once more after a sync requested while one was running", async () => {
     let release!: () => void;
     const pull = vi
-      .fn<() => Promise<SyncBatch>>()
+      .fn<() => Promise<SyncPage>>()
       .mockImplementationOnce(() => new Promise((r) => (release = () => r(batch))))
       .mockResolvedValue(batch);
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
@@ -171,7 +241,7 @@ describe("SyncManager pull", () => {
   it("drops the follow-up sync when syncing was disabled meanwhile (locked, offline)", async () => {
     let release!: () => void;
     const pull = vi
-      .fn<() => Promise<SyncBatch>>()
+      .fn<() => Promise<SyncPage>>()
       .mockImplementationOnce(() => new Promise((r) => (release = () => r(batch))))
       .mockResolvedValue(batch);
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
@@ -436,7 +506,7 @@ describe("SyncManager retries", () => {
   it("retries a failed round with exponential backoff and stops once it goes through", async () => {
     vi.useFakeTimers();
     const pull = vi
-      .fn<() => Promise<SyncBatch>>()
+      .fn<() => Promise<SyncPage>>()
       .mockRejectedValueOnce(new Error("down"))
       .mockRejectedValueOnce(new Error("down"))
       .mockResolvedValue(batch);
@@ -478,7 +548,7 @@ describe("SyncManager retries", () => {
 
   it("doesn't retry once disabled", async () => {
     vi.useFakeTimers();
-    const pull = vi.fn(async (): Promise<SyncBatch> => {
+    const pull = vi.fn(async (): Promise<SyncPage> => {
       throw new Error("down");
     });
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
@@ -546,7 +616,7 @@ describe("SyncManager status", () => {
   it("tells offline apart from an error", async () => {
     const offline = new Error("offline");
     const pull = vi
-      .fn<() => Promise<SyncBatch>>()
+      .fn<() => Promise<SyncPage>>()
       .mockRejectedValueOnce(offline)
       .mockRejectedValueOnce(new Error("INTERNAL_SERVER_ERROR"));
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {

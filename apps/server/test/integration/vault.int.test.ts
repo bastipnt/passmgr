@@ -1,6 +1,6 @@
 import { createVault, unwrapVaultKey, wrapVaultKey } from "@repo/crypto";
 import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
-import type { PushChange, VaultRole } from "@repo/schema";
+import { MIN_SYNC_RECORDS, type PushChange, type VaultRole } from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
@@ -46,8 +46,8 @@ async function createRecord(user: User, vaultId: string, data?: string) {
   return result.record;
 }
 
-async function sync(user: User, cursors: Record<string, number> = {}) {
-  const input = { cursors };
+async function sync(user: User, cursors: Record<string, number> = {}, limit?: number) {
+  const input = { cursors, limit };
   return await (await as(user, "query", "record.sync", input)).record.sync(input);
 }
 
@@ -225,6 +225,48 @@ describe("record.sync per vault", () => {
     const third = await sync(alice, second.cursors);
     expect(third.records).toEqual([]);
     expect(third.cursors).toEqual(second.cursors);
+  });
+
+  it("pages through the vaults in seq order and resumes from the returned cursors", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    // Personal: 60 versions (a create and its delete, 58 creates). Work: 45 creates.
+    const a = await createRecord(alice, alice.personalVaultId);
+    await push(alice, deleteChange(alice.personalVaultId, a.recordId, 1));
+    await push(alice, ...Array.from({ length: 58 }, () => putChange(alice.personalVaultId)));
+    await push(alice, ...Array.from({ length: 45 }, () => putChange(work.vaultId)));
+
+    const pages: Awaited<ReturnType<typeof sync>>[] = [];
+    let cursors: Record<string, number> = {};
+    do {
+      const page = await sync(alice, cursors, MIN_SYNC_RECORDS);
+      pages.push(page);
+      cursors = page.cursors;
+    } while (pages.at(-1)!.hasMore);
+
+    expect(pages.map((p) => p.records.length)).toEqual([50, 50, 5]);
+    expect(pages.map((p) => p.hasMore)).toEqual([true, true, false]);
+    const pulled = pages.flatMap((p) => p.records.map((r) => `${r.recordId}@${r.version}`));
+    expect(new Set(pulled).size).toBe(105);
+    expect(pulled).toEqual(expect.arrayContaining([`${a.recordId}@1`, `${a.recordId}@2`]));
+    expect(cursors).toEqual({ [alice.personalVaultId]: 60, [work.vaultId]: 45 });
+
+    // A vault's cursor never passes a row of it the device hasn't pulled.
+    for (const [i, page] of pages.entries()) {
+      const seen = pages.slice(0, i + 1).flatMap((p) => p.records);
+      for (const [vaultId, cursor] of Object.entries(page.cursors)) {
+        expect(seen.filter((r) => r.vaultId === vaultId)).toHaveLength(cursor);
+      }
+    }
+
+    // An exactly full page already knows nothing more waits.
+    const exact = await sync(
+      alice,
+      { [alice.personalVaultId]: 10, [work.vaultId]: 45 },
+      MIN_SYNC_RECORDS,
+    );
+    expect(exact.records).toHaveLength(50);
+    expect(exact.hasMore).toBe(false);
   });
 
   it("numbers each vault's writes on its own, deletes and moves included", async () => {

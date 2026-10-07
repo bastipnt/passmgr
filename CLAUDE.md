@@ -232,7 +232,8 @@ Server access is **membership-based** (`apps/server/src/vault/access.ts`: active
 live vault; roles `owner > manage > write > read`), never `records.userId` (that's the version's author).
 Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a role gets `FORBIDDEN`.
 `record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
-vault list; the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`takeVaultSeqs`, row
+vault list plus at most `MAX_SYNC_RECORDS` versions in `(vaultId, seq)` order, `hasMore` when the page is
+full (`SyncManager` pulls and applies page after page); the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`takeVaultSeqs`, row
 lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
 cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`): one transaction,
 vaults locked first (`lockVaults`, `lock_timeout` → `SERVICE_UNAVAILABLE`, the client retries), then
