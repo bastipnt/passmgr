@@ -46,16 +46,27 @@ export function getConnectionParamsSave(query: FastifyRequest["query"]): Subscri
 }
 
 const PG_UNIQUE_VIOLATION = "23505";
+const PG_LOCK_NOT_AVAILABLE = "55P03";
 
 /**
- * Whether a database error is a Postgres unique violation. Drizzle wraps the
+ * Whether a database error carries this Postgres error code. Drizzle wraps the
  * driver error (`DrizzleQueryError.cause`), so the cause chain is followed.
  */
-export function isUniqueViolation(error: unknown): boolean {
+function hasPgCode(error: unknown, code: string): boolean {
   for (let e: unknown = error, depth = 0; e && depth < 5; depth++) {
     if (typeof e !== "object") return false;
-    if ("code" in e && e.code === PG_UNIQUE_VIOLATION) return true;
+    if ("code" in e && e.code === code) return true;
     e = "cause" in e ? e.cause : undefined;
   }
   return false;
+}
+
+/** Whether a database error is a Postgres unique violation. */
+export function isUniqueViolation(error: unknown): boolean {
+  return hasPgCode(error, PG_UNIQUE_VIOLATION);
+}
+
+/** Whether a database error is a lock wait that ran into `lock_timeout`. */
+export function isLockTimeout(error: unknown): boolean {
+  return hasPgCode(error, PG_LOCK_NOT_AVAILABLE);
 }

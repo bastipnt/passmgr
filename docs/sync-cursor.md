@@ -16,7 +16,7 @@ UPDATE vaults SET "lastSeq" = "lastSeq" + 1 WHERE "vaultId" = $1 RETURNING "last
 ```
 
 and stores the returned value as the new row's `records.seq`. `(vaultId, seq)` is unique.
-Server code: `nextVaultSeq` / `nextVaultSeqs` in `apps/server/src/vault/access.ts`. Every insert
+Server code: `takeVaultSeqs` / `nextVaultSeq` in `apps/server/src/vault/access.ts`. Every insert
 into `records` must take one.
 
 ## How the cursor works
@@ -88,5 +88,9 @@ write waits for it.
   transaction lasts, which is fine at password-manager write rates.
 - **`serverTimestamp`** is still returned by `record.sync`, but only as the clock cap for the
   field merge (ADR 0001 D5). It is no longer a cursor.
-- **Open points** (planned with `record.push`): compare the base version *under* the vault lock,
-  and set a `lock_timeout` so a stuck transaction can't block a vault's writes indefinitely.
+- **`record.push`** locks every vault of the batch up front (`lockVaults`, id order) and only then
+  reads the heads and compares each change's `baseVersion`, so the stale/applied decision is made
+  under the lock. It then takes each vault's seqs in one run (`takeVaultSeqs`, `lastSeq += n`) and
+  writes the batch's versions in one insert, numbered in batch order. The push transaction sets
+  `lock_timeout = 5s`; a vault held longer answers `SERVICE_UNAVAILABLE` (Postgres `55P03`), which
+  the client treats like a network error and retries on a later round.

@@ -27,6 +27,7 @@ CREATE TABLE "records" (
 	"version" integer DEFAULT 1 NOT NULL,
 	"clientUpdatedAt" timestamp NOT NULL,
 	"seq" bigint NOT NULL,
+	"clientChangeId" varchar NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"deleted_at" timestamp
@@ -89,6 +90,7 @@ CREATE INDEX "records_user_id_idx" ON "records" ("userId");--> statement-breakpo
 CREATE UNIQUE INDEX "records_record_id_version_idx" ON "records" ("recordId","version");--> statement-breakpoint
 CREATE INDEX "records_vault_record_version_idx" ON "records" ("vaultId","recordId","version");--> statement-breakpoint
 CREATE UNIQUE INDEX "records_vault_seq_idx" ON "records" ("vaultId","seq");--> statement-breakpoint
+CREATE UNIQUE INDEX "records_record_change_idx" ON "records" ("recordId","clientChangeId");--> statement-breakpoint
 CREATE INDEX "vault_members_user_idx" ON "vault_members" ("userId");--> statement-breakpoint
 CREATE INDEX "vaults_owner_idx" ON "vaults" ("ownerId");--> statement-breakpoint
 CREATE UNIQUE INDEX "vaults_one_personal_per_owner_idx" ON "vaults" ("ownerId") WHERE "kind" = 'personal' AND "deleted_at" IS NULL;--> statement-breakpoint

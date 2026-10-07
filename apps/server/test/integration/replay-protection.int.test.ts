@@ -3,20 +3,13 @@ import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { signRequest } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
-import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
+import { callSigned, createCaller, loginAndGetAuthKey, putChange, register } from "./_helpers";
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";
 
 function newRecordInput(vaultId: string) {
-  return {
-    recordId: crypto.randomUUID(),
-    vaultId,
-    encryptedData: "ENC",
-    encryptionNonce: "NONCE",
-    cryptoVersion: 1,
-    clientUpdatedAt: new Date().toISOString(),
-  };
+  return { changes: [putChange(vaultId)] };
 }
 
 beforeEach(async () => {
@@ -33,12 +26,12 @@ describe("replay protection", () => {
       authKey,
       sessionId,
       type: "query",
-      path: "record.all",
+      path: "vault.list",
       input: undefined,
       timestamp: Date.now() - 6 * 60_000 - 1,
     });
     const caller = createCaller(buildTestContext(staleHeaders));
-    await expect(caller.record.all()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.vault.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("rejects a second call that reuses the same signed bundle (same nonce)", async () => {
@@ -50,18 +43,19 @@ describe("replay protection", () => {
       authKey,
       sessionId,
       type: "mutation",
-      path: "record.create",
+      path: "record.push",
       input,
     });
 
     // First call succeeds and claims the nonce.
     const first = createCaller(buildTestContext(headers));
-    await expect(first.record.create(input)).resolves.toMatchObject({ recordId: input.recordId });
+    await expect(first.record.push(input)).resolves.toMatchObject({
+      results: [{ status: "applied" }],
+    });
 
     // Verbatim replay (same sessionId / timestamp / nonce / signature / body) is rejected.
-    const replayInput = { ...input, recordId: crypto.randomUUID() };
     const second = createCaller(buildTestContext(headers));
-    await expect(second.record.create(replayInput)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(second.record.push(input)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("a fresh nonce on every signed call keeps the session working", async () => {
@@ -69,8 +63,8 @@ describe("replay protection", () => {
     const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
 
     for (let i = 0; i < 3; i++) {
-      const cc = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-      await expect(cc.record.all()).resolves.toBeDefined();
+      const cc = await callSigned(sessionId, authKey, "query", "vault.list", undefined);
+      await expect(cc.vault.list()).resolves.toBeDefined();
     }
   });
 
@@ -83,14 +77,15 @@ describe("replay protection", () => {
       authKey,
       sessionId,
       type: "mutation",
-      path: "record.create",
+      path: "record.push",
       input,
     });
 
-    // Signature was computed for record.create. Reusing the headers against
-    // record.delete must fail at HMAC verification (before nonce is even claimed).
+    // Signature was computed for record.push. Reusing the headers against
+    // record.history must fail at HMAC verification (before nonce is even claimed).
     const caller = createCaller(buildTestContext(headers));
-    await expect(caller.record.delete(input.recordId)).rejects.toMatchObject({
+    const { recordId } = input.changes[0]!;
+    await expect(caller.record.history(recordId)).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
   });
@@ -103,11 +98,11 @@ describe("replay protection", () => {
       authKey,
       sessionId,
       type: "query",
-      path: "record.all",
+      path: "vault.list",
       input: undefined,
     });
     const caller = createCaller(buildTestContext(headers));
-    await caller.record.all();
+    await caller.vault.list();
 
     const ttl = await redis.ttl(`nonce:${headers.nonce}`);
     expect(ttl).toBeGreaterThan(5 * 60);

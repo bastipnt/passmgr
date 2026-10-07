@@ -152,6 +152,7 @@ async function seed() {
       cryptoVersion: 1,
       version: 1,
       seq: i + 1,
+      clientChangeId: crypto.randomUUID(),
       clientUpdatedAt: createdAt,
       created_at: createdAt,
       updated_at: createdAt,

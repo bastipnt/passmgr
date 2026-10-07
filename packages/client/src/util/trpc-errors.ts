@@ -8,8 +8,12 @@ export function isUnauthorized(err: unknown): boolean {
   );
 }
 
-export function isNotFound(err: unknown): boolean {
-  return err instanceof TRPCClientError && err.data?.code === "NOT_FOUND";
+/** The server can't take the request right now (e.g. a vault is locked); try again later. */
+export function isRetryLater(err: unknown): boolean {
+  return (
+    err instanceof TRPCClientError &&
+    (err.data?.code === "SERVICE_UNAVAILABLE" || err.data?.httpStatus === 503)
+  );
 }
 
 /** Server rejected the call with TOO_MANY_REQUESTS (per-account or per-IP limit). */

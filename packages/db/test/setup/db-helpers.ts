@@ -103,6 +103,7 @@ export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}
     cryptoVersion: 1,
     version: 1,
     seq: 1,
+    clientChangeId: crypto.randomUUID(),
     clientUpdatedAt: new Date(),
     ...overrides,
   };
@@ -123,8 +124,8 @@ export async function insertRecord(
   const row = makeRecordRow(userId, { ...overrides, vaultId, seq });
   await client.query(
     `INSERT INTO "records" ("rowId", "recordId", "vaultId", "userId", "encryptedData", "encryptionNonce",
-                           "cryptoVersion", "version", "seq", "clientUpdatedAt")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
+                           "cryptoVersion", "version", "seq", "clientChangeId", "clientUpdatedAt")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
     [
       row.rowId,
       row.recordId,
@@ -135,6 +136,7 @@ export async function insertRecord(
       row.cryptoVersion,
       row.version,
       row.seq,
+      row.clientChangeId,
       row.clientUpdatedAt,
     ],
   );
@@ -182,6 +184,7 @@ export type RecordRow = {
   cryptoVersion: number;
   version: number;
   seq: number;
+  clientChangeId: string;
   clientUpdatedAt: Date;
 };
 

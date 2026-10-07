@@ -45,6 +45,16 @@ describe("records unique constraints", () => {
     ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
   });
 
+  it("rejects a change id a record already has, but not one another record has", async () => {
+    const user = await insertUser(client);
+    const first = await insertRecord(client, user.userId);
+    const { clientChangeId, recordId } = first;
+    await expect(
+      insertRecord(client, user.userId, { recordId, version: 2, clientChangeId }),
+    ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+    await expect(insertRecord(client, user.userId, { clientChangeId })).resolves.toBeDefined();
+  });
+
   it("rejects a duplicate seq within a vault", async () => {
     const user = await insertUser(client);
     const vaultId = await insertVault(client, user.userId, "shared");

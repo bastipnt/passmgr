@@ -76,3 +76,33 @@ export async function callSigned(
   const headers = await signRequest({ authKey, sessionId, type, path, input });
   return createCaller(buildTestContext(headers));
 }
+
+/** A `record.push` change writing new ciphertext on top of `baseVersion` (0: a new record). */
+export function putChange(
+  vaultId: string,
+  { recordId = crypto.randomUUID(), baseVersion = 0, data = "ENC" } = {},
+) {
+  return {
+    op: "put" as const,
+    clientChangeId: crypto.randomUUID(),
+    recordId,
+    vaultId,
+    baseVersion,
+    encryptedData: data,
+    encryptionNonce: "NONCE",
+    cryptoVersion: 1,
+    clientUpdatedAt: new Date().toISOString(),
+  };
+}
+
+/** A `record.push` change tombstoning the record on top of `baseVersion`. */
+export function deleteChange(vaultId: string, recordId: string, baseVersion: number) {
+  return {
+    op: "delete" as const,
+    clientChangeId: crypto.randomUUID(),
+    recordId,
+    vaultId,
+    baseVersion,
+    clientUpdatedAt: new Date().toISOString(),
+  };
+}

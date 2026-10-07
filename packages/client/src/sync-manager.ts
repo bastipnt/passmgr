@@ -1,14 +1,14 @@
-import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import { MAX_PUSH_CHANGES, type MemberVault, type PushChange, type PushResult } from "@repo/schema";
 import type { ConflictResolver, PendingChange, SyncBatch, Vault } from "@repo/store";
 
 /** Pull every vault's changes since its cursor (vaultId → cursor). */
 export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncBatch>;
 
 /**
- * Send one local change to the server. Resolves the server's copy of the
- * stored version (null when it returns none); throws when it wasn't stored.
+ * Send a batch of local changes to the server (`record.push`). Resolves one
+ * result per change; throws when the batch didn't get through.
  */
-export type ChangePusher = (change: PendingChange) => Promise<EncryptedRecordSchema | null>;
+export type ChangePusher = (changes: PushChange[]) => Promise<PushResult[]>;
 
 /** Runs before the listeners when the vault list changed, e.g. to load new vault keys. */
 export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
@@ -20,9 +20,9 @@ type SyncManagerOptions = {
   pull: SyncFetcher;
   push?: ChangePusher;
   /**
-   * Whether a push error concerns every change, not the one pushed (offline,
-   * session rejected): the round stops there, and the change isn't counted as
-   * failed. By default every error is the change's own.
+   * Whether a push error is about the round, not the batch (offline, session
+   * rejected, server busy): the round stops there, and no change is counted as
+   * failed. By default an error fails the batch's changes.
    */
   stopsRound?: (error: unknown) => boolean;
   onVaultsChanged?: VaultsChangedHandler;
@@ -34,11 +34,13 @@ type SyncManagerOptions = {
 };
 
 /**
- * One sync cycle (ADR 0001 D8): push the outbox in write order, then pull. A
- * change the server refused stays queued, and its record's later changes wait
- * behind it. When a push failed, the outbox is pushed once more after the
- * pull: a stale change (another device wrote first) goes through once the
- * pull has moved it above the server's versions and merged both sides.
+ * One sync cycle (ADR 0001 D8): push the outbox in batches, then pull. A
+ * record's pending changes always go in one batch, which the server applies
+ * all or nothing, so no other device pulls half of them (e.g. a losing edit
+ * without the merge on top). A change that wasn't applied stays queued. When
+ * one wasn't, the outbox is pushed once more after the pull: a stale change
+ * (another device wrote first) goes through once the pull has moved it above
+ * the server's versions and merged both sides.
  */
 export class SyncManager {
   private syncing = false;
@@ -121,34 +123,42 @@ export class SyncManager {
   }
 
   /**
-   * Push pending changes oldest first. Resolves whether every change was
-   * stored. After a failure the record's later changes are held back: they
-   * build on the failed one. Throws (ending the sync) on an error that stops
-   * the round, or when a stored change can't be acknowledged locally.
+   * Push the pending changes in batches. Resolves whether every change was
+   * applied. Throws (ending the sync) on an error that stops the round, or
+   * when an applied change can't be acknowledged locally.
    */
   private async pushOutbox(): Promise<boolean> {
     const push = this.push;
     if (!push) return true;
 
-    const blocked = new Set<string>();
-    for (const change of await this.store.getPendingChanges()) {
-      const { recordId } = change.record;
-      if (blocked.has(recordId)) continue;
-
-      let stored: EncryptedRecordSchema | null;
+    let allApplied = true;
+    for (const batch of pushBatches(await this.store.getPendingChanges())) {
+      let results: PushResult[];
       try {
-        stored = await push(change);
+        results = await push(batch.map(toPushChange));
       } catch (error) {
         if (this.stopsRound(error)) throw error;
-        blocked.add(recordId);
-        await this.store.failPendingChange(change.changeId, errorMessage(error));
+        allApplied = false;
+        for (const { changeId } of batch) {
+          await this.store.failPendingChange(changeId, errorMessage(error));
+        }
         continue;
       }
-      // The server has it: a failed local ack must not count as a failed push,
-      // whose retry would store the change twice. It ends the sync instead.
-      await this.store.ackPendingChange(change.changeId, stored);
+
+      const byId = new Map(results.map((result) => [result.clientChangeId, result]));
+      for (const { changeId } of batch) {
+        const result = byId.get(changeId);
+        if (result?.status === "applied") {
+          // The server has it: a failed local ack must not count as a failed
+          // push. It ends the sync instead; the retry gets the stored version.
+          await this.store.ackPendingChange(changeId, result.record);
+        } else {
+          allApplied = false;
+          await this.store.failPendingChange(changeId, failureMessage(result));
+        }
+      }
     }
-    return blocked.size === 0;
+    return allApplied;
   }
 
   /** Start periodic background sync. */
@@ -170,6 +180,62 @@ export class SyncManager {
     this.stopPeriodicSync();
     this.listeners.clear();
   }
+}
+
+/** A pending version as a push change: it builds on the version below it. */
+export function toPushChange({ changeId, record }: PendingChange): PushChange {
+  const common = {
+    clientChangeId: changeId,
+    recordId: record.recordId,
+    vaultId: record.vaultId,
+    baseVersion: record.version - 1,
+    clientUpdatedAt: record.clientUpdatedAt,
+  };
+  if (record.deleted_at) return { ...common, op: "delete" };
+  return {
+    ...common,
+    op: "put",
+    encryptedData: record.encryptedData,
+    encryptionNonce: record.encryptionNonce,
+    cryptoVersion: record.cryptoVersion,
+  };
+}
+
+/**
+ * Split pending changes into push batches, keeping each record's changes
+ * together and in order. Only a chain longer than a batch is split.
+ */
+export function pushBatches(
+  changes: readonly PendingChange[],
+  max = MAX_PUSH_CHANGES,
+): PendingChange[][] {
+  const chains = new Map<string, PendingChange[]>();
+  for (const change of changes) {
+    const chain = chains.get(change.record.recordId);
+    if (chain) chain.push(change);
+    else chains.set(change.record.recordId, [change]);
+  }
+
+  const batches: PendingChange[][] = [];
+  let batch: PendingChange[] = [];
+  for (const chain of chains.values()) {
+    for (let i = 0; i < chain.length; i += max) {
+      const piece = chain.slice(i, i + max);
+      if (batch.length + piece.length > max) {
+        batches.push(batch);
+        batch = [];
+      }
+      batch.push(...piece);
+    }
+  }
+  if (batch.length > 0) batches.push(batch);
+  return batches;
+}
+
+function failureMessage(result: Exclude<PushResult, { status: "applied" }> | undefined): string {
+  if (!result) return "no answer from the server";
+  if (result.status === "stale") return `stale: the server is at version ${result.headVersion}`;
+  return `rejected: ${result.reason}`;
 }
 
 function errorMessage(error: unknown): string {

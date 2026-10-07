@@ -1,17 +1,41 @@
+import { db, vaultsTable } from "@repo/db";
+import type { PushChange } from "@repo/schema";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { onRecordsChanged } from "../../src/events/record-events";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
-import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
+import { callSigned, deleteChange, loginAndGetAuthKey, putChange, register } from "./_helpers";
 
-function newRecordInput(vaultId: string) {
-  return {
-    recordId: crypto.randomUUID(),
-    vaultId,
-    encryptedData: "ENC",
-    encryptionNonce: "NONCE",
-    cryptoVersion: 1,
-    clientUpdatedAt: new Date().toISOString(),
-  };
+type Session = Awaited<ReturnType<typeof loginAndGetAuthKey>>;
+
+async function push(session: Session, ...changes: PushChange[]) {
+  const input = { changes };
+  const caller = await callSigned(
+    session.sessionId,
+    session.authKey,
+    "mutation",
+    "record.push",
+    input,
+  );
+  return (await caller.record.push(input)).results;
+}
+
+async function history(session: Session, recordId: string) {
+  const caller = await callSigned(
+    session.sessionId,
+    session.authKey,
+    "query",
+    "record.history",
+    recordId,
+  );
+  return await caller.record.history(recordId);
+}
+
+async function signUp(email: string) {
+  await register(email, "pw");
+  const session = await loginAndGetAuthKey(email, "pw");
+  return { ...session, vaultId: session.vaultKeys[0]!.vaultId };
 }
 
 beforeEach(async () => {
@@ -19,177 +43,182 @@ beforeEach(async () => {
   await redis.flushall();
 });
 
-describe("record router — CRUD round-trip (authenticated, real services)", () => {
-  const email = "alice@example.com";
-  const password = "correct horse battery staple";
+describe("record.push", () => {
+  it("creates a record and appends versions on top of the head", async () => {
+    const alice = await signUp("alice@example.com");
+    const create = putChange(alice.vaultId);
+    const [created] = await push(alice, create);
+    expect(created).toMatchObject({
+      clientChangeId: create.clientChangeId,
+      status: "applied",
+      record: { recordId: create.recordId, version: 1, encryptedData: "ENC", deleted_at: null },
+    });
 
-  it("create → getById returns the same record", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
+    const update = putChange(alice.vaultId, {
+      recordId: create.recordId,
+      baseVersion: 1,
+      data: "ENC-V2",
+    });
+    expect(await push(alice, update)).toMatchObject([
+      { status: "applied", record: { version: 2, encryptedData: "ENC-V2" } },
+    ]);
+    expect((await history(alice, create.recordId)).map((r) => r.version)).toEqual([2, 1]);
+  });
 
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    const createCaller = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    const created = await createCaller.record.create(input);
-    expect(created.recordId).toBe(input.recordId);
-    expect(created.version).toBe(1);
+  it("answers a retried change with the stored version instead of appending again", async () => {
+    const alice = await signUp("alice@example.com");
+    const create = putChange(alice.vaultId);
+    const update = putChange(alice.vaultId, { recordId: create.recordId, baseVersion: 1 });
+    const first = await push(alice, create, update);
 
-    const getCaller = await callSigned(
-      sessionId,
-      authKey,
-      "query",
-      "record.getById",
-      input.recordId,
+    // The response got lost: the client sends the same changes again.
+    expect(await push(alice, create, update)).toEqual(first);
+    expect(await history(alice, create.recordId)).toHaveLength(2);
+  });
+
+  it("answers a change built on an old version as stale, and applies the rest of the batch", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId);
+    await push(alice, record);
+    await push(alice, putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 }));
+
+    const stale = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    const other = putChange(alice.vaultId);
+    expect(await push(alice, stale, other)).toMatchObject([
+      { clientChangeId: stale.clientChangeId, status: "stale", headVersion: 2 },
+      { clientChangeId: other.clientChangeId, status: "applied" },
+    ]);
+    expect(await history(alice, record.recordId)).toHaveLength(2);
+  });
+
+  it("applies a record's chain all or nothing", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId);
+    await push(alice, record);
+
+    // The second link doesn't build on the first: neither is written.
+    const losing = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    const broken = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    expect(await push(alice, losing, broken)).toMatchObject([
+      { status: "stale", headVersion: 1 },
+      { status: "stale", headVersion: 1 },
+    ]);
+    expect(await history(alice, record.recordId)).toHaveLength(1);
+
+    // A losing edit with the merge on top goes in together.
+    const merged = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 2 });
+    expect(await push(alice, losing, merged)).toMatchObject([
+      { status: "applied", record: { version: 2 } },
+      { status: "applied", record: { version: 3 } },
+    ]);
+  });
+
+  it("tombstones a record with its last ciphertext, and an edit restores it", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId, { data: "LAST" });
+    await push(alice, record);
+
+    expect(await push(alice, deleteChange(alice.vaultId, record.recordId, 1))).toMatchObject([
+      {
+        status: "applied",
+        record: { version: 2, encryptedData: "LAST", deleted_at: expect.any(String) },
+      },
+    ]);
+
+    // Deleted on another device too: one more tombstone, so the numbering stays
+    // the client's and a chain can go on from it (here: restored right away).
+    const again = deleteChange(alice.vaultId, record.recordId, 2);
+    const restore = putChange(alice.vaultId, {
+      recordId: record.recordId,
+      baseVersion: 3,
+      data: "BACK",
+    });
+    expect(await push(alice, again, restore)).toMatchObject([
+      {
+        status: "applied",
+        record: { version: 3, encryptedData: "LAST", deleted_at: expect.any(String) },
+      },
+      { status: "applied", record: { version: 4, encryptedData: "BACK", deleted_at: null } },
+    ]);
+  });
+
+  it("answers a delete that missed an edit as stale", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId);
+    await push(alice, record);
+    await push(alice, putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 }));
+
+    expect(await push(alice, deleteChange(alice.vaultId, record.recordId, 1))).toMatchObject([
+      { status: "stale", headVersion: 2 },
+    ]);
+  });
+
+  it("refuses a batch that carries the same change twice", async () => {
+    const alice = await signUp("alice@example.com");
+    const create = putChange(alice.vaultId);
+    await expect(push(alice, create, { ...create, baseVersion: 1 })).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+    });
+    expect(await push(alice, create)).toMatchObject([{ status: "applied" }]);
+  });
+
+  it("rejects a version of a record the server doesn't have", async () => {
+    const alice = await signUp("alice@example.com");
+    const results = await push(
+      alice,
+      putChange(alice.vaultId, { baseVersion: 3 }),
+      deleteChange(alice.vaultId, crypto.randomUUID(), 1),
     );
-    const got = await getCaller.record.getById(input.recordId);
-    expect(got.recordId).toBe(input.recordId);
-    expect(got.encryptedData).toBe(input.encryptedData);
+    expect(results).toMatchObject([
+      { status: "rejected", reason: "not_found" },
+      { status: "rejected", reason: "not_found" },
+    ]);
   });
 
-  it("update increments version and getById returns the latest", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
-
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    await cc.record.create(input);
-
-    const update = {
-      recordId: input.recordId,
-      encryptedData: "ENC-V2",
-      encryptionNonce: "NONCE-V2",
-      cryptoVersion: 1,
-      version: 1,
-      clientUpdatedAt: new Date().toISOString(),
-    };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
-    const updated = await cc.record.update(update);
-    expect(updated.version).toBe(2);
-
-    cc = await callSigned(sessionId, authKey, "query", "record.getById", input.recordId);
-    const got = await cc.record.getById(input.recordId);
-    expect(got.version).toBe(2);
-    expect(got.encryptedData).toBe("ENC-V2");
-  });
-
-  it("delete soft-deletes and excludes from `all`", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
-
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    await cc.record.create(input);
-
-    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", input.recordId);
-    await cc.record.delete(input.recordId);
-
-    cc = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-    const { records } = await cc.record.all();
-    expect(records.find((r) => r.recordId === input.recordId)).toBeUndefined();
-  });
-
-  it("delete with a version conflicts when the head moved on", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
-
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    await cc.record.create(input);
-    const update = {
-      recordId: input.recordId,
-      encryptedData: "ENC-V2",
-      encryptionNonce: "NONCE-V2",
-      cryptoVersion: 1,
-      version: 1,
-      clientUpdatedAt: new Date().toISOString(),
-    };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
-    await cc.record.update(update);
-
-    const stale = { recordId: input.recordId, version: 1 };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", stale);
-    await expect(cc.record.delete(stale)).rejects.toMatchObject({ code: "CONFLICT" });
-
-    const current = { recordId: input.recordId, version: 2 };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", current);
-    await cc.record.delete(current);
-    cc = await callSigned(sessionId, authKey, "query", "record.history", input.recordId);
-    expect((await cc.record.history(input.recordId))[0]).toMatchObject({ version: 3 });
-  });
-
-  it("update on a deleted record restores it (an edit beats a delete)", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
-
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    await cc.record.create(input);
-    cc = await callSigned(sessionId, authKey, "mutation", "record.delete", input.recordId);
-    await cc.record.delete(input.recordId);
-
-    const update = {
-      recordId: input.recordId,
-      encryptedData: "ENC-V3",
-      encryptionNonce: "NONCE-V3",
-      cryptoVersion: 1,
-      version: 2,
-      clientUpdatedAt: new Date().toISOString(),
-    };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
-    const restored = await cc.record.update(update);
-    expect(restored).toMatchObject({ version: 3, deleted_at: null });
-
-    cc = await callSigned(sessionId, authKey, "query", "record.getById", input.recordId);
-    expect((await cc.record.getById(input.recordId)).encryptedData).toBe("ENC-V3");
-  });
-
-  it("history returns every version of the record", async () => {
-    await register(email, password);
-    const { sessionId, authKey, vaultKeys } = await loginAndGetAuthKey(email, password);
-
-    const input = newRecordInput(vaultKeys[0]!.vaultId);
-    let cc = await callSigned(sessionId, authKey, "mutation", "record.create", input);
-    await cc.record.create(input);
-
-    const update = {
-      recordId: input.recordId,
-      encryptedData: "ENC-V2",
-      encryptionNonce: "NONCE-V2",
-      cryptoVersion: 1,
-      version: 1,
-      clientUpdatedAt: new Date().toISOString(),
-    };
-    cc = await callSigned(sessionId, authKey, "mutation", "record.update", update);
-    await cc.record.update(update);
-
-    cc = await callSigned(sessionId, authKey, "query", "record.history", input.recordId);
-    const history = await cc.record.history(input.recordId);
-    expect(history).toHaveLength(2);
-    expect(history.map((h) => h.version).sort()).toEqual([1, 2]);
+  it("pings the sync stream once per batch", async () => {
+    const alice = await signUp("alice@example.com");
+    let pings = 0;
+    const stop = onRecordsChanged(await ownerOf(alice), () => pings++);
+    try {
+      await push(
+        alice,
+        putChange(alice.vaultId),
+        putChange(alice.vaultId),
+        putChange(alice.vaultId),
+      );
+    } finally {
+      stop();
+    }
+    expect(pings).toBe(1);
   });
 });
 
-describe("record router — cross-user isolation", () => {
-  it("userA's records are invisible to userB", async () => {
-    await register("a@example.com", "pwA");
-    await register("b@example.com", "pwB");
-    const a = await loginAndGetAuthKey("a@example.com", "pwA");
-    const b = await loginAndGetAuthKey("b@example.com", "pwB");
+describe("record.push — cross-user isolation", () => {
+  it("never writes to, or hands out, another user's record", async () => {
+    const alice = await signUp("a@example.com");
+    const bob = await signUp("b@example.com");
+    const record = putChange(alice.vaultId);
+    await push(alice, record);
 
-    const input = newRecordInput(a.vaultKeys[0]!.vaultId);
-    const aCreate = await callSigned(a.sessionId, a.authKey, "mutation", "record.create", input);
-    await aCreate.record.create(input);
-
-    const bGet = await callSigned(
-      b.sessionId,
-      b.authKey,
-      "query",
-      "record.getById",
-      input.recordId,
-    );
-    await expect(bGet.record.getById(input.recordId)).rejects.toMatchObject({ code: "NOT_FOUND" });
-
-    const bAll = await callSigned(b.sessionId, b.authKey, "query", "record.all", undefined);
-    const { records } = await bAll.record.all();
-    expect(records.find((r) => r.recordId === input.recordId)).toBeUndefined();
+    // Into Alice's vault, or onto her record id from Bob's own vault.
+    const intoHers = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    const fromMine = putChange(bob.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    // A replay of her change id: must not return her stored version.
+    const replay = { ...record, vaultId: bob.vaultId };
+    expect(await push(bob, intoHers, fromMine, replay)).toMatchObject([
+      { status: "rejected", reason: "not_found" },
+      { status: "rejected", reason: "not_found" },
+      { status: "rejected", reason: "not_found" },
+    ]);
+    expect(await history(alice, record.recordId)).toHaveLength(1);
   });
 });
+
+/** The user id behind a session, from their personal vault. */
+async function ownerOf(session: { vaultId: string }) {
+  const [vault] = await db
+    .select({ ownerId: vaultsTable.ownerId })
+    .from(vaultsTable)
+    .where(eq(vaultsTable.vaultId, session.vaultId));
+  return vault!.ownerId;
+}

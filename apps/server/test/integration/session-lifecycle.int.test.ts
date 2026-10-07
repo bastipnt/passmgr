@@ -25,13 +25,13 @@ describe("session lifecycle (real Redis)", () => {
     await register(email, password);
     const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
 
-    const cc1 = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-    await expect(cc1.record.all()).resolves.toBeDefined();
+    const cc1 = await callSigned(sessionId, authKey, "query", "vault.list", undefined);
+    await expect(cc1.vault.list()).resolves.toBeDefined();
 
     await redis.flushall();
 
-    const cc2 = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-    await expect(cc2.record.all()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const cc2 = await callSigned(sessionId, authKey, "query", "vault.list", undefined);
+    await expect(cc2.vault.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("deleting only the session key (TTL expiry simulation) rejects subsequent calls", async () => {
@@ -42,8 +42,8 @@ describe("session lifecycle (real Redis)", () => {
     await redis.del(`session:${sessionId}`);
     expect(await redis.exists(`session:${sessionId}`)).toBe(0);
 
-    const cc = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-    await expect(cc.record.all()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const cc = await callSigned(sessionId, authKey, "query", "vault.list", undefined);
+    await expect(cc.vault.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("two independent logins create distinct sessions, isolating eviction", async () => {
@@ -54,11 +54,11 @@ describe("session lifecycle (real Redis)", () => {
 
     await redis.del(`session:${a.sessionId}`);
 
-    const ccA = await callSigned(a.sessionId, a.authKey, "query", "record.all", undefined);
-    await expect(ccA.record.all()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const ccA = await callSigned(a.sessionId, a.authKey, "query", "vault.list", undefined);
+    await expect(ccA.vault.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
 
-    const ccB = await callSigned(b.sessionId, b.authKey, "query", "record.all", undefined);
-    await expect(ccB.record.all()).resolves.toBeDefined();
+    const ccB = await callSigned(b.sessionId, b.authKey, "query", "vault.list", undefined);
+    await expect(ccB.vault.list()).resolves.toBeDefined();
   });
 
   it("logout invalidates the session: subsequent signed calls are rejected", async () => {
@@ -69,8 +69,8 @@ describe("session lifecycle (real Redis)", () => {
     await expect(cc1.login.logout()).resolves.toEqual({ ok: true });
     expect(await redis.exists(`session:${sessionId}`)).toBe(0);
 
-    const cc2 = await callSigned(sessionId, authKey, "query", "record.all", undefined);
-    await expect(cc2.record.all()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const cc2 = await callSigned(sessionId, authKey, "query", "vault.list", undefined);
+    await expect(cc2.vault.list()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("logout of one session leaves a concurrent session intact", async () => {
@@ -81,8 +81,8 @@ describe("session lifecycle (real Redis)", () => {
     const ccA = await callSigned(a.sessionId, a.authKey, "mutation", "login.logout", undefined);
     await expect(ccA.login.logout()).resolves.toEqual({ ok: true });
 
-    const ccB = await callSigned(b.sessionId, b.authKey, "query", "record.all", undefined);
-    await expect(ccB.record.all()).resolves.toBeDefined();
+    const ccB = await callSigned(b.sessionId, b.authKey, "query", "vault.list", undefined);
+    await expect(ccB.vault.list()).resolves.toBeDefined();
     expect(await redis.exists(`session:${b.sessionId}`)).toBe(1);
   });
 });

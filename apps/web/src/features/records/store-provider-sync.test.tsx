@@ -9,9 +9,7 @@ import { renderWithProviders, waitFor } from "@/test/render";
 const trpcClient = {
   record: {
     sync: { query: vi.fn() },
-    create: { mutate: vi.fn() },
-    update: { mutate: vi.fn() },
-    delete: { mutate: vi.fn() },
+    push: { mutate: vi.fn() },
     onRecordChange: { subscribe: vi.fn(() => ({ unsubscribe: () => undefined })) },
   },
 };
@@ -99,7 +97,7 @@ describe("StoreProvider sync", () => {
     await waitFor(() => expect(detachServer).toHaveBeenCalledTimes(1));
   });
 
-  it("pushes pending local versions through the record mutations before pulling", async () => {
+  it("pushes pending local versions in one record.push before pulling", async () => {
     const row = {
       recordId: "r1",
       vaultId: "v1",
@@ -109,34 +107,82 @@ describe("StoreProvider sync", () => {
       clientUpdatedAt: "2026-10-05T00:00:00.000Z",
       deleted_at: null,
     };
-    const created = { ...row, version: 1 };
-    vault.getPendingChanges.mockResolvedValueOnce([
-      { changeId: "c1", attempts: 0, lastError: null, record: created },
-      { changeId: "c2", attempts: 0, lastError: null, record: { ...row, version: 2 } },
-      {
-        changeId: "c3",
+    const deletedAt = "2026-10-05T00:00:00.000Z";
+    const versions = [
+      { ...row, version: 1 },
+      { ...row, version: 2 },
+      { ...row, version: 3, deleted_at: deletedAt },
+    ];
+    vault.getPendingChanges.mockResolvedValueOnce(
+      versions.map((record, i) => ({
+        changeId: `c${i + 1}`,
         attempts: 0,
         lastError: null,
-        record: { ...row, version: 3, deleted_at: "2026-10-05T00:00:00.000Z" },
-      },
-    ]);
-    trpcClient.record.create.mutate.mockResolvedValue(created);
-    trpcClient.record.update.mutate.mockResolvedValue({ ...row, version: 2 });
-    trpcClient.record.delete.mutate.mockResolvedValue(undefined);
+        record,
+      })),
+    );
+    trpcClient.record.push.mutate.mockImplementation(
+      async ({ changes }: { changes: { clientChangeId: string }[] }) => ({
+        results: changes.map((c, i) => ({
+          clientChangeId: c.clientChangeId,
+          status: "applied",
+          record: versions[i],
+        })),
+      }),
+    );
 
     renderWithProviders(ui("online"));
 
     await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
     const { clientUpdatedAt, encryptedData, encryptionNonce, cryptoVersion } = row;
-    const body = { recordId: "r1", encryptedData, encryptionNonce, cryptoVersion, clientUpdatedAt };
-    expect(trpcClient.record.create.mutate).toHaveBeenCalledWith({ ...body, vaultId: "v1" });
-    expect(trpcClient.record.update.mutate).toHaveBeenCalledWith({ ...body, version: 1 });
-    expect(trpcClient.record.delete.mutate).toHaveBeenCalledWith({ recordId: "r1", version: 2 });
-    expect(vault.ackPendingChange.mock.calls).toEqual([
-      ["c1", created],
-      ["c2", { ...row, version: 2 }],
-      ["c3", null],
+    const common = { recordId: "r1", vaultId: "v1", clientUpdatedAt };
+    const ciphertext = { encryptedData, encryptionNonce, cryptoVersion };
+    expect(trpcClient.record.push.mutate).toHaveBeenCalledExactlyOnceWith({
+      changes: [
+        { ...common, ...ciphertext, op: "put", clientChangeId: "c1", baseVersion: 0 },
+        { ...common, ...ciphertext, op: "put", clientChangeId: "c2", baseVersion: 1 },
+        { ...common, op: "delete", clientChangeId: "c3", baseVersion: 2 },
+      ],
+    });
+    expect(vault.ackPendingChange.mock.calls).toEqual(
+      versions.map((record, i) => [`c${i + 1}`, record]),
+    );
+  });
+
+  it("stops the round when the server is busy, counting no change as failed", async () => {
+    vault.getPendingChanges.mockResolvedValueOnce([
+      {
+        changeId: "c1",
+        attempts: 0,
+        lastError: null,
+        record: {
+          recordId: "r1",
+          vaultId: "v1",
+          encryptedData: "data",
+          encryptionNonce: "nonce",
+          cryptoVersion: 1,
+          clientUpdatedAt: "2026-10-05T00:00:00.000Z",
+          version: 1,
+        },
+      },
     ]);
+    trpcClient.record.push.mutate.mockRejectedValue(
+      TRPCClientError.from({
+        error: {
+          code: -32603,
+          message: "busy",
+          data: { code: "SERVICE_UNAVAILABLE", httpStatus: 503 },
+        },
+      }),
+    );
+
+    renderWithProviders(ui("online"));
+
+    await waitFor(() => expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1));
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(vault.failPendingChange).not.toHaveBeenCalled();
+    expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
+    expect(detachServer).not.toHaveBeenCalled();
   });
 
   it("stops pushing at a rejected session: detaches once, counts no change as failed", async () => {
@@ -153,7 +199,7 @@ describe("StoreProvider sync", () => {
       { changeId: "c1", attempts: 0, lastError: null, record },
       { changeId: "c2", attempts: 0, lastError: null, record: { ...record, recordId: "r2" } },
     ]);
-    trpcClient.record.create.mutate.mockRejectedValue(
+    trpcClient.record.push.mutate.mockRejectedValue(
       TRPCClientError.from({
         error: {
           code: -32001,
@@ -166,7 +212,7 @@ describe("StoreProvider sync", () => {
     renderWithProviders(ui("online"));
 
     await waitFor(() => expect(detachServer).toHaveBeenCalledTimes(1));
-    expect(trpcClient.record.create.mutate).toHaveBeenCalledTimes(1);
+    expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1);
     expect(vault.failPendingChange).not.toHaveBeenCalled();
     expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
   });

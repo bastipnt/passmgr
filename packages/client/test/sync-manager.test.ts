@@ -1,7 +1,7 @@
-import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import type { EncryptedRecordSchema, MemberVault, PushChange, PushResult } from "@repo/schema";
 import type { PendingChange, SyncBatch, Vault } from "@repo/store";
 import { describe, expect, it, vi } from "vitest";
-import { SyncManager } from "../src/sync-manager";
+import { pushBatches, SyncManager, toPushChange } from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
 const batch: SyncBatch = {
@@ -32,9 +32,34 @@ function change(changeId: string, recordId: string, version: number): PendingCha
     changeId,
     attempts: 0,
     lastError: null,
-    record: { recordId, version } as EncryptedRecordSchema,
+    record: {
+      recordId,
+      vaultId: "v1",
+      version,
+      encryptedData: `ENC-${changeId}`,
+      encryptionNonce: "N",
+      cryptoVersion: 1,
+      clientUpdatedAt: "2026-10-02T00:00:00.000Z",
+    } as EncryptedRecordSchema,
   };
 }
+
+function applied(c: PushChange): PushResult {
+  const version = c.baseVersion + 1;
+  return {
+    clientChangeId: c.clientChangeId,
+    status: "applied",
+    record: { recordId: c.recordId, version } as EncryptedRecordSchema,
+  };
+}
+
+/** A pusher answering every change as applied, except those `answer` decides. */
+function pusher(answer: (c: PushChange) => PushResult | undefined = () => undefined) {
+  return vi.fn(async (changes: PushChange[]) => changes.map((c) => answer(c) ?? applied(c)));
+}
+
+const ids = (push: { mock: { calls: [PushChange[]][] } }) =>
+  push.mock.calls.map(([changes]) => changes.map((c) => c.clientChangeId));
 
 describe("SyncManager pull", () => {
   it("pulls from the stored per-vault cursors and applies the batch", async () => {
@@ -144,12 +169,12 @@ describe("SyncManager pull", () => {
 });
 
 describe("SyncManager push", () => {
-  it("pushes the outbox oldest first, acks each change, then pulls", async () => {
+  it("pushes the outbox as one batch, acks each change with the server's copy, then pulls", async () => {
     const store = fakeStore(false, [change("c1", "r1", 1), change("c2", "r2", 3)]);
     const calls: string[] = [];
-    const push = vi.fn(async (c: PendingChange) => {
-      calls.push(`push ${c.changeId}`);
-      return c.changeId === "c1" ? ({ recordId: "r1", version: 1 } as EncryptedRecordSchema) : null;
+    const push = vi.fn(async (changes: PushChange[]) => {
+      calls.push(`push ${changes.map((c) => c.clientChangeId).join(",")}`);
+      return changes.map(applied);
     });
     const pull = vi.fn(async () => {
       calls.push("pull");
@@ -159,48 +184,58 @@ describe("SyncManager push", () => {
 
     expect(await manager.sync()).toBe(true);
 
-    expect(calls).toEqual(["push c1", "push c2", "pull"]);
+    expect(calls).toEqual(["push c1,c2", "pull"]);
     expect(store.ackPendingChange).toHaveBeenCalledWith("c1", { recordId: "r1", version: 1 });
-    expect(store.ackPendingChange).toHaveBeenCalledWith("c2", null);
+    expect(store.ackPendingChange).toHaveBeenCalledWith("c2", { recordId: "r2", version: 3 });
   });
 
-  it("holds back a record's later changes after a failure, not other records'", async () => {
+  it("keeps a change that wasn't applied queued and pushes it again after the pull", async () => {
     const store = fakeStore(false, [
       change("c1", "r1", 2),
       change("c2", "r1", 3),
       change("c3", "r2", 1),
     ]);
-    const push = vi.fn(async (c: PendingChange) => {
-      if (c.changeId === "c1") throw new Error("CONFLICT");
-      return null;
+    let round = 0;
+    const push = vi.fn(async (changes: PushChange[]) => {
+      round++;
+      return changes.map(
+        (c): PushResult =>
+          round === 1 && c.recordId === "r1"
+            ? { clientChangeId: c.clientChangeId, status: "stale", headVersion: 2 }
+            : applied(c),
+      );
     });
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
-
-    await manager.sync();
-
-    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "CONFLICT");
-    expect(store.ackPendingChange).toHaveBeenCalledWith("c3", null);
-    // The second round (after the pull) tries c1 again; c2 still waits behind it.
-    expect(push.mock.calls.map(([c]) => c.changeId)).toEqual(["c1", "c3", "c1"]);
-  });
-
-  it("retries a stale change after the pull moved it up", async () => {
-    const store = fakeStore(false, [change("c1", "r1", 2)]);
-    const push = vi
-      .fn<(c: PendingChange) => Promise<EncryptedRecordSchema | null>>()
-      .mockRejectedValueOnce(new Error("CONFLICT"))
-      .mockResolvedValue(null);
     const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
 
     expect(await manager.sync()).toBe(true);
 
-    expect(push).toHaveBeenCalledTimes(2);
-    expect(store.ackPendingChange).toHaveBeenCalledWith("c1", null);
+    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "stale: the server is at version 2");
+    expect(store.failPendingChange).toHaveBeenCalledWith("c2", "stale: the server is at version 2");
+    expect(ids(push)).toEqual([
+      ["c1", "c2", "c3"],
+      ["c1", "c2"],
+    ]);
+    expect(store.ackPendingChange).toHaveBeenCalledTimes(3);
+  });
+
+  it("fails a rejected change with its reason", async () => {
+    const store = fakeStore(false, [change("c1", "r1", 1)]);
+    const push = pusher((c) => ({
+      clientChangeId: c.clientChangeId,
+      status: "rejected",
+      reason: "forbidden",
+    }));
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "rejected: forbidden");
+    expect(store.ackPendingChange).not.toHaveBeenCalled();
   });
 
   it("stops the round on an error that concerns every change, without counting it", async () => {
     const store = fakeStore(false, [change("c1", "r1", 1), change("c2", "r2", 1)]);
-    const push = vi.fn(async () => {
+    const push = vi.fn(async (): Promise<PushResult[]> => {
       throw new Error("offline");
     });
     const pull = vi.fn(async () => batch);
@@ -217,16 +252,63 @@ describe("SyncManager push", () => {
     expect(pull).not.toHaveBeenCalled();
   });
 
-  it("never counts a stored change as failed when its local ack fails", async () => {
+  it("never counts an applied change as failed when its local ack fails", async () => {
     const store = fakeStore(false, [change("c1", "r1", 1), change("c2", "r2", 1)]);
     store.ackPendingChange.mockRejectedValueOnce(new Error("disk full"));
-    const push = vi.fn(async () => null);
+    const push = pusher();
     const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
 
     expect(await manager.sync()).toBe(false);
 
-    // The sync ends there: c1 isn't pushed again, nor counted, and c2 waits.
+    // The sync ends there: nothing is pushed again, nor counted, and c2 waits.
     expect(push).toHaveBeenCalledTimes(1);
+    expect(store.ackPendingChange).toHaveBeenCalledTimes(1);
     expect(store.failPendingChange).not.toHaveBeenCalled();
+  });
+});
+
+describe("toPushChange", () => {
+  it("sends a pending version as a put or a delete on the version below it", () => {
+    const put = change("c1", "r1", 3);
+    expect(toPushChange(put)).toEqual({
+      op: "put",
+      clientChangeId: "c1",
+      recordId: "r1",
+      vaultId: "v1",
+      baseVersion: 2,
+      encryptedData: "ENC-c1",
+      encryptionNonce: "N",
+      cryptoVersion: 1,
+      clientUpdatedAt: "2026-10-02T00:00:00.000Z",
+    });
+
+    const tombstone = { ...put, record: { ...put.record, deleted_at: "2026-10-02T00:00:00.000Z" } };
+    expect(toPushChange(tombstone)).toEqual({
+      op: "delete",
+      clientChangeId: "c1",
+      recordId: "r1",
+      vaultId: "v1",
+      baseVersion: 2,
+      clientUpdatedAt: "2026-10-02T00:00:00.000Z",
+    });
+  });
+});
+
+describe("pushBatches", () => {
+  const changeIds = (batches: PendingChange[][]) => batches.map((b) => b.map((c) => c.changeId));
+
+  it("keeps a record's changes in one batch, in order", () => {
+    const outbox = [
+      change("a1", "a", 2),
+      change("b1", "b", 1),
+      change("a2", "a", 3),
+      change("c1", "c", 1),
+    ];
+    expect(changeIds(pushBatches(outbox, 3))).toEqual([["a1", "a2", "b1"], ["c1"]]);
+  });
+
+  it("splits only a chain longer than a batch", () => {
+    const outbox = [change("x", "x", 1), ...[1, 2, 3].map((v) => change(`a${v}`, "a", v))];
+    expect(changeIds(pushBatches(outbox, 2))).toEqual([["x"], ["a1", "a2"], ["a3"]]);
   });
 });

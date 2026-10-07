@@ -34,8 +34,11 @@ export const recordsTable = pgTable(
     version: integer().notNull().default(1),
     clientUpdatedAt: timestamp().notNull(),
     // The vault's write order, the pull cursor (ADR 0001 D8): taken from
-    // `vaults.lastSeq` in the writing transaction (`nextVaultSeqs`).
+    // `vaults.lastSeq` in the writing transaction (`takeVaultSeqs`).
     seq: bigint({ mode: "number" }).notNull(),
+    // The client's id for the change that wrote this version, unique per
+    // record: a retried push finds it instead of appending again (ADR 0001 D5).
+    clientChangeId: varchar().notNull(),
     ...timestamps,
   },
   (table) => [
@@ -43,6 +46,7 @@ export const recordsTable = pgTable(
     uniqueIndex("records_record_id_version_idx").on(table.recordId, table.version),
     index("records_vault_record_version_idx").on(table.vaultId, table.recordId, table.version),
     uniqueIndex("records_vault_seq_idx").on(table.vaultId, table.seq),
+    uniqueIndex("records_record_change_idx").on(table.recordId, table.clientChangeId),
   ],
 );
 

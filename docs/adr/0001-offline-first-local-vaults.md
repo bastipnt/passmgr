@@ -348,6 +348,31 @@ the history must not leak into the target.
 > `pullSeq:<vaultId>` in `sync_meta`; the old `lastSyncedAt:` rows are ignored (one full pull).
 > Walkthrough: [`docs/sync-cursor.md`](../sync-cursor.md).
 
+> **Amended 2026-10-06** (`record.push`): `record.push({ changes })` replaces `create`, `update`,
+> `delete`, `move`, `all` and `getById` (`history` stays). A change is `op: "put" | "delete"` with
+> `clientChangeId` (the outbox `changeId`), `recordId`, `vaultId`, `baseVersion` (the version below
+> the pending one; 0 for a new record) and `clientUpdatedAt`; a put carries the ciphertext, a delete
+> doesn't (the tombstone keeps the server head's). The server (`apps/server/src/record/push.ts`) runs
+> the batch in one transaction: write access per vault (a missing or foreign vault is `not_found`, a
+> read member `forbidden`), then `lockVaults` in id order, then per record: decide every change
+> against the head the ones before it leave, and write the record's new versions only if all of them
+> apply; otherwise they all get the first failure (`stale` with the server's `headVersion`, or
+> `rejected`). A change the record already has by `clientChangeId` answers `applied` with the stored
+> version (never one from another vault). Every applied change appends exactly one version, a delete
+> of a deleted head too (one more tombstone), so the server numbers a chain the way the client did
+> and a chain can go on after it; the versions are planned in memory and written with one
+> `takeVaultSeqs` bump per vault and one insert, keeping the lock short. Duplicate `clientChangeId`s
+> in a batch are a `BAD_REQUEST`. A put of base
+> 0 for an id that exists answers `stale`, or `rejected` when the id lives in another vault; a version
+> of a record the server doesn't have is `rejected`. `lock_timeout = 5s`; a lock wait past it, or a
+> new id racing into the same id in another vault (unique violation), fails the whole batch with
+> `SERVICE_UNAVAILABLE`, which `StoreProvider` treats like a network error (`stopsRound`). Batches hold
+> at most `MAX_PUSH_CHANGES` (500); `SyncManager.pushBatches` keeps each record's chain in one batch
+> (only a longer chain is split), so a losing edit and its merge reach the server together or not at
+> all. One `notifyVaultMembers` per batch pings each member once. Records carry `clientChangeId`
+> (NOT NULL, unique per record), part of the reset baseline. A move is pushed as the target's put and
+> the source's delete; they share a transaction only when they land in the same batch.
+
 ### D9 — Creating an account from a local vault ("linking")
 
 1. Enter an email (and an invite code if `REGISTRATION_DISABLED`), then re-enter the master

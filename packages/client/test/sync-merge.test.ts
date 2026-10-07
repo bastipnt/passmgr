@@ -1,6 +1,13 @@
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
-import type { EncryptedRecordSchema, LoginRecord, MemberVault, RecordData } from "@repo/schema";
-import { type PendingChange, secretsStore, Vault } from "@repo/store";
+import type {
+  EncryptedRecordSchema,
+  LoginRecord,
+  MemberVault,
+  PushChange,
+  PushResult,
+  RecordData,
+} from "@repo/schema";
+import { secretsStore, Vault } from "@repo/store";
 import { createTestDriver } from "@repo/store/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { generateLocalVault } from "../src/account/create-local-vault";
@@ -9,14 +16,20 @@ import { resolveRecordConflict } from "../src/records/resolve-record-conflict";
 import { SyncManager } from "../src/sync-manager";
 import { decryptRecord } from "../src/util/decrypt-record";
 
+type ServerRow = EncryptedRecordSchema & { clientChangeId: string };
+type Failure = Extract<PushResult, { status: "stale" }>;
+
 /**
- * Two devices of one user syncing through an in-memory server that appends
- * versions compare-and-swap, like `record.create` / `update` / `delete`.
+ * Two devices of one user syncing through an in-memory server that applies
+ * pushes like `record.push`: compare-and-swap per change, a record's changes
+ * in a batch all or nothing, a retried change answered with what it stored.
  */
 class FakeServer {
-  rows: EncryptedRecordSchema[] = [];
+  rows: ServerRow[] = [];
   /** How many more pushes get through before the network drops (none: never). */
   pushesBeforeOutage: number | undefined;
+  /** Runs once, right before the next push is applied (e.g. another device writes first). */
+  beforeNextPush: (() => Promise<void>) | undefined;
 
   constructor(private readonly vaults: MemberVault[]) {}
 
@@ -31,22 +44,74 @@ class FakeServer {
     serverTimestamp: new Date().toISOString(),
   });
 
-  push = async ({ record }: PendingChange): Promise<EncryptedRecordSchema | null> => {
+  push = async (changes: PushChange[]): Promise<PushResult[]> => {
     if (this.pushesBeforeOutage !== undefined && this.pushesBeforeOutage-- <= 0) {
       throw new Error("NETWORK");
     }
-    const head = this.head(record.recordId);
-    // Deleting a deleted record is NOT_FOUND, which the client counts as done.
-    if (record.deleted_at && head?.deleted_at) return null;
-    if ((head?.version ?? 0) !== record.version - 1) throw new Error("CONFLICT");
-    const now = new Date().toISOString();
-    const row = { ...record, created_at: now, updated_at: now, deleted_at: null };
-    if (record.deleted_at) {
-      this.rows.push({ ...head!, ...row, version: record.version, deleted_at: now });
-      return null;
+    const before = this.beforeNextPush;
+    this.beforeNextPush = undefined;
+    await before?.();
+
+    const results: PushResult[] = [];
+    for (const recordId of new Set(changes.map((c) => c.recordId))) {
+      const chain = changes.filter((c) => c.recordId === recordId);
+      const staged: ServerRow[] = [];
+      const answers: PushResult[] = [];
+      let head = this.head(recordId);
+      let failure: Failure | null = null;
+
+      for (const change of chain) {
+        const { clientChangeId } = change;
+        const stored = this.rows.find(
+          (r) => r.recordId === recordId && r.clientChangeId === clientChangeId,
+        );
+        if (stored) {
+          answers.push({ clientChangeId, status: "applied", record: stored });
+        } else if (failure || (head?.version ?? 0) !== change.baseVersion) {
+          failure ??= {
+            clientChangeId,
+            status: "stale",
+            headVersion: this.head(recordId)?.version ?? 0,
+          };
+          answers.push({ ...failure, clientChangeId });
+        } else {
+          const now = new Date().toISOString();
+          const ciphertext = change.op === "put" ? change : head!;
+          const row: ServerRow = {
+            recordId,
+            vaultId: change.vaultId,
+            encryptedData: ciphertext.encryptedData,
+            encryptionNonce: ciphertext.encryptionNonce,
+            cryptoVersion: ciphertext.cryptoVersion,
+            version: (head?.version ?? 0) + 1,
+            clientUpdatedAt: change.clientUpdatedAt,
+            clientChangeId,
+            created_at: now,
+            updated_at: now,
+            deleted_at: change.op === "delete" ? now : null,
+          };
+          staged.push(row);
+          head = row;
+          answers.push({ clientChangeId, status: "applied", record: row });
+        }
+      }
+
+      if (failure) {
+        const first = failure;
+        results.push(
+          ...answers.map((a) =>
+            a.status === "applied" && !staged.includes(a.record as ServerRow)
+              ? a
+              : { ...first, clientChangeId: a.clientChangeId },
+          ),
+        );
+      } else {
+        this.rows.push(...staged);
+        results.push(...answers);
+      }
     }
-    this.rows.push(row);
-    return row;
+    // In the order of the changes.
+    return changes.map((c) => results.find((r) => r.clientChangeId === c.clientChangeId)!);
   };
 }
 
@@ -58,7 +123,7 @@ class Device {
   constructor(server: FakeServer) {
     this.sync = new SyncManager(this.vault, {
       pull: server.pull,
-      push: server.push,
+      push: (changes) => server.push(changes),
       resolveConflict: resolveRecordConflict,
     });
   }
@@ -169,26 +234,30 @@ describe("syncing a record edited on two devices", () => {
     expect(await b.read(recordId)).toMatchObject({ username: "from-a" });
   });
 
-  it("merges again when the server moves on before the merge is pushed", async () => {
+  it("pushes the losing edit and the merge together, or neither", async () => {
     clock("10:00");
     await edit(a, { note: "from A" }); // offline
     clock("10:05");
     await edit(b, { username: "bob" });
     await b.sync.sync();
 
-    // A's first push is stale; after the pull its original edit gets through,
-    // the merge on top of it doesn't.
+    // A's first push is stale and the pull merges. Before A pushes its original
+    // edit and the merge, B writes again: neither goes in, so no device ever
+    // pulls A's original edit (without B's username) as the head.
     clock("10:10");
-    server.pushesBeforeOutage = 2;
+    server.beforeNextPush = async () => {
+      server.beforeNextPush = async () => {
+        await edit(b, { username: "bob", title: "Renamed by B" });
+        await b.sync.sync();
+      };
+    };
     await a.sync.sync();
-    server.pushesBeforeOutage = undefined;
-    expect(await a.vault.countPendingChanges()).toBe(1);
-
-    // B builds on A's original edit, the server head for now.
-    clock("10:15");
-    await b.sync.sync();
-    await edit(b, { username: "jana", note: "from A", title: "Renamed by B" });
-    await b.sync.sync();
+    expect(server.rows.map((row) => decryptRecord(row))).toMatchObject([
+      { username: "jana" },
+      { username: "bob" },
+      { username: "bob", title: "Renamed by B" },
+    ]);
+    expect(await a.vault.countPendingChanges()).toBe(2);
 
     clock("10:20");
     await a.sync.sync();
@@ -202,6 +271,26 @@ describe("syncing a record edited on two devices", () => {
       });
     }
     expect(await a.vault.countPendingChanges()).toBe(0);
+  });
+
+  it("stores a change once when the response to its push got lost", async () => {
+    clock("10:00");
+    await edit(a, { note: "once" });
+    const push = server.push;
+    server.push = async (changes) => {
+      await push(changes);
+      throw new Error("NETWORK"); // stored, but the answer never arrives
+    };
+    await a.sync.sync();
+    server.push = push;
+    expect(server.rows).toHaveLength(2);
+    expect(await a.vault.countPendingChanges()).toBe(1);
+
+    await a.sync.sync();
+
+    expect(server.rows).toHaveLength(2);
+    expect(await a.vault.countPendingChanges()).toBe(0);
+    expect(await a.read(recordId)).toMatchObject({ note: "once" });
   });
 
   it("keeps a record deleted on both devices deleted", async () => {
@@ -218,7 +307,25 @@ describe("syncing a record edited on two devices", () => {
       expect(await device.read(recordId)).toMatchObject({ deleted: true });
     }
     expect(await a.vault.countPendingChanges()).toBe(0);
-    expect(server.rows.map((row) => row.deleted_at !== null)).toEqual([false, true]);
+    // A's delete lands on B's as one more tombstone: every push appends one version.
+    expect(server.rows.map((row) => row.deleted_at !== null)).toEqual([false, true, true]);
+  });
+
+  it("restores a record deleted and restored offline while the other device deleted it", async () => {
+    clock("10:00");
+    await a.records.delete(recordId);
+    clock("10:01");
+    await edit(a, { note: "restored" }); // still offline
+    clock("10:05");
+    await b.records.delete(recordId);
+    await b.sync.sync();
+
+    await bothSync();
+
+    for (const device of [a, b]) {
+      expect(await device.read(recordId)).toMatchObject({ note: "restored", deleted: false });
+    }
+    expect(await a.vault.countPendingChanges()).toBe(0);
   });
 
   it("restores a record deleted offline but edited on the other device", async () => {

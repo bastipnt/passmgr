@@ -19,32 +19,84 @@ export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema> & {
   firstCreatedAt?: string;
 };
 
-export const createRecordInputSchema = z.object({
-  recordId: z.uuid(),
-  vaultId: z.uuid(),
-  encryptedData: z.string(),
-  encryptionNonce: z.string(),
-  cryptoVersion: z.number().int().positive().default(1),
-  clientUpdatedAt: z.string(),
-});
+/** The most changes one `record.push` takes; a client splits a longer outbox. */
+export const MAX_PUSH_CHANGES = 500;
 
-export const updateRecordInputSchema = z.object({
+const pushChangeBase = {
+  // Client-generated, unique per record: a retry returns the version it stored (ADR 0001 D5).
+  clientChangeId: z.uuid(),
   recordId: z.uuid(),
-  encryptedData: z.string(),
-  encryptionNonce: z.string(),
-  cryptoVersion: z.number().int().positive(),
-  version: z.number().int().positive(),
-  clientUpdatedAt: z.string(),
+  // The record's vault; the server checks the user may write to it.
+  vaultId: z.uuid(),
+  clientUpdatedAt: z.iso.datetime({ offset: true }),
+};
+
+/**
+ * One local change to push (ADR 0001 D5/D8): compare-and-swap on `baseVersion`,
+ * the server version the change builds on (0: a new record). `put` writes the
+ * new ciphertext (restoring a deleted record); `delete` tombstones the record.
+ */
+export const pushChangeSchema = z.discriminatedUnion("op", [
+  z.object({
+    ...pushChangeBase,
+    op: z.literal("put"),
+    baseVersion: z.number().int().nonnegative(),
+    encryptedData: z.string(),
+    encryptionNonce: z.string(),
+    cryptoVersion: z.number().int().positive(),
+  }),
+  z.object({
+    ...pushChangeBase,
+    op: z.literal("delete"),
+    baseVersion: z.number().int().positive(),
+  }),
+]);
+
+export type PushChange = z.infer<typeof pushChangeSchema>;
+
+/**
+ * Changes in write order. A record's changes form a chain, applied all or
+ * nothing: when one can't be, none of the record's changes in the batch are.
+ */
+export const pushInputSchema = z.object({
+  changes: z
+    .array(pushChangeSchema)
+    .min(1)
+    .max(MAX_PUSH_CHANGES)
+    // Results are matched by id, and a change sent twice would be written twice.
+    .refine((changes) => new Set(changes.map((c) => c.clientChangeId)).size === changes.length, {
+      message: "clientChangeId must be unique within a batch",
+    }),
 });
 
 /**
- * A record to tombstone: its id, or its id and the version the client last
- * saw (compare-and-swap, as for an update).
+ * The answer for one change, never an error for the whole batch:
+ * - `applied`: the server holds it (now, or from an earlier try); `record` is its copy.
+ * - `stale`: the record moved on (`headVersion`); pull, merge and push again.
+ * - `rejected`: it can never apply as sent (no write access, unknown record).
  */
-export const deleteRecordInputSchema = z.union([
-  z.uuid(),
-  z.object({ recordId: z.uuid(), version: z.number().int().positive() }),
+export const pushResultSchema = z.discriminatedUnion("status", [
+  z.object({
+    clientChangeId: z.uuid(),
+    status: z.literal("applied"),
+    record: encryptedRecordSchema,
+  }),
+  z.object({
+    clientChangeId: z.uuid(),
+    status: z.literal("stale"),
+    headVersion: z.number().int().nonnegative(),
+  }),
+  z.object({
+    clientChangeId: z.uuid(),
+    status: z.literal("rejected"),
+    reason: z.enum(["not_found", "forbidden"]),
+  }),
 ]);
+
+export type PushResult = z.infer<typeof pushResultSchema>;
+
+/** One result per change, in the order of the changes. */
+export const pushOutputSchema = z.object({ results: z.array(pushResultSchema) });
 
 /** The payload format written by the current code. */
 export const CURRENT_SCHEMA_VERSION = 1;
@@ -104,18 +156,6 @@ export type DecryptedRecord = RecordPayload & {
 
 /** The crypto version used when encrypting records with the current code. */
 export const CURRENT_CRYPTO_VERSION = 1;
-
-/**
- * Move a record to another vault (ADR 0001 D6): the client re-encrypts it under
- * the target vault's key as a new record; the source record is tombstoned and
- * keeps its history.
- */
-export const moveRecordInputSchema = z.object({
-  recordId: z.uuid(),
-  // The source version the client re-encrypted; a newer one makes the move stale.
-  version: z.number().int().positive(),
-  target: createRecordInputSchema,
-});
 
 /**
  * A vault's pull cursor: the highest `seq` (the vault's server write order,

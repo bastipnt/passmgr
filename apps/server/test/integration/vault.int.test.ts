@@ -1,12 +1,12 @@
 import { createVault, unwrapVaultKey, wrapVaultKey } from "@repo/crypto";
 import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
-import type { VaultRole } from "@repo/schema";
+import type { PushChange, VaultRole } from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
-import { nextVaultSeq } from "../../src/vault/access";
+import { lockVaults, nextVaultSeq } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
-import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
+import { callSigned, deleteChange, loginAndGetAuthKey, putChange, register } from "./_helpers";
 
 type User = Awaited<ReturnType<typeof loginAndGetAuthKey>> & {
   userId: string;
@@ -35,20 +35,15 @@ function as(user: User, type: "mutation" | "query", path: string, input?: unknow
   );
 }
 
-function recordInput(vaultId: string, data = "ENC") {
-  return {
-    recordId: crypto.randomUUID(),
-    vaultId,
-    encryptedData: data,
-    encryptionNonce: "NONCE",
-    cryptoVersion: 1,
-    clientUpdatedAt: new Date().toISOString(),
-  };
+async function push(user: User, ...changes: PushChange[]) {
+  const input = { changes };
+  return (await (await as(user, "mutation", "record.push", input)).record.push(input)).results;
 }
 
 async function createRecord(user: User, vaultId: string, data?: string) {
-  const input = recordInput(vaultId, data);
-  return await (await as(user, "mutation", "record.create", input)).record.create(input);
+  const [result] = await push(user, putChange(vaultId, { data }));
+  if (result?.status !== "applied") throw new Error(`not created: ${JSON.stringify(result)}`);
+  return result.record;
 }
 
 async function sync(user: User, cursors: Record<string, number> = {}) {
@@ -150,10 +145,9 @@ describe("record access through vault membership", () => {
     const mallory = await signUp("mallory@example.com");
     const record = await createRecord(alice, alice.personalVaultId);
 
-    const input = recordInput(alice.personalVaultId);
-    await expect(
-      (await as(mallory, "mutation", "record.create", input)).record.create(input),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect(await push(mallory, putChange(alice.personalVaultId))).toMatchObject([
+      { status: "rejected", reason: "not_found" },
+    ]);
     await expect(
       (await as(mallory, "query", "record.history", record.recordId)).record.history(
         record.recordId,
@@ -173,13 +167,12 @@ describe("record access through vault membership", () => {
     expect(pulled.records.map((r) => r.recordId)).toEqual([record.recordId]);
     expect(pulled.vaults.find((v) => v.vaultId === work.vaultId)?.role).toBe("read");
 
-    const input = recordInput(work.vaultId);
-    await expect(
-      (await as(bob, "mutation", "record.create", input)).record.create(input),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
-    await expect(
-      (await as(bob, "mutation", "record.delete", record.recordId)).record.delete(record.recordId),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      await push(bob, putChange(work.vaultId), deleteChange(work.vaultId, record.recordId, 1)),
+    ).toMatchObject([
+      { status: "rejected", reason: "forbidden" },
+      { status: "rejected", reason: "forbidden" },
+    ]);
   });
 
   it("a write member updates a record in a vault they don't own", async () => {
@@ -189,19 +182,10 @@ describe("record access through vault membership", () => {
     await addMember(alice, work, bob, "write");
     const record = await createRecord(alice, work.vaultId);
 
-    const update = {
-      recordId: record.recordId,
-      encryptedData: "ENC-V2",
-      encryptionNonce: "NONCE-V2",
-      cryptoVersion: 1,
-      version: 1,
-      clientUpdatedAt: new Date().toISOString(),
-    };
-    const updated = await (await as(bob, "mutation", "record.update", update)).record.update(
-      update,
-    );
-
-    expect(updated).toMatchObject({ vaultId: work.vaultId, version: 2 });
+    const update = putChange(work.vaultId, { recordId: record.recordId, baseVersion: 1 });
+    expect(await push(bob, update)).toMatchObject([
+      { status: "applied", record: { vaultId: work.vaultId, version: 2 } },
+    ]);
   });
 
   it("a pending invite grants nothing", async () => {
@@ -250,10 +234,9 @@ describe("record.sync per vault", () => {
     const b = await createRecord(alice, alice.personalVaultId);
     await createRecord(alice, work.vaultId);
 
-    const del = { recordId: a.recordId, version: 1 };
-    await (await as(alice, "mutation", "record.delete", del)).record.delete(del);
-    const move = { recordId: b.recordId, version: 1, target: recordInput(work.vaultId) };
-    await (await as(alice, "mutation", "record.move", move)).record.move(move);
+    await push(alice, deleteChange(alice.personalVaultId, a.recordId, 1));
+    // A move: the copy in the target and the source's tombstone, in one batch.
+    await push(alice, putChange(work.vaultId), deleteChange(alice.personalVaultId, b.recordId, 1));
 
     const rows = await db
       .select({ vaultId: recordsTable.vaultId, seq: recordsTable.seq })
@@ -277,8 +260,16 @@ describe("record.sync per vault", () => {
     const taken = new Promise<void>((r) => (seqTaken = r));
     const slowWrite = db.transaction(async (tx) => {
       const seq = await nextVaultSeq(tx, alice.personalVaultId);
+      const { recordId, encryptedData, encryptionNonce, clientChangeId } = putChange(
+        alice.personalVaultId,
+        { data: "SLOW" },
+      );
       await tx.insert(recordsTable).values({
-        ...recordInput(alice.personalVaultId, "SLOW"),
+        recordId,
+        vaultId: alice.personalVaultId,
+        encryptedData,
+        encryptionNonce,
+        clientChangeId,
         userId: alice.userId,
         clientUpdatedAt: new Date(),
         seq,
@@ -320,25 +311,19 @@ describe("record.sync per vault", () => {
   });
 });
 
-describe("record.move", () => {
-  async function move(user: User, recordId: string, version: number, targetVaultId: string) {
-    const input = { recordId, version, target: recordInput(targetVaultId, "MOVED") };
-    const caller = await as(user, "mutation", "record.move", input);
-    return { input, result: caller.record.move(input) };
-  }
-
-  it("creates the record in the target and tombstones the source, which keeps its history", async () => {
+describe("record.push under the vault lock", () => {
+  it("moves a record as one batch: the copy in the target, the source tombstoned with its history", async () => {
     const alice = await signUp("alice@example.com");
     const work = await createVaultFor(alice);
     const record = await createRecord(alice, alice.personalVaultId);
 
-    const { input, result } = await move(alice, record.recordId, 1, work.vaultId);
-    expect(await result).toMatchObject({
-      recordId: input.target.recordId,
-      vaultId: work.vaultId,
-      version: 1,
-      encryptedData: "MOVED",
-    });
+    const copy = putChange(work.vaultId, { data: "MOVED" });
+    expect(
+      await push(alice, copy, deleteChange(alice.personalVaultId, record.recordId, 1)),
+    ).toMatchObject([
+      { status: "applied", record: { recordId: copy.recordId, vaultId: work.vaultId, version: 1 } },
+      { status: "applied", record: { vaultId: alice.personalVaultId, version: 2 } },
+    ]);
 
     const history = await (
       await as(alice, "query", "record.history", record.recordId)
@@ -349,92 +334,111 @@ describe("record.move", () => {
     ]);
   });
 
-  it("refuses a stale source version", async () => {
-    const alice = await signUp("alice@example.com");
-    const work = await createVaultFor(alice);
-    const record = await createRecord(alice, alice.personalVaultId);
-
-    const { result } = await move(alice, record.recordId, 7, work.vaultId);
-    await expect(result).rejects.toMatchObject({ code: "CONFLICT" });
-  });
-
-  it("refuses a target vault the user can't write to, and changes nothing", async () => {
+  it("rejects a new record whose id is taken, even in a foreign vault", async () => {
     const alice = await signUp("alice@example.com");
     const bob = await signUp("bob@example.com");
     const record = await createRecord(alice, alice.personalVaultId);
 
-    const { result } = await move(alice, record.recordId, 1, bob.personalVaultId);
-    await expect(result).rejects.toMatchObject({ code: "NOT_FOUND" });
-
-    const history = await (
-      await as(alice, "query", "record.history", record.recordId)
-    ).record.history(record.recordId);
-    expect(history).toHaveLength(1);
+    expect(
+      await push(bob, putChange(bob.personalVaultId, { recordId: record.recordId })),
+    ).toMatchObject([{ status: "rejected", reason: "not_found" }]);
   });
 
-  it("refuses a move within the same vault", async () => {
-    const alice = await signUp("alice@example.com");
-    const record = await createRecord(alice, alice.personalVaultId);
-
-    const { result } = await move(alice, record.recordId, 1, alice.personalVaultId);
-    await expect(result).rejects.toMatchObject({ code: "BAD_REQUEST" });
-  });
-
-  it("answers a target id that is taken with CONFLICT and changes nothing", async () => {
-    const alice = await signUp("alice@example.com");
-    const work = await createVaultFor(alice);
-    const record = await createRecord(alice, alice.personalVaultId);
-    const other = await createRecord(alice, work.vaultId);
-
-    const input = {
-      recordId: record.recordId,
-      version: 1,
-      target: { ...recordInput(work.vaultId), recordId: other.recordId },
-    };
-    await expect(
-      (await as(alice, "mutation", "record.move", input)).record.move(input),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
-
-    const history = await (
-      await as(alice, "query", "record.history", record.recordId)
-    ).record.history(record.recordId);
-    expect(history).toHaveLength(1);
-  });
-});
-
-describe("record id collisions", () => {
-  it("record.create answers an id that is taken, even in a foreign vault, with CONFLICT", async () => {
+  it("applies the changes of a vault the user may write to next to rejected ones", async () => {
     const alice = await signUp("alice@example.com");
     const bob = await signUp("bob@example.com");
-    const record = await createRecord(alice, alice.personalVaultId);
+    const work = await createVaultFor(alice);
+    await addMember(alice, work, bob, "read");
 
-    const input = { ...recordInput(bob.personalVaultId), recordId: record.recordId };
-    await expect(
-      (await as(bob, "mutation", "record.create", input)).record.create(input),
-    ).rejects.toMatchObject({ code: "CONFLICT" });
-  });
-
-  it("two updates racing for the same next version: one wins, the other gets CONFLICT", async () => {
-    const alice = await signUp("alice@example.com");
-    const record = await createRecord(alice, alice.personalVaultId);
-
-    const update = (data: string) => ({
-      recordId: record.recordId,
-      encryptedData: data,
-      encryptionNonce: "NONCE",
-      cryptoVersion: 1,
-      version: 1,
-      clientUpdatedAt: new Date().toISOString(),
-    });
-    const [a, b] = [update("A"), update("B")];
-    const results = await Promise.allSettled([
-      (await as(alice, "mutation", "record.update", a)).record.update(a),
-      (await as(alice, "mutation", "record.update", b)).record.update(b),
+    expect(
+      await push(
+        bob,
+        putChange(work.vaultId),
+        putChange(bob.personalVaultId),
+        putChange(alice.personalVaultId),
+      ),
+    ).toMatchObject([
+      { status: "rejected", reason: "forbidden" },
+      { status: "applied", record: { vaultId: bob.personalVaultId } },
+      { status: "rejected", reason: "not_found" },
     ]);
+    expect((await sync(alice)).records).toEqual([]);
+  });
 
-    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
-    expect(results.find((r) => r.status === "rejected")).toMatchObject({
-      reason: expect.objectContaining({ code: "CONFLICT" }),
+  it("numbers a batch's versions per vault in batch order, with one seq run each", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    await createRecord(alice, alice.personalVaultId); // seq 1
+
+    const a = putChange(alice.personalVaultId);
+    const results = await push(
+      alice,
+      a,
+      putChange(work.vaultId),
+      putChange(alice.personalVaultId, { recordId: a.recordId, baseVersion: 1 }),
+      putChange(work.vaultId),
+    );
+    expect(results.every((r) => r.status === "applied")).toBe(true);
+
+    const rows = await db
+      .select({
+        vaultId: recordsTable.vaultId,
+        version: recordsTable.version,
+        seq: recordsTable.seq,
+        recordId: recordsTable.recordId,
+      })
+      .from(recordsTable)
+      .orderBy(recordsTable.vaultId, recordsTable.seq);
+    const personal = rows.filter((r) => r.vaultId === alice.personalVaultId);
+    expect(personal.map((r) => r.seq)).toEqual([1, 2, 3]);
+    // A's versions take seqs in chain order.
+    expect(
+      personal.filter((r) => r.recordId === a.recordId).map((r) => [r.version, r.seq]),
+    ).toEqual([
+      [1, 2],
+      [2, 3],
+    ]);
+    expect(rows.filter((r) => r.vaultId === work.vaultId).map((r) => r.seq)).toEqual([1, 2]);
+    expect((await sync(alice)).cursors).toEqual({ [alice.personalVaultId]: 3, [work.vaultId]: 2 });
+  });
+
+  it("two pushes racing for the same next version: one applies, the other is stale", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = await createRecord(alice, alice.personalVaultId);
+
+    const edit = (data: string) =>
+      putChange(alice.personalVaultId, { recordId: record.recordId, baseVersion: 1, data });
+    const results = await Promise.all([push(alice, edit("A")), push(alice, edit("B"))]);
+
+    expect(results.map(([r]) => r?.status).sort()).toEqual(["applied", "stale"]);
+    expect(results.flat().find((r) => r.status === "stale")).toMatchObject({ headVersion: 2 });
+  });
+
+  it("answers SERVICE_UNAVAILABLE instead of hanging when a vault stays locked", async () => {
+    const alice = await signUp("alice@example.com");
+
+    let release!: () => void;
+    let locked!: () => void;
+    const isLocked = new Promise<void>((r) => (locked = r));
+    const stuck = db.transaction(async (tx) => {
+      await lockVaults(tx, [alice.personalVaultId]);
+      locked();
+      await new Promise<void>((r) => (release = r));
     });
+    await Promise.race([isLocked, stuck]);
+
+    try {
+      await expect(push(alice, putChange(alice.personalVaultId))).rejects.toMatchObject({
+        code: "SERVICE_UNAVAILABLE",
+      });
+    } finally {
+      release();
+      await stuck;
+    }
+    // Nothing was written; the vault takes writes again.
+    expect(await push(alice, putChange(alice.personalVaultId))).toMatchObject([
+      { status: "applied", record: { version: 1 } },
+    ]);
+    expect((await sync(alice)).cursors).toEqual({ [alice.personalVaultId]: 1 });
   });
 });

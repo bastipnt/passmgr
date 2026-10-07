@@ -225,16 +225,20 @@ is created once and `generateUserKeys` never touches it. A public key is verifie
 
 Every record lives in one vault (`records.vaultId`, local + server) and is encrypted with that vault's key;
 the AAD binds `cryptoVersion/vaultId/recordId` (`packages/crypto/src/vault-data.ts`), so a record never
-opens in another vault — a move (`record.move`) re-encrypts it as a new record and tombstones the source,
-whose history stays behind. Vault name/icon/colour are `encryptedMeta` (vault key, AAD `vaultId`).
+opens in another vault — a move re-encrypts it as a new record and tombstones the source (both
+pushed in one batch), whose history stays behind. Vault name/icon/colour are `encryptedMeta` (vault key, AAD `vaultId`).
 `personal` = the default vault (one per user, `secretsStore.defaultVaultId`); every other vault is `shared`.
 Server access is **membership-based** (`apps/server/src/vault/access.ts`: active `vault_members` row of a
 live vault; roles `owner > manage > write > read`), never `records.userId` (that's the version's author).
 Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a role gets `FORBIDDEN`.
 `record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
-vault list; the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`nextVaultSeq`, row
+vault list; the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`takeVaultSeqs`, row
 lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
-cursor. `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`): one transaction,
+vaults locked first (`lockVaults`, `lock_timeout` → `SERVICE_UNAVAILABLE`, the client retries), then
+compare-and-swap per change on `baseVersion`; each change answers `applied` / `stale` / `rejected`,
+a record's changes in a batch apply all or nothing, and `clientChangeId` (unique per record) makes a
+retry return the stored version. `SyncManager` sends each record's chain in one batch (`pushBatches`). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
@@ -249,7 +253,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `login` → `loginRouter` (startLogin, finishLogin, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, all, getById, history, create, update, delete, move, onRecordChange SSE) — uses `protectedProcedure`
+- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — uses `protectedProcedure`
 - `vault` → `vaultRouter` (list, create, updateMeta)
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, publicKey — another user's public key by email)
 

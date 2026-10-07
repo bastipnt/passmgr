@@ -1,7 +1,7 @@
 {
   "version": "8",
   "dialect": "postgres",
-  "id": "38e1a46d-16f5-4dc2-a2a1-dc668d9bea39",
+  "id": "cb3a3ce1-81c6-4044-90c8-d056bfa8b656",
   "prevIds": [
     "00000000-0000-0000-0000-000000000000"
   ],
@@ -363,6 +363,19 @@
       "generated": null,
       "identity": null,
       "name": "seq",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "records"
+    },
+    {
+      "type": "varchar",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "clientChangeId",
       "entityType": "columns",
       "schema": "public",
       "table": "records"
@@ -1037,6 +1050,34 @@
       "method": "btree",
       "concurrently": false,
       "name": "records_vault_seq_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "records"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "recordId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "clientChangeId",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "records_record_change_idx",
       "entityType": "indexes",
       "schema": "public",
       "table": "records"

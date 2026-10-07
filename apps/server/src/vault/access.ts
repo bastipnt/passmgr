@@ -1,7 +1,7 @@
 import { db, vaultMembersTable, vaultsTable } from "@repo/db";
 import type { MemberVault, VaultRole } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
@@ -57,44 +57,58 @@ export async function requireVaultRole(
 }
 
 /**
- * The next `records.seq` of each vault, for records written in `tx` (ADR 0001
- * D8). Bumping `vaults.lastSeq` row-locks the vault until `tx` ends, so writers
- * of one vault queue up and commit in `seq` order: a pull that sees a vault's
- * seq N sees every seq below it. Vaults are locked in id order, so two moves
- * between the same vaults in opposite directions can't deadlock.
+ * Take the vault's next `count` values of `records.seq` (ADR 0001 D8) for
+ * records written in `tx`, and resolve the first: the run is `first … first +
+ * count - 1`. Bumping `vaults.lastSeq` row-locks the vault until `tx` ends, so
+ * writers of one vault queue up and commit in `seq` order: a pull that sees a
+ * vault's seq N sees every seq below it. A transaction writing to several
+ * vaults locks them in id order first (`lockVaults`), so it can't deadlock.
  */
-export async function nextVaultSeqs(
+export async function takeVaultSeqs(
   tx: DbExecutor,
-  ...vaultIds: string[]
-): Promise<(vaultId: string) => number> {
-  const seqs = new Map<string, number>();
-  for (const vaultId of [...new Set(vaultIds)].sort()) {
-    const [vault] = await tx
-      .update(vaultsTable)
-      .set({ lastSeq: sql`${vaultsTable.lastSeq} + 1` })
-      .where(eq(vaultsTable.vaultId, vaultId))
-      .returning({ lastSeq: vaultsTable.lastSeq });
-    if (!vault) throw new TRPCError({ code: "NOT_FOUND" });
-    seqs.set(vaultId, vault.lastSeq);
-  }
-  // Never a made-up seq: one that isn't the vault's next would break the cursor.
-  return (vaultId) => {
-    const seq = seqs.get(vaultId);
-    if (seq === undefined) throw new Error(`no seq taken for vault ${vaultId}`);
-    return seq;
-  };
+  vaultId: string,
+  count: number,
+): Promise<number> {
+  const [vault] = await tx
+    .update(vaultsTable)
+    .set({ lastSeq: sql`${vaultsTable.lastSeq} + ${count}` })
+    .where(eq(vaultsTable.vaultId, vaultId))
+    .returning({ lastSeq: vaultsTable.lastSeq });
+  if (!vault) throw new TRPCError({ code: "NOT_FOUND" });
+  return vault.lastSeq - count + 1;
 }
 
-/** `nextVaultSeqs` for a single vault. */
+/** The vault's next seq, for a single record written in `tx` (`takeVaultSeqs`). */
 export async function nextVaultSeq(tx: DbExecutor, vaultId: string): Promise<number> {
-  return (await nextVaultSeqs(tx, vaultId))(vaultId);
+  return await takeVaultSeqs(tx, vaultId, 1);
 }
 
-/** Ping every active member's sync stream after a vault's records or metadata changed. */
-export async function notifyVaultMembers(vaultId: string): Promise<void> {
+/**
+ * Row-lock vaults until `tx` ends, in id order (no deadlock), without taking a
+ * seq: writers of these vaults wait, so whatever `tx` reads of their records
+ * stays current until it commits. Seqs are then taken with `takeVaultSeqs`.
+ */
+export async function lockVaults(tx: DbExecutor, vaultIds: Iterable<string>): Promise<void> {
+  for (const vaultId of [...new Set(vaultIds)].sort()) {
+    await tx
+      .select({ vaultId: vaultsTable.vaultId })
+      .from(vaultsTable)
+      .where(eq(vaultsTable.vaultId, vaultId))
+      .for("update");
+  }
+}
+
+/**
+ * Ping every active member's sync stream after the vaults' records or metadata
+ * changed, once per member however many of the vaults they share.
+ */
+export async function notifyVaultMembers(...vaultIds: string[]): Promise<void> {
+  if (vaultIds.length === 0) return;
   const members = await db
-    .select({ userId: vaultMembersTable.userId })
+    .selectDistinct({ userId: vaultMembersTable.userId })
     .from(vaultMembersTable)
-    .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.status, "active")));
+    .where(
+      and(inArray(vaultMembersTable.vaultId, vaultIds), eq(vaultMembersTable.status, "active")),
+    );
   for (const { userId } of members) emitRecordsChanged(userId);
 }

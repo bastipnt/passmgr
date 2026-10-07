@@ -1,12 +1,6 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
-import {
-  clearLoginBundle,
-  type LocalProfile,
-  type PendingChange,
-  secretsStore,
-  Vault,
-} from "@repo/store";
+import { clearLoginBundle, type LocalProfile, secretsStore, Vault } from "@repo/store";
 import {
   createContext,
   type ReactNode,
@@ -23,7 +17,7 @@ import { SyncManager } from "../sync-manager";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
-import { isNotFound, isServerAnswer, isUnauthorized } from "../util/trpc-errors";
+import { isRetryLater, isServerAnswer, isUnauthorized } from "../util/trpc-errors";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
@@ -158,43 +152,12 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       }
     }
 
-    /**
-     * Interim push over the per-record mutations until `record.push` lands
-     * (ADR 0001 D8): a pending version is a create (version 1), an update of
-     * the version below it (restoring the record if that one is a tombstone),
-     * or a tombstone of the version below it. Updates and deletes fail with
-     * CONFLICT when the server moved on; the pull then merges (D5).
-     */
-    async function pushChange({ record }: PendingChange) {
-      const { recordId, vaultId, encryptedData, encryptionNonce, cryptoVersion } = record;
-      const body = { recordId, encryptedData, encryptionNonce, cryptoVersion };
-      const clientUpdatedAt = record.clientUpdatedAt;
-
-      if (record.deleted_at) {
-        try {
-          await request(() => trpc.record.delete.mutate({ recordId, version: record.version - 1 }));
-        } catch (e) {
-          // Deleted on the server already (or never got there): nothing left to do.
-          if (!isNotFound(e)) throw e;
-        }
-        return null;
-      }
-      if (record.version === 1) {
-        return await request(() =>
-          trpc.record.create.mutate({ ...body, vaultId, clientUpdatedAt }),
-        );
-      }
-      return await request(() =>
-        trpc.record.update.mutate({ ...body, version: record.version - 1, clientUpdatedAt }),
-      );
-    }
-
     syncManagerRef.current = new SyncManager(vault, {
       pull: (cursors) => request(() => trpc.record.sync.query({ cursors })),
-      push: pushChange,
-      // Offline, a network failure, an unsigned request (locked) or a rejected
-      // session: every other change would fail the same way.
-      stopsRound: (e) => !isServerAnswer(e) || isUnauthorized(e),
+      push: async (changes) => (await request(() => trpc.record.push.mutate({ changes }))).results,
+      // Offline, a network failure, an unsigned request (locked), a rejected
+      // session or a busy server: every other batch would fail the same way.
+      stopsRound: (e) => !isServerAnswer(e) || isUnauthorized(e) || isRetryLater(e),
       onVaultsChanged: reloadVaultKeys,
       resolveConflict: resolveRecordConflict,
     });

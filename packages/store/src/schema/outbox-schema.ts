@@ -1,6 +1,7 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
 import { and, asc, desc, eq, inArray, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
+import { upsertRecords } from "./records-schema";
 import { outbox, records } from "./tables";
 
 /** A stored record version and whether the server has it yet. */
@@ -133,8 +134,8 @@ export async function countPendingChanges(db: LocalDb): Promise<number> {
 
 /**
  * The server stored a change: drop its outbox entry and mark the row synced,
- * replacing it with the server's copy (canonical timestamps) when there is one.
- * Run inside a transaction.
+ * replacing it with the server's copy (canonical timestamps) when there is
+ * one. Run inside a transaction.
  */
 export async function ackPendingChange(
   changeId: string,
@@ -152,19 +153,7 @@ export async function ackPendingChange(
   }
   // Same (recordId, version) unless the server numbered it differently.
   await db.delete(records).where(at);
-  await db.insert(records).values({
-    recordId: serverRow.recordId,
-    vaultId: serverRow.vaultId,
-    encryptedData: serverRow.encryptedData,
-    encryptionNonce: serverRow.encryptionNonce,
-    cryptoVersion: serverRow.cryptoVersion,
-    version: serverRow.version,
-    clientUpdatedAt: serverRow.clientUpdatedAt,
-    created_at: serverRow.created_at,
-    updated_at: serverRow.updated_at,
-    deleted_at: serverRow.deleted_at,
-    syncState: "synced",
-  });
+  await upsertRecords([serverRow], db);
 }
 
 /** A push of this change failed: count it and keep the reason for the UI. */
