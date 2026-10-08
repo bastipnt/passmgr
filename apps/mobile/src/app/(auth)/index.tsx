@@ -2,7 +2,7 @@ import { useStore } from "@repo/client";
 import { type BottomSheetRef, BrandLockup, Button, Screen, SpectrumText } from "@repo/ui-native";
 import { FIELD_COLORS } from "@repo/ui-shared";
 import { ShieldCheck } from "lucide-react-native";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
@@ -38,6 +38,7 @@ export default function LoginScreen() {
   const signUpRef = useRef<BottomSheetRef>(null);
   const recoverRef = useRef<BottomSheetRef>(null);
   const localVaultRef = useRef<BottomSheetRef>(null);
+  const [recoverLocal, setRecoverLocal] = useState(false);
   const { profile, accountKeyMaterial, profiles, selectProfile } = useStore();
   const hasStoredVault = profile !== null && accountKeyMaterial !== null;
 
@@ -131,10 +132,14 @@ export default function LoginScreen() {
 
       <SignInSheet
         ref={signInRef}
-        onForgotPassword={() => recoverRef.current?.triggerShowHide(true)}
+        onForgotPassword={(local) => {
+          setRecoverLocal(local);
+          recoverRef.current?.triggerShowHide(true);
+        }}
       />
       <RecoverSheet
         ref={recoverRef}
+        local={recoverLocal}
         onSwitchToSignIn={() => signInRef.current?.triggerShowHide(true)}
       />
       <SignUpSheet

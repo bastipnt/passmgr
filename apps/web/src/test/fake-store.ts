@@ -1,6 +1,6 @@
 import type { ActiveProfile } from "@repo/client";
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, MemberVault } from "@repo/schema";
+import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
 import type { LocalProfile, ProfileEntry } from "@repo/store";
 import { type Mock, vi } from "vitest";
 
@@ -120,6 +120,11 @@ export function createFakeStore() {
         _vaults: readonly MemberVault[],
         _profile?: LocalProfile,
       ) => {
+        if (store.profile?.profileId === profileId) store.accountKeyMaterial = material;
+      },
+    ),
+    saveLocalKeyMaterial: vi.fn(
+      async (profileId: string, material: AccountKeyMaterial, _recovery: RecoveryKeySchema) => {
         if (store.profile?.profileId === profileId) store.accountKeyMaterial = material;
       },
     ),

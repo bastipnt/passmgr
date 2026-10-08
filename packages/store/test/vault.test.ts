@@ -394,6 +394,48 @@ describe("createLocalVault", () => {
     expect(await vault.countPendingChanges()).toBe(1);
   });
 
+  it("replaces both account key wraps of a local vault at once (local recovery)", async () => {
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+    const nextMaterial = {
+      ...accountKey,
+      encryptedAccountKey: toBase64(new Uint8Array(48).fill(8)),
+    };
+    const nextRecovery = { ...recovery, recoveryVerifier: toBase64(new Uint8Array(32).fill(9)) };
+
+    await vault.setLocalKeyMaterial(nextMaterial, nextRecovery);
+
+    expect(await vault.getAccountKeyMaterial()).toEqual(nextMaterial);
+    expect(await vault.getRecoveryKeyMaterial()).toEqual(nextRecovery);
+    expect(await vault.getVaults()).toEqual([personal]);
+  });
+
+  it("never replaces a linked vault's key wraps locally", async () => {
+    const linked: LocalProfile = { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u" };
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+
+    await expect(
+      vault.setLocalKeyMaterial({ ...accountKey, encryptedAccountKey: "other" }, recovery),
+    ).rejects.toThrow(/Not a local vault/);
+
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect(await vault.getRecoveryKeyMaterial()).toBeNull();
+  });
+
+  it("writes neither wrap when one is malformed", async () => {
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+    const nextMaterial = {
+      ...accountKey,
+      encryptedAccountKey: toBase64(new Uint8Array(48).fill(8)),
+    };
+
+    await expect(
+      vault.setLocalKeyMaterial(nextMaterial, { ...recovery, recoveryVerifier: "x" }),
+    ).rejects.toThrow();
+
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    expect(await vault.getRecoveryKeyMaterial()).toEqual(recovery);
+  });
+
   it("is gone after clear()", async () => {
     await vault.createLocalVault(accountKey, recovery, [personal], local);
     await vault.clear();

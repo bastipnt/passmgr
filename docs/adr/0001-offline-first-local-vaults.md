@@ -500,6 +500,16 @@ There is never a silent wipe.
   record, a new key set and `freshAuthProcedure`. They are **blocked while offline**, otherwise
   the local and server key sets would diverge. An Argon2 rekey is also deferred until online.
 
+> **Amended 2026-10-08** (implementation): `useChangePassword` is one hook for both modes. Local:
+> the current password is checked against the stored wrap, the account key is rewrapped on the
+> device (`changeLocalPassword`). Linked, online only (`blocked` otherwise): a fresh OPAQUE login
+> with the current password, then `user.startPasswordChange` / `finishPasswordChange` (new OPAQUE
+> record + new key set with the recovery wrap carried over, every session revoked), then a login
+> with the new password. Local recovery (`recoverLocal`) unwraps the account key with the stored
+> recovery wrap and replaces both wraps in one transaction (`Vault.setLocalKeyMaterial`); an
+> account's recovery is refused offline. Both a change and a recovery drop the biometric
+> enrollment: it holds the old password.
+
 ### D11 — Binding ciphertext to its context (crypto v2)
 
 With no existing data there is no lazy migration to wait for. AEAD binding (*Bind record

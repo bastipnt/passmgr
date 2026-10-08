@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RECOVERY_ERROR_MESSAGES, useRecovery } from "@repo/client";
-import { type RecoverFormValues, recoverFormSchema } from "@repo/schema";
+import { RECOVERY_ERROR_MESSAGES, SessionContext, useRecovery, useStore } from "@repo/client";
+import { localRecoverFormSchema, type RecoverFormValues, recoverFormSchema } from "@repo/schema";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -24,9 +24,9 @@ import {
   MailIcon,
   TriangleAlertIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { type Control, useWatch } from "react-hook-form";
-import { useLocation } from "wouter";
+import { useLocation, useSearchParams } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { PasswordStrengthMeter } from "@/features/password-generation";
@@ -50,21 +50,50 @@ const RECOVERY_STEPS = [
   },
 ];
 
+const LOCAL_RECOVERY_STEPS = [
+  {
+    title: "Paste your recovery key",
+    description: "The key you saved when you created this vault.",
+  },
+  {
+    title: "Choose a new password",
+    description: "Your vault's key is re-wrapped with it, on this device only.",
+  },
+  {
+    title: "Save your new recovery key",
+    description: "The old key stops working.",
+  },
+];
+
+/**
+ * Reset a forgotten master password with the recovery key. An account's goes
+ * through the server (online only); the active local vault's (`?vault=local`)
+ * stays on the device (ADR 0001 D10).
+ */
 export default function RecoverPage() {
   const [_, navigate] = useLocation();
+  const [searchParams] = useSearchParams();
+  const { profile } = useStore();
+  const { networkOffline } = useContext(SessionContext);
+  const local = searchParams.get("vault") === "local" && profile?.mode === "local";
   const [loading, setLoading] = useState(false);
   const [newRecoveryKey, setNewRecoveryKey] = useState<Uint8Array | null>(null);
-  const { recover, recoveryError } = useRecovery();
+  const { recover, recoverLocal, recoveryError } = useRecovery();
 
   const { handleSubmit, control, setValue } = useForm<RecoverFormValues>({
-    resolver: zodResolver(recoverFormSchema),
+    resolver: zodResolver(local ? localRecoverFormSchema : recoverFormSchema),
     defaultValues: { email: "", recoveryKey: "", password: "", confirmPassword: "" },
   });
+
+  // An account's recovery needs the server: say so before the user types it all.
+  const error = recoveryError ?? (networkOffline && !local ? "offline" : undefined);
 
   const onSubmit = async ({ email, recoveryKey, password }: RecoverFormValues) => {
     setLoading(true);
     try {
-      const key = await recover(email, recoveryKey, password);
+      const key = local
+        ? await recoverLocal(recoveryKey, password)
+        : await recover(email, recoveryKey, password);
       if (key) setNewRecoveryKey(key);
     } finally {
       setLoading(false);
@@ -81,7 +110,11 @@ export default function RecoverPage() {
       <PageMeta title="Recover account" noindex />
       <RecoveryKeyDialog
         recoveryKey={newRecoveryKey}
-        description="Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never sent to the server."
+        description={
+          local
+            ? "Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never leaves this device."
+            : "Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never sent to the server."
+        }
         onDone={() => {
           setNewRecoveryKey(null);
           navigate(authPaths.login);
@@ -95,7 +128,7 @@ export default function RecoverPage() {
           </>
         }
       >
-        <HeroSteps steps={RECOVERY_STEPS} />
+        <HeroSteps steps={local ? LOCAL_RECOVERY_STEPS : RECOVERY_STEPS} />
       </AuthHero>
 
       <form onSubmit={handleSubmit(onSubmit)}>
@@ -110,14 +143,18 @@ export default function RecoverPage() {
 
             <CardContent>
               <FieldGroup className="gap-5">
-                <ControlledInput
-                  control={control}
-                  name="email"
-                  label="Email"
-                  type="email"
-                  autoComplete="username"
-                  leadingIcon={<MailIcon />}
-                />
+                {/* A local vault has no email: the field stays in the form, out of sight. */}
+                <div hidden={local}>
+                  <ControlledInput
+                    control={control}
+                    name="email"
+                    label="Email"
+                    type="email"
+                    autoComplete="username"
+                    disabled={local}
+                    leadingIcon={<MailIcon />}
+                  />
+                </div>
                 <ControlledInput
                   control={control}
                   name="recoveryKey"
@@ -154,16 +191,16 @@ export default function RecoverPage() {
                   hint={<PasswordsMatch control={control} />}
                 />
 
-                <AuthNote
-                  icon={<TriangleAlertIcon className="text-[#e0a100] dark:text-[#ffb23f]" />}
-                >
-                  You&apos;ll be{" "}
-                  <strong className="font-semibold">signed out on all devices</strong>.
-                </AuthNote>
-
-                {recoveryError && (
-                  <FieldError variant="box">{RECOVERY_ERROR_MESSAGES[recoveryError]}</FieldError>
+                {!local && (
+                  <AuthNote
+                    icon={<TriangleAlertIcon className="text-[#e0a100] dark:text-[#ffb23f]" />}
+                  >
+                    You&apos;ll be{" "}
+                    <strong className="font-semibold">signed out on all devices</strong>.
+                  </AuthNote>
                 )}
+
+                {error && <FieldError variant="box">{RECOVERY_ERROR_MESSAGES[error]}</FieldError>}
 
                 <Button type="submit" size="lg" className="w-full" disabled={loading}>
                   Reset password

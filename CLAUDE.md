@@ -195,6 +195,18 @@ Recovery (forgotten password, `auth/recovery-router.ts`):
 3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
 4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
 
+Local recovery (`local` profile, ADR 0001 D10): `useRecovery().recoverLocal` → `recoverLocalVault` unwraps the account key
+with the recovery wrap kept on the device, `generateUserKeys` → `Vault.setLocalKeyMaterial` replaces both wraps
+atomically; no server. An account's recovery is refused offline (`offline`).
+
+Password change (ADR 0001 D10, `useChangePassword`, one hook for both modes): `local` → `changeLocalPassword`
+(current password checked against the stored wrap, account key rewrapped on the device). `linked` → only `online`,
+blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the current password (for `freshAuthProcedure`),
+`user.startPasswordChange` (new OPAQUE registration; the email must be the session user's) and `finishPasswordChange`
+(attempt `passwordchange:<attemptId>` bound to the active `keySetId`; new key set with the recovery wrap carried over,
+new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
+Both modes drop the biometric enrollment (it holds the old password); recovery key and vault keys stay.
+
 ### Request Authentication
 
 Authenticated requests use HMAC-signed headers (no cookies):
@@ -266,7 +278,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — uses `protectedProcedure`
 - `vault` → `vaultRouter` (list, create, updateMeta)
-- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, publicKey — another user's public key by email)
+- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure`
 

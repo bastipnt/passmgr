@@ -455,7 +455,11 @@ describe("LoginPage local vault", () => {
     renderPage({ networkOffline: false });
 
     expect(screen.getByText("Vault on this device")).toBeInTheDocument();
-    expect(screen.queryByText(/forgot password/i)).not.toBeInTheDocument();
+    // Recovery stays on the device: no email, no server.
+    expect(screen.getByRole("link", { name: /forgot password/i })).toHaveAttribute(
+      "href",
+      "/recover?vault=local",
+    );
     expect(screen.getByLabelText("Email")).not.toBeVisible();
   });
 

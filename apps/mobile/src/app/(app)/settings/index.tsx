@@ -22,6 +22,7 @@ import { useContext, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { ReconnectSheet } from "@/features/auth/components/ReconnectSheet";
+import { ChangePasswordSheet } from "@/features/settings/components/ChangePasswordSheet";
 import { settingsPaths } from "@/route-paths";
 
 const STATUS: Record<SessionMode, string> = {
@@ -38,6 +39,7 @@ export default function SettingsScreen() {
   const { removeFromDevice, removing } = useRemoveFromDevice();
   const pendingChanges = usePendingChangeCount();
   const reconnectRef = useRef<BottomSheetRef>(null);
+  const changePasswordRef = useRef<BottomSheetRef>(null);
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
   const linked = profile?.mode === "linked";
 
@@ -77,6 +79,14 @@ export default function SettingsScreen() {
                   Sign in again
                 </Button>
               )}
+              <Button
+                size="lg"
+                variant="glass"
+                disabled={signingOut || removing}
+                onPress={() => changePasswordRef.current?.triggerShowHide(true)}
+              >
+                Change password
+              </Button>
               {linked && (
                 <Button
                   size="lg"
@@ -116,6 +126,7 @@ export default function SettingsScreen() {
       </ScrollView>
 
       <ReconnectSheet ref={reconnectRef} />
+      <ChangePasswordSheet ref={changePasswordRef} linked={linked} />
     </Screen>
   );
 }

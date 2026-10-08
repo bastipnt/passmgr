@@ -16,8 +16,9 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { CloudUploadIcon, LogOutIcon, TrashIcon } from "lucide-react";
+import { CloudUploadIcon, KeyRoundIcon, LogOutIcon, TrashIcon } from "lucide-react";
 import { useContext } from "react";
+import ChangePasswordDialog from "./ChangePasswordDialog";
 import CreateAccountDialog from "./CreateAccountDialog";
 
 const STATUS: Record<SessionMode, string> = {
@@ -33,7 +34,8 @@ const reload = () => window.location.reload();
 /**
  * Account actions (ADR 0001 D2): sign out ends the server session and keeps
  * the vault on this device; removing the vault deletes the local copy. A
- * local vault can become an online account (D9).
+ * local vault can become an online account (D9). The master password changes
+ * in both modes (D10).
  */
 export default function AccountSettings() {
   const { mode } = useContext(SessionContext);
@@ -60,6 +62,12 @@ export default function AccountSettings() {
             </Button>
           </CreateAccountDialog>
         )}
+        <ChangePasswordDialog linked={linked}>
+          <Button variant="outline" disabled={signingOut || removing}>
+            <KeyRoundIcon />
+            Change password
+          </Button>
+        </ChangePasswordDialog>
         {linked && (
           <Button
             variant="outline"

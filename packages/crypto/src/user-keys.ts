@@ -1,5 +1,6 @@
 import type {
   EncryptedVaultMeta,
+  RecoveryKeySchema,
   RecoveryWrapSchema,
   UserKeySchema,
   VaultKeyWrap,
@@ -93,6 +94,42 @@ export function createVault(
 }
 
 /**
+ * Wrap the account key under a fresh recovery key (HKDF, no Argon2), with the
+ * server-side recovery verifier.
+ *
+ * @param accountKey the account key to wrap. It is not wiped.
+ * @returns the recovery wrap + verifier and the new recoveryKey (show to the
+ *   user once, never send to the server; the caller wipes it)
+ */
+export async function generateRecoveryKeys(
+  accountKey: Uint8Array,
+): Promise<RecoveryKeySchema & { recoveryKey: Uint8Array }> {
+  const recoveryKey = genKey();
+  const recoveryKekSaltData = genSalt();
+
+  const recoveryKek = await hkdf(recoveryKey, "recoveryRootKey", recoveryKekSaltData);
+  const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);
+  const recoveryVerifier = toBase64(await hashRecoveryAuthKey(recoveryAuthKey));
+
+  const [encryptedAccountKeyRecovery, accountKeyEncryptionNonceRecovery] = wrapAccountKey(
+    recoveryKek,
+    accountKey,
+  );
+  const recoveryKekSalt = toBase64(recoveryKekSaltData);
+
+  for (const buf of [recoveryKekSaltData, recoveryKek, recoveryAuthKey]) wipe(buf);
+
+  return {
+    // only show to user, never sent to backend
+    recoveryKey,
+    recoveryKekSalt,
+    recoveryVerifier,
+    encryptedAccountKeyRecovery,
+    accountKeyEncryptionNonceRecovery,
+  };
+}
+
+/**
  * Build a complete key set for an account: the account key wrapped once under
  * the Argon2id password KEK and once under a fresh recovery key, plus the
  * server-side recovery verifier.
@@ -108,43 +145,18 @@ export async function generateUserKeys(
   password: string,
   accountKey: Uint8Array,
 ): Promise<UserKeySchema & { recoveryKey: Uint8Array }> {
-  const recoveryKey = genKey();
-  const recoveryKekSaltData = genSalt();
-
   const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(password);
-  const recoveryKek = await hkdf(recoveryKey, "recoveryRootKey", recoveryKekSaltData);
-  const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);
-  const recoveryVerifier = toBase64(await hashRecoveryAuthKey(recoveryAuthKey));
-
   const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(passwordKek, accountKey);
-  const [encryptedAccountKeyRecovery, accountKeyEncryptionNonceRecovery] = wrapAccountKey(
-    recoveryKek,
-    accountKey,
-  );
-
-  const recoveryKekSalt = toBase64(recoveryKekSaltData);
   const passwordKekSalt = toBase64(passwordKekSaltData);
-
-  for (const buf of [recoveryKekSaltData, passwordKekSaltData, passwordKek, recoveryKek]) {
-    wipe(buf);
-  }
-  wipe(recoveryAuthKey);
+  wipe(passwordKek);
+  wipe(passwordKekSaltData);
 
   return {
-    // only show to user, never sent to backend
-    recoveryKey,
-
-    recoveryKekSalt,
-    recoveryVerifier,
-
+    ...(await generateRecoveryKeys(accountKey)),
     passwordKekParams,
     passwordKekSalt,
-
     encryptedAccountKey,
     accountKeyEncryptionNonce,
-
-    encryptedAccountKeyRecovery,
-    accountKeyEncryptionNonceRecovery,
   };
 }
 

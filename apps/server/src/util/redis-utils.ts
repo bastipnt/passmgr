@@ -31,6 +31,12 @@ type RecoveryAttempt = {
   keySetId: string;
 };
 
+type PasswordChangeAttempt = {
+  userId: string;
+  // Active key set when the change started; finish refuses if it changed since.
+  keySetId: string;
+};
+
 type Invite = {
   // When set, the invite can only register this exact email.
   email?: string;
@@ -57,6 +63,10 @@ function loginKey(attemptId: string) {
 
 function recoveryKey(attemptId: string) {
   return `recovery:${attemptId}`;
+}
+
+function passwordChangeKey(attemptId: string) {
+  return `passwordchange:${attemptId}`;
 }
 
 // Unix ms before which every session of this user is invalid (see
@@ -148,6 +158,28 @@ export async function setRecoveryAttempt(attempt: RecoveryAttempt): Promise<stri
 /** Atomically fetch and delete a recovery attempt — each attempt finishes at most once. */
 export async function takeRecoveryAttempt(attemptId: string): Promise<RecoveryAttempt | undefined> {
   const raw = await redis.getdel(recoveryKey(attemptId));
+  if (raw === null) return undefined;
+
+  return JSON.parse(raw);
+}
+
+/** Store a password change attempt and return its id (for finishPasswordChange). */
+export async function setPasswordChangeAttempt(attempt: PasswordChangeAttempt): Promise<string> {
+  const attemptId = crypto.randomUUID();
+  await redis.set(
+    passwordChangeKey(attemptId),
+    JSON.stringify(attempt),
+    "EX",
+    LOGIN_ATTEMPT_TTL_SECONDS,
+  );
+  return attemptId;
+}
+
+/** Atomically fetch and delete a password change attempt — each finishes at most once. */
+export async function takePasswordChangeAttempt(
+  attemptId: string,
+): Promise<PasswordChangeAttempt | undefined> {
+  const raw = await redis.getdel(passwordChangeKey(attemptId));
   if (raw === null) return undefined;
 
   return JSON.parse(raw);

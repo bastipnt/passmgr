@@ -29,6 +29,16 @@ export const finishRecoveryInputSchema = z.object({
   userKeys: userKeySchema,
 });
 
+const passwordFields = {
+  password: z.string().min(8),
+  confirmPassword: z.string(),
+};
+
+const passwordsMatch = {
+  path: ["confirmPassword"],
+  message: "Passwords do not match",
+};
+
 /**
  * Recovery form (web + mobile). The recovery key is only trimmed here; the
  * client's `parseRecoveryKey` validates its encoding.
@@ -37,12 +47,20 @@ export const recoverFormSchema = z
   .object({
     email: z.email(),
     recoveryKey: z.string().trim().min(1, "Enter your recovery key"),
-    password: z.string().min(8),
-    confirmPassword: z.string(),
+    ...passwordFields,
   })
-  .refine((v) => v.password === v.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  });
+  .refine((v) => v.password === v.confirmPassword, passwordsMatch);
+
+/**
+ * Recovery of a vault on this device only (`local` profile): the form has the
+ * same fields, but the (hidden) email isn't checked.
+ */
+export const localRecoverFormSchema = z
+  .object({
+    email: z.string(),
+    recoveryKey: z.string().trim().min(1, "Enter your recovery key"),
+    ...passwordFields,
+  })
+  .refine((v) => v.password === v.confirmPassword, passwordsMatch);
 
 export type RecoverFormValues = z.infer<typeof recoverFormSchema>;

@@ -305,6 +305,24 @@ export class Vault {
     });
   }
 
+  /**
+   * Replace both account key wraps of a local vault, atomically (local
+   * recovery, ADR 0001 D10: a new password and a new recovery key). Refuses
+   * (throws) for any profile but a `local` one: a linked vault's key set is
+   * the server's.
+   */
+  async setLocalKeyMaterial(
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+  ): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => {
+      if ((await getProfile(tx))?.mode !== "local") throw new Error("Not a local vault");
+      await upsertAccountKey(material, tx);
+      await upsertRecoveryKey(recovery, tx);
+    });
+  }
+
   /** The recovery wrap + verifier of a local vault; null for a linked one (the server holds it). */
   async getRecoveryKeyMaterial(): Promise<RecoveryKeySchema | null> {
     await this.ready();

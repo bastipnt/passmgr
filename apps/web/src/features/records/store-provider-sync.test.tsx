@@ -1,6 +1,11 @@
 import { SessionContext, type SessionMode } from "@repo/client";
 import { StoreProvider } from "@repo/client/src/providers/StoreProvider";
-import type { PendingChange, ProfileEntry, ProfileStore } from "@repo/store";
+import {
+  type PendingChange,
+  type ProfileEntry,
+  type ProfileStore,
+  secretsStore,
+} from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -144,6 +149,31 @@ describe("StoreProvider sync", () => {
     renderWithProviders(ui("online"));
 
     await waitFor(() => expect(detachServer).toHaveBeenCalledTimes(1));
+  });
+
+  it("ignores a late rejection of a session that was replaced meanwhile", async () => {
+    const unauthorized = TRPCClientError.from({
+      error: {
+        code: -32001,
+        message: "UNAUTHORIZED",
+        data: { code: "UNAUTHORIZED", httpStatus: 401 },
+      },
+    });
+    secretsStore.sessionId = "s-old";
+    try {
+      // The answer arrives after a new session was attached (a password change).
+      trpcClient.record.sync.query.mockImplementation(async () => {
+        secretsStore.sessionId = "s-new";
+        throw unauthorized;
+      });
+      renderWithProviders(ui("online"));
+
+      await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(detachServer).not.toHaveBeenCalled();
+    } finally {
+      secretsStore.sessionId = undefined;
+    }
   });
 
   it("pushes pending local versions in one record.push before pulling", async () => {

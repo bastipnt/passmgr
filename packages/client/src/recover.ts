@@ -1,16 +1,24 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
 import {
   deriveRecoveryAuthKey,
+  generateRecoveryKeys,
   generateUserKeys,
   normalizeEmail,
   unwrapAccountKeyWithRecoveryKey,
+  unwrapVaultKey,
   wipe,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import type { RecoveryWrapSchema } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  MemberVault,
+  RecoveryKeySchema,
+  RecoveryWrapSchema,
+} from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
+import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { LoginThrottledError } from "./login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 import { isThrottled } from "./util/trpc-errors";
@@ -20,6 +28,14 @@ export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
 /** The entered recovery key isn't a well-formed key (typo, truncated paste). */
 export class RecoveryKeyInvalidError extends Error {
   override message = "RecoveryKeyInvalidError";
+}
+
+/**
+ * The recovery key opens its wrap, but not to the key of this vault: the
+ * stored key material is inconsistent. Nothing may be overwritten with it.
+ */
+export class LocalRecoveryMismatchError extends Error {
+  override message = "LocalRecoveryMismatchError";
 }
 
 /** Wrong email / recovery key, expired attempt, or a server-side failure. */
@@ -133,5 +149,66 @@ export async function recoverAccount(
   } finally {
     wipe(recoveryKey);
     if (accountKey) wipe(accountKey);
+  }
+}
+
+/** What a local recovery stores in place of the old key wraps, and the key to show once. */
+export type LocalRecovery = {
+  material: AccountKeyMaterial;
+  recovery: RecoveryKeySchema;
+  /** Plaintext: the caller shows it once, then wipes it. Never sent anywhere. */
+  recoveryKey: Uint8Array;
+};
+
+/**
+ * Reset the master password of a `local` profile with the recovery key (ADR
+ * 0001 D10), on the device only: unwrap the account key with the recovery
+ * wrap kept at creation and wrap that same key under the new password (Argon2
+ * in the worker) and a fresh recovery key. Vault keys and the keypair stay, so
+ * every record stays readable; the old recovery key stops working once the
+ * result is stored.
+ *
+ * The recovered key must open the personal vault: the result replaces the
+ * only password wrap on the device, and one around another key would lock
+ * the vault for good.
+ *
+ * Throws `RecoveryKeyInvalidError` (malformed key), `RecoveryFailedError`
+ * (the key doesn't open the wrap) or `LocalRecoveryMismatchError`.
+ */
+export async function recoverLocalVault(
+  material: AccountKeyMaterial,
+  recovery: RecoveryKeySchema,
+  vaults: readonly MemberVault[],
+  rawRecoveryKey: string,
+  newPassword: string,
+): Promise<LocalRecovery> {
+  const recoveryKey = parseRecoveryKey(rawRecoveryKey);
+  let accountKey: Uint8Array;
+  try {
+    accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, recovery);
+  } catch {
+    throw new RecoveryFailedError();
+  } finally {
+    wipe(recoveryKey);
+  }
+
+  try {
+    const personal = vaults.find((v) => v.kind === "personal");
+    try {
+      if (!personal) throw new Error("no personal vault");
+      wipe(unwrapVaultKey(accountKey, personal));
+    } catch {
+      throw new LocalRecoveryMismatchError();
+    }
+
+    const passwordWrap = await wrapGivenAccountKeyForPassword(newPassword, accountKey);
+    const { recoveryKey: newRecoveryKey, ...newRecovery } = await generateRecoveryKeys(accountKey);
+    return {
+      material: { ...passwordWrap, userKeyPair: material.userKeyPair },
+      recovery: newRecovery,
+      recoveryKey: newRecoveryKey,
+    };
+  } finally {
+    wipe(accountKey);
   }
 }

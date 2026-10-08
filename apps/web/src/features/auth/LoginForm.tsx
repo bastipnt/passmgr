@@ -38,8 +38,8 @@ type LoginFormProps = {
   /** Unlock mode: the email is fixed and `account` replaces the email field. */
   storedEmail?: string;
   /**
-   * Unlock mode for a vault without an account: password only, no recovery
-   * link. Can change while mounted (the profile loads late): the resolver is
+   * Unlock mode for a vault without an account: password only, recovery on
+   * the device. Can change while mounted (the profile loads late): the resolver is
    * read on every render, so typed input survives the switch.
    */
   localVault?: boolean;
@@ -140,12 +140,12 @@ export default function LoginForm({
                 autoComplete="current-password"
                 leadingIcon={<LockIcon />}
                 labelAction={
-                  // TODO(offline-first): local recovery with the recovery key (ADR 0001 D10).
-                  !localVault && (
-                    <AuthTextLink href={authPaths.recover} tone="muted">
-                      Forgot password?
-                    </AuthTextLink>
-                  )
+                  <AuthTextLink
+                    href={localVault ? authPaths.recoverLocal : authPaths.recover}
+                    tone="muted"
+                  >
+                    Forgot password?
+                  </AuthTextLink>
                 }
               />
 

@@ -32,7 +32,8 @@ type FormValues = z.infer<typeof credentialsSchema>;
 type SignInSheetProps = {
   ref: Ref<BottomSheetRef>;
   /** Opens the recovery-key flow. */
-  onForgotPassword: () => void;
+  /** `local`: the active profile is a vault on this device only (recovered there). */
+  onForgotPassword: (local: boolean) => void;
 };
 
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
@@ -158,19 +159,16 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           label="Password"
           textContentType="password"
           note={
-            // TODO(offline-first): local recovery with the recovery key (ADR 0001 D10).
-            !localVault && (
-              <Pressable
-                className="mt-1 self-end"
-                hitSlop={8}
-                onPress={() => {
-                  sheetRef.current?.triggerShowHide(false);
-                  onForgotPassword();
-                }}
-              >
-                <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
-              </Pressable>
-            )
+            <Pressable
+              className="mt-1 self-end"
+              hitSlop={8}
+              onPress={() => {
+                sheetRef.current?.triggerShowHide(false);
+                onForgotPassword(localVault);
+              }}
+            >
+              <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
+            </Pressable>
           }
         />
       </FormLock>

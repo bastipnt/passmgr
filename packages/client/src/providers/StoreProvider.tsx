@@ -108,6 +108,15 @@ type StoreContextValue = {
     profile?: LocalProfile,
   ) => Promise<void>;
   /**
+   * Replace both account key wraps of a `local` profile (local recovery, ADR
+   * 0001 D10), atomically, and update the state to match.
+   */
+  saveLocalKeyMaterial: (
+    profileId: string,
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+  ) => Promise<void>;
+  /**
    * Add a profile with a vault on this device only (`local`, ADR 0001 D2) next
    * to the others and make it the active one. Locked only.
    */
@@ -240,13 +249,17 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     }
 
     // Requests fail fast offline, and an expired session detaches the server.
+    // Only the session the request was signed with: a late answer to an old
+    // one (a password change revokes every session, then logs in again) must
+    // not detach its successor.
     async function request<T>(send: () => Promise<T>): Promise<T> {
       if (typeof navigator !== "undefined" && navigator.onLine === false)
         throw new Error("offline");
+      const sessionId = secretsStore.sessionId;
       try {
         return await send();
       } catch (e) {
-        if (isUnauthorized(e)) onUnauthorized();
+        if (isUnauthorized(e) && secretsStore.sessionId === sessionId) onUnauthorized();
         throw e;
       }
     }
@@ -489,6 +502,16 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     });
   }
 
+  async function saveLocalKeyMaterial(
+    profileId: string,
+    material: AccountKeyMaterial,
+    recovery: RecoveryKeySchema,
+  ) {
+    await profiles.withVault(profileId, (vault) => vault.setLocalKeyMaterial(material, recovery));
+    const open = activeRef.current;
+    if (open?.entry.profileId === profileId) setActive({ ...open, accountKeyMaterial: material });
+  }
+
   async function createLocalVault(
     material: AccountKeyMaterial,
     recovery: RecoveryKeySchema,
@@ -576,6 +599,7 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     selectProfile,
     openAccountProfile,
     saveAccount,
+    saveLocalKeyMaterial,
     createLocalVault,
     countPendingChanges,
     removeProfile,

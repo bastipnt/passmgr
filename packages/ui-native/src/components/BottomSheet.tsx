@@ -21,6 +21,8 @@ type BottomSheetProps = Omit<BottomSheetPrimitiveProps, "isPresented" | "onDismi
    * custom node (e.g. a submit button) to replace it.
    */
   footer?: ReactNode;
+  /** The user dismissed the sheet (swipe, tap outside). */
+  onDismiss?: () => void;
   ref: Ref<BottomSheetRef>;
 };
 
@@ -28,6 +30,7 @@ function BottomSheet({
   children,
   className,
   footer,
+  onDismiss,
   ref,
   snapPoints = ["half"],
   ...props
@@ -42,7 +45,10 @@ function BottomSheet({
     <BottomSheetPrimitive
       {...props}
       isPresented={isPresented}
-      onDismiss={() => setIsPresented(false)}
+      onDismiss={() => {
+        setIsPresented(false);
+        onDismiss?.();
+      }}
       snapPoints={snapPoints}
     >
       <RNHostView>
