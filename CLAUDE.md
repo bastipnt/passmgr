@@ -184,6 +184,9 @@ Durability (ADR 0001 D12): web asks `navigator.storage.persist()` on create (`St
 a `local` profile gets a backup reminder (`useBackupReminder`, from the registry's `lastExportAt` —
 `ProfileStore.markExported`). Mobile databases are in iCloud / Android Auto Backup
 (`apps/mobile/plugins/with-android-backup.js`), SecureStore values are not.
+Export (`useExport`, ADR 0001 D12 amended): encrypted backup (`ExportEnvelope`: Argon2id over an export
+password + XChaCha20, `decryptExport` reads it back; moves `lastExportAt`) or plain JSON / CSV. Every format
+re-checks the master password. Web: Settings → Security → Export.
 
 Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →
 `registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,

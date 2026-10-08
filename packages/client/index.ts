@@ -1,5 +1,8 @@
 // Utils
 
+// Export
+export * from "./src/export/collect-export";
+export * from "./src/export/export-file";
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
@@ -10,6 +13,7 @@ export * from "./src/hooks/use-connect-server";
 export * from "./src/hooks/use-create-local-vault";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
+export * from "./src/hooks/use-export";
 export * from "./src/hooks/use-generator-defaults";
 export * from "./src/hooks/use-link-account";
 export * from "./src/hooks/use-lock";

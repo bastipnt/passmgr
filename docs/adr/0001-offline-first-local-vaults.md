@@ -563,6 +563,28 @@ to another vault is re-encrypted anyway (D6).
 >   exceeds 25 MB entirely: a vault with a long history can outgrow it (then excluding the
 >   history, or the export, is the way out). The rules are written at prebuild: an existing
 >   `apps/mobile/android` needs `expo prebuild --clean` (or a new EAS build) to pick them up.
+>
+> **Amended 2026-10-08** (export implementation):
+>
+> - One plaintext document (`ExportData`, `@repo/schema` `export-schema.ts`): every vault (id,
+>   decrypted name, kind) and the current version of every live record, unsynced local edits
+>   included; no history, no keys. Read from the local database (`collectExportData`), so it works
+>   in `local` mode and offline. A record that doesn't open is left out and counted (`skipped`).
+> - **Encrypted backup**: `ExportData` sealed in an `ExportEnvelope` (`@repo/crypto`
+>   `export-envelope.ts`): Argon2id (master-password cost, new salt) over a password chosen for the
+>   file, XChaCha20-Poly1305, AAD `passmgr/export/v1`. It opens without the account, and it counts
+>   as a backup: `ProfileStore.markExported` puts the reminder off.
+> - **Every export asks for the master password** (checked against the stored wrap): otherwise
+>   whoever sits at an unlocked session takes the whole vault in one click, an encrypted backup
+>   included, since they pick its password.
+> - **Plain JSON / CSV**: the same data unencrypted, behind a warning; not counted as a backup. CSV: login columns plus a `fields`
+>   column ("key: value" lines) for every other type, so nothing is dropped. Free-text columns
+>   get a `'` before a leading `=`/`+`/`-`/`@` (CSV injection from a shared vault); credentials
+>   stay unchanged for the importer. Reading an export back (`decryptExport`) checks each
+>   record's id, vault and type, not its fields: one odd record must not make a backup unreadable.
+> - The encrypted export counts once saved (`useExport().markSaved`), not when it is built.
+> - Web: Settings → Security → Export; the reminder's "Back up" leads there. Mobile has no export
+>   UI yet (`useExport` is shared; saving the file needs a share sheet).
 
 ## Consequences
 

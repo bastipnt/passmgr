@@ -67,7 +67,7 @@ describe("BackupReminder", () => {
     expect(toast.warning).toHaveBeenCalledOnce();
   });
 
-  it("links to the account settings", async () => {
+  it("links to the export and account settings", async () => {
     renderWithProviders(<BackupReminder />);
     await waitFor(() => expect(toast.warning).toHaveBeenCalledOnce());
     shown().action.onClick();
