@@ -472,6 +472,25 @@ account gets its own, the local one stays as it is. Merging stays an option the 
 
 There is never a silent wipe.
 
+> **Amended 2026-10-08** (linking implementation): `finishRegistration` takes the keyring as it is
+> plus an optional `vaults` list (the local vault's other vaults, created `shared` + owner, at most
+> `MAX_REGISTRATION_VAULTS`); no separate `linkVault`. `useLinkAccount` (web: "Create online
+> account" in the account settings of a `local` profile; mobile UI comes with the offline-first UI
+> ticket) checks the password against the stored wrap, builds the keyring from the stored password
+> wrap, recovery wrap + verifier, keypair and vaults (`localVaultKeyring`), then
+> `registerLocalVault`: `registerAccount` (the OPAQUE half of `registerNewUser`) and a login whose
+> session is held back. The login decides, not the registration: the server answers a taken email
+> like a new one, and on a retry the invite is already spent, so a registration error only counts
+> when the login fails too. The account must hold this vault's public key, otherwise the email
+> belongs to another account (`rejected`). Then `saveAccount` turns the profile `linked` (registry
+> too) and drops the local recovery wrap in the same transaction, and `SessionContext.linkServer`
+> attaches the session and switches the mode `local` → `online`, in that order: going online
+> starts the sync. **The upload is the outbox:** every local write already has an outbox entry, so
+> the first sync pushes every record with its full history in `record.push` batches, and an
+> interrupted upload simply continues with the next sync. A failure before the profile is linked
+> leaves the device untouched; linking again finishes it (same account). Merge / replace when
+> signing into an existing account stays open (separate profile is the default).
+
 ### D10 — Account operations without a server
 
 - **Local mode:** password change (rewrap `accountKey`), Argon2 rekey, recovery with the

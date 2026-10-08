@@ -72,7 +72,8 @@ export const registrationRouter = router({
     .input(finishRegistrationInputSchema)
     .mutation(async ({ input, ctx }) => {
       const log = ctx.req?.log;
-      const { email, registrationRecord, userKeys, personalVault, userKeyPair, invite } = input;
+      const { email, registrationRecord, userKeys, personalVault, userKeyPair, vaults, invite } =
+        input;
       await assertRegistrationAllowed(email, invite, { consume: true });
 
       const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(
@@ -110,6 +111,26 @@ export const registrationRouter = router({
           await tx
             .insert(vaultMembersTable)
             .values({ vaultId, ...vaultKey, userId: user.userId, role: "owner" });
+          // A linked local vault's other vaults (ADR 0001 D9), owned by the new user like
+          // `vault.create` would make them.
+          if (vaults?.length) {
+            await tx.insert(vaultsTable).values(
+              vaults.map(({ vaultId, encryptedMeta, metaEncryptionNonce }) => ({
+                vaultId,
+                ownerId: user.userId,
+                kind: "shared" as const,
+                encryptedMeta,
+                metaEncryptionNonce,
+              })),
+            );
+            await tx.insert(vaultMembersTable).values(
+              vaults.map(({ encryptedMeta: _meta, metaEncryptionNonce: _nonce, ...extraKey }) => ({
+                ...extraKey,
+                userId: user.userId,
+                role: "owner" as const,
+              })),
+            );
+          }
           return true;
         })
         .catch((error: unknown) => {

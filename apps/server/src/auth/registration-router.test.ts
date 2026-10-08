@@ -1,4 +1,6 @@
+import { createVault } from "@repo/crypto";
 import { db, userKeyPairsTable, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
 import { clientStartRegistration } from "../../test/setup/opaque-client";
@@ -17,6 +19,7 @@ async function runRegistration(
   invite?: string,
   vaultId?: string,
   publicKey?: string,
+  extraVaults?: (accountKey: Uint8Array) => ReturnType<typeof createVault>[],
 ) {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartRegistration(password);
@@ -36,6 +39,7 @@ async function runRegistration(
     userKeys,
     personalVault,
     userKeyPair,
+    vaults: extraVaults?.(keys.accountKey),
     invite,
   });
 }
@@ -115,6 +119,44 @@ describe("registrationRouter — edge cases", () => {
     expect(await db.select().from(usersTable)).toHaveLength(1);
     expect(await db.select().from(vaultsTable)).toHaveLength(1);
     expect(await db.select().from(userKeyPairsTable)).toHaveLength(1);
+  });
+
+  it("creates the other vaults of a linked local vault, owned by the new user", async () => {
+    let work: ReturnType<typeof createVault> | undefined;
+    await runRegistration("alice@example.com", "pw", undefined, undefined, undefined, (key) => {
+      work = createVault(key, { name: "Work" });
+      return [work];
+    });
+
+    const [user] = await db.select().from(usersTable);
+    const vaults = await db.select().from(vaultsTable);
+    expect(vaults).toHaveLength(2);
+    expect(vaults.find((v) => v.vaultId === work!.vaultId)).toMatchObject({
+      ownerId: user!.userId,
+      kind: "shared",
+      encryptedMeta: work!.encryptedMeta,
+    });
+    expect(
+      await db.select().from(vaultMembersTable).where(eq(vaultMembersTable.vaultId, work!.vaultId)),
+    ).toEqual([
+      expect.objectContaining({
+        userId: user!.userId,
+        role: "owner",
+        encryptedVaultKey: work!.encryptedVaultKey,
+      }),
+    ]);
+  });
+
+  it("finishRegistration → BAD_REQUEST when a vault is named twice, and rolls back the new user", async () => {
+    await expect(
+      runRegistration("alice@example.com", "pw", undefined, undefined, undefined, (key) => {
+        const twice = createVault(key, { name: "Twice" });
+        return [twice, twice];
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    expect(await db.select().from(usersTable)).toHaveLength(0);
+    expect(await db.select().from(vaultsTable)).toHaveLength(0);
   });
 
   it("finishRegistration → BAD_REQUEST on malformed userKeys (Zod)", async () => {

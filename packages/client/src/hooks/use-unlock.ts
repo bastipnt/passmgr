@@ -1,15 +1,13 @@
 import { authenticateBiometric, normalizeEmail, wipe } from "@repo/crypto";
-import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type { AccountKeyMaterial, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
+import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
-import { fromBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
 import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
+import { derivePasswordKek } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
-import { timed } from "../util/perf";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
 import { type ConnectResult, canReleasePassword, useConnectServer } from "./use-connect-server";
@@ -21,14 +19,6 @@ import { useLogin } from "./use-login";
  *   (adding an account needs the server)
  */
 export type UnlockError = "failed" | "wrong_account";
-
-async function derivePasswordKek(password: string, keys: PasswordKeySchema): Promise<Uint8Array> {
-  const { passwordKekParams } = keys;
-  return await timed(
-    `argon2 derive (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
-    () => argon2WorkerService.derive(password, fromBase64(keys.passwordKekSalt), passwordKekParams),
-  );
-}
 
 export function useUnlock() {
   const [unlockError, setUnlockError] = useState<UnlockError>();

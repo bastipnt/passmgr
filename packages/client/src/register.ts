@@ -1,6 +1,7 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
 import { normalizeEmail, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
+import type { FinishRegistrationInput } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import { generateKeyring } from "./account/new-keyring";
@@ -15,6 +16,12 @@ export class RegistrationStartFailedError extends Error {
 export class RegistrationFinishFailedError extends Error {
   override message = "RegistrationFinishFailedError";
 }
+
+/** What `finishRegistration` stores: the key set, the personal vault, the keypair, other vaults. */
+export type RegistrationKeyring = Pick<
+  FinishRegistrationInput,
+  "userKeys" | "personalVault" | "userKeyPair" | "vaults"
+>;
 
 /**
  * Drive a full OPAQUE registration handshake + key derivation: a new account
@@ -33,6 +40,46 @@ export async function registerNewUser(
   password: string,
   invite?: string,
 ): Promise<Uint8Array> {
+  let recoveryKey: Uint8Array | undefined;
+  try {
+    // Derived once the server took the request: a refused one costs no Argon2.
+    await registerAccount(
+      trpc,
+      rawEmail,
+      password,
+      async () => {
+        // Only its wraps leave this function.
+        const { accountKey, recoveryKey: key, ...keyring } = await generateKeyring(password);
+        wipe(accountKey);
+        recoveryKey = key;
+        return keyring;
+      },
+      invite,
+    );
+  } catch (e) {
+    if (recoveryKey) wipe(recoveryKey);
+    throw e;
+  }
+  if (!recoveryKey) throw new RegistrationFinishFailedError();
+  return recoveryKey;
+}
+
+/**
+ * The OPAQUE registration for `email` + `password`, storing the keyring
+ * `getKeyring` resolves on the server as the account's keys: a new one
+ * (`registerNewUser`) or a local vault's (linking, ADR 0001 D9). It's asked
+ * for only once the server answered the registration request. Like the server, it doesn't tell whether the
+ * email was taken: an account that exists already is left as it is.
+ *
+ * Throws RegistrationStartFailedError or RegistrationFinishFailedError.
+ */
+export async function registerAccount(
+  trpc: RegistrationTRPCClient,
+  rawEmail: string,
+  password: string,
+  getKeyring: () => RegistrationKeyring | Promise<RegistrationKeyring>,
+  invite?: string,
+): Promise<void> {
   const email = normalizeEmail(rawEmail);
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
 
@@ -65,25 +112,16 @@ export async function registerNewUser(
   if (finished instanceof Error) throw new RegistrationFinishFailedError();
 
   const registrationRecord = bytesToB64(finished.record.serialize());
-
-  // Only its wraps leave this function.
-  const { accountKey, recoveryKey, userKeys, personalVault, userKeyPair } =
-    await generateKeyring(password);
-  wipe(accountKey);
+  const keyring = await getKeyring();
 
   try {
     await trpc.register.finishRegistration.mutate({
       email,
       registrationRecord,
-      userKeys,
-      personalVault,
-      userKeyPair,
+      ...keyring,
       invite,
     });
   } catch {
-    wipe(recoveryKey);
     throw new RegistrationFinishFailedError();
   }
-
-  return recoveryKey;
 }

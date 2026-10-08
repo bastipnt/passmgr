@@ -87,6 +87,7 @@ const session: ContextType<typeof SessionContext> = {
   networkOffline: true,
   attachServer,
   detachServer,
+  linkServer: vi.fn(),
   restoreLogin: vi.fn(),
   unlockVault,
   unlockWithAccountKey: vi.fn(),

@@ -16,8 +16,9 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { LogOutIcon, TrashIcon } from "lucide-react";
+import { CloudUploadIcon, LogOutIcon, TrashIcon } from "lucide-react";
 import { useContext } from "react";
+import CreateAccountDialog from "./CreateAccountDialog";
 
 const STATUS: Record<SessionMode, string> = {
   local: "This vault lives only on this device. It has no account and is not backed up.",
@@ -31,7 +32,8 @@ const reload = () => window.location.reload();
 
 /**
  * Account actions (ADR 0001 D2): sign out ends the server session and keeps
- * the vault on this device; removing the vault deletes the local copy.
+ * the vault on this device; removing the vault deletes the local copy. A
+ * local vault can become an online account (D9).
  */
 export default function AccountSettings() {
   const { mode } = useContext(SessionContext);
@@ -50,6 +52,14 @@ export default function AccountSettings() {
         <ItemDescription>{STATUS[mode]}</ItemDescription>
       </ItemContent>
       <ItemActions className="flex-wrap">
+        {!linked && (
+          <CreateAccountDialog>
+            <Button variant="outline" disabled={removing}>
+              <CloudUploadIcon />
+              Create online account
+            </Button>
+          </CreateAccountDialog>
+        )}
         {linked && (
           <Button
             variant="outline"

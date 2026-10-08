@@ -84,6 +84,11 @@ export async function getRecoveryKey(db: LocalDb): Promise<RecoveryKeySchema | n
   return parsed.success ? parsed.data : null;
 }
 
+/** Linking: the server holds the recovery wrap from then on (ADR 0001 D9). */
+export async function clearRecoveryKey(db: LocalDb): Promise<void> {
+  await db.delete(keyMaterial).where(inArray(keyMaterial.key, RECOVERY_KEY_MATERIAL_KEYS));
+}
+
 /**
  * BIOMETRIC KEYS
  */

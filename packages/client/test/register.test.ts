@@ -14,9 +14,19 @@ import {
   unwrapVaultKey,
 } from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { generateKeyring } from "../src/account/new-keyring";
 import { b64ToBytes, bytesToB64, SERVER_IDENTITY } from "../src/opaque";
-import { type RegistrationTRPCClient, registerNewUser } from "../src/register";
+import {
+  RegistrationStartFailedError,
+  type RegistrationTRPCClient,
+  registerNewUser,
+} from "../src/register";
+
+vi.mock("../src/account/new-keyring", async (importActual) => {
+  const actual = await importActual<typeof import("../src/account/new-keyring")>();
+  return { generateKeyring: vi.fn(actual.generateKeyring) };
+});
 
 type FinishInput = Parameters<
   RegistrationTRPCClient["register"]["finishRegistration"]["mutate"]
@@ -89,6 +99,20 @@ describe("registerNewUser", () => {
     expect(userKeyPair.keyVersion).toBe(1);
     expect(unwrapUserPrivateKey(accountKey, userKeyPair)).toHaveLength(32);
     expect(unwrapVaultKey(accountKey, personalVault)).toHaveLength(32);
+  });
+
+  it("derives no keys when the server refuses the registration", async () => {
+    const { trpc, finished } = await fakeServer();
+    vi.mocked(generateKeyring).mockClear();
+    trpc.register.startRegistration.mutate = async () => {
+      throw new Error("FORBIDDEN");
+    };
+
+    await expect(registerNewUser(trpc, EMAIL, PASSWORD)).rejects.toThrow(
+      RegistrationStartFailedError,
+    );
+    expect(generateKeyring).not.toHaveBeenCalled();
+    expect(finished).toHaveLength(0);
   });
 
   it("creates a new keypair per registration", async () => {

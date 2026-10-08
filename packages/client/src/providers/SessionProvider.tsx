@@ -25,6 +25,13 @@ type SessionContextValue = {
   attachServer: (sessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
   /** Drop the server session keys (ended or expired): `online` → `offline`. */
   detachServer: () => void;
+  /**
+   * The unlocked `local` profile was just linked to an account (ADR 0001 D9):
+   * attach its first server session, `local` → `online` (`offline` when
+   * attaching throws). The profile row must say `linked` already: being online
+   * starts the sync, which uploads it.
+   */
+  linkServer: (sessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
 
   /**
    * Restore a persisted bundle on app reopen (mobile): the vault from the
@@ -70,6 +77,7 @@ export const SessionContext = createContext<SessionContextValue>({
   networkOffline: false,
   async attachServer() {},
   detachServer() {},
+  async linkServer() {},
   restoreLogin() {},
   unlockVault() {},
   unlockWithAccountKey() {},
@@ -146,6 +154,17 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     setServerAttached(false);
   }, []);
 
+  const linkServer = useCallback(
+    async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+      if (!secretsStore.isVaultUnlocked) throw new Error("Unlock the vault before linking it");
+      // Linked first: should attaching fail, the session is `offline`, like any linked one.
+      setProfileMode("linked");
+      await secretsStore.unlockSession(sessionId, sessionKey, salt);
+      setServerAttached(true);
+    },
+    [],
+  );
+
   const restoreLogin = useCallback(
     (
       mode: ProfileMode,
@@ -207,6 +226,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       networkOffline,
       attachServer,
       detachServer,
+      linkServer,
       restoreLogin,
       unlockVault,
       unlockWithAccountKey,
@@ -219,6 +239,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       networkOffline,
       attachServer,
       detachServer,
+      linkServer,
       restoreLogin,
       unlockVault,
       unlockWithAccountKey,

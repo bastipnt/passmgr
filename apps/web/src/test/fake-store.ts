@@ -8,6 +8,7 @@ export type FakeVault = {
   getVaults: Mock<() => Promise<MemberVault[]>>;
   getProfile: Mock;
   getAccountKeyMaterial: Mock;
+  getRecoveryKeyMaterial: Mock;
   countPendingChanges: Mock<() => Promise<number>>;
   setBiometricKeyMaterial: Mock;
   clearBiometricKeyMaterial: Mock;
@@ -18,6 +19,7 @@ export function fakeVault(): FakeVault {
     getVaults: vi.fn(async () => []),
     getProfile: vi.fn(async () => null),
     getAccountKeyMaterial: vi.fn(async () => null),
+    getRecoveryKeyMaterial: vi.fn(async () => null),
     countPendingChanges: vi.fn(async () => 0),
     setBiometricKeyMaterial: vi.fn(),
     clearBiometricKeyMaterial: vi.fn(),

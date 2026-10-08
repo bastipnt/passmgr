@@ -13,6 +13,7 @@ import { migrate } from "./migrations";
 import {
   clearBiometricKey,
   clearKeysTable,
+  clearRecoveryKey,
   getAccountKey,
   getBiometricKey,
   getRecoveryKey,
@@ -263,7 +264,9 @@ export class Vault {
 
   /**
    * Store the account key wrap and the vaults (with their key wraps) together,
-   * atomically. With `profile`, the profile is replaced in the same transaction.
+   * atomically. With `profile`, the profile is replaced in the same transaction;
+   * a `linked` one drops the recovery wrap a local vault kept (linking, ADR 0001
+   * D9: the server holds it now).
    */
   async setAccountKeyMaterial(
     material: AccountKeyMaterial,
@@ -273,6 +276,7 @@ export class Vault {
     await this.ready();
     await this.transaction(async (tx) => {
       if (profile) await replaceProfile(profile, tx);
+      if (profile?.mode === "linked") await clearRecoveryKey(tx);
       await upsertAccountKey(material, tx);
       await replaceVaults(vaults, tx);
     });

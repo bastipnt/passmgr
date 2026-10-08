@@ -370,6 +370,30 @@ describe("createLocalVault", () => {
     expect(await vault.getAccountKeyMaterial()).toBeNull();
   });
 
+  it("linking keeps the data and drops the recovery wrap (the server holds it)", async () => {
+    await vault.createLocalVault(accountKey, recovery, [personal], local);
+    await vault.writeLocalChanges([
+      {
+        kind: "create",
+        recordId: "r1",
+        vaultId: personal.vaultId,
+        encryptedData: "data",
+        encryptionNonce: "nonce",
+        cryptoVersion: 1,
+        clientUpdatedAt: "2026-10-08T00:00:00.000Z",
+      },
+    ]);
+    const linked: LocalProfile = { ...local, mode: "linked", email: "a@b.c", userId: "u-1" };
+
+    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+
+    expect(await vault.getProfile()).toEqual(linked);
+    expect(await vault.getRecoveryKeyMaterial()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+    // Still queued: the first sync uploads it.
+    expect(await vault.countPendingChanges()).toBe(1);
+  });
+
   it("is gone after clear()", async () => {
     await vault.createLocalVault(accountKey, recovery, [personal], local);
     await vault.clear();

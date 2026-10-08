@@ -9,6 +9,7 @@ export * from "./src/hooks/use-create-local-vault";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-generator-defaults";
+export * from "./src/hooks/use-link-account";
 export * from "./src/hooks/use-lock";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-move-record";
