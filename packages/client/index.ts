@@ -3,6 +3,7 @@
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
+export * from "./src/hooks/use-backup-reminder";
 export * from "./src/hooks/use-change-password";
 export * from "./src/hooks/use-clipboard-clear";
 export * from "./src/hooks/use-connect-server";

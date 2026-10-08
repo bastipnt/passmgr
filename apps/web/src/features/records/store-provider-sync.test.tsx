@@ -1,5 +1,5 @@
 import { SessionContext, type SessionMode } from "@repo/client";
-import { StoreProvider } from "@repo/client/src/providers/StoreProvider";
+import { StoreProvider, useStore } from "@repo/client/src/providers/StoreProvider";
 import {
   type PendingChange,
   type ProfileEntry,
@@ -46,12 +46,14 @@ const entry: ProfileEntry = {
   databaseName: "pass-mgr-p-1",
   createdAt: "2026-10-01T00:00:00.000Z",
   lastUsedAt: "2026-10-01T00:00:00.000Z",
+  lastExportAt: null,
 };
 // One profile on the device, opened on launch.
 const profiles = {
   list: vi.fn(async () => [entry]),
   open: vi.fn(async () => vault),
   close: vi.fn(async () => undefined),
+  markExported: vi.fn(async () => undefined),
 } as unknown as ProfileStore;
 
 const detachServer = vi.fn();
@@ -310,5 +312,31 @@ describe("StoreProvider sync", () => {
     expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1);
     expect(vault.failPendingChange).not.toHaveBeenCalled();
     expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
+  });
+});
+
+describe("StoreProvider markExported", () => {
+  it("records the export and updates the active profile's entry", async () => {
+    let store: ReturnType<typeof useStore> | undefined;
+    function Probe() {
+      store = useStore();
+      return null;
+    }
+    renderWithProviders(
+      <SessionContext.Provider value={session(undefined)}>
+        <StoreProvider profiles={profiles}>
+          <Probe />
+        </StoreProvider>
+      </SessionContext.Provider>,
+    );
+    await waitFor(() => expect(store?.active?.entry.profileId).toBe(entry.profileId));
+
+    const exported = { ...entry, lastExportAt: "2026-10-08T00:00:00.000Z" };
+    vi.mocked(profiles.list).mockResolvedValueOnce([exported]);
+    await store?.markExported(entry.profileId);
+
+    expect(profiles.markExported).toHaveBeenCalledWith(entry.profileId);
+    await waitFor(() => expect(store?.active?.entry.lastExportAt).toBe(exported.lastExportAt));
+    expect(store?.profiles).toEqual([exported]);
   });
 });

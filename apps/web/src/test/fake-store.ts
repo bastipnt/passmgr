@@ -33,6 +33,7 @@ export function profileEntry(profile: LocalProfile, name: string | null = null):
     databaseName: `pass-mgr-${profile.profileId}`,
     createdAt: "2026-10-01T00:00:00.000Z",
     lastUsedAt: "2026-10-01T00:00:00.000Z",
+    lastExportAt: null,
   };
 }
 
@@ -134,6 +135,7 @@ export function createFakeStore() {
     removeAllProfiles: vi.fn(),
     saveBiometricKeyMaterial: vi.fn(),
     forgetQuickUnlock: vi.fn(),
+    markExported: vi.fn(),
   };
   return store;
 }

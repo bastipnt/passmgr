@@ -9,6 +9,8 @@ export const PREF_KEYS = {
   sort: "pass-mgr-sort",
   /** Per profile: see `biometricDismissedKey`. */
   biometricDismissed: "biometric-dismissed",
+  /** Per profile: see `backupReminderSnoozedKey`. */
+  backupReminderSnoozed: "backup-reminder-snoozed",
   recentRecords: "search.recent-records",
 
   generatorMode: "pass-mgr-generator-mode",
@@ -25,4 +27,9 @@ export type PreferenceKey = (typeof PREF_KEYS)[keyof typeof PREF_KEYS];
 /** The user declined biometric unlock for this profile (ADR 0001 D2: per profile). */
 export function biometricDismissedKey(profileId: string): string {
   return `${PREF_KEYS.biometricDismissed}:${profileId}`;
+}
+
+/** When the user last put off the backup reminder for this profile (ADR 0001 D12). */
+export function backupReminderSnoozedKey(profileId: string): string {
+  return `${PREF_KEYS.backupReminderSnoozed}:${profileId}`;
 }

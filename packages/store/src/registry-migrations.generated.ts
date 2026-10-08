@@ -9,5 +9,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "CREATE TABLE `registry_meta` (\n\t`key` text PRIMARY KEY,\n\t`value` text NOT NULL\n);",
       "CREATE INDEX `profiles_email_idx` ON `profiles` (`email`);"
     ]
+  },
+  {
+    "name": "20261008185230_last_export",
+    "statements": [
+      "ALTER TABLE `profiles` ADD `lastExportAt` text;"
+    ]
   }
 ];

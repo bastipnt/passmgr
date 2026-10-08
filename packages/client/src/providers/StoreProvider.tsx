@@ -18,7 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { biometricDismissedKey } from "../preferences/preference-keys";
+import { backupReminderSnoozedKey, biometricDismissedKey } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";
 import { resolveRecordConflict } from "../records/resolve-record-conflict";
 import { SyncManager } from "../sync-manager";
@@ -141,6 +141,8 @@ type StoreContextValue = {
   removeProfile: (profileId: string) => Promise<void>;
   /** Remove every profile (see `removeProfile`). Locked only. */
   removeAllProfiles: () => Promise<void>;
+  /** Record an export of a profile's data now (resets its backup reminder, ADR 0001 D12). */
+  markExported: (profileId: string) => Promise<void>;
   /** Store the active profile's biometric enrollment (web, WebAuthn PRF). */
   saveBiometricKeyMaterial: (material: BiometricKeyMaterial) => Promise<void>;
   /**
@@ -544,10 +546,15 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
         await deactivate();
       }
       await profiles.remove(profileId);
-      preferences.remove(biometricDismissedKey(profileId));
+      forgetProfilePreferences(profileId);
       const [next] = await refreshEntries();
       if (wasActive && next) await activate(next.profileId);
     });
+  }
+
+  function forgetProfilePreferences(profileId: string) {
+    preferences.remove(biometricDismissedKey(profileId));
+    preferences.remove(backupReminderSnoozedKey(profileId));
   }
 
   async function removeAllProfiles() {
@@ -555,9 +562,17 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
       assertLocked();
       await deactivate();
       const removed = await profiles.removeAll();
-      for (const { profileId } of removed) preferences.remove(biometricDismissedKey(profileId));
+      for (const { profileId } of removed) forgetProfilePreferences(profileId);
       await refreshEntries();
     });
+  }
+
+  async function markExported(profileId: string) {
+    await profiles.markExported(profileId);
+    const entries = await refreshEntries();
+    const open = activeRef.current;
+    const entry = entries.find((p) => p.profileId === profileId);
+    if (entry && open?.entry.profileId === profileId) setActive({ ...open, entry });
   }
 
   async function saveBiometricKeyMaterial(material: BiometricKeyMaterial) {
@@ -604,6 +619,7 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     countPendingChanges,
     removeProfile,
     removeAllProfiles,
+    markExported,
     saveBiometricKeyMaterial,
     forgetQuickUnlock,
   };

@@ -168,6 +168,15 @@ describe("ProfileStore registry", () => {
       name: "Work",
     });
   });
+
+  it("records the last export, none for a new profile", async () => {
+    const { entry } = await add(LOCAL);
+    expect(entry.lastExportAt).toBeNull();
+
+    await store.markExported(LOCAL.profileId, new Date("2026-10-05T12:00:00.000Z"));
+
+    expect((await store.get(LOCAL.profileId))?.lastExportAt).toBe("2026-10-05T12:00:00.000Z");
+  });
 });
 
 describe("ProfileStore isolation", () => {

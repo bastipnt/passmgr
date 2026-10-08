@@ -14,6 +14,9 @@ import { useProfileStore } from "@/hooks/use-profile-store";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
 
+/** Phones: toasts sit above the vault's bottom dock (56px FABs, `MobileVault`). */
+const PHONE_TOAST_BOTTOM = "calc(max(env(safe-area-inset-bottom), 1rem) + 56px + 0.75rem)";
+
 function App() {
   const profileStore = useProfileStore();
   const preferencesStore = usePreferencesStore();
@@ -27,7 +30,7 @@ function App() {
               <ClientProvider serverUrl={import.meta.env.VITE_SERVER_URL}>
                 <StoreProvider profiles={profileStore}>
                   <RecordsProvider>
-                    <Toaster />
+                    <Toaster mobileOffset={{ bottom: PHONE_TOAST_BOTTOM }} />
                     <Routes />
                   </RecordsProvider>
                 </StoreProvider>

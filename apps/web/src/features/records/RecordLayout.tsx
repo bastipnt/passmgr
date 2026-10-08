@@ -30,6 +30,7 @@ import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
+import BackupReminder from "./BackupReminder";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
@@ -116,7 +117,13 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   });
 
   // Phones: every route is its own page (`MobileVault`, `MobileRecordPage`).
-  if (isMobile) return <SortedRecordsProvider>{children}</SortedRecordsProvider>;
+  if (isMobile)
+    return (
+      <SortedRecordsProvider>
+        {children}
+        <BackupReminder />
+      </SortedRecordsProvider>
+    );
 
   return (
     <SortedRecordsProvider>
@@ -177,6 +184,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
         <MainContent>{children}</MainContent>
       </AppShell>
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+      <BackupReminder />
     </SortedRecordsProvider>
   );
 }

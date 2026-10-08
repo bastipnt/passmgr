@@ -23,6 +23,8 @@ export const profiles = sqliteTable(
     databaseName: text().notNull().unique(),
     createdAt: text().notNull(),
     lastUsedAt: text().notNull(),
+    /** The last export of this profile's data from this device; null if never (backup reminder, ADR 0001 D12). */
+    lastExportAt: text(),
   },
   (t) => [index("profiles_email_idx").on(t.email)],
 );

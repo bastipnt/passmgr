@@ -540,6 +540,30 @@ to another vault is re-encrypted anyway (D6).
 - **Mobile:** document whether the expo-sqlite file is included in iCloud / Android backups.
   Default: included. The data is encrypted, and it is the only copy.
 
+> **Amended 2026-10-08** (durability implementation):
+>
+> - Web: `CreateLocalVaultPage` calls `persist()` on submit, before the key derivation, while
+>   the submit is still a user gesture (Firefox asks; Chrome decides by engagement). Settings →
+>   Security shows persistence and the estimate (`StorageSettings`), warns a `local` profile when
+>   persistence is denied and can ask again.
+> - Backup reminder: the registry keeps `lastExportAt` per profile (`ProfileStore.markExported`,
+>   to be called by the export). A `local` profile is reminded once 7 days have passed since the
+>   latest of creation, last export and "Later" (`isBackupReminderDue`; the snooze is a per-profile
+>   preference). Web shows it as a toast while the vault is open (re-checked hourly and when the
+>   tab is visible again; swiping it away also puts it off), linking to "Create online
+>   account"; the export call to action joins it with *Export: encrypted JSON*.
+> - Mobile, decided: **included** on both platforms. iOS: expo-sqlite keeps the databases in
+>   `Documents/SQLite`, which iCloud / Finder backups include; the Keychain items are
+>   `AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY`, so a restored device unlocks with the password. Android:
+>   expo-secure-store's backup rules list only shared prefs, which left the databases **out** of
+>   Auto Backup. `plugins/with-android-backup.js` replaces them: `files/SQLite/` and shared prefs
+>   in, the SecureStore prefs out (their Keystore key doesn't leave the device). The OS copies
+>   the files without asking SQLite, so a backup taken mid-write can be inconsistent; it is a
+>   fallback, the export stays the real backup. Android Auto Backup skips an app whose data
+>   exceeds 25 MB entirely: a vault with a long history can outgrow it (then excluding the
+>   history, or the export, is the way out). The rules are written at prebuild: an existing
+>   `apps/mobile/android` needs `expo prebuild --clean` (or a new EAS build) to pick them up.
+
 ## Consequences
 
 **Positive**

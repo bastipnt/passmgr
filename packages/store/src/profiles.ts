@@ -20,6 +20,8 @@ export type ProfileEntry = {
   databaseName: string;
   createdAt: string;
   lastUsedAt: string;
+  /** The last export from this device; null if never (ADR 0001 D12). */
+  lastExportAt: string | null;
 };
 
 /** The registry's own database. */
@@ -181,6 +183,7 @@ export class ProfileStore {
       databaseName: profileDatabaseName(profile.profileId),
       createdAt: now,
       lastUsedAt: now,
+      lastExportAt: null,
     };
     const vault = new Vault(this.openDatabase(entry.databaseName));
     try {
@@ -208,6 +211,15 @@ export class ProfileStore {
     await this.registry
       .update(profiles)
       .set({ name: name?.trim() || null })
+      .where(eq(profiles.profileId, profileId));
+  }
+
+  /** Record an export of the profile's data (resets the backup reminder, ADR 0001 D12). */
+  async markExported(profileId: string, at = new Date()): Promise<void> {
+    await this.ready();
+    await this.registry
+      .update(profiles)
+      .set({ lastExportAt: at.toISOString() })
       .where(eq(profiles.profileId, profileId));
   }
 

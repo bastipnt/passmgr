@@ -180,6 +180,10 @@ Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `gen
 keyring as registration) → `Vault.createLocalVault` stores a `local` profile, the password wrap, the
 recovery wrap + verifier (local profiles only) and the personal vault atomically, in a new profile
 database next to any others (optional display name). Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
+Durability (ADR 0001 D12): web asks `navigator.storage.persist()` on create (`StorageSettings` shows it);
+a `local` profile gets a backup reminder (`useBackupReminder`, from the registry's `lastExportAt` —
+`ProfileStore.markExported`). Mobile databases are in iCloud / Android Auto Backup
+(`apps/mobile/plugins/with-android-backup.js`), SecureStore values are not.
 
 Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →
 `registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,

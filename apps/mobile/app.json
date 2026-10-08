@@ -53,10 +53,11 @@
       [
         "expo-secure-store",
         {
-          "configureAndroidBackup": true,
+          "configureAndroidBackup": false,
           "faceIDPermission": "Allow Passmgr to unlock your vault with Face ID."
         }
-      ]
+      ],
+      "./plugins/with-android-backup"
     ],
     "experiments": {
       "typedRoutes": true,

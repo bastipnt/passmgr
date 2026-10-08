@@ -20,6 +20,7 @@ import {
 } from "@repo/ui/components/Select";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 import AccountSettings from "./AccountSettings";
+import StorageSettings from "./StorageSettings";
 
 type ChoiceSettingProps = {
   title: string;
@@ -104,6 +105,7 @@ export default function SecuritySettingsPage() {
           />
 
           <AccountSettings />
+          <StorageSettings />
         </ItemGroup>
       </div>
     </>

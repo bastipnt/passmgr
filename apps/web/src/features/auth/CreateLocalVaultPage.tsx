@@ -21,6 +21,7 @@ import z from "zod";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { PasswordStrengthMeter } from "@/features/password-generation";
+import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
 import AuthNote from "./AuthNote";
 import AuthTextLink from "./AuthTextLink";
@@ -70,6 +71,9 @@ export default function CreateLocalVaultPage() {
   });
 
   const onSubmit = async ({ name, password }: FormValues) => {
+    // This vault's only copy lives in OPFS (ADR 0001 D12). Asked before the
+    // key derivation, while the submit still counts as a user gesture.
+    void requestPersistentStorage();
     setLoading(true);
     try {
       const key = await createLocalVault(password, name);
