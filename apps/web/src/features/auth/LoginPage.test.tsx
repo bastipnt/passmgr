@@ -10,8 +10,10 @@ import type { MemberVault } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { useStoragePersistent } from "@/hooks/use-storage-persistent";
+import { createFakeStore, profileEntry } from "@/test/fake-store";
+import { renderWithProviders, screen, waitFor, within } from "@/test/render";
 import LoginPage from "./LoginPage";
 
 // Real `useUnlock` / `useLogin`; only the layers below them are replaced.
@@ -46,25 +48,7 @@ const accountKeyMaterial = {
   },
 };
 
-const store: {
-  profile: LocalProfile | null;
-  [key: string]: unknown;
-  vault: { getVaults: Mock; countPendingChanges: Mock; clear: Mock };
-  saveAccount: Mock;
-} = {
-  profile: linkedProfile,
-  accountKeyMaterial,
-  biometricKeyMaterial: null,
-  needsBiometricEnroll: false,
-  vault: {
-    getVaults: vi.fn(async () => [personalVault]),
-    countPendingChanges: vi.fn(async () => 0),
-    clear: vi.fn(),
-  },
-  syncManager: { onSync: () => () => undefined },
-  saveAccount: vi.fn(),
-  removeVault: vi.fn(),
-};
+const store = createFakeStore();
 
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
@@ -86,6 +70,7 @@ vi.mock("@repo/client/src/hooks/use-app-config", () => ({
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
   argon2WorkerService: { derive: vi.fn() },
 }));
+vi.mock("@/hooks/use-storage-persistent", () => ({ useStoragePersistent: vi.fn(() => true) }));
 vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
   decryptWorkerService: { init: vi.fn() },
 }));
@@ -117,17 +102,29 @@ function renderPage({ networkOffline = true } = {}) {
   );
 }
 
+/** "Switch" from the active profile's unlock to the email login (if it shows). */
+async function showLogin() {
+  const switchButton = screen.queryByRole("button", { name: /^switch$/i });
+  if (switchButton) await userEvent.click(switchButton);
+}
+
 async function login(email: string, password: string) {
+  await showLogin();
   await userEvent.type(screen.getByLabelText("Email"), email);
   await userEvent.type(screen.getByLabelText("Password"), password);
   await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
 }
 
-/** Pick this device's vault, then unlock it with the password alone. */
+/** The active profile's unlock: the password alone. */
 async function unlockStored(password: string) {
-  await userEvent.click(screen.getByRole("button", { name: /alice@example.com/i }));
   await userEvent.type(screen.getByLabelText("Password"), password);
   await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+}
+
+function profileButton(name: RegExp) {
+  return within(screen.getByRole("list", { name: /vaults on this device/i })).getByRole("button", {
+    name,
+  });
 }
 
 /** What the server hands back after OPAQUE, with the server session attached. */
@@ -145,10 +142,26 @@ function serverLogin(userId: string = linkedProfile.userId) {
   };
 }
 
+const localProfile = { profileId: "local-1", mode: "local", email: null, userId: null } as const;
+const bobProfile: LocalProfile = {
+  profileId: "profile-bob",
+  mode: "linked",
+  email: "bob@example.com",
+  userId: "user-bob",
+};
+
 function resetMocks() {
   vi.clearAllMocks();
+  vi.mocked(useStoragePersistent).mockReturnValue(true);
   secretsStore.lock();
-  store.profile = linkedProfile;
+  Object.assign(store, {
+    profiles: [profileEntry(linkedProfile)],
+    profile: linkedProfile,
+    accountKeyMaterial,
+    biometricKeyMaterial: null,
+    needsBiometricEnroll: false,
+  });
+  store.vault.getVaults.mockResolvedValue([personalVault]);
   unlockVault.mockReset();
   vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
   vi.spyOn(secretsStore, "setPassword");
@@ -165,7 +178,7 @@ describe("LoginPage offline", () => {
       throw new Error("decrypt failed");
     });
     renderPage();
-    await login("alice@example.com", "wrong password");
+    await unlockStored("wrong password");
 
     await screen.findByText(/check your email and password/i);
     expect(secretsStore.setPassword).not.toHaveBeenCalled();
@@ -173,20 +186,19 @@ describe("LoginPage offline", () => {
     await waitFor(() => expect(screen.getByLabelText("Password")).toBeEnabled());
   });
 
-  it("rejects another account's email before touching the local vault", async () => {
+  it("can't add an account the device has no profile for", async () => {
     renderPage();
     await login("mallory@example.com", "some password");
 
-    await screen.findByText(/can't switch accounts offline/i);
+    await screen.findByText(/can't add an account offline/i);
     expect(argon2WorkerService.derive).not.toHaveBeenCalled();
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(store.openAccountProfile).not.toHaveBeenCalled();
     expect(unlockVault).not.toHaveBeenCalled();
   });
 
   it("unlocks the linked vault without the server and keeps the password for the reconnect", async () => {
     renderPage();
-    await login("alice@example.com", "right password");
+    await unlockStored("right password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
     expect(unlockVault.mock.calls[0]?.[0]).toBe("linked");
@@ -195,6 +207,19 @@ describe("LoginPage offline", () => {
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(store.saveAccount).not.toHaveBeenCalled();
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
+  });
+
+  it("signs in by email to a profile on the device as if it was picked", async () => {
+    store.profiles = [profileEntry(bobProfile), profileEntry(linkedProfile)];
+    store.profile = bobProfile;
+    renderPage();
+    await login("Alice@Example.com", "right password");
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(store.selectProfile).toHaveBeenCalledWith(linkedProfile.profileId);
+    expect(store.profile?.profileId).toBe(linkedProfile.profileId);
+    expect(loginUserCore).not.toHaveBeenCalled();
+    expect(store.openAccountProfile).not.toHaveBeenCalled();
   });
 });
 
@@ -211,9 +236,9 @@ describe("LoginPage stored vault", () => {
       vi.mocked(loginUserCore).mock.invocationCallOrder[0] ?? 0,
     );
     expect(vi.mocked(loginUserCore).mock.calls[0]?.[2]).toBe("alice@example.com");
-    // Same account: the local data stays, the profile isn't replaced.
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount.mock.calls[0]?.[2]).toBeUndefined();
+    // Same account, same profile: only its key material is refreshed.
+    expect(store.saveAccount.mock.calls[0]?.[0]).toBe(linkedProfile.profileId);
+    expect(store.saveAccount.mock.calls[0]?.[3]).toBeUndefined();
   });
 
   it("never attaches a session of another account to the unlocked vault", async () => {
@@ -225,23 +250,24 @@ describe("LoginPage stored vault", () => {
     expect(attachServer).not.toHaveBeenCalled();
     expect(secretsStore.hasServerSession).toBe(false);
     expect(store.saveAccount).not.toHaveBeenCalled();
-    expect(store.vault.clear).not.toHaveBeenCalled();
+    expect(store.openAccountProfile).not.toHaveBeenCalled();
   });
 
-  it("doesn't switch accounts when the fallback login finds another account", async () => {
-    unlockVault.mockImplementation(() => {
-      throw new Error("decrypt failed");
-    });
+  it("gives the account the email now belongs to a profile of its own", async () => {
+    unlockVault
+      .mockImplementationOnce(() => {
+        throw new Error("decrypt failed");
+      })
+      .mockImplementation(() => undefined);
     vi.mocked(loginUserCore).mockImplementation(serverLogin("user-someone-else"));
     renderPage({ networkOffline: false });
     await unlockStored("other account's password");
 
-    await screen.findByText(/this email now belongs to another account/i);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).not.toHaveBeenCalled();
-    // The login's session is revoked again.
-    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
-    expect(secretsStore.hasServerSession).toBe(false);
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(2));
+    expect(store.profile?.userId).toBe("user-someone-else");
+    // The profile that was picked stays on the device as it is.
+    expect(store.profiles.map((p) => p.profileId)).toContain(linkedProfile.profileId);
+    expect(store.removeProfile).not.toHaveBeenCalled();
   });
 
   it("falls back to the server login when the password doesn't open the local copy", async () => {
@@ -255,8 +281,13 @@ describe("LoginPage stored vault", () => {
     await unlockStored("new password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(2));
-    // The server's (newer) key material replaces the local copy.
-    expect(store.saveAccount).toHaveBeenCalledWith(accountKeyMaterial, [personalVault], undefined);
+    // The server's (newer) key material replaces the profile's local copy.
+    expect(store.openAccountProfile).toHaveBeenCalledWith(
+      { userId: linkedProfile.userId, email: "alice@example.com" },
+      accountKeyMaterial,
+      [personalVault],
+    );
+    expect(store.profile?.profileId).toBe(linkedProfile.profileId);
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
   });
 });
@@ -267,19 +298,19 @@ describe("LoginPage errors", () => {
   it("hides the error once the credentials are edited", async () => {
     renderPage();
     await login("mallory@example.com", "some password");
-    await screen.findByText(/can't switch accounts offline/i);
+    await screen.findByText(/can't add an account offline/i);
 
     await userEvent.type(screen.getByLabelText("Password"), "x");
-    expect(screen.queryByText(/can't switch accounts offline/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/can't add an account offline/i)).not.toBeInTheDocument();
   });
 
-  it("hides the error when switching to the stored account", async () => {
+  it("hides the error when picking a profile", async () => {
     renderPage();
     await login("mallory@example.com", "some password");
-    await screen.findByText(/can't switch accounts offline/i);
+    await screen.findByText(/can't add an account offline/i);
 
-    await userEvent.click(screen.getByRole("button", { name: /alice@example.com/i }));
-    expect(screen.queryByText(/can't switch accounts offline/i)).not.toBeInTheDocument();
+    await userEvent.click(profileButton(/alice@example.com/i));
+    expect(screen.queryByText(/can't add an account offline/i)).not.toBeInTheDocument();
   });
 });
 
@@ -291,6 +322,8 @@ describe("LoginPage online", () => {
   });
 
   it("revokes the fresh server session when the vault can't be unlocked", async () => {
+    store.profiles = [];
+    store.profile = null;
     renderPage({ networkOffline: false });
     await login("alice@example.com", "right password");
 
@@ -300,23 +333,22 @@ describe("LoginPage online", () => {
     expect(secretsStore.hasServerSession).toBe(false);
   });
 
-  it("signs another account in by clearing the previous account's local data", async () => {
+  it("adds an account new to this device next to the profiles already there", async () => {
     vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
     vi.mocked(loginUserCore).mockImplementation(serverLogin("user-bob"));
     renderPage({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
-    expect(store.vault.clear).toHaveBeenCalledTimes(1);
-    expect(store.saveAccount.mock.calls[0]?.[2]).toMatchObject({
-      mode: "linked",
-      email: "alice@example.com",
+    expect(store.openAccountProfile.mock.calls[0]?.[0]).toEqual({
       userId: "user-bob",
+      email: "alice@example.com",
     });
-    expect(store.saveAccount.mock.calls[0]?.[2].profileId).not.toBe(linkedProfile.profileId);
+    expect(store.profiles.map((p) => p.userId)).toEqual(["user-alice", "user-bob"]);
+    expect(store.removeProfile).not.toHaveBeenCalled();
   });
 
-  it("keeps the throttle warning on edits, but drops it for the stored account", async () => {
+  it("keeps the throttle warning on edits, but drops it when picking a profile", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new LoginThrottledError());
     renderPage({ networkOffline: false });
     await login("mallory@example.com", "some password");
@@ -325,16 +357,91 @@ describe("LoginPage online", () => {
     await userEvent.type(screen.getByLabelText("Password"), "x");
     expect(screen.getByText(/too many login attempts/i)).toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole("button", { name: /alice@example.com/i }));
+    await userEvent.click(profileButton(/alice@example.com/i));
     expect(screen.queryByText(/too many login attempts/i)).not.toBeInTheDocument();
   });
 });
 
-describe("LoginPage local vault", () => {
-  const localProfile = { profileId: "local-1", mode: "local", email: null, userId: null } as const;
-
+describe("LoginPage profiles", () => {
   beforeEach(() => {
     resetMocks();
+    store.profiles = [
+      profileEntry(linkedProfile),
+      profileEntry(localProfile, "Travel"),
+      profileEntry(bobProfile),
+    ];
+  });
+
+  it("opens the active profile's unlock, and lists every profile after Switch", async () => {
+    renderPage();
+    expect(screen.queryByRole("list", { name: /vaults on this device/i })).not.toBeInTheDocument();
+
+    await showLogin();
+    expect(profileButton(/alice@example.com/i)).toBeInTheDocument();
+    expect(profileButton(/travel/i)).toBeInTheDocument();
+    expect(profileButton(/bob@example.com/i)).toBeInTheDocument();
+  });
+
+  it("shows no storage warning where the browser keeps the vaults", () => {
+    renderPage();
+    expect(screen.queryByRole("note")).not.toBeInTheDocument();
+  });
+
+  it("says vaults are lost on lock or reload when the browser refuses storage (private window)", () => {
+    vi.mocked(useStoragePersistent).mockReturnValue(false);
+    renderPage();
+    expect(screen.getByRole("note")).toHaveTextContent(/gone once you lock, reload or close/i);
+  });
+
+  it("picking a profile opens its unlock", async () => {
+    renderPage();
+    await showLogin();
+    await userEvent.click(profileButton(/travel/i));
+
+    expect(store.selectProfile).toHaveBeenCalledWith(localProfile.profileId);
+    expect(await screen.findByText("Travel")).toBeInTheDocument();
+    expect(screen.getByLabelText("Email")).not.toBeVisible();
+  });
+
+  it("says so when a picked profile can't be opened, staying on the list", async () => {
+    store.selectProfile.mockRejectedValueOnce(new Error("disk I/O error"));
+    renderPage();
+    await showLogin();
+    await userEvent.click(profileButton(/travel/i));
+
+    expect(await screen.findByText(/couldn.t be opened/i)).toBeInTheDocument();
+    expect(profileButton(/travel/i)).toBeInTheDocument();
+  });
+
+  it("removes the active profile from its unlock card", async () => {
+    renderPage();
+    await userEvent.click(screen.getByRole("button", { name: /remove vault from this device/i }));
+    await userEvent.click(await screen.findByRole("button", { name: /^remove vault$/i }));
+
+    expect(store.removeProfile).toHaveBeenCalledWith(linkedProfile.profileId);
+    expect(store.removeAllProfiles).not.toHaveBeenCalled();
+  });
+
+  it("removes every profile after a warning that names what is lost", async () => {
+    store.countPendingChanges.mockResolvedValue(2);
+    renderPage();
+    await showLogin();
+    await userEvent.click(screen.getByRole("button", { name: /remove all vaults/i }));
+
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText(/all 3 vaults/i)).toBeInTheDocument();
+    expect(within(dialog).getByText(/only copy/i)).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByText(/4 changes/i)).toBeInTheDocument());
+    await userEvent.click(within(dialog).getByRole("button", { name: /^remove all$/i }));
+
+    expect(store.removeAllProfiles).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("LoginPage local vault", () => {
+  beforeEach(() => {
+    resetMocks();
+    store.profiles = [profileEntry(localProfile)];
     store.profile = localProfile;
   });
 
@@ -343,11 +450,10 @@ describe("LoginPage local vault", () => {
     await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
   }
 
-  it("asks for the password only, with no account to switch to", () => {
+  it("asks for the password only", () => {
     renderPage({ networkOffline: false });
 
     expect(screen.getByText("Vault on this device")).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /switch/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/forgot password/i)).not.toBeInTheDocument();
     expect(screen.getByLabelText("Email")).not.toBeVisible();
   });
@@ -381,25 +487,22 @@ describe("LoginPage local vault", () => {
     const stale = { ...accountKeyMaterial, passwordKekParams: { ...current, t: current.t + 1 } };
     store.accountKeyMaterial = stale;
     vi.spyOn(secretsStore, "rewrapAccountKey").mockReturnValue(["rewrapped", "nonce"]);
-    try {
-      renderPage({ networkOffline: false });
-      await unlockLocalVault("right password");
+    renderPage({ networkOffline: false });
+    await unlockLocalVault("right password");
 
-      await waitFor(() => expect(store.saveAccount).toHaveBeenCalledTimes(1));
-      const [saved, vaults, profile] = store.saveAccount.mock.calls[0] ?? [];
-      expect(saved).toMatchObject({
-        passwordKekParams: current,
-        encryptedAccountKey: "rewrapped",
-        userKeyPair: stale.userKeyPair,
-      });
-      expect(vaults).toEqual([personalVault]);
-      expect(profile).toBeUndefined();
-      // Unlock + rekey, both in the worker; no server involved.
-      expect(argon2WorkerService.derive).toHaveBeenCalledTimes(2);
-      expect(loginUserCore).not.toHaveBeenCalled();
-    } finally {
-      store.accountKeyMaterial = accountKeyMaterial;
-    }
+    await waitFor(() => expect(store.saveAccount).toHaveBeenCalledTimes(1));
+    const [profileId, saved, vaults, profile] = store.saveAccount.mock.calls[0] ?? [];
+    expect(profileId).toBe(localProfile.profileId);
+    expect(saved).toMatchObject({
+      passwordKekParams: current,
+      encryptedAccountKey: "rewrapped",
+      userKeyPair: stale.userKeyPair,
+    });
+    expect(vaults).toEqual([personalVault]);
+    expect(profile).toBeUndefined();
+    // Unlock + rekey, both in the worker; no server involved.
+    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(2);
+    expect(loginUserCore).not.toHaveBeenCalled();
   });
 
   it("keeps the typed password when the profile loads after the form", async () => {

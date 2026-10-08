@@ -16,7 +16,7 @@ export const RECOVERY_ERROR_MESSAGES: Record<RecoveryError, string> = {
 
 export function useRecovery() {
   const trpc = useTRPCClient();
-  const { profile, vault, removeVault, forgetQuickUnlock } = useStore();
+  const store = useStore();
   const [recoveryError, setRecoveryError] = useState<RecoveryError | undefined>();
 
   /**
@@ -41,17 +41,22 @@ export function useRecovery() {
       return;
     }
 
-    // This device's cached copy of the account is now stale: the local wrap
-    // needs the old password and biometric material holds it. Drop it so the
-    // next login starts clean. Another account's vault is left alone. Changes
-    // that never reached the server exist only here, so then the vault stays:
-    // the next login with the new password replaces the stale wrap (the local
-    // one doesn't open, so the unlock goes through the server). Only the quick
-    // unlocks go, so nothing opens it without a password.
+    // This device's profile of the account is now stale: the local wrap needs
+    // the old password and biometric material holds it. Remove it so the next
+    // login starts clean. Other profiles are left alone. Changes that never
+    // reached the server exist only here, so then the profile stays: the next
+    // login with the new password replaces the stale wrap (the local one
+    // doesn't open, so the unlock goes through the server). Only the quick
+    // unlocks go, so nothing opens it without a password. The vault is locked
+    // here (recovery is a locked-screen flow), so removing never needs a lock.
     // TODO(offline-first): keep the local data and rewrap instead (ADR 0001 D10).
-    if (profile?.mode === "linked" && profile.email === normalizeEmail(email)) {
-      if ((await vault.countPendingChanges()) > 0) await forgetQuickUnlock();
-      else await removeVault();
+    const stale = store.profiles.find(
+      (p) => p.mode === "linked" && p.email === normalizeEmail(email),
+    );
+    if (stale) {
+      if ((await store.countPendingChanges(stale.profileId)) > 0)
+        await store.forgetQuickUnlock(stale.profileId);
+      else await store.removeProfile(stale.profileId);
     }
 
     return newRecoveryKey;

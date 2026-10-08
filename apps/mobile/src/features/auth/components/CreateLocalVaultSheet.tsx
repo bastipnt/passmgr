@@ -5,6 +5,7 @@ import {
   BottomSheet,
   type BottomSheetRef,
   Button,
+  ControlledInput,
   ControlledPasswordInput,
   FieldError,
   FormLock,
@@ -18,6 +19,7 @@ import { RecoveryKeyDialog } from "./RecoveryKeyDialog";
 
 const localVaultSchema = z
   .object({
+    name: z.string().max(60),
     password: z.string().min(8),
     confirmPassword: z.string(),
   })
@@ -32,7 +34,10 @@ type CreateLocalVaultSheetProps = {
   ref: Ref<BottomSheetRef>;
 };
 
-/** A vault on this device only: no server, no account, no email (ADR 0001 D2). */
+/**
+ * A vault on this device only: no server, no account, no email (ADR 0001 D2),
+ * added next to the profiles already on the device.
+ */
 export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
   const { createLocalVault, finishLocalVault, createError } = useCreateLocalVault();
@@ -45,17 +50,17 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(localVaultSchema),
-    defaultValues: { password: "", confirmPassword: "" },
+    defaultValues: { name: "", password: "", confirmPassword: "" },
   });
 
   const password = useWatch({ control, name: "password" });
   const strength = useMemo(() => (password ? getStrengthFromString(password) : null), [password]);
 
-  const onSubmit = async ({ password }: FormValues) => {
+  const onSubmit = async ({ name, password }: FormValues) => {
     setLoading(true);
     let key: Uint8Array | undefined;
     try {
-      key = await createLocalVault(password);
+      key = await createLocalVault(password, name);
     } finally {
       setLoading(false);
     }
@@ -99,6 +104,13 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
         </View>
 
         <FormLock locked={loading} className="gap-5">
+          <ControlledInput
+            control={control}
+            name="name"
+            label="Name (optional)"
+            placeholder="e.g. Personal"
+            autoCapitalize="words"
+          />
           <ControlledPasswordInput
             control={control}
             name="password"
@@ -120,11 +132,9 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
             errors={[
               {
                 message:
-                  createError === "vault_exists"
-                    ? "This device already holds a vault."
-                    : createError === "unlock_failed"
-                      ? "Your vault was created, but it couldn't be opened. Close this and unlock it with your password."
-                      : "Creating the vault failed. Please try again.",
+                  createError === "unlock_failed"
+                    ? "Your vault was created, but it couldn't be opened. Close this and unlock it with your password."
+                    : "Creating the vault failed. Please try again.",
               },
             ]}
           />

@@ -15,8 +15,8 @@ import { isUnauthorized } from "../util/trpc-errors";
 export type RestoreStatus = "restoring" | "restored" | "needs-login";
 
 /**
- * Mobile fast-unlock: on app launch, restore the unlocked vault from OS secure
- * storage (one biometric prompt) instead of an Argon2 unlock (ADR 0001 D2).
+ * Mobile fast-unlock: on app launch, restore the last used profile's unlocked
+ * vault from OS secure storage (one biometric prompt) instead of an Argon2 unlock (ADR 0001 D2).
  * The vault keys and keypair come from the local DB, unwrapped with the
  * bundle's account key; no server is needed to enter the app.
  *
@@ -29,7 +29,7 @@ export type RestoreStatus = "restoring" | "restored" | "needs-login";
  */
 export function useSessionRestore() {
   const { restoreLogin, detachServer, lock } = useContext(SessionContext);
-  const { vault } = useStore();
+  const { loaded, active } = useStore();
   const trpc = useTRPCClient();
   const [status, setStatus] = useState<RestoreStatus>(
     isPersistentLoginAvailable() ? "restoring" : "needs-login",
@@ -37,15 +37,17 @@ export function useSessionRestore() {
   const attempted = useRef(false);
 
   const tryRestore = useCallback(async () => {
-    if (attempted.current) return;
+    // Wait for the profile list: the last used profile is the one restored.
+    if (attempted.current || (isPersistentLoginAvailable() && !loaded)) return;
     attempted.current = true;
 
-    if (!isPersistentLoginAvailable()) {
+    if (!isPersistentLoginAvailable() || !active) {
       setStatus("needs-login");
       return;
     }
 
-    const bundle = await loadLoginBundle();
+    const { profileId } = active.entry;
+    const bundle = await loadLoginBundle(profileId);
     if (!bundle) {
       setStatus("needs-login");
       return;
@@ -55,13 +57,12 @@ export function useSessionRestore() {
     // key — drops the bundle and falls back to the password unlock, instead of
     // leaving the app on the splash screen.
     try {
-      const profile = await vault.getProfile();
-      const keyMaterial = await vault.getAccountKeyMaterial();
-      if (!profile || !keyMaterial) throw new Error("No vault stored on this device");
-      restoreLogin(profile.mode, bundle, await vault.getVaults(), keyMaterial.userKeyPair);
+      const { profile, accountKeyMaterial, vault } = active;
+      if (!profile || !accountKeyMaterial) throw new Error("No vault stored in this profile");
+      restoreLogin(profile.mode, bundle, await vault.getVaults(), accountKeyMaterial.userKeyPair);
     } catch {
       lock();
-      await clearLoginBundle();
+      await clearLoginBundle(profileId);
       setStatus("needs-login");
       return;
     }
@@ -79,10 +80,10 @@ export function useSessionRestore() {
       } catch (e) {
         if (!isUnauthorized(e)) return;
         detachServer();
-        await persistSession();
+        await persistSession(profileId);
       }
     }
-  }, [restoreLogin, detachServer, lock, vault, trpc]);
+  }, [restoreLogin, detachServer, lock, loaded, active, trpc]);
 
   return { status, tryRestore };
 }

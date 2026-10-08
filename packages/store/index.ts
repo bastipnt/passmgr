@@ -1,4 +1,6 @@
-export type { SqlDriver } from "./src/driver";
+export type { OpenDatabase, SqlDriver } from "./src/driver";
+export { createLock, type Lock } from "./src/lock";
+export * from "./src/profiles";
 export {
   type ConflictResolver,
   type LocalRecordChange,

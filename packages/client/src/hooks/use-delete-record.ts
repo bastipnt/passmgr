@@ -1,5 +1,5 @@
 import { useMutation } from "@tanstack/react-query";
-import { useStore } from "../providers/StoreProvider";
+import { requireActive, useStore } from "../providers/StoreProvider";
 import { useRefreshRecord } from "./use-records";
 
 type UseDeleteRecordOpts = {
@@ -7,13 +7,13 @@ type UseDeleteRecordOpts = {
 };
 
 export function useDeleteRecord({ onSuccess }: UseDeleteRecordOpts) {
-  const { records } = useStore();
+  const store = useStore();
   const refreshRecord = useRefreshRecord();
 
   const { mutate, error: mutationError } = useMutation({
     // Local only (ADR 0001 D1): never paused while the browser reports offline.
     networkMode: "always",
-    mutationFn: (recordId: string) => records.delete(recordId),
+    mutationFn: (recordId: string) => requireActive(store).records.delete(recordId),
     onSuccess: async (_, recordId) => {
       await refreshRecord(recordId);
       onSuccess();

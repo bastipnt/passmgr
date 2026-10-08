@@ -3,10 +3,11 @@ import { type BottomSheetRef, BrandLockup, Button, Screen, SpectrumText } from "
 import { FIELD_COLORS } from "@repo/ui-shared";
 import { ShieldCheck } from "lucide-react-native";
 import { useRef } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useCSSVariable } from "uniwind";
 import { CreateLocalVaultSheet } from "@/features/auth/components/CreateLocalVaultSheet";
+import { ProfileList } from "@/features/auth/components/ProfileList";
 import { RecoverSheet } from "@/features/auth/components/RecoverSheet";
 import { SignInSheet } from "@/features/auth/components/SignInSheet";
 import { SignUpSheet } from "@/features/auth/components/SignUpSheet";
@@ -37,8 +38,19 @@ export default function LoginScreen() {
   const signUpRef = useRef<BottomSheetRef>(null);
   const recoverRef = useRef<BottomSheetRef>(null);
   const localVaultRef = useRef<BottomSheetRef>(null);
-  const { profile, accountKeyMaterial } = useStore();
+  const { profile, accountKeyMaterial, profiles, selectProfile } = useStore();
   const hasStoredVault = profile !== null && accountKeyMaterial !== null;
+
+  async function pickProfile(profileId: string) {
+    try {
+      await selectProfile(profileId);
+    } catch (e) {
+      console.error("Opening the profile failed", e);
+      Alert.alert("That vault couldn't be opened", "Please try again.");
+      return;
+    }
+    signInRef.current?.triggerShowHide(true);
+  }
 
   return (
     <Screen field="vivid">
@@ -48,7 +60,11 @@ export default function LoginScreen() {
       >
         <BrandLockup />
 
-        <View className="flex-1 justify-center gap-5">
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="flex-grow justify-center gap-5 py-4"
+          showsVerticalScrollIndicator={false}
+        >
           <View accessibilityRole="header">
             <HeroLine>Your secrets,</HeroLine>
             <SpectrumText
@@ -78,7 +94,10 @@ export default function LoginScreen() {
               </View>
             ))}
           </View>
-        </View>
+          {profiles.length > 1 && (
+            <ProfileList onPick={(profileId) => void pickProfile(profileId)} />
+          )}
+        </ScrollView>
 
         <View className="gap-3">
           <Button size="lg" onPress={() => signInRef.current?.triggerShowHide(true)}>
@@ -91,18 +110,16 @@ export default function LoginScreen() {
           >
             Create account
           </Button>
-          {profile === null && (
-            <Pressable
-              className="self-center pt-1"
-              hitSlop={8}
-              accessibilityRole="button"
-              onPress={() => localVaultRef.current?.triggerShowHide(true)}
-            >
-              <Text className="text-muted-foreground text-sm underline">
-                Start without an account
-              </Text>
-            </Pressable>
-          )}
+          <Pressable
+            className="self-center pt-1"
+            hitSlop={8}
+            accessibilityRole="button"
+            onPress={() => localVaultRef.current?.triggerShowHide(true)}
+          >
+            <Text className="text-muted-foreground text-sm underline">
+              {profiles.length === 0 ? "Start without an account" : "New vault without an account"}
+            </Text>
+          </Pressable>
           <View className="flex-row items-center justify-center gap-1.5 pt-2">
             <ShieldCheck size={14} color={muted} />
             <Text className="text-muted-foreground text-xs">

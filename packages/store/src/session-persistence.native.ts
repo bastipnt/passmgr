@@ -7,7 +7,8 @@ export type { LoginBundle };
 declare const __DEV__: boolean;
 declare const process: { env: Record<string, string | undefined> };
 
-const LOGIN_BUNDLE_KEY = "passmgr.login-bundle";
+/** One Keychain/Keystore item per profile (ADR 0001 D2). */
+const loginBundleKey = (profileId: string) => `passmgr.login-bundle.${profileId}`;
 
 // Dev-only escape hatch: skip the biometric prompt so fast-refresh reloads
 // restore instantly. Never enabled in a production build.
@@ -34,17 +35,17 @@ export function isPersistentLoginAvailable(): boolean {
   return true;
 }
 
-export async function persistLoginBundle(bundle: LoginBundle): Promise<void> {
-  await SecureStore.setItemAsync(LOGIN_BUNDLE_KEY, JSON.stringify(bundle), writeOptions());
+export async function persistLoginBundle(profileId: string, bundle: LoginBundle): Promise<void> {
+  await SecureStore.setItemAsync(loginBundleKey(profileId), JSON.stringify(bundle), writeOptions());
 }
 
 /**
- * Reading triggers the OS biometric/passcode prompt. Returns the stored bundle,
+ * Reading triggers the OS biometric/passcode prompt. Returns the profile's bundle,
  * or null if nothing is stored or the user cancelled / auth failed.
  */
-export async function loadLoginBundle(): Promise<LoginBundle | null> {
+export async function loadLoginBundle(profileId: string): Promise<LoginBundle | null> {
   try {
-    const raw = await SecureStore.getItemAsync(LOGIN_BUNDLE_KEY, writeOptions());
+    const raw = await SecureStore.getItemAsync(loginBundleKey(profileId), writeOptions());
     if (!raw) return null;
     const bundle = JSON.parse(raw) as Partial<LoginBundle>;
     // A bundle from an older app version: start over with a normal unlock.
@@ -56,6 +57,6 @@ export async function loadLoginBundle(): Promise<LoginBundle | null> {
   }
 }
 
-export async function clearLoginBundle(): Promise<void> {
-  await SecureStore.deleteItemAsync(LOGIN_BUNDLE_KEY);
+export async function clearLoginBundle(profileId: string): Promise<void> {
+  await SecureStore.deleteItemAsync(loginBundleKey(profileId));
 }

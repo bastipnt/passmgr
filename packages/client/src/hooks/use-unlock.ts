@@ -1,12 +1,12 @@
 import { authenticateBiometric, normalizeEmail, wipe } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { AccountKeyMaterial, PasswordKeySchema, VaultUnlockInfo } from "@repo/schema";
-import { type LocalProfile, secretsStore } from "@repo/store";
+import { secretsStore } from "@repo/store";
 import { fromBase64 } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
 import { SessionContext } from "../providers/SessionProvider";
-import { useStore } from "../providers/StoreProvider";
+import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { endServerSession } from "../util/end-server-session";
 import { timed } from "../util/perf";
@@ -17,21 +17,10 @@ import { useLogin } from "./use-login";
 
 /**
  * - `failed`: wrong password, or the key derivation failed
- * - `wrong_account`: offline, the email isn't the account stored on this device
- * - `local_vault`: this device holds a vault without an account; signing in to
- *   an account would replace it (merging comes with account linking)
- * - `account_changed`: the stored vault's email now belongs to another account
- *   on the server; unlocking it there would replace this device's vault
- * - `unsynced_changes`: this device holds another account's vault with changes
- *   that never reached its server; signing in to a different account would
- *   delete them
+ * - `wrong_account`: offline, and no profile on this device has this email
+ *   (adding an account needs the server)
  */
-export type UnlockError =
-  | "failed"
-  | "wrong_account"
-  | "local_vault"
-  | "account_changed"
-  | "unsynced_changes";
+export type UnlockError = "failed" | "wrong_account";
 
 async function derivePasswordKek(password: string, keys: PasswordKeySchema): Promise<Uint8Array> {
   const { passwordKekParams } = keys;
@@ -50,10 +39,12 @@ export function useUnlock() {
   const trpc = useTRPCClient();
 
   /**
-   * After an online login (`loginUser`, server session attached): make this
-   * device the account's, derive the password KEK, unwrap the account key and
-   * with it the vault keys. Resolves `false` on a wrong password (or a vault
-   * key that doesn't open), with the server session revoked again.
+   * After an online login (`loginUser`, server session attached): open the
+   * account's profile (adding one for an account new to this device, ADR 0001
+   * D2), derive the password KEK, unwrap the account key and with it the vault
+   * keys. Other profiles are never touched. Resolves `false` on a wrong
+   * password (or a vault key that doesn't open), with the server session
+   * revoked again.
    */
   async function unlock(info: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
@@ -69,10 +60,17 @@ export function useUnlock() {
     }
 
     const material: AccountKeyMaterial = { ...userPasswordKeys, userKeyPair };
-    const refused = await adoptAccount(info, material);
-    if (refused) {
+    let opened: ActiveProfile;
+    try {
+      opened = await store.openAccountProfile(
+        { userId: info.userId, email: normalizeEmail(info.email) },
+        material,
+        vaultKeys,
+      );
+    } catch (e) {
+      console.error("Opening the account's profile failed", e);
       wipe(passwordKek);
-      await failUnlock(refused);
+      await failUnlock("failed");
       return false;
     }
 
@@ -92,83 +90,91 @@ export function useUnlock() {
       return false;
     }
 
-    afterUnlock(password);
-    await persistSession();
+    afterUnlock(opened, password);
+    await persistSession(opened.entry.profileId);
 
     // Transparently migrate to the current Argon2 params if the stored ones
     // are stale. Best-effort; failures don't block login.
     void rekeyIfParamsStale(trpc, password, material).then(async (rekeyed) => {
-      if (rekeyed) await store.saveAccount(rekeyed, vaultKeys);
+      if (rekeyed) await store.saveAccount(opened.entry.profileId, rekeyed, vaultKeys);
     });
     return true;
   }
 
   /**
-   * Unlock this device's vault with the password, without the server (ADR 0001
+   * Unlock the active profile with the password, without the server (ADR 0001
    * D2): the profile says whose vault it is, no email needed. A linked vault
    * then attaches server auth in the background; until that works the session
    * is `offline`.
    *
    * When the password doesn't open the local copy of a linked vault, it may
    * have been changed on another device: online, the server login decides.
+   * Should the email now belong to another account, that account gets a
+   * profile of its own; this one stays as it is.
    */
   async function unlockLocal(password: string): Promise<boolean> {
     setUnlockError(undefined);
-    const { profile, accountKeyMaterial: material } = store;
-    if (!profile || !material) {
+    const active = store.current();
+    const profile = active?.profile;
+    const material = active?.accountKeyMaterial;
+    if (!active || !profile || !material) {
       setUnlockError("failed");
       return false;
     }
 
-    if (await unlockWithPassword(profile, material, password)) {
-      afterUnlock(password);
-      await persistSession();
-      if (profile.mode === "local") void rekeyLocal(password, material);
+    if (await unlockWithPassword(active, password)) {
+      afterUnlock(active, password);
+      await persistSession(active.entry.profileId);
+      if (profile.mode === "local") void rekeyLocal(active, password, material);
       if (profile.mode === "linked") {
         // Kept for the reconnect: `useAutoReconnect` retries with it once online.
         secretsStore.setPassword(password);
-        if (!networkOffline) void connect(password).then(clearPasswordIfDone);
+        if (!networkOffline) void connect(password).then(clearPasswordIfDone(active));
       }
       return true;
     }
 
     if (profile.mode === "linked" && !networkOffline) {
       const info = await loginUser(profile.email, password);
-      if (info) {
-        // Unlocking this device's vault never switches accounts: that would
-        // clear the vault without the user ever asking for another account.
-        // The server session attached by the login is revoked again (the vault
-        // is still locked, so nothing synced with it).
-        if (info.userId !== profile.userId) {
-          await failUnlock("account_changed");
-          return false;
-        }
-        return await unlock(info);
-      }
+      if (info) return await unlock(info);
     }
     setUnlockError("failed");
     return false;
   }
 
   /**
-   * Unlock by email + password while the server can't be reached. Only the
-   * account stored on this device can be unlocked like this.
+   * Sign in by email + password, the way picking a profile would: when this
+   * device has a profile for the email, it's opened and unlocked like a picked
+   * one (`unlockLocal`: same data, no download). Resolves `undefined` when
+   * there is none: the caller logs in to the server (`loginUser` + `unlock`),
+   * which adds a profile. Offline that can't work: `wrong_account`.
    */
-  async function offlineUnlock(email: string, password: string): Promise<boolean> {
-    const { profile } = store;
-    if (profile?.mode !== "linked" || normalizeEmail(email) !== profile.email) {
+  async function unlockByEmail(email: string, password: string): Promise<boolean | undefined> {
+    setUnlockError(undefined);
+    const existing = store.profiles.find(
+      (p) => p.mode === "linked" && p.email === normalizeEmail(email),
+    );
+    if (existing) {
+      try {
+        await store.selectProfile(existing.profileId);
+      } catch (e) {
+        console.error("Opening the profile failed", e);
+        setUnlockError("failed");
+        return false;
+      }
+      return await unlockLocal(password);
+    }
+    if (networkOffline) {
       setUnlockError("wrong_account");
       return false;
     }
-    return await unlockLocal(password);
+    return undefined;
   }
 
   /** Derive the KEK and open the local copy of the keyring. Resolves `false` on a wrong password. */
-  async function unlockWithPassword(
-    profile: LocalProfile,
-    material: AccountKeyMaterial,
-    password: string,
-  ): Promise<boolean> {
+  async function unlockWithPassword(active: ActiveProfile, password: string): Promise<boolean> {
+    const { profile, accountKeyMaterial: material } = active;
+    if (!profile || !material) return false;
     try {
       const passwordKek = await derivePasswordKek(password, material);
       unlockVault(
@@ -176,7 +182,7 @@ export function useUnlock() {
         passwordKek,
         material.encryptedAccountKey,
         material.accountKeyEncryptionNonce,
-        await store.vault.getVaults(),
+        await active.vault.getVaults(),
         material.userKeyPair,
       );
       return true;
@@ -186,59 +192,29 @@ export function useUnlock() {
     }
   }
 
-  /**
-   * Make the local database the logged-in account's: keep it when it already
-   * is (same `userId`), otherwise clear the other account's leftovers before any
-   * of it is decrypted with the wrong keys. Data that exists nowhere else is
-   * never replaced silently: a vault without an account, or another account's
-   * changes that never reached the server. Resolves why it refused, if it did.
-   */
-  async function adoptAccount(
-    info: VaultUnlockInfo,
-    material: AccountKeyMaterial,
-  ): Promise<"local_vault" | "unsynced_changes" | undefined> {
-    const { profile } = store;
-    if (profile?.mode === "local") return "local_vault";
-
-    const email = normalizeEmail(info.email);
-    const sameAccount = profile?.mode === "linked" && profile.userId === info.userId;
-    if (!sameAccount) {
-      if ((await store.vault.countPendingChanges()) > 0) return "unsynced_changes";
-      await store.vault.clear();
-    }
-
-    const nextProfile: LocalProfile | undefined =
-      sameAccount && profile.email === email
-        ? undefined
-        : {
-            profileId: sameAccount ? profile.profileId : crypto.randomUUID(),
-            mode: "linked",
-            email,
-            userId: info.userId,
-          };
-    await store.saveAccount(material, info.vaultKeys, nextProfile);
-    return undefined;
-  }
-
   /** Local profile: move the password wrap to the current Argon2 params, on the device only. */
-  async function rekeyLocal(password: string, material: AccountKeyMaterial) {
+  async function rekeyLocal(active: ActiveProfile, password: string, material: AccountKeyMaterial) {
     try {
       const rekeyed = await rekeyLocalIfParamsStale(password, material);
-      if (rekeyed) await store.saveAccount(rekeyed, await store.vault.getVaults());
+      if (rekeyed)
+        await store.saveAccount(active.entry.profileId, rekeyed, await active.vault.getVaults());
     } catch (e) {
       console.error("Storing the rekeyed password wrap failed", e);
     }
   }
 
-  function afterUnlock(password: string) {
+  function afterUnlock(active: ActiveProfile, password: string) {
     // Store password temporarily for biometric enrollment (only if enrollment is upcoming).
     // Same tick as the unlock, so the enroll redirect already sees it.
-    if (store.needsBiometricEnroll) secretsStore.setPassword(password);
+    if (store.needsBiometricEnrollFor(active)) secretsStore.setPassword(password);
     initDecryptWorker();
   }
 
-  function clearPasswordIfDone(result: ConnectResult) {
-    if (canReleasePassword(result, store.needsBiometricEnroll)) secretsStore.clearPassword();
+  function clearPasswordIfDone(active: ActiveProfile) {
+    return (result: ConnectResult) => {
+      if (canReleasePassword(result, store.needsBiometricEnrollFor(active)))
+        secretsStore.clearPassword();
+    };
   }
 
   /**
@@ -254,9 +230,11 @@ export function useUnlock() {
     lock();
   }
 
-  /** Unlock with the account key behind the platform authenticator (web, WebAuthn PRF). */
+  /** Unlock the active profile with the account key behind the platform authenticator (web, WebAuthn PRF). */
   async function biometricUnlock() {
-    const { profile, accountKeyMaterial: material, biometricKeyMaterial } = store;
+    const active = store.current();
+    if (!active) return;
+    const { profile, accountKeyMaterial: material, biometricKeyMaterial } = active;
     if (!biometricKeyMaterial || !profile || !material) return;
 
     const { accountKey, password } = await authenticateBiometric(biometricKeyMaterial);
@@ -264,7 +242,7 @@ export function useUnlock() {
       unlockWithAccountKey(
         profile.mode,
         accountKey,
-        await store.vault.getVaults(),
+        await active.vault.getVaults(),
         material.userKeyPair,
       );
     } catch (e) {
@@ -277,11 +255,11 @@ export function useUnlock() {
 
     if (profile.mode === "linked") {
       secretsStore.setPassword(password);
-      if (!networkOffline) void connect(password).then(clearPasswordIfDone);
+      if (!networkOffline) void connect(password).then(clearPasswordIfDone(active));
     }
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);
 
-  return { unlockError, clearUnlockError, unlock, unlockLocal, offlineUnlock, biometricUnlock };
+  return { unlockError, clearUnlockError, unlock, unlockLocal, unlockByEmail, biometricUnlock };
 }

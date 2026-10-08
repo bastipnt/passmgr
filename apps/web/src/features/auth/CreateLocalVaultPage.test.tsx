@@ -58,7 +58,7 @@ describe("CreateLocalVaultPage", () => {
     renderWithProviders(<CreateLocalVaultPage />);
     await fillForm("hunter2hunter2");
 
-    expect(createLocalVault).toHaveBeenCalledWith("hunter2hunter2");
+    expect(createLocalVault).toHaveBeenCalledWith("hunter2hunter2", "");
     await screen.findByText(/save your recovery key/i);
     expect(finishLocalVault).not.toHaveBeenCalled();
 
@@ -80,9 +80,20 @@ describe("CreateLocalVaultPage", () => {
     );
   });
 
-  it("explains when the device already holds a vault", () => {
-    mockCreateError = "vault_exists";
+  it("adds another vault on a device that already holds one, with an optional name", async () => {
+    mockProfile = { mode: "linked" };
+    createLocalVault.mockResolvedValue(new Uint8Array([1, 2, 3]));
     renderWithProviders(<CreateLocalVaultPage />);
-    expect(screen.getByText(/already holds a vault/i)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Name"), "Travel");
+    await fillForm("hunter2hunter2");
+
+    expect(createLocalVault).toHaveBeenCalledWith("hunter2hunter2", "Travel");
+  });
+
+  it("explains a failed write", () => {
+    mockCreateError = "failed";
+    renderWithProviders(<CreateLocalVaultPage />);
+    expect(screen.getByText(/creating the vault failed/i)).toBeInTheDocument();
   });
 });

@@ -48,8 +48,16 @@ function fakeExpoDatabase(db: DatabaseSync) {
 
 let sqlite: DatabaseSync;
 
+const opened: string[] = [];
+const deleted: string[] = [];
 vi.mock("expo-sqlite", () => ({
-  openDatabaseAsync: async () => fakeExpoDatabase(sqlite),
+  openDatabaseAsync: async (name: string) => {
+    opened.push(name);
+    return fakeExpoDatabase(sqlite);
+  },
+  deleteDatabaseAsync: async (name: string) => {
+    deleted.push(name);
+  },
 }));
 
 const { createNativeDriver } = await import("../src/drivers/native");
@@ -58,7 +66,9 @@ let driver: SqlDriver;
 
 beforeEach(async () => {
   sqlite = new DatabaseSync(":memory:");
-  driver = createNativeDriver();
+  opened.length = 0;
+  deleted.length = 0;
+  driver = createNativeDriver("pass-mgr-test");
   await driver.query("CREATE TABLE t (v TEXT)", [], "run");
 });
 
@@ -110,5 +120,18 @@ describe("native driver", () => {
 
     await driver.query("INSERT INTO t VALUES ('after')", [], "run");
     expect(await values()).toEqual([["after"]]);
+  });
+
+  it("opens <name>.db and deletes it after closing the connection", async () => {
+    expect(opened).toEqual(["pass-mgr-test.db"]);
+    await driver.deleteDatabase();
+
+    expect(deleted).toEqual(["pass-mgr-test.db"]);
+    expect(sqlite.isOpen).toBe(false);
+  });
+
+  it("refuses to delete the database from inside a transaction", async () => {
+    await expect(driver.transaction((tx) => tx.deleteDatabase())).rejects.toThrow();
+    expect(deleted).toEqual([]);
   });
 });

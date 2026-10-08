@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { collectMigrations, renderModule } from "../scripts/bundle-migrations";
+import { BUNDLES, collectMigrations, renderModule } from "../scripts/bundle-migrations";
 import type { SqlDriver } from "../src/driver";
 import { MIGRATIONS, type Migration, migrate, SchemaTooNewError } from "../src/migrations";
 import { Vault } from "../src/vault";
@@ -211,12 +211,15 @@ describe("MIGRATIONS", () => {
     expect((rows as [string][]).map(([name]) => name)).toContain("vaultId");
   });
 
-  it("bundled module matches the drizzle-kit output (run `pnpm migrations:generate`)", () => {
-    const root = join(import.meta.dirname, "..");
-    const bundled = readFileSync(join(root, "src/migrations.generated.ts"), "utf8");
+  it.each(BUNDLES)(
+    "$module matches the drizzle-kit output (run `pnpm migrations:generate`)",
+    ({ drizzleDir, module }) => {
+      const root = join(import.meta.dirname, "..");
+      const bundled = readFileSync(join(root, module), "utf8");
 
-    expect(bundled).toBe(renderModule(collectMigrations(join(root, "drizzle"))));
-  });
+      expect(bundled).toBe(renderModule(collectMigrations(join(root, drizzleDir)), drizzleDir));
+    },
+  );
 });
 
 describe("Vault", () => {
@@ -242,6 +245,7 @@ describe("Vault", () => {
         failing ? Promise.reject(new Error("disk I/O error")) : db.query(sql, params, method),
       transaction: (fn) => db.transaction(fn),
       destroy: () => db.destroy(),
+      deleteDatabase: () => db.deleteDatabase(),
     };
     const vault = new Vault(flaky);
 

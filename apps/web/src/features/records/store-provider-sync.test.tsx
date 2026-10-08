@@ -1,6 +1,6 @@
 import { SessionContext, type SessionMode } from "@repo/client";
 import { StoreProvider } from "@repo/client/src/providers/StoreProvider";
-import type { PendingChange, Vault } from "@repo/store";
+import type { PendingChange, ProfileEntry, ProfileStore } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,6 +32,23 @@ const vault = {
   countParkedChanges: vi.fn(async () => 0),
 };
 
+const entry: ProfileEntry = {
+  profileId: "p-1",
+  mode: "linked",
+  email: "alice@example.com",
+  userId: "u-1",
+  name: null,
+  databaseName: "pass-mgr-p-1",
+  createdAt: "2026-10-01T00:00:00.000Z",
+  lastUsedAt: "2026-10-01T00:00:00.000Z",
+};
+// One profile on the device, opened on launch.
+const profiles = {
+  list: vi.fn(async () => [entry]),
+  open: vi.fn(async () => vault),
+  close: vi.fn(async () => undefined),
+} as unknown as ProfileStore;
+
 const detachServer = vi.fn();
 
 function session(mode: SessionMode | undefined) {
@@ -47,7 +64,7 @@ function session(mode: SessionMode | undefined) {
 function ui(mode: SessionMode | undefined) {
   return (
     <SessionContext.Provider value={session(mode)}>
-      <StoreProvider vault={vault as unknown as Vault}>{null}</StoreProvider>
+      <StoreProvider profiles={profiles}>{null}</StoreProvider>
     </SessionContext.Provider>
   );
 }

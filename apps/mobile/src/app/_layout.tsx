@@ -23,8 +23,8 @@ import "react-native-reanimated";
 import { useContext, useEffect } from "react";
 import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { useProfileStore } from "@/hooks/use-profile-store";
 import { applyTheme, getStoredTheme, useThemePreference } from "@/hooks/use-theme-preference";
-import { useVaultStore } from "@/hooks/use-vault-store";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
@@ -74,7 +74,7 @@ function Routes() {
 
 export default function RootLayout() {
   const preferencesStore = usePreferencesStore();
-  const vaultStore = useVaultStore();
+  const profileStore = useProfileStore();
   const appActive = useAppActive();
 
   // Apply the persisted appearance choice. Uniwind's light/dark themes are
@@ -89,7 +89,7 @@ export default function RootLayout() {
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
             <ClientProvider serverUrl={serverUrl} eventSource={RNEventSourcePonyfill}>
-              <StoreProvider vault={vaultStore} syncEnabled={appActive}>
+              <StoreProvider profiles={profileStore} syncEnabled={appActive}>
                 <Routes />
               </StoreProvider>
             </ClientProvider>

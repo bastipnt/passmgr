@@ -2,6 +2,7 @@ import { useRecovery } from "@repo/client/src/hooks/use-recovery";
 import type { LocalProfile } from "@repo/store";
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFakeStore, profileEntry } from "@/test/fake-store";
 
 const recoverAccount = vi.hoisted(() => vi.fn());
 vi.mock("@repo/client/src/recover", async (importActual) => ({
@@ -13,17 +14,20 @@ vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPCClient: () => ({}),
 }));
 
-const store = {
-  profile: {
-    profileId: "p-1",
-    mode: "linked",
-    email: "alice@example.com",
-    userId: "u-1",
-  } as LocalProfile | null,
-  vault: { countPendingChanges: vi.fn(async () => 0) },
-  removeVault: vi.fn(),
-  forgetQuickUnlock: vi.fn(),
+const ALICE: LocalProfile = {
+  profileId: "p-alice",
+  mode: "linked",
+  email: "alice@example.com",
+  userId: "u-alice",
 };
+const BOB: LocalProfile = {
+  profileId: "p-bob",
+  mode: "linked",
+  email: "bob@example.com",
+  userId: "u-bob",
+};
+
+const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
@@ -39,29 +43,32 @@ async function recover(email = "Alice@Example.com") {
 beforeEach(() => {
   vi.clearAllMocks();
   recoverAccount.mockResolvedValue(new Uint8Array(32));
+  // Bob is active: the recovered account's profile needn't be.
+  Object.assign(store, { profiles: [profileEntry(BOB), profileEntry(ALICE)], profile: BOB });
 });
 
 describe("useRecovery", () => {
-  it("drops this device's stale copy of the recovered account", async () => {
+  it("removes this device's stale profile of the recovered account", async () => {
     await recover();
 
-    expect(store.removeVault).toHaveBeenCalledTimes(1);
+    expect(store.removeProfile).toHaveBeenCalledWith(ALICE.profileId);
     expect(store.forgetQuickUnlock).not.toHaveBeenCalled();
   });
 
-  it("keeps the vault when it holds unsynced changes, dropping only the quick unlocks", async () => {
-    store.vault.countPendingChanges.mockResolvedValueOnce(3);
+  it("keeps the profile when it holds unsynced changes, dropping only the quick unlocks", async () => {
+    store.countPendingChanges.mockResolvedValueOnce(3);
 
     await recover();
 
-    expect(store.removeVault).not.toHaveBeenCalled();
-    expect(store.forgetQuickUnlock).toHaveBeenCalledTimes(1);
+    expect(store.countPendingChanges).toHaveBeenCalledWith(ALICE.profileId);
+    expect(store.removeProfile).not.toHaveBeenCalled();
+    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId);
   });
 
-  it("leaves another account's vault alone", async () => {
-    await recover("bob@example.com");
+  it("leaves other accounts' profiles alone", async () => {
+    await recover("carol@example.com");
 
-    expect(store.removeVault).not.toHaveBeenCalled();
+    expect(store.removeProfile).not.toHaveBeenCalled();
     expect(store.forgetQuickUnlock).not.toHaveBeenCalled();
   });
 });

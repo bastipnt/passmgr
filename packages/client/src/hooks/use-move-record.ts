@@ -1,6 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
-import { useStore } from "../providers/StoreProvider";
+import { requireActive, useStore } from "../providers/StoreProvider";
 import { useRefreshRecord } from "./use-records";
 
 type UseMoveRecordOpts = {
@@ -13,7 +13,7 @@ type UseMoveRecordOpts = {
  * keeps its history, so the history never reaches the target vault's members.
  */
 export function useMoveRecord({ onSuccess }: UseMoveRecordOpts) {
-  const { records } = useStore();
+  const store = useStore();
   const refreshRecord = useRefreshRecord();
 
   const {
@@ -34,7 +34,7 @@ export function useMoveRecord({ onSuccess }: UseMoveRecordOpts) {
         schemaVersion: _schemaVersion,
         ...data
       } = record;
-      return records.move(record, data, targetVaultId);
+      return requireActive(store).records.move(record, data, targetVaultId);
     },
     onSuccess: async (moved, { record }) => {
       await refreshRecord(record.recordId);

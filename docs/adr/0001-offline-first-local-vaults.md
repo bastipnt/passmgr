@@ -70,7 +70,8 @@ server, apart from account operations that genuinely need it (registration, logi
     for `local` mode a warning that this deletes the only copy.
 
   Logout never wipes a local-only vault.
-- Multiple profiles per device are out of scope. Signing into an existing account on a device
+- ~~Multiple profiles per device are out of scope.~~ Superseded by the 2026-10-07 amendment
+  below: a device holds any number of profiles. Signing into an existing account on a device
   that has an unlinked local profile is handled in D9.
 
 > **Amended 2026-10-03** (session modes implementation): the profile is the local `profile` table
@@ -101,6 +102,57 @@ server, apart from account operations that genuinely need it (registration, logi
 > params on the device (`rekeyLocalIfParamsStale`; every rekey derives in the Argon2 worker). `useAppConfig` retries once, then reads as "no
 > registration"; the local vault route (`/local-vault` on web, "Start without an account" on mobile)
 > never depends on it. No display name on the profile yet.
+>
+> **Amended 2026-10-07** (multiple profiles per device): a device holds any number of profiles side
+> by side — local vaults and linked accounts — each with its own data, keys, outbox and sync state.
+>
+> - **Storage: one SQLite database per profile** (`pass-mgr-<profileId>`, `.sqlite3` in OPFS on web,
+>   `.db` on mobile), each with today's schema (`Vault`, its `profile` row stays the source of truth,
+>   written atomically with the key material). A small device-level **registry** database
+>   (`pass-mgr-profiles`, own drizzle schema `registry-tables.ts` + migrations in `drizzle-registry/`)
+>   lists them: `profileId`, `mode`, `email`, `userId` (unique), optional display `name`,
+>   `databaseName`, `createdAt`, `lastUsedAt`. It holds no key material. `ProfileStore`
+>   (`packages/store/src/profiles.ts`) owns both: `create` fills a new database first and lists it
+>   only once that worked (a failed fill deletes the file), `remove` deletes the file (via
+>   `SqlDriver.deleteDatabase`) before the row, so a crash can leave an unlisted file but never a
+>   listed profile without data. Not a `profileId` column per table: isolation by construction,
+>   removal = deleting a file.
+> - **Per-profile state:** the mobile login bundle (Keychain/Keystore item
+>   `passmgr.login-bundle.<profileId>`), biometric enrollment (web: in the profile's database
+>   already; mobile: the login bundle), the Argon2 rekey state (in the wrap), and the
+>   "biometric dismissed" preference (`biometric-dismissed:<profileId>`). Other preferences
+>   (auto-lock, theme, generator) stay device-wide.
+> - **App wiring:** `StoreProvider` takes the `ProfileStore`, lists the profiles and opens the last
+>   used one on launch (`loaded`, `profiles`, `active`). Only one profile is open and unlocked at a
+>   time: `selectProfile` refuses while unlocked (lock first), disposes the previous profile's
+>   `SyncManager` (sync + SSE stop; `dispose` waits for a running round), closes its database and
+>   opens the next one. Opening, adding and removing profiles run one at a time (a lock in
+>   `StoreProvider`). `vault`,
+>   `syncManager` and `records` are `null` without an active profile. Async flows read
+>   `store.current()` (not a render's snapshot), and `saveAccount` names its target profile, so a
+>   background rekey never lands in a profile opened meanwhile. Mobile fast-unlock restores the
+>   last used profile only.
+> - **Login semantics:** the unlock screen shows the last used profile's unlock card; "Switch"
+>   shows the email login with every profile listed (pick one → its unlock). Signing in with the
+>   email of a profile on the device unlocks that profile exactly like picking it
+>   (`useUnlock().unlockByEmail` → `unlockLocal`: no download, no wipe; offline too). Any other
+>   email logs in to the server, and `openAccountProfile` opens the profile of that `userId` or
+>   adds one. `adoptAccount`'s clearing is gone, and so are the `local_vault`, `unsynced_changes`
+>   and `account_changed` refusals: an email that now belongs to another `userId` gets a new
+>   profile, the old one stays. Offline, an email without a profile fails with `wrong_account`.
+> - **Remove one / all:** `useRemoveFromDevice` (`removeFromDevice(profileId?)`, `removeAll`) or,
+>   on the locked screens, `store.removeProfile` / `removeAllProfiles`: the database, the persisted
+>   login, the per-profile preference. The warnings stay: a `local` profile is the only copy; a
+>   linked one names its unsynced changes (`countPendingChanges(profileId)` opens a closed profile
+>   briefly). Removing the active profile opens the next most recently used one.
+> - **Local vaults** get an optional name (`useCreateLocalVault().createLocalVault(password,
+>   name)`); creating one on a device that already holds profiles adds another profile
+>   (`vault_exists` is gone; `VaultExistsError` still guards a new database).
+> - **Migration:** none (no users yet): sign in again. The single pre-profile database
+>   (`pass-mgr.sqlite3` / `pass-mgr.db`) is deleted once by `ProfileStore` (marked in the
+>   registry's `registry_meta`), so no vault or email lingers where no "remove" reaches.
+> - Not covered: tabs see the registry as of their own load (a profile added in another tab shows
+>   after a reload); renaming a profile has no UI yet (`ProfileStore.rename` exists).
 
 ### D3 — Key hierarchy v2: account key wrapping per-vault keys
 
@@ -410,8 +462,9 @@ the history must not leak into the target.
    batches. If the upload is interrupted, it resumes on the next sync.
 5. The profile switches to `mode = linked` and stores `userId` and `email`.
 
-**Signing into an existing account on a device with an unlinked local profile:** the user
-chooses between
+**Signing into an existing account on a device with an unlinked local profile:** since
+the multiple-profiles amendment (D2, 2026-10-07) the default is a **separate profile**: the
+account gets its own, the local one stays as it is. Merging stays an option the user chooses:
 
 - **Merge:** the local vault keys are re-wrapped under the account's `accountKey` and uploaded
   as additional vaults. Records are not re-encrypted.

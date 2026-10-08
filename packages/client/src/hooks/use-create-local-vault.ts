@@ -1,6 +1,6 @@
 import { wipe } from "@repo/crypto";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
-import { secretsStore, VaultExistsError } from "@repo/store";
+import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { generateLocalVault } from "../account/create-local-vault";
 import { SessionContext } from "../providers/SessionProvider";
@@ -9,12 +9,11 @@ import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 
 /**
- * - `vault_exists`: this device already holds a vault (never replaced silently)
  * - `failed`: the key derivation or the local write failed (nothing was created)
  * - `unlock_failed`: the vault was created, but opening it afterwards failed;
  *   it unlocks with the password as usual
  */
-export type CreateLocalVaultError = "vault_exists" | "failed" | "unlock_failed";
+export type CreateLocalVaultError = "failed" | "unlock_failed";
 
 /** What the unlock after the recovery key needs; the account key is wiped if it never comes. */
 type PendingUnlock = {
@@ -23,11 +22,13 @@ type PendingUnlock = {
   userKeyPair: UserKeyPair;
   /** Only while biometric enrollment comes next (a string can't be wiped). */
   password?: string;
+  profileId: string;
 };
 
 /**
  * Create a vault on this device, with no server and no account (ADR 0001 D2,
- * `local` profile). Two steps, like a registration:
+ * `local` profile), as a new profile next to any others. Two steps, like a
+ * registration:
  *
  * 1. `createLocalVault(password)` generates the keyring, stores it and resolves
  *    the recovery key, to be shown once (it never leaves the device).
@@ -43,12 +44,12 @@ export function useCreateLocalVault() {
   // Leaving before the unlock (closing the page) must not leave the key behind.
   useEffect(() => () => dropPending(pending), []);
 
-  async function createLocalVault(password: string): Promise<Uint8Array | undefined> {
+  /** `name` tells this vault apart from other profiles on the device (optional). */
+  async function createLocalVault(
+    password: string,
+    name?: string,
+  ): Promise<Uint8Array | undefined> {
     setCreateError(undefined);
-    if (store.profile !== null || store.accountKeyMaterial !== null) {
-      setCreateError("vault_exists");
-      return;
-    }
 
     let created: Awaited<ReturnType<typeof generateLocalVault>>;
     try {
@@ -61,22 +62,23 @@ export function useCreateLocalVault() {
 
     const { accountKey, recoveryKey, material, recovery, vaults, profile } = created;
     try {
-      await store.createLocalVault(material, recovery, vaults, profile);
+      await store.createLocalVault(material, recovery, vaults, profile, name);
     } catch (e) {
       console.error("Storing the local vault failed", e);
       wipe(accountKey);
       wipe(recoveryKey);
-      // The store refuses a device that already holds a vault (e.g. another tab).
-      setCreateError(e instanceof VaultExistsError ? "vault_exists" : "failed");
+      setCreateError("failed");
       return;
     }
 
     dropPending(pending);
+    const opened = store.current();
     pending.current = {
       accountKey,
       vaults,
       userKeyPair: material.userKeyPair,
-      password: store.needsBiometricEnroll ? password : undefined,
+      password: opened && store.needsBiometricEnrollFor(opened) ? password : undefined,
+      profileId: profile.profileId,
     };
     return recoveryKey;
   }
@@ -99,7 +101,7 @@ export function useCreateLocalVault() {
     // Same tick as the unlock, so the enroll redirect already sees it.
     if (next.password !== undefined) secretsStore.setPassword(next.password);
     initDecryptWorker();
-    await persistSession();
+    await persistSession(next.profileId);
     return true;
   }, [unlockWithAccountKey]);
 

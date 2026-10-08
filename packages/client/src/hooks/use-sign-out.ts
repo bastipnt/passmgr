@@ -12,6 +12,7 @@ import { useLock } from "./use-lock";
  */
 export function useSignOut() {
   const trpc = useTRPCClient();
+  const store = useStore();
   const lock = useLock();
   const [signingOut, setSigningOut] = useState(false);
 
@@ -21,7 +22,8 @@ export function useSignOut() {
     try {
       if (secretsStore.hasServerSession) await endServerSession(trpc);
     } finally {
-      await clearLoginBundle();
+      const profileId = store.current()?.entry.profileId;
+      if (profileId) await clearLoginBundle(profileId);
       lock();
       setSigningOut(false);
     }
@@ -31,30 +33,42 @@ export function useSignOut() {
 }
 
 /**
- * Remove the vault from this device (ADR 0001 D2): end the server session
- * (best-effort), delete the local database, profile, persisted login and
- * biometric enrollment, and lock. For a `local` profile this deletes the only
- * copy: the UI must confirm it explicitly.
+ * Remove a profile from this device (ADR 0001 D2), by default the active
+ * (unlocked) one: end its server session (best-effort), lock, and delete its
+ * database, persisted login and biometric enrollment. Other profiles stay.
+ * `removeAll` removes every profile. For a `local` profile this deletes the
+ * only copy: the UI must confirm it explicitly.
  */
 export function useRemoveFromDevice() {
   const trpc = useTRPCClient();
-  const { removeVault } = useStore();
+  const store = useStore();
   const lock = useLock();
   const [removing, setRemoving] = useState(false);
 
-  async function removeFromDevice() {
+  async function remove(action: () => Promise<void>) {
     if (removing) return;
     setRemoving(true);
     try {
       if (secretsStore.hasServerSession) await endServerSession(trpc);
     } finally {
-      // Lock first: it stops the sync, so nothing writes into the database
-      // while it's being deleted.
-      lock();
-      await removeVault();
-      setRemoving(false);
+      try {
+        // Lock first: it stops the sync, so nothing writes into the database
+        // while it's being deleted.
+        lock();
+        await action();
+      } finally {
+        setRemoving(false);
+      }
     }
   }
 
-  return { removeFromDevice, removing };
+  async function removeFromDevice(profileId = store.current()?.entry.profileId) {
+    if (profileId) await remove(() => store.removeProfile(profileId));
+  }
+
+  async function removeAll() {
+    await remove(() => store.removeAllProfiles());
+  }
+
+  return { removeFromDevice, removeAll, removing };
 }

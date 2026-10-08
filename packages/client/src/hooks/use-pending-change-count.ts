@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { useStore } from "../providers/StoreProvider";
 
 /**
- * How many local changes haven't reached the server yet (undefined until
- * counted). Re-counted after every sync.
+ * How many local changes of the active profile haven't reached the server yet
+ * (undefined until counted, or without a profile). Re-counted after every sync.
  */
 export function usePendingChangeCount(): number | undefined {
   const { vault, syncManager } = useStore();
   const [count, setCount] = useState<number>();
 
   useEffect(() => {
+    setCount(undefined);
+    if (!vault || !syncManager) return;
     let live = true;
     const refresh = () =>
       void vault.countPendingChanges().then((n) => {

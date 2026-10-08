@@ -1,7 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useRecordsContext } from "../providers/RecordsProvider";
-import { useStore } from "../providers/StoreProvider";
+import { requireActive, useStore } from "../providers/StoreProvider";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
 
 /**
@@ -11,7 +11,7 @@ import { decryptRecordWithWorker } from "../util/decrypt-record";
  * before a record is selected.
  */
 export function useRecordHistory(recordId: string | undefined) {
-  const { records } = useStore();
+  const store = useStore();
   // Re-read after every local write or sync: a sync can change a version
   // without touching the head (renumbered, or the server's timestamps).
   const { revision } = useRecordsContext();
@@ -29,7 +29,7 @@ export function useRecordHistory(recordId: string | undefined) {
     // Reads the local vault only (ADR 0001 D1): never paused while the browser reports offline.
     networkMode: "always",
     queryFn: async (): Promise<DecryptedRecord[]> => {
-      const encrypted = await records.history(recordId!);
+      const encrypted = await requireActive(store).records.history(recordId!);
       const results = await Promise.allSettled(
         encrypted.map(async (row) => ({
           ...(await decryptRecordWithWorker(row)),

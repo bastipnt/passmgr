@@ -80,6 +80,9 @@ type SyncManagerOptions = {
  */
 export class SyncManager {
   private syncing = false;
+  /** The running round, for `dispose` to wait on. */
+  private round: Promise<boolean> | null = null;
+  private disposed = false;
   private rerun = false;
   private enabled = false;
   private syncInterval: ReturnType<typeof setInterval> | null = null;
@@ -183,10 +186,17 @@ export class SyncManager {
    * made meanwhile isn't left waiting.
    */
   async sync(): Promise<boolean> {
+    if (this.disposed) return false;
     if (this.syncing) {
       this.rerun = true;
       return false;
     }
+    const round = this.runRound();
+    this.round = round;
+    return await round;
+  }
+
+  private async runRound(): Promise<boolean> {
     this.syncing = true;
     this.setStatus({ phase: "syncing" });
 
@@ -242,6 +252,8 @@ export class SyncManager {
       // Keys first: the next page's merges may need a vault this one added.
       if (vaultsChanged) await this.onVaultsChanged?.(page.vaults);
       if (!page.hasMore) return vaultsChanged;
+      // Disposed (another profile opened): the next round resumes from this cursor.
+      if (this.disposed) throw new Error("sync stopped");
 
       const next = await this.store.getSyncCursors();
       if (!advanced(cursors, next)) throw new Error("the pull made no progress");
@@ -389,13 +401,19 @@ export class SyncManager {
     }
   }
 
-  dispose(): void {
+  /**
+   * Stop for good: no timers, no listeners, no new rounds. Resolves once a
+   * round still running has ended, so its store can be closed after.
+   */
+  async dispose(): Promise<void> {
+    this.disposed = true;
     this.stopPeriodicSync();
     this.clearTimers();
     this.enabled = false;
     this.setStatus({ phase: "offline" });
     this.listeners.clear();
     this.statusListeners.clear();
+    await this.round?.catch(() => undefined);
   }
 }
 

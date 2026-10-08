@@ -1,5 +1,4 @@
 import {
-  SessionContext,
   unsyncedChangesWarning,
   useLogin,
   usePendingChangeCount,
@@ -8,55 +7,60 @@ import {
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { ShieldCheckIcon, TrashIcon } from "lucide-react";
-import { useCallback, useContext, useState } from "react";
+import { FieldError } from "@repo/ui/components/Field";
+import { EyeOffIcon, ShieldCheckIcon, TrashIcon } from "lucide-react";
+import { useCallback, useState } from "react";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
 import { BiometricUnlockButton } from "./BiometricUnlockButton";
-import ExistingUserButton from "./ExistingUserButton";
 import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
+import ProfileList from "./ProfileList";
 import StoredAccountRow from "./StoredAccountRow";
 
+/**
+ * Unlock a profile on this device, or sign in (ADR 0001 D2). The last used
+ * profile opens as an unlock card; "Switch" shows the email login with every
+ * profile on the device listed below it. Signing in with the email of a
+ * profile on the device unlocks that profile; another account adds one.
+ */
 export default function LoginPage() {
   const { loginUser, clearLoginError, clearLoginErrors, loginError, loginThrottled } = useLogin();
-  const { unlock, unlockLocal, offlineUnlock, unlockError, clearUnlockError } = useUnlock();
+  const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
 
-  const [loginWithStoredEmail, setLoginWithStoredEmail] = useState(false);
+  // "Switch": the login with the device's profiles, instead of the active profile's unlock.
+  const [switching, setSwitching] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [pickFailed, setPickFailed] = useState(false);
 
-  const { networkOffline } = useContext(SessionContext);
   const store = useStore();
+  const persistent = useStoragePersistent();
   const pendingChanges = usePendingChangeCount();
-  // A vault without an account: it unlocks here, signing in elsewhere would replace it.
-  const localVault = store.profile?.mode === "local" && store.accountKeyMaterial !== null;
-  const storedEmail =
-    store.profile?.mode === "linked" && store.accountKeyMaterial ? store.profile.email : undefined;
-  const unlocking = localVault || (!!storedEmail && loginWithStoredEmail);
+  const { active } = store;
+  const unlockable = active?.profile && active.accountKeyMaterial ? active.profile : null;
+  const unlocking = unlockable !== null && !switching;
+  // A vault without an account: it unlocks with the password alone.
+  const localVault = unlocking && unlockable.mode === "local";
+  const storedEmail = unlocking && unlockable.mode === "linked" ? unlockable.email : undefined;
 
   const onSubmit = async ({ password, email }: LoginFormValues) => {
     setLoading(true);
     try {
-      // This device's vault: unlock it locally, the server session follows.
+      // The active profile: unlock it locally, the server session follows.
       if (unlocking) {
         await timed("total unlock time", () => unlockLocal(password));
         return;
       }
 
-      if (networkOffline && storedEmail) {
-        await timed("total unlock time", () => offlineUnlock(email, password));
-        return;
-      }
+      // A profile on this device: unlocked as if picked.
+      const unlocked = await timed("total unlock time", () => unlockByEmail(email, password));
+      if (unlocked !== undefined) return;
 
-      // only authentication with the server
+      // An account new to this device: the server login adds its profile.
       const unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
-
-      // something went wrong
-      // TODO: error handling
       if (!unlockVaultInfo) return;
-
-      // unlock vault (store)
       await timed("total unlock time", () => unlock(unlockVaultInfo));
     } finally {
       setLoading(false);
@@ -68,12 +72,27 @@ export default function LoginPage() {
     clearLoginError();
     clearUnlockError();
   }, [clearLoginError, clearUnlockError]);
-  const toggleStoredLogin = () => {
+
+  function clearErrors() {
     // Another account: the throttle warning no longer applies either.
     clearLoginErrors();
     clearUnlockError();
-    setLoginWithStoredEmail((prev) => !prev);
-  };
+  }
+
+  async function pickProfile(profileId: string) {
+    clearErrors();
+    setPickFailed(false);
+    try {
+      await store.selectProfile(profileId);
+      setSwitching(false);
+    } catch (e) {
+      console.error("Opening the profile failed", e);
+      setPickFailed(true);
+    }
+  }
+
+  // Until the profiles are read, nothing tells the unlock from the login apart.
+  if (!store.loaded) return null;
 
   return (
     <>
@@ -109,12 +128,16 @@ export default function LoginPage() {
           localVault={localVault}
           storedEmail={unlocking ? storedEmail : undefined}
           account={
-            unlocking &&
-            (localVault ? (
-              <StoredAccountRow />
-            ) : (
-              <StoredAccountRow email={storedEmail} onSwitch={toggleStoredLogin} />
-            ))
+            unlocking && (
+              <StoredAccountRow
+                email={storedEmail}
+                name={active?.entry.name}
+                onSwitch={() => {
+                  clearErrors();
+                  setSwitching(true);
+                }}
+              />
+            )
           }
           alternative={
             unlocking &&
@@ -132,7 +155,10 @@ export default function LoginPage() {
                     : `This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials.${unsyncedChangesWarning(pendingChanges)}`
                 }
                 removeTitle="Remove vault"
-                onRemove={() => store.removeVault()}
+                onRemove={() => {
+                  // Locked here: nothing to lock or sign out first.
+                  if (active) void store.removeProfile(active.entry.profileId);
+                }}
               >
                 <button
                   type="button"
@@ -157,8 +183,28 @@ export default function LoginPage() {
           onEdit={onEdit}
         />
 
-        {storedEmail && !unlocking && (
-          <ExistingUserButton storedEmail={storedEmail} toggleSwitchUser={toggleStoredLogin} />
+        {persistent === false && (
+          <p
+            role="note"
+            className="flex items-start justify-center gap-1.5 text-center text-muted-foreground text-xs"
+          >
+            <EyeOffIcon className="mt-px size-3.5 shrink-0" aria-hidden />
+            This browser doesn&apos;t let passmgr store vaults (private window?). A vault created
+            here is gone once you lock, reload or close the tab.
+          </p>
+        )}
+        {!unlocking && pickFailed && (
+          <FieldError variant="box">
+            <strong className="font-semibold">That vault couldn&apos;t be opened.</strong> Please
+            try again.
+          </FieldError>
+        )}
+        {!unlocking && (
+          <ProfileList
+            profiles={store.profiles}
+            onPick={(profileId) => void pickProfile(profileId)}
+            onRemoveAll={() => void store.removeAllProfiles()}
+          />
         )}
       </div>
     </>

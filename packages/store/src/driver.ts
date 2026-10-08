@@ -25,4 +25,9 @@ export interface SqlDriver {
   transaction<T>(fn: (tx: SqlDriver) => Promise<T>): Promise<T>;
   /** Close the underlying connection. */
   destroy(): Promise<void>;
+  /** Close the connection and delete the database file. The driver is unusable afterwards. */
+  deleteDatabase(): Promise<void>;
 }
+
+/** Opens (creating it if needed) the database with this name, e.g. one per profile. */
+export type OpenDatabase = (name: string) => SqlDriver;

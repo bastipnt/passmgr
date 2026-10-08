@@ -35,7 +35,7 @@ const reload = () => window.location.reload();
  */
 export default function AccountSettings() {
   const { mode } = useContext(SessionContext);
-  const { profile } = useStore();
+  const { profile, active } = useStore();
   const { signOut, signingOut } = useSignOut();
   const { removeFromDevice, removing } = useRemoveFromDevice();
   const pendingChanges = usePendingChangeCount();
@@ -46,7 +46,7 @@ export default function AccountSettings() {
   return (
     <Item variant="outline">
       <ItemContent className="gap-1">
-        <ItemTitle>{linked ? profile.email : "Local vault"}</ItemTitle>
+        <ItemTitle>{linked ? profile.email : (active?.entry.name ?? "Local vault")}</ItemTitle>
         <ItemDescription>{STATUS[mode]}</ItemDescription>
       </ItemContent>
       <ItemActions className="flex-wrap">

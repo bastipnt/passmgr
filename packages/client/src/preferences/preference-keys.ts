@@ -7,6 +7,7 @@ export const PREF_KEYS = {
   /** Read directly by `packages/ui` ThemeProvider and mobile `use-theme-preference`. */
   theme: "pass-mgr-theme",
   sort: "pass-mgr-sort",
+  /** Per profile: see `biometricDismissedKey`. */
   biometricDismissed: "biometric-dismissed",
   recentRecords: "search.recent-records",
 
@@ -20,3 +21,8 @@ export const PREF_KEYS = {
 } as const;
 
 export type PreferenceKey = (typeof PREF_KEYS)[keyof typeof PREF_KEYS];
+
+/** The user declined biometric unlock for this profile (ADR 0001 D2: per profile). */
+export function biometricDismissedKey(profileId: string): string {
+  return `${PREF_KEYS.biometricDismissed}:${profileId}`;
+}

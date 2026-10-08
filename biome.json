@@ -12,7 +12,9 @@
       "!**/*.css.d.ts",
       "!packages/db/drizzle/**",
       "!packages/store/drizzle/**",
+      "!packages/store/drizzle-registry/**",
       "!packages/store/src/migrations.generated.ts",
+      "!packages/store/src/registry-migrations.generated.ts",
       "!**/CHANGELOG.md",
       "!apps/mobile/eas.json",
       "!apps/web/brand/**"

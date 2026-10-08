@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useLogin, useStore, useUnlock } from "@repo/client";
+import { profileLabel, useLogin, useStore, useUnlock } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
+import { normalizeEmail } from "@repo/crypto";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -37,17 +38,25 @@ type SignInSheetProps = {
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
   const { loginUser, clearLoginError, loginError, loginThrottled } = useLogin();
-  const { unlock, unlockLocal, unlockError, clearUnlockError } = useUnlock();
+  const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
-  const { profile, accountKeyMaterial } = useStore();
-  // This device's vault opens with the password alone (ADR 0001 D2). A vault
-  // without an account has nothing else to sign in to: signing in to an
-  // account would replace it. May flip once the profile loads: the resolver is
-  // read on every render.
-  const localVault = profile?.mode === "local" && accountKeyMaterial !== null;
-  const storedEmail = profile?.mode === "linked" && accountKeyMaterial ? profile.email : undefined;
+  const { active, profiles } = useStore();
+  // The active profile opens with the password alone (ADR 0001 D2); "Use
+  // another account" signs in by email instead (a profile on the device for
+  // that email unlocks as if picked, another account adds one). May flip once
+  // the profile loads: the resolver is read on every render.
+  const unlockable = active?.profile && active.accountKeyMaterial ? active.profile : null;
   const [otherAccount, setOtherAccount] = useState(false);
-  const unlocking = localVault || (storedEmail !== undefined && !otherAccount);
+  const unlocking = unlockable !== null && !otherAccount;
+  const localVault = unlocking && unlockable.mode === "local";
+  const storedEmail = unlocking && unlockable.mode === "linked" ? unlockable.email : undefined;
+  const activeLabel = active ? profileLabel(active.entry) : undefined;
+
+  // Picking another profile on the welcome screen opens its unlock.
+  const activeProfileId = active?.entry.profileId;
+  useEffect(() => {
+    setOtherAccount(false);
+  }, [activeProfileId]);
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
@@ -86,6 +95,15 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         return;
       }
 
+      // A profile on this device: unlocked as if picked (same sheet-first dismissal).
+      const known = profiles.some((p) => p.mode === "linked" && p.email === normalizeEmail(email));
+      if (known) sheetRef.current?.triggerShowHide(false);
+      const unlocked = await timed("total unlock time", () => unlockByEmail(email, password));
+      if (unlocked !== undefined) {
+        if (!unlocked && known) sheetRef.current?.triggerShowHide(true);
+        return;
+      }
+
       const unlockInfo = await timed("total login time", () => loginUser(email, password));
       if (!unlockInfo) return;
       // Close the sheet before unlocking. `unlock()` flips `loggedIn`, which makes the
@@ -114,7 +132,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         </Text>
         <Text className="text-muted-foreground text-sm">
           {localVault
-            ? "Vault on this device · no account"
+            ? `${activeLabel} · no account`
             : unlocking
               ? storedEmail
               : "Welcome back to Passmgr."}
@@ -157,7 +175,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         />
       </FormLock>
 
-      {storedEmail !== undefined && (
+      {unlockable !== null && (
         <Pressable
           className="self-center"
           hitSlop={8}
@@ -168,7 +186,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           }}
         >
           <Text className="text-muted-foreground text-xs underline">
-            {unlocking ? "Use another account" : `Unlock ${storedEmail} instead`}
+            {unlocking ? "Use another account" : `Unlock ${activeLabel} instead`}
           </Text>
         </Pressable>
       )}
@@ -185,15 +203,11 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
             errors={[
               {
                 message:
-                  unlockError === "local_vault"
-                    ? "This device holds a vault without an account. Signing in here would replace it."
-                    : unlockError === "unsynced_changes"
-                      ? "This device has changes that haven't synced yet. Sign in to their account and let them sync, or remove the vault from this device first."
-                      : unlockError === "account_changed"
-                        ? "This email now belongs to another account. Remove the vault on this device to sign in to it."
-                        : localVault
-                          ? "Wrong password, please try again"
-                          : "Login error please try again",
+                  unlockError === "wrong_account"
+                    ? "Can't add an account offline. Only the vaults on this device unlock without a connection."
+                    : localVault
+                      ? "Wrong password, please try again"
+                      : "Login error please try again",
               },
             ]}
           />

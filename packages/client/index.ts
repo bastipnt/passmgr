@@ -60,4 +60,5 @@ export type { SyncStatus } from "./src/sync-manager";
 export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";
 export { generateAuthHeaders } from "./src/util/headers";
+export * from "./src/util/profile-label";
 export { useTRPC, useTRPCClient } from "./src/util/trpc";

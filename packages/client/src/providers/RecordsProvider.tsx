@@ -64,7 +64,16 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   const [revision, setRevision] = useState(0);
   const [ready, setReady] = useState(false);
 
+  // Another profile: nothing decrypted for the previous one may show.
+  useEffect(() => {
+    recordsMapRef.current = new Map();
+    fingerprintMapRef.current = new Map();
+    setReady(false);
+    setRevision((r) => r + 1);
+  }, [vault]);
+
   const runDecryptAll = useCallback(async () => {
+    if (!vault) return;
     const encrypted = await vault.getAllLatest();
     const activeIds = new Set<string>();
 
@@ -135,12 +144,13 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
   // Re-decrypt on sync
   useEffect(() => {
-    if (!vaultUnlocked) return;
+    if (!vaultUnlocked || !syncManager) return;
     return syncManager.onSync(() => void decryptAll());
   }, [vaultUnlocked, syncManager, decryptAll]);
 
   const refreshRecord = useCallback(
     async (id: string) => {
+      if (!vault) return;
       const encrypted = await vault.getByRecordId(id);
 
       if (!encrypted || encrypted.deleted_at) {

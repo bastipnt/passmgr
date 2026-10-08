@@ -10,12 +10,12 @@ import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 import { ErrorBoundary } from "react-error-boundary";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
-import { useVaultStore } from "@/hooks/use-vault-store";
+import { useProfileStore } from "@/hooks/use-profile-store";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
 
 function App() {
-  const vaultStore = useVaultStore();
+  const profileStore = useProfileStore();
   const preferencesStore = usePreferencesStore();
 
   return (
@@ -25,7 +25,7 @@ function App() {
           <SessionProvider>
             <ShortcutProvider>
               <ClientProvider serverUrl={import.meta.env.VITE_SERVER_URL}>
-                <StoreProvider vault={vaultStore}>
+                <StoreProvider profiles={profileStore}>
                   <RecordsProvider>
                     <Toaster />
                     <Routes />

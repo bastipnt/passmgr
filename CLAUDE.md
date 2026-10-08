@@ -44,9 +44,12 @@ only). Needed after migrations were squashed into a new baseline; follow with `p
 pnpm --filter @repo/store migrations:generate   # after editing src/schema/tables.ts
 ```
 
-Drizzle (sqlite) schema in `src/schema/tables.ts`; drizzle-kit writes `drizzle/`, which is bundled
-into `src/migrations.generated.ts` (never edit either by hand; a test fails if they drift). Our own
-runner (`src/migrations.ts`, `PRAGMA user_version`) applies them. Queries go through
+One SQLite database **per profile** (`Vault`) plus a device-level profile registry (`ProfileStore`,
+`src/profiles.ts`; ADR 0001 D2, amended 2026-10-07). Drizzle (sqlite) schema in `src/schema/tables.ts`
+(profile DB) and `src/schema/registry-tables.ts` (registry); drizzle-kit writes `drizzle/` and
+`drizzle-registry/`, bundled into `src/migrations.generated.ts` / `src/registry-migrations.generated.ts`
+(never edit either by hand; a test fails if they drift). Our own runner (`src/migrations.ts`,
+`PRAGMA user_version`) applies them. Queries go through
 `drizzle-orm/sqlite-proxy` over `SqlDriver` (array rows). **Never use Drizzle's `db.transaction()`**:
 it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.transaction`).
 
@@ -171,12 +174,12 @@ Login:
 2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
 4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
-5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the local DB for offline unlock (`Vault.setAccountKeyMaterial`). Memory only on web; mobile persists the session bundle in Keychain/Keystore
+5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the account's profile database for offline unlock (`StoreProvider.openAccountProfile`: the profile of that `userId`, or a new one next to the others; never a wipe). Signing in with the email of a profile on the device unlocks it locally like picking it (`useUnlock().unlockByEmail`). Memory only on web; mobile persists the session bundle per profile in Keychain/Keystore
 
 Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `generateKeyring` (same
 keyring as registration) → `Vault.createLocalVault` stores a `local` profile, the password wrap, the
-recovery wrap + verifier (local profiles only) and the personal vault atomically; refuses a device that
-already holds a vault. Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
+recovery wrap + verifier (local profiles only) and the personal vault atomically, in a new profile
+database next to any others (optional display name). Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
 
 Recovery (forgotten password, `auth/recovery-router.ts`):
 

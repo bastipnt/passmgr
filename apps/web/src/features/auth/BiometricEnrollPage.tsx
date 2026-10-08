@@ -45,7 +45,7 @@ export default function BiometricEnrollPage() {
       } finally {
         wipe(accountKey);
       }
-      await store.vault.setBiometricKeyMaterial(material);
+      await store.saveBiometricKeyMaterial(material);
       secretsStore.clearPassword();
 
       navigateNext();

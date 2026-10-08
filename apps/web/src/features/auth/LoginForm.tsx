@@ -154,32 +154,10 @@ export default function LoginForm({
                   <strong className="font-semibold">Too many login attempts.</strong> Please wait
                   and try again.
                 </FieldWarning>
-              ) : unlockError === "account_changed" ? (
-                <FieldError variant="box">
-                  <strong className="font-semibold">
-                    This email now belongs to another account.
-                  </strong>{" "}
-                  The vault on this device stays as it is. Remove it to sign in to the new account.
-                </FieldError>
-              ) : unlockError === "local_vault" ? (
-                <FieldError variant="box">
-                  <strong className="font-semibold">
-                    This device holds a vault without an account.
-                  </strong>{" "}
-                  Signing in to an account here would replace it.
-                </FieldError>
-              ) : unlockError === "unsynced_changes" ? (
-                <FieldError variant="box">
-                  <strong className="font-semibold">
-                    This device has changes that haven&apos;t synced yet.
-                  </strong>{" "}
-                  Sign in to the account they belong to and let them sync, or remove the vault from
-                  this device first.
-                </FieldError>
               ) : unlockError === "wrong_account" ? (
                 <FieldError variant="box">
-                  <strong className="font-semibold">Can&apos;t switch accounts offline.</strong>{" "}
-                  Only the account stored on this device can be unlocked without a connection.
+                  <strong className="font-semibold">Can&apos;t add an account offline.</strong> Only
+                  the vaults on this device can be unlocked without a connection.
                 </FieldError>
               ) : (
                 (loginError || unlockError) && (

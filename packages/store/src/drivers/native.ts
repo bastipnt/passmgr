@@ -1,4 +1,9 @@
-import { openDatabaseAsync, type SQLiteBindParams, type SQLiteDatabase } from "expo-sqlite";
+import {
+  deleteDatabaseAsync,
+  openDatabaseAsync,
+  type SQLiteBindParams,
+  type SQLiteDatabase,
+} from "expo-sqlite";
 import type { QueryMethod, QueryResult, SqlDriver } from "../driver";
 import { createLock, type Lock } from "../lock";
 
@@ -34,12 +39,14 @@ async function execute(
  * "database is locked" (expo-sqlite sets no busy timeout).
  */
 class ExpoSqliteDriver implements SqlDriver {
+  private readonly name: string;
   private readonly opening: Promise<SQLiteDatabase>;
   private readonly lock: Lock;
   /** Set on drivers handed out by `transaction`; they already hold the lock. */
   private readonly bound?: SQLiteDatabase;
 
-  constructor(opening: Promise<SQLiteDatabase>, lock: Lock, bound?: SQLiteDatabase) {
+  constructor(name: string, opening: Promise<SQLiteDatabase>, lock: Lock, bound?: SQLiteDatabase) {
+    this.name = name;
     this.opening = opening;
     this.lock = lock;
     this.bound = bound;
@@ -56,7 +63,7 @@ class ExpoSqliteDriver implements SqlDriver {
       const db = await this.opening;
       let result!: T;
       await db.withTransactionAsync(async () => {
-        result = await fn(new ExpoSqliteDriver(this.opening, this.lock, db));
+        result = await fn(new ExpoSqliteDriver(this.name, this.opening, this.lock, db));
       });
       return result;
     });
@@ -66,8 +73,18 @@ class ExpoSqliteDriver implements SqlDriver {
     if (this.bound) return;
     await this.lock(async () => (await this.opening).closeAsync());
   }
+
+  async deleteDatabase(): Promise<void> {
+    if (this.bound) throw new Error("can't delete the database inside a transaction");
+    await this.lock(async () => {
+      await (await this.opening).closeAsync();
+      await deleteDatabaseAsync(this.name);
+    });
+  }
 }
 
-export function createNativeDriver(databaseName: string = "pass-mgr.db"): SqlDriver {
-  return new ExpoSqliteDriver(openDatabaseAsync(databaseName), createLock());
+/** `name` without extension: the file is `<name>.db`. */
+export function createNativeDriver(name: string): SqlDriver {
+  const databaseName = `${name}.db`;
+  return new ExpoSqliteDriver(databaseName, openDatabaseAsync(databaseName), createLock());
 }

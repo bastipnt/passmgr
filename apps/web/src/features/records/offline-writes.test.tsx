@@ -12,7 +12,7 @@ const records = {
 };
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
-  useStore: () => ({ records }),
+  useStore: () => ({ records, current: () => ({ records }) }),
 }));
 const refreshRecord = vi.fn(async () => undefined);
 vi.mock("@repo/client/src/providers/RecordsProvider", async (importActual) => ({

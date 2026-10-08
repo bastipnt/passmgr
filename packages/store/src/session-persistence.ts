@@ -14,14 +14,14 @@ export function isPersistentLoginAvailable(): boolean {
   return false;
 }
 
-export async function persistLoginBundle(_bundle: LoginBundle): Promise<void> {
+export async function persistLoginBundle(_profileId: string, _bundle: LoginBundle): Promise<void> {
   // no-op on web
 }
 
-export async function loadLoginBundle(): Promise<LoginBundle | null> {
+export async function loadLoginBundle(_profileId: string): Promise<LoginBundle | null> {
   return null;
 }
 
-export async function clearLoginBundle(): Promise<void> {
+export async function clearLoginBundle(_profileId: string): Promise<void> {
   // no-op on web
 }

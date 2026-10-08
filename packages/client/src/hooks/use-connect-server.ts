@@ -76,8 +76,11 @@ export function useConnectServer() {
   async function attach(password: string, epoch: number): Promise<ConnectResult> {
     if (!stillUnlocked(epoch)) return "cancelled";
     if (secretsStore.hasServerSession) return "online";
-    const { profile, vault, saveAccount } = storeRef.current;
-    if (profile?.mode !== "linked") return "cancelled";
+    // The profile that is unlocked now: switching profiles locks first.
+    const active = storeRef.current.current();
+    const profile = active?.profile;
+    if (!active || profile?.mode !== "linked") return "cancelled";
+    const { profileId } = active.entry;
 
     // Hold the session back until it's checked. A session that is never
     // attached is never used, and dies via its TTL.
@@ -110,8 +113,8 @@ export function useConnectServer() {
 
     try {
       const material = { ...info.userPasswordKeys, userKeyPair: info.userKeyPair };
-      const cachedVaults = await vault.getVaults();
-      await saveAccount(material, info.vaultKeys);
+      const cachedVaults = await active.vault.getVaults();
+      await storeRef.current.saveAccount(profileId, material, info.vaultKeys);
       if (!stillUnlocked(epoch)) return "cancelled";
       if (!sameVaults(cachedVaults, info.vaultKeys)) reloadVaultKeys(info.vaultKeys);
 
@@ -121,19 +124,19 @@ export function useConnectServer() {
       return "unreachable";
     }
 
-    await persistSession();
-    void rekeyAfterConnect(password, info);
+    await persistSession(profileId);
+    void rekeyAfterConnect(profileId, password, info);
     return "online";
   }
 
   /** Best-effort, see `rekeyIfParamsStale`; never turns a connect into a failure. */
-  async function rekeyAfterConnect(password: string, info: VaultUnlockInfo) {
+  async function rekeyAfterConnect(profileId: string, password: string, info: VaultUnlockInfo) {
     try {
       const rekeyed = await rekeyIfParamsStale(trpc, password, {
         ...info.userPasswordKeys,
         userKeyPair: info.userKeyPair,
       });
-      if (rekeyed) await storeRef.current.saveAccount(rekeyed, info.vaultKeys);
+      if (rekeyed) await storeRef.current.saveAccount(profileId, rekeyed, info.vaultKeys);
     } catch (e) {
       console.error("Storing the rekeyed password wrap failed", e);
     }

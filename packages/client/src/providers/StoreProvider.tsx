@@ -1,6 +1,14 @@
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
-import { clearLoginBundle, type LocalProfile, secretsStore, Vault } from "@repo/store";
+import {
+  clearLoginBundle,
+  createLock,
+  type LocalProfile,
+  type ProfileEntry,
+  type ProfileStore,
+  secretsStore,
+  type Vault,
+} from "@repo/store";
 import {
   createContext,
   type ReactNode,
@@ -10,7 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { PREF_KEYS } from "../preferences/preference-keys";
+import { biometricDismissedKey } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";
 import { resolveRecordConflict } from "../records/resolve-record-conflict";
 import { SyncManager } from "../sync-manager";
@@ -27,50 +35,110 @@ import {
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
-type StoreContextValue = {
+/**
+ * The profile this app works on (ADR 0001 D2, amended 2026-10-07): its open
+ * database, the sync and record access bound to it, and what it holds for an
+ * unlock. One at a time; switching closes the previous one.
+ */
+export type ActiveProfile = {
+  entry: ProfileEntry;
   vault: Vault;
   syncManager: SyncManager;
   /** Local-first record reads and writes (ADR 0001 D1). */
   records: RecordRepository;
-
-  /** Whose vault this device holds (ADR 0001 D2); null until there is one. */
+  /** The profile row in its database; null when it's missing or malformed. */
   profile: LocalProfile | null;
-  /** The cached account key wrap: present once this device can unlock without the server. */
+  /** The cached account key wrap: present once the profile can unlock without the server. */
+  accountKeyMaterial: AccountKeyMaterial | null;
+  biometricKeyMaterial: BiometricKeyMaterial | null;
+};
+
+type StoreContextValue = {
+  /** Every profile on this device, the most recently used first. */
+  profiles: ProfileEntry[];
+  /** False until the profile list was read and the last used profile opened. */
+  loaded: boolean;
+  /** The selected profile; null while the device holds none (or none is picked yet). */
+  active: ActiveProfile | null;
+  /**
+   * The active profile as of now, not as of the caller's render: async flows
+   * that switch profiles (sign in, create a vault) read it after the switch.
+   */
+  current: () => ActiveProfile | null;
+
+  // The active profile's, for convenience. Null without one.
+  vault: Vault | null;
+  syncManager: SyncManager | null;
+  records: RecordRepository | null;
+  profile: LocalProfile | null;
   accountKeyMaterial: AccountKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
   biometricDismissed: boolean;
-
   needsBiometricEnroll: boolean;
+  /** `needsBiometricEnroll` of a profile just opened (the render's value is the previous one's). */
+  needsBiometricEnrollFor: (profile: ActiveProfile) => boolean;
   setBiometricDismissed: (dismissed: boolean) => void;
+
   /**
-   * Store the account key wrap and the vaults (and, when given, a new profile)
-   * atomically, and update `profile` / `accountKeyMaterial` to match.
+   * Make another profile the active one. Only while locked: the keys in memory
+   * belong to the active profile (lock first, `useLock`). Resolves the newly
+   * active profile.
+   */
+  selectProfile: (profileId: string) => Promise<ActiveProfile>;
+  /**
+   * After an online login: open the account's profile (same `userId`), or add
+   * one for an account this device hasn't seen, and store the account key wrap
+   * and the vaults in it. Never touches another profile. Locked only.
+   */
+  openAccountProfile: (
+    account: { userId: string; email: string },
+    material: AccountKeyMaterial,
+    vaults: readonly MemberVault[],
+  ) => Promise<ActiveProfile>;
+  /**
+   * Store the account key wrap and the vaults (and, when given, a changed
+   * profile row) in a profile, atomically, and update the state to match. The
+   * profile is named: a background write (a rekey) lands in the profile it
+   * was made for, even when another one was opened meanwhile.
    */
   saveAccount: (
+    profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     profile?: LocalProfile,
   ) => Promise<void>;
   /**
-   * Set up a vault on this device only (`local` profile, ADR 0001 D2) and update
-   * `profile` / `accountKeyMaterial`. Rejects when the device already holds one.
+   * Add a profile with a vault on this device only (`local`, ADR 0001 D2) next
+   * to the others and make it the active one. Locked only.
    */
   createLocalVault: (
     material: AccountKeyMaterial,
     recovery: RecoveryKeySchema,
     vaults: readonly MemberVault[],
     profile: Extract<LocalProfile, { mode: "local" }>,
+    name?: string,
   ) => Promise<void>;
   /**
-   * Delete the local vault, profile, persisted login and biometric enrollment.
-   * Doesn't lock: an unlocked caller locks first (`useRemoveFromDevice`).
+   * How many changes of a profile haven't reached the server (what removing it
+   * would lose). Opens it briefly when it isn't the active one.
    */
-  removeVault: () => Promise<void>;
+  countPendingChanges: (profileId: string) => Promise<number>;
   /**
-   * Forget what unlocks this device without the password: the biometric
-   * enrollment and the persisted login. Keeps the vault and its data.
+   * Remove a profile from this device: its database, persisted login and
+   * biometric enrollment. Doesn't lock: an unlocked caller locks first
+   * (`useRemoveFromDevice`). Removing the active profile activates the next
+   * most recently used one, if any.
    */
-  forgetQuickUnlock: () => Promise<void>;
+  removeProfile: (profileId: string) => Promise<void>;
+  /** Remove every profile (see `removeProfile`). Locked only. */
+  removeAllProfiles: () => Promise<void>;
+  /** Store the active profile's biometric enrollment (web, WebAuthn PRF). */
+  saveBiometricKeyMaterial: (material: BiometricKeyMaterial) => Promise<void>;
+  /**
+   * Forget what unlocks a profile (default: the active one) without the
+   * password: its biometric enrollment and persisted login. Keeps its data.
+   */
+  forgetQuickUnlock: (profileId?: string) => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -100,8 +168,19 @@ export function useStore(): StoreContextValue {
   return store;
 }
 
+/** The active profile, for code that only runs with one (an unlocked vault). */
+export function requireActive(store: Pick<StoreContextValue, "current">): ActiveProfile {
+  const active = store.current();
+  if (!active) throw new Error("No profile is open");
+  return active;
+}
+
+function assertLocked() {
+  if (secretsStore.isVaultUnlocked) throw new Error("Lock the vault before switching profiles");
+}
+
 type StoreProviderProps = {
-  vault: Vault;
+  profiles: ProfileStore;
   /**
    * Gates the SSE subscription and periodic sync. Mobile passes the app's
    * foreground state — the OS suspends sockets and timers in the background, so
@@ -111,41 +190,55 @@ type StoreProviderProps = {
   children: ReactNode;
 };
 
-export function StoreProvider({ vault, syncEnabled = true, children }: StoreProviderProps) {
+export function StoreProvider({ profiles, syncEnabled = true, children }: StoreProviderProps) {
   const { mode, networkOffline, detachServer } = useContext(SessionContext);
   const trpc = useTRPCClient();
   const preferences = usePreferences();
 
-  const [profile, setProfile] = useState<LocalProfile | null>(null);
-  const [accountKeyMaterial, setAccountKeyMaterial] = useState<AccountKeyMaterial | null>(null);
-  const [biometricKeyMaterial, setBiometricKeyMaterial] = useState<BiometricKeyMaterial | null>(
-    null,
-  );
+  const [entries, setEntries] = useState<ProfileEntry[]>([]);
+  const [loaded, setLoaded] = useState(false);
+  const [active, setActiveState] = useState<ActiveProfile | null>(null);
+  const activeRef = useRef<ActiveProfile | null>(null);
+  // Bumped to re-read the (synchronous) preferences after a write.
+  const [, setPreferencesRevision] = useState(0);
 
-  const [biometricDismissed, setBiometricDismissed_] = useState(
-    Number(preferences.get(PREF_KEYS.biometricDismissed)) === 1,
-  );
+  const setActive = useCallback((next: ActiveProfile | null) => {
+    activeRef.current = next;
+    setActiveState(next);
+  }, []);
+  const current = useCallback(() => activeRef.current, []);
 
-  const needsBiometricEnroll = !biometricDismissed && biometricKeyMaterial === null;
+  const isDismissed = (profile: ActiveProfile) =>
+    Number(preferences.get(biometricDismissedKey(profile.entry.profileId))) === 1;
+  const needsBiometricEnrollFor = (profile: ActiveProfile) =>
+    !isDismissed(profile) && profile.biometricKeyMaterial === null;
+  const biometricDismissed = active !== null && isDismissed(active);
+  const needsBiometricEnroll = active !== null && needsBiometricEnrollFor(active);
 
   function setBiometricDismissed(dismissed: boolean) {
-    setBiometricDismissed_(dismissed);
-
-    if (dismissed) preferences.set(PREF_KEYS.biometricDismissed, "1");
-    else preferences.remove(PREF_KEYS.biometricDismissed);
+    const profile = activeRef.current;
+    if (!profile) return;
+    const key = biometricDismissedKey(profile.entry.profileId);
+    if (dismissed) preferences.set(key, "1");
+    else preferences.remove(key);
+    setPreferencesRevision((r) => r + 1);
   }
 
   // The server no longer accepts the session (expired, revoked): go offline
   // instead of locking, and stop persisting the dead session.
   const detachRef = useRef(detachServer);
   detachRef.current = detachServer;
-  const onUnauthorized = useCallback(() => {
-    detachRef.current();
-    void persistSession();
-  }, []);
+  const trpcRef = useRef(trpc);
+  trpcRef.current = trpc;
 
-  const syncManagerRef = useRef<SyncManager | null>(null);
-  if (!syncManagerRef.current) {
+  /** The sync and record access of one profile's vault. */
+  const bind = useCallback((vault: Vault) => {
+    function onUnauthorized() {
+      detachRef.current();
+      const profileId = activeRef.current?.entry.profileId;
+      if (profileId) void persistSession(profileId);
+    }
+
     // Requests fail fast offline, and an expired session detaches the server.
     async function request<T>(send: () => Promise<T>): Promise<T> {
       if (typeof navigator !== "undefined" && navigator.onLine === false)
@@ -158,9 +251,10 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       }
     }
 
-    syncManagerRef.current = new SyncManager(vault, {
-      pull: (cursors) => request(() => trpc.record.sync.query({ cursors })),
-      push: async (changes) => (await request(() => trpc.record.push.mutate({ changes }))).results,
+    const syncManager = new SyncManager(vault, {
+      pull: (cursors) => request(() => trpcRef.current.record.sync.query({ cursors })),
+      push: async (changes) =>
+        (await request(() => trpcRef.current.record.push.mutate({ changes }))).results,
       // Offline, a network failure, an unsigned request (locked), a rejected
       // session, a busy, throttling or failing server: every other batch would
       // fail the same way. Only an answer about the batch itself (a 4xx) is
@@ -175,29 +269,89 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
       onVaultsChanged: reloadVaultKeys,
       resolveConflict: resolveRecordConflict,
     });
-  }
-  const syncManager = syncManagerRef.current;
+    const records = new RecordRepository(vault, () => syncManager.requestSync());
+    return { syncManager, records };
+  }, []);
 
-  const recordsRef = useRef<RecordRepository | null>(null);
-  recordsRef.current ??= new RecordRepository(vault, () => syncManager.requestSync());
-  const records = recordsRef.current;
+  /** Read what the profile's database holds for an unlock. */
+  const load = useCallback(
+    async (entry: ProfileEntry, vault: Vault): Promise<ActiveProfile> => {
+      const [profile, accountKeyMaterial, biometricKeyMaterial] = await Promise.all([
+        vault.getProfile(),
+        vault.getAccountKeyMaterial(),
+        vault.getBiometricKeyMaterial(),
+      ]);
+      return { entry, vault, ...bind(vault), profile, accountKeyMaterial, biometricKeyMaterial };
+    },
+    [bind],
+  );
 
-  // Load the profile and key material on mount: they decide whether this device
-  // can unlock without the server.
+  // Opening, adding and removing profiles run one at a time: two at once could
+  // each close "the" active profile and leave the other's database open.
+  const switchLock = useRef(createLock()).current;
+
+  /** Stop the active profile's sync (waiting for a running round) and close its database. */
+  const deactivate = useCallback(async () => {
+    const previous = activeRef.current;
+    if (!previous) return;
+    setActive(null);
+    await previous.syncManager.dispose();
+    await profiles.close(previous.entry.profileId);
+  }, [profiles, setActive]);
+
+  const refreshEntries = useCallback(async () => {
+    const list = await profiles.list();
+    setEntries(list);
+    return list;
+  }, [profiles]);
+
+  /** Make a profile the active one. Only under `switchLock`. */
+  const activate = useCallback(
+    async (profileId: string, vault?: Vault): Promise<ActiveProfile> => {
+      const previous = activeRef.current;
+      if (previous?.entry.profileId !== profileId) await deactivate();
+      const opened = vault ?? (await profiles.open(profileId));
+      const entry = (await refreshEntries()).find((p) => p.profileId === profileId);
+      if (!entry) throw new Error(`No profile ${profileId} on this device`);
+      const next = await load(entry, opened);
+      // Reopened (same profile): its previous sync gives way to the new one.
+      if (previous?.entry.profileId === profileId) await previous.syncManager.dispose();
+      setActive(next);
+      return next;
+    },
+    [deactivate, profiles, refreshEntries, load, setActive],
+  );
+
+  // On launch: list the profiles and open the last used one, so the unlock
+  // screen offers it.
   useEffect(() => {
-    void vault.getProfile().then(setProfile);
-    void vault.getAccountKeyMaterial().then(setAccountKeyMaterial);
-    void vault.getBiometricKeyMaterial().then(setBiometricKeyMaterial);
-  }, [vault]);
+    let live = true;
+    void (async () => {
+      try {
+        await switchLock(async () => {
+          const [last] = await refreshEntries();
+          if (last && live && !activeRef.current) await activate(last.profileId);
+        });
+      } catch (e) {
+        console.error("Loading the profiles on this device failed", e);
+      } finally {
+        if (live) setLoaded(true);
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [refreshEntries, activate, switchLock]);
 
   // Sync once the vault is unlocked with a server session (`online`) + start
   // periodic sync + SSE subscription + resync when back online. Not right after
-  // the OPAQUE login: the unlock still has to decide whose data the local DB
-  // holds (and may clear it), and a sync that lands before that would be wiped
-  // with it. `local` and `offline` never reach the server.
+  // the OPAQUE login: the unlock still has to open the account's profile, and
+  // a sync that lands before that would write into another profile. `local`
+  // and `offline` never reach the server.
   const online = mode === "online";
+  const syncManager = active?.syncManager ?? null;
   useEffect(() => {
-    if (!online || networkOffline || !syncEnabled) return;
+    if (!syncManager || !online || networkOffline || !syncEnabled) return;
     syncManager.setEnabled(true);
 
     const onOnline = () => void syncManager.sync();
@@ -216,13 +370,13 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
           // Back after a dropped stream: catch up on what changed meanwhile.
           if (event.data.type === "connected" && resubscribing) {
             resubscribing = false;
-            void syncManager.sync();
+            void syncManager?.sync();
           }
           if (event.data.type === "changed") {
             // Only a real event proves the stream works. Resetting on "connected"
             // too would pin a server that accepts-then-drops at a flat 5s loop.
             retryDelay = 5_000;
-            void syncManager.sync();
+            void syncManager?.sync();
           }
         },
         onError: () => {
@@ -253,15 +407,86 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     };
   }, [online, networkOffline, syncEnabled, syncManager, trpc]);
 
+  async function selectProfile(profileId: string) {
+    return await switchLock(async () => {
+      const previous = activeRef.current;
+      if (previous?.entry.profileId === profileId) return previous;
+      assertLocked();
+      return await activate(profileId);
+    });
+  }
+
+  async function openAccountProfile(
+    account: { userId: string; email: string },
+    material: AccountKeyMaterial,
+    vaults: readonly MemberVault[],
+  ) {
+    return await switchLock(() => openAccount(account, material, vaults));
+  }
+
+  async function openAccount(
+    account: { userId: string; email: string },
+    material: AccountKeyMaterial,
+    vaults: readonly MemberVault[],
+  ) {
+    assertLocked();
+    const existing = await profiles.findByUserId(account.userId);
+    if (existing) {
+      const opened = await activate(existing.profileId);
+      const profile: LocalProfile = {
+        profileId: existing.profileId,
+        mode: "linked",
+        email: account.email,
+        userId: account.userId,
+      };
+      const changed = opened.profile?.email !== account.email || opened.profile.mode !== "linked";
+      await saveAccount(existing.profileId, material, vaults, changed ? profile : undefined);
+      return requireActive({ current });
+    }
+
+    const profile: LocalProfile = {
+      profileId: crypto.randomUUID(),
+      mode: "linked",
+      email: account.email,
+      userId: account.userId,
+    };
+    const { vault } = await profiles.create(profile, (v) =>
+      v.setAccountKeyMaterial(material, vaults, profile),
+    );
+    return await activate(profile.profileId, vault);
+  }
+
   async function saveAccount(
+    profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     nextProfile?: LocalProfile,
   ) {
-    // TODO: why set on vault and separate?
-    await vault.setAccountKeyMaterial(material, vaults, nextProfile);
-    setAccountKeyMaterial(material);
-    if (nextProfile) setProfile(nextProfile);
+    if (nextProfile && nextProfile.profileId !== profileId)
+      throw new Error("A profile can't take another profile's row");
+    await profiles.withVault(profileId, (vault) =>
+      vault.setAccountKeyMaterial(material, vaults, nextProfile),
+    );
+    if (nextProfile) {
+      await profiles.update(nextProfile);
+      await refreshEntries();
+    }
+    const open = activeRef.current;
+    if (open?.entry.profileId !== profileId) return;
+    const entry = nextProfile
+      ? {
+          ...open.entry,
+          mode: nextProfile.mode,
+          email: nextProfile.email,
+          userId: nextProfile.userId,
+        }
+      : open.entry;
+    setActive({
+      ...open,
+      entry,
+      accountKeyMaterial: material,
+      profile: nextProfile ?? open.profile,
+    });
   }
 
   async function createLocalVault(
@@ -269,42 +494,93 @@ export function StoreProvider({ vault, syncEnabled = true, children }: StoreProv
     recovery: RecoveryKeySchema,
     vaults: readonly MemberVault[],
     nextProfile: Extract<LocalProfile, { mode: "local" }>,
+    name?: string,
   ) {
-    await vault.createLocalVault(material, recovery, vaults, nextProfile);
-    setAccountKeyMaterial(material);
-    setProfile(nextProfile);
+    await switchLock(async () => {
+      assertLocked();
+      const { vault } = await profiles.create(
+        nextProfile,
+        (v) => v.createLocalVault(material, recovery, vaults, nextProfile),
+        { name },
+      );
+      await activate(nextProfile.profileId, vault);
+    });
   }
 
-  async function removeVault() {
-    await vault.clear();
-    await clearLoginBundle();
-    preferences.remove(PREF_KEYS.biometricDismissed);
-    setProfile(null);
-    setAccountKeyMaterial(null);
-    setBiometricKeyMaterial(null);
+  async function countPendingChanges(profileId: string) {
+    const open = activeRef.current;
+    if (open?.entry.profileId === profileId) return await open.vault.countPendingChanges();
+    return await profiles.withVault(profileId, (vault) => vault.countPendingChanges());
   }
 
-  async function forgetQuickUnlock() {
-    await vault.clearBiometricKeyMaterial();
-    await clearLoginBundle();
-    setBiometricKeyMaterial(null);
+  async function removeProfile(profileId: string) {
+    await switchLock(async () => {
+      const wasActive = activeRef.current?.entry.profileId === profileId;
+      if (wasActive) {
+        assertLocked();
+        await deactivate();
+      }
+      await profiles.remove(profileId);
+      preferences.remove(biometricDismissedKey(profileId));
+      const [next] = await refreshEntries();
+      if (wasActive && next) await activate(next.profileId);
+    });
+  }
+
+  async function removeAllProfiles() {
+    await switchLock(async () => {
+      assertLocked();
+      await deactivate();
+      const removed = await profiles.removeAll();
+      for (const { profileId } of removed) preferences.remove(biometricDismissedKey(profileId));
+      await refreshEntries();
+    });
+  }
+
+  async function saveBiometricKeyMaterial(material: BiometricKeyMaterial) {
+    const target = requireActive({ current });
+    await target.vault.setBiometricKeyMaterial(material);
+    if (activeRef.current?.vault === target.vault)
+      setActive({ ...activeRef.current, biometricKeyMaterial: material });
+  }
+
+  async function forgetQuickUnlock(profileId = activeRef.current?.entry.profileId) {
+    if (!profileId) return;
+    const open = activeRef.current;
+    if (open?.entry.profileId === profileId) {
+      await open.vault.clearBiometricKeyMaterial();
+      setActive({ ...open, biometricKeyMaterial: null });
+    } else {
+      await profiles.withVault(profileId, (vault) => vault.clearBiometricKeyMaterial());
+    }
+    await clearLoginBundle(profileId);
   }
 
   const value: StoreContextValue = {
-    vault,
+    profiles: entries,
+    loaded,
+    active,
+    current,
+
+    vault: active?.vault ?? null,
     syncManager,
-    records,
-
-    profile,
-    accountKeyMaterial,
-    biometricKeyMaterial,
+    records: active?.records ?? null,
+    profile: active?.profile ?? null,
+    accountKeyMaterial: active?.accountKeyMaterial ?? null,
+    biometricKeyMaterial: active?.biometricKeyMaterial ?? null,
     biometricDismissed,
-
     needsBiometricEnroll,
+    needsBiometricEnrollFor,
     setBiometricDismissed,
+
+    selectProfile,
+    openAccountProfile,
     saveAccount,
     createLocalVault,
-    removeVault,
+    countPendingChanges,
+    removeProfile,
+    removeAllProfiles,
+    saveBiometricKeyMaterial,
     forgetQuickUnlock,
   };
 

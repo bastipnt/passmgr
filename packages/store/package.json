@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
-    "migrations:generate": "drizzle-kit generate --config drizzle.config.ts && node scripts/bundle-migrations.ts"
+    "migrations:generate": "drizzle-kit generate --config drizzle.config.ts && drizzle-kit generate --config drizzle.registry.config.ts && node scripts/bundle-migrations.ts"
   },
   "dependencies": {
     "@repo/crypto": "workspace:*",

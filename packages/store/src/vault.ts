@@ -400,4 +400,11 @@ export class Vault {
   async destroy(): Promise<void> {
     await this.driver.destroy();
   }
+
+  /** Close the database and delete its file (removing a profile). Unusable afterwards. */
+  async deleteDatabase(): Promise<void> {
+    // Let a migration still running settle first: it holds the connection.
+    await this.initialized?.catch(() => undefined);
+    await this.driver.deleteDatabase();
+  }
 }

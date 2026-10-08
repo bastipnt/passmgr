@@ -23,6 +23,7 @@ export async function registerUser(page: Page, email: string, password: string):
   // appear in the login card (it only renders once registrationEnabled is
   // true), then SPA-navigate by clicking it — no full reload.
   await page.goto("/login");
+  await showEmailLogin(page);
   const signUpLink = page.locator('a[href="/register"]');
   await expect(signUpLink).toBeVisible({ timeout: 15_000 });
   await signUpLink.click();
@@ -44,9 +45,21 @@ export async function registerUser(page: Page, email: string, password: string):
   return recoveryKey;
 }
 
+/**
+ * The login page opens the last used profile's unlock card when the browser
+ * holds one: "Switch" to the email login (and the list of profiles).
+ */
+export async function showEmailLogin(page: Page): Promise<void> {
+  await expect(page.locator("form")).toBeVisible({ timeout: 15_000 });
+  const switchButton = page.getByRole("button", { name: /^switch$/i });
+  if (await switchButton.isVisible()) await switchButton.click();
+  await expect(page.locator('input[name="email"]')).toBeVisible();
+}
+
 /** OPAQUE login through the LoginForm; resolves when redirected away from /login. */
 export async function loginUser(page: Page, email: string, password: string): Promise<void> {
   await page.goto("/login");
+  await showEmailLogin(page);
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();

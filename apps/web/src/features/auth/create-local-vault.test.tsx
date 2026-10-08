@@ -1,17 +1,13 @@
 import { SessionContext, useCreateLocalVault } from "@repo/client";
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
-import { secretsStore, VaultExistsError } from "@repo/store";
+import { secretsStore } from "@repo/store";
 import { act, renderHook } from "@testing-library/react";
 import type { ContextType, ReactNode } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { createFakeStore, profileEntry } from "@/test/fake-store";
 
 // Real hook and keyring generation; the store and the session are replaced.
-const store = {
-  profile: null as object | null,
-  accountKeyMaterial: null as object | null,
-  needsBiometricEnroll: false,
-  createLocalVault: vi.fn(),
-};
+const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
@@ -56,9 +52,13 @@ beforeEach(() => {
   vi.restoreAllMocks();
   store.createLocalVault.mockReset();
   unlockWithAccountKey.mockReset();
-  store.profile = null;
-  store.accountKeyMaterial = null;
+  Object.assign(store, { profiles: [], profile: null, accountKeyMaterial: null });
   store.needsBiometricEnroll = false;
+  // Like the real store: the new profile becomes the active one.
+  store.createLocalVault.mockImplementation(async (_material, _recovery, _vaults, profile) => {
+    store.profiles = [...store.profiles, profileEntry(profile)];
+    store.profile = profile;
+  });
   vi.spyOn(secretsStore, "exportVaultKeysForWorker").mockReturnValue(new Map());
 });
 
@@ -73,8 +73,9 @@ describe("useCreateLocalVault", () => {
 
     expect(recoveryKey).toHaveLength(32);
     expect(store.createLocalVault).toHaveBeenCalledTimes(1);
-    const [material, recovery, vaults, profile] = store.createLocalVault.mock.calls[0]!;
+    const [material, recovery, vaults, profile, name] = store.createLocalVault.mock.calls[0]!;
     expect(profile).toMatchObject({ mode: "local", email: null, userId: null });
+    expect(name).toBeUndefined();
     expect(vaults).toHaveLength(1);
     expect(recovery.recoveryVerifier).toBeTypeOf("string");
     // Not unlocked until the recovery key is saved.
@@ -137,27 +138,35 @@ describe("useCreateLocalVault", () => {
     expect(generated.accountKey?.every((byte) => byte === 0)).toBe(true);
   });
 
-  it("never creates a vault over the one on the device", async () => {
-    store.profile = { mode: "linked" };
+  it("adds the vault next to the profiles already on the device, with its name", async () => {
+    const linked = {
+      profileId: "p-alice",
+      mode: "linked",
+      email: "alice@example.com",
+      userId: "u-alice",
+    } as const;
+    Object.assign(store, { profiles: [profileEntry(linked)], profile: linked });
     const { result } = renderCreate();
 
     await act(async () => {
-      expect(await result.current.createLocalVault("hunter2hunter2")).toBeUndefined();
+      expect(await result.current.createLocalVault("hunter2hunter2", "Travel")).toHaveLength(32);
     });
 
-    expect(result.current.createError).toBe("vault_exists");
-    expect(store.createLocalVault).not.toHaveBeenCalled();
+    expect(store.createLocalVault.mock.calls[0]?.[4]).toBe("Travel");
+    expect(store.profiles).toHaveLength(2);
+    expect(result.current.createError).toBeUndefined();
   });
 
-  it("reports the store refusing (a vault created meanwhile, e.g. in another tab)", async () => {
-    store.createLocalVault.mockRejectedValue(new VaultExistsError());
+  it("reports a failed write, holding no key", async () => {
+    store.createLocalVault.mockRejectedValue(new Error("disk full"));
     const { result } = renderCreate();
 
     await act(async () => {
       expect(await result.current.createLocalVault("hunter2hunter2")).toBeUndefined();
     });
 
-    expect(result.current.createError).toBe("vault_exists");
+    expect(result.current.createError).toBe("failed");
+    expect(generated.accountKey?.every((byte) => byte === 0)).toBe(true);
     await act(async () => {
       expect(await result.current.finishLocalVault()).toBe(false);
     });

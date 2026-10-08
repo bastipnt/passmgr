@@ -34,7 +34,8 @@ import { toBase64 } from "@repo/util";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
-import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { createFakeStore, profileEntry } from "@/test/fake-store";
 
 // Real hooks and the real secretsStore; only I/O at the edges is replaced.
 vi.mock("@repo/store", async (importActual) => ({
@@ -81,38 +82,14 @@ const ALICE: LocalProfile = {
   email: "alice@example.com",
   userId: "user-alice",
 };
-
-type StoreMock = {
-  vault: {
-    getVaults: Mock;
-    getProfile: Mock;
-    getAccountKeyMaterial: Mock;
-    countPendingChanges: Mock;
-    clear: Mock;
-  };
-  profile: LocalProfile | null;
-  accountKeyMaterial: unknown;
-  saveAccount: Mock;
-  biometricKeyMaterial: unknown;
-  needsBiometricEnroll: boolean;
-  biometricDismissed: boolean;
+const BOB: LocalProfile = {
+  profileId: "profile-bob",
+  mode: "linked",
+  email: "bob@example.com",
+  userId: "user-bob",
 };
 
-const store: StoreMock = {
-  vault: {
-    getVaults: vi.fn(),
-    getProfile: vi.fn(),
-    getAccountKeyMaterial: vi.fn(),
-    countPendingChanges: vi.fn(async () => 0),
-    clear: vi.fn(),
-  },
-  profile: ALICE,
-  accountKeyMaterial: null,
-  saveAccount: vi.fn(),
-  biometricKeyMaterial: {},
-  needsBiometricEnroll: false,
-  biometricDismissed: false,
-};
+const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
@@ -207,7 +184,13 @@ function unauthorized() {
 beforeEach(() => {
   vi.clearAllMocks();
   secretsStore.lock();
-  Object.assign(store, { profile: ALICE, accountKeyMaterial: null });
+  Object.assign(store, {
+    profiles: [profileEntry(ALICE)],
+    profile: ALICE,
+    accountKeyMaterial: null,
+    biometricKeyMaterial: {},
+    needsBiometricEnroll: false,
+  });
   store.vault.getProfile.mockResolvedValue(ALICE);
   trpcClient.user.heartbeat.query.mockResolvedValue({ ok: true });
 });
@@ -223,7 +206,7 @@ describe("useSessionRestore", () => {
   function persisted({ server = true } = {}) {
     const { accountKey, wraps, userKeyPair } = keyring();
     store.vault.getVaults.mockResolvedValue(wraps);
-    store.vault.getAccountKeyMaterial.mockResolvedValue({ ...passwordKeys, userKeyPair });
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     const bundle: LoginBundle = {
       accountKeyB64: toBase64(accountKey),
       ...(server && {
@@ -243,17 +226,46 @@ describe("useSessionRestore", () => {
     } as unknown as LoginBundle);
 
     expect(await restore()).toBe("needs-login");
-    expect(clearLoginBundle).toHaveBeenCalledTimes(1);
+    expect(clearLoginBundle).toHaveBeenCalledWith(ALICE.profileId);
     expect(trpcClient.user.heartbeat.query).not.toHaveBeenCalled();
     expect(secretsStore.hasServerSession).toBe(false);
   });
 
-  it("falls back to the password unlock without a profile", async () => {
+  it("restores the last used profile's bundle only", async () => {
     persisted();
-    store.vault.getProfile.mockResolvedValue(null);
+
+    expect(await restore()).toBe("restored");
+    expect(loadLoginBundle).toHaveBeenCalledWith(ALICE.profileId);
+  });
+
+  it("asks for the password without any profile on the device", async () => {
+    persisted();
+    Object.assign(store, { profiles: [], profile: null });
 
     expect(await restore()).toBe("needs-login");
-    expect(clearLoginBundle).toHaveBeenCalledTimes(1);
+    expect(loadLoginBundle).not.toHaveBeenCalled();
+    expect(secretsStore.isVaultUnlocked).toBe(false);
+  });
+
+  it("waits for the profile list before restoring", async () => {
+    persisted();
+    store.loaded = false;
+    try {
+      const { result } = renderHook(() => useSessionRestore(), { wrapper });
+      await act(() => result.current.tryRestore());
+      expect(result.current.status).toBe("restoring");
+      expect(loadLoginBundle).not.toHaveBeenCalled();
+    } finally {
+      store.loaded = true;
+    }
+  });
+
+  it("falls back to the password unlock when the profile holds no key material", async () => {
+    persisted();
+    store.accountKeyMaterial = null;
+
+    expect(await restore()).toBe("needs-login");
+    expect(clearLoginBundle).toHaveBeenCalledWith(ALICE.profileId);
     expect(secretsStore.isVaultUnlocked).toBe(false);
   });
 
@@ -272,10 +284,10 @@ describe("useSessionRestore", () => {
 
   it("falls back to the password unlock when the cached keypair isn't the user's", async () => {
     const { userKeyPair } = persisted();
-    store.vault.getAccountKeyMaterial.mockResolvedValue({
+    store.accountKeyMaterial = {
       ...passwordKeys,
       userKeyPair: { ...userKeyPair, publicKey: createUserKeyPair(genKey()).publicKey },
-    });
+    };
 
     expect(await restore()).toBe("needs-login");
     expect(clearLoginBundle).toHaveBeenCalledTimes(1);
@@ -304,7 +316,7 @@ describe("useSessionRestore", () => {
     expect(secretsStore.isVaultUnlocked).toBe(true);
     expect(secretsStore.hasServerSession).toBe(false);
     // The dead session isn't restored again next time.
-    expect(persistLoginBundle).toHaveBeenCalledWith({
+    expect(persistLoginBundle).toHaveBeenCalledWith(ALICE.profileId, {
       accountKeyB64: expect.any(String),
     });
   });
@@ -413,6 +425,7 @@ describe("useConnectServer", () => {
 
     expect(await connectOnce()).toBe("online");
     expect(store.saveAccount).toHaveBeenCalledTimes(1);
+    expect(store.saveAccount.mock.calls[0]?.[0]).toBe(ALICE.profileId);
     expect(session.attachServer).toHaveBeenCalledTimes(1);
     expect(vi.mocked(store.saveAccount).mock.invocationCallOrder[0]).toBeLessThan(
       vi.mocked(session.attachServer).mock.invocationCallOrder[0] ?? 0,
@@ -445,7 +458,14 @@ describe("useConnectServer", () => {
     expect(session.attachServer).not.toHaveBeenCalled();
     expect(secretsStore.hasServerSession).toBe(false);
     expect(store.saveAccount).not.toHaveBeenCalled();
-    expect(store.vault.clear).not.toHaveBeenCalled();
+  });
+
+  it("attaches nothing without a linked profile", async () => {
+    unlockedVault();
+    store.profile = { profileId: "p-local", mode: "local", email: null, userId: null };
+
+    expect(await connectOnce()).toBe("cancelled");
+    expect(loginUserCore).not.toHaveBeenCalled();
   });
 
   it("attaches nothing when the vault was locked while the login ran", async () => {
@@ -520,7 +540,7 @@ describe("useConnectServer", () => {
   );
 });
 
-describe("unlock: whose local data is this?", () => {
+describe("unlock: which profile?", () => {
   /** A login result for a fresh account, plus the KEK the mocked Argon2 hands out. */
   function account() {
     const kek = genKey();
@@ -553,73 +573,57 @@ describe("unlock: whose local data is this?", () => {
     return { unlocked, error: result.current.unlockError };
   }
 
-  it("clears leftover local data and creates a profile when there is none", async () => {
+  it("adds a profile for an account new to this device", async () => {
     const keys = account();
-    store.profile = null;
+    Object.assign(store, { profiles: [], profile: null });
 
     expect((await unlockWith(keys)).unlocked).toBe(true);
-    expect(store.vault.clear).toHaveBeenCalledTimes(1);
-    expect(store.saveAccount).toHaveBeenCalledWith(
+    expect(store.openAccountProfile).toHaveBeenCalledWith(
+      { userId: ALICE.userId, email: "alice@example.com" },
       { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
       keys.wraps,
-      expect.objectContaining({ mode: "linked", email: "alice@example.com", userId: ALICE.userId }),
     );
+    expect(store.profiles).toHaveLength(1);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
   });
 
-  it("clears the local data when the server account is another one (same email, new userId)", async () => {
+  it("opens the account's own profile, leaving the active one's data alone", async () => {
+    const keys = account();
+    store.profiles = [profileEntry(ALICE), profileEntry(BOB)];
+    store.profile = BOB;
+
+    expect((await unlockWith(keys)).unlocked).toBe(true);
+    expect(store.profile?.profileId).toBe(ALICE.profileId);
+    expect(store.profiles).toHaveLength(2);
+    expect(store.removeProfile).not.toHaveBeenCalled();
+  });
+
+  it("gives an email that now belongs to another account a profile of its own", async () => {
     const keys = account();
 
     expect((await unlockWith(keys, "user-alice-reregistered")).unlocked).toBe(true);
-    expect(store.vault.clear).toHaveBeenCalledTimes(1);
-    const profile = store.saveAccount.mock.calls[0]?.[2] as LocalProfile;
-    expect(profile.userId).toBe("user-alice-reregistered");
-    expect(profile.profileId).not.toBe(ALICE.profileId);
+    expect(store.profile?.profileId).not.toBe(ALICE.profileId);
+    expect(store.profiles.map((p) => p.userId)).toEqual([ALICE.userId, "user-alice-reregistered"]);
   });
 
-  it("never deletes another account's unsynced changes, and revokes the session", async () => {
+  it("adds an account next to a vault without one", async () => {
     const keys = account();
-    store.vault.countPendingChanges.mockResolvedValueOnce(2);
-    await secretsStore.unlockSession("live-session", "k", genKey());
-
-    const { unlocked, error } = await unlockWith(keys, "user-bob");
-    expect(unlocked).toBe(false);
-    expect(error).toBe("unsynced_changes");
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).not.toHaveBeenCalled();
-    expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the local data and the profile for the same account", async () => {
-    const keys = account();
+    const local = { profileId: "p-local", mode: "local", email: null, userId: null } as const;
+    Object.assign(store, { profiles: [profileEntry(local)], profile: local });
 
     expect((await unlockWith(keys)).unlocked).toBe(true);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).toHaveBeenCalledWith(
-      { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
-      keys.wraps,
-      undefined,
-    );
+    expect(store.profiles.map((p) => p.mode)).toEqual(["local", "linked"]);
+    expect(store.removeProfile).not.toHaveBeenCalled();
   });
 
-  it("updates the profile's email when the account's email changed", async () => {
+  it("revokes the session when the profile can't be opened", async () => {
     const keys = account();
-    store.profile = { ...ALICE, email: "old@example.com" };
-
-    expect((await unlockWith(keys)).unlocked).toBe(true);
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount.mock.calls[0]?.[2]).toEqual({ ...ALICE, email: "alice@example.com" });
-  });
-
-  it("never replaces a vault without an account, and revokes the session", async () => {
-    const keys = account();
-    store.profile = { profileId: "local", mode: "local", email: null, userId: null };
+    store.openAccountProfile.mockRejectedValueOnce(new Error("disk full"));
     await secretsStore.unlockSession("live-session", "k", genKey());
 
     const { unlocked, error } = await unlockWith(keys);
     expect(unlocked).toBe(false);
-    expect(error).toBe("local_vault");
-    expect(store.vault.clear).not.toHaveBeenCalled();
-    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(error).toBe("failed");
     expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
     expect(secretsStore.hasServerSession).toBe(false);
   });
@@ -644,9 +648,9 @@ describe("unlock: whose local data is this?", () => {
         <SessionContext.Provider value={offline}>{children}</SessionContext.Provider>
       ),
     });
-    let unlocked = false;
+    let unlocked: boolean | undefined;
     await act(async () => {
-      unlocked = await result.current.offlineUnlock("alice@example.com", "pw");
+      unlocked = await result.current.unlockByEmail("Alice@example.com", "pw");
     });
 
     expect(unlocked).toBe(true);
@@ -655,5 +659,34 @@ describe("unlock: whose local data is this?", () => {
     expect(loginUserCore).not.toHaveBeenCalled();
     // Nothing changed, so nothing is rewritten.
     expect(store.saveAccount).not.toHaveBeenCalled();
+  });
+
+  it("offline: can't add an account the device has no profile for", async () => {
+    const offline = { ...session, networkOffline: true };
+    const { result } = renderHook(() => useUnlock(), {
+      wrapper: ({ children }) => (
+        <SessionContext.Provider value={offline}>{children}</SessionContext.Provider>
+      ),
+    });
+    let unlocked: boolean | undefined;
+    await act(async () => {
+      unlocked = await result.current.unlockByEmail("bob@example.com", "pw");
+    });
+
+    expect(unlocked).toBe(false);
+    expect(result.current.unlockError).toBe("wrong_account");
+    expect(store.selectProfile).not.toHaveBeenCalled();
+    expect(argon2WorkerService.derive).not.toHaveBeenCalled();
+  });
+
+  it("online: leaves an account new to this device to the server login", async () => {
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    let unlocked: boolean | undefined = false;
+    await act(async () => {
+      unlocked = await result.current.unlockByEmail("bob@example.com", "pw");
+    });
+
+    expect(unlocked).toBeUndefined();
+    expect(result.current.unlockError).toBeUndefined();
   });
 });

@@ -33,7 +33,7 @@ const STATUS: Record<SessionMode, string> = {
 export default function SettingsScreen() {
   const router = useRouter();
   const { mode, networkOffline } = useContext(SessionContext);
-  const { profile } = useStore();
+  const { profile, active } = useStore();
   const { signOut, signingOut } = useSignOut();
   const { removeFromDevice, removing } = useRemoveFromDevice();
   const pendingChanges = usePendingChangeCount();
@@ -70,7 +70,7 @@ export default function SettingsScreen() {
           <SettingsSection title="Account" description={STATUS[mode]}>
             <View className="gap-3">
               <Text className="text-[16px] text-foreground">
-                {linked ? profile.email : "Local vault"}
+                {linked ? profile.email : (active?.entry.name ?? "Local vault")}
               </Text>
               {mode === "offline" && !networkOffline && (
                 <Button size="lg" onPress={() => reconnectRef.current?.triggerShowHide(true)}>

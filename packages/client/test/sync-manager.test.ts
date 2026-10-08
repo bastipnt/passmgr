@@ -190,7 +190,7 @@ describe("SyncManager pull", () => {
       phase: "error",
       error: "the pull made no progress",
     });
-    manager.dispose();
+    void manager.dispose();
   });
 
   it("keeps the pages applied before a failed one", async () => {
@@ -608,9 +608,50 @@ describe("SyncManager status", () => {
     manager.setEnabled(true);
     expect(manager.getStatus().phase).toBe("idle");
 
-    manager.dispose();
+    void manager.dispose();
 
     expect(manager.getStatus().phase).toBe("offline");
+  });
+
+  it("disposing waits for the running round and starts no new one", async () => {
+    let answer!: (page: SyncPage) => void;
+    const pull = vi.fn(
+      () =>
+        new Promise<SyncPage>((resolve) => {
+          answer = resolve;
+        }),
+    );
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    manager.setEnabled(true);
+    const round = manager.sync();
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(1));
+
+    let disposed = false;
+    const disposing = manager.dispose().then(() => {
+      disposed = true;
+    });
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(disposed).toBe(false);
+
+    answer(batch);
+    await disposing;
+    expect(await round).toBe(true);
+    expect(await manager.sync()).toBe(false);
+    expect(pull).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops pulling further pages once disposed", async () => {
+    const pull = vi.fn(async (): Promise<SyncPage> => ({ ...batch, hasMore: true }));
+    const store = fakeStore(false);
+    // Every page moves the cursor: only the dispose ends the round.
+    let cursor = 3;
+    store.getSyncCursors.mockImplementation(async () => ({ v1: cursor++ }));
+    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const round = manager.sync();
+    await manager.dispose();
+
+    expect(await round).toBe(false);
+    expect(pull).toHaveBeenCalledTimes(1);
   });
 
   it("tells offline apart from an error", async () => {
@@ -630,7 +671,7 @@ describe("SyncManager status", () => {
 
     await manager.sync();
     expect(manager.getStatus()).toMatchObject({ phase: "error", error: "INTERNAL_SERVER_ERROR" });
-    manager.dispose();
+    void manager.dispose();
   });
 });
 

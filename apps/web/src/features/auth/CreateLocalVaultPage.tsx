@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useAppConfig, useCreateLocalVault, useStore } from "@repo/client";
+import { useAppConfig, useCreateLocalVault } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -10,13 +10,13 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
+import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { ArrowRightIcon, HardDriveIcon, KeyRoundIcon, LockIcon } from "lucide-react";
+import { ArrowRightIcon, HardDriveIcon, KeyRoundIcon, LockIcon, TagIcon } from "lucide-react";
 import { useState } from "react";
 import { type Control, useWatch } from "react-hook-form";
-import { Redirect } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
@@ -43,6 +43,7 @@ const LOCAL_STEPS = [
 
 const localVaultSchema = z
   .object({
+    name: z.string().max(60),
     password: z.string().min(8),
     confirmPassword: z.string(),
   })
@@ -53,9 +54,11 @@ const localVaultSchema = z
 
 type FormValues = z.infer<typeof localVaultSchema>;
 
-/** Create a vault that lives on this device only: no server, no account, no email. */
+/**
+ * Create a vault that lives on this device only: no server, no account, no
+ * email. It's added next to the profiles already on the device.
+ */
 export default function CreateLocalVaultPage() {
-  const store = useStore();
   const { registrationEnabled } = useAppConfig();
   const { createLocalVault, finishLocalVault, createError } = useCreateLocalVault();
   const [loading, setLoading] = useState(false);
@@ -63,23 +66,18 @@ export default function CreateLocalVaultPage() {
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(localVaultSchema),
-    defaultValues: { password: "", confirmPassword: "" },
+    defaultValues: { name: "", password: "", confirmPassword: "" },
   });
 
-  const onSubmit = async ({ password }: FormValues) => {
+  const onSubmit = async ({ name, password }: FormValues) => {
     setLoading(true);
     try {
-      const key = await createLocalVault(password);
+      const key = await createLocalVault(password, name);
       if (key) setRecoveryKey(key);
     } finally {
       setLoading(false);
     }
   };
-
-  // A device holds one vault; the new one stays on this page until its recovery
-  // key is saved, and while a failed unlock of it is explained.
-  if (store.profile && !recoveryKey && !loading && createError !== "unlock_failed")
-    return <Redirect to={authPaths.login} />;
 
   return (
     <>
@@ -124,6 +122,15 @@ export default function CreateLocalVaultPage() {
 
             <CardContent>
               <FieldGroup className="gap-5">
+                <ControlledInput
+                  control={control}
+                  name="name"
+                  label="Name"
+                  autoComplete="off"
+                  placeholder="e.g. Personal"
+                  labelAction={<span className="text-muted-foreground text-xs">optional</span>}
+                  leadingIcon={<TagIcon />}
+                />
                 <ControlledPasswordInput
                   control={control}
                   name="password"
@@ -156,9 +163,7 @@ export default function CreateLocalVaultPage() {
                 ) : (
                   createError && (
                     <FieldError variant="box">
-                      {createError === "vault_exists"
-                        ? "This device already holds a vault."
-                        : "Creating the vault failed. Please try again."}
+                      Creating the vault failed. Please try again.
                     </FieldError>
                   )
                 )}

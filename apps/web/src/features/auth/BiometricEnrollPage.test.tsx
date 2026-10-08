@@ -13,7 +13,7 @@ const credentialsCreate = vi.fn();
 
 vi.mock("@repo/client", () => ({
   useStore: () => ({
-    vault: { setBiometricKeyMaterial },
+    saveBiometricKeyMaterial: setBiometricKeyMaterial,
     setBiometricDismissed,
   }),
 }));

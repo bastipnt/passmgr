@@ -1,5 +1,6 @@
 import type { SqlDriver } from "./driver";
 import { GENERATED_MIGRATIONS } from "./migrations.generated";
+import { GENERATED_MIGRATIONS as GENERATED_REGISTRY_MIGRATIONS } from "./registry-migrations.generated";
 
 /**
  * One forward-only schema step. `up` runs inside a transaction together with
@@ -41,6 +42,16 @@ async function runStatements(tx: SqlDriver, statements: readonly string[]) {
   }
 }
 
+/** The profile registry's database (`ProfileStore`). */
+export const REGISTRY_MIGRATIONS: readonly Migration[] = GENERATED_REGISTRY_MIGRATIONS.map(
+  ({ name, statements }, i) => ({
+    version: i + 1,
+    name,
+    up: async (tx) => runStatements(tx, statements),
+  }),
+);
+
+/** A profile's database (`Vault`). */
 export const MIGRATIONS: readonly Migration[] = GENERATED_MIGRATIONS.map(
   ({ name, statements }, i) => ({
     version: i + 1,

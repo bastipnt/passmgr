@@ -96,7 +96,7 @@ describe("LoginForm", () => {
     expect(pw).toHaveFocus();
   });
 
-  it("explains that only the stored account unlocks offline", () => {
+  it("explains that only the vaults on this device unlock offline", () => {
     renderWithProviders(
       <LoginForm
         onSubmit={vi.fn()}
@@ -105,7 +105,7 @@ describe("LoginForm", () => {
         loading={false}
       />,
     );
-    expect(screen.getByText(/can't switch accounts offline/i)).toBeInTheDocument();
+    expect(screen.getByText(/can't add an account offline/i)).toBeInTheDocument();
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
   });
 
