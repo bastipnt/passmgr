@@ -1,12 +1,13 @@
 import { DrawerProvider } from "@repo/ui/components/Drawer";
-import { lazy, Suspense } from "react";
+import { Suspense } from "react";
 import { Route, Router, Switch } from "wouter";
+import { lazyPreload } from "@/lib/lazy-preload";
 import { PageTransitions, usePageLocation, usePageSearch } from "./page-transitions";
 import { authPaths, pageDepths, settingsPaths } from "./route-paths";
 
-const RecordRoutes = lazy(() => import("@/features/records"));
-const AuthRoutes = lazy(() => import("@/features/auth"));
-const SettingsRoutes = lazy(() => import("@/features/settings"));
+const RecordRoutes = lazyPreload(() => import("@/features/records"));
+const AuthRoutes = lazyPreload(() => import("@/features/auth"));
+const SettingsRoutes = lazyPreload(() => import("@/features/settings"));
 
 function Routes() {
   return (

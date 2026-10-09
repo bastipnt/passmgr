@@ -1,20 +1,21 @@
 import { SessionContext, useAutoReconnect } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { lazy, useContext } from "react";
+import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 import { authPaths, settingsPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { lazyPreload } from "@/lib/lazy-preload";
 import SettingsLayout from "./SettingsLayout";
 
-const NotFound = lazy(() => import("@/app/NotFound"));
-const AccountSettingsPage = lazy(() => import("./AccountSettingsPage"));
-const GeneralSettingsPage = lazy(() => import("./GeneralSettingsPage"));
-const GeneratorSettingsPage = lazy(() => import("./GeneratorSettingsPage"));
-const SecuritySettingsPage = lazy(() => import("./SecuritySettingsPage"));
-const PassMonitorPage = lazy(() => import("./PassMonitorPage"));
-const ReusedPasswordsPage = lazy(() => import("./ReusedPasswordsPage"));
-const DuplicatesPage = lazy(() => import("./DuplicatesPage"));
-const WeakPasswordsPage = lazy(() => import("./WeakPasswordsPage"));
+const NotFound = lazyPreload(() => import("@/app/NotFound"));
+const AccountSettingsPage = lazyPreload(() => import("./AccountSettingsPage"));
+const GeneralSettingsPage = lazyPreload(() => import("./GeneralSettingsPage"));
+const GeneratorSettingsPage = lazyPreload(() => import("./GeneratorSettingsPage"));
+const SecuritySettingsPage = lazyPreload(() => import("./SecuritySettingsPage"));
+const PassMonitorPage = lazyPreload(() => import("./PassMonitorPage"));
+const ReusedPasswordsPage = lazyPreload(() => import("./ReusedPasswordsPage"));
+const DuplicatesPage = lazyPreload(() => import("./DuplicatesPage"));
+const WeakPasswordsPage = lazyPreload(() => import("./WeakPasswordsPage"));
 
 export default function SettingsRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);

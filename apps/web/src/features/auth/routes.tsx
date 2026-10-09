@@ -1,16 +1,17 @@
 import { SessionContext, useAppConfig, useStore } from "@repo/client";
-import { lazy, Suspense, useContext } from "react";
+import { Suspense, useContext } from "react";
 import { Redirect, Route, Switch, useRoute, useSearchParams } from "wouter";
 import { authPaths } from "@/app/route-paths";
+import { lazyPreload } from "@/lib/lazy-preload";
 import AuthLayout from "./AuthLayout";
 
-const BiometricEnrollPage = lazy(() => import("./BiometricEnrollPage"));
-const CreateLocalVaultPage = lazy(() => import("./CreateLocalVaultPage"));
-const LoginPage = lazy(() => import("./LoginPage"));
-const RecoverPage = lazy(() => import("./RecoverPage"));
-const RegisterPage = lazy(() => import("./RegisterPage"));
-const RestoreBackupPage = lazy(() => import("./RestoreBackupPage"));
-const WelcomePage = lazy(() => import("./WelcomePage"));
+const BiometricEnrollPage = lazyPreload(() => import("./BiometricEnrollPage"));
+const CreateLocalVaultPage = lazyPreload(() => import("./CreateLocalVaultPage"));
+const LoginPage = lazyPreload(() => import("./LoginPage"));
+const RecoverPage = lazyPreload(() => import("./RecoverPage"));
+const RegisterPage = lazyPreload(() => import("./RegisterPage"));
+const RestoreBackupPage = lazyPreload(() => import("./RestoreBackupPage"));
+const WelcomePage = lazyPreload(() => import("./WelcomePage"));
 
 export default function AuthRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);

@@ -1,18 +1,19 @@
 import { SessionContext, useAutoReconnect } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { lazy, useContext } from "react";
+import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 import { authPaths, recordPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { lazyPreload } from "@/lib/lazy-preload";
 import CreateRecordSheet from "./CreateRecordSheet";
 import MobileRecordPage from "./MobileRecordPage";
 import MobileVault from "./MobileVault";
 import RecordLayout from "./RecordLayout";
 
-const NotFound = lazy(() => import("@/app/NotFound"));
+const NotFound = lazyPreload(() => import("@/app/NotFound"));
 
-const RecordsEmptyState = lazy(() => import("./RecordsEmptyState"));
-const RecordPage = lazy(() => import("./RecordPage"));
+const RecordsEmptyState = lazyPreload(() => import("./RecordsEmptyState"));
+const RecordPage = lazyPreload(() => import("./RecordPage"));
 
 export default function RecordRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);

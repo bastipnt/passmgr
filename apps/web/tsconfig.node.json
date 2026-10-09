@@ -22,5 +22,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "vite-plugin-seo.ts", "scripts"]
+  "include": ["vite.config.ts", "vite-plugin-seo.ts", "vite-plugin-precache.ts", "scripts"]
 }

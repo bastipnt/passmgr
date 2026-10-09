@@ -4,6 +4,7 @@ import react from "@vitejs/plugin-react";
 import path from "path";
 import sqlocal from "sqlocal/vite";
 import { defineConfig, loadEnv } from "vite";
+import { precache } from "./vite-plugin-precache";
 import { seo } from "./vite-plugin-seo";
 
 // `--mode lan` (pnpm dev:host): serve over HTTPS so LAN devices get a secure
@@ -26,6 +27,7 @@ export default defineConfig(({ mode }) => {
     plugins: [
       react(),
       seo(env.VITE_SITE_URL),
+      precache(),
       lan && basicSsl(),
       sqlocal({ coi: false }),
       {
