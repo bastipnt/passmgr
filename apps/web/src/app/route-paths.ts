@@ -4,6 +4,8 @@ export const authPaths = {
   register: "/register",
   /** A vault on this device only, no account (ADR 0001 D2). */
   createLocal: "/local-vault",
+  /** A backup restored into a new local vault (ADR 0001 D12). */
+  restore: "/restore",
   recover: "/recover",
   /** Recovery of the active local vault, on the device (ADR 0001 D10). */
   recoverLocal: "/recover?vault=local",

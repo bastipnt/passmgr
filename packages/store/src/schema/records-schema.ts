@@ -93,6 +93,30 @@ export async function getAllRecordsLatest(
   }));
 }
 
+/** Where every record id on the device lives and whether its latest version is a tombstone. */
+export type RecordHead = { recordId: string; vaultId: string; deleted: boolean };
+
+export async function getRecordHeads(db: LocalDb): Promise<RecordHead[]> {
+  const latest = db
+    .select({ recordId: records.recordId, maxVersion: max(records.version).as("maxVersion") })
+    .from(records)
+    .groupBy(records.recordId)
+    .as("latest");
+
+  const rows = await db
+    .select({
+      recordId: records.recordId,
+      vaultId: records.vaultId,
+      deletedAt: records.deleted_at,
+    })
+    .from(records)
+    .innerJoin(
+      latest,
+      and(eq(records.recordId, latest.recordId), eq(records.version, latest.maxVersion)),
+    );
+  return rows.map(({ deletedAt, ...head }) => ({ ...head, deleted: deletedAt !== null }));
+}
+
 /** The latest version of one record (deleted or not), with its first creation date. */
 export async function getByRecordId(
   recordId: string,

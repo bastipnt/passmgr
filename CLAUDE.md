@@ -187,6 +187,12 @@ a `local` profile gets a backup reminder (`useBackupReminder`, from the registry
 Export (`useExport`, ADR 0001 D12 amended): encrypted backup (`ExportEnvelope`: Argon2id over an export
 password + XChaCha20, `decryptExport` reads it back; moves `lastExportAt`) or plain JSON / CSV. Every format
 re-checks the master password. Web: Settings → Security → Export.
+Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`readExportFile` /
+`openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
+`RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
+it came from; an id already there (live or deleted) → skip / overwrite (new version, revives a deleted one; unchanged
+content writes nothing) / keep both. Restore (`useRestoreBackup`, web `/restore`): a backup into a new local vault
+under a new master password, every record into its personal vault, ids kept (`keepIds`: a re-import skips them). Mobile has no export / import UI yet.
 
 Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →
 `registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,

@@ -23,3 +23,7 @@ export function useGetRecord(recordId: string): {
 export function useRefreshRecord(): (id: string) => Promise<void> {
   return useRecordsContext().refreshRecord;
 }
+
+export function useReloadRecords(): () => Promise<void> {
+  return useRecordsContext().reload;
+}

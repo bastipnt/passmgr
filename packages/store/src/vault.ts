@@ -51,6 +51,8 @@ import {
   deleteVaultRecords,
   getAllRecordsLatest,
   getByRecordId,
+  getRecordHeads,
+  type RecordHead,
   upsertRecords,
 } from "./schema/records-schema";
 import {
@@ -163,6 +165,12 @@ export class Vault {
   async getAllLatest(vaultId?: string): Promise<EncryptedRecordSchema[]> {
     await this.ready();
     return await getAllRecordsLatest(this.db, vaultId);
+  }
+
+  /** Every record id on the device, tombstones included: its vault and whether it's deleted. */
+  async getRecordHeads(): Promise<RecordHead[]> {
+    await this.ready();
+    return await getRecordHeads(this.db);
   }
 
   async getByRecordId(recordId: string): Promise<EncryptedRecordSchema | undefined> {

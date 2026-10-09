@@ -108,12 +108,14 @@ export default function LoginForm({
                   <>
                     <AuthTextLink href={authPaths.register}>Create an account</AuthTextLink> or keep
                     a <AuthTextLink href={authPaths.createLocal}>vault on this device</AuthTextLink>
+                    ,
                   </>
                 ) : (
                   <AuthTextLink href={authPaths.createLocal}>
                     Create a vault on this device
                   </AuthTextLink>
-                )}
+                )}{" "}
+                or <AuthTextLink href={authPaths.restore}>restore a backup</AuthTextLink>
               </CardDescription>
             )}
           </CardHeader>

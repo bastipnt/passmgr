@@ -7,12 +7,13 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { DownloadIcon, FileDownIcon } from "lucide-react";
+import { DownloadIcon, FileDownIcon, UploadIcon } from "lucide-react";
 import ExportDialog from "./ExportDialog";
+import ImportDialog from "./ImportDialog";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 
-/** Export / backup (ADR 0001 D12), with when this vault was last backed up. */
+/** Export / backup and import (ADR 0001 D12), with when this vault was last backed up. */
 export default function ExportSettings() {
   const { active } = useStore();
   if (!active) return null;
@@ -23,7 +24,7 @@ export default function ExportSettings() {
       <ItemContent className="gap-1">
         <ItemTitle>
           <FileDownIcon className="size-4" aria-hidden />
-          Export
+          Backup
         </ItemTitle>
         <ItemDescription>
           {mode === "local"
@@ -35,6 +36,12 @@ export default function ExportSettings() {
         </ItemDescription>
       </ItemContent>
       <ItemActions>
+        <ImportDialog>
+          <Button variant="outline">
+            <UploadIcon />
+            Import
+          </Button>
+        </ImportDialog>
         <ExportDialog>
           <Button variant="outline">
             <DownloadIcon />

@@ -188,6 +188,11 @@ export default function CreateLocalVaultPage() {
                 <HardDriveIcon className="size-3.5" aria-hidden />
                 Stored encrypted on this device only
               </p>
+              <p className="mt-2 text-center">
+                <AuthTextLink href={authPaths.restore} tone="muted">
+                  Restore from a backup instead
+                </AuthTextLink>
+              </p>
             </CardContent>
           </Card>
         </FormLock>

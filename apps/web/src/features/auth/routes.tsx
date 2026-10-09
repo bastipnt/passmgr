@@ -9,6 +9,7 @@ const CreateLocalVaultPage = lazy(() => import("./CreateLocalVaultPage"));
 const LoginPage = lazy(() => import("./LoginPage"));
 const RecoverPage = lazy(() => import("./RecoverPage"));
 const RegisterPage = lazy(() => import("./RegisterPage"));
+const RestoreBackupPage = lazy(() => import("./RestoreBackupPage"));
 
 export default function AuthRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
@@ -34,6 +35,7 @@ export default function AuthRoutes() {
           {canRegister && <Route path={authPaths.register} component={RegisterPage} />}
           {/* Needs no server: always there, whatever the app config says. */}
           <Route path={authPaths.createLocal} component={CreateLocalVaultPage} />
+          <Route path={authPaths.restore} component={RestoreBackupPage} />
 
           <Route>
             <Redirect to={authPaths.login} />

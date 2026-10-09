@@ -2,9 +2,11 @@ import type { EncryptedRecordSchema, RecordData } from "@repo/schema";
 import {
   type LocalRecordChange,
   type LocalRecordVersion,
+  type RecordHead,
   secretsStore,
   type Vault,
 } from "@repo/store";
+import type { ImportEntry } from "../export/import-export";
 import { encryptRecord } from "../util/encrypt-record";
 
 type RecordRef = { recordId: string; vaultId: string };
@@ -28,6 +30,11 @@ export class RecordRepository {
   /** The current records of one vault, or of all vaults. */
   async getAll(vaultId?: string): Promise<EncryptedRecordSchema[]> {
     return await this.vault.getAllLatest(vaultId);
+  }
+
+  /** Every record id on the device, tombstones included. */
+  async heads(): Promise<RecordHead[]> {
+    return await this.vault.getRecordHeads();
   }
 
   /** The latest version of a record, a tombstone included. */
@@ -81,6 +88,14 @@ export class RecordRepository {
       { kind: "delete", recordId: record.recordId, clientUpdatedAt: now() },
     ]);
     return moved!;
+  }
+
+  /** Records from an export (`importExportData`), encrypted and written in one transaction. */
+  async writeImport(entries: readonly ImportEntry[]): Promise<EncryptedRecordSchema[]> {
+    if (entries.length === 0) return [];
+    return await this.write(
+      entries.map(({ kind, data, ...ref }) => ({ kind, ...this.encrypt(data, ref) })),
+    );
   }
 
   private encrypt(data: RecordData, ref: RecordRef) {

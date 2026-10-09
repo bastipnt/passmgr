@@ -77,14 +77,36 @@ export class WrongExportPasswordError extends Error {
   override message = "WrongExportPasswordError";
 }
 
-/** Read an encrypted export back. */
-export async function decryptExport(file: string, password: string): Promise<ExportData> {
-  let envelope: ExportEnvelope;
+/** The file's ExportData, or `InvalidExportFileError`. Records are kept as written (`exportRecordSchema`). */
+function parseExportData(json: unknown): ExportData {
+  const result = exportDataSchema.safeParse(json);
+  if (!result.success) throw new InvalidExportFileError();
+  return result.data as unknown as ExportData;
+}
+
+/** An export file as read: a sealed backup still needs its password, a plain one is the data. */
+export type ExportFileContents =
+  | { encrypted: true; envelope: ExportEnvelope }
+  | { encrypted: false; data: ExportData };
+
+/** Tell an encrypted backup from a plain JSON export. Throws `InvalidExportFileError` for anything else. */
+export function readExportFile(file: string): ExportFileContents {
+  let json: unknown;
   try {
-    envelope = exportEnvelopeSchema.parse(JSON.parse(file));
+    json = JSON.parse(file);
   } catch {
     throw new InvalidExportFileError();
   }
+  const envelope = exportEnvelopeSchema.safeParse(json);
+  if (envelope.success) return { encrypted: true, envelope: envelope.data };
+  return { encrypted: false, data: parseExportData(json) };
+}
+
+/** Open a sealed backup with its password. */
+export async function openExportEnvelope(
+  envelope: ExportEnvelope,
+  password: string,
+): Promise<ExportData> {
   const key = await deriveExportKey(password, envelope.kdf);
   let json: string;
   try {
@@ -100,10 +122,14 @@ export async function decryptExport(file: string, password: string): Promise<Exp
   } catch {
     throw new InvalidExportFileError();
   }
-  const result = exportDataSchema.safeParse(parsed);
-  if (!result.success) throw new InvalidExportFileError();
-  // The records' own fields aren't validated (`exportRecordSchema`): kept as written.
-  return result.data as unknown as ExportData;
+  return parseExportData(parsed);
+}
+
+/** Read an encrypted export back. */
+export async function decryptExport(file: string, password: string): Promise<ExportData> {
+  const contents = readExportFile(file);
+  if (!contents.encrypted) throw new InvalidExportFileError();
+  return await openExportEnvelope(contents.envelope, password);
 }
 
 // ── CSV ──────────────────────────────────────────────────────────────────────

@@ -3,6 +3,7 @@
 // Export
 export * from "./src/export/collect-export";
 export * from "./src/export/export-file";
+export * from "./src/export/import-export";
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
@@ -15,6 +16,7 @@ export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-export";
 export * from "./src/hooks/use-generator-defaults";
+export * from "./src/hooks/use-import";
 export * from "./src/hooks/use-link-account";
 export * from "./src/hooks/use-lock";
 export * from "./src/hooks/use-login";
@@ -25,6 +27,7 @@ export * from "./src/hooks/use-record-history";
 export * from "./src/hooks/use-records";
 export * from "./src/hooks/use-recovery";
 export * from "./src/hooks/use-register";
+export * from "./src/hooks/use-restore-backup";
 export * from "./src/hooks/use-session-restore";
 export * from "./src/hooks/use-shortcut";
 export * from "./src/hooks/use-sign-out";

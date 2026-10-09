@@ -56,6 +56,8 @@ export function createFakeStore() {
     delete: vi.fn(),
     move: vi.fn(),
     history: vi.fn(async () => []),
+    heads: vi.fn(async () => []),
+    writeImport: vi.fn(async () => []),
   };
 
   const store = {

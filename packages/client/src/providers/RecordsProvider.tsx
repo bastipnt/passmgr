@@ -18,6 +18,8 @@ type RecordsContextValue = {
   getRecord: (id: string) => DecryptedRecord | undefined;
   ready: boolean;
   refreshRecord: (id: string) => Promise<void>;
+  /** Re-read every local record, e.g. after an import wrote many at once. */
+  reload: () => Promise<void>;
   /** Bumps whenever the local records were re-read (a local write or a sync). */
   revision: number;
 };
@@ -178,6 +180,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     getRecord,
     ready,
     refreshRecord,
+    reload: decryptAll,
     revision,
   };
 
