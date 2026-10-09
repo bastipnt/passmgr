@@ -14,8 +14,10 @@ import {
   type RecordOfType,
   type RecordType,
   recordDataSchema,
+  recordFormSchemas,
 } from "../src/record-types";
 import { edgeCaseLoginRecords, exampleLoginRecords } from "../src/seed/login-record-seed";
+import { exampleTypedRecords } from "../src/seed/typed-record-seed";
 
 const MIN_LOGIN = { type: "login", title: "My account" } as const;
 
@@ -181,7 +183,56 @@ describe("seed data", () => {
     },
   );
 
+  it.each(exampleTypedRecords.map((r) => [r.type, r.title, r] as const))(
+    "%s %s is a valid record",
+    (_type, _title, record) => {
+      expect(recordDataSchema.parse(record)).toEqual(record);
+    },
+  );
+
+  it("covers every type but login", () => {
+    const types = new Set(exampleTypedRecords.map((record) => record.type));
+    expect([...types].sort()).toEqual(RECORD_TYPES.filter((type) => type !== "login").sort());
+  });
+
   it("edge cases all carry the login type", () => {
     expect(edgeCaseLoginRecords.every((record) => record.type === "login")).toBe(true);
+  });
+});
+
+describe("recordFormSchemas", () => {
+  it("has a form for every type", () => {
+    expect(Object.keys(recordFormSchemas).sort()).toEqual([...RECORD_TYPES].sort());
+  });
+
+  it("drops the fields no form edits", () => {
+    const parsed = recordFormSchemas.wifi.parse({
+      type: "wifi",
+      title: "Home",
+      favorite: true,
+      tags: ["x"],
+    });
+    expect(parsed).toEqual({ title: "Home" });
+  });
+
+  it.each([
+    ["", true],
+    ["09/29", true],
+    ["9/29", false],
+    ["13/29", false],
+    ["0929", false],
+  ])("card expiry %j valid: %s", (expiry, valid) => {
+    expect(recordFormSchemas.card.safeParse({ title: "x", expiry }).success).toBe(valid);
+  });
+});
+
+describe("identity form", () => {
+  it.each([
+    ["", true],
+    ["1990-04-12", true],
+    ["12.04.1990", false],
+    ["1990-13-01", false],
+  ])("birth date %j valid: %s", (birthDate, valid) => {
+    expect(recordFormSchemas.identity.safeParse({ title: "x", birthDate }).success).toBe(valid);
   });
 });

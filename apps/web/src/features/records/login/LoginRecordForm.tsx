@@ -4,27 +4,21 @@ import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/compo
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
 import { FormLock } from "@repo/ui/components/form/FormLock";
-import { normalizeWebsiteUrl } from "@repo/util";
 import { LockIcon, MailIcon, TagIcon } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { PasswordField } from "@/features/password-generation";
+import type { RecordFormHandle } from "../RecordForm";
 import ExtraFormFields from "./ExtraFormFields";
 import WebsiteFormFields from "./WebsiteFormFields";
 
-export type LoginRecordFormHandle = {
-  triggerSubmit: () => void;
-};
-
 type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
-  action: string;
   serverError?: string;
   /** Locks every field while a save is in flight. */
   disabled?: boolean;
   defaultValues?: Partial<FormValues>;
-  onCancel: () => void;
-  ref?: Ref<LoginRecordFormHandle>;
+  ref?: Ref<RecordFormHandle>;
 };
 
 export default function LoginRecordForm({
@@ -47,16 +41,6 @@ export default function LoginRecordForm({
 
   const formRef = useRef<HTMLFormElement>(null);
 
-  function handleFormSubmit(data: FormValues) {
-    onSubmit({
-      ...data,
-      websites: data.websites
-        ?.map(({ value, ...rest }) => ({ ...rest, value: value.trim() }))
-        .filter(({ value }) => value !== "")
-        .map(({ value, ...rest }) => ({ ...rest, value: normalizeWebsiteUrl(value) })),
-    });
-  }
-
   useImperativeHandle(ref, () => ({
     triggerSubmit: () => formRef.current?.requestSubmit(),
   }));
@@ -64,7 +48,7 @@ export default function LoginRecordForm({
   return (
     <form
       ref={formRef}
-      onSubmit={handleSubmit(handleFormSubmit)}
+      onSubmit={handleSubmit(onSubmit)}
       autoComplete="off"
       className="px-5 py-6 sm:px-7"
     >

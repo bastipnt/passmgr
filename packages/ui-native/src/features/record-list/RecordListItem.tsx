@@ -1,4 +1,5 @@
 import { ChevronRight } from "lucide-react-native";
+import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 
@@ -9,6 +10,8 @@ type RecordLIProps = {
   title: string;
   username?: string;
   websites?: { value: string }[];
+  /** Replaces the favicon tile, e.g. a record type's icon. */
+  avatar?: ReactNode;
   /** First row of its group: drops the hairline above it. */
   first?: boolean;
   onClick?: () => void;
@@ -18,7 +21,14 @@ type RecordLIProps = {
  * Full-bleed table-view row, as on web at phone width: favicon tile, title +
  * username, chevron, and a hairline inset past the avatar.
  */
-export function RecordListItem({ title, username, websites, first, onClick }: RecordLIProps) {
+export function RecordListItem({
+  title,
+  username,
+  websites,
+  avatar,
+  first,
+  onClick,
+}: RecordLIProps) {
   const chevron = useCSSVariable("--color-muted-foreground") as string;
 
   return (
@@ -27,7 +37,7 @@ export function RecordListItem({ title, username, websites, first, onClick }: Re
       accessibilityRole="button"
       className="h-16 flex-row items-center gap-3.5 pl-5 active:bg-foreground/5"
     >
-      <WebsiteAvatar title={title} websites={websites} size="md" />
+      {avatar ?? <WebsiteAvatar title={title} websites={websites} size="md" />}
       <View
         className={cn(
           "flex-1 flex-row items-center gap-2 self-stretch pr-4",

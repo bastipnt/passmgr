@@ -1,5 +1,13 @@
+import { sshKeyFingerprint } from "@repo/crypto";
 import type { RecordData, RecordOfType, RecordType, WifiRecord } from "@repo/schema";
 import { isDefined } from "@repo/util";
+import {
+  CARD_BRAND_LABELS,
+  cardDigits,
+  detectCardBrand,
+  formatCardNumber,
+  isCardNumberLike,
+} from "./card";
 
 /** The visual groups a record's fields are bundled into, in render order. */
 export const FIELD_GROUPS = ["title", "fields", "websites", "note", "custom"] as const;
@@ -40,17 +48,92 @@ export type FieldSpec = {
   value?: string;
   /** Only for `kind: "websites"`. */
   values?: string[];
+  /** What a copy puts on the clipboard, when not `value` (a card number's plain digits). */
+  copyValue?: string;
+  /**
+   * Worked out from other fields (a key's fingerprint), not stored: shown, but
+   * never compared, since the field it comes from already is.
+   */
+  derived?: boolean;
 };
 
-/** Display names per record type: the type itself and its `fields` group. */
-export const RECORD_TYPE_LABELS: Record<RecordType, { type: string; fields: string }> = {
-  login: { type: "Login", fields: "Credentials" },
-  card: { type: "Credit card", fields: "Card" },
-  identity: { type: "Identity", fields: "Personal info" },
-  note: { type: "Secure note", fields: "Note" },
-  ssh_key: { type: "SSH key", fields: "Key" },
-  api_key: { type: "API key", fields: "Credentials" },
-  wifi: { type: "Wi-Fi", fields: "Network" },
+/**
+ * Display names per record type: the type itself, its plural (list titles,
+ * the type filter), the same mid-sentence (`noun`, `nouns`: "New SSH key",
+ * "No credit cards yet"), its `fields` group and what it is for (the type
+ * picker). Also the order of the type picker.
+ */
+export const RECORD_TYPE_LABELS: Record<
+  RecordType,
+  { type: string; plural: string; noun: string; nouns: string; fields: string; hint: string }
+> = {
+  login: {
+    noun: "login",
+    nouns: "logins",
+    type: "Login",
+    plural: "Logins",
+    fields: "Credentials",
+    hint: "Username, password and websites",
+  },
+  card: {
+    noun: "credit card",
+    nouns: "credit cards",
+    type: "Credit card",
+    plural: "Credit cards",
+    fields: "Card",
+    hint: "Card number, expiry and security code",
+  },
+  identity: {
+    noun: "identity",
+    nouns: "identities",
+    type: "Identity",
+    plural: "Identities",
+    fields: "Personal info",
+    hint: "Name, address and contact details",
+  },
+  note: {
+    noun: "secure note",
+    nouns: "secure notes",
+    type: "Secure note",
+    plural: "Secure notes",
+    fields: "Note",
+    hint: "Free text, encrypted",
+  },
+  ssh_key: {
+    noun: "SSH key",
+    nouns: "SSH keys",
+    type: "SSH key",
+    plural: "SSH keys",
+    fields: "Key",
+    hint: "Generate or import a key",
+  },
+  api_key: {
+    noun: "API key",
+    nouns: "API keys",
+    type: "API key",
+    plural: "API keys",
+    fields: "Credentials",
+    hint: "Key, secret and host",
+  },
+  wifi: {
+    noun: "Wi-Fi network",
+    nouns: "Wi-Fi networks",
+    type: "Wi-Fi",
+    plural: "Wi-Fi networks",
+    fields: "Network",
+    hint: "Network name and password",
+  },
+};
+
+/** One hue per type for its icon tile, so types tell apart at a glance in a mixed list. */
+export const RECORD_TYPE_HUES: Record<RecordType, number> = {
+  login: 265,
+  card: 250,
+  identity: 155,
+  note: 75,
+  ssh_key: 300,
+  api_key: 200,
+  wifi: 25,
 };
 
 /** A scalar type-specific field, rendered in the `fields` group. */
@@ -63,6 +146,8 @@ type TypeField<R> = {
     always?: boolean;
     /** Display text for a non-string value; `undefined` leaves the field out. */
     format?: (value: NonNullable<R[K]>) => string | undefined;
+    /** Clipboard text when it differs from the display text. */
+    copy?: (value: NonNullable<R[K]>) => string;
   };
 }[keyof R & string];
 
@@ -83,7 +168,14 @@ const TYPE_FIELDS: { [T in RecordType]: TypeField<RecordOfType<T>>[] } = {
   ],
   card: [
     { key: "cardholderName", kind: "text", label: "Cardholder name" },
-    { key: "number", kind: "secret", label: "Card number" },
+    {
+      key: "number",
+      kind: "secret",
+      label: "Card number",
+      format: formatCardNumber,
+      // Payment forms take the digits; not all of them take the spaces.
+      copy: (number) => (isCardNumberLike(number) ? cardDigits(number) : number),
+    },
     { key: "expiry", kind: "text", label: "Expiry date" },
     { key: "securityCode", kind: "secret", label: "Security code" },
     { key: "pin", kind: "secret", label: "PIN" },
@@ -134,15 +226,42 @@ function typeFieldSpecs(record: RecordData): FieldSpec[] {
   const fields = TYPE_FIELDS[record.type] as TypeField<Record<string, unknown>>[];
   const values = record as unknown as Record<string, unknown>;
 
-  return fields.flatMap(({ key, kind, label, always, format }): FieldSpec[] => {
+  return fields.flatMap(({ key, kind, label, always, format, copy }): FieldSpec[] => {
     const raw = values[key];
     if (!isDefined(raw) || raw === "") {
       return always ? [{ key, group: "fields", compare: "", kind, label, value: undefined }] : [];
     }
     const value = format ? format(raw as NonNullable<unknown>) : String(raw);
     if (value === undefined) return [];
-    return [{ key, group: "fields", compare: value, kind, label, value }];
+    const copyValue = copy ? copy(raw as NonNullable<unknown>) : undefined;
+    return [{ key, group: "fields", compare: value, kind, label, value, copyValue }];
   });
+}
+
+/** Rows worked out from the stored fields, appended to the `fields` group. */
+function derivedFieldSpecs(record: RecordData): FieldSpec[] {
+  const derived = (key: string, label: string, value: string): FieldSpec => ({
+    key,
+    group: "fields",
+    compare: value,
+    kind: "text",
+    label,
+    value,
+    derived: true,
+  });
+
+  switch (record.type) {
+    case "card": {
+      const brand = detectCardBrand(record.number);
+      return brand ? [derived("brand", "Card type", CARD_BRAND_LABELS[brand])] : [];
+    }
+    case "ssh_key": {
+      const fingerprint = record.publicKey ? sshKeyFingerprint(record.publicKey) : undefined;
+      return fingerprint ? [derived("fingerprint", "Fingerprint", fingerprint)] : [];
+    }
+    default:
+      return [];
+  }
 }
 
 type GetRecordFieldSpecsOptions = {
@@ -151,12 +270,18 @@ type GetRecordFieldSpecsOptions = {
    * already the page heading); the diff wants it so renames stay visible.
    */
   includeTitle?: boolean;
+  /**
+   * Add the rows worked out from other fields (card type, key fingerprint).
+   * The record view wants them; the diff doesn't: they change exactly when
+   * their source field does, which it already shows.
+   */
+  includeDerived?: boolean;
 };
 
 /** A record's fields in render order: title, type fields, websites, note, custom fields. */
 export function getRecordFieldSpecs(
   record: RecordData,
-  { includeTitle = false }: GetRecordFieldSpecsOptions = {},
+  { includeTitle = false, includeDerived = false }: GetRecordFieldSpecsOptions = {},
 ): FieldSpec[] {
   const specs: FieldSpec[] = [];
 
@@ -172,6 +297,7 @@ export function getRecordFieldSpecs(
   }
 
   specs.push(...typeFieldSpecs(record));
+  if (includeDerived) specs.push(...derivedFieldSpecs(record));
 
   if (record.type === "login" && isDefined(record.websites) && record.websites.length > 0) {
     const values = record.websites.map(({ value }) => value);

@@ -1,5 +1,5 @@
-import { getRecordWebsites, hasEditForm } from "@repo/client";
-import { type DecryptedRecord, isRecordType } from "@repo/schema";
+import { getRecordWebsites, RECORD_TYPE_LABELS } from "@repo/client";
+import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
@@ -12,10 +12,10 @@ import { recordPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
 import Record from "./Record";
 import { MoreDropdown } from "./RecordActions";
+import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
 import { displayHost, useCopyField } from "./record-utils";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
-import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type MobileRecordScreenProps = {
   record: DecryptedRecord;
@@ -33,7 +33,7 @@ type MobileRecordScreenProps = {
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
   const copyField = useCopyField();
   const websites = getRecordWebsites(record);
-  const password = isRecordType(record, "login") ? record.password : undefined;
+  const password = record.type === "login" || record.type === "wifi" ? record.password : undefined;
   const primaryWebsite = websites?.find((website) => website.value)?.value;
   const hasDock = Boolean(password || primaryWebsite);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -64,12 +64,10 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         </Button>
         <span className="flex-1" />
         <div ref={actionsRef} className="flex items-center gap-2">
-          {hasEditForm(record) && (
-            <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
-              <PencilLineIcon />
-              Edit
-            </Link>
-          )}
+          <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
+            <PencilLineIcon />
+            Edit
+          </Link>
           <MoreDropdown recordId={record.recordId} onDelete={onDelete} variant="floating" />
         </div>
       </header>
@@ -100,9 +98,9 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           primaryWebsite ? "-mt-9" : "-mt-[2.875rem]",
         )}
       >
-        <WebsiteAvatar title={record.title} websites={websites} size="lg" />
+        <RecordAvatar record={record} size="lg" />
         <div className="flex min-w-0 flex-col pt-9">
-          {primaryWebsite && (
+          {primaryWebsite ? (
             <a
               href={primaryWebsite}
               target="_blank"
@@ -112,6 +110,12 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
               {displayHost(primaryWebsite)}
               <ExternalLinkIcon className="size-3.5" aria-hidden />
             </a>
+          ) : (
+            record.type !== "login" && (
+              <span className="text-muted-foreground text-sm">
+                {RECORD_TYPE_LABELS[record.type].type}
+              </span>
+            )
           )}
         </div>
       </div>

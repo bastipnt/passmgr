@@ -1,4 +1,5 @@
-import { ShortcutLayer } from "@repo/client";
+import { getRecordWebsites, RECORD_TYPE_LABELS, ShortcutLayer } from "@repo/client";
+import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -12,8 +13,8 @@ import { cn } from "@repo/ui/lib/utils";
 import { EllipsisIcon, ExternalLinkIcon, PencilLineIcon, Timeline, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { recordPaths } from "@/app/route-paths";
+import { RecordAvatar } from "./RecordAvatar";
 import { displayHost } from "./record-utils";
-import { WebsiteAvatar } from "./WebsiteAvatar";
 
 type MoreDropdownProps = {
   recordId: string;
@@ -64,32 +65,22 @@ export function MoreDropdown({ recordId, onDelete, variant = "outline" }: MoreDr
 }
 
 type RecordActionsProps = {
-  recordId: string;
-  title: string;
-  websites?: { value: string }[];
-  /** Offer "Edit": false for record types without an edit form yet. */
-  editable: boolean;
+  record: DecryptedRecord;
   onDelete: () => void;
   className?: string;
 };
 
-export function RecordActions({
-  recordId,
-  title,
-  websites,
-  editable,
-  onDelete,
-  className,
-}: RecordActionsProps) {
-  const primaryWebsite = websites?.find((website) => website.value)?.value;
+export function RecordActions({ record, onDelete, className }: RecordActionsProps) {
+  const { recordId, title } = record;
+  const primaryWebsite = getRecordWebsites(record)?.find((website) => website.value)?.value;
 
   return (
     <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
       <div className="flex min-w-0 flex-row items-center gap-4">
-        <WebsiteAvatar title={title} websites={websites} size="lg" />
+        <RecordAvatar record={record} size="lg" />
         <div className="flex min-w-0 flex-col gap-0.5">
           <h1 className="truncate font-bold font-display text-3xl tracking-[-0.02em]">{title}</h1>
-          {primaryWebsite && (
+          {primaryWebsite ? (
             <a
               href={primaryWebsite}
               target="_blank"
@@ -99,23 +90,27 @@ export function RecordActions({
               {displayHost(primaryWebsite)}
               <ExternalLinkIcon className="size-3.5" aria-hidden />
             </a>
+          ) : (
+            record.type !== "login" && (
+              <span className="text-muted-foreground text-sm">
+                {RECORD_TYPE_LABELS[record.type].type}
+              </span>
+            )
           )}
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        {editable && (
-          <Link
-            variant="outline"
-            size="lg"
-            className="h-10 font-medium text-sm"
-            aria-label="Edit"
-            href={recordPaths.editRecord(recordId)}
-          >
-            <PencilLineIcon />
-            Edit
-          </Link>
-        )}
+        <Link
+          variant="outline"
+          size="lg"
+          className="h-10 font-medium text-sm"
+          aria-label="Edit"
+          href={recordPaths.editRecord(recordId)}
+        >
+          <PencilLineIcon />
+          Edit
+        </Link>
         <MoreDropdown recordId={recordId} onDelete={onDelete} />
       </div>
     </div>

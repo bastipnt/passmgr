@@ -1,6 +1,7 @@
 import { type FieldGroup, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
+import type { ReactNode } from "react";
 import { useCopyField } from "../record-utils";
 import { HistorySection } from "./HistorySection";
 import LoginFieldDisplay from "./LoginFieldDisplay";
@@ -8,6 +9,8 @@ import { PasswordHealthPanel } from "./PasswordHealthPanel";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
+  /** Type-specific extras above the history (a Wi-Fi's QR code). */
+  extra?: ReactNode;
 };
 
 // The title is the page heading, so it isn't repeated as a field. The
@@ -20,8 +23,8 @@ const COLUMNS: { group: FieldGroup; label?: string }[][] = [
   ],
 ];
 
-export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
-  const specs = getRecordFieldSpecs(record);
+export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
+  const specs = getRecordFieldSpecs(record, { includeDerived: true });
   const copyField = useCopyField();
 
   return (
@@ -48,6 +51,7 @@ export function LoginRecordFields({ record }: LoginRecordFieldsProps) {
           })}
           {i === 1 && (
             <>
+              {extra}
               <PasswordHealthPanel record={record} />
               <HistorySection record={record} />
             </>

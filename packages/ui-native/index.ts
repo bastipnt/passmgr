@@ -27,6 +27,7 @@ export * from "./src/components/forms/ControlledTextarea";
 export * from "./src/components/forms/Field";
 export * from "./src/components/forms/FormLock";
 export * from "./src/components/forms/OptionToggle";
+export * from "./src/components/IconTile";
 export * from "./src/components/KeyboardAvoidingView";
 export * from "./src/components/LightField";
 export * from "./src/components/Link";

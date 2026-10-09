@@ -1,4 +1,3 @@
-import { type LoginFormValues as FormValues } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
@@ -8,12 +7,18 @@ import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import PasswordGenerator from "./PasswordGenerator";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
-type PasswordFieldProps = {
-  control: Control<FormValues>;
-  setValue: UseFormSetValue<FormValues>;
+/** Any form with a `password` field: a login, a Wi-Fi network. */
+type PasswordFormValues = { password?: string };
+
+type PasswordFieldProps<T extends PasswordFormValues> = {
+  control: Control<T>;
+  setValue: UseFormSetValue<T>;
 };
 
-export default function PasswordField({ control, setValue }: PasswordFieldProps) {
+export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
+  // react-hook-form's paths don't narrow through a generic: pin the form to its
+  // `password` field, the only one this component touches.
+  const { control, setValue } = props as unknown as PasswordFieldProps<PasswordFormValues>;
   const password = useWatch({ control, name: "password" }) ?? "";
   const pwGeneratorHandle = useMemo(() => createHandle(), []);
 

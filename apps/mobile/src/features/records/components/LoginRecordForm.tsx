@@ -17,21 +17,17 @@ import { useCSSVariable } from "uniwind";
 import ExtraFormFields from "@/features/records/components/ExtraFormFields";
 import PasswordField from "@/features/records/components/PasswordField";
 import WebsiteFormFields from "@/features/records/components/WebsiteFormFields";
-
-export type LoginRecordFormHandle = {
-  triggerSubmit: () => void;
-};
+import type { RecordFormHandle } from "./RecordFormSheet";
 
 type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
-  action: string;
   /** Route of the generator sheet the password field opens. */
   generatorPath: Href;
   serverError?: string;
   /** Locks every field while a save is in flight. */
   disabled?: boolean;
   defaultValues?: Partial<FormValues>;
-  ref?: Ref<LoginRecordFormHandle>;
+  ref?: Ref<RecordFormHandle>;
 };
 
 export default function LoginRecordForm({

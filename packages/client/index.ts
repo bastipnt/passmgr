@@ -58,14 +58,17 @@ export * from "./src/providers/SortedRecordsProvider";
 // Providers
 export * from "./src/providers/StoreProvider";
 // Records
+export * from "./src/records/card";
 export * from "./src/records/diff-fields";
 export * from "./src/records/merge-record";
 export * from "./src/records/record-edit";
 export * from "./src/records/record-field-specs";
+export * from "./src/records/record-form-fields";
 export * from "./src/records/record-repository";
 export * from "./src/records/record-summary";
 export * from "./src/records/resolve-record-conflict";
 export * from "./src/records/version-changes";
+export * from "./src/records/wifi";
 export type { SyncStatus } from "./src/sync-manager";
 export * from "./src/sync-summary";
 export * from "./src/util/decrypt-record";

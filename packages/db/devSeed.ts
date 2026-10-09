@@ -21,7 +21,13 @@ import {
   hashEmail,
   unwrapVaultKey,
 } from "@repo/crypto";
-import { edgeCaseLoginRecords, exampleLoginRecords, type RecordPayload } from "@repo/schema";
+import {
+  edgeCaseLoginRecords,
+  exampleLoginRecords,
+  exampleTypedRecords,
+  type RecordData,
+  type RecordPayload,
+} from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
 import { migrate } from "drizzle-orm/node-postgres/migrator";
@@ -125,16 +131,18 @@ async function seed() {
     .values({ vaultId, userId, role: "owner", ...personalVaultKey });
 
   // 7. Encrypt and insert seed records
-  const loginRecords = WITH_EDGE_CASES
-    ? [...exampleLoginRecords, ...edgeCaseLoginRecords]
-    : exampleLoginRecords;
-  console.log(`Inserting ${loginRecords.length} seed records...`);
+  const seedRecords: RecordData[] = [
+    ...exampleLoginRecords,
+    ...exampleTypedRecords,
+    ...(WITH_EDGE_CASES ? edgeCaseLoginRecords : []),
+  ];
+  console.log(`Inserting ${seedRecords.length} seed records...`);
 
   // Spread creation over the past ~2 years so sorting and "old password"
   // views have something to show.
   const now = Date.now();
-  const recordRows = loginRecords.map((loginRecord, i) => {
-    const payload: RecordPayload = { schemaVersion: 1, ...loginRecord };
+  const recordRows = seedRecords.map((seedRecord, i) => {
+    const payload: RecordPayload = { schemaVersion: 1, ...seedRecord };
     const recordId = crypto.randomUUID();
     const [encryptedData, encryptionNonce] = encryptRecordData(
       vaultKey,

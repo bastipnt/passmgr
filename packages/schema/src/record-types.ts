@@ -129,16 +129,41 @@ export function isRecordType<R extends { type: RecordType }, T extends RecordTyp
   return record.type === type;
 }
 
+/** Base fields no form edits yet; `recordFromForm` carries them over from the current version. */
+const FORM_OMIT = { type: true, favorite: true, tags: true, attachments: true } as const;
+
+/** "YYYY-MM-DD": what web's date input writes, so both apps store one format. */
+const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
+
+/** "MM/YY", as printed on the card. */
+const EXPIRY_PATTERN = /^(0[1-9]|1[0-2])\/\d{2}$/;
+
 /**
- * What the login form edits: the login fields without `type`, which the
+ * What each type's form edits: the type's fields without `type`, which the
  * caller adds when it builds the payload, and without the base fields no form
- * edits yet (`loginRecordFromForm` carries those over), so a form can't
- * overwrite them.
+ * edits yet, so a form can't overwrite them. Stricter than the stored schema
+ * where a form can help (a card's expiry, a birth date): stored payloads stay
+ * loose, any client may have written them.
  */
-export const loginFormSchema = loginRecordSchema.omit({
-  type: true,
-  favorite: true,
-  tags: true,
-  attachments: true,
-});
-export type LoginFormValues = z.infer<typeof loginFormSchema>;
+export const recordFormSchemas = {
+  login: loginRecordSchema.omit(FORM_OMIT),
+  card: cardRecordSchema.omit(FORM_OMIT).extend({
+    expiry: z.union([z.literal(""), z.string().regex(EXPIRY_PATTERN, "Use MM/YY")]).optional(),
+  }),
+  identity: identityRecordSchema.omit(FORM_OMIT).extend({
+    birthDate: z
+      .union([z.literal(""), z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD")])
+      .optional(),
+  }),
+  note: noteRecordSchema.omit(FORM_OMIT),
+  ssh_key: sshKeyRecordSchema.omit(FORM_OMIT),
+  api_key: apiKeyRecordSchema.omit(FORM_OMIT),
+  wifi: wifiRecordSchema.omit(FORM_OMIT),
+} satisfies { [T in RecordType]: z.ZodType };
+
+export type RecordFormValues<T extends RecordType = RecordType> = z.infer<
+  (typeof recordFormSchemas)[T]
+>;
+
+export const loginFormSchema = recordFormSchemas.login;
+export type LoginFormValues = RecordFormValues<"login">;

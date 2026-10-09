@@ -30,7 +30,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     REVEAL_TIMEOUT_DEFAULT_SECONDS,
   );
   const revealTimeoutMs = revealSeconds * 1_000;
-  const copy = onCopy ? () => onCopy(spec.value) : undefined;
+  const copy = onCopy ? () => onCopy(spec.copyValue ?? spec.value) : undefined;
 
   switch (spec.kind) {
     case "title":

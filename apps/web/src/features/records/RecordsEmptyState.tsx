@@ -40,8 +40,8 @@ export default function RecordsEmptyState() {
           </EmptyMedia>
           <EmptyTitle className="text-3xl">Your vault is empty</EmptyTitle>
           <EmptyDescription className="text-base">
-            Add your first login to get started. It&apos;s encrypted on this device before it ever
-            reaches the server.
+            Add your first login, card or note to get started. It&apos;s encrypted on this device
+            before it ever reaches the server.
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="max-w-md gap-6">

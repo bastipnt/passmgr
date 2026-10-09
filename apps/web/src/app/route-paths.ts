@@ -37,6 +37,8 @@ export const recordPaths = {
    * behind it. Value is the optional prefilled title.
    */
   createParam: "new",
+  /** With `createParam`: the record type to create. Absent → the type picker. */
+  createTypeParam: "type",
 } as const;
 
 export const settingsPaths = {

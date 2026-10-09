@@ -1,4 +1,4 @@
-import { type LoginFormValues as FormValues } from "@repo/schema";
+import type { CustomField } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -17,13 +17,20 @@ import {
   useFieldArray,
 } from "react-hook-form";
 
-type ExtraFormFieldsProps = {
-  control: Control<FormValues>;
-  register: UseFormRegister<FormValues>;
-  errors: FieldErrors<FormValues>;
+/** Every record form has extra fields. */
+type ExtraFieldsFormValues = { customFields?: CustomField[] };
+
+type ExtraFormFieldsProps<T extends ExtraFieldsFormValues> = {
+  control: Control<T>;
+  register: UseFormRegister<T>;
+  errors: FieldErrors<T>;
 };
 
-export default function ExtraFormFields({ control }: ExtraFormFieldsProps) {
+export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
+  props: ExtraFormFieldsProps<T>,
+) {
+  // Paths don't narrow through a generic: pin the form to `customFields`.
+  const { control } = props as unknown as ExtraFormFieldsProps<ExtraFieldsFormValues>;
   const { fields, append, remove } = useFieldArray({
     control,
     name: "customFields",

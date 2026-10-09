@@ -3,6 +3,7 @@ export * from "./src/encryption";
 export * from "./src/export-envelope";
 export * from "./src/hash";
 export * from "./src/password-generator";
+export * from "./src/ssh-key";
 export * from "./src/totp";
 export * from "./src/user-key-pair";
 export * from "./src/user-keys";

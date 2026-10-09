@@ -1,12 +1,11 @@
 import {
-  hasEditForm,
-  loginRecordFromForm,
+  recordFromForm,
   useDeleteRecord,
   useGetRecord,
   useShortcut,
   useUpdateRecord,
 } from "@repo/client";
-import { isRecordType, type LoginFormValues } from "@repo/schema";
+import type { RecordFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { isDefined } from "@repo/util";
 import { useEffect } from "react";
@@ -40,8 +39,9 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
     if (isDefined(updateRecordError)) toast.error("Error saving");
   }, [updateRecordError]);
 
-  function handleSubmit(formValues: LoginFormValues) {
-    updateRecord(record!, loginRecordFromForm(formValues, record));
+  function handleSubmit(formValues: RecordFormValues) {
+    // The form is the record's own type's (`RecordForm type={record.type}`).
+    updateRecord(record!, recordFromForm(record!.type, formValues, record));
   }
 
   return {
@@ -66,23 +66,26 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
   const [, navigate] = useLocation();
   const copyField = useCopyField();
-  const login = record && isRecordType(record, "login") ? record : undefined;
+  // Logins and Wi-Fi networks have a password; only logins a username.
+  const password =
+    record?.type === "login" || record?.type === "wifi" ? record.password : undefined;
+  const username = record?.type === "login" ? record.username : undefined;
 
-  useShortcut("$mod+Shift+c", () => copyField(login?.password, "Password"), {
+  useShortcut("$mod+Shift+c", () => copyField(password, "Password"), {
     description: "Copy password",
-    enabled: ready && !!login?.password,
+    enabled: ready && !!password,
     allowInInput: true,
   });
 
-  useShortcut("$mod+Shift+u", () => copyField(login?.username, "Username"), {
+  useShortcut("$mod+Shift+u", () => copyField(username, "Username"), {
     description: "Copy username",
-    enabled: ready && !!login?.username,
+    enabled: ready && !!username,
     allowInInput: true,
   });
 
   useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
     description: "Edit record",
-    enabled: ready && !!record && hasEditForm(record),
+    enabled: ready && !!record,
     allowInInput: true,
   });
 }

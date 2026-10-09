@@ -1,4 +1,3 @@
-import { getRecordWebsites, hasEditForm } from "@repo/client";
 import { Redirect, useParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { PanelHeader } from "@/components/AppShell";
@@ -18,13 +17,7 @@ function RecordScreen({ recordId }: { recordId: string }) {
   return (
     <section>
       <PanelHeader className="block px-6 pt-6 pb-5 lg:px-7 lg:pt-7">
-        <RecordActions
-          recordId={recordId}
-          title={record.title}
-          websites={getRecordWebsites(record)}
-          editable={hasEditForm(record)}
-          onDelete={() => deleteRecord(recordId)}
-        />
+        <RecordActions record={record} onDelete={() => deleteRecord(recordId)} />
       </PanelHeader>
 
       <div className="px-6 pt-2 pb-6 lg:px-7 lg:pb-7">

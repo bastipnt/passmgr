@@ -1,5 +1,8 @@
-import { getRecordSubtitle, getRecordWebsites, useGetRecords, useShortcut } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { getRecordSubtitle, RECORD_TYPE_LABELS, useGetRecords, useShortcut } from "@repo/client";
+import {
+  type TypeFilter,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
 import {
   Item,
@@ -18,8 +21,14 @@ import { ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { RecordAvatar } from "./RecordAvatar";
 import { RecordSortMenu } from "./RecordSortMenu";
-import { WebsiteAvatar } from "./WebsiteAvatar";
+
+/** The list's title: what it shows. A search covers every type. */
+export function listTitle(typeFilter: TypeFilter, searching: boolean): string {
+  if (searching) return "Results";
+  return typeFilter === "all" ? "All items" : RECORD_TYPE_LABELS[typeFilter].plural;
+}
 
 type RecordRowProps = {
   record: DecryptedRecord;
@@ -46,11 +55,7 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
       }
     >
       <ItemMedia className="max-sm:self-center! max-sm:translate-y-0!">
-        <WebsiteAvatar
-          title={record.title}
-          websites={getRecordWebsites(record)}
-          size={isMobile ? "md" : "default"}
-        />
+        <RecordAvatar record={record} size={isMobile ? "md" : "default"} />
       </ItemMedia>
       <ItemContent className="min-w-0 gap-0 max-sm:flex-row max-sm:items-center max-sm:gap-2 max-sm:self-stretch max-sm:border-foreground/8 max-sm:border-t max-sm:pr-4 max-sm:group-first/row:border-t-0 dark:max-sm:border-white/8">
         <div className="min-w-0 flex-1">
@@ -89,8 +94,8 @@ function RecordListSkeleton() {
   );
 }
 
-/** Ghost rows standing in for the first logins. */
-function EmptyRecordList() {
+/** Ghost rows standing in for the first items. */
+function EmptyRecordList({ typeFilter }: { typeFilter: TypeFilter }) {
   return (
     <div className="flex flex-col gap-2">
       {[1, 0.7, 0.4].map((opacity) => (
@@ -108,7 +113,9 @@ function EmptyRecordList() {
         </div>
       ))}
       <p className="px-1.5 pt-2 text-muted-foreground text-sm">
-        Your logins will show up here, grouped by when you last used them.
+        {typeFilter === "all"
+          ? "Your items will show up here, grouped by when you last used them."
+          : `No ${RECORD_TYPE_LABELS[typeFilter].nouns} yet.`}
       </p>
     </div>
   );
@@ -123,7 +130,7 @@ function EmptyRecordList() {
  * It collapses over the scroll that carries it from its hero spot (0.75rem
  * under the 3.75rem bar) up to there: 4.5rem - 0.375rem.
  */
-function MobileListTitle({ count }: { count: number }) {
+function MobileListTitle({ title, count }: { title: string; count: number }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   useScrollCollapse(titleRef);
 
@@ -134,11 +141,11 @@ function MobileListTitle({ count }: { count: number }) {
         "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.375rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:4.125rem]",
         // Hero → bar: past the brand mark (px-4 + size-9 + 0.75rem). It clears the
         // mark sideways before rising level with it, so the two never overlap.
-        // Not truncated (that clips descenders): "Logins n" is short enough.
+        // Not truncated (that clips descenders): "Wi-Fi networks n" is short enough.
         "ms-[calc(1.25rem+2.75rem*min(1,var(--scroll-collapse)*1.5))] text-[calc(2.125rem-1.0625rem*var(--scroll-collapse))]",
       )}
     >
-      <span>Logins</span>{" "}
+      <span>{title}</span>{" "}
       <span className="ml-1 font-medium font-sans text-[calc(1.125rem-0.25rem*var(--scroll-collapse))] text-muted-foreground tabular-nums tracking-normal">
         {count}
       </span>
@@ -153,7 +160,7 @@ export default function RecordList() {
   const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, sortedRecords, recordGroups, hasGroupLabels } = useSortedRecords();
+  const { query, typeFilter, sortedRecords, recordGroups, hasGroupLabels } = useSortedRecords();
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
@@ -236,7 +243,7 @@ export default function RecordList() {
       className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]"
     >
       {isMobile ? (
-        <MobileListTitle count={sortedRecords.length} />
+        <MobileListTitle title={listTitle(typeFilter, hasQuery)} count={sortedRecords.length} />
       ) : (
         <div
           className={cn(
@@ -245,7 +252,7 @@ export default function RecordList() {
           )}
         >
           <h2 className="font-semibold">
-            Logins{" "}
+            {listTitle(typeFilter, hasQuery)}{" "}
             <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
               {sortedRecords.length}
             </span>
@@ -258,7 +265,7 @@ export default function RecordList() {
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : sortedRecords.length === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">
-          <EmptyRecordList />
+          <EmptyRecordList typeFilter={typeFilter} />
         </div>
       ) : (
         <div

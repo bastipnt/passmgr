@@ -48,6 +48,8 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
       name={name}
       control={control}
       render={({ field, fieldState }) => {
+        // An optional field starts `undefined`: render it as empty, so the
+        // input stays controlled from the start (no React warning on typing).
         const fieldContent = (
           <Field data-invalid={fieldState.invalid}>
             {!hideLabel &&
@@ -64,11 +66,23 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
                 {isDefined(leadingIcon) && (
                   <InputGroupAddon align="inline-start">{leadingIcon}</InputGroupAddon>
                 )}
-                <InputGroupInput {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
+                <InputGroupInput
+                  {...field}
+                  value={field.value ?? ""}
+                  id={id}
+                  aria-invalid={fieldState.invalid}
+                  {...props}
+                />
                 {addon}
               </InputGroup>
             ) : (
-              <Input {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
+              <Input
+                {...field}
+                value={field.value ?? ""}
+                id={id}
+                aria-invalid={fieldState.invalid}
+                {...props}
+              />
             )}
             {hint}
 

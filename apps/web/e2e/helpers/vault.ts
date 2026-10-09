@@ -56,6 +56,8 @@ async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
 /** Create a login record through the create sheet; returns its record id. */
 export async function createLogin(page: Page, fields: LoginFields): Promise<string> {
   await page.getByRole("button", { name: "New record", exact: true }).click();
+  // The create sheet opens on the type picker.
+  await page.getByRole("dialog").getByRole("link", { name: "Login", exact: true }).click();
   await fillLoginForm(page, fields);
   await page.getByRole("dialog").getByRole("button", { name: "Create login" }).click();
   await page.waitForURL(/\/record\/[^/?]+$/);

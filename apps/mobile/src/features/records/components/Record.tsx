@@ -6,7 +6,7 @@ import {
   useGetRecord,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
-import { Section, SectionHeading, WebsiteAvatar } from "@repo/ui-native";
+import { Section, SectionHeading } from "@repo/ui-native";
 import { toLocalDateStr } from "@repo/util";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
@@ -16,6 +16,8 @@ import { useCSSVariable } from "uniwind";
 import { recordPaths } from "@/route-paths";
 import { useCopyField } from "../use-copy-field";
 import LoginFieldDisplay from "./LoginFieldDisplay";
+import { RecordAvatar } from "./RecordAvatar";
+import { WifiQrCode } from "./WifiQrCode";
 
 // The title is the page heading, so it isn't repeated as a field. The
 // type-specific group takes its label from the record type.
@@ -48,7 +50,7 @@ function Hero({ record }: { record: DecryptedRecord }) {
 
   return (
     <View className="flex-row items-center gap-4 px-5 pt-2 pb-2">
-      <WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} size="lg" />
+      <RecordAvatar record={record} size="lg" />
       <View className="flex-1 gap-1">
         <Text
           numberOfLines={2}
@@ -56,7 +58,7 @@ function Hero({ record }: { record: DecryptedRecord }) {
         >
           {record.title}
         </Text>
-        {website && (
+        {website ? (
           <Pressable
             onPress={() => WebBrowser.openBrowserAsync(website.url).catch(() => {})}
             hitSlop={6}
@@ -67,6 +69,12 @@ function Hero({ record }: { record: DecryptedRecord }) {
             </Text>
             <ExternalLink size={14} color={muted} />
           </Pressable>
+        ) : (
+          record.type !== "login" && (
+            <Text className="text-muted-foreground text-sm">
+              {RECORD_TYPE_LABELS[record.type].type}
+            </Text>
+          )
         )}
       </View>
     </View>
@@ -110,7 +118,7 @@ type RecordProps = {
 /** Record detail body: hero, field sections and history — web's `MobileRecordPage`. */
 export default function Record({ record }: RecordProps) {
   const onCopy = useCopyField();
-  const specs = getRecordFieldSpecs(record);
+  const specs = getRecordFieldSpecs(record, { includeDerived: true });
 
   return (
     <View className="gap-6 pb-6">
@@ -128,6 +136,8 @@ export default function Record({ record }: RecordProps) {
           </Section>
         );
       })}
+
+      {record.type === "wifi" && <WifiQrCode record={record} />}
 
       <HistorySection record={record} />
     </View>

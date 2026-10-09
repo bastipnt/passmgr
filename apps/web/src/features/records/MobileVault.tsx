@@ -33,8 +33,8 @@ function MobileSearchInput() {
         type="search"
         enterKeyHint="search"
         className="text-base [&::-webkit-search-cancel-button]:hidden"
-        placeholder="Search logins"
-        aria-label="Search logins"
+        placeholder="Search vault"
+        aria-label="Search vault"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -117,7 +117,7 @@ export default function MobileVault() {
       <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-25 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
         <MobileSearchInput />
         <RecordSortMenu variant="fab" />
-        <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New login">
+        <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New item">
           <PlusIcon />
         </Link>
       </div>

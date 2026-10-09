@@ -5,6 +5,7 @@ import { Fragment } from "react";
 import { Text, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import { recordPaths } from "@/route-paths";
+import { RecordAvatar } from "./RecordAvatar";
 import { StickyLabel, StickyList } from "./StickyLabels";
 
 type RecordsListProps = {
@@ -45,6 +46,9 @@ export function RecordsList({ recordGroups, onSelect, scrollY }: RecordsListProp
             title={record.title}
             username={getRecordSubtitle(record)}
             websites={getRecordWebsites(record)}
+            avatar={
+              record.type === "login" ? undefined : <RecordAvatar record={record} size="md" />
+            }
             // [recordId] lives in the (records,search) group, so the same href
             // resolves inside whichever tab is currently active.
             onClick={() => {
@@ -67,7 +71,7 @@ export function RecordsList({ recordGroups, onSelect, scrollY }: RecordsListProp
 }
 
 /** Web's empty vault: three dashed ghost rows fading out, then a hint. */
-export function EmptyRecordList() {
+export function EmptyRecordList({ hint = "Nothing here yet. Tap + to add your first item." }) {
   return (
     <View className="gap-3 px-5 pt-4">
       {[1, 0.7, 0.4].map((opacity) => (
@@ -83,9 +87,7 @@ export function EmptyRecordList() {
           </View>
         </View>
       ))}
-      <Text className="pt-3 text-center text-muted-foreground text-sm">
-        No logins yet. Tap + to add your first one.
-      </Text>
+      <Text className="pt-3 text-center text-muted-foreground text-sm">{hint}</Text>
     </View>
   );
 }

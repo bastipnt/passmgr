@@ -1,19 +1,18 @@
 import {
-  hasEditForm,
-  loginFormDefaults,
-  loginRecordFromForm,
+  RECORD_TYPE_LABELS,
+  recordFormDefaults,
+  recordFromForm,
   useDeleteRecord,
   useGetRecord,
   useUpdateRecord,
 } from "@repo/client";
-import type { DecryptedRecord, LoginFormValues } from "@repo/schema";
+import type { DecryptedRecord, RecordFormValues } from "@repo/schema";
 import { Button, RemoveDialog } from "@repo/ui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
-import { normalizeFormValues } from "@/features/records/normalize-form-values";
 import { recordPaths } from "@/route-paths";
 
 function Fallback() {
@@ -33,8 +32,7 @@ export default function EditScreen() {
 /** Waits for the records to load; `ready` flips mid-mount, so no hooks may follow it here. */
 function EditRecordLoader({ recordId }: { recordId: string }) {
   const { record, ready } = useGetRecord(recordId);
-  // No edit form for this record type yet (deep link): never save it as a login.
-  if (!ready || !record || !hasEditForm(record)) return <Fallback />;
+  if (!ready || !record) return <Fallback />;
   return <EditRecord record={record} />;
 }
 
@@ -43,7 +41,7 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
   const router = useRouter();
   const { recordId } = record;
 
-  const defaultValues = loginFormDefaults(record);
+  const defaultValues = recordFormDefaults(record);
 
   const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
     onSuccess: () => {
@@ -53,8 +51,8 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
     },
   });
 
-  const onSubmit = (data: LoginFormValues) => {
-    updateRecord(record, loginRecordFromForm(normalizeFormValues(data), record));
+  const onSubmit = (data: RecordFormValues) => {
+    updateRecord(record, recordFromForm(record.type, data, record));
   };
 
   const { deleteRecord } = useDeleteRecord({
@@ -74,12 +72,13 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
 
   return (
     <RecordFormSheet
+      type={record.type}
       onSubmit={onSubmit}
       defaultValues={defaultValues}
       serverError={updateRecordError?.message}
       pending={updatePending}
       action="Save"
-      title="Edit record"
+      title={`Edit ${RECORD_TYPE_LABELS[record.type].noun}`}
       generatorPath={recordPaths.generatePassword(recordId)}
     >
       <RemoveDialog

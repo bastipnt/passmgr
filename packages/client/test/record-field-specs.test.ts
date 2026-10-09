@@ -1,6 +1,7 @@
+import { generateSshKeyPair } from "@repo/crypto";
 import type { RecordData } from "@repo/schema";
 import { describe, expect, it } from "vitest";
-import { hasEditForm, loginFormDefaults, loginRecordFromForm } from "../src/records/record-edit";
+import { recordFormDefaults, recordFromForm } from "../src/records/record-edit";
 import { getRecordFieldSpecs } from "../src/records/record-field-specs";
 import { getRecordSubtitle, getRecordWebsites } from "../src/records/record-summary";
 
@@ -94,7 +95,37 @@ describe("getRecordWebsites", () => {
   });
 });
 
-describe("login form helpers", () => {
+describe("derived fields", () => {
+  it("adds a card's network and a key's fingerprint only when asked", () => {
+    const card: RecordData = { type: "card", title: "x", number: "4111111111111111" };
+    const ssh: RecordData = {
+      type: "ssh_key",
+      title: "x",
+      publicKey:
+        "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIMk5TTjKvYt2fXcgU9jovWCt5PkExCus5i2+9D/hf2HA test@example",
+    };
+
+    expect(summary(card).map(({ key }) => key)).toEqual(["number"]);
+    expect(getRecordFieldSpecs(card, { includeDerived: true }).at(-1)).toMatchObject({
+      key: "brand",
+      value: "Visa",
+      derived: true,
+    });
+    expect(getRecordFieldSpecs(ssh, { includeDerived: true }).at(-1)).toMatchObject({
+      key: "fingerprint",
+      value: "SHA256:dcQ/F9kOdnKBfKHQeHp2TAtEay17/DecDTQyoHCXkLA",
+    });
+  });
+
+  it("groups a card number for display", () => {
+    const card: RecordData = { type: "card", title: "x", number: "378282246310005" };
+
+    expect(summary(card)[0]?.value).toBe("3782 822463 10005");
+    expect(getRecordFieldSpecs(card)[0]?.copyValue).toBe("378282246310005");
+  });
+});
+
+describe("form helpers", () => {
   it("keeps the fields the form doesn't edit", () => {
     const current: RecordData = {
       type: "login",
@@ -104,30 +135,61 @@ describe("login form helpers", () => {
       username: "old",
     };
 
-    expect(loginRecordFromForm({ title: "New", username: "new" }, current)).toEqual({
+    expect(recordFromForm("login", { title: "New", username: "new" }, current)).toEqual({
       type: "login",
       title: "New",
       username: "new",
+      websites: undefined,
       favorite: true,
       tags: ["work"],
       attachments: undefined,
     });
   });
 
-  it("refuses to save a record of another type as a login", () => {
+  it("refuses to save a record through another type's form", () => {
     const wifi: RecordData = { type: "wifi", title: "Home", ssid: "FRITZ!Box" };
 
-    expect(hasEditForm(wifi)).toBe(false);
-    expect(() => loginRecordFromForm({ title: "Home" }, wifi)).toThrow(/wifi record/);
+    expect(() => recordFromForm("login", { title: "Home" }, wifi)).toThrow(/wifi record/);
   });
 
-  it("fills only the shared fields from a record of another type", () => {
-    const record: RecordData = { type: "wifi", title: "Home", password: "pw", note: "n" };
-
-    expect(loginFormDefaults(record)).toEqual({
-      title: "Home",
-      note: "n",
-      customFields: undefined,
+  it("drops blank websites and normalises the rest", () => {
+    const record = recordFromForm("login", {
+      title: "x",
+      websites: [{ value: " " }, { value: "github.com" }],
     });
+
+    expect(record.websites).toEqual([{ value: "https://github.com" }]);
+  });
+
+  it("keeps a card number that isn't one as written", () => {
+    expect(recordFromForm("card", { title: "x", number: "see note" }).number).toBe("see note");
+  });
+
+  it("stores a card number as digits", () => {
+    expect(recordFromForm("card", { title: "x", number: "4111 1111-1111 1111" }).number).toBe(
+      "4111111111111111",
+    );
+    expect(recordFromForm("card", { title: "x", number: " " }).number).toBeUndefined();
+  });
+
+  it("fills a missing public key from the private key", () => {
+    const record = recordFromForm("ssh_key", {
+      title: "x",
+      privateKey: generateSshKeyPair("me@host").privateKey,
+    });
+
+    expect(record.publicKey).toMatch(/^ssh-ed25519 \S+ me@host$/);
+  });
+
+  it("fills the form with everything but the fields it doesn't edit", () => {
+    const record: RecordData = {
+      type: "wifi",
+      title: "Home",
+      password: "pw",
+      favorite: true,
+      tags: ["home"],
+    };
+
+    expect(recordFormDefaults(record)).toEqual({ title: "Home", password: "pw" });
   });
 });

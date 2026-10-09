@@ -111,7 +111,9 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
         <ItemDisplay
           title={spec.label}
           value={spec.value}
-          onClick={({ type }) => type === "copy" && onCopy(spec.value, spec.label)}
+          onClick={({ type }) =>
+            type === "copy" && onCopy(spec.copyValue ?? spec.value, spec.label)
+          }
           icon={spec.kind === "secret" ? <LockIcon /> : <TextIcon />}
           variant={spec.kind === "secret" ? "hidden" : "default"}
           revealTimeoutMs={revealTimeoutMs}

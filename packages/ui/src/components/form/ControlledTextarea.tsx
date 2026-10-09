@@ -37,7 +37,13 @@ export function ControlledTextarea<TFieldValues extends FieldValues = FieldValue
         const fieldContent = (
           <Field data-invalid={fieldState.invalid}>
             {!hideLabel && <FieldLabel htmlFor={id}>{label}</FieldLabel>}
-            <Textarea {...field} id={id} aria-invalid={fieldState.invalid} {...props} />
+            <Textarea
+              {...field}
+              value={field.value ?? ""}
+              id={id}
+              aria-invalid={fieldState.invalid}
+              {...props}
+            />
 
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>

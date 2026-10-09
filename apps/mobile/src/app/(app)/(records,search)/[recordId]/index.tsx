@@ -1,5 +1,3 @@
-import { hasEditForm } from "@repo/client";
-import { isRecordType } from "@repo/schema";
 import {
   Empty,
   EmptyDescription,
@@ -24,7 +22,9 @@ const TITLE_IN_BAR_OFFSET = 64;
 export default function RecordScreen() {
   const { recordId } = useLocalSearchParams();
   const { record, ready } = useRecordParam(recordId);
-  const password = record && isRecordType(record, "login") ? record.password : undefined;
+  // Logins and Wi-Fi networks have a password worth a bar button.
+  const password =
+    record?.type === "login" || record?.type === "wifi" ? record.password : undefined;
   const onCopy = useCopyField();
   const [primary, foreground] = useCSSVariable([
     "--color-primary",
@@ -46,19 +46,14 @@ export default function RecordScreen() {
           unstable_headerRightItems: () =>
             record
               ? [
-                  ...(hasEditForm(record)
-                    ? [
-                        {
-                          type: "button" as const,
-                          label: "Edit",
-                          // iOS 26 tinted glass; falls back to a plain button below it.
-                          variant: "prominent" as const,
-                          tintColor: primary,
-                          onPress: () =>
-                            router.navigate(recordPaths.editRecord(recordId as string)),
-                        },
-                      ]
-                    : []),
+                  {
+                    type: "button" as const,
+                    label: "Edit",
+                    // iOS 26 tinted glass; falls back to a plain button below it.
+                    variant: "prominent" as const,
+                    tintColor: primary,
+                    onPress: () => router.navigate(recordPaths.editRecord(recordId as string)),
+                  },
                   ...(password
                     ? [
                         {

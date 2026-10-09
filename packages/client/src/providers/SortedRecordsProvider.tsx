@@ -1,4 +1,4 @@
-import type { DecryptedRecord } from "@repo/schema";
+import type { DecryptedRecord, RecordType } from "@repo/schema";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
@@ -7,6 +7,8 @@ import { getRecordSubtitle } from "../records/record-summary";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
+/** Which records the list shows: every type, or one. */
+export type TypeFilter = RecordType | "all";
 
 export const DEFAULT_SORT: SortOption = "most-recent";
 
@@ -170,6 +172,11 @@ function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRec
   });
 }
 
+/** The records of one type, or all of them. */
+export function filterByType(records: DecryptedRecord[], type: TypeFilter): DecryptedRecord[] {
+  return type === "all" ? records : records.filter((record) => record.type === type);
+}
+
 function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
   if (!query.trim()) return records;
   const q = query.toLowerCase().trim();
@@ -187,6 +194,9 @@ type SortedRecordsContextValue = {
   setQuery: (query: string) => void;
   sort: SortOption;
   handleSortChange: (value: string) => void;
+  /** The list's type filter. A search ignores it and looks through every record. */
+  typeFilter: TypeFilter;
+  setTypeFilter: (type: TypeFilter) => void;
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
   /** Whether any group carries a label (none do while searching). */
@@ -205,17 +215,19 @@ export function useSortedRecords(): SortedRecordsContextValue {
  * Search over all records without touching the provider's own `query`. Mobile
  * has a dedicated search tab whose input must not filter the records tab, so it
  * keeps its query in local state and groups the results through this hook.
- * An empty query falls back to the regular sorted grouping.
+ * An empty query falls back to the regular sorted grouping of the records of
+ * `type` (the records tab passes the list's filter); a search looks through
+ * every record, as the provider's does.
  */
-export function useRecordSearch(query: string): RecordGroup[] {
+export function useRecordSearch(query: string, type: TypeFilter = "all"): RecordGroup[] {
   const { records } = useGetRecords();
   const { sort } = useSortedRecords();
   const trimmed = query.trim();
 
   return useMemo(() => {
-    if (!trimmed) return groupRecords(sortRecords(records, sort), sort);
+    if (!trimmed) return groupRecords(sortRecords(filterByType(records, type), sort), sort);
     return [{ label: null, records: filterBySearch(records, trimmed) }];
-  }, [records, sort, trimmed]);
+  }, [records, sort, trimmed, type]);
 }
 
 type SortedRecordsProviderProps = {
@@ -225,12 +237,18 @@ type SortedRecordsProviderProps = {
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
   const [query, setQuery] = useState("");
+  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
 
   const hasQuery = query.trim().length > 0;
-  const filtered = useMemo(() => filterBySearch(records, query), [records, query]);
+  // A search looks through every record: the filter narrows browsing, and a
+  // match hidden by it would read as "not in the vault".
+  const filtered = useMemo(
+    () => (hasQuery ? filterBySearch(records, query) : filterByType(records, typeFilter)),
+    [records, query, hasQuery, typeFilter],
+  );
   const sortedRecords = useMemo(
     () => (hasQuery ? filtered : sortRecords(filtered, sort)),
     [filtered, sort, hasQuery],
@@ -253,11 +271,13 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setQuery,
       sort,
       handleSortChange,
+      typeFilter,
+      setTypeFilter,
       sortedRecords,
       recordGroups,
       hasGroupLabels,
     }),
-    [query, sort, sortedRecords, recordGroups, hasGroupLabels],
+    [query, sort, typeFilter, sortedRecords, recordGroups, hasGroupLabels],
   );
 
   return <SortedRecordsContext value={value}>{children}</SortedRecordsContext>;

@@ -1,4 +1,4 @@
-import { getRecordWebsites, loginFormDefaults, ShortcutLayer } from "@repo/client";
+import { RECORD_TYPE_LABELS, recordFormDefaults, ShortcutLayer } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
@@ -9,14 +9,14 @@ import { toLocalDateStr } from "@repo/util";
 import { TrashIcon } from "lucide-react";
 import { useRef } from "react";
 import { recordPaths } from "@/app/route-paths";
-import LoginRecordForm, { type LoginRecordFormHandle } from "./login/LoginRecordForm";
+import { RecordAvatar } from "./RecordAvatar";
+import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import { useRecordActions } from "./use-record-actions";
 import { useRouteSheet } from "./use-route-sheet";
-import { WebsiteAvatar } from "./WebsiteAvatar";
 
 export default function EditRecordSheet({ record }: { record: DecryptedRecord }) {
   const isMobile = useIsMobile();
-  const formRef = useRef<LoginRecordFormHandle>(null);
+  const formRef = useRef<RecordFormHandle>(null);
 
   const { open, setOpen, onOpenChangeComplete } = useRouteSheet<{ recordId: string }>(
     recordPaths.edit,
@@ -28,16 +28,13 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
     actionCb: () => setOpen(false),
   });
 
-  const defaultValues = loginFormDefaults(record);
-
   const form = (
-    <LoginRecordForm
+    <RecordForm
+      type={record.type}
       onSubmit={handleSubmit}
-      onCancel={() => setOpen(false)}
       serverError={updateRecordError?.message}
       disabled={updatePending}
-      defaultValues={defaultValues}
-      action="Save"
+      defaultValues={recordFormDefaults(record)}
       ref={formRef}
     />
   );
@@ -97,9 +94,9 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
         onOpenChange={setOpen}
         onOpenChangeComplete={onOpenChangeComplete}
         sheetClassName="sm:max-w-3xl!"
-        title="Edit login"
+        title={`Edit ${RECORD_TYPE_LABELS[record.type].noun}`}
         description={`${record.title} · last changed ${toLocalDateStr(record.clientUpdatedAt)}`}
-        media={<WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} />}
+        media={<RecordAvatar record={record} />}
         actions={formActions}
       >
         {form}

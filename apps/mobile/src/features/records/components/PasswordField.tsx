@@ -1,5 +1,4 @@
 import { getStrengthFromString } from "@repo/crypto";
-import { type LoginFormValues as FormValues } from "@repo/schema";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
 import { type Href, useRouter } from "expo-router";
 import { KeyIcon, WandSparkles } from "lucide-react-native";
@@ -8,14 +7,21 @@ import { Pressable } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
 
-type PasswordFieldProps = {
-  control: Control<FormValues>;
-  setValue: UseFormSetValue<FormValues>;
+/** Any form with a `password` field: a login, a Wi-Fi network. */
+type PasswordFormValues = { password?: string };
+
+type PasswordFieldProps<T extends PasswordFormValues> = {
+  control: Control<T>;
+  setValue: UseFormSetValue<T>;
   /** Route of the generator sheet — differs per screen (create vs. edit). */
   generatorPath: Href;
 };
 
-export default function PasswordField({ control, setValue, generatorPath }: PasswordFieldProps) {
+export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
+  // react-hook-form's paths don't narrow through a generic: pin the form to its
+  // `password` field, the only one this component touches.
+  const { control, setValue, generatorPath } =
+    props as unknown as PasswordFieldProps<PasswordFormValues>;
   const router = useRouter();
   const { registerTarget } = usePasswordGenerator();
 

@@ -57,8 +57,8 @@ function SearchInput() {
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
-        placeholder="Search logins…"
-        aria-label="Search logins"
+        placeholder="Search vault…"
+        aria-label="Search vault"
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {

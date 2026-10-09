@@ -1,15 +1,19 @@
-import type { LoginFormValues } from "@repo/schema";
+import type { RecordFormValues, RecordType } from "@repo/schema";
 import { type Href, Stack, useRouter } from "expo-router";
-import { type ReactNode, useRef } from "react";
+import { type ReactNode, type Ref, useRef } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
-import LoginRecordForm, {
-  type LoginRecordFormHandle,
-} from "@/features/records/components/LoginRecordForm";
+import LoginRecordForm from "./LoginRecordForm";
+import TypedRecordForm, { type OtherRecordType } from "./TypedRecordForm";
 
-type RecordFormSheetProps = {
-  onSubmit: (data: LoginFormValues) => void;
+export type RecordFormHandle = {
+  triggerSubmit: () => void;
+};
+
+type RecordFormSheetProps<T extends RecordType> = {
+  type: T;
+  onSubmit: (data: RecordFormValues<T>) => void;
   /** Route of the generator sheet this screen's password field opens. */
   generatorPath: Href;
   /** Label of the submit button, and of the sheet's header. */
@@ -19,17 +23,28 @@ type RecordFormSheetProps = {
   serverError?: string;
   /** A save is in flight: locks the form and its submit action. */
   pending?: boolean;
-  defaultValues?: Partial<LoginFormValues>;
+  defaultValues?: Partial<RecordFormValues<T>>;
   /** Rendered below the form — e.g. the edit screen's delete button. */
   children?: ReactNode;
 };
 
+type FormProps<T extends RecordType> = {
+  onSubmit: (data: RecordFormValues<T>) => void;
+  serverError?: string;
+  disabled: boolean;
+  defaultValues?: Partial<RecordFormValues<T>>;
+  generatorPath: Href;
+  ref: Ref<RecordFormHandle>;
+};
+
 /**
- * Sheet scaffold around `LoginRecordForm`: scroll area, close/submit actions
- * and the imperative submit handle. Shared by the create and edit screens so
- * both stay in sync; only the mutation differs.
+ * Sheet scaffold around the type's form (`LoginRecordForm` or
+ * `TypedRecordForm`): scroll area, close/submit actions and the imperative
+ * submit handle. Shared by the create and edit screens so both stay in sync;
+ * only the mutation differs.
  */
-export default function RecordFormSheet({
+export default function RecordFormSheet<T extends RecordType>({
+  type,
   onSubmit,
   generatorPath,
   action,
@@ -38,12 +53,21 @@ export default function RecordFormSheet({
   pending = false,
   defaultValues,
   children,
-}: RecordFormSheetProps) {
+}: RecordFormSheetProps<T>) {
   const router = useRouter();
-  const formRef = useRef<LoginRecordFormHandle>(null);
+  const formRef = useRef<RecordFormHandle>(null);
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
+
+  const formProps: FormProps<T> = {
+    onSubmit,
+    serverError,
+    disabled: pending,
+    defaultValues,
+    generatorPath,
+    ref: formRef,
+  };
 
   return (
     <View className="flex-1">
@@ -88,15 +112,15 @@ export default function RecordFormSheet({
         contentContainerClassName="grow gap-6 px-5 py-6"
         bottomOffset={24}
       >
-        <LoginRecordForm
-          onSubmit={onSubmit}
-          serverError={serverError}
-          disabled={pending}
-          defaultValues={defaultValues}
-          action={action}
-          generatorPath={generatorPath}
-          ref={formRef}
-        />
+        {/* TODO: login should also use TypedRecordForm */}
+        {type === "login" ? (
+          <LoginRecordForm {...(formProps as unknown as FormProps<"login">)} />
+        ) : (
+          <TypedRecordForm
+            type={type as OtherRecordType}
+            {...(formProps as unknown as FormProps<OtherRecordType>)}
+          />
+        )}
 
         {children}
       </KeyboardAwareScrollView>

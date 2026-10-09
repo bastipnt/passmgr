@@ -1,10 +1,13 @@
 import {
+  RECORD_TYPE_LABELS,
   SORT_LABELS,
   type SortOption,
+  type TypeFilter,
   useGetRecords,
   useRecordSearch,
   useSortedRecords,
 } from "@repo/client";
+import { RECORD_TYPES } from "@repo/schema";
 import { Screen } from "@repo/ui-native";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
@@ -19,14 +22,21 @@ import { recordPaths } from "@/route-paths";
 
 const SORT_OPTIONS = Object.entries(SORT_LABELS) as [SortOption, string][];
 
+const TYPE_FILTERS: [TypeFilter, string][] = [
+  ["all", "All items"],
+  ...RECORD_TYPES.map((type): [TypeFilter, string] => [type, RECORD_TYPE_LABELS[type].plural]),
+];
+
 /** Scroll distance after which the page title has left and the bar shows it. */
 const TITLE_IN_BAR_OFFSET = 48;
 
 export default function RecordsScreen() {
   const router = useRouter();
-  const recordGroups = useRecordSearch("");
   const { recordsNumber, ready } = useGetRecords();
-  const { sort, handleSortChange } = useSortedRecords();
+  const { sort, handleSortChange, typeFilter, setTypeFilter } = useSortedRecords();
+  const recordGroups = useRecordSearch("", typeFilter);
+  const shownCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
+  const title = typeFilter === "all" ? "All items" : RECORD_TYPE_LABELS[typeFilter].plural;
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
   const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
@@ -37,14 +47,15 @@ export default function RecordsScreen() {
     useScrollTitle(TITLE_IN_BAR_OFFSET);
   useResetStackOnTabBlur();
 
-  // A new sort reshuffles the whole list, so the old scroll offset points at
-  // unrelated records — go back to the top. Skips the initial render.
-  const prevSortRef = useRef(sort);
+  // A new sort or filter reshuffles the whole list, so the old scroll offset
+  // points at unrelated records — go back to the top. Skips the initial render.
+  const prevListRef = useRef(`${sort}:${typeFilter}`);
   useEffect(() => {
-    if (prevSortRef.current === sort) return;
-    prevSortRef.current = sort;
+    const list = `${sort}:${typeFilter}`;
+    if (prevListRef.current === list) return;
+    prevListRef.current = list;
     scrollToTop();
-  }, [sort, scrollToTop]);
+  }, [sort, typeFilter, scrollToTop]);
 
   return (
     <Screen>
@@ -62,22 +73,46 @@ export default function RecordsScreen() {
           headerTitleStyle,
           // Web's collapsing page title: the big one scrolls away with the
           // list, then the bar picks it up between the sort and add buttons.
-          title: titleInBar ? "Logins" : "",
+          title: titleInBar ? title : "",
           unstable_headerLeftItems: () => [
             {
               type: "menu",
-              label: "Sort",
-              accessibilityLabel: "Sort records",
-              icon: { type: "sfSymbol", name: "arrow.up.arrow.down" },
+              label: "Sort and filter",
+              accessibilityLabel: "Sort and filter records",
+              icon: {
+                type: "sfSymbol",
+                // Filled while the list shows one type only.
+                name:
+                  typeFilter === "all"
+                    ? "line.3.horizontal.decrease.circle"
+                    : "line.3.horizontal.decrease.circle.fill",
+              },
               tintColor: foregroundColor,
               menu: {
-                title: "Sort by",
-                items: SORT_OPTIONS.map(([value, label]) => ({
-                  type: "action",
-                  label,
-                  state: value === sort ? "on" : "off",
-                  onPress: () => handleSortChange(value),
-                })),
+                items: [
+                  {
+                    type: "submenu",
+                    label: "Sort by",
+                    inline: true,
+                    items: SORT_OPTIONS.map(([value, label]) => ({
+                      type: "action",
+                      label,
+                      state: value === sort ? "on" : "off",
+                      onPress: () => handleSortChange(value),
+                    })),
+                  },
+                  {
+                    type: "submenu",
+                    label: "Show",
+                    inline: true,
+                    items: TYPE_FILTERS.map(([value, label]) => ({
+                      type: "action",
+                      label,
+                      state: value === typeFilter ? "on" : "off",
+                      onPress: () => setTypeFilter(value),
+                    })),
+                  },
+                ],
               },
             },
           ],
@@ -108,21 +143,27 @@ export default function RecordsScreen() {
             accessibilityRole="header"
             className="font-display text-[34px] text-foreground tracking-[-1px]"
           >
-            Logins
+            {title}
           </Text>
-          {recordsNumber > 0 && (
+          {shownCount > 0 && (
             <Text
               className="font-medium text-[18px] text-muted-foreground"
               style={{ fontVariant: ["tabular-nums"] }}
             >
-              {recordsNumber}
+              {shownCount}
             </Text>
           )}
         </View>
-        {recordsNumber > 0 ? (
+        {shownCount > 0 ? (
           <RecordsList recordGroups={recordGroups} scrollY={scrollY} />
         ) : ready ? (
-          <EmptyRecordList />
+          <EmptyRecordList
+            hint={
+              recordsNumber > 0 && typeFilter !== "all"
+                ? `No ${RECORD_TYPE_LABELS[typeFilter].nouns} yet.`
+                : undefined
+            }
+          />
         ) : null}
       </Animated.ScrollView>
     </Screen>
