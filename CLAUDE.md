@@ -57,6 +57,13 @@ it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.trans
 
 Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
 
+Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and
+starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE secrets) and tears it down
+after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
+clicking, never `page.goto` (it reloads → locked). A second device = `browser.newContext({ baseURL })`;
+offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
+(local vault, create / edit / read a login, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+
 ## Architecture
 
 ### Monorepo Structure
@@ -235,6 +242,14 @@ path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the sessi
 requires an OPAQUE login ≤ 5 min ago (used for key changes). Key sets are versioned (`valid_from`/`valid_to`, one active
 per user) — never `UPDATE` key material in place.
 
+Session modes (ADR 0001 D2, `SessionProvider`): unlocking never needs the server; server auth is attached
+separately. `local` = a `local` profile, never talks to the server (no `authKey`, no sync). `online` = a `linked`
+profile with server auth attached: signed requests, `SyncManager` enabled, SSE subscribed. `offline` = `linked`
+without server auth (not attached yet, or a session the server rejected: `UNAUTHORIZED` only detaches, it never
+locks). Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
+/ `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
+database + outbox in every mode; the `online` event (or attaching server auth) syncs.
+
 ### Key Hierarchy
 
 ```
@@ -289,11 +304,11 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `login` → `loginRouter` (startLogin, finishLogin, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — uses `protectedProcedure`
-- `vault` → `vaultRouter` (list, create, updateMeta)
+- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
+- `vault` → `vaultRouter` (list, create, updateMeta) — `protectedProcedure`
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
-All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure`
+All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)
 
 ### Environment Variables
 
@@ -326,3 +341,4 @@ DB package (`packages/db/.env`):
 - The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in `packages/client/src/register.ts`).
 - `secretsStore` (singleton in `packages/store/src/secrets-store.ts`) holds all sensitive key material in memory. Call `wipe()` on key buffers when done.
 - `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).
+- What a device copy exposes (local-only vaults, device loss, backups, exports): `docs/security/threat-model-inputs.md`. Keep it current when on-device storage or key caching changes.
