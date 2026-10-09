@@ -81,15 +81,19 @@ export function summarizeSync(
   return { state: "synced", title: "Synced", detail: "Your account has every change." };
 }
 
-const RELATIVE = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+// Not Intl.RelativeTimeFormat: Hermes (React Native) doesn't implement it.
+function ago(count: number, unit: string): string {
+  return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
+}
 
 /** "Last synced just now / 5 minutes ago / …" for a sync time (ms since epoch). */
 export function formatLastSynced(at: number, now = Date.now()): string {
   const seconds = Math.round((now - at) / 1000);
   if (seconds < 60) return "Last synced just now";
   const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `Last synced ${RELATIVE.format(-minutes, "minute")}`;
+  if (minutes < 60) return `Last synced ${ago(minutes, "minute")}`;
   const hours = Math.round(minutes / 60);
-  if (hours < 24) return `Last synced ${RELATIVE.format(-hours, "hour")}`;
-  return `Last synced ${RELATIVE.format(-Math.round(hours / 24), "day")}`;
+  if (hours < 24) return `Last synced ${ago(hours, "hour")}`;
+  const days = Math.round(hours / 24);
+  return `Last synced ${days === 1 ? "yesterday" : ago(days, "day")}`;
 }
