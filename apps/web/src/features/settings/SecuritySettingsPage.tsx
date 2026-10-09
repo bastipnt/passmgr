@@ -19,9 +19,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
-import AccountSettings from "./AccountSettings";
 import ExportSettings from "./ExportSettings";
-import StorageSettings from "./StorageSettings";
 
 type ChoiceSettingProps = {
   title: string;
@@ -105,9 +103,7 @@ export default function SecuritySettingsPage() {
             onValueChange={setRevealTimeoutSeconds}
           />
 
-          <AccountSettings />
           <ExportSettings />
-          <StorageSettings />
         </ItemGroup>
       </div>
     </>

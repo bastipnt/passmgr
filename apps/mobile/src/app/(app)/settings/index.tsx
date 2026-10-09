@@ -23,6 +23,8 @@ import { ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { ReconnectSheet } from "@/features/auth/components/ReconnectSheet";
 import { ChangePasswordSheet } from "@/features/settings/components/ChangePasswordSheet";
+import { CreateAccountSheet } from "@/features/settings/components/CreateAccountSheet";
+import { SyncSection } from "@/features/settings/components/SyncSection";
 import { settingsPaths } from "@/route-paths";
 
 const STATUS: Record<SessionMode, string> = {
@@ -40,6 +42,7 @@ export default function SettingsScreen() {
   const pendingChanges = usePendingChangeCount();
   const reconnectRef = useRef<BottomSheetRef>(null);
   const changePasswordRef = useRef<BottomSheetRef>(null);
+  const createAccountRef = useRef<BottomSheetRef>(null);
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
   const linked = profile?.mode === "linked";
 
@@ -74,6 +77,15 @@ export default function SettingsScreen() {
               <Text className="text-[16px] text-foreground">
                 {linked ? profile.email : (active?.entry.name ?? "Local vault")}
               </Text>
+              {!linked && (
+                <Button
+                  size="lg"
+                  disabled={removing}
+                  onPress={() => createAccountRef.current?.triggerShowHide(true)}
+                >
+                  Create online account
+                </Button>
+              )}
               {mode === "offline" && !networkOffline && (
                 <Button size="lg" onPress={() => reconnectRef.current?.triggerShowHide(true)}>
                   Sign in again
@@ -102,6 +114,8 @@ export default function SettingsScreen() {
           </SettingsSection>
         )}
 
+        {linked && <SyncSection />}
+
         <RemoveDialog
           title="Remove vault from this device?"
           description={
@@ -127,6 +141,7 @@ export default function SettingsScreen() {
 
       <ReconnectSheet ref={reconnectRef} />
       <ChangePasswordSheet ref={changePasswordRef} linked={linked} />
+      <CreateAccountSheet ref={createAccountRef} />
     </Screen>
   );
 }

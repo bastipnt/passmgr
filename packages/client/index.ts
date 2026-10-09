@@ -67,6 +67,7 @@ export * from "./src/records/record-summary";
 export * from "./src/records/resolve-record-conflict";
 export * from "./src/records/version-changes";
 export type { SyncStatus } from "./src/sync-manager";
+export * from "./src/sync-summary";
 export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";
 export { generateAuthHeaders } from "./src/util/headers";

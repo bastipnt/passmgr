@@ -19,7 +19,8 @@ export default function RecordRoutes() {
   useAutoReconnect();
   const isMobile = useIsMobile();
 
-  if (!vaultUnlocked) return <Redirect to={authPaths.login} />;
+  // The welcome sends a device with vaults on to their unlock.
+  if (!vaultUnlocked) return <Redirect to={authPaths.welcome} />;
 
   return (
     <RecordLayout>

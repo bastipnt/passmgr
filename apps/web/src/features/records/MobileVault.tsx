@@ -18,6 +18,7 @@ import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { RecordSortMenu } from "./RecordSortMenu";
+import { SyncStatusMenu } from "./SyncStatusMenu";
 
 /** Pill search floating in the bottom dock, within thumb reach. */
 function MobileSearchInput() {
@@ -93,6 +94,7 @@ export default function MobileVault() {
           <BrandMark />
         </RouterLink>
         <span className="flex-1" />
+        <SyncStatusMenu variant="floating" />
         <Button variant="floating" size="icon-xl" onClick={lockVault} aria-label="Lock vault">
           <LockIcon />
         </Button>

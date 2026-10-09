@@ -12,6 +12,7 @@ import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { EmptyRecordList, RecordsList } from "@/features/records/components/RecordsList";
+import { useSyncHeaderItem } from "@/features/records/use-sync-header-item";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
 import { recordPaths } from "@/route-paths";
@@ -29,6 +30,7 @@ export default function RecordsScreen() {
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
   const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
+  const syncItem = useSyncHeaderItem();
 
   // Also scrolls back to the top when the already-active Home tab is tapped.
   const { scrollProps, scrollY, titleInBar, scrollToTop, contentTopPadding, restAnchor } =
@@ -88,6 +90,7 @@ export default function RecordsScreen() {
               tintColor: primaryColor,
               onPress: () => router.navigate(recordPaths.create),
             },
+            syncItem,
           ],
         }}
       />

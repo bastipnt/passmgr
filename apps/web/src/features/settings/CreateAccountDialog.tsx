@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type LinkAccountError, useAppConfig, useLinkAccount } from "@repo/client";
+import { LINK_ACCOUNT_ERROR_MESSAGES, useAppConfig, useLinkAccount } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -20,16 +20,6 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { CloudUploadIcon, LockIcon, MailIcon, TicketIcon } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import z from "zod";
-
-const ERRORS: Record<LinkAccountError, string> = {
-  wrong_password: "That isn't this vault's master password.",
-  registration_failed:
-    "The server didn't create the account. Registration may need an invite, or the invite is invalid or for another email.",
-  rejected: "This email belongs to another account. Use another email.",
-  throttled: "Too many attempts. Wait a few minutes and try again.",
-  unreachable: "The server couldn't be reached. Try again; nothing on this device was changed.",
-  failed: "Creating the account failed. Try again.",
-};
 
 const schema = z.object({
   email: z.email(),
@@ -106,7 +96,9 @@ export default function CreateAccountDialog({ children }: { children: ReactEleme
                   leadingIcon={<TicketIcon />}
                 />
               )}
-              {linkError && <FieldError variant="box">{ERRORS[linkError]}</FieldError>}
+              {linkError && (
+                <FieldError variant="box">{LINK_ACCOUNT_ERROR_MESSAGES[linkError]}</FieldError>
+              )}
             </FieldGroup>
 
             <DialogFooter>

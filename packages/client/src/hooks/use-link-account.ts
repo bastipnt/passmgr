@@ -37,6 +37,17 @@ export type LinkAccountError =
   | "unreachable"
   | "failed";
 
+/** User-facing text for each link error (web + mobile). */
+export const LINK_ACCOUNT_ERROR_MESSAGES: Record<LinkAccountError, string> = {
+  wrong_password: "That isn't this vault's master password.",
+  registration_failed:
+    "The server didn't create the account. Registration may need an invite, or the invite is invalid or for another email.",
+  rejected: "This email belongs to another account. Use another email.",
+  throttled: "Too many attempts. Wait a few minutes and try again.",
+  unreachable: "The server couldn't be reached. Try again; nothing on this device was changed.",
+  failed: "Creating the account failed. Try again.",
+};
+
 /**
  * Create an online account from the unlocked local vault (ADR 0001 D9), with
  * the same password and the vault's own keys: nothing is re-encrypted and the

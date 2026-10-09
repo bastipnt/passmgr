@@ -44,6 +44,7 @@ export default function SettingsOverview({ className }: SettingsOverviewProps) {
       </PanelHeader>
       <div className="flex flex-col gap-2 px-4 pb-4 max-sm:px-0 sm:max-w-sm">
         <ItemGroup className="max-sm:gap-0">
+          <SidebarItem title="Account & sync" path={settingsPaths.account} />
           <SidebarItem title="General Settings" path={settingsPaths.general} />
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />
           <SidebarItem title="Security" path={settingsPaths.security} />

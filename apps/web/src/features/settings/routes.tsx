@@ -7,6 +7,7 @@ import { PageMeta } from "@/components/PageMeta";
 import SettingsLayout from "./SettingsLayout";
 
 const NotFound = lazy(() => import("@/app/NotFound"));
+const AccountSettingsPage = lazy(() => import("./AccountSettingsPage"));
 const GeneralSettingsPage = lazy(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazy(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazy(() => import("./SecuritySettingsPage"));
@@ -20,7 +21,8 @@ export default function SettingsRoutes() {
   const isMobile = useIsMobile();
   useAutoReconnect();
 
-  if (!vaultUnlocked) return <Redirect to={authPaths.login} />;
+  // The welcome sends a device with vaults on to their unlock.
+  if (!vaultUnlocked) return <Redirect to={authPaths.welcome} />;
 
   return (
     <SettingsLayout>
@@ -33,9 +35,10 @@ export default function SettingsRoutes() {
          * of history (otherwise Back bounces straight forward again).
          */}
         <Route path={settingsPaths.index}>
-          {isMobile ? null : <Redirect to={settingsPaths.general} replace />}
+          {isMobile ? null : <Redirect to={settingsPaths.account} replace />}
         </Route>
 
+        <Route path={settingsPaths.account} component={AccountSettingsPage} />
         <Route path={settingsPaths.general} component={GeneralSettingsPage} />
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />

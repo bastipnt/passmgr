@@ -34,6 +34,11 @@ export type SyncStatus = {
   error: string | null;
   /** When a round last went through (ms since epoch). */
   lastSyncedAt: number | null;
+  /**
+   * Whether syncing may reach the server (`setEnabled`). `offline` while
+   * enabled: a round didn't get through; while not: not started yet, or locked.
+   */
+  enabled: boolean;
 };
 
 export type SyncStatusListener = (status: SyncStatus) => void;
@@ -97,6 +102,7 @@ export class SyncManager {
     parked: 0,
     error: null,
     lastSyncedAt: null,
+    enabled: false,
   };
   private store: Vault;
   private pull: SyncFetcher;
@@ -153,7 +159,7 @@ export class SyncManager {
       this.clearTimers();
       this.failedRounds = 0;
     }
-    this.setStatus({ phase: enabled ? "idle" : "offline", error: null });
+    this.setStatus({ phase: enabled ? "idle" : "offline", error: null, enabled });
     void this.refreshCounts();
   }
 

@@ -1,4 +1,6 @@
 export const authPaths = {
+  /** First visit, no vault on the device: how to start (ADR 0001 D2). Else → login. */
+  welcome: "/welcome",
   login: "/login",
   enrollBiometric: "/enroll-biometric",
   register: "/register",
@@ -39,6 +41,7 @@ export const recordPaths = {
 
 export const settingsPaths = {
   index: "/settings",
+  account: "/settings/account",
   general: "/settings/general",
   generator: "/settings/generator",
   security: "/settings/security",

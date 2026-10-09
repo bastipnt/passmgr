@@ -35,6 +35,7 @@ import { createSheetSearch } from "./CreateRecordSheet";
 import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
+import { SyncStatusMenu } from "./SyncStatusMenu";
 
 type RecordLayoutProps = {
   children: ReactNode;
@@ -151,6 +152,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
               >
                 <CircleHelpIcon />
               </Button>
+              <SyncStatusMenu />
               <Link
                 variant="outline"
                 size="icon"

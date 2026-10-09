@@ -10,6 +10,7 @@ const LoginPage = lazy(() => import("./LoginPage"));
 const RecoverPage = lazy(() => import("./RecoverPage"));
 const RegisterPage = lazy(() => import("./RegisterPage"));
 const RestoreBackupPage = lazy(() => import("./RestoreBackupPage"));
+const WelcomePage = lazy(() => import("./WelcomePage"));
 
 export default function AuthRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
@@ -29,6 +30,7 @@ export default function AuthRoutes() {
     <AuthLayout>
       <Suspense fallback={null}>
         <Switch>
+          <Route path={authPaths.welcome} component={WelcomePage} />
           <Route path={authPaths.login} component={LoginPage} />
           <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
           <Route path={authPaths.recover} component={RecoverPage} />

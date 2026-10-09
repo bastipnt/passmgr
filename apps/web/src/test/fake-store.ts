@@ -48,7 +48,14 @@ export function createFakeStore() {
   const syncManager = {
     onSync: () => () => undefined,
     onStatusChange: () => () => undefined,
-    getStatus: () => ({ phase: "idle", pending: 0, parked: 0, error: null, lastSyncedAt: null }),
+    getStatus: () => ({
+      phase: "idle",
+      pending: 0,
+      parked: 0,
+      error: null,
+      lastSyncedAt: null,
+      enabled: true,
+    }),
   };
   const records = {
     create: vi.fn(),
