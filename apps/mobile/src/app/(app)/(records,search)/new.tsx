@@ -1,7 +1,16 @@
-import { RECORD_TYPE_LABELS, recordFromForm, useCreateRecord } from "@repo/client";
+import {
+  RECORD_TYPE_LABELS,
+  recordFromForm,
+  useCreateRecord,
+  useSortedRecords,
+  useVaults,
+} from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
+import { secretsStore } from "@repo/store";
+import { OptionList, SettingsSection } from "@repo/ui-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
-import { ScrollView } from "react-native";
+import { useState } from "react";
+import { ScrollView, View } from "react-native";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { RecordTypePicker } from "@/features/records/components/RecordTypePicker";
@@ -52,8 +61,19 @@ function TypePickerSheet({ onPick }: { onPick: (type: RecordType) => void }) {
   );
 }
 
+// TODO: share logic with web
+/** Web's `useTargetVault`: the vault in view when writable, else the personal one. */
+function useTargetVault() {
+  const { vaultFilter } = useSortedRecords();
+  const { writableVaults } = useVaults();
+  const inView = writableVaults.find((vault) => vault.vaultId === vaultFilter)?.vaultId;
+  const [vaultId, setVaultId] = useState(inView ?? secretsStore.defaultVaultId);
+  return { vaultId, setVaultId, writableVaults };
+}
+
 function NewRecordForm<T extends RecordType>({ type }: { type: T }) {
   const router = useRouter();
+  const { vaultId, setVaultId, writableVaults } = useTargetVault();
 
   const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: () => {
@@ -64,7 +84,7 @@ function NewRecordForm<T extends RecordType>({ type }: { type: T }) {
   });
 
   const onSubmit = (data: RecordFormValues<T>) => {
-    createRecord(recordFromForm(type, data));
+    createRecord(recordFromForm(type, data), vaultId);
   };
 
   return (
@@ -76,6 +96,18 @@ function NewRecordForm<T extends RecordType>({ type }: { type: T }) {
       action="Create"
       title={`New ${RECORD_TYPE_LABELS[type].noun}`}
       generatorPath={recordPaths.createGeneratePassword}
-    />
+    >
+      {writableVaults.length > 1 && vaultId && (
+        <View className="-mx-5">
+          <SettingsSection flush title="Vault">
+            <OptionList
+              options={writableVaults.map((vault) => ({ value: vault.vaultId, label: vault.name }))}
+              value={vaultId}
+              onChange={setVaultId}
+            />
+          </SettingsSection>
+        </View>
+      )}
+    </RecordFormSheet>
   );
 }

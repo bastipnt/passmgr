@@ -137,6 +137,38 @@ describe("vaults", () => {
     const listed = await (await as(bob, "query", "vault.list")).vault.list();
     expect(listed.find((v) => v.vaultId === work.vaultId)?.encryptedMeta).toBe("AAAA");
   });
+
+  it("delete is for the owner only and takes the vault and its records from every member", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const work = await createVaultFor(alice);
+    await addMember(alice, work, bob, "manage");
+    await createRecord(alice, work.vaultId);
+
+    const input = { vaultId: work.vaultId };
+    await expect(
+      (await as(bob, "mutation", "vault.delete", input)).vault.delete(input),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+
+    await (await as(alice, "mutation", "vault.delete", input)).vault.delete(input);
+    for (const user of [alice, bob]) {
+      const pulled = await sync(user);
+      expect(pulled.vaults.map((v) => v.vaultId)).not.toContain(work.vaultId);
+      expect(pulled.records.filter((r) => r.vaultId === work.vaultId)).toEqual([]);
+    }
+    expect(await push(alice, putChange(work.vaultId))).toMatchObject([
+      { status: "rejected", reason: "not_found" },
+    ]);
+  });
+
+  it("delete refuses the personal vault", async () => {
+    const alice = await signUp("alice@example.com");
+    const input = { vaultId: alice.personalVaultId };
+    await expect(
+      (await as(alice, "mutation", "vault.delete", input)).vault.delete(input),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" });
+    expect((await sync(alice)).vaults.map((v) => v.vaultId)).toContain(alice.personalVaultId);
+  });
 });
 
 describe("record access through vault membership", () => {

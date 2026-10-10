@@ -7,6 +7,8 @@ export const PREF_KEYS = {
   /** Read directly by `packages/ui` ThemeProvider and mobile `use-theme-preference`. */
   theme: "pass-mgr-theme",
   sort: "pass-mgr-sort",
+  /** "all" or a vault id; a vault this profile doesn't have reads as "all". */
+  vaultFilter: "pass-mgr-vault-filter",
   /** Per profile: see `biometricDismissedKey`. */
   biometricDismissed: "biometric-dismissed",
   /** Per profile: see `backupReminderSnoozedKey`. */

@@ -44,6 +44,8 @@ export const recordPaths = {
 export const settingsPaths = {
   index: "/settings",
   account: "/settings/account",
+  /** Create, rename and delete vaults (ADR 0001 D6). */
+  vaults: "/settings/vaults",
   general: "/settings/general",
   generator: "/settings/generator",
   security: "/settings/security",

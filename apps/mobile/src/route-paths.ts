@@ -35,4 +35,8 @@ export const settingsPaths = {
   general: "/settings/general" as Href,
   generator: "/settings/generator" as Href,
   security: "/settings/security" as Href,
+  vaults: "/settings/vaults" as Href,
+  /** The vault form sheet: a new vault, or the one given to edit. */
+  vault: (vaultId?: string) =>
+    (vaultId ? `/settings/vault?vaultId=${vaultId}` : "/settings/vault") as Href,
 } as const;

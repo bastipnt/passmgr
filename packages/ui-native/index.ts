@@ -45,6 +45,7 @@ export * from "./src/features/record-list/RecordListItem";
 
 // *** LIB ***
 export { FONT } from "./src/lib/fonts";
+export { oklch } from "./src/lib/oklch";
 export { cn } from "./src/lib/utils";
 
 // *** FORM ***

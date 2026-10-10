@@ -4,6 +4,7 @@ import { useCSSVariable, useResolveClassNames } from "uniwind";
 
 export default function SettingsLayout() {
   const contentStyle = useResolveClassNames("bg-edge-tint");
+  const sheetStyle = useResolveClassNames("bg-popover");
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
 
@@ -40,6 +41,15 @@ export default function SettingsLayout() {
       <Stack.Screen name="general" options={{ title: "General" }} />
       <Stack.Screen name="generator" options={{ title: "Password Generator" }} />
       <Stack.Screen name="security" options={{ title: "Security" }} />
+      <Stack.Screen name="vaults" options={{ title: "Vaults" }} />
+      <Stack.Screen
+        name="vault"
+        options={{
+          presentation: "formSheet",
+          sheetGrabberVisible: true,
+          contentStyle: sheetStyle,
+        }}
+      />
     </Stack>
   );
 }

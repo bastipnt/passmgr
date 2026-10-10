@@ -10,6 +10,7 @@ import {
 } from "react";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
 import { timed } from "../util/perf";
+import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-info";
 import { SessionContext } from "./SessionProvider";
 import { useStore } from "./StoreProvider";
 
@@ -22,6 +23,8 @@ type RecordsContextValue = {
   reload: () => Promise<void>;
   /** Bumps whenever the local records were re-read (a local write or a sync). */
   revision: number;
+  /** The vaults whose keys are loaded, decrypted (`decryptVaults`): re-read with the records. */
+  vaults: VaultInfo[];
 };
 
 const RecordsContext = createContext<RecordsContextValue | null>(null);
@@ -65,18 +68,24 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
   const [revision, setRevision] = useState(0);
   const [ready, setReady] = useState(false);
+  const [vaults, setVaults] = useState<VaultInfo[]>([]);
 
   // Another profile: nothing decrypted for the previous one may show.
   useEffect(() => {
     recordsMapRef.current = new Map();
     fingerprintMapRef.current = new Map();
+    setVaults([]);
     setReady(false);
     setRevision((r) => r + 1);
   }, [vault]);
 
   const runDecryptAll = useCallback(async () => {
     if (!vault) return;
-    const encrypted = await vault.getAllLatest();
+    // The vault list with the records: a sync that changed one may change the other.
+    const [vaultRows, encrypted] = await Promise.all([vault.getVaults(), vault.getAllLatest()]);
+    // The same list keeps its identity: every `useVaults` consumer would re-render on each sync.
+    const nextVaults = decryptVaults(vaultRows);
+    setVaults((current) => (sameVaultInfos(current, nextVaults) ? current : nextVaults));
     const activeIds = new Set<string>();
 
     // Find records that are new or changed
@@ -137,9 +146,12 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     return run;
   }, [runDecryptAll]);
 
-  // Initial decryption when vault becomes ready
+  // Initial decryption when vault becomes ready. Locked: the vault names go.
   useEffect(() => {
-    if (!vaultUnlocked) return;
+    if (!vaultUnlocked) {
+      setVaults([]);
+      return;
+    }
 
     void decryptAll();
   }, [vaultUnlocked, decryptAll]);
@@ -182,6 +194,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     refreshRecord,
     reload: decryptAll,
     revision,
+    vaults,
   };
 
   return <RecordsContext value={value}>{children}</RecordsContext>;

@@ -1,29 +1,64 @@
-import { getRecordWebsites, RECORD_TYPE_LABELS, ShortcutLayer } from "@repo/client";
+import {
+  getRecordWebsites,
+  RECORD_TYPE_LABELS,
+  ShortcutLayer,
+  useMoveRecord,
+  useSortedRecords,
+} from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
+import { toast } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuGroup,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import Link from "@repo/ui/components/Link";
 import { cn } from "@repo/ui/lib/utils";
-import { EllipsisIcon, ExternalLinkIcon, PencilLineIcon, Timeline, TrashIcon } from "lucide-react";
+import {
+  EllipsisIcon,
+  ExternalLinkIcon,
+  LockIcon,
+  PencilLineIcon,
+  Timeline,
+  TrashIcon,
+} from "lucide-react";
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { VaultBadge, VaultTile } from "@/features/vaults";
 import { RecordAvatar } from "./RecordAvatar";
 import { displayHost } from "./record-utils";
+import { useRecordVault } from "./use-record-vault";
 
 type MoreDropdownProps = {
-  recordId: string;
+  record: DecryptedRecord;
   onDelete: () => void;
   variant?: "outline" | "floating";
 };
 
-export function MoreDropdown({ recordId, onDelete, variant = "outline" }: MoreDropdownProps) {
+export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDropdownProps) {
+  const { recordId } = record;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const { writable, moveTargets } = useRecordVault(record);
+  const [, navigate] = useLocation();
+  const { vaultFilter, setVaultFilter } = useSortedRecords();
+  const { moveRecord, movePending } = useMoveRecord({
+    // A move is a new record (new id) in the target vault.
+    onSuccess: (movedId, targetVaultId) => {
+      // The list showed the vault it left: show every vault, so it stays in view.
+      if (vaultFilter !== "all") setVaultFilter("all");
+      navigate(recordPaths.record(movedId), { replace: true });
+      const target = moveTargets.find((vault) => vault.vaultId === targetVaultId);
+      toast.success(target ? `Moved to ${target.name}` : "Moved");
+    },
+    onError: () => toast.error("The item couldn't be moved"),
+  });
 
   return (
     <>
@@ -44,9 +79,32 @@ export function MoreDropdown({ recordId, onDelete, variant = "outline" }: MoreDr
             <Timeline /> Versions
           </DropdownMenuItem>
 
-          <DropdownMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
-            <TrashIcon /> Delete
-          </DropdownMenuItem>
+          {/* Inline rather than a submenu: one that opens sideways runs off a phone. */}
+          {writable && moveTargets.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuLabel>Move to</DropdownMenuLabel>
+                {moveTargets.map((target) => (
+                  <DropdownMenuItem
+                    key={target.vaultId}
+                    disabled={movePending}
+                    onClick={() => moveRecord(record, target.vaultId)}
+                  >
+                    <VaultTile vault={target} size="xs" />
+                    {target.name}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuGroup>
+              <DropdownMenuSeparator />
+            </>
+          )}
+
+          {writable && (
+            <DropdownMenuItem variant="destructive" onClick={() => setDeleteDialogOpen(true)}>
+              <TrashIcon /> Delete
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
@@ -73,6 +131,7 @@ type RecordActionsProps = {
 export function RecordActions({ record, onDelete, className }: RecordActionsProps) {
   const { recordId, title } = record;
   const primaryWebsite = getRecordWebsites(record)?.find((website) => website.value)?.value;
+  const { vault, writable, showVault } = useRecordVault(record);
 
   return (
     <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
@@ -97,22 +156,46 @@ export function RecordActions({ record, onDelete, className }: RecordActionsProp
               </span>
             )
           )}
+          {showVault && vault && <RecordVaultLine vault={vault} writable={writable} />}
         </div>
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
-        <Link
-          variant="outline"
-          size="lg"
-          className="h-10 font-medium text-sm"
-          aria-label="Edit"
-          href={recordPaths.editRecord(recordId)}
-        >
-          <PencilLineIcon />
-          Edit
-        </Link>
-        <MoreDropdown recordId={recordId} onDelete={onDelete} />
+        {writable && (
+          <Link
+            variant="outline"
+            size="lg"
+            className="h-10 font-medium text-sm"
+            aria-label="Edit"
+            href={recordPaths.editRecord(recordId)}
+          >
+            <PencilLineIcon />
+            Edit
+          </Link>
+        )}
+        <MoreDropdown record={record} onDelete={onDelete} />
       </div>
     </div>
+  );
+}
+
+/** Which vault the record is in, and that it's read-only there. */
+export function RecordVaultLine({
+  vault,
+  writable,
+}: {
+  vault: Parameters<typeof VaultBadge>[0]["vault"];
+  writable: boolean;
+}) {
+  return (
+    <span className="flex items-center gap-2 text-muted-foreground text-sm">
+      <VaultBadge vault={vault} />
+      {!writable && (
+        <span className="inline-flex items-center gap-1">
+          <LockIcon className="size-3.5" aria-hidden />
+          Read only
+        </span>
+      )}
+    </span>
   );
 }

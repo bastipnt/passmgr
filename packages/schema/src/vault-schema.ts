@@ -46,6 +46,19 @@ export const updateVaultMetaInputSchema = z.object({
   ...encryptedVaultMetaSchema.shape,
 });
 
+/** Delete a vault: owners only, never the personal one. */
+export const deleteVaultInputSchema = z.object({ vaultId: z.uuid() });
+
+/** Whether a member with this role may write records into the vault. */
+export function canWriteVault(role: VaultRole): boolean {
+  return (VAULT_WRITE_ROLES as readonly VaultRole[]).includes(role);
+}
+
+/** Whether a member with this role may rename the vault (and, later, invite). */
+export function canManageVault(role: VaultRole): boolean {
+  return (VAULT_MANAGE_ROLES as readonly VaultRole[]).includes(role);
+}
+
 export type VaultKind = z.infer<typeof vaultKindSchema>;
 export type VaultRole = z.infer<typeof vaultRoleSchema>;
 export type VaultMeta = z.infer<typeof vaultMetaSchema>;

@@ -12,9 +12,17 @@ import { recordPaths } from "@/app/route-paths";
 import { RecordAvatar } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import { useRecordActions } from "./use-record-actions";
+import { useRecordVault } from "./use-record-vault";
 import { useRouteSheet } from "./use-route-sheet";
 
 export default function EditRecordSheet({ record }: { record: DecryptedRecord }) {
+  const { writable } = useRecordVault(record);
+  // A read member's edit would only be refused by the server (and parked).
+  if (!writable) return null;
+  return <EditRecordSheetContent record={record} />;
+}
+
+function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
   const isMobile = useIsMobile();
   const formRef = useRef<RecordFormHandle>(null);
 

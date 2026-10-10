@@ -294,6 +294,13 @@ A pull that collides with pending local versions merges field by field (ADR 0001
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
 
+Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
+records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search ignores it). Create /
+rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
+first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
+it. Web: `features/vaults/` (switcher in the list bar, picker in the create sheet, Settings → Vaults); mobile:
+Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
+
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 
 ### tRPC Router Structure
@@ -305,7 +312,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
-- `vault` → `vaultRouter` (list, create, updateMeta) — `protectedProcedure`
+- `vault` → `vaultRouter` (list, create, updateMeta, delete — owner only, never the personal vault) — `protectedProcedure`
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)

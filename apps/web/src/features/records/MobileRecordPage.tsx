@@ -11,11 +11,12 @@ import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
 import Record from "./Record";
-import { MoreDropdown } from "./RecordActions";
+import { MoreDropdown, RecordVaultLine } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
 import { displayHost, useCopyField } from "./record-utils";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
+import { useRecordVault } from "./use-record-vault";
 
 type MobileRecordScreenProps = {
   record: DecryptedRecord;
@@ -36,6 +37,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   const password = record.type === "login" || record.type === "wifi" ? record.password : undefined;
   const primaryWebsite = websites?.find((website) => website.value)?.value;
   const hasDock = Boolean(password || primaryWebsite);
+  const { vault, writable, showVault } = useRecordVault(record);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   useScrollCollapse(titleRef);
@@ -64,11 +66,13 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         </Button>
         <span className="flex-1" />
         <div ref={actionsRef} className="flex items-center gap-2">
-          <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
-            <PencilLineIcon />
-            Edit
-          </Link>
-          <MoreDropdown recordId={record.recordId} onDelete={onDelete} variant="floating" />
+          {writable && (
+            <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
+              <PencilLineIcon />
+              Edit
+            </Link>
+          )}
+          <MoreDropdown record={record} onDelete={onDelete} variant="floating" />
         </div>
       </header>
 
@@ -117,6 +121,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
               </span>
             )
           )}
+          {showVault && vault && <RecordVaultLine vault={vault} writable={writable} />}
         </div>
       </div>
 

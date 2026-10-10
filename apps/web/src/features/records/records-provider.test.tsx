@@ -28,7 +28,7 @@ function encrypted(recordId: string): EncryptedRecordSchema {
 type SyncListener = (event: { vaultsChanged: boolean }) => void;
 let syncListener: SyncListener | undefined;
 const store = {
-  vault: { getAllLatest: vi.fn() },
+  vault: { getAllLatest: vi.fn(), getVaults: vi.fn(async () => []) },
   syncManager: {
     onSync: (listener: SyncListener) => {
       syncListener = listener;

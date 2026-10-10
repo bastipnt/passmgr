@@ -1,3 +1,5 @@
+import { useMoveRecord, useSortedRecords, useVaults } from "@repo/client";
+import { canWriteVault } from "@repo/schema";
 import {
   Empty,
   EmptyDescription,
@@ -32,6 +34,20 @@ export default function RecordScreen() {
   ]) as string[];
   const { scrollProps, titleInBar, contentTopPadding, restAnchor } =
     useScrollTitle(TITLE_IN_BAR_OFFSET);
+  const { getVault, writableVaults } = useVaults();
+  const vault = record ? getVault(record.vaultId) : undefined;
+  // Not listed (yet): leave it to the server, as web's `useRecordVault`.
+  const writable = vault ? canWriteVault(vault.role) : true;
+  const moveTargets = writableVaults.filter((target) => target.vaultId !== record?.vaultId);
+  const { vaultFilter, setVaultFilter } = useSortedRecords();
+  const { moveRecord, movePending } = useMoveRecord({
+    // A move is a new record (new id): show that one instead.
+    onSuccess: (movedId) => {
+      // The list showed the vault it left: show every vault, so it's there on the way back.
+      if (vaultFilter !== "all") setVaultFilter("all");
+      router.replace(recordPaths.record(movedId));
+    },
+  });
 
   return (
     <Screen>
@@ -46,14 +62,40 @@ export default function RecordScreen() {
           unstable_headerRightItems: () =>
             record
               ? [
-                  {
-                    type: "button" as const,
-                    label: "Edit",
-                    // iOS 26 tinted glass; falls back to a plain button below it.
-                    variant: "prominent" as const,
-                    tintColor: primary,
-                    onPress: () => router.navigate(recordPaths.editRecord(recordId as string)),
-                  },
+                  // A read member can't change it: no edit, no move.
+                  ...(writable
+                    ? [
+                        {
+                          type: "button" as const,
+                          label: "Edit",
+                          // iOS 26 tinted glass; falls back to a plain button below it.
+                          variant: "prominent" as const,
+                          tintColor: primary,
+                          onPress: () =>
+                            router.navigate(recordPaths.editRecord(recordId as string)),
+                        },
+                      ]
+                    : []),
+                  ...(writable && moveTargets.length > 0
+                    ? [
+                        {
+                          type: "menu" as const,
+                          label: "Move",
+                          accessibilityLabel: "Move to another vault",
+                          icon: { type: "sfSymbol" as const, name: "folder" as const },
+                          tintColor: foreground,
+                          menu: {
+                            title: vault ? `In ${vault.name}` : undefined,
+                            items: moveTargets.map((target) => ({
+                              type: "action" as const,
+                              label: `Move to ${target.name}`,
+                              disabled: movePending,
+                              onPress: () => moveRecord(record, target.vaultId),
+                            })),
+                          },
+                        },
+                      ]
+                    : []),
                   ...(password
                     ? [
                         {

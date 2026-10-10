@@ -13,6 +13,7 @@ import { LockIcon, PlusIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from "lu
 import { Link as RouterLink } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
+import { VaultSwitcher } from "@/features/vaults";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { lockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
@@ -94,6 +95,7 @@ export default function MobileVault() {
           <BrandMark />
         </RouterLink>
         <span className="flex-1" />
+        <VaultSwitcher variant="floating" />
         <SyncStatusMenu variant="floating" />
         <Button variant="floating" size="icon-xl" onClick={lockVault} aria-label="Lock vault">
           <LockIcon />

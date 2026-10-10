@@ -1,4 +1,4 @@
-import { getRecordSubtitle, getRecordWebsites, type RecordGroup } from "@repo/client";
+import { getRecordSubtitle, getRecordWebsites, type RecordGroup, useVaults } from "@repo/client";
 import { RecordGroupLabel, RecordListItem } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { Fragment } from "react";
@@ -17,10 +17,19 @@ type RecordsListProps = {
    * header while their rows scroll by. Without it the labels scroll along.
    */
   scrollY?: SharedValue<number>;
+  /** Name each record's vault before its subtitle (a list that mixes vaults). */
+  showVault?: boolean;
 };
 
-export function RecordsList({ recordGroups, onSelect, scrollY }: RecordsListProps) {
+export function RecordsList({ recordGroups, onSelect, scrollY, showVault }: RecordsListProps) {
   const router = useRouter();
+  const { getVault } = useVaults();
+  const subtitle = (record: RecordGroup["records"][number]) => {
+    const text = getRecordSubtitle(record);
+    const vault = showVault ? getVault(record.vaultId) : undefined;
+    if (!vault) return text;
+    return text ? `${vault.name} · ${text}` : vault.name;
+  };
   let labelIndex = 0;
 
   // Labels and rows are rendered flat (fragments add no views): `StickyList`
@@ -44,7 +53,7 @@ export function RecordsList({ recordGroups, onSelect, scrollY }: RecordsListProp
             key={record.recordId}
             first={index === 0}
             title={record.title}
-            username={getRecordSubtitle(record)}
+            username={subtitle(record)}
             websites={getRecordWebsites(record)}
             avatar={
               record.type === "login" ? undefined : <RecordAvatar record={record} size="md" />

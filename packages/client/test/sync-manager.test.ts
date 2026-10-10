@@ -108,6 +108,29 @@ describe("SyncManager pull", () => {
     expect(store.applySync).toHaveBeenCalledWith(batch, undefined);
   });
 
+  it("syncFresh waits out a running round and pulls again after it", async () => {
+    let release!: () => void;
+    const first = new Promise<void>((resolve) => (release = resolve));
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockImplementationOnce(async () => {
+        await first;
+        return batch;
+      })
+      .mockResolvedValue(batch);
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+
+    const running = manager.sync();
+    const fresh = manager.syncFresh();
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(1));
+    release();
+
+    expect(await running).toBe(true);
+    expect(await fresh).toBe(true);
+    // The fresh round's own pull, not the one already under way.
+    expect(pull).toHaveBeenCalledTimes(2);
+  });
+
   it("reloads vault keys before notifying listeners when the vault list changed", async () => {
     const calls: string[] = [];
     const onVaultsChanged = vi.fn(async () => void calls.push("keys"));

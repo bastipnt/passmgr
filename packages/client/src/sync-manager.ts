@@ -202,6 +202,19 @@ export class SyncManager {
     return await round;
   }
 
+  /**
+   * Sync with a round that starts after this call: wait out the running one
+   * (and any rerun it chains) first. For a change made on the server directly
+   * (a new vault): a round already under way may have pulled before it, and
+   * resolving with that one would apply a vault list without it.
+   */
+  async syncFresh(): Promise<boolean> {
+    // `runRound` never rejects. A rerun starts inside a round's `finally`,
+    // before that round resolves, so `syncing` is current after every await.
+    while (this.syncing && this.round) await this.round;
+    return await this.sync();
+  }
+
   private async runRound(): Promise<boolean> {
     this.syncing = true;
     this.setStatus({ phase: "syncing" });

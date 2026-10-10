@@ -1,5 +1,13 @@
-import { RECORD_TYPE_LABELS, recordFromForm, ShortcutLayer, useCreateRecord } from "@repo/client";
+import {
+  RECORD_TYPE_LABELS,
+  recordFromForm,
+  ShortcutLayer,
+  useCreateRecord,
+  useSortedRecords,
+  useVaults,
+} from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
+import { secretsStore } from "@repo/store";
 import { toast } from "@repo/ui";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
@@ -7,9 +15,10 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { isDefined } from "@repo/util";
 import { ChevronLeftIcon, PlusIcon } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { VaultPicker } from "@/features/vaults";
 import { RecordTypeTile } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import { RecordTypePicker } from "./RecordTypePicker";
@@ -36,6 +45,32 @@ export function useOpenCreateSheet() {
   return (title?: string) => navigate(createSheetSearch(title));
 }
 
+// TODO: share with mobile
+
+/**
+ * Where a new item goes: the vault in view when the user may write to it,
+ * else the personal vault; the picker changes it for this sheet only.
+ */
+function useTargetVault(open: boolean) {
+  const { vaultFilter } = useSortedRecords();
+  const { writableVaults } = useVaults();
+  const [picked, setPicked] = useState<string>();
+  const inView = writableVaults.find((vault) => vault.vaultId === vaultFilter)?.vaultId;
+  const fallback = inView ?? secretsStore.defaultVaultId;
+  const valid = writableVaults.some((vault) => vault.vaultId === picked);
+
+  // Every opening starts from the vault in view again.
+  useEffect(() => {
+    if (!open) setPicked(undefined);
+  }, [open]);
+
+  return {
+    vaultId: (valid ? picked : undefined) ?? fallback,
+    setVaultId: setPicked,
+    canPick: writableVaults.length > 1,
+  };
+}
+
 export default function CreateRecordSheet() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [, navigate] = useLocation();
@@ -47,6 +82,7 @@ export default function CreateRecordSheet() {
   const open = searchParams.has(recordPaths.createParam);
   const type = parseType(searchParams.get(recordPaths.createTypeParam));
   const typeLabel = type ? RECORD_TYPE_LABELS[type].noun : undefined;
+  const { vaultId, setVaultId, canPick } = useTargetVault(open);
 
   function close() {
     const next = new URLSearchParams(searchParams);
@@ -68,7 +104,7 @@ export default function CreateRecordSheet() {
   }, [createRecordError]);
 
   function handleSubmit<T extends RecordType>(formType: T, formValues: RecordFormValues<T>) {
-    createRecord(recordFromForm(formType, formValues));
+    createRecord(recordFromForm(formType, formValues), vaultId);
   }
 
   const formActions = (
@@ -131,6 +167,12 @@ export default function CreateRecordSheet() {
         actions={formActions}
         sheetClassName="sm:max-w-3xl!"
       >
+        {type && canPick && vaultId && (
+          // The form pads itself (px-5 / sm:px-7, py-6): the picker sits in that gutter above it.
+          <div className="-mb-4 px-5 pt-6 sm:max-w-sm sm:px-7">
+            <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
+          </div>
+        )}
         {type ? (
           <RecordForm
             // Remount on a new type or prefill so the form starts over.

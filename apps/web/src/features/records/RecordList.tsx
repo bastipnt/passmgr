@@ -1,4 +1,11 @@
-import { getRecordSubtitle, RECORD_TYPE_LABELS, useGetRecords, useShortcut } from "@repo/client";
+import {
+  getRecordSubtitle,
+  RECORD_TYPE_LABELS,
+  useGetRecords,
+  useShortcut,
+  useVaults,
+  type VaultInfo,
+} from "@repo/client";
 import {
   type TypeFilter,
   useSortedRecords,
@@ -21,19 +28,27 @@ import { ChevronRightIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { VaultBadge, VaultSwitcher } from "@/features/vaults";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSortMenu } from "./RecordSortMenu";
 
-/** The list's title: what it shows. A search covers every type. */
-export function listTitle(typeFilter: TypeFilter, searching: boolean): string {
+/**
+ * The list's title: what it shows. A search covers every type and vault. One
+ * vault: its name, then the type when the list is narrowed to one.
+ */
+export function listTitle(typeFilter: TypeFilter, searching: boolean, vault?: VaultInfo): string {
   if (searching) return "Results";
-  return typeFilter === "all" ? "All items" : RECORD_TYPE_LABELS[typeFilter].plural;
+  const type = typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural;
+  if (vault) return type ? `${vault.name} · ${type}` : vault.name;
+  return type ?? "All items";
 }
 
 type RecordRowProps = {
   record: DecryptedRecord;
   active: boolean;
   isMobile: boolean;
+  /** "All vaults" with more than one: the vault it's in. */
+  vault?: VaultInfo;
   registerRef: (id: string, el: HTMLAnchorElement | null) => void;
 };
 
@@ -42,7 +57,7 @@ type RecordRowProps = {
  * full-bleed table-view row with a hairline inset past the avatar and a
  * chevron — the record opens as its own page, so there is no active state.
  */
-function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
+function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowProps) {
   return (
     <Item
       variant={active ? "active" : "default"}
@@ -63,6 +78,12 @@ function RecordRow({ record, active, isMobile, registerRef }: RecordRowProps) {
             {record.title}
           </ItemTitle>
           <ItemDescription className="line-clamp-1 text-[0.8rem] max-sm:text-sm">
+            {vault && (
+              <>
+                <VaultBadge vault={vault} className="max-w-[45%] align-bottom" />
+                {" · "}
+              </>
+            )}
             {getRecordSubtitle(record) || "—"}
           </ItemDescription>
         </div>
@@ -160,7 +181,13 @@ export default function RecordList() {
   const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, typeFilter, sortedRecords, recordGroups, hasGroupLabels } = useSortedRecords();
+  const { query, typeFilter, vaultFilter, sortedRecords, recordGroups, hasGroupLabels } =
+    useSortedRecords();
+  const { getVault, hasSeveralVaults } = useVaults();
+  const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
+  // Rows name their vault where the list mixes several: "All vaults", or a search.
+  const rowVault = (record: DecryptedRecord) =>
+    hasSeveralVaults && (!shownVault || query.trim()) ? getVault(record.vaultId) : undefined;
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
@@ -243,7 +270,10 @@ export default function RecordList() {
       className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]"
     >
       {isMobile ? (
-        <MobileListTitle title={listTitle(typeFilter, hasQuery)} count={sortedRecords.length} />
+        <MobileListTitle
+          title={listTitle(typeFilter, hasQuery, shownVault)}
+          count={sortedRecords.length}
+        />
       ) : (
         <div
           className={cn(
@@ -251,11 +281,13 @@ export default function RecordList() {
             hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
           )}
         >
-          <h2 className="font-semibold">
-            {listTitle(typeFilter, hasQuery)}{" "}
-            <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
-              {sortedRecords.length}
-            </span>
+          <h2 className="min-w-0 font-semibold">
+            <VaultSwitcher variant="title">
+              <span className="truncate">{listTitle(typeFilter, hasQuery, shownVault)}</span>
+              <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
+                {sortedRecords.length}
+              </span>
+            </VaultSwitcher>
           </h2>
           <RecordSortMenu />
         </div>
@@ -292,6 +324,7 @@ export default function RecordList() {
                     record={record}
                     active={!isMobile && record.recordId === params?.recordId}
                     isMobile={isMobile}
+                    vault={rowVault(record)}
                     registerRef={registerRef}
                   />
                 ))}

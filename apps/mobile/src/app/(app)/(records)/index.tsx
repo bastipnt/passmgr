@@ -6,6 +6,7 @@ import {
   useGetRecords,
   useRecordSearch,
   useSortedRecords,
+  useVaults,
 } from "@repo/client";
 import { RECORD_TYPES } from "@repo/schema";
 import { Screen } from "@repo/ui-native";
@@ -33,10 +34,19 @@ const TITLE_IN_BAR_OFFSET = 48;
 export default function RecordsScreen() {
   const router = useRouter();
   const { recordsNumber, ready } = useGetRecords();
-  const { sort, handleSortChange, typeFilter, setTypeFilter } = useSortedRecords();
-  const recordGroups = useRecordSearch("", typeFilter);
+  const { sort, handleSortChange, typeFilter, setTypeFilter, vaultFilter, setVaultFilter } =
+    useSortedRecords();
+  const { vaults, getVault, hasSeveralVaults } = useVaults();
+  const recordGroups = useRecordSearch("", typeFilter, vaultFilter);
   const shownCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
-  const title = typeFilter === "all" ? "All items" : RECORD_TYPE_LABELS[typeFilter].plural;
+  const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
+  const typeTitle = typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural;
+  // Web's `listTitle`: the vault in view, then the type it's narrowed to.
+  const title = shownVault
+    ? typeTitle
+      ? `${shownVault.name} · ${typeTitle}`
+      : shownVault.name
+    : (typeTitle ?? "All items");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
   const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
@@ -49,13 +59,13 @@ export default function RecordsScreen() {
 
   // A new sort or filter reshuffles the whole list, so the old scroll offset
   // points at unrelated records — go back to the top. Skips the initial render.
-  const prevListRef = useRef(`${sort}:${typeFilter}`);
+  const prevListRef = useRef(`${sort}:${typeFilter}:${vaultFilter}`);
   useEffect(() => {
-    const list = `${sort}:${typeFilter}`;
+    const list = `${sort}:${typeFilter}:${vaultFilter}`;
     if (prevListRef.current === list) return;
     prevListRef.current = list;
     scrollToTop();
-  }, [sort, typeFilter, scrollToTop]);
+  }, [sort, typeFilter, vaultFilter, scrollToTop]);
 
   return (
     <Screen>
@@ -83,13 +93,32 @@ export default function RecordsScreen() {
                 type: "sfSymbol",
                 // Filled while the list shows one type only.
                 name:
-                  typeFilter === "all"
+                  typeFilter === "all" && vaultFilter === "all"
                     ? "line.3.horizontal.decrease.circle"
                     : "line.3.horizontal.decrease.circle.fill",
               },
               tintColor: foregroundColor,
               menu: {
                 items: [
+                  // One vault: nothing to pick between, the list shows it all.
+                  ...(hasSeveralVaults
+                    ? [
+                        {
+                          type: "submenu" as const,
+                          label: "Vault",
+                          inline: true,
+                          items: [
+                            { value: "all", label: "All vaults" },
+                            ...vaults.map((vault) => ({ value: vault.vaultId, label: vault.name })),
+                          ].map(({ value, label }) => ({
+                            type: "action" as const,
+                            label,
+                            state: value === vaultFilter ? ("on" as const) : ("off" as const),
+                            onPress: () => setVaultFilter(value),
+                          })),
+                        },
+                      ]
+                    : []),
                   {
                     type: "submenu",
                     label: "Sort by",
@@ -155,7 +184,12 @@ export default function RecordsScreen() {
           )}
         </View>
         {shownCount > 0 ? (
-          <RecordsList recordGroups={recordGroups} scrollY={scrollY} />
+          <RecordsList
+            recordGroups={recordGroups}
+            scrollY={scrollY}
+            // Rows name their vault where the list mixes several.
+            showVault={hasSeveralVaults && !shownVault}
+          />
         ) : ready ? (
           <EmptyRecordList
             hint={

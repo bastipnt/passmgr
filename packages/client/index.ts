@@ -35,6 +35,7 @@ export * from "./src/hooks/use-sync-status";
 export * from "./src/hooks/use-totp";
 export * from "./src/hooks/use-unlock";
 export * from "./src/hooks/use-update-record";
+export * from "./src/hooks/use-vaults";
 export * from "./src/preferences/PreferencesStore";
 // Preferences
 export * from "./src/preferences/preference-keys";
@@ -76,3 +77,6 @@ export * from "./src/util/encrypt-record";
 export { generateAuthHeaders } from "./src/util/headers";
 export * from "./src/util/profile-label";
 export { useTRPC, useTRPCClient } from "./src/util/trpc";
+// Vaults
+export * from "./src/vaults/vault-info";
+export * from "./src/vaults/vault-labels";

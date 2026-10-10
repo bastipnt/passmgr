@@ -17,7 +17,7 @@ import {
   SettingsSection,
 } from "@repo/ui-native";
 import { useRouter } from "expo-router";
-import { KeyRound, ShieldCheck, SlidersHorizontal } from "lucide-react-native";
+import { KeyRound, Layers, ShieldCheck, SlidersHorizontal } from "lucide-react-native";
 import { useContext, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
@@ -54,6 +54,11 @@ export default function SettingsScreen() {
         contentContainerClassName="gap-8 pt-4 pb-10"
       >
         <SettingsGroup>
+          <SettingsNavRow
+            title="Vaults"
+            icon={<Layers size={18} color={iconColor} />}
+            onPress={() => router.navigate(settingsPaths.vaults)}
+          />
           <SettingsNavRow
             title="General"
             icon={<SlidersHorizontal size={18} color={iconColor} />}

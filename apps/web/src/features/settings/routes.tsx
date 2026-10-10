@@ -9,6 +9,7 @@ import SettingsLayout from "./SettingsLayout";
 
 const NotFound = lazyPreload(() => import("@/app/NotFound"));
 const AccountSettingsPage = lazyPreload(() => import("./AccountSettingsPage"));
+const VaultsSettingsPage = lazyPreload(() => import("./VaultsSettingsPage"));
 const GeneralSettingsPage = lazyPreload(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazyPreload(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazyPreload(() => import("./SecuritySettingsPage"));
@@ -40,6 +41,7 @@ export default function SettingsRoutes() {
         </Route>
 
         <Route path={settingsPaths.account} component={AccountSettingsPage} />
+        <Route path={settingsPaths.vaults} component={VaultsSettingsPage} />
         <Route path={settingsPaths.general} component={GeneralSettingsPage} />
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />

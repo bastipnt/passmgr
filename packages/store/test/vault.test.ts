@@ -591,3 +591,62 @@ describe("clear", () => {
     expect(await vault.getSyncCursors()).toEqual({});
   });
 });
+
+describe("vaults on the device", () => {
+  const work = vaultKey("v-work");
+
+  function create(recordId: string, vaultId: string) {
+    return {
+      kind: "create" as const,
+      recordId,
+      vaultId,
+      encryptedData: "data",
+      encryptionNonce: "nonce",
+      cryptoVersion: 1,
+      clientUpdatedAt: "2026-10-08T00:00:00.000Z",
+    };
+  }
+
+  it("adds a vault next to the others and replaces its row on a second save", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.saveVault(work);
+    await vault.saveVault({ ...work, role: "read" });
+
+    expect(await vault.getVaults()).toEqual([personal, { ...work, role: "read" }]);
+  });
+
+  it("replaces a vault's metadata, and throws for a vault that isn't here", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal, work]);
+    await vault.setVaultMeta(work.vaultId, { encryptedMeta: "m2", metaEncryptionNonce: "n2" });
+
+    const [, saved] = await vault.getVaults();
+    expect(saved).toMatchObject({ encryptedMeta: "m2", metaEncryptionNonce: "n2" });
+    await expect(
+      vault.setVaultMeta("v-none", { encryptedMeta: "m", metaEncryptionNonce: "n" }),
+    ).rejects.toThrow();
+  });
+
+  it("removes a vault with its records, unsent changes and cursor, and nothing else", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal, work]);
+    await vault.writeLocalChanges([create("r-work", work.vaultId), create("r-mine", "v-personal")]);
+    await vault.applySync({
+      records: [],
+      vaults: [personal, work],
+      cursors: { [work.vaultId]: 3, "v-personal": 2 },
+      serverTimestamp: "2026-10-08T00:00:00.000Z",
+    });
+
+    await vault.removeVault(work.vaultId);
+
+    expect(await vault.getVaults()).toEqual([personal]);
+    expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r-mine"]);
+    expect((await vault.getPendingChanges()).map((c) => c.record.recordId)).toEqual(["r-mine"]);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 2 });
+  });
+
+  it("never removes the personal vault", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await expect(vault.removeVault(personal.vaultId)).rejects.toThrow();
+    expect(await vault.getVaults()).toEqual([personal]);
+  });
+});

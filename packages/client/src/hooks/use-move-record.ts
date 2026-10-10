@@ -4,7 +4,9 @@ import { requireActive, useStore } from "../providers/StoreProvider";
 import { useRefreshRecord } from "./use-records";
 
 type UseMoveRecordOpts = {
-  onSuccess: (recordId: string) => void;
+  /** The moved record's new id (a move is a new record) and the vault it went to. */
+  onSuccess: (recordId: string, targetVaultId: string) => void;
+  onError?: (error: Error) => void;
 };
 
 /**
@@ -12,7 +14,7 @@ type UseMoveRecordOpts = {
  * target vault's key as a new record (new id); the source is tombstoned and
  * keeps its history, so the history never reaches the target vault's members.
  */
-export function useMoveRecord({ onSuccess }: UseMoveRecordOpts) {
+export function useMoveRecord({ onSuccess, onError }: UseMoveRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();
 
@@ -36,11 +38,12 @@ export function useMoveRecord({ onSuccess }: UseMoveRecordOpts) {
       } = record;
       return requireActive(store).records.move(record, data, targetVaultId);
     },
-    onSuccess: async (moved, { record }) => {
+    onSuccess: async (moved, { record, targetVaultId }) => {
       await refreshRecord(record.recordId);
       await refreshRecord(moved.recordId);
-      onSuccess(moved.recordId);
+      onSuccess(moved.recordId, targetVaultId);
     },
+    onError,
   });
 
   function moveRecord(record: DecryptedRecord, targetVaultId: string) {

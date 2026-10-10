@@ -3,6 +3,7 @@ import {
   ACCOUNT_KEY_MATERIAL_KEYS,
   type AccountKeyMaterial,
   type EncryptedRecordSchema,
+  type EncryptedVaultMeta,
   type MemberVault,
   type RecoveryKeySchema,
 } from "@repo/schema";
@@ -67,11 +68,28 @@ import {
   records,
   vaults as vaultsTable,
 } from "./schema/tables";
-import { clearVaultsTable, getVaults, replaceVaults } from "./schema/vaults-schema";
+import {
+  clearVaultsTable,
+  deleteVaultRows,
+  getVaults,
+  replaceVaults,
+  setVaultMeta,
+  upsertVault,
+} from "./schema/vaults-schema";
 
 /** `createLocalVault` on a device that already holds a vault. */
 export class VaultExistsError extends Error {
   override message = "This device already holds a vault";
+}
+
+/**
+ * Drop vaults from the device with everything in them: records, unsent changes
+ * and pull cursors. Changes first: they are found through the records.
+ */
+async function dropVaults(vaultIds: readonly string[], db: LocalDb) {
+  await deleteVaultChanges(vaultIds, db);
+  await deleteVaultRecords(vaultIds, db);
+  await deleteSyncCursors(vaultIds, db);
 }
 
 /** One pull from the server: changed records plus the full list of the user's vaults. */
@@ -348,6 +366,36 @@ export class Vault {
   }
 
   /**
+   * Add a vault next to the others (created on this device, or just created
+   * on the server, before the next sync lists it), or replace its row.
+   */
+  async saveVault(vault: MemberVault): Promise<void> {
+    await this.ready();
+    await upsertVault(vault, this.db);
+  }
+
+  /** Replace a vault's encrypted name / icon / colour. Throws for a vault that isn't here. */
+  async setVaultMeta(vaultId: string, meta: EncryptedVaultMeta): Promise<void> {
+    await this.ready();
+    if (!(await setVaultMeta(vaultId, meta, this.db))) throw new Error(`No vault ${vaultId}`);
+  }
+
+  /**
+   * Remove a vault from the device, atomically, with its records, unsent
+   * changes and pull cursor (it was deleted). Refuses (throws) for the personal
+   * vault: every profile keeps exactly one.
+   */
+  async removeVault(vaultId: string): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => {
+      const vault = (await getVaults(tx)).find((v) => v.vaultId === vaultId);
+      if (vault?.kind === "personal") throw new Error("The personal vault can't be removed");
+      await dropVaults([vaultId], tx);
+      await deleteVaultRows([vaultId], tx);
+    });
+  }
+
+  /**
    * BIOMETRIC KEY
    */
 
@@ -394,9 +442,7 @@ export class Vault {
       const current = new Set(vaults.map((v) => v.vaultId));
       const removed = cached.map((v) => v.vaultId).filter((id) => !current.has(id));
 
-      await deleteVaultChanges(removed, tx);
-      await deleteVaultRecords(removed, tx);
-      await deleteSyncCursors(removed, tx);
+      await dropVaults(removed, tx);
       const vaultsChanged = !sameVaults(cached, vaults);
       if (vaultsChanged) await replaceVaults(vaults, tx);
 

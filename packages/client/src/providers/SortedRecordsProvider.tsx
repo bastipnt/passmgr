@@ -2,8 +2,10 @@ import type { DecryptedRecord, RecordType } from "@repo/schema";
 import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
+import { useVaults } from "../hooks/use-vaults";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { getRecordSubtitle } from "../records/record-summary";
+import type { VaultFilter } from "../vaults/vault-info";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
@@ -177,6 +179,19 @@ export function filterByType(records: DecryptedRecord[], type: TypeFilter): Decr
   return type === "all" ? records : records.filter((record) => record.type === type);
 }
 
+/** The records of one vault, or of all of them. */
+export function filterByVault(records: DecryptedRecord[], vault: VaultFilter): DecryptedRecord[] {
+  return vault === "all" ? records : records.filter((record) => record.vaultId === vault);
+}
+
+/** The stored vault filter, while it names a vault of this profile; else every vault. */
+function useVaultFilter(): [VaultFilter, (vault: VaultFilter) => void] {
+  const { getVault } = useVaults();
+  const [stored, setStored] = usePreference<VaultFilter>(PREF_KEYS.vaultFilter, "all");
+  // Another profile's vault, or one deleted meanwhile.
+  return [stored !== "all" && getVault(stored) ? stored : "all", setStored];
+}
+
 function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
   if (!query.trim()) return records;
   const q = query.toLowerCase().trim();
@@ -197,6 +212,9 @@ type SortedRecordsContextValue = {
   /** The list's type filter. A search ignores it and looks through every record. */
   typeFilter: TypeFilter;
   setTypeFilter: (type: TypeFilter) => void;
+  /** The list's vault filter ("All vaults" or one). A search ignores it too. */
+  vaultFilter: VaultFilter;
+  setVaultFilter: (vault: VaultFilter) => void;
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
   /** Whether any group carries a label (none do while searching). */
@@ -219,15 +237,23 @@ export function useSortedRecords(): SortedRecordsContextValue {
  * `type` (the records tab passes the list's filter); a search looks through
  * every record, as the provider's does.
  */
-export function useRecordSearch(query: string, type: TypeFilter = "all"): RecordGroup[] {
+export function useRecordSearch(
+  query: string,
+  type: TypeFilter = "all",
+  vault: VaultFilter = "all",
+): RecordGroup[] {
   const { records } = useGetRecords();
   const { sort } = useSortedRecords();
   const trimmed = query.trim();
 
   return useMemo(() => {
-    if (!trimmed) return groupRecords(sortRecords(filterByType(records, type), sort), sort);
+    if (!trimmed)
+      return groupRecords(
+        sortRecords(filterByType(filterByVault(records, vault), type), sort),
+        sort,
+      );
     return [{ label: null, records: filterBySearch(records, trimmed) }];
-  }, [records, sort, trimmed, type]);
+  }, [records, sort, trimmed, type, vault]);
 }
 
 type SortedRecordsProviderProps = {
@@ -238,6 +264,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const { records } = useGetRecords();
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+  const [vaultFilter, setVaultFilter] = useVaultFilter();
   const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
@@ -246,8 +273,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   // A search looks through every record: the filter narrows browsing, and a
   // match hidden by it would read as "not in the vault".
   const filtered = useMemo(
-    () => (hasQuery ? filterBySearch(records, query) : filterByType(records, typeFilter)),
-    [records, query, hasQuery, typeFilter],
+    () =>
+      hasQuery
+        ? filterBySearch(records, query)
+        : filterByType(filterByVault(records, vaultFilter), typeFilter),
+    [records, query, hasQuery, typeFilter, vaultFilter],
   );
   const sortedRecords = useMemo(
     () => (hasQuery ? filtered : sortRecords(filtered, sort)),
@@ -273,11 +303,22 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       handleSortChange,
       typeFilter,
       setTypeFilter,
+      vaultFilter,
+      setVaultFilter,
       sortedRecords,
       recordGroups,
       hasGroupLabels,
     }),
-    [query, sort, typeFilter, sortedRecords, recordGroups, hasGroupLabels],
+    [
+      query,
+      sort,
+      typeFilter,
+      vaultFilter,
+      setVaultFilter,
+      sortedRecords,
+      recordGroups,
+      hasGroupLabels,
+    ],
   );
 
   return <SortedRecordsContext value={value}>{children}</SortedRecordsContext>;
