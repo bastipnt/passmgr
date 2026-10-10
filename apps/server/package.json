@@ -20,7 +20,7 @@
   "dependencies": {
     "@cloudflare/opaque-ts": "catalog:",
     "@fastify/cors": "^11.3.0",
-    "@fastify/rate-limit": "^11.1.0",
+    "@fastify/rate-limit": "^11.2.0",
     "@fastify/redis": "^8.0.0",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",
@@ -36,7 +36,7 @@
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",
     "fast-check": "catalog:",
-    "fastify-cli": "^8.0.0",
+    "fastify-cli": "^8.0.3",
     "fastify-tsconfig": "^3.0.0",
     "ioredis-mock": "^8.13.1",
     "oxlint": "catalog:",
