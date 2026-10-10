@@ -1,10 +1,9 @@
-import {
-  useVaultActions,
-  VaultKeyRotatedElsewhereError,
-  VaultRotationUnavailableError,
-  VaultsOfflineError,
-} from "@repo/client/src/hooks/use-vaults";
+import { useVaultActions, VaultsOfflineError } from "@repo/client/src/hooks/use-vaults";
 import { SessionContext, type SessionMode } from "@repo/client/src/providers/SessionProvider";
+import {
+  VaultKeyRotatedElsewhereError,
+  VaultMembersChangedError,
+} from "@repo/client/src/vaults/sharing";
 import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -26,6 +25,7 @@ const mocks = vi.hoisted(() => {
         updateMeta: { mutate: vi.fn(async () => void calls.push("server.updateMeta")) },
         delete: { mutate: vi.fn(async () => void calls.push("server.delete")) },
         rotateKey: { mutate: vi.fn(async () => void calls.push("server.rotateKey")) },
+        members: { query: vi.fn(async () => [] as unknown[]) },
       },
     },
     reencryptForPush: vi.fn(async () => void calls.push("reencrypt")),
@@ -43,6 +43,14 @@ const vault = {
   removeVault: vi.fn(async () => void mocks.calls.push("removeVault")),
   setRekeyTarget: vi.fn(async () => void mocks.calls.push("setRekeyTarget")),
   clearRekeyTarget: vi.fn(async () => void mocks.calls.push("clearRekeyTarget")),
+  getProfile: vi.fn(async () => ({
+    profileId: "p",
+    mode: "linked",
+    email: "me@x.y",
+    userId: "u-me",
+  })),
+  getPeerKey: vi.fn(async () => null),
+  pinPeerKey: vi.fn(async () => undefined),
 };
 const active = { vault, syncManager: { syncFresh: mocks.syncFresh } };
 
@@ -202,9 +210,19 @@ describe("useVaultActions", () => {
     const { previousKey, ...wrap } = rotation;
     const next = { ...work, ...wrap, previousKeys: [previousKey] };
 
+    const bob = {
+      userId: "u-bob",
+      email: "bob@x.y",
+      role: "write",
+      status: "active",
+      publicKey: { keyVersion: 1, publicKey: "pk-bob" },
+    };
+    const sealed = { userId: "u-bob", recipientKeyVersion: 1, sealedVaultKey: "sealed" };
+
     beforeEach(() => {
       mocks.vaults = [work];
-      vi.spyOn(secretsStore, "rotateVaultKey").mockReturnValue(rotation);
+      vi.spyOn(secretsStore, "rotateVaultKey").mockResolvedValue({ ...rotation, memberKeys: [] });
+      vi.spyOn(secretsStore, "userKeyVersion", "get").mockReturnValue(1);
     });
 
     it("local: notes the rotation, stores the new key and re-encrypts on the device", async () => {
@@ -227,7 +245,11 @@ describe("useVaultActions", () => {
         await result.current.rotateVaultKey("v-work");
       });
 
-      expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith(rotation);
+      expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith({
+        ...rotation,
+        senderKeyVersion: 1,
+        memberKeys: [],
+      });
       expect(mocks.calls).toEqual([
         "setRekeyTarget",
         "server.rotateKey",
@@ -238,17 +260,67 @@ describe("useVaultActions", () => {
       ]);
     });
 
-    it("online: forgets the rotation when the server refuses it", async () => {
-      mocks.trpc.vault.rotateKey.mutate.mockRejectedValueOnce(
-        new TRPCClientError("refused", {
-          result: { error: { code: -32_000, message: "x", data: { code: "PRECONDITION_FAILED" } } },
-        }),
+    const membersChanged = () =>
+      new TRPCClientError("refused", {
+        result: { error: { code: -32_000, message: "x", data: { code: "PRECONDITION_FAILED" } } },
+      });
+
+    it("online: seals the new key to the other members (pinning their keys)", async () => {
+      mocks.trpc.vault.members.query.mockResolvedValueOnce([
+        { ...bob, userId: "u-me", email: "me@x.y" },
+        bob,
+      ]);
+      vi.mocked(secretsStore.rotateVaultKey).mockResolvedValue({
+        ...rotation,
+        memberKeys: [sealed],
+      });
+      const result = render("online");
+
+      await act(async () => {
+        await result.current.rotateVaultKey("v-work");
+      });
+
+      expect(secretsStore.rotateVaultKey).toHaveBeenCalledWith(work, [bob]);
+      expect(vault.pinPeerKey).toHaveBeenCalledWith("u-bob", bob.publicKey);
+      expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith(
+        expect.objectContaining({ memberKeys: [sealed] }),
       );
+    });
+
+    it("online: refuses to seal to a member whose key changed since it was pinned", async () => {
+      mocks.trpc.vault.members.query.mockResolvedValueOnce([bob]);
+      vault.getPeerKey.mockResolvedValueOnce({ keyVersion: 1, publicKey: "pk-other" } as never);
+      const result = render("online");
+
+      await act(async () => {
+        await expect(result.current.rotateVaultKey("v-work")).rejects.toThrow("key changed");
+      });
+      expect(secretsStore.rotateVaultKey).not.toHaveBeenCalled();
+      expect(mocks.trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+    });
+
+    it("online: fetches the members again once when they changed meanwhile", async () => {
+      mocks.trpc.vault.rotateKey.mutate.mockRejectedValueOnce(membersChanged());
+      const result = render("online");
+
+      await act(async () => {
+        await result.current.rotateVaultKey("v-work");
+      });
+
+      expect(mocks.trpc.vault.members.query).toHaveBeenCalledTimes(2);
+      expect(vault.clearRekeyTarget).toHaveBeenCalledTimes(1);
+      expect(vault.saveVault).toHaveBeenCalledWith(next);
+    });
+
+    it("online: forgets the rotation when the server keeps refusing it", async () => {
+      mocks.trpc.vault.rotateKey.mutate
+        .mockRejectedValueOnce(membersChanged())
+        .mockRejectedValueOnce(membersChanged());
       const result = render("online");
 
       await act(async () => {
         await expect(result.current.rotateVaultKey("v-work")).rejects.toBeInstanceOf(
-          VaultRotationUnavailableError,
+          VaultMembersChangedError,
         );
       });
 

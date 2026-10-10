@@ -1,9 +1,10 @@
 import type { VaultRole } from "@repo/schema";
+import { VaultsOfflineError } from "../hooks/use-vaults";
 import {
+  PeerKeyChangedError,
   VaultKeyRotatedElsewhereError,
-  VaultRotationUnavailableError,
-  VaultsOfflineError,
-} from "../hooks/use-vaults";
+  VaultMembersChangedError,
+} from "./sharing";
 import type { VaultInfo } from "./vault-info";
 
 export const VAULT_ROLE_LABELS: Record<VaultRole, string> = {
@@ -18,11 +19,12 @@ export function vaultAccessLabel(vault: VaultInfo): string | undefined {
   return vault.role === "owner" ? undefined : VAULT_ROLE_LABELS[vault.role];
 }
 
-/** A failed vault change, for the user: why when it's offline or not possible yet, else `fallback`. */
+/** A failed vault change, for the user: why when it's offline or not possible now, else `fallback`. */
 export function vaultErrorMessage(error: unknown, fallback: string): string {
   return error instanceof VaultsOfflineError ||
-    error instanceof VaultRotationUnavailableError ||
-    error instanceof VaultKeyRotatedElsewhereError
+    error instanceof VaultMembersChangedError ||
+    error instanceof VaultKeyRotatedElsewhereError ||
+    error instanceof PeerKeyChangedError
     ? error.message
     : fallback;
 }

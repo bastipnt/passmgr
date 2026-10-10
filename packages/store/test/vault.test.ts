@@ -797,3 +797,136 @@ describe("vault key rotation", () => {
     expect(await vault.getRekeyTargets()).toEqual({});
   });
 });
+
+describe("vaults revoked with unsent changes (ADR 0001 D7)", () => {
+  const work = vaultKey("v-work");
+  const T1 = "2026-10-01T00:00:00.000Z";
+
+  function change(kind: "create" | "update", recordId: string, data: string) {
+    return {
+      kind,
+      recordId,
+      vaultId: work.vaultId,
+      encryptedData: data,
+      encryptionNonce: "nonce",
+      cryptoVersion: 1,
+      keyVersion: 1,
+      clientUpdatedAt: "2026-10-08T00:00:00.000Z",
+    };
+  }
+
+  async function lose(vaultIds: string[] = []) {
+    await vault.applySync({
+      records: [],
+      vaults: [personal, ...vaultIds.map((id) => vaultKey(id))],
+      cursors: {},
+      serverTimestamp: "2026-10-09T00:00:00.000Z",
+    });
+  }
+
+  beforeEach(async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.applySync({
+      records: [record("r-synced", 1, { vaultId: work.vaultId })],
+      vaults: [personal, work],
+      cursors: { [work.vaultId]: 1 },
+      serverTimestamp: T1,
+    });
+  });
+
+  it("keeps the latest unsent version of each record next to the vault's row", async () => {
+    await vault.writeLocalChanges([
+      change("create", "r-new", "v1"),
+      change("update", "r-synced", "edited"),
+    ]);
+    await vault.writeLocalChanges([change("update", "r-new", "v2")]);
+
+    await lose();
+
+    // Gone from the vault list, the records, the outbox and the cursors.
+    expect(await vault.getVaults()).toEqual([personal]);
+    expect(await vault.getAllLatest()).toEqual([]);
+    expect(await vault.getPendingChanges()).toEqual([]);
+    expect(await vault.getSyncCursors()).toEqual({});
+    // Kept aside for rescue.
+    const [revoked, ...rest] = await vault.getRevokedVaults();
+    expect(rest).toEqual([]);
+    expect(revoked?.vault).toEqual(work);
+    expect(
+      revoked?.records
+        .map((r) => [r.recordId, r.encryptedData])
+        .sort(([a], [b]) => a!.localeCompare(b!)),
+    ).toEqual([
+      ["r-new", "v2"],
+      ["r-synced", "edited"],
+    ]);
+  });
+
+  it("keeps nothing for a vault without unsent edits, or whose unsent change is a delete", async () => {
+    await vault.writeLocalChanges([
+      { kind: "delete", recordId: "r-synced", clientUpdatedAt: "2026-10-08T00:00:00.000Z" },
+    ]);
+
+    await lose();
+
+    expect(await vault.getRevokedVaults()).toEqual([]);
+  });
+
+  it("discarding drops the kept vault and its records", async () => {
+    await vault.writeLocalChanges([change("create", "r-new", "v1")]);
+    await lose();
+
+    await vault.discardRevokedVault(work.vaultId);
+
+    expect(await vault.getRevokedVaults()).toEqual([]);
+  });
+
+  it("a deliberate removal keeps nothing; leaving (keepUnsent) keeps the unsent edits", async () => {
+    await vault.writeLocalChanges([change("create", "r-new", "v1")]);
+    await vault.removeVault(work.vaultId);
+    expect(await vault.getRevokedVaults()).toEqual([]);
+
+    await vault.saveVault(work);
+    await vault.writeLocalChanges([change("create", "r-other", "v1")]);
+    await vault.removeVault(work.vaultId, { keepUnsent: true });
+    expect((await vault.getRevokedVaults())[0]?.records.map((r) => r.recordId)).toEqual([
+      "r-other",
+    ]);
+  });
+
+  it("rescues in one transaction: the copies are written and the kept vault dropped together", async () => {
+    await vault.writeLocalChanges([change("create", "r-new", "v1")]);
+    await lose();
+    const copy = { ...change("create", "r-copy", "copied"), vaultId: personal.vaultId };
+
+    // A copy that can't be written (a record id already there) leaves everything as it was.
+    await expect(vault.rescueRevokedVault(work.vaultId, [copy, { ...copy }])).rejects.toThrow();
+    expect(await vault.getRevokedVaults()).toHaveLength(1);
+    expect(await vault.getAllLatest()).toEqual([]);
+
+    await vault.rescueRevokedVault(work.vaultId, [copy]);
+    expect(await vault.getRevokedVaults()).toEqual([]);
+    expect((await vault.getAllLatest()).map((r) => r.recordId)).toEqual(["r-copy"]);
+  });
+});
+
+describe("peer keys", () => {
+  it("notes members this device removed, per vault, until they're invited again", async () => {
+    await vault.markPeerRemoved("v-work", "u-alice");
+
+    expect(await vault.isPeerRemoved("v-work", "u-alice")).toBe(true);
+    expect(await vault.isPeerRemoved("v-other", "u-alice")).toBe(false);
+    await vault.markPeerRemoved("v-work", "u-alice", false);
+    expect(await vault.isPeerRemoved("v-work", "u-alice")).toBe(false);
+  });
+
+  it("pins a user's public key and reads it back", async () => {
+    const key = { keyVersion: 1, publicKey: toBase64(new Uint8Array(32).fill(7)) };
+    expect(await vault.getPeerKey("u-alice")).toBeNull();
+
+    await vault.pinPeerKey("u-alice", key);
+
+    expect(await vault.getPeerKey("u-alice")).toEqual(key);
+    expect(await vault.getPeerKey("u-bob")).toBeNull();
+  });
+});

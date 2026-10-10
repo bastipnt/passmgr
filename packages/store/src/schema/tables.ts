@@ -86,6 +86,41 @@ export const vaults = sqliteTable("vaults", {
 });
 
 /**
+ * Vaults the user lost access to (removed, left on another device, deleted)
+ * while this device had unsent changes in them (ADR 0001 D7): the vault's row
+ * as it was, kept so its key opens `revokedRecords` until the user copies them
+ * to a vault they still have or discards them.
+ */
+export const revokedVaults = sqliteTable("revoked_vaults", {
+  vaultId: text().primaryKey(),
+  kind: text({ enum: ["personal", "shared"] }).notNull(),
+  role: text({ enum: ["owner", "manage", "write", "read"] }).notNull(),
+  keyVersion: integer().notNull(),
+  encryptedVaultKey: text().notNull(),
+  vaultKeyEncryptionNonce: text().notNull(),
+  previousKeys: text({ mode: "json" }).$type<VaultKeyLink[]>().notNull().default(sql`'[]'`),
+  encryptedMeta: text().notNull(),
+  metaEncryptionNonce: text().notNull(),
+  revokedAt: text().notNull(),
+});
+
+/** The latest unsent version of each record of a revoked vault (`revokedVaults`). */
+export const revokedRecords = sqliteTable(
+  "revoked_records",
+  {
+    recordId: text().primaryKey(),
+    vaultId: text().notNull(),
+    encryptedData: text().notNull(),
+    encryptionNonce: text().notNull(),
+    cryptoVersion: integer().notNull(),
+    keyVersion: integer().notNull(),
+    version: integer().notNull(),
+    clientUpdatedAt: text().notNull(),
+  },
+  (t) => [index("revoked_records_vault_idx").on(t.vaultId)],
+);
+
+/**
  * The device profile (ADR 0001 D2): at most one row, the one user of this
  * device. `local` has no account yet; `linked` belongs to the account
  * `userId` / `email`. Separate from the session: the profile says whose vault

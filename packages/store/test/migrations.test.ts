@@ -175,6 +175,8 @@ describe("MIGRATIONS", () => {
       "outbox",
       "profile",
       "records",
+      "revoked_records",
+      "revoked_vaults",
       "sync_meta",
       "vaults",
     ]);

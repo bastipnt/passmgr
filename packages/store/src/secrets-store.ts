@@ -5,8 +5,10 @@ import {
   encryptRecordData,
   encryptVaultMeta,
   hkdf,
+  openSealedVaultKey,
   type RecordCipherContext,
   rotateVaultKey,
+  sealVaultKey,
   signHmac,
   unwrapAccountKey,
   unwrapPreviousVaultKey,
@@ -15,12 +17,18 @@ import {
   vaultKeyId,
   wipe,
   wrapAccountKey,
+  wrapVaultKey,
 } from "@repo/crypto";
 import {
   CURRENT_CRYPTO_VERSION,
   type EncryptedVaultMeta,
+  type MemberKeySeal,
   type MemberVault,
   type UserKeyPair,
+  type UserPublicKey,
+  type VaultInvitation,
+  type VaultKeyUpdate,
+  type VaultKeyWrap,
   type VaultMeta,
   vaultMetaSchema,
 } from "@repo/schema";
@@ -56,6 +64,7 @@ class SecretsStore {
   // The X25519 keypair (ADR 0001 D7), checked against each other on load.
   private userPrivateKey?: Uint8Array;
   private verifiedPublicKey?: string;
+  private userKeyPairVersion?: number;
 
   // Temporary password for biometric enrollment
   private password?: string;
@@ -195,11 +204,18 @@ class SecretsStore {
 
     this.userPrivateKey = unwrapUserPrivateKey(accountKey, keyPair);
     this.verifiedPublicKey = keyPair.publicKey;
+    this.userKeyPairVersion = keyPair.keyVersion;
   }
 
   /** The user's own public key, as proven by the private key (for the fingerprint). */
   get userPublicKey(): string | undefined {
     return this.verifiedPublicKey;
+  }
+
+  /** The loaded keypair's version: what members seal to, and what this user seals from. */
+  get userKeyVersion(): number {
+    if (this.userKeyPairVersion === undefined) throw new SessionLockedError();
+    return this.userKeyPairVersion;
   }
 
   /**
@@ -359,15 +375,187 @@ class SecretsStore {
    * the current key wrapped under it and the metadata re-encrypted. The new
    * key is loaded with the vault list it ends up in (`loadVaultKeys`).
    */
-  rotateVaultKey(vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta) {
-    if (!this.accountKey) throw new SessionLockedError();
+  async rotateVaultKey(
+    vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta,
+    members: readonly { userId: string; publicKey: UserPublicKey }[] = [],
+  ) {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
     const keyVersion = this.currentKeyVersion(vault.vaultId);
-    return rotateVaultKey(
-      this.accountKey,
+    const rotated = rotateVaultKey(
+      accountKey,
       this.vaultKey(vault.vaultId, keyVersion),
       vault.vaultId,
       keyVersion,
       this.decryptVaultMeta(vault),
+    );
+    // Every other member gets the new key sealed to them (ADR 0001 D7).
+    const memberKeys: MemberKeySeal[] = [];
+    if (members.length > 0) {
+      const newKey = unwrapVaultKey(accountKey, rotated);
+      try {
+        for (const { userId, publicKey } of members) {
+          memberKeys.push({
+            userId,
+            recipientKeyVersion: publicKey.keyVersion,
+            sealedVaultKey: await this.seal(publicKey.publicKey, newKey, rotated),
+          });
+        }
+      } finally {
+        wipe(newKey);
+      }
+    }
+    return { ...rotated, memberKeys };
+  }
+
+  /**
+   * The vault's current key sealed to an invitee's public key, from this
+   * user's keypair (`vault.invite`). Resolves the key version sealed.
+   */
+  async sealVaultKeyTo(
+    vaultId: string,
+    recipient: UserPublicKey,
+  ): Promise<{ sealedVaultKey: string; keyVersion: number }> {
+    const keyVersion = this.currentKeyVersion(vaultId);
+    const sealedVaultKey = await this.seal(
+      recipient.publicKey,
+      this.vaultKey(vaultId, keyVersion),
+      { vaultId, keyVersion },
+    );
+    return { sealedVaultKey, keyVersion };
+  }
+
+  /**
+   * Open an invite (ADR 0001 D7): the vault key sealed to this user by the
+   * inviter's keypair, and the vault's metadata it decrypts. Resolves this
+   * user's own wrap of the key, for `vault.acceptKey`; the key itself isn't
+   * kept (the vault list after accepting loads it). Throws when the box
+   * doesn't open from the sender's key, isn't sealed to this keypair, or the
+   * metadata doesn't open with it.
+   */
+  async openInvitation(
+    invitation: VaultInvitation,
+  ): Promise<{ meta: VaultMeta; wrap: VaultKeyWrap }> {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+    const { vaultId, keyVersion } = invitation;
+    const vaultKey = await this.openSealed(invitation, vaultId, keyVersion);
+    try {
+      const meta = vaultMetaSchema.parse(decryptVaultMeta(vaultKey, vaultId, invitation));
+      return { meta, wrap: wrapVaultKey(accountKey, vaultKey, vaultId, keyVersion) };
+    } finally {
+      wipe(vaultKey);
+    }
+  }
+
+  /**
+   * Open a newer key of a vault this user is a member of (sealed to them after
+   * someone else's rotation) and check it is that vault's: walking its links
+   * down must reach the key this user holds now, which only a member could
+   * have chained. Resolves this user's own wrap of it, for `vault.acceptKey`.
+   * Throws when it doesn't open from the sender's key or the chain doesn't
+   * lead to the held key.
+   */
+  async openKeyUpdate(update: VaultKeyUpdate): Promise<VaultKeyWrap> {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+    const { vaultId, keyVersion } = update;
+    const heldVersion = this.currentKeyVersion(vaultId);
+    if (keyVersion <= heldVersion) throw new Error("Not a newer key");
+    const held = this.vaultKey(vaultId, heldVersion);
+
+    const newKey = await this.openSealed(update, vaultId, keyVersion);
+    const links = new Map(update.links.map((link) => [link.keyVersion, link]));
+    let key = newKey;
+    try {
+      for (let version = keyVersion - 1; version >= heldVersion; version--) {
+        const link = links.get(version);
+        if (!link) throw new Error(`Key ${vaultId}/${version} missing from the chain`);
+        const older = unwrapPreviousVaultKey(key, vaultId, link);
+        if (key !== newKey) wipe(key);
+        key = older;
+      }
+      if (!equalBytes(key, held)) throw new Error("The new key doesn't lead to the held one");
+      return wrapVaultKey(accountKey, newKey, vaultId, keyVersion);
+    } finally {
+      if (key !== newKey) wipe(key);
+      wipe(newKey);
+    }
+  }
+
+  /**
+   * Decrypt the metadata and records of a vault whose key isn't loaded (one
+   * the user lost access to, kept for rescuing unsent changes) with its cached
+   * wrap and chain. The keys are wiped afterwards. Metadata or a row that
+   * doesn't open resolves `null`; a wrap that doesn't open throws.
+   */
+  decryptWithWrap(
+    vault: MemberVault,
+    rows: readonly (RecordCipherContext & {
+      keyVersion: number;
+      encryptedData: string;
+      encryptionNonce: string;
+    })[],
+  ): { meta: VaultMeta | null; rows: (Uint8Array | null)[] } {
+    const accountKey = this.accountKey;
+    if (!accountKey) throw new SessionLockedError();
+    const keys = new Map<string, Uint8Array>();
+    try {
+      const key = unwrapVaultKey(accountKey, vault);
+      keys.set(vaultKeyId(vault.vaultId, vault.keyVersion), key);
+      loadPreviousKeys(vault, key, keys);
+      const parsed = (() => {
+        try {
+          return vaultMetaSchema.parse(decryptVaultMeta(key, vault.vaultId, vault));
+        } catch {
+          return null;
+        }
+      })();
+      const opened = rows.map((row) => {
+        const rowKey = keys.get(vaultKeyId(row.vaultId, row.keyVersion));
+        if (!rowKey) return null;
+        try {
+          return decryptRecordData(rowKey, row, row.encryptedData, row.encryptionNonce);
+        } catch {
+          return null;
+        }
+      });
+      return { meta: parsed, rows: opened };
+    } finally {
+      for (const key of keys.values()) wipe(key);
+    }
+  }
+
+  private async seal(
+    recipientPublicKey: string,
+    vaultKey: Uint8Array,
+    { vaultId, keyVersion }: { vaultId: string; keyVersion: number },
+  ): Promise<string> {
+    if (!this.userPrivateKey) throw new SessionLockedError();
+    return await sealVaultKey(
+      this.userPrivateKey,
+      recipientPublicKey,
+      vaultKey,
+      vaultId,
+      keyVersion,
+    );
+  }
+
+  private async openSealed(
+    box: { sealedVaultKey: string; recipientKeyVersion: number; sender: UserPublicKey },
+    vaultId: string,
+    keyVersion: number,
+  ): Promise<Uint8Array> {
+    if (!this.userPrivateKey) throw new SessionLockedError();
+    if (box.recipientKeyVersion !== this.userKeyPairVersion) {
+      throw new Error("Sealed to another keypair");
+    }
+    return await openSealedVaultKey(
+      this.userPrivateKey,
+      box.sender.publicKey,
+      box.sealedVaultKey,
+      vaultId,
+      keyVersion,
     );
   }
 
@@ -414,6 +602,7 @@ class SecretsStore {
     if (this.userPrivateKey) wipe(this.userPrivateKey);
     this.userPrivateKey = undefined;
     this.verifiedPublicKey = undefined;
+    this.userKeyPairVersion = undefined;
   }
 
   // Test-only: hand out live references to internal buffers so tests can
@@ -443,7 +632,7 @@ class SecretsStore {
  * doesn't open: the keys below it stay unknown.
  */
 function loadPreviousKeys(
-  vault: MemberVault,
+  vault: Pick<MemberVault, "vaultId" | "keyVersion" | "previousKeys">,
   currentKey: Uint8Array,
   keys: Map<string, Uint8Array>,
 ) {
@@ -459,6 +648,14 @@ function loadPreviousKeys(
     }
     keys.set(vaultKeyId(vault.vaultId, keyVersion), newer);
   }
+}
+
+/** Constant-time comparison of two keys. */
+function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
+  return diff === 0;
 }
 
 export const secretsStore = new SecretsStore();

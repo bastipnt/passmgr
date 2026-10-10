@@ -1,7 +1,19 @@
-import { db, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
-import type { MemberVault, VaultKeyLink, VaultRole } from "@repo/schema";
+import {
+  db,
+  userKeyPairsTable,
+  vaultKeyLinksTable,
+  vaultMembersTable,
+  vaultsTable,
+} from "@repo/db";
+import {
+  type MemberVault,
+  VAULT_MANAGE_ROLES,
+  type VaultKeyLink,
+  type VaultKeyUpdate,
+  type VaultRole,
+} from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
@@ -54,12 +66,150 @@ export async function memberVaults(userId: string, tx: DbExecutor = db): Promise
     list.push({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce });
     previousKeys.set(vaultId, list);
   }
-  return vaults.map((vault) => ({
-    ...vault,
-    previousKeys: (previousKeys.get(vault.vaultId) ?? []).filter(
-      (link) => link.keyVersion < vault.keyVersion,
-    ),
-  }));
+  return vaults.flatMap(({ encryptedVaultKey, vaultKeyEncryptionNonce, ...vault }) =>
+    // An active member always has a wrap (`acceptKey` sets it with the status).
+    encryptedVaultKey && vaultKeyEncryptionNonce
+      ? [
+          {
+            ...vault,
+            encryptedVaultKey,
+            vaultKeyEncryptionNonce,
+            previousKeys: (previousKeys.get(vault.vaultId) ?? []).filter(
+              (link) => link.keyVersion < vault.keyVersion,
+            ),
+          },
+        ]
+      : [],
+  );
+}
+
+/**
+ * The newer keys sealed to the user after someone else rotated one of their
+ * vaults (ADR 0001 D7), with the sender's public key and the links from the
+ * user's key version up. A seal whose sender's keypair is gone (account
+ * deleted) is left out: it can't be opened.
+ */
+export async function keyUpdates(userId: string, tx: DbExecutor = db): Promise<VaultKeyUpdate[]> {
+  const rows = await tx
+    .select({
+      vaultId: vaultMembersTable.vaultId,
+      heldKeyVersion: vaultMembersTable.keyVersion,
+      keyVersion: vaultMembersTable.sealedKeyVersion,
+      sealedVaultKey: vaultMembersTable.sealedVaultKey,
+      recipientKeyVersion: vaultMembersTable.sealedToKeyVersion,
+      senderUserId: userKeyPairsTable.userId,
+      senderKeyVersion: userKeyPairsTable.keyVersion,
+      senderPublicKey: userKeyPairsTable.publicKey,
+    })
+    .from(vaultMembersTable)
+    .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
+    .innerJoin(
+      userKeyPairsTable,
+      and(
+        eq(userKeyPairsTable.userId, vaultMembersTable.sealedByUserId),
+        eq(userKeyPairsTable.keyVersion, vaultMembersTable.sealedByKeyVersion),
+      ),
+    )
+    .where(and(activeMembership(userId), isNotNull(vaultMembersTable.sealedVaultKey)));
+
+  if (rows.length === 0) return [];
+  // Every link of these vaults in one query; each update takes the ones it needs.
+  const links = await tx
+    .select()
+    .from(vaultKeyLinksTable)
+    .where(
+      inArray(
+        vaultKeyLinksTable.vaultId,
+        rows.map((row) => row.vaultId),
+      ),
+    )
+    .orderBy(asc(vaultKeyLinksTable.keyVersion));
+
+  const updates: VaultKeyUpdate[] = [];
+  for (const row of rows) {
+    const { keyVersion, sealedVaultKey, recipientKeyVersion } = row;
+    if (keyVersion === null || sealedVaultKey === null || recipientKeyVersion === null) continue;
+    updates.push({
+      vaultId: row.vaultId,
+      keyVersion,
+      sealedVaultKey,
+      recipientKeyVersion,
+      sender: {
+        userId: row.senderUserId,
+        keyVersion: row.senderKeyVersion,
+        publicKey: row.senderPublicKey,
+      },
+      links: links
+        .filter(
+          (link) =>
+            link.vaultId === row.vaultId &&
+            link.keyVersion >= row.heldKeyVersion &&
+            link.keyVersion < keyVersion,
+        )
+        .map(({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce }) => ({
+          keyVersion,
+          encryptedVaultKey,
+          vaultKeyEncryptionNonce,
+        })),
+    });
+  }
+  return updates;
+}
+
+/**
+ * The vaults waiting for a key rotation (a member left or was removed) that
+ * this user can rotate: they manage it and hold its current key.
+ */
+export async function rotationsDue(userId: string, tx: DbExecutor = db): Promise<string[]> {
+  const rows = await tx
+    .select({ vaultId: vaultsTable.vaultId })
+    .from(vaultMembersTable)
+    .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
+    .where(
+      and(
+        activeMembership(userId),
+        eq(vaultsTable.keyRotationNeeded, true),
+        inArray(vaultMembersTable.role, [...VAULT_MANAGE_ROLES]),
+        eq(vaultMembersTable.keyVersion, vaultsTable.keyVersion),
+      ),
+    );
+  return rows.map((row) => row.vaultId);
+}
+
+/** Each user's current public key (highest version); a user without one is left out. */
+export async function currentPublicKeys(
+  tx: DbExecutor,
+  userIds: Iterable<string>,
+): Promise<Map<string, { keyVersion: number; publicKey: string }>> {
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await tx
+    .selectDistinctOn([userKeyPairsTable.userId], {
+      userId: userKeyPairsTable.userId,
+      keyVersion: userKeyPairsTable.keyVersion,
+      publicKey: userKeyPairsTable.publicKey,
+    })
+    .from(userKeyPairsTable)
+    .where(inArray(userKeyPairsTable.userId, ids))
+    .orderBy(userKeyPairsTable.userId, desc(userKeyPairsTable.keyVersion));
+  return new Map(rows.map(({ userId, ...key }) => [userId, key]));
+}
+
+/** Each user's current keypair version (the highest); a user without one is left out. */
+export async function currentKeyPairVersions(
+  tx: DbExecutor,
+  userIds: Iterable<string>,
+): Promise<Map<string, number>> {
+  const ids = [...new Set(userIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await tx
+    .select({ userId: userKeyPairsTable.userId, keyVersion: max(userKeyPairsTable.keyVersion) })
+    .from(userKeyPairsTable)
+    .where(inArray(userKeyPairsTable.userId, ids))
+    .groupBy(userKeyPairsTable.userId);
+  return new Map(
+    rows.flatMap((row) => (row.keyVersion === null ? [] : [[row.userId, row.keyVersion]])),
+  );
 }
 
 /**

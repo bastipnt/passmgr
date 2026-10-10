@@ -1,6 +1,7 @@
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { describe, expect, it } from "vitest";
 import {
+  decryptEmail,
   decryptXChaCha,
   decryptXChaChaWithAAD,
   encryptEmail,
@@ -114,6 +115,13 @@ describe("encryptEmail", () => {
     const derivedKey = await hkdf(serverKey, "emailEncryptionKey", fromBase64(saltB64));
     const decrypted = decryptXChaCha(derivedKey, encryptedEmail, nonce);
     expect(new TextDecoder().decode(decrypted)).toBe("alice@example.com");
+  });
+
+  it("opens with decryptEmail under the same server key only", async () => {
+    const serverKey = new Uint8Array(32).fill(98);
+    const encrypted = await encryptEmail(serverKey, "Bob@Example.com");
+    expect(await decryptEmail(serverKey, ...encrypted)).toBe("bob@example.com");
+    await expect(decryptEmail(new Uint8Array(32).fill(1), ...encrypted)).rejects.toThrow();
   });
 
   it("produces unique salt and nonce across calls for the same email", async () => {

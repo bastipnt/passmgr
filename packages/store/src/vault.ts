@@ -6,6 +6,7 @@ import {
   type EncryptedVaultMeta,
   type MemberVault,
   type RecoveryKeySchema,
+  type UserPublicKey,
 } from "@repo/schema";
 import { inArray } from "drizzle-orm";
 import type { SqlDriver } from "./driver";
@@ -17,7 +18,11 @@ import {
   clearRecoveryKey,
   getAccountKey,
   getBiometricKey,
+  getPeerKey,
   getRecoveryKey,
+  isPeerRemoved,
+  setPeerKey,
+  setPeerRemoved,
   upsertAccountKey,
   upsertBiometricKey,
   upsertRecoveryKey,
@@ -61,6 +66,13 @@ import {
   type RecordHead,
   upsertRecords,
 } from "./schema/records-schema";
+import {
+  clearRevokedTables,
+  deleteRevokedVault,
+  getRevokedVaults,
+  keepRevokedChanges,
+  type RevokedVault,
+} from "./schema/revoked-schema";
 import {
   clearRekeyTarget,
   clearSyncTable,
@@ -458,14 +470,18 @@ export class Vault {
 
   /**
    * Remove a vault from the device, atomically, with its records, unsent
-   * changes and pull cursor (it was deleted). Refuses (throws) for the personal
+   * changes and pull cursor (it was deleted). With `keepUnsent` (the user left
+   * it) the latest unsent version of each record is kept aside first, as for a
+   * revoked vault (`getRevokedVaults`). Refuses (throws) for the personal
    * vault: every profile keeps exactly one.
    */
-  async removeVault(vaultId: string): Promise<void> {
+  async removeVault(vaultId: string, { keepUnsent = false } = {}): Promise<void> {
     await this.ready();
     await this.transaction(async (tx) => {
       const vault = (await getVaults(tx)).find((v) => v.vaultId === vaultId);
       if (vault?.kind === "personal") throw new Error("The personal vault can't be removed");
+      // Left, not deleted: the unsent edits stay for rescue as after a revocation.
+      if (keepUnsent && vault) await keepRevokedChanges([vault], tx);
       await dropVaults([vaultId], tx);
       await deleteVaultRows([vaultId], tx);
     });
@@ -502,7 +518,8 @@ export class Vault {
 
   /**
    * Apply one pull atomically: vaults the user lost access to are dropped with
-   * their records, unsent changes and cursors, the vault list is replaced,
+   * their records, unsent changes and cursors (the latest unsent version of
+   * each record kept aside first, `getRevokedVaults`), the vault list is replaced,
    * pending local versions that collide with pulled ones move up (and, with
    * `resolve`, get merged with them, ADR 0001 D5), records are upserted and
    * every vault's cursor advanced. Resolves whether the vault list changed (the
@@ -516,8 +533,11 @@ export class Vault {
     return await this.transaction(async (tx) => {
       const cached = await getVaults(tx);
       const current = new Set(vaults.map((v) => v.vaultId));
-      const removed = cached.map((v) => v.vaultId).filter((id) => !current.has(id));
+      const lost = cached.filter((v) => !current.has(v.vaultId));
+      const removed = lost.map((v) => v.vaultId);
 
+      // Unsent edits in a vault the user lost access to stay for rescue (ADR 0001 D7).
+      await keepRevokedChanges(lost, tx);
       await dropVaults(removed, tx);
       const vaultsChanged = !sameVaults(cached, vaults);
       if (vaultsChanged) await replaceVaults(vaults, tx);
@@ -534,6 +554,68 @@ export class Vault {
   }
 
   /**
+   * SHARING (ADR 0001 D7)
+   */
+
+  /**
+   * Vaults the user lost access to while this device had unsent changes in
+   * them, each with those changes (the latest version of each record), until
+   * they are copied elsewhere or discarded (`discardRevokedVault`).
+   */
+  async getRevokedVaults(): Promise<RevokedVault[]> {
+    await this.ready();
+    return await getRevokedVaults(this.db);
+  }
+
+  async discardRevokedVault(vaultId: string): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => await deleteRevokedVault(vaultId, tx));
+  }
+
+  /**
+   * Write `changes` (copies of a revoked vault's records into another vault)
+   * and drop what was kept of the revoked vault, in one transaction: an
+   * interrupted copy leaves either both or neither, never duplicates on retry.
+   */
+  async rescueRevokedVault(
+    vaultId: string,
+    changes: readonly LocalRecordChange[],
+  ): Promise<EncryptedRecordSchema[]> {
+    await this.ready();
+    const now = new Date().toISOString();
+    return await this.transaction(async (tx) => {
+      const written: EncryptedRecordSchema[] = [];
+      for (const change of changes) written.push(await writeLocalChange(change, now, tx));
+      await deleteRevokedVault(vaultId, tx);
+      return written;
+    });
+  }
+
+  /** Whether this device removed `userId` from the vault (`markPeerRemoved`). */
+  async isPeerRemoved(vaultId: string, userId: string): Promise<boolean> {
+    await this.ready();
+    return await isPeerRemoved(vaultId, userId, this.db);
+  }
+
+  /** Note (or, on a new invite, forget) that `userId` was removed from the vault. */
+  async markPeerRemoved(vaultId: string, userId: string, removed = true): Promise<void> {
+    await this.ready();
+    await setPeerRemoved(vaultId, userId, removed, this.db);
+  }
+
+  /** The public key pinned for another user (`pinPeerKey`), if any. */
+  async getPeerKey(userId: string): Promise<UserPublicKey | null> {
+    await this.ready();
+    return await getPeerKey(userId, this.db);
+  }
+
+  /** Remember the public key another user sealed a vault key from. */
+  async pinPeerKey(userId: string, key: UserPublicKey): Promise<void> {
+    await this.ready();
+    await setPeerKey(userId, key, this.db);
+  }
+
+  /**
    * CLEANUP
    */
 
@@ -545,6 +627,7 @@ export class Vault {
       await clearKeysTable(tx);
       await clearSyncTable(tx);
       await clearVaultsTable(tx);
+      await clearRevokedTables(tx);
       await clearProfileTable(tx);
     });
   }

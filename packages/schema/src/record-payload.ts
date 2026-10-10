@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
+import { vaultKeyUpdateSchema } from "./sharing-schema";
 import { memberVaultSchema } from "./vault-schema";
 
 export const encryptedRecordSchema = z.object({
@@ -194,4 +195,8 @@ export const syncOutputSchema = z.object({
   hasMore: z.boolean(),
   // The server's clock at the pull (caps edit times from the future, ADR 0001 D5).
   serverTimestamp: z.string(),
+  // Newer keys of the user's vaults, sealed to them after a rotation (ADR 0001 D7).
+  keyUpdates: z.array(vaultKeyUpdateSchema),
+  // Vaults that lost a member and wait for a key rotation, of those the user manages.
+  rotationsDue: z.array(z.uuid()),
 });

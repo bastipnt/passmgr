@@ -1,6 +1,7 @@
 import { type InferSelectModel, sql } from "drizzle-orm";
 import {
   bigint,
+  boolean,
   index,
   integer,
   pgTable,
@@ -32,6 +33,9 @@ export const vaultsTable = pgTable(
     // locks this row until the write commits, so a vault's records commit in
     // `seq` order and a pull cursor never skips a row that commits late.
     lastSeq: bigint({ mode: "number" }).notNull().default(0),
+    // A member left or was removed and still knows the current key: the next
+    // owner or manager online rotates it (ADR 0001 D7), which clears this.
+    keyRotationNeeded: boolean().notNull().default(false),
 
     // Name, icon, colour: encrypted with the vault key (AAD: vaultId).
     encryptedMeta: varchar().notNull(),
@@ -52,6 +56,12 @@ export const vaultsTable = pgTable(
  * A user's access to a vault. `encryptedVaultKey` is the vault key wrapped
  * under that member's account key (AAD: vaultId + keyVersion). Only `active`
  * members get access; `pending` is an invite not yet accepted (ADR 0001 D7).
+ *
+ * A key another member hands over is sealed to the member's public key
+ * (`sealedVaultKey`, version `sealedKeyVersion`) by the sender's keypair: the
+ * invite of a `pending` member (who has no wrap yet), or the new key after a
+ * rotation by someone else (the member's wrap stays at the version they had).
+ * The member turns it into their own wrap (`vault.acceptKey`), which clears it.
  */
 export const vaultMembersTable = pgTable(
   "vault_members",
@@ -68,9 +78,18 @@ export const vaultMembersTable = pgTable(
       .notNull()
       .default("active"),
 
+    // The version of `encryptedVaultKey`; of the sealed key while `pending`.
     keyVersion: integer().notNull(),
-    encryptedVaultKey: varchar().notNull().unique(),
-    vaultKeyEncryptionNonce: varchar().notNull().unique(),
+    // Null while `pending`.
+    encryptedVaultKey: varchar().unique(),
+    vaultKeyEncryptionNonce: varchar().unique(),
+
+    sealedVaultKey: varchar().unique(),
+    sealedKeyVersion: integer(),
+    // The recipient's keypair version the key is sealed to.
+    sealedToKeyVersion: integer(),
+    sealedByUserId: varchar().references(() => usersTable.userId, { onDelete: "set null" }),
+    sealedByKeyVersion: integer(),
 
     updated_at: timestamp().defaultNow().notNull(),
     created_at: timestamp().defaultNow().notNull(),

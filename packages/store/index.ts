@@ -13,6 +13,7 @@ export {
 } from "./src/schema/outbox-schema";
 export type { LocalProfile, ProfileMode } from "./src/schema/profile-schema";
 export type { RecordHead } from "./src/schema/records-schema";
+export type { RevokedRecord, RevokedVault } from "./src/schema/revoked-schema";
 export * from "./src/secrets-store";
 export * from "./src/session-persistence";
 export * from "./src/vault";

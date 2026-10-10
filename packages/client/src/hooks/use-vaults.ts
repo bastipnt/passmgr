@@ -11,32 +11,13 @@ import {
   useStore,
 } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
-import {
-  isConflict,
-  isPreconditionFailed,
-  isRetryLater,
-  isServerAnswer,
-  isServerError,
-} from "../util/trpc-errors";
 import { reencryptForPush } from "../vaults/rekey";
+import { rotateVault, VaultKeyRotatedElsewhereError } from "../vaults/sharing";
 import type { VaultInfo } from "../vaults/vault-info";
 
 /** A linked profile changes its vaults on the server: without a session it can't. */
 export class VaultsOfflineError extends Error {
   override message = "Connect to the server to change your vaults";
-}
-
-/**
- * The server won't rotate a vault that has other members yet: they need the
- * new key sealed to them, which comes with sharing (ADR 0001 D7).
- */
-export class VaultRotationUnavailableError extends Error {
-  override message = "The key of a vault shared with others can't be rotated yet";
-}
-
-/** Another device rotated the vault's key first; the sync after it brought the new key. */
-export class VaultKeyRotatedElsewhereError extends Error {
-  override message = "This vault's key was just rotated on another device";
 }
 
 /** The unlocked profile's vaults (personal first), and lookups over them. */
@@ -142,47 +123,25 @@ export function useVaultActions() {
 
   /**
    * Rotate a vault's key (ADR 0001 D7; owners and managers): a new key for
-   * everything written from now on, the old one kept under it for the history.
-   * The live records are re-encrypted as new versions and pushed through the
-   * outbox. The device notes the rotation before the server sees it, so the
-   * re-encryption carries on with a later sync should this stop halfway.
+   * everything written from now on, the old one kept under it for the history,
+   * sealed to every other member (`rotateVault`). The live records are
+   * re-encrypted as new versions and pushed through the outbox.
    */
   const rotate = useMutation({
     networkMode: "always",
     mutationFn: async (vaultId: string) => {
       const active = requireActive(store);
       const server = viaServer();
-      const vault = (await active.vault.getVaults()).find((v) => v.vaultId === vaultId);
-      if (!vault) throw new Error(`No vault ${vaultId}`);
-
-      const { previousKey, ...rotated } = secretsStore.rotateVaultKey(vault);
-      const next: MemberVault = {
-        ...vault,
-        ...rotated,
-        previousKeys: [...vault.previousKeys, previousKey],
-      };
-      await active.vault.setRekeyTarget(vaultId, next.keyVersion);
-
-      if (server) {
-        try {
-          await trpc.vault.rotateKey.mutate({ ...rotated, previousKey });
-        } catch (e) {
-          // Refused (not just unanswered): the vault stays at its key, so must its records.
-          if (isServerAnswer(e) && !isServerError(e) && !isRetryLater(e)) {
-            await active.vault.clearRekeyTarget(vaultId, next.keyVersion);
-          }
-          if (isPreconditionFailed(e)) throw new VaultRotationUnavailableError();
-          if (isConflict(e)) {
-            // The other rotation stands: pick up its key instead of retrying on top of it.
-            await active.syncManager.syncFresh();
-            await reload();
-            throw new VaultKeyRotatedElsewhereError();
-          }
-          throw e;
+      try {
+        await rotateVault({ vault: active.vault, trpc: server ? trpc : null }, vaultId);
+      } catch (e) {
+        if (e instanceof VaultKeyRotatedElsewhereError) {
+          // The other rotation stands: pick up its key instead of retrying on top of it.
+          await active.syncManager.syncFresh();
+          await reload();
         }
+        throw e;
       }
-      // In place before the sync: its push re-encrypts the records under the new key.
-      await active.vault.saveVault(next);
       reloadVaultKeys(await active.vault.getVaults());
       if (server) {
         // A fresh round, so no pull from before the rotation brings the old key back.

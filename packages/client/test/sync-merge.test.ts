@@ -412,7 +412,11 @@ describe("rotating a vault key while another device edits offline", () => {
   /** Device A rotates the personal vault's key, as `useVaultActions().rotateVaultKey` does. */
   async function rotateOnA(): Promise<MemberVault> {
     const vault = (await a.vault.getVaults())[0]!;
-    const { previousKey, ...rotated } = secretsStore.rotateVaultKey(vault);
+    const {
+      previousKey,
+      memberKeys: _memberKeys,
+      ...rotated
+    } = await secretsStore.rotateVaultKey(vault);
     const next = { ...vault, ...rotated, previousKeys: [...vault.previousKeys, previousKey] };
     await a.vault.setRekeyTarget(vault.vaultId, next.keyVersion);
     server.rotate(next);

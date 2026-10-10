@@ -182,9 +182,13 @@ describe("vault key rotation", () => {
   /** A rotation of `vault` (the user's wrap of its current key) to the next key version. */
   function rotation(user: User, vault: { vaultId: string; keyVersion: number } & Wrap) {
     const currentKey = unwrapVaultKey(user.accountKey, vault);
-    return rotateVaultKey(user.accountKey, currentKey, vault.vaultId, vault.keyVersion, {
-      name: "Rotated",
-    });
+    return {
+      ...rotateVaultKey(user.accountKey, currentKey, vault.vaultId, vault.keyVersion, {
+        name: "Rotated",
+      }),
+      senderKeyVersion: 1,
+      memberKeys: [],
+    };
   }
   type Wrap = Parameters<typeof unwrapVaultKey>[1];
 
@@ -258,7 +262,7 @@ describe("vault key rotation", () => {
     expect(listed.find((v) => v.vaultId === work.vaultId)?.previousKeys).toHaveLength(1);
   });
 
-  it("is for owners and managers only, and not yet with other members", async () => {
+  it("is for owners and managers only, and needs the new key sealed to every member", async () => {
     const alice = await signUp("alice@example.com");
     const bob = await signUp("bob@example.com");
     const work = await createVaultFor(alice);
@@ -268,7 +272,7 @@ describe("vault key rotation", () => {
     await expect(rotate(bob, rotation(bob, bobsWrap))).rejects.toMatchObject({
       code: "FORBIDDEN",
     });
-    // Bob would need the new key sealed to him (sharing).
+    // Bob needs the new key sealed to him (sharing.int.test.ts covers the full flow).
     await expect(rotate(alice, rotation(alice, work))).rejects.toMatchObject({
       code: "PRECONDITION_FAILED",
     });

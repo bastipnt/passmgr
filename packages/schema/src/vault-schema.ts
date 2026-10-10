@@ -18,6 +18,19 @@ export const vaultRoleSchema = z.enum(["owner", "manage", "write", "read"]);
 export const VAULT_WRITE_ROLES = ["owner", "manage", "write"] as const;
 export const VAULT_MANAGE_ROLES = ["owner", "manage"] as const;
 
+/** The most members (pending invites included) a vault can have. */
+export const MAX_VAULT_MEMBERS = 256;
+
+/** `sealVaultKey`'s box: ephemeral key ‖ nonce ‖ 32-byte key + tag (104 bytes). */
+export const sealedVaultKeySchema = z.base64().length(140);
+
+/** A vault key sealed to one member's public key (ADR 0001 D7). */
+export const memberKeySealSchema = z.object({
+  userId: z.uuid(),
+  recipientKeyVersion: z.number().int().positive(),
+  sealedVaultKey: sealedVaultKeySchema,
+});
+
 /** The decrypted vault metadata. */
 export const vaultMetaSchema = z.object({
   name: z.string().trim().min(1).max(64),
@@ -72,7 +85,9 @@ export const linkedVaultInputSchema = z
 /**
  * Rotate a vault's key: the next key version wrapped under the caller's account
  * key, the current key wrapped under the new one (`previousKey`, its version is
- * `keyVersion - 1`) and the metadata re-encrypted with the new key.
+ * `keyVersion - 1`), the metadata re-encrypted with the new key, and the new
+ * key sealed to every other member and invitee (`memberKeys`) from the
+ * caller's keypair (`senderKeyVersion`).
  */
 export const rotateVaultKeyInputSchema = z
   .object({
@@ -80,10 +95,16 @@ export const rotateVaultKeyInputSchema = z
     ...encryptedVaultMetaSchema.shape,
     keyVersion: z.number().int().min(2).max(MAX_VAULT_KEY_VERSION),
     previousKey: vaultKeyLinkSchema,
+    senderKeyVersion: z.number().int().positive(),
+    memberKeys: z.array(memberKeySealSchema).max(MAX_VAULT_MEMBERS),
   })
   .refine((input) => input.previousKey.keyVersion === input.keyVersion - 1, {
     message: "previousKey must be the key version below keyVersion",
-  });
+  })
+  .refine(
+    (input) => new Set(input.memberKeys.map((m) => m.userId)).size === input.memberKeys.length,
+    { message: "one seal per member" },
+  );
 
 export const updateVaultMetaInputSchema = z.object({
   vaultId: z.uuid(),
@@ -98,7 +119,7 @@ export function canWriteVault(role: VaultRole): boolean {
   return (VAULT_WRITE_ROLES as readonly VaultRole[]).includes(role);
 }
 
-/** Whether a member with this role may rename the vault (and, later, invite). */
+/** Whether a member with this role may rename the vault, invite and remove members. */
 export function canManageVault(role: VaultRole): boolean {
   return (VAULT_MANAGE_ROLES as readonly VaultRole[]).includes(role);
 }
@@ -110,3 +131,4 @@ export type EncryptedVaultMeta = z.infer<typeof encryptedVaultMetaSchema>;
 export type MemberVault = z.infer<typeof memberVaultSchema>;
 export type LinkedVaultInput = z.infer<typeof linkedVaultInputSchema>;
 export type RotateVaultKeyInput = z.infer<typeof rotateVaultKeyInputSchema>;
+export type MemberKeySeal = z.infer<typeof memberKeySealSchema>;

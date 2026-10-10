@@ -5,13 +5,18 @@ import {
   encryptVaultMeta,
   genKey,
   hkdf,
+  openSealedVaultKey,
+  rotateVaultKey,
+  sealVaultKey,
   unwrapAccountKey,
+  unwrapUserPrivateKey,
+  unwrapVaultKey,
   verifyHmac,
   wrapAccountKey,
   wrapPreviousVaultKey,
   wrapVaultKey,
 } from "@repo/crypto";
-import type { MemberVault } from "@repo/schema";
+import type { MemberVault, VaultInvitation, VaultKeyUpdate } from "@repo/schema";
 import { fromString, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { secretsStore } from "./secrets-store";
@@ -374,9 +379,9 @@ describe("rotated vault keys", () => {
     expect(secretsStore.currentKeyVersion(WORK_ID)).toBe(3);
   });
 
-  it("rotateVaultKey makes the next version, the current key wrapped under it", () => {
+  it("rotateVaultKey makes the next version, the current key wrapped under it", async () => {
     const { wraps } = unlockWithKeyring();
-    const rotated = secretsStore.rotateVaultKey(wraps[1]!);
+    const rotated = await secretsStore.rotateVaultKey(wraps[1]!);
 
     expect(rotated).toMatchObject({
       vaultId: WORK_ID,
@@ -745,5 +750,194 @@ describe("lockEpoch", () => {
     unlockWithKeyring();
     secretsStore.lockVault();
     expect(secretsStore.lockEpoch).not.toBe(afterLock);
+  });
+});
+
+describe("sharing (ADR 0001 D7)", () => {
+  /** Another user: a keypair and its private key. */
+  function otherUser() {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    return { keyPair, privateKey: unwrapUserPrivateKey(accountKey, keyPair) };
+  }
+
+  /** Unlock with a keyring and a keypair. */
+  function unlockAsMember() {
+    const ring = unlockWithKeyring();
+    const keyPair = createUserKeyPair(ring.accountKey);
+    secretsStore.loadUserKeyPair(keyPair);
+    return { ...ring, keyPair };
+  }
+
+  it("seals a vault's current key to a public key from this user's keypair", async () => {
+    const { workKey, keyPair } = unlockAsMember();
+    const bob = otherUser();
+
+    const { sealedVaultKey, keyVersion } = await secretsStore.sealVaultKeyTo(WORK_ID, bob.keyPair);
+
+    expect(keyVersion).toBe(1);
+    expect(
+      await openSealedVaultKey(bob.privateKey, keyPair.publicKey, sealedVaultKey, WORK_ID, 1),
+    ).toEqual(workKey);
+  });
+
+  it("rotateVaultKey seals the new key to every member given", async () => {
+    const { accountKey, wraps, keyPair } = unlockAsMember();
+    const bob = otherUser();
+
+    const rotated = await secretsStore.rotateVaultKey(wraps[1]!, [
+      { userId: "bob", publicKey: bob.keyPair },
+    ]);
+
+    expect(rotated.memberKeys).toMatchObject([{ userId: "bob", recipientKeyVersion: 1 }]);
+    const opened = await openSealedVaultKey(
+      bob.privateKey,
+      keyPair.publicKey,
+      rotated.memberKeys[0]!.sealedVaultKey,
+      WORK_ID,
+      2,
+    );
+    expect(opened).toEqual(unwrapVaultKey(accountKey, rotated));
+  });
+
+  describe("openInvitation", () => {
+    async function invitation(sender = otherUser(), vaultKey = genKey()) {
+      const vaultId = "0199a3c4-0000-7000-8000-0000000000cc";
+      const keyPair = secretsStore.userPublicKey!;
+      const invite: VaultInvitation = {
+        vaultId,
+        role: "write",
+        keyVersion: 1,
+        recipientKeyVersion: 1,
+        sealedVaultKey: await sealVaultKey(sender.privateKey, keyPair, vaultKey, vaultId, 1),
+        sender: { userId: "alice", email: "alice@example.com", ...sender.keyPair },
+        ...encryptVaultMeta(vaultKey, vaultId, { name: "Team" }),
+      };
+      return { invite, vaultKey, sender };
+    }
+
+    it("opens the key from the inviter, reads the vault's name and wraps it for the user", async () => {
+      const { accountKey } = unlockAsMember();
+      const { invite, vaultKey } = await invitation();
+
+      const { meta, wrap } = await secretsStore.openInvitation(invite);
+
+      expect(meta).toEqual({ name: "Team" });
+      expect(wrap).toMatchObject({ vaultId: invite.vaultId, keyVersion: 1 });
+      expect(unwrapVaultKey(accountKey, wrap)).toEqual(vaultKey);
+    });
+
+    it("refuses a key sealed by someone other than the named sender", async () => {
+      unlockAsMember();
+      const { invite } = await invitation();
+      const forger = otherUser();
+
+      await expect(
+        secretsStore.openInvitation({ ...invite, sender: { ...invite.sender, ...forger.keyPair } }),
+      ).rejects.toThrow();
+    });
+
+    it("refuses a box sealed to another keypair version", async () => {
+      unlockAsMember();
+      const { invite } = await invitation();
+
+      await expect(
+        secretsStore.openInvitation({ ...invite, recipientKeyVersion: 2 }),
+      ).rejects.toThrow("another keypair");
+    });
+  });
+
+  describe("openKeyUpdate", () => {
+    /** Another member rotates the work vault (twice by default) and seals the result to us. */
+    async function rotatedBy(workKey: Uint8Array, rotations = 2) {
+      const sender = otherUser();
+      const senderAccountKey = genKey();
+      let key = workKey;
+      const links = [];
+      for (let version = 1; version <= rotations; version++) {
+        const next = rotateVaultKey(senderAccountKey, key, WORK_ID, version, { name: "Work" });
+        links.push(next.previousKey);
+        key = unwrapVaultKey(senderAccountKey, next);
+      }
+      const keyVersion = rotations + 1;
+      const update: VaultKeyUpdate = {
+        vaultId: WORK_ID,
+        keyVersion,
+        recipientKeyVersion: 1,
+        sealedVaultKey: await sealVaultKey(
+          sender.privateKey,
+          secretsStore.userPublicKey!,
+          key,
+          WORK_ID,
+          keyVersion,
+        ),
+        sender: { userId: "alice", ...sender.keyPair },
+        links,
+      };
+      return { update, newKey: key, sender };
+    }
+
+    it("opens the new key, follows the chain down to the held key and wraps it", async () => {
+      const { accountKey, workKey } = unlockAsMember();
+      const { update, newKey } = await rotatedBy(workKey);
+
+      const wrap = await secretsStore.openKeyUpdate(update);
+
+      expect(wrap).toMatchObject({ vaultId: WORK_ID, keyVersion: 3 });
+      expect(unwrapVaultKey(accountKey, wrap)).toEqual(newKey);
+    });
+
+    it("refuses a key whose chain doesn't lead to the held one (not this vault's)", async () => {
+      unlockAsMember();
+      // Chained from a key this user never had: e.g. a server inventing a vault key.
+      const { update } = await rotatedBy(genKey());
+
+      await expect(secretsStore.openKeyUpdate(update)).rejects.toThrow();
+    });
+
+    it("refuses a chain with a missing link", async () => {
+      const { workKey } = unlockAsMember();
+      const { update } = await rotatedBy(workKey);
+
+      await expect(
+        secretsStore.openKeyUpdate({ ...update, links: update.links.slice(1) }),
+      ).rejects.toThrow("missing");
+    });
+
+    it("refuses a key not newer than the held one", async () => {
+      const { workKey } = unlockAsMember();
+      const { update } = await rotatedBy(workKey);
+
+      await expect(secretsStore.openKeyUpdate({ ...update, keyVersion: 1 })).rejects.toThrow(
+        "newer",
+      );
+    });
+  });
+
+  it("decryptWithWrap opens rows of a vault whose key isn't loaded, and nothing else", () => {
+    const { accountKey } = unlockAsMember();
+    const lostKey = genKey();
+    const lostId = "0199a3c4-0000-7000-8000-0000000000dd";
+    const lost = memberVault(accountKey, lostKey, lostId, "shared", "Lost");
+    const [encryptedData, encryptionNonce] = encryptRecordData(
+      lostKey,
+      { recordId: RECORD_ID, vaultId: lostId, cryptoVersion: 1 },
+      "rescued",
+    );
+    const row = { recordId: RECORD_ID, vaultId: lostId, cryptoVersion: 1, keyVersion: 1 };
+
+    const {
+      meta,
+      rows: [opened, wrongKey],
+    } = secretsStore.decryptWithWrap(lost, [
+      { ...row, encryptedData, encryptionNonce },
+      { ...row, keyVersion: 7, encryptedData, encryptionNonce },
+    ]);
+
+    expect(meta).toEqual({ name: "Lost" });
+    expect(new TextDecoder().decode(opened!)).toBe("rescued");
+    expect(wrongKey).toBeNull();
+    // Not loaded as a side effect.
+    expect(() => secretsStore.currentKeyVersion(lostId)).toThrow();
   });
 });

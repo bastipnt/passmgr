@@ -1,4 +1,4 @@
-import { VaultRotationUnavailableError } from "@repo/client";
+import { VaultMembersChangedError } from "@repo/client";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
@@ -29,16 +29,16 @@ describe("RotateVaultKeyDialog", () => {
     expect(onOpenChange).toHaveBeenCalledWith(false);
   });
 
-  it("stays open with the reason when the vault is shared with others", async () => {
+  it("stays open with the reason when the members kept changing", async () => {
     mocks.rotateVaultKey.mockImplementation(async () => {
-      throw new VaultRotationUnavailableError();
+      throw new VaultMembersChangedError();
     });
     const onOpenChange = vi.fn();
     renderWithProviders(<RotateVaultKeyDialog vault={work} open onOpenChange={onOpenChange} />);
 
     await userEvent.click(screen.getByRole("button", { name: "Rotate key" }));
 
-    expect(await screen.findByText(/shared with others/)).toBeInTheDocument();
+    expect(await screen.findByText(/members changed/)).toBeInTheDocument();
     expect(onOpenChange).not.toHaveBeenCalledWith(false);
   });
 });

@@ -33,6 +33,7 @@ import {
   isUnauthorized,
 } from "../util/trpc-errors";
 import { reencryptForPush } from "../vaults/rekey";
+import { runSharingTasks } from "../vaults/sharing";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
@@ -286,6 +287,10 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
       resolveConflict: resolveRecordConflict,
       // Changes under a rotated-out vault key, and the records of a rotation this device started.
       prepareOutbox: () => reencryptForPush(vault),
+      // Keys sealed to this user after a rotation, rotations due after a member left (ADR 0001 D7).
+      // Through `request`: offline fails fast, a rejected session detaches.
+      onSharingTasks: (tasks) =>
+        request(() => runSharingTasks({ vault, trpc: trpcRef.current, reloadVaultKeys }, tasks)),
     });
     const records = new RecordRepository(vault, () => syncManager.requestSync());
     return { syncManager, records };

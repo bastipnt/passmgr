@@ -797,3 +797,46 @@ describe("pushBatches", () => {
     expect(changeIds(pushBatches(outbox, 2))).toEqual([["x"], ["a1", "a2"], ["a3"]]);
   });
 });
+
+describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
+  const update = { vaultId: "v1", keyVersion: 2 } as NonNullable<SyncPage["keyUpdates"]>[number];
+
+  it("hands a pull's key updates and due rotations over after the round, and runs again when they changed something", async () => {
+    const store = fakeStore(false);
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockResolvedValueOnce({ ...batch, keyUpdates: [update], rotationsDue: ["v1"] })
+      .mockResolvedValue({ ...batch, keyUpdates: [], rotationsDue: [] });
+    const onSharingTasks = vi.fn(async () => true);
+    const manager = new SyncManager(store as unknown as Vault, { pull, onSharingTasks });
+    manager.setEnabled(true);
+
+    await manager.sync();
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(2));
+
+    expect(onSharingTasks).toHaveBeenCalledTimes(1);
+    expect(onSharingTasks).toHaveBeenCalledWith({ keyUpdates: [update], rotationsDue: ["v1"] });
+    await manager.dispose();
+  });
+
+  it("doesn't call the handler without tasks, and a failing handler doesn't fail the round", async () => {
+    const store = fakeStore(false);
+    const onSharingTasks = vi.fn(async () => {
+      throw new Error("boom");
+    });
+    const quiet = new SyncManager(store as unknown as Vault, {
+      pull: vi.fn(async () => batch),
+      onSharingTasks,
+    });
+    expect(await quiet.sync()).toBe(true);
+    expect(onSharingTasks).not.toHaveBeenCalled();
+
+    const failing = new SyncManager(store as unknown as Vault, {
+      pull: vi.fn(async () => ({ ...batch, rotationsDue: ["v1"] })),
+      onSharingTasks,
+    });
+    expect(await failing.sync()).toBe(true);
+    expect(onSharingTasks).toHaveBeenCalledTimes(1);
+    expect(failing.getStatus().phase).not.toBe("error");
+  });
+});

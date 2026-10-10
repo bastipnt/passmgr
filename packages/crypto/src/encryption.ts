@@ -1,7 +1,7 @@
 import { randomBytes } from "@noble/hashes/utils.js";
-import { toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import { hkdf } from "./hash";
-import { encryptXChaCha } from "./util/aead";
+import { decryptXChaCha, encryptXChaCha } from "./util/aead";
 import { normalize } from "./util/string-utils";
 
 export {
@@ -33,4 +33,19 @@ export async function encryptEmail(
   const [encryptedEmail, emailNonce] = encryptXChaCha(emailEncryptionKey, normalizedEmail);
 
   return [encryptedEmail, emailNonce, toBase64(emailEncryptionKeySalt)];
+}
+
+/** Open an `encryptEmail` ciphertext (e.g. to show a vault's members to each other). */
+export async function decryptEmail(
+  serverKey: Uint8Array,
+  encryptedEmail: string,
+  emailNonce: string,
+  emailEncryptionKeySalt: string,
+): Promise<string> {
+  const emailEncryptionKey = await hkdf(
+    serverKey,
+    "emailEncryptionKey",
+    fromBase64(emailEncryptionKeySalt),
+  );
+  return new TextDecoder().decode(decryptXChaCha(emailEncryptionKey, encryptedEmail, emailNonce));
 }

@@ -4,9 +4,11 @@ import { describe, expect, it } from "vitest";
 import { encryptXChaChaWithAAD } from "../src/encryption";
 import {
   createUserKeyPair,
+  openSealedVaultKey,
   publicKeyFingerprint,
   sealToPublicKey,
-  unsealWithPrivateKey,
+  sealVaultKey,
+  unsealFromPublicKey,
   unwrapUserPrivateKey,
 } from "../src/user-key-pair";
 import { genKey } from "../src/util/secrets-utils";
@@ -71,70 +73,143 @@ describe("createUserKeyPair / unwrapUserPrivateKey", () => {
   });
 });
 
-describe("sealToPublicKey / unsealWithPrivateKey", () => {
-  function recipient() {
+describe("sealToPublicKey / unsealFromPublicKey", () => {
+  function party() {
     const accountKey = genKey();
     const keyPair = createUserKeyPair(accountKey);
     return { keyPair, privateKey: unwrapUserPrivateKey(accountKey, keyPair) };
   }
 
-  it("round-trips to the recipient's private key", async () => {
-    const { keyPair, privateKey } = recipient();
+  it("round-trips from the sender to the recipient's private key", async () => {
+    const sender = party();
+    const { keyPair, privateKey } = party();
     const vaultKey = genKey();
 
-    const sealed = await sealToPublicKey(keyPair.publicKey, vaultKey, AAD);
+    const sealed = await sealToPublicKey(sender.privateKey, keyPair.publicKey, vaultKey, AAD);
 
-    expect(await unsealWithPrivateKey(privateKey, sealed, AAD)).toEqual(vaultKey);
+    expect(await unsealFromPublicKey(privateKey, sender.keyPair.publicKey, sealed, AAD)).toEqual(
+      vaultKey,
+    );
   });
 
   it("uses a fresh ephemeral key per seal", async () => {
-    const { keyPair } = recipient();
+    const sender = party();
+    const { keyPair } = party();
     const vaultKey = genKey();
-    const a = fromBase64(await sealToPublicKey(keyPair.publicKey, vaultKey, AAD));
-    const b = fromBase64(await sealToPublicKey(keyPair.publicKey, vaultKey, AAD));
+    const a = fromBase64(
+      await sealToPublicKey(sender.privateKey, keyPair.publicKey, vaultKey, AAD),
+    );
+    const b = fromBase64(
+      await sealToPublicKey(sender.privateKey, keyPair.publicKey, vaultKey, AAD),
+    );
     expect(a.subarray(0, 32)).not.toEqual(b.subarray(0, 32));
   });
 
   it("lays out ephemeral key ‖ nonce ‖ ciphertext + tag", async () => {
-    const { keyPair } = recipient();
-    const sealed = fromBase64(await sealToPublicKey(keyPair.publicKey, genKey(), AAD));
+    const sender = party();
+    const { keyPair } = party();
+    const sealed = fromBase64(
+      await sealToPublicKey(sender.privateKey, keyPair.publicKey, genKey(), AAD),
+    );
     expect(sealed).toHaveLength(32 + 24 + 32 + 16);
   });
 
   it("doesn't open with another private key", async () => {
-    const { keyPair } = recipient();
-    const other = recipient();
-    const sealed = await sealToPublicKey(keyPair.publicKey, genKey(), AAD);
-    await expect(unsealWithPrivateKey(other.privateKey, sealed, AAD)).rejects.toThrow();
+    const sender = party();
+    const { keyPair } = party();
+    const other = party();
+    const sealed = await sealToPublicKey(sender.privateKey, keyPair.publicKey, genKey(), AAD);
+    await expect(
+      unsealFromPublicKey(other.privateKey, sender.keyPair.publicKey, sealed, AAD),
+    ).rejects.toThrow();
+  });
+
+  it("doesn't open as coming from another sender", async () => {
+    // A server (or anyone) sealing with its own key can't pass it off as a member's.
+    const sender = party();
+    const forger = party();
+    const { keyPair, privateKey } = party();
+    const sealed = await sealToPublicKey(forger.privateKey, keyPair.publicKey, genKey(), AAD);
+    await expect(
+      unsealFromPublicKey(privateKey, sender.keyPair.publicKey, sealed, AAD),
+    ).rejects.toThrow();
   });
 
   it("doesn't open with another AAD", async () => {
-    const { keyPair, privateKey } = recipient();
-    const sealed = await sealToPublicKey(keyPair.publicKey, genKey(), AAD);
+    const sender = party();
+    const { keyPair, privateKey } = party();
+    const sealed = await sealToPublicKey(sender.privateKey, keyPair.publicKey, genKey(), AAD);
     await expect(
-      unsealWithPrivateKey(privateKey, sealed, fromString("passmgr/vault-key/v1/vault-b/1")),
+      unsealFromPublicKey(
+        privateKey,
+        sender.keyPair.publicKey,
+        sealed,
+        fromString("passmgr/vault-key/v1/vault-b/1"),
+      ),
     ).rejects.toThrow();
   });
 
   it("rejects a tampered box", async () => {
-    const { keyPair, privateKey } = recipient();
-    const sealed = fromBase64(await sealToPublicKey(keyPair.publicKey, genKey(), AAD));
+    const sender = party();
+    const { keyPair, privateKey } = party();
+    const sealed = fromBase64(
+      await sealToPublicKey(sender.privateKey, keyPair.publicKey, genKey(), AAD),
+    );
     for (const index of [0, 40, sealed.length - 1]) {
       const tampered = sealed.slice();
       tampered[index]! ^= 1;
-      await expect(unsealWithPrivateKey(privateKey, toBase64(tampered), AAD)).rejects.toThrow();
+      await expect(
+        unsealFromPublicKey(privateKey, sender.keyPair.publicKey, toBase64(tampered), AAD),
+      ).rejects.toThrow();
     }
   });
 
   it("rejects a box too short to hold the header", async () => {
-    const { privateKey } = recipient();
+    const sender = party();
+    const { privateKey } = party();
     await expect(
-      unsealWithPrivateKey(privateKey, toBase64(new Uint8Array(55)), AAD),
+      unsealFromPublicKey(privateKey, sender.keyPair.publicKey, toBase64(new Uint8Array(55)), AAD),
     ).rejects.toThrow("too short");
   });
 
   it("refuses to seal to a low-order public key", async () => {
-    await expect(sealToPublicKey(toBase64(new Uint8Array(32)), genKey(), AAD)).rejects.toThrow();
+    const sender = party();
+    await expect(
+      sealToPublicKey(sender.privateKey, toBase64(new Uint8Array(32)), genKey(), AAD),
+    ).rejects.toThrow();
+  });
+});
+
+describe("sealVaultKey / openSealedVaultKey", () => {
+  function party() {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    return { keyPair, privateKey: unwrapUserPrivateKey(accountKey, keyPair) };
+  }
+
+  it("opens only for its vault and key version", async () => {
+    const sender = party();
+    const recipient = party();
+    const vaultKey = genKey();
+    const sealed = await sealVaultKey(
+      sender.privateKey,
+      recipient.keyPair.publicKey,
+      vaultKey,
+      "vault-a",
+      2,
+    );
+    const open = (vaultId: string, keyVersion: number) =>
+      openSealedVaultKey(
+        recipient.privateKey,
+        sender.keyPair.publicKey,
+        sealed,
+        vaultId,
+        keyVersion,
+      );
+
+    expect(await open("vault-a", 2)).toEqual(vaultKey);
+    await expect(open("vault-b", 2)).rejects.toThrow();
+    await expect(open("vault-a", 3)).rejects.toThrow();
   });
 });
 

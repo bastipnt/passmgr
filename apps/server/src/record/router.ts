@@ -13,7 +13,13 @@ import z from "zod";
 import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
 import { onRecordsChanged } from "../events/record-events";
 import { router } from "../trpc";
-import { memberVaults, notifyVaultMembers, requireVaultRole } from "../vault/access";
+import {
+  keyUpdates,
+  memberVaults,
+  notifyVaultMembers,
+  requireVaultRole,
+  rotationsDue,
+} from "../vault/access";
 import { pushChanges } from "./push";
 import { serializeRecord } from "./serialize";
 
@@ -44,8 +50,12 @@ export const recordRouter = router({
     .query(async ({ ctx, input }) => {
       const serverTimestamp = new Date().toISOString();
       const vaults = await memberVaults(ctx.userId);
+      const sharing = {
+        keyUpdates: await keyUpdates(ctx.userId),
+        rotationsDue: await rotationsDue(ctx.userId),
+      };
       if (vaults.length === 0) {
-        return { records: [], vaults, cursors: {}, hasMore: false, serverTimestamp };
+        return { records: [], vaults, cursors: {}, hasMore: false, serverTimestamp, ...sharing };
       }
 
       // Each vault from its own cursor; one this device hasn't synced yet in full.
@@ -79,7 +89,14 @@ export const recordRouter = router({
         cursors[vaultId] = Math.max(cursors[vaultId] ?? 0, seq);
       }
 
-      return { records: records.map(serializeRecord), vaults, cursors, hasMore, serverTimestamp };
+      return {
+        records: records.map(serializeRecord),
+        vaults,
+        cursors,
+        hasMore,
+        serverTimestamp,
+        ...sharing,
+      };
     }),
 
   history: protectedProcedure

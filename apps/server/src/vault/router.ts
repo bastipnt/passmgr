@@ -8,14 +8,23 @@ import {
   VAULT_MANAGE_ROLES,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull, ne } from "drizzle-orm";
+import { and, eq, isNull } from "drizzle-orm";
 import z from "zod";
 import { protectedProcedure } from "../auth/auth-middleware";
 import { router } from "../trpc";
 import { isUniqueViolation } from "../util/general";
-import { lockVaults, memberVaults, notifyVaultMembers, requireVaultRole } from "./access";
+import {
+  currentKeyPairVersions,
+  lockVaults,
+  memberVaults,
+  notifyVaultMembers,
+  requireVaultRole,
+} from "./access";
+import { sharingProcedures } from "./sharing";
 
 export const vaultRouter = router({
+  ...sharingProcedures,
+
   /** Every vault the user can access (also part of every `record.sync`). */
   list: protectedProcedure.output(z.array(memberVaultSchema)).query(async ({ ctx }) => {
     return await memberVaults(ctx.userId);
@@ -68,15 +77,19 @@ export const vaultRouter = router({
     }),
 
   /**
-   * Rotate a vault's key (owners and managers): the next key version, the
-   * caller's wrap of it, the current key wrapped under it (so members keep
-   * reading the history) and the metadata re-encrypted. From the commit on,
-   * `record.push` takes puts under the new key only; the caller re-encrypts the
-   * records through its outbox.
+   * Rotate a vault's key (owners and managers holding its current key): the
+   * next key version, the caller's wrap of it, the current key wrapped under it
+   * (so members keep reading the history), the metadata re-encrypted, and the
+   * new key sealed to every other member and invitee from the caller's keypair
+   * (each accepts it with `acceptKey`). From the commit on, `record.push`
+   * takes puts under the new key only; the caller re-encrypts the records
+   * through its outbox. Clears `keyRotationNeeded`.
    *
    * CONFLICT when the vault isn't at `keyVersion - 1` any more (another rotation
-   * won). PRECONDITION_FAILED while the vault has other members: they need the
-   * new key sealed to their public key, which comes with sharing (ADR 0001 D7).
+   * won) or the caller doesn't hold that key yet. PRECONDITION_FAILED when
+   * `memberKeys` aren't exactly the other members, each sealed to their current
+   * public key, or the caller's keypair isn't the current one: the members
+   * changed, so the caller fetches them again (`members`) and retries.
    */
   rotateKey: protectedProcedure
     .input(rotateVaultKeyInputSchema)
@@ -87,25 +100,42 @@ export const vaultRouter = router({
       await db
         .transaction(async (tx) => {
           await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
-          // Pushes to the vault wait, so none commits under the old key after this.
+          // Pushes, invites and member changes wait, so none sees the old key after this.
           await lockVaults(tx, [vaultId]);
 
-          const others = await tx
-            .select({ userId: vaultMembersTable.userId })
+          const members = await tx
+            .select({ userId: vaultMembersTable.userId, keyVersion: vaultMembersTable.keyVersion })
             .from(vaultMembersTable)
-            .where(
-              and(eq(vaultMembersTable.vaultId, vaultId), ne(vaultMembersTable.userId, ctx.userId)),
-            )
-            .limit(1);
-          if (others.length > 0) throw new TRPCError({ code: "PRECONDITION_FAILED" });
+            .where(eq(vaultMembersTable.vaultId, vaultId));
+          // Its link must wrap the key being replaced, not an older one it still holds.
+          const own = members.find((m) => m.userId === ctx.userId);
+          if (own?.keyVersion !== keyVersion - 1) throw new TRPCError({ code: "CONFLICT" });
 
+          const others = members.filter((m) => m.userId !== ctx.userId).map((m) => m.userId);
+          const seals = new Map(input.memberKeys.map((seal) => [seal.userId, seal]));
+          const keyPairs = await currentKeyPairVersions(tx, [ctx.userId, ...others]);
+          // Exactly the other members, each sealed to their current keypair.
+          const sealedTo = (userId: string) => {
+            const version = keyPairs.get(userId);
+            return version !== undefined && seals.get(userId)?.recipientKeyVersion === version;
+          };
+          if (
+            seals.size !== others.length ||
+            !others.every(sealedTo) ||
+            keyPairs.get(ctx.userId) !== input.senderKeyVersion
+          ) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "members changed" });
+          }
+
+          const now = new Date();
           const [rotated] = await tx
             .update(vaultsTable)
             .set({
               keyVersion,
+              keyRotationNeeded: false,
               encryptedMeta: input.encryptedMeta,
               metaEncryptionNonce: input.metaEncryptionNonce,
-              updated_at: new Date(),
+              updated_at: now,
             })
             .where(
               and(
@@ -121,10 +151,34 @@ export const vaultRouter = router({
           await tx.insert(vaultKeyLinksTable).values({ vaultId, ...previousKey });
           await tx
             .update(vaultMembersTable)
-            .set({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce, updated_at: new Date() })
+            .set({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce, updated_at: now })
             .where(
               and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, ctx.userId)),
             );
+          for (const seal of input.memberKeys) {
+            const sealed = {
+              sealedVaultKey: seal.sealedVaultKey,
+              sealedKeyVersion: keyVersion,
+              sealedToKeyVersion: seal.recipientKeyVersion,
+              sealedByUserId: ctx.userId,
+              sealedByKeyVersion: input.senderKeyVersion,
+              updated_at: now,
+            };
+            const member = and(
+              eq(vaultMembersTable.vaultId, vaultId),
+              eq(vaultMembersTable.userId, seal.userId),
+            );
+            // An active member keeps their wrap of the old key until they accept the new one;
+            // an invitee has only the sealed key, which is now this one.
+            await tx
+              .update(vaultMembersTable)
+              .set(sealed)
+              .where(and(member, eq(vaultMembersTable.status, "active")));
+            await tx
+              .update(vaultMembersTable)
+              .set({ ...sealed, keyVersion })
+              .where(and(member, eq(vaultMembersTable.status, "pending")));
+          }
         })
         .catch((error: unknown) => {
           // A wrap that already exists elsewhere (a replayed ciphertext).

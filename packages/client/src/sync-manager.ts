@@ -1,4 +1,10 @@
-import { MAX_PUSH_CHANGES, type MemberVault, type PushChange, type PushResult } from "@repo/schema";
+import {
+  MAX_PUSH_CHANGES,
+  type MemberVault,
+  type PushChange,
+  type PushResult,
+  type VaultKeyUpdate,
+} from "@repo/schema";
 import {
   type ConflictResolver,
   type PendingChange,
@@ -7,8 +13,24 @@ import {
   type Vault,
 } from "@repo/store";
 
-/** One page of a pull; `hasMore`: the server has more changes past its cursors. */
-export type SyncPage = SyncBatch & { hasMore: boolean };
+/**
+ * One page of a pull; `hasMore`: the server has more changes past its cursors.
+ * Every page carries the sharing tasks in full (ADR 0001 D7).
+ */
+export type SyncPage = SyncBatch & {
+  hasMore: boolean;
+  keyUpdates?: VaultKeyUpdate[];
+  rotationsDue?: string[];
+};
+
+/**
+ * Accept newer vault keys sealed to the user, rotate vaults that lost a member
+ * (`runSharingTasks`). Resolves whether the server changed: the round runs again.
+ */
+export type SharingTasksHandler = (tasks: {
+  keyUpdates: VaultKeyUpdate[];
+  rotationsDue: string[];
+}) => Promise<boolean>;
 
 /** Pull a page of every vault's changes since its cursor (vaultId → cursor). */
 export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncPage>;
@@ -82,6 +104,11 @@ type SyncManagerOptions = {
    * push: whatever wasn't prepared is answered by the server as before.
    */
   prepareOutbox?: () => Promise<void>;
+  /**
+   * Runs after a round that went through when its pull asked for sharing work.
+   * A failure doesn't fail the round.
+   */
+  onSharingTasks?: SharingTasksHandler;
 };
 
 /**
@@ -128,6 +155,12 @@ export class SyncManager {
   private onVaultsChanged?: VaultsChangedHandler;
   private resolveConflict?: ConflictResolver;
   private prepareOutbox?: () => Promise<void>;
+  private onSharingTasks?: SharingTasksHandler;
+  /** What the last pull asked for (`onSharingTasks`). */
+  private sharingTasks: { keyUpdates: VaultKeyUpdate[]; rotationsDue: string[] } = {
+    keyUpdates: [],
+    rotationsDue: [],
+  };
 
   constructor(
     store: Vault,
@@ -139,6 +172,7 @@ export class SyncManager {
       onVaultsChanged,
       resolveConflict,
       prepareOutbox,
+      onSharingTasks,
     }: SyncManagerOptions,
   ) {
     this.store = store;
@@ -149,6 +183,7 @@ export class SyncManager {
     this.onVaultsChanged = onVaultsChanged;
     this.resolveConflict = resolveConflict;
     this.prepareOutbox = prepareOutbox;
+    this.onSharingTasks = onSharingTasks;
   }
 
   /** Register a callback invoked after each successful sync and each pulled page before its last. */
@@ -253,6 +288,7 @@ export class SyncManager {
         error: null,
         lastSyncedAt: Date.now(),
       });
+      await this.runSharingTasks();
       return true;
     } catch (error) {
       const offline = !this.enabled || this.isOffline(error);
@@ -291,6 +327,10 @@ export class SyncManager {
         await this.onVaultsChanged(page.vaults);
       }
       const vaultsChanged = await this.store.applySync(page, this.resolveConflict);
+      this.sharingTasks = {
+        keyUpdates: page.keyUpdates ?? [],
+        rotationsDue: page.rotationsDue ?? [],
+      };
       if (!page.hasMore) return vaultsChanged;
       // Disposed (another profile opened): the next round resumes from this cursor.
       if (this.disposed) throw new Error("sync stopped");
@@ -299,6 +339,18 @@ export class SyncManager {
       if (!advanced(cursors, next)) throw new Error("the pull made no progress");
       cursors = next;
       this.notify(vaultsChanged);
+    }
+  }
+
+  /** Hand the last pull's sharing work to `onSharingTasks`; run again when it changed something. */
+  private async runSharingTasks(): Promise<void> {
+    const tasks = this.sharingTasks;
+    if (!this.onSharingTasks || (tasks.keyUpdates.length === 0 && tasks.rotationsDue.length === 0))
+      return;
+    try {
+      if (await this.onSharingTasks(tasks)) this.rerun = true;
+    } catch (error) {
+      console.warn("Sharing tasks failed", error);
     }
   }
 

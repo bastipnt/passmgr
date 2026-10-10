@@ -83,64 +83,135 @@ export function publicKeyFingerprint(publicKeyB64: string): string {
   return groups.join(" ");
 }
 
-async function sealKey(shared: Uint8Array, epk: Uint8Array, recipientPk: Uint8Array) {
-  // Salt binds the key to both public keys, as in libsodium's crypto_box_seal.
-  return await hkdf(shared, "sealKey", concatBytes(epk, recipientPk));
+async function sealKey(
+  ephemeralShared: Uint8Array,
+  staticShared: Uint8Array,
+  epk: Uint8Array,
+  recipientPk: Uint8Array,
+  senderPk: Uint8Array,
+) {
+  // Both secrets in, all three public keys in the salt: the key is bound to
+  // this ephemeral key, this recipient and this sender (HPKE's auth mode).
+  const ikm = concatBytes(ephemeralShared, staticShared);
+  try {
+    return await hkdf(ikm, "sealKey", concatBytes(epk, recipientPk, senderPk));
+  } finally {
+    wipe(ikm);
+  }
 }
 
 /**
- * Encrypt to a public key, anonymously (`crypto_box_seal` style): ephemeral
- * X25519 → HKDF → XChaCha20-Poly1305. Only the holder of the private key can
- * open it.
+ * Encrypt to a public key, authenticated by the sender's static key (in the
+ * style of HPKE's auth mode): ephemeral X25519 and sender × recipient X25519 →
+ * HKDF → XChaCha20-Poly1305. Only the holder of the recipient's private key
+ * can open it, and only with the sender's public key: a box opens under the
+ * key of whoever sealed it, so a server can't forge an invite in a member's
+ * name (ADR 0001 D7) without that member's private key.
  *
  * @param aad context the ciphertext is bound to (e.g. vault id + key version);
- *   `unsealWithPrivateKey` must pass the same
+ *   `unsealFromPublicKey` must pass the same
  * @returns base64 of `ephemeralPublicKey ‖ nonce ‖ ciphertext`
  */
 export async function sealToPublicKey(
+  senderPrivateKey: Uint8Array,
   recipientPublicKeyB64: string,
   plaintext: Uint8Array,
   aad: Uint8Array,
 ): Promise<string> {
   const recipientPk = fromBase64(recipientPublicKeyB64);
   const esk = genKey();
-  let shared: Uint8Array | undefined;
-  let key: Uint8Array | undefined;
+  const secrets: Uint8Array[] = [esk];
   try {
     const epk = x25519.getPublicKey(esk);
-    // Throws on a low-order recipient key (all-zero shared secret).
-    shared = x25519.getSharedSecret(esk, recipientPk);
-    key = await sealKey(shared, epk, recipientPk);
+    // Each throws on a low-order recipient key (all-zero shared secret).
+    const ephemeralShared = x25519.getSharedSecret(esk, recipientPk);
+    secrets.push(ephemeralShared);
+    const staticShared = x25519.getSharedSecret(senderPrivateKey, recipientPk);
+    secrets.push(staticShared);
+    const senderPk = x25519.getPublicKey(senderPrivateKey);
+    const key = await sealKey(ephemeralShared, staticShared, epk, recipientPk, senderPk);
+    secrets.push(key);
     const nonce = randomBytes(NONCE_BYTES);
     const ciphertext = xchacha20poly1305(key, nonce, aad).encrypt(plaintext);
     return toBase64(concatBytes(epk, nonce, ciphertext));
   } finally {
-    wipe(esk);
-    if (shared) wipe(shared);
-    if (key) wipe(key);
+    for (const secret of secrets) wipe(secret);
   }
 }
 
-/** Open a `sealToPublicKey` box. Throws on the wrong key, wrong AAD or tampering. */
-export async function unsealWithPrivateKey(
+/**
+ * Open a `sealToPublicKey` box from `senderPublicKeyB64`. Throws on the wrong
+ * recipient key, another sender, the wrong AAD or tampering.
+ */
+export async function unsealFromPublicKey(
   privateKey: Uint8Array,
+  senderPublicKeyB64: string,
   sealedB64: string,
   aad: Uint8Array,
 ): Promise<Uint8Array> {
   const sealed = fromBase64(sealedB64);
   if (sealed.length < KEY_BYTES + NONCE_BYTES) throw new Error("Sealed box too short");
+  const senderPk = fromBase64(senderPublicKeyB64);
 
   const epk = sealed.subarray(0, KEY_BYTES);
   const nonce = sealed.subarray(KEY_BYTES, KEY_BYTES + NONCE_BYTES);
   const ciphertext = sealed.subarray(KEY_BYTES + NONCE_BYTES);
 
-  const shared = x25519.getSharedSecret(privateKey, epk);
-  let key: Uint8Array | undefined;
+  const secrets: Uint8Array[] = [];
   try {
-    key = await sealKey(shared, epk, x25519.getPublicKey(privateKey));
+    const ephemeralShared = x25519.getSharedSecret(privateKey, epk);
+    secrets.push(ephemeralShared);
+    const staticShared = x25519.getSharedSecret(privateKey, senderPk);
+    secrets.push(staticShared);
+    const key = await sealKey(
+      ephemeralShared,
+      staticShared,
+      epk,
+      x25519.getPublicKey(privateKey),
+      senderPk,
+    );
+    secrets.push(key);
     return xchacha20poly1305(key, nonce, aad).decrypt(ciphertext);
   } finally {
-    wipe(shared);
-    if (key) wipe(key);
+    for (const secret of secrets) wipe(secret);
   }
+}
+
+function vaultKeySealAad(vaultId: string, keyVersion: number): Uint8Array {
+  return fromString(`passmgr/vault-key-seal/v1/${vaultId}/${keyVersion}`);
+}
+
+/**
+ * Seal a vault key to a member's public key (an invite, or the new key after a
+ * rotation), from the sender's keypair. Bound to the vault and key version.
+ */
+export async function sealVaultKey(
+  senderPrivateKey: Uint8Array,
+  recipientPublicKeyB64: string,
+  vaultKey: Uint8Array,
+  vaultId: string,
+  keyVersion: number,
+): Promise<string> {
+  return await sealToPublicKey(
+    senderPrivateKey,
+    recipientPublicKeyB64,
+    vaultKey,
+    vaultKeySealAad(vaultId, keyVersion),
+  );
+}
+
+/** Open a `sealVaultKey` box. Throws unless `senderPublicKeyB64` sealed it for this slot. */
+export async function openSealedVaultKey(
+  privateKey: Uint8Array,
+  senderPublicKeyB64: string,
+  sealedB64: string,
+  vaultId: string,
+  keyVersion: number,
+): Promise<Uint8Array> {
+  return await unsealFromPublicKey(
+    privateKey,
+    senderPublicKeyB64,
+    sealedB64,
+    vaultKeySealAad(vaultId, keyVersion),
+  );
 }

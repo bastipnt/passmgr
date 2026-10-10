@@ -54,5 +54,13 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "ALTER TABLE `records` ADD `keyVersion` integer DEFAULT 1 NOT NULL;",
       "ALTER TABLE `vaults` ADD `previousKeys` text DEFAULT '[]' NOT NULL;"
     ]
+  },
+  {
+    "name": "20261010124307_revoked_vaults",
+    "statements": [
+      "CREATE TABLE `revoked_records` (\n\t`recordId` text PRIMARY KEY,\n\t`vaultId` text NOT NULL,\n\t`encryptedData` text NOT NULL,\n\t`encryptionNonce` text NOT NULL,\n\t`cryptoVersion` integer NOT NULL,\n\t`keyVersion` integer NOT NULL,\n\t`version` integer NOT NULL,\n\t`clientUpdatedAt` text NOT NULL\n);",
+      "CREATE TABLE `revoked_vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`role` text NOT NULL,\n\t`keyVersion` integer NOT NULL,\n\t`encryptedVaultKey` text NOT NULL,\n\t`vaultKeyEncryptionNonce` text NOT NULL,\n\t`previousKeys` text DEFAULT '[]' NOT NULL,\n\t`encryptedMeta` text NOT NULL,\n\t`metaEncryptionNonce` text NOT NULL,\n\t`revokedAt` text NOT NULL\n);",
+      "CREATE INDEX `revoked_records_vault_idx` ON `revoked_records` (`vaultId`);"
+    ]
   }
 ];

@@ -259,7 +259,8 @@ recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► recoveryV
 accountKey ──wrap──► vaultKey[vaultId] ──encrypt──► records
 vaultKey[v] ──wrap──► vaultKey[v-1]     (rotation chain, `previousKeys`; opens the history)
 accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
-memberPublicKey ──seal──► vaultKey      (invites, `sealToPublicKey`; not wired up yet)
+senderPrivKey + memberPublicKey ──seal──► vaultKey   (invites, rotated keys: `sealVaultKey`, authenticated
+                                                    by the sender; the member rewraps it, `vault.acceptKey`)
 (biometric KEK / mobile login bundle also hold the accountKey, never a vault key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
@@ -302,8 +303,24 @@ loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Eve
 rejects a put under another key (`key_version`, the client retries it re-encrypted). Before every push
 `SyncManager`'s `prepareOutbox` (`reencryptForPush`, `vaults/rekey.ts`) re-encrypts pending versions under an old
 key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
-resumable). History keeps the old key. Refused (`PRECONDITION_FAILED`) for a vault with other members until sharing
-seals the new key to them. Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
+resumable). History keeps the old key. The new key is sealed to every other member and invitee (`memberKeys`; exactly
+the server's member set, else `PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the
+current key (`CONFLICT` otherwise). Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
+
+Sharing (ADR 0001 D7, `apps/server/src/vault/sharing.ts`, client `vaults/sharing.ts` + `useVaultSharing`; UI not built
+yet): `vault.invite` (owners / managers, never above their own role (`canAssignRole`), never the personal vault) stores
+a `pending` `vault_members` row with the vault key sealed to the invitee's current public key from the inviter's
+(`sealVaultKey`: ephemeral + static X25519, so it opens only as from that sender). The invitee lists
+`vault.invitations`, compares the inviter's fingerprint, and `vault.acceptKey` stores their own wrap (row → `active`).
+After someone else's rotation a member's row keeps their old wrap plus the sealed new key; `record.sync` returns it in
+`keyUpdates` (with the links down to the held key) and `SyncManager`'s `onSharingTasks` (`runSharingTasks`) opens it,
+checks the sender (listed active owner / manager with the pinned key, not removed by this device: `markPeerRemoved`)
+and that the chain reaches the held key, and accepts it. Removing a member, leaving or declining sets
+`vaults.keyRotationNeeded`; `record.sync`'s `rotationsDue` lists it to managers holding the current key, whose next
+sync rotates (`removeMember` rotates right away). The last owner can't leave or be demoted (`transferOwnership`).
+Peer public keys are pinned per device on first use (`Vault.pinPeerKey`); a changed one is refused
+(`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
+`revoked_records`, `Vault.getRevokedVaults`) to copy into a writable vault (`copyRevokedRecords`, one transaction) or discard.
 
 Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
 records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search ignores it). Create /
@@ -323,7 +340,8 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
-- `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault) — `protectedProcedure`
+- `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
+  invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `protectedProcedure`
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)

@@ -348,6 +348,40 @@ the history must not leak into the target.
 > (`PRECONDITION_FAILED`) to rotate a vault with other members: their copy of the new key must be
 > sealed to their public key first.
 
+> **Amended 2026-10-10** (shared vaults): the seal is **authenticated**: ephemeral X25519 plus the
+> sender's static X25519 against the recipient's key, HKDF salted with all three public keys (HPKE
+> auth mode), AAD `vaultId ‖ keyVersion` (`sealVaultKey`). It opens only from the sender's public
+> key, which closes the forged-invite gap above without a separate signing key. The invitee compares
+> the inviter's fingerprint before accepting; each device pins the public keys it used for every
+> other user (inviter, invitee, first use otherwise) and refuses a changed one.
+>
+> - **Invite** (`vault.invite`, owners and managers, a role no higher than their own, never the
+>   personal vault): a `pending` row holding the sealed key, sender and recipient keypair versions.
+>   **Accepting re-wraps** under the invitee's account key (`vault.acceptKey`), answering the open
+>   question below. Declining deletes the row.
+> - **Rotation with members**: `vault.rotateKey` takes the new key sealed to every other member and
+>   invitee and refuses (`PRECONDITION_FAILED`) a set that isn't exactly the server's. An active
+>   member keeps their wrap of the old key next to the sealed new one until their device accepts it
+>   (`record.sync` → `keyUpdates`, with the key links down to the member's version); the device only
+>   accepts a key whose chain opens down to the key it holds, whose sender key matches its pin, from
+>   a sender the server lists as an active owner or manager and this device hasn't removed from the
+>   vault. A removed member still knows the old key and their own private key, so a server lying
+>   about the membership to the other devices could still pass off a forged rotation; a
+>   member-signed membership log would close that and is left for later.
+> - **Removal / leaving / declining** delete the row and set `vaults.keyRotationNeeded`. The removing
+>   device rotates at once; otherwise every manager holding the current key sees the vault in
+>   `rotationsDue` and the first one online rotates (a CAS, so one wins). Rotating is not made
+>   atomic with removal: the removed member loses server access at once, and the rotation must come
+>   from a device that holds the key.
+> - **Roles**: owners can do anything, managers anything not touching an owner; the last active
+>   owner can't leave or be demoted; `vault.transferOwnership` makes an active member owner and the
+>   caller a manager.
+> - **Revoked while offline** (or left): the pushes are rejected (`not_found`) and parked; the pull
+>   then drops the vault. Before it does, the latest unsent version of each record is kept with the vault's
+>   last wrap (`revoked_vaults` / `revoked_records`), outside the live tables, until the user copies
+>   it into a vault they still have (new records) or discards it.
+> - **Organisations** (team-wide vault collections, admins) stay a later stage on this model.
+
 ### D8 — Sync protocol
 
 - **Outbox** (local table): every write is a single SQLite transaction that writes the record
@@ -646,5 +680,5 @@ UI.
 
 - Whether pushing the full local history when linking needs a size cap (ties into
   *Input size limits + per-user storage quota*).
-- Whether accepted shared vaults keep the sealed copy or always re-wrap under `accountKey`
-  (D7). Current plan: re-wrap.
+- ~~Whether accepted shared vaults keep the sealed copy or always re-wrap under `accountKey`
+  (D7).~~ Re-wrap (D7, amended 2026-10-10).
