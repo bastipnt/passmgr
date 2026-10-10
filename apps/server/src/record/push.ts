@@ -3,7 +3,13 @@ import { type PushChange, type PushResult, VAULT_WRITE_ROLES } from "@repo/schem
 import { TRPCError } from "@trpc/server";
 import { and, desc, inArray, sql } from "drizzle-orm";
 import { isLockTimeout, isUniqueViolation } from "../util/general";
-import { type DbExecutor, lockVaults, requireVaultRole, takeVaultSeqs } from "../vault/access";
+import {
+  type DbExecutor,
+  lockVaults,
+  requireVaultRole,
+  takeVaultSeqs,
+  vaultKeyVersions,
+} from "../vault/access";
 import { serializeRecord } from "./serialize";
 
 /**
@@ -27,13 +33,17 @@ type SimulatedHead = { version: number; vaultId: string } | null;
 /** What a new version needs from the one below it (a tombstone keeps its ciphertext). */
 type HeadContent = Pick<
   RecordType,
-  "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion"
+  "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
 > | null;
 
 type NewVersion = Omit<typeof recordsTable.$inferInsert, "seq"> & {
   version: number;
   cryptoVersion: number;
+  keyVersion: number;
 };
+
+/** What pass 1 checks a change against: write access and each vault's current key version. */
+type VaultState = { access: Map<string, Rejection | null>; keyVersions: Map<string, number> };
 
 type Indexed = { index: number; change: PushChange };
 
@@ -53,6 +63,10 @@ export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
  * Every applied change appends exactly one version (a delete of a deleted
  * record too), so the server numbers a chain the way the client did.
  *
+ * A put must be encrypted under the vault's current key: one under a key a
+ * rotation replaced is rejected (`key_version`), so nothing new is written that
+ * a removed member's old key would open. A delete carries no ciphertext.
+ *
  * The new versions are planned in memory and written with one seq bump per
  * vault and one insert, keeping the time the vaults stay locked short.
  *
@@ -65,10 +79,10 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       await tx.execute(sql.raw(`SET LOCAL lock_timeout = '${LOCK_TIMEOUT}'`));
 
       const access = await vaultAccess(userId, changes, tx);
-      await lockVaults(
-        tx,
-        [...access].filter(([, denied]) => denied === null).map(([vaultId]) => vaultId),
-      );
+      const writable = [...access].filter(([, denied]) => denied === null).map(([id]) => id);
+      await lockVaults(tx, writable);
+      // Under the lock: a rotation of these vaults waits until this push commits.
+      const vaults: VaultState = { access, keyVersions: await vaultKeyVersions(tx, writable) };
 
       const chains = groupByRecord(changes);
       const recordIds = [...chains.keys()];
@@ -83,7 +97,7 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       const planned: { index: number; version: NewVersion }[] = [];
       for (const [recordId, chain] of chains) {
         const dbHead = heads.get(recordId) ?? null;
-        const outcomes = decideChain(chain, dbHead, access, stored);
+        const outcomes = decideChain(chain, dbHead, vaults, stored);
         let head: HeadContent = dbHead;
         for (const [i, { index, change }] of chain.entries()) {
           const outcome = outcomes[i]!;
@@ -136,7 +150,7 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
 function decideChain(
   chain: Indexed[],
   dbHead: RecordType | null,
-  access: Map<string, Rejection | null>,
+  vaults: VaultState,
   stored: Map<string, RecordType>,
 ): Outcome[] {
   let head: SimulatedHead = dbHead && { version: dbHead.version, vaultId: dbHead.vaultId };
@@ -144,7 +158,7 @@ function decideChain(
   const outcomes: Outcome[] = [];
 
   for (const { change } of chain) {
-    const outcome = decideChange(change, head, dbHead?.version ?? 0, access, stored);
+    const outcome = decideChange(change, head, dbHead?.version ?? 0, vaults, stored);
     if (outcome.kind === "failed") {
       const { kind: _kind, ...rest } = outcome;
       failure ??= rest;
@@ -159,12 +173,12 @@ function decideChain(
   return outcomes.map((o) => (o.kind === "stored" ? o : { kind: "failed", ...first }));
 }
 
-/** One change of a chain: access, then a retry, then compare-and-swap. */
+/** One change of a chain: access, then a retry, then the key, then compare-and-swap. */
 function decideChange(
   change: PushChange,
   head: SimulatedHead,
   dbHeadVersion: number,
-  access: Map<string, Rejection | null>,
+  { access, keyVersions }: VaultState,
   stored: Map<string, RecordType>,
 ): Outcome {
   // Every vault of the batch was checked; a missing entry would be a bug, so it denies.
@@ -177,6 +191,9 @@ function decideChange(
     return row.vaultId === change.vaultId
       ? { kind: "stored", row }
       : { kind: "failed", status: "rejected", reason: "not_found" };
+  }
+  if (change.op === "put" && change.keyVersion !== keyVersions.get(change.vaultId)) {
+    return { kind: "failed", status: "rejected", reason: "key_version" };
   }
   return decide(change, head, dbHeadVersion);
 }
@@ -215,13 +232,20 @@ function nextVersion(change: PushChange, head: HeadContent, userId: string): New
     clientChangeId: change.clientChangeId,
   };
   if (change.op === "put") {
-    const { encryptedData, encryptionNonce, cryptoVersion } = change;
-    return { ...common, encryptedData, encryptionNonce, cryptoVersion };
+    const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = change;
+    return { ...common, encryptedData, encryptionNonce, cryptoVersion, keyVersion };
   }
-  // A tombstone keeps the head's ciphertext, so the history still opens.
+  // A tombstone keeps the head's ciphertext (and its key), so the history still opens.
   if (!head) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-  const { encryptedData, encryptionNonce, cryptoVersion } = head;
-  return { ...common, encryptedData, encryptionNonce, cryptoVersion, deleted_at: new Date() };
+  const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = head;
+  return {
+    ...common,
+    encryptedData,
+    encryptionNonce,
+    cryptoVersion,
+    keyVersion,
+    deleted_at: new Date(),
+  };
 }
 
 /**

@@ -31,6 +31,9 @@ export const recordsTable = pgTable(
     encryptedData: varchar().notNull(),
     encryptionNonce: varchar().notNull(),
     cryptoVersion: integer().notNull().default(1),
+    // The vault key version the ciphertext is encrypted with. A put must use the
+    // vault's current one (`vaults.keyVersion`); a tombstone keeps its head's.
+    keyVersion: integer().notNull().default(1),
     version: integer().notNull().default(1),
     clientUpdatedAt: timestamp().notNull(),
     // The vault's write order, the pull cursor (ADR 0001 D8): taken from

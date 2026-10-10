@@ -15,9 +15,10 @@ import { RecordRepository } from "../src/records/record-repository";
 import { resolveRecordConflict } from "../src/records/resolve-record-conflict";
 import { SyncManager } from "../src/sync-manager";
 import { decryptRecord } from "../src/util/decrypt-record";
+import { reencryptForPush } from "../src/vaults/rekey";
 
 type ServerRow = EncryptedRecordSchema & { clientChangeId: string };
-type Failure = Extract<PushResult, { status: "stale" }>;
+type Failure = Extract<PushResult, { status: "stale" | "rejected" }>;
 
 /**
  * Two devices of one user syncing through an in-memory server that applies
@@ -31,7 +32,16 @@ class FakeServer {
   /** Runs once, right before the next push is applied (e.g. another device writes first). */
   beforeNextPush: (() => Promise<void>) | undefined;
 
-  constructor(private readonly vaults: MemberVault[]) {}
+  constructor(private vaults: MemberVault[]) {}
+
+  /** Another device rotated a vault's key (`vault.rotateKey`): its wrap and chain replace the old. */
+  rotate(rotated: MemberVault) {
+    this.vaults = this.vaults.map((v) => (v.vaultId === rotated.vaultId ? rotated : v));
+  }
+
+  private keyVersion(vaultId: string) {
+    return this.vaults.find((v) => v.vaultId === vaultId)?.keyVersion;
+  }
 
   head(recordId: string) {
     return this.rows.filter((r) => r.recordId === recordId).at(-1);
@@ -68,6 +78,9 @@ class FakeServer {
         );
         if (stored) {
           answers.push({ clientChangeId, status: "applied", record: stored });
+        } else if (change.op === "put" && change.keyVersion !== this.keyVersion(change.vaultId)) {
+          failure ??= { clientChangeId, status: "rejected", reason: "key_version" };
+          answers.push({ ...failure, clientChangeId });
         } else if (failure || (head?.version ?? 0) !== change.baseVersion) {
           failure ??= {
             clientChangeId,
@@ -84,6 +97,7 @@ class FakeServer {
             encryptedData: ciphertext.encryptedData,
             encryptionNonce: ciphertext.encryptionNonce,
             cryptoVersion: ciphertext.cryptoVersion,
+            keyVersion: ciphertext.keyVersion,
             version: (head?.version ?? 0) + 1,
             clientUpdatedAt: change.clientUpdatedAt,
             clientChangeId,
@@ -126,6 +140,9 @@ class Device {
       pull: server.pull,
       push: (changes) => server.push(changes),
       resolveConflict: resolveRecordConflict,
+      // One user: both devices share `secretsStore`, as each would hold the same keys.
+      onVaultsChanged: (list) => void secretsStore.loadVaultKeys(list),
+      prepareOutbox: () => reencryptForPush(this.vault),
     });
   }
 
@@ -387,6 +404,104 @@ describe("syncing a record edited on two devices", () => {
 
     for (const device of [a, b]) {
       expect(await device.read(recordId)).toMatchObject({ note: "keep me", deleted: false });
+    }
+  });
+});
+
+describe("rotating a vault key while another device edits offline", () => {
+  /** Device A rotates the personal vault's key, as `useVaultActions().rotateVaultKey` does. */
+  async function rotateOnA(): Promise<MemberVault> {
+    const vault = (await a.vault.getVaults())[0]!;
+    const { previousKey, ...rotated } = secretsStore.rotateVaultKey(vault);
+    const next = { ...vault, ...rotated, previousKeys: [...vault.previousKeys, previousKey] };
+    await a.vault.setRekeyTarget(vault.vaultId, next.keyVersion);
+    server.rotate(next);
+    await a.vault.saveVault(next);
+    secretsStore.loadVaultKeys([next]);
+    return next;
+  }
+
+  afterEach(() => {
+    // Back to the first key for the other tests.
+    secretsStore.loadVaultKeys(vaults);
+  });
+
+  it("re-encrypts the records and the offline edit, keeping every version readable", async () => {
+    clock("10:00");
+    await edit(b, { note: "from B" }); // offline, under the old key
+
+    await rotateOnA();
+    clock("10:05");
+    await a.sync.sync();
+
+    expect(server.head(recordId)).toMatchObject({ version: 2, keyVersion: 2 });
+    expect(await a.vault.getRekeyTargets()).toEqual({});
+    expect(await a.read(recordId)).toMatchObject({ username: "jana" });
+
+    // B's push is turned down (old key); the pull brings the new key, the edit goes up re-encrypted.
+    clock("10:10");
+    expect(await b.sync.sync()).toBe(true);
+
+    expect(await b.vault.countPendingChanges()).toBe(0);
+    expect(server.rows.map((r) => r.keyVersion)).toEqual([1, 2, 2]);
+    expect(server.rows.map((row) => decryptRecord(row))).toMatchObject([
+      { username: "jana" },
+      { username: "jana" }, // the re-encryption
+      { username: "jana", note: "from B" },
+    ]);
+    await a.sync.sync();
+    for (const device of [a, b]) {
+      expect(await device.read(recordId)).toMatchObject({ note: "from B" });
+      expect((await device.vault.getRecordHistory(recordId)).length).toBe(3);
+    }
+  });
+
+  it("finishes a rotation past a record its old key can't open, reporting it once", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const broken = crypto.randomUUID();
+    await a.vault.writeLocalChanges([
+      {
+        kind: "create",
+        recordId: broken,
+        vaultId: vaults[0]!.vaultId,
+        encryptedData: btoa("not a ciphertext of this vault"),
+        encryptionNonce: btoa("n".repeat(24)),
+        cryptoVersion: 1,
+        keyVersion: 1,
+        clientUpdatedAt: new Date().toISOString(),
+      },
+    ]);
+    await rotateOnA();
+
+    await reencryptForPush(a.vault);
+    await reencryptForPush(a.vault);
+
+    expect(await a.vault.getRekeyTargets()).toEqual({});
+    expect(await a.vault.getByRecordId(recordId)).toMatchObject({ keyVersion: 2 });
+    expect(await a.vault.getByRecordId(broken)).toMatchObject({ keyVersion: 1 });
+    expect(warn.mock.calls.filter(([m]) => String(m).includes(broken))).toHaveLength(1);
+    warn.mockRestore();
+  });
+
+  it("re-encrypts a local vault's history in place before its first push", async () => {
+    const local = new Device(server);
+    try {
+      const created = await local.records.create({ ...original, title: "Local" });
+      await local.records.update(created, { ...original, title: "Local 2" });
+      // Not synced: everything is pending, like a local vault waiting to be linked.
+      await rotateOnA();
+      await local.vault.saveVault((await a.vault.getVaults())[0]!);
+
+      await local.sync.sync();
+
+      const pushed = server.rows.filter((r) => r.recordId === created.recordId);
+      expect(pushed.map((r) => [r.version, r.keyVersion])).toEqual([
+        [1, 2],
+        [2, 2],
+      ]);
+      expect(pushed.map((row) => decryptRecord(row).title)).toEqual(["Local", "Local 2"]);
+    } finally {
+      await local.vault.destroy();
     }
   });
 });

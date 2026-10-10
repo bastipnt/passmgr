@@ -1,3 +1,5 @@
+import type { VaultKeyLink } from "@repo/schema";
+import { sql } from "drizzle-orm";
 import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 // Column names match `EncryptedRecordSchema`, so rows map onto it without renaming.
@@ -11,6 +13,8 @@ export const records = sqliteTable(
     encryptionNonce: text().notNull(),
 
     cryptoVersion: integer().notNull().default(1),
+    // The vault key version the ciphertext is encrypted with.
+    keyVersion: integer().notNull().default(1),
     version: integer().notNull().default(1),
 
     clientUpdatedAt: text().notNull(),
@@ -64,8 +68,9 @@ export const syncMeta = sqliteTable("sync_meta", {
 });
 
 /**
- * The vaults the user is a member of (ADR 0001 D6): their key wrapped under the
- * account key (cached for offline unlock), the user's role, and the metadata
+ * The vaults the user is a member of (ADR 0001 D6): their current key wrapped
+ * under the account key (cached for offline unlock), the earlier keys wrapped
+ * under the ones that replaced them, the user's role, and the metadata
  * encrypted with the vault key. Column names match `MemberVault`.
  */
 export const vaults = sqliteTable("vaults", {
@@ -75,6 +80,7 @@ export const vaults = sqliteTable("vaults", {
   keyVersion: integer().notNull(),
   encryptedVaultKey: text().notNull(),
   vaultKeyEncryptionNonce: text().notNull(),
+  previousKeys: text({ mode: "json" }).$type<VaultKeyLink[]>().notNull().default(sql`'[]'`),
   encryptedMeta: text().notNull(),
   metaEncryptionNonce: text().notNull(),
 });

@@ -1,5 +1,11 @@
 import { MAX_PUSH_CHANGES, type MemberVault, type PushChange, type PushResult } from "@repo/schema";
-import type { ConflictResolver, PendingChange, SyncBatch, Vault } from "@repo/store";
+import {
+  type ConflictResolver,
+  type PendingChange,
+  type SyncBatch,
+  sameVaults,
+  type Vault,
+} from "@repo/store";
 
 /** One page of a pull; `hasMore`: the server has more changes past its cursors. */
 export type SyncPage = SyncBatch & { hasMore: boolean };
@@ -13,7 +19,10 @@ export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncPage>
  */
 export type ChangePusher = (changes: PushChange[]) => Promise<PushResult[]>;
 
-/** Runs before the listeners when the vault list changed, e.g. to load new vault keys. */
+/**
+ * Runs when a pulled vault list differs from the device's, before the page is
+ * applied (its merges may need a key it brings) and before the listeners.
+ */
 export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
 
 /** `vaultsChanged`: the vault list (membership, key wraps, metadata) changed since the last event. */
@@ -67,6 +76,12 @@ type SyncManagerOptions = {
    * one, the local edits only move above the server's and win as a whole.
    */
   resolveConflict?: ConflictResolver;
+  /**
+   * Runs before each push of the outbox, e.g. to re-encrypt changes written
+   * under a vault key that was rotated meanwhile. A failure doesn't stop the
+   * push: whatever wasn't prepared is answered by the server as before.
+   */
+  prepareOutbox?: () => Promise<void>;
 };
 
 /**
@@ -81,7 +96,8 @@ type SyncManagerOptions = {
  * A round that fails, or leaves changes queued, is retried with exponential
  * backoff while enabled. A change failing `MAX_PUSH_ATTEMPTS` pushes (a stale
  * answer doesn't count: the pull resolves it), or rejected by the server, is parked: it and its record's later changes stay
- * local until `retryParked`, so they don't hold up the rest of the outbox.
+ * local until `retryParked`, so they don't hold up the rest of the outbox. A
+ * change rejected for an old vault key is retried instead, re-encrypted.
  */
 export class SyncManager {
   private syncing = false;
@@ -111,6 +127,7 @@ export class SyncManager {
   private isOffline: (error: unknown) => boolean;
   private onVaultsChanged?: VaultsChangedHandler;
   private resolveConflict?: ConflictResolver;
+  private prepareOutbox?: () => Promise<void>;
 
   constructor(
     store: Vault,
@@ -121,6 +138,7 @@ export class SyncManager {
       isOffline = () => false,
       onVaultsChanged,
       resolveConflict,
+      prepareOutbox,
     }: SyncManagerOptions,
   ) {
     this.store = store;
@@ -130,6 +148,7 @@ export class SyncManager {
     this.isOffline = isOffline;
     this.onVaultsChanged = onVaultsChanged;
     this.resolveConflict = resolveConflict;
+    this.prepareOutbox = prepareOutbox;
   }
 
   /** Register a callback invoked after each successful sync and each pulled page before its last. */
@@ -267,9 +286,11 @@ export class SyncManager {
     let cursors = await this.store.getSyncCursors();
     for (;;) {
       const page = await this.pull(cursors);
+      // Keys first: this page's merges may need one it brings (a new vault, a rotated key).
+      if (this.onVaultsChanged && !sameVaults(await this.store.getVaults(), page.vaults)) {
+        await this.onVaultsChanged(page.vaults);
+      }
       const vaultsChanged = await this.store.applySync(page, this.resolveConflict);
-      // Keys first: the next page's merges may need a vault this one added.
-      if (vaultsChanged) await this.onVaultsChanged?.(page.vaults);
       if (!page.hasMore) return vaultsChanged;
       // Disposed (another profile opened): the next round resumes from this cursor.
       if (this.disposed) throw new Error("sync stopped");
@@ -294,6 +315,11 @@ export class SyncManager {
   private async pushOutbox(): Promise<boolean> {
     if (!this.push) return true;
 
+    try {
+      await this.prepareOutbox?.();
+    } catch (error) {
+      console.warn("Cannot prepare the outbox", error);
+    }
     const changes = await this.store.getPendingChanges();
     const held = new Set(changes.filter((c) => c.parkedAt).map((c) => c.record.recordId));
     const failed = new Set<string>();
@@ -339,7 +365,11 @@ export class SyncManager {
         continue;
       }
       failed.add(change.record.recordId);
-      if (result?.status === "rejected") {
+      if (result?.status === "rejected" && result.reason === "key_version") {
+        // Under a key the vault rotated away from: re-encrypted (`prepareOutbox`)
+        // once the pull brought the new one. Counted, in case it never does.
+        await this.fail(change, failureMessage(result));
+      } else if (result?.status === "rejected") {
         // Not found or forbidden (e.g. access revoked): a retry can't change that.
         await this.store.parkPendingChange(change.changeId, failureMessage(result));
       } else if (result?.status === "stale") {
@@ -452,6 +482,7 @@ export function toPushChange({ changeId, record }: PendingChange): PushChange {
     encryptedData: record.encryptedData,
     encryptionNonce: record.encryptionNonce,
     cryptoVersion: record.cryptoVersion,
+    keyVersion: record.keyVersion,
   };
 }
 

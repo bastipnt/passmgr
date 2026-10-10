@@ -1,4 +1,11 @@
-import { createVault, unwrapVaultKey, wrapVaultKey } from "@repo/crypto";
+import {
+  createVault,
+  decryptVaultMeta,
+  rotateVaultKey,
+  unwrapPreviousVaultKey,
+  unwrapVaultKey,
+  wrapVaultKey,
+} from "@repo/crypto";
 import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { MIN_SYNC_RECORDS, type PushChange, type VaultRole } from "@repo/schema";
 import { eq } from "drizzle-orm";
@@ -168,6 +175,103 @@ describe("vaults", () => {
       (await as(alice, "mutation", "vault.delete", input)).vault.delete(input),
     ).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect((await sync(alice)).vaults.map((v) => v.vaultId)).toContain(alice.personalVaultId);
+  });
+});
+
+describe("vault key rotation", () => {
+  /** A rotation of `vault` (the user's wrap of its current key) to the next key version. */
+  function rotation(user: User, vault: { vaultId: string; keyVersion: number } & Wrap) {
+    const currentKey = unwrapVaultKey(user.accountKey, vault);
+    return rotateVaultKey(user.accountKey, currentKey, vault.vaultId, vault.keyVersion, {
+      name: "Rotated",
+    });
+  }
+  type Wrap = Parameters<typeof unwrapVaultKey>[1];
+
+  async function rotate(user: User, input: ReturnType<typeof rotation>) {
+    await (await as(user, "mutation", "vault.rotateKey", input)).vault.rotateKey(input);
+  }
+
+  it("moves the vault to the next key, keeping the old one under the new", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    const oldKey = unwrapVaultKey(alice.accountKey, work);
+
+    const rotated = rotation(alice, work);
+    await rotate(alice, rotated);
+
+    const listed = (await (await as(alice, "query", "vault.list")).vault.list()).find(
+      (v) => v.vaultId === work.vaultId,
+    )!;
+    expect(listed).toMatchObject({ keyVersion: 2, encryptedVaultKey: rotated.encryptedVaultKey });
+    expect(listed.previousKeys).toEqual([rotated.previousKey]);
+    const newKey = unwrapVaultKey(alice.accountKey, listed);
+    expect(unwrapPreviousVaultKey(newKey, work.vaultId, listed.previousKeys[0]!)).toEqual(oldKey);
+    expect(decryptVaultMeta(newKey, work.vaultId, listed)).toEqual({ name: "Rotated" });
+    // Other vaults keep an empty chain.
+    expect((await sync(alice)).vaults.find((v) => v.kind === "personal")?.previousKeys).toEqual([]);
+  });
+
+  it("refuses puts under the old key afterwards, but takes deletes and earlier retries", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    const kept = await createRecord(alice, work.vaultId);
+    const doomed = await createRecord(alice, work.vaultId);
+    const first = putChange(work.vaultId);
+    await push(alice, first);
+
+    await rotate(alice, rotation(alice, work));
+
+    const edit = { recordId: kept.recordId, baseVersion: 1 };
+    expect(
+      await push(
+        alice,
+        putChange(work.vaultId, edit),
+        putChange(work.vaultId, { keyVersion: 3 }),
+        deleteChange(work.vaultId, doomed.recordId, 1),
+        first,
+      ),
+    ).toMatchObject([
+      { status: "rejected", reason: "key_version" },
+      { status: "rejected", reason: "key_version" },
+      // A tombstone keeps its head's ciphertext, and so its key version.
+      { status: "applied", record: { version: 2, keyVersion: 1, deleted_at: expect.any(String) } },
+      { status: "applied", record: { recordId: first.recordId, version: 1, keyVersion: 1 } },
+    ]);
+    expect(await push(alice, putChange(work.vaultId, { ...edit, keyVersion: 2 }))).toMatchObject([
+      { status: "applied", record: { version: 2, keyVersion: 2 } },
+    ]);
+    // Other vaults are untouched.
+    expect(await push(alice, putChange(alice.personalVaultId))).toMatchObject([
+      { status: "applied", record: { keyVersion: 1 } },
+    ]);
+  });
+
+  it("answers CONFLICT to a rotation from a key version the vault has left", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    const stale = rotation(alice, work);
+    await rotate(alice, rotation(alice, work));
+
+    await expect(rotate(alice, stale)).rejects.toMatchObject({ code: "CONFLICT" });
+    const listed = await (await as(alice, "query", "vault.list")).vault.list();
+    expect(listed.find((v) => v.vaultId === work.vaultId)?.previousKeys).toHaveLength(1);
+  });
+
+  it("is for owners and managers only, and not yet with other members", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const work = await createVaultFor(alice);
+    await addMember(alice, work, bob, "write");
+
+    const bobsWrap = (await sync(bob)).vaults.find((v) => v.vaultId === work.vaultId)!;
+    await expect(rotate(bob, rotation(bob, bobsWrap))).rejects.toMatchObject({
+      code: "FORBIDDEN",
+    });
+    // Bob would need the new key sealed to him (sharing).
+    await expect(rotate(alice, rotation(alice, work))).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+    });
   });
 });
 

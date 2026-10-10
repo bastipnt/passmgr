@@ -5,6 +5,7 @@ import {
   keysTable,
   userKeyPairsTable,
   usersTable,
+  vaultKeyLinksTable,
   vaultMembersTable,
   vaultsTable,
 } from "@repo/db";
@@ -99,38 +100,37 @@ export const registrationRouter = router({
 
           await tx.insert(keysTable).values({ userId: user.userId, ...userKeys });
           await tx.insert(userKeyPairsTable).values({ userId: user.userId, ...userKeyPair });
-          // The default vault: its key is already wrapped under the account key.
-          const { vaultId, encryptedMeta, metaEncryptionNonce, ...vaultKey } = personalVault;
-          await tx.insert(vaultsTable).values({
-            vaultId,
-            ownerId: user.userId,
-            kind: "personal",
-            encryptedMeta,
-            metaEncryptionNonce,
-          });
-          await tx
-            .insert(vaultMembersTable)
-            .values({ vaultId, ...vaultKey, userId: user.userId, role: "owner" });
-          // A linked local vault's other vaults (ADR 0001 D9), owned by the new user like
-          // `vault.create` would make them.
-          if (vaults?.length) {
-            await tx.insert(vaultsTable).values(
-              vaults.map(({ vaultId, encryptedMeta, metaEncryptionNonce }) => ({
-                vaultId,
-                ownerId: user.userId,
-                kind: "shared" as const,
-                encryptedMeta,
-                metaEncryptionNonce,
-              })),
-            );
-            await tx.insert(vaultMembersTable).values(
-              vaults.map(({ encryptedMeta: _meta, metaEncryptionNonce: _nonce, ...extraKey }) => ({
-                ...extraKey,
-                userId: user.userId,
-                role: "owner" as const,
-              })),
-            );
-          }
+          // The default vault and, linking a local vault (ADR 0001 D9), its other vaults,
+          // owned by the new user like `vault.create` would make them. Keys come wrapped
+          // under the account key, a rotated vault's earlier keys under their successors.
+          const all = [
+            { ...personalVault, kind: "personal" as const },
+            ...(vaults ?? []).map((vault) => ({ ...vault, kind: "shared" as const })),
+          ];
+          await tx.insert(vaultsTable).values(
+            all.map(({ vaultId, kind, keyVersion, encryptedMeta, metaEncryptionNonce }) => ({
+              vaultId,
+              ownerId: user.userId,
+              kind,
+              keyVersion,
+              encryptedMeta,
+              metaEncryptionNonce,
+            })),
+          );
+          await tx.insert(vaultMembersTable).values(
+            all.map(({ vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce }) => ({
+              vaultId,
+              keyVersion,
+              encryptedVaultKey,
+              vaultKeyEncryptionNonce,
+              userId: user.userId,
+              role: "owner" as const,
+            })),
+          );
+          const links = all.flatMap(({ vaultId, previousKeys }) =>
+            previousKeys.map((link) => ({ vaultId, ...link })),
+          );
+          if (links.length > 0) await tx.insert(vaultKeyLinksTable).values(links);
           return true;
         })
         .catch((error: unknown) => {

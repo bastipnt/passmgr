@@ -16,6 +16,11 @@ export type RecordCipherContext = {
   cryptoVersion: number;
 };
 
+/** How a vault key is looked up: one per vault and key version (a rotation adds one). */
+export function vaultKeyId(vaultId: string, keyVersion: number): string {
+  return `${vaultId}/${keyVersion}`;
+}
+
 function recordAad({ recordId, vaultId, cryptoVersion }: RecordCipherContext): Uint8Array {
   return fromString(`passmgr/record/${cryptoVersion}/${vaultId}/${recordId}`);
 }

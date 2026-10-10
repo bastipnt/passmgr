@@ -1,7 +1,7 @@
-import { db, vaultMembersTable, vaultsTable } from "@repo/db";
-import type { MemberVault, VaultRole } from "@repo/schema";
+import { db, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import type { MemberVault, VaultKeyLink, VaultRole } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
@@ -16,9 +16,12 @@ function activeMembership(userId: string) {
   );
 }
 
-/** Every vault the user can access, with their wrap of its key and its metadata. */
+/**
+ * Every vault the user can access, with their wrap of its current key, its
+ * earlier keys (oldest first) and its metadata.
+ */
 export async function memberVaults(userId: string, tx: DbExecutor = db): Promise<MemberVault[]> {
-  return await tx
+  const vaults = await tx
     .select({
       vaultId: vaultMembersTable.vaultId,
       keyVersion: vaultMembersTable.keyVersion,
@@ -32,6 +35,49 @@ export async function memberVaults(userId: string, tx: DbExecutor = db): Promise
     .from(vaultMembersTable)
     .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
     .where(activeMembership(userId));
+  if (vaults.length === 0) return [];
+
+  const links = await tx
+    .select()
+    .from(vaultKeyLinksTable)
+    .where(
+      inArray(
+        vaultKeyLinksTable.vaultId,
+        vaults.map((v) => v.vaultId),
+      ),
+    )
+    .orderBy(asc(vaultKeyLinksTable.keyVersion));
+  const previousKeys = new Map<string, VaultKeyLink[]>();
+  for (const { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce } of links) {
+    // Only the keys below the member's own: those are what their key opens.
+    const list = previousKeys.get(vaultId) ?? [];
+    list.push({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce });
+    previousKeys.set(vaultId, list);
+  }
+  return vaults.map((vault) => ({
+    ...vault,
+    previousKeys: (previousKeys.get(vault.vaultId) ?? []).filter(
+      (link) => link.keyVersion < vault.keyVersion,
+    ),
+  }));
+}
+
+/**
+ * The current key version of each vault, read in `tx` (lock the vaults first
+ * for an answer that holds until it commits). A vault that doesn't exist is
+ * left out.
+ */
+export async function vaultKeyVersions(
+  tx: DbExecutor,
+  vaultIds: Iterable<string>,
+): Promise<Map<string, number>> {
+  const ids = [...new Set(vaultIds)];
+  if (ids.length === 0) return new Map();
+  const rows = await tx
+    .select({ vaultId: vaultsTable.vaultId, keyVersion: vaultsTable.keyVersion })
+    .from(vaultsTable)
+    .where(inArray(vaultsTable.vaultId, ids));
+  return new Map(rows.map((row) => [row.vaultId, row.keyVersion]));
 }
 
 /**

@@ -44,7 +44,7 @@ let local: NewLocalVault;
 function encrypted(data: RecordData, extra: Partial<EncryptedRecordSchema> = {}) {
   const recordId = crypto.randomUUID();
   const vaultId = local.vaults[0]!.vaultId;
-  const [encryptedData, encryptionNonce] = secretsStore.encryptRecord(
+  const [encryptedData, encryptionNonce, keyVersion] = secretsStore.encryptRecord(
     { recordId, vaultId },
     JSON.stringify({ ...data, schemaVersion: CURRENT_SCHEMA_VERSION }),
   );
@@ -54,6 +54,7 @@ function encrypted(data: RecordData, extra: Partial<EncryptedRecordSchema> = {})
     encryptedData,
     encryptionNonce,
     cryptoVersion: CURRENT_CRYPTO_VERSION,
+    keyVersion,
     version: 1,
     clientUpdatedAt: "2026-10-02T00:00:00.000Z",
     created_at: "2026-10-01T00:00:00.000Z",

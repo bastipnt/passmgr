@@ -3,6 +3,7 @@ import type {
   RecoveryKeySchema,
   RecoveryWrapSchema,
   UserKeySchema,
+  VaultKeyLink,
   VaultKeyWrap,
   VaultMeta,
 } from "@repo/schema";
@@ -16,7 +17,8 @@ import { encryptVaultMeta } from "./vault-data";
  * Key hierarchy (ADR 0001 D3):
  *
  *   passwordKEK ─┬─wrap─► accountKey ──wrap─► vaultKey[vaultId] ──► records
- *   recoveryKEK ─┘
+ *   recoveryKEK ─┘                            │
+ *                                    wrap─► previous vaultKey ──► older records
  *
  * Wraps carry AEAD associated data so a ciphertext only opens in its own slot.
  * The account key's AAD is purpose-only: the same wrap is used on every device,
@@ -29,6 +31,10 @@ const ACCOUNT_KEY_AAD = fromString("passmgr/account-key/v1");
 
 function vaultKeyAad(vaultId: string, keyVersion: number): Uint8Array {
   return fromString(`passmgr/vault-key/v1/${vaultId}/${keyVersion}`);
+}
+
+function previousVaultKeyAad(vaultId: string, keyVersion: number): Uint8Array {
+  return fromString(`passmgr/previous-vault-key/v1/${vaultId}/${keyVersion}`);
 }
 
 /** Wrap the account key under a KEK (password, recovery or biometric). */
@@ -73,13 +79,72 @@ export function unwrapVaultKey(accountKey: Uint8Array, wrap: VaultKeyWrap): Uint
 }
 
 /**
+ * Wrap a vault's key `keyVersion` under the key that replaces it (a rotation):
+ * whoever holds the newer key can open the older one, never the other way.
+ */
+export function wrapPreviousVaultKey(
+  newVaultKey: Uint8Array,
+  previousVaultKey: Uint8Array,
+  vaultId: string,
+  keyVersion: number,
+): VaultKeyLink {
+  const [encryptedVaultKey, vaultKeyEncryptionNonce] = encryptXChaChaWithAAD(
+    newVaultKey,
+    previousVaultKey,
+    previousVaultKeyAad(vaultId, keyVersion),
+  );
+  return { keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce };
+}
+
+/**
+ * Open a vault's earlier key with the key one version above it. Throws when
+ * the link was made for another vault / key version, or tampered with.
+ */
+export function unwrapPreviousVaultKey(
+  newerVaultKey: Uint8Array,
+  vaultId: string,
+  link: VaultKeyLink,
+): Uint8Array {
+  return decryptXChaChaWithAAD(
+    newerVaultKey,
+    link.encryptedVaultKey,
+    link.vaultKeyEncryptionNonce,
+    previousVaultKeyAad(vaultId, link.keyVersion),
+  );
+}
+
+/**
+ * Rotate a vault's key: a fresh key at the next version, wrapped under the
+ * account key; the current key wrapped under the new one (`previousKey`, so
+ * the history stays readable); the metadata re-encrypted with the new key.
+ */
+export function rotateVaultKey(
+  accountKey: Uint8Array,
+  currentVaultKey: Uint8Array,
+  vaultId: string,
+  currentKeyVersion: number,
+  meta: VaultMeta,
+): VaultKeyWrap & EncryptedVaultMeta & { previousKey: VaultKeyLink } {
+  const vaultKey = genKey();
+  try {
+    return {
+      ...wrapVaultKey(accountKey, vaultKey, vaultId, currentKeyVersion + 1),
+      ...encryptVaultMeta(vaultKey, vaultId, meta),
+      previousKey: wrapPreviousVaultKey(vaultKey, currentVaultKey, vaultId, currentKeyVersion),
+    };
+  } finally {
+    wipe(vaultKey);
+  }
+}
+
+/**
  * A fresh vault (random id + key, first key version): its key wrapped under the
  * account key and its metadata encrypted with the vault key.
  */
 export function createVault(
   accountKey: Uint8Array,
   meta: VaultMeta,
-): VaultKeyWrap & EncryptedVaultMeta & { keyVersion: 1 } {
+): VaultKeyWrap & EncryptedVaultMeta & { keyVersion: 1; previousKeys: VaultKeyLink[] } {
   const vaultKey = genKey();
   const vaultId = crypto.randomUUID();
   try {
@@ -87,6 +152,7 @@ export function createVault(
       ...wrapVaultKey(accountKey, vaultKey, vaultId, 1),
       ...encryptVaultMeta(vaultKey, vaultId, meta),
       keyVersion: 1,
+      previousKeys: [],
     };
   } finally {
     wipe(vaultKey);

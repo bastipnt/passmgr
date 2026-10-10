@@ -257,6 +257,7 @@ password ──Argon2id──► passwordKEK ──wrap──► accountKey
 recoveryKey ──HKDF──► recoveryKEK ──wrap──► accountKey (backup)
 recoveryKey ──HKDF──► recoveryAuthKey ──SHA-256──► recoveryVerifier (server, recovery proof)
 accountKey ──wrap──► vaultKey[vaultId] ──encrypt──► records
+vaultKey[v] ──wrap──► vaultKey[v-1]     (rotation chain, `previousKeys`; opens the history)
 accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
 memberPublicKey ──seal──► vaultKey      (invites, `sealToPublicKey`; not wired up yet)
 (biometric KEK / mobile login bundle also hold the accountKey, never a vault key)
@@ -294,6 +295,16 @@ A pull that collides with pending local versions merges field by field (ADR 0001
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
 
+Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
+`keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`
+loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Every record version carries the
+`keyVersion` it is encrypted with; `vault.rotateKey` is a CAS on `vaults.keyVersion`, after which `record.push`
+rejects a put under another key (`key_version`, the client retries it re-encrypted). Before every push
+`SyncManager`'s `prepareOutbox` (`reencryptForPush`, `vaults/rekey.ts`) re-encrypts pending versions under an old
+key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
+resumable). History keeps the old key. Refused (`PRECONDITION_FAILED`) for a vault with other members until sharing
+seals the new key to them. Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
+
 Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
 records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search ignores it). Create /
 rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
@@ -312,7 +323,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
-- `vault` → `vaultRouter` (list, create, updateMeta, delete — owner only, never the personal vault) — `protectedProcedure`
+- `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault) — `protectedProcedure`
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)

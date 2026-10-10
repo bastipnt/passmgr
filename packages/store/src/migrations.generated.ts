@@ -47,5 +47,12 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "ALTER TABLE `outbox` ADD `parkedAt` text;"
     ]
+  },
+  {
+    "name": "20261010093022_vault_key_rotation",
+    "statements": [
+      "ALTER TABLE `records` ADD `keyVersion` integer DEFAULT 1 NOT NULL;",
+      "ALTER TABLE `vaults` ADD `previousKeys` text DEFAULT '[]' NOT NULL;"
+    ]
   }
 ];

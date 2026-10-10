@@ -28,7 +28,11 @@ const vault = {
   getAccountKeyMaterial: vi.fn(async () => null),
   getBiometricKeyMaterial: vi.fn(async () => null),
   getSyncCursors: vi.fn(async () => ({})),
+  getVaults: vi.fn(async () => []),
   applySync: vi.fn(async () => false),
+  getPendingUnderOldKeys: vi.fn(async () => []),
+  replacePendingCiphertexts: vi.fn(async () => undefined),
+  getRekeyTargets: vi.fn(async () => ({})),
   getPendingChanges: vi.fn(async (): Promise<PendingChange[]> => []),
   ackPendingChange: vi.fn(async () => undefined),
   failPendingChange: vi.fn(async () => undefined),
@@ -185,6 +189,7 @@ describe("StoreProvider sync", () => {
       encryptedData: "data",
       encryptionNonce: "nonce",
       cryptoVersion: 1,
+      keyVersion: 1,
       clientUpdatedAt: "2026-10-05T00:00:00.000Z",
       deleted_at: null,
     };
@@ -216,9 +221,9 @@ describe("StoreProvider sync", () => {
     renderWithProviders(ui("online"));
 
     await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
-    const { clientUpdatedAt, encryptedData, encryptionNonce, cryptoVersion } = row;
+    const { clientUpdatedAt, encryptedData, encryptionNonce, cryptoVersion, keyVersion } = row;
     const common = { recordId: "r1", vaultId: "v1", clientUpdatedAt };
-    const ciphertext = { encryptedData, encryptionNonce, cryptoVersion };
+    const ciphertext = { encryptedData, encryptionNonce, cryptoVersion, keyVersion };
     expect(trpcClient.record.push.mutate).toHaveBeenCalledExactlyOnceWith({
       changes: [
         { ...common, ...ciphertext, op: "put", clientChangeId: "c1", baseVersion: 0 },
@@ -250,6 +255,7 @@ describe("StoreProvider sync", () => {
             encryptedData: "data",
             encryptionNonce: "nonce",
             cryptoVersion: 1,
+            keyVersion: 1,
             clientUpdatedAt: "2026-10-05T00:00:00.000Z",
             version: 1,
           },
@@ -283,6 +289,7 @@ describe("StoreProvider sync", () => {
       encryptedData: "data",
       encryptionNonce: "nonce",
       cryptoVersion: 1,
+      keyVersion: 1,
       clientUpdatedAt: "2026-10-05T00:00:00.000Z",
       version: 1,
     };

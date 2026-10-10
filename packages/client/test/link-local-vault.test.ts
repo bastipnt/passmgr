@@ -9,7 +9,14 @@ import {
   RegistrationRecord,
   RegistrationRequest,
 } from "@cloudflare/opaque-ts";
-import { createVault, getPasswordKekParams, setPasswordKekParams, wipe } from "@repo/crypto";
+import {
+  createVault,
+  getPasswordKekParams,
+  rotateVaultKey,
+  setPasswordKekParams,
+  unwrapVaultKey,
+  wipe,
+} from "@repo/crypto";
 import type { MemberVault } from "@repo/schema";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateLocalVault } from "../src/account/create-local-vault";
@@ -141,7 +148,24 @@ beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
 afterAll(() => setPasswordKekParams(previous));
 
 describe("localVaultKeyring", () => {
-  it("throws for a key past its first version: registration takes first versions only", async () => {
+  it("takes a rotated vault with its earlier keys as it is", async () => {
+    const local = await generateLocalVault(PASSWORD);
+    const vault = local.vaults[0]!;
+    const { previousKey, ...next } = rotateVaultKey(
+      local.accountKey,
+      unwrapVaultKey(local.accountKey, vault),
+      vault.vaultId,
+      1,
+      { name: "Personal" },
+    );
+    const rotated = [{ ...vault, ...next, previousKeys: [previousKey] }];
+
+    const keyring = localVaultKeyring(local.material, local.recovery, rotated);
+
+    expect(keyring.personalVault).toMatchObject({ keyVersion: 2, previousKeys: [previousKey] });
+  });
+
+  it("throws for a rotated vault missing an earlier key", async () => {
     const local = await generateLocalVault(PASSWORD);
     const rotated = local.vaults.map((v) => ({ ...v, keyVersion: 2 }));
     expect(() => localVaultKeyring(local.material, local.recovery, rotated)).toThrow(

@@ -1,5 +1,6 @@
-import { test as base, expect, type Page } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { loginUser, randomEmail, randomPassword, registerUser } from "./helpers/auth";
+import { test } from "./helpers/devices";
 import {
   createLocalVault,
   createLogin,
@@ -17,29 +18,6 @@ import {
  * account, syncs to a second device, and converges after concurrent edits;
  * a linked device keeps writing while offline and catches up.
  */
-
-/**
- * A second device: its own browser context, so its own OPFS and memory. A
- * fixture, so it closes even when the test fails, with a screenshot attached
- * (the config's `screenshot` covers only the default page).
- */
-const test = base.extend<{ secondDevice: Page }>({
-  secondDevice: async ({ browser, baseURL, permissions }, provide, testInfo) => {
-    const context = await browser.newContext({ baseURL, permissions });
-    const page = await context.newPage();
-    try {
-      await provide(page);
-    } finally {
-      if (testInfo.status !== testInfo.expectedStatus) {
-        await testInfo.attach("second-device", {
-          body: await page.screenshot().catch(() => Buffer.alloc(0)),
-          contentType: "image/png",
-        });
-      }
-      await context.close();
-    }
-  },
-});
 
 async function openAccountSettings(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Settings", exact: true }).click();

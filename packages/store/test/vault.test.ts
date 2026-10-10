@@ -8,7 +8,7 @@ import type {
 import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalProfile } from "../src/schema/profile-schema";
-import { Vault, VaultExistsError } from "../src/vault";
+import { sameVaults, Vault, VaultExistsError } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
 let vault: Vault;
@@ -33,6 +33,7 @@ function record(
     encryptedData: `data-${recordId}-${version}`,
     encryptionNonce: `nonce-${recordId}-${version}`,
     cryptoVersion: 1,
+    keyVersion: 1,
     clientUpdatedAt: `2026-10-0${version}T00:00:00.000Z`,
     created_at: `2026-10-0${version}T00:00:00.000Z`,
     updated_at: `2026-10-0${version}T00:00:00.000Z`,
@@ -64,6 +65,7 @@ function vaultKey(vaultId: string, kind: MemberVault["kind"] = "shared"): Member
     vaultKeyEncryptionNonce: `nonce-${vaultId}`,
     encryptedMeta: `meta-${vaultId}`,
     metaEncryptionNonce: `meta-nonce-${vaultId}`,
+    previousKeys: [],
   };
 }
 
@@ -380,6 +382,7 @@ describe("createLocalVault", () => {
         encryptedData: "data",
         encryptionNonce: "nonce",
         cryptoVersion: 1,
+        keyVersion: 1,
         clientUpdatedAt: "2026-10-08T00:00:00.000Z",
       },
     ]);
@@ -603,6 +606,7 @@ describe("vaults on the device", () => {
       encryptedData: "data",
       encryptionNonce: "nonce",
       cryptoVersion: 1,
+      keyVersion: 1,
       clientUpdatedAt: "2026-10-08T00:00:00.000Z",
     };
   }
@@ -648,5 +652,148 @@ describe("vaults on the device", () => {
     await vault.setAccountKeyMaterial(accountKey, [personal]);
     await expect(vault.removeVault(personal.vaultId)).rejects.toThrow();
     expect(await vault.getVaults()).toEqual([personal]);
+  });
+});
+
+describe("vault key rotation", () => {
+  const link = {
+    keyVersion: 1,
+    encryptedVaultKey: "prev-enc",
+    vaultKeyEncryptionNonce: "prev-nonce",
+  };
+  const rotated: MemberVault = {
+    ...personal,
+    keyVersion: 2,
+    encryptedVaultKey: "enc-2",
+    previousKeys: [link],
+  };
+
+  function put(recordId: string, keyVersion: number, kind: "create" | "update" = "create") {
+    return {
+      kind,
+      recordId,
+      vaultId: personal.vaultId,
+      encryptedData: `data-${keyVersion}`,
+      encryptionNonce: "nonce",
+      cryptoVersion: 1,
+      keyVersion,
+      clientUpdatedAt: "2026-10-10T00:00:00.000Z",
+    };
+  }
+
+  it("keeps a vault's earlier keys with it, and tells a changed chain apart", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.saveVault(rotated);
+
+    expect(await vault.getVaults()).toEqual([rotated]);
+    expect(sameVaults([rotated], [{ ...rotated, previousKeys: [{ ...link }] }])).toBe(true);
+    expect(sameVaults([rotated], [{ ...rotated, previousKeys: [] }])).toBe(false);
+  });
+
+  it("finds pending content under an old key and swaps in its re-encryption", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.writeLocalChanges([put("r1", 1), put("r2", 1)]);
+    await vault.writeLocalChanges([
+      { kind: "delete", recordId: "r2", clientUpdatedAt: "2026-10-10T00:00:00.000Z" },
+    ]);
+    expect(await vault.getPendingUnderOldKeys()).toEqual([]);
+
+    await vault.saveVault(rotated);
+    const stale = await vault.getPendingUnderOldKeys();
+    // A tombstone sends no ciphertext: it stays as it is.
+    expect(stale.map((r) => [r.recordId, r.version])).toEqual([
+      ["r1", 1],
+      ["r2", 1],
+    ]);
+
+    await vault.replacePendingCiphertexts([
+      {
+        recordId: "r1",
+        version: 1,
+        fromKeyVersion: 1,
+        encryptedData: "new",
+        encryptionNonce: "n2",
+        cryptoVersion: 1,
+        keyVersion: 2,
+      },
+      // Changed meanwhile (not under key 1 any more): left alone.
+      {
+        recordId: "r2",
+        version: 1,
+        fromKeyVersion: 2,
+        encryptedData: "x",
+        encryptionNonce: "x",
+        cryptoVersion: 1,
+        keyVersion: 2,
+      },
+    ]);
+
+    expect(await vault.getByRecordId("r1")).toMatchObject({ encryptedData: "new", keyVersion: 2 });
+    expect((await vault.getPendingUnderOldKeys()).map((r) => r.recordId)).toEqual(["r2"]);
+  });
+
+  it("never swaps the ciphertext of a version the server has", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    const [row] = await vault.writeLocalChanges([put("r1", 1)]);
+    const [change] = await vault.getPendingChanges();
+    await vault.ackPendingChange(change!.changeId, null);
+
+    await vault.replacePendingCiphertexts([
+      {
+        recordId: "r1",
+        version: 1,
+        fromKeyVersion: 1,
+        encryptedData: "new",
+        encryptionNonce: "n",
+        cryptoVersion: 1,
+        keyVersion: 2,
+      },
+    ]);
+
+    expect(await vault.getByRecordId("r1")).toMatchObject({
+      encryptedData: row!.encryptedData,
+      keyVersion: 1,
+    });
+  });
+
+  it("writes a re-encrypted version only on top of the head it was read from", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    await vault.writeLocalChanges([put("r1", 1), put("r2", 1), put("r3", 1)]);
+    await vault.writeLocalChanges([put("r2", 2, "update")]); // edited meanwhile
+    await vault.writeLocalChanges([
+      { kind: "delete", recordId: "r3", clientUpdatedAt: "2026-10-10T00:00:00.000Z" },
+    ]);
+
+    const rekeyed = (recordId: string) => {
+      const { kind: _kind, ...ciphertext } = put(recordId, 2);
+      return { ...ciphertext, encryptedData: `rekeyed-${recordId}`, headVersion: 1 };
+    };
+    const written = await vault.writeReencryptedVersions(["r1", "r2", "r3"].map(rekeyed));
+
+    expect(written).toBe(1);
+    expect(await vault.getByRecordId("r1")).toMatchObject({
+      version: 2,
+      encryptedData: "rekeyed-r1",
+      keyVersion: 2,
+    });
+    expect(await vault.getByRecordId("r2")).toMatchObject({ version: 2, encryptedData: "data-2" });
+    expect(await vault.getByRecordId("r3")).toMatchObject({
+      version: 2,
+      deleted_at: expect.any(String),
+    });
+  });
+
+  it("remembers a started rotation until cleared, or its vault is dropped", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal, vaultKey("v-work")]);
+    await vault.setRekeyTarget("v-personal", 2);
+    await vault.setRekeyTarget("v-work", 3);
+
+    // A later rotation started meanwhile stays.
+    await vault.clearRekeyTarget("v-personal", 1);
+    expect(await vault.getRekeyTargets()).toEqual({ "v-personal": 2, "v-work": 3 });
+
+    await vault.clearRekeyTarget("v-personal", 2);
+    await vault.removeVault("v-work");
+    expect(await vault.getRekeyTargets()).toEqual({});
   });
 });

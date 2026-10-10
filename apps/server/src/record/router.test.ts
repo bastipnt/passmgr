@@ -20,6 +20,7 @@ describe("recordRouter — auth gating", () => {
             encryptedData: "ENC",
             encryptionNonce: "NONCE",
             cryptoVersion: 1,
+            keyVersion: 1,
             clientUpdatedAt: new Date().toISOString(),
           },
         ],

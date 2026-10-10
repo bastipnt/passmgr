@@ -1,7 +1,7 @@
 import type { RecordCipherContext } from "../vault-data";
-import { decryptRecordData } from "../vault-data";
+import { decryptRecordData, vaultKeyId } from "../vault-data";
 
-// vaultId → vault key (ADR 0001 D3).
+// `vaultKeyId` (vault + key version) → vault key (ADR 0001 D3).
 let vaultKeys = new Map<string, Uint8Array>();
 
 function wipeKeys() {
@@ -11,11 +11,12 @@ function wipeKeys() {
 
 self.onmessage = (event: MessageEvent) => {
   const msg = event.data as
-    | { type: "init"; keys: [vaultId: string, key: ArrayBuffer][] }
+    | { type: "init"; keys: [keyId: string, key: ArrayBuffer][] }
     | {
         type: "decrypt";
         id: string;
         context: RecordCipherContext;
+        keyVersion: number;
         encryptedData: string;
         nonce: string;
       }
@@ -23,7 +24,7 @@ self.onmessage = (event: MessageEvent) => {
 
   if (msg.type === "init") {
     wipeKeys();
-    vaultKeys = new Map(msg.keys.map(([vaultId, key]) => [vaultId, new Uint8Array(key)]));
+    vaultKeys = new Map(msg.keys.map(([keyId, key]) => [keyId, new Uint8Array(key)]));
     return;
   }
 
@@ -33,7 +34,7 @@ self.onmessage = (event: MessageEvent) => {
   }
 
   if (msg.type === "decrypt") {
-    const key = vaultKeys.get(msg.context.vaultId);
+    const key = vaultKeys.get(vaultKeyId(msg.context.vaultId, msg.keyVersion));
     if (!key) {
       self.postMessage({ type: "error", id: msg.id, message: "No key for vault" });
       return;

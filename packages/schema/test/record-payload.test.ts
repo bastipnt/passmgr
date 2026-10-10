@@ -25,6 +25,7 @@ describe("pushInputSchema", () => {
       encryptedData: "E",
       encryptionNonce: "N",
       cryptoVersion: 1,
+      keyVersion: 1,
     };
     const del = { ...change, op: "delete", baseVersion: 1, clientChangeId: crypto.randomUUID() };
     expect(pushInputSchema.parse({ changes: [put, del] }).changes).toHaveLength(2);

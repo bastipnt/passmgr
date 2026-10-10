@@ -47,6 +47,7 @@ const personal: MemberVault = {
   vaultKeyEncryptionNonce: "nonce",
   encryptedMeta: "meta",
   metaEncryptionNonce: "mn",
+  previousKeys: [],
 };
 const ALICE: LocalProfile = {
   profileId: "p-alice",
@@ -69,6 +70,7 @@ function record(recordId: string): EncryptedRecordSchema {
     encryptedData: "data",
     encryptionNonce: "nonce",
     cryptoVersion: 1,
+    keyVersion: 1,
     clientUpdatedAt: "2026-10-01T00:00:00.000Z",
     created_at: "2026-10-01T00:00:00.000Z",
     updated_at: "2026-10-01T00:00:00.000Z",

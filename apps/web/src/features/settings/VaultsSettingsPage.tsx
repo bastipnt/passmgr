@@ -17,10 +17,10 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { PencilLineIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { KeyRoundIcon, PencilLineIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
-import { DeleteVaultDialog, VaultDialog, VaultTile } from "@/features/vaults";
+import { DeleteVaultDialog, RotateVaultKeyDialog, VaultDialog, VaultTile } from "@/features/vaults";
 
 function itemCount(count: number): string {
   return count === 1 ? "1 item" : `${count} items`;
@@ -28,7 +28,8 @@ function itemCount(count: number): string {
 
 /**
  * The profile's vaults (ADR 0001 D6): create one, rename it or change its icon
- * and colour (owners and managers), delete it (owners; never the personal one).
+ * and colour or rotate its key (owners and managers), delete it (owners; never
+ * the personal one).
  */
 export default function VaultsSettingsPage() {
   const { vaults } = useVaults();
@@ -41,6 +42,8 @@ export default function VaultsSettingsPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [deleting, setDeleting] = useState<VaultInfo>();
   const [deleteOpen, setDeleteOpen] = useState(false);
+  const [rotating, setRotating] = useState<VaultInfo>();
+  const [rotateOpen, setRotateOpen] = useState(false);
 
   const counts = new Map<string, number>();
   for (const record of records) counts.set(record.vaultId, (counts.get(record.vaultId) ?? 0) + 1);
@@ -96,6 +99,20 @@ export default function VaultsSettingsPage() {
                       <PencilLineIcon />
                     </Button>
                   )}
+                  {canEdit && (
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      aria-label={`Rotate the key of ${vault.name}`}
+                      title="Rotate key"
+                      onClick={() => {
+                        setRotating(vault);
+                        setRotateOpen(true);
+                      }}
+                    >
+                      <KeyRoundIcon />
+                    </Button>
+                  )}
                   {canDelete && (
                     <Button
                       variant="ghost-destructive"
@@ -120,6 +137,9 @@ export default function VaultsSettingsPage() {
       <VaultDialog open={editOpen} vault={editing} onOpenChange={setEditOpen} />
       {deleting && (
         <DeleteVaultDialog vault={deleting} open={deleteOpen} onOpenChange={setDeleteOpen} />
+      )}
+      {rotating && (
+        <RotateVaultKeyDialog vault={rotating} open={rotateOpen} onOpenChange={setRotateOpen} />
       )}
     </>
   );

@@ -16,11 +16,11 @@ import {
   vaultErrorMessage,
   vaultIcon,
 } from "@repo/client";
-import { vaultMetaSchema } from "@repo/schema";
+import { canManageVault, vaultMetaSchema } from "@repo/schema";
 import { Button, FieldError, Input, oklch, SettingsSection } from "@repo/ui-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
-import { Pressable, View } from "react-native";
+import { Alert, Pressable, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { VAULT_ICON_COMPONENTS, VaultTile } from "@/features/vaults/VaultTile";
@@ -28,9 +28,9 @@ import { VAULT_ICON_COMPONENTS, VaultTile } from "@/features/vaults/VaultTile";
 // TODO: share logic with web
 
 /**
- * Web's `VaultDialog` + `DeleteVaultDialog` as one form sheet: a new vault, or
- * (`?vaultId=`) rename one, change its icon and colour, or delete it after
- * typing its name.
+ * Web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog` as one
+ * form sheet: a new vault, or (`?vaultId=`) rename one, change its icon and
+ * colour, rotate its key, or delete it after typing its name.
  */
 export default function VaultFormScreen() {
   const { vaultId } = useLocalSearchParams<{ vaultId?: string }>();
@@ -186,11 +186,70 @@ function VaultForm({ vault }: { vault?: VaultInfo }) {
           </View>
         )}
 
+        {vault && canManageVault(vault.role) && (
+          <RotateKeySection vault={vault} actions={actions} />
+        )}
+
         {vault && vault.kind !== "personal" && vault.role === "owner" && (
           <DeleteVaultSection vault={vault} actions={actions} />
         )}
       </KeyboardAwareScrollView>
     </View>
+  );
+}
+
+/** Web's `RotateVaultKeyDialog`: a new key for the vault, confirmed in an alert. */
+function RotateKeySection({
+  vault,
+  actions,
+}: {
+  vault: VaultInfo;
+  actions: ReturnType<typeof useVaultActions>;
+}) {
+  const { rotateVaultKey, pending } = actions;
+  const [error, setError] = useState<string>();
+  const [done, setDone] = useState(false);
+
+  async function rotate() {
+    setError(undefined);
+    try {
+      await rotateVaultKey(vault.vaultId);
+      setDone(true);
+    } catch (e) {
+      setError(vaultErrorMessage(e, "The key couldn't be rotated. Try again."));
+    }
+  }
+
+  function confirm() {
+    Alert.alert(
+      `Rotate the key of “${vault.name}”?`,
+      "Its items are re-encrypted under a new key. Older versions in the history stay under the old one.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { text: "Rotate key", onPress: () => void rotate() },
+      ],
+    );
+  }
+
+  return (
+    <SettingsSection
+      title="Vault key"
+      description="Rotate it if a device that had this vault was lost: a copy of the old key can't open anything you change from now on."
+    >
+      <View className="gap-3">
+        {error && <FieldError>{error}</FieldError>}
+        {/* Once is enough: pressing again would start another rotation. */}
+        <Button
+          size="lg"
+          variant="outline"
+          disabled={pending || done}
+          loading={pending}
+          onPress={confirm}
+        >
+          {done ? "Key rotated" : "Rotate key"}
+        </Button>
+      </View>
+    </SettingsSection>
   );
 }
 

@@ -81,5 +81,24 @@ export const vaultMembersTable = pgTable(
   ],
 );
 
+/**
+ * A vault's earlier keys (ADR 0001 D7, rotation): key `keyVersion` wrapped
+ * under key `keyVersion + 1` (AAD: vaultId + keyVersion). Append-only, one row
+ * per rotation; whoever holds the current key walks them down to read history.
+ */
+export const vaultKeyLinksTable = pgTable(
+  "vault_key_links",
+  {
+    vaultId: varchar()
+      .notNull()
+      .references(() => vaultsTable.vaultId, { onDelete: "cascade" }),
+    keyVersion: integer().notNull(),
+    encryptedVaultKey: varchar().notNull().unique(),
+    vaultKeyEncryptionNonce: varchar().notNull().unique(),
+    created_at: timestamp().defaultNow().notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.vaultId, table.keyVersion] })],
+);
+
 export type VaultType = InferSelectModel<typeof vaultsTable>;
 export type VaultMemberType = InferSelectModel<typeof vaultMembersTable>;

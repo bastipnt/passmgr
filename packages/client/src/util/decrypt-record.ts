@@ -4,7 +4,7 @@ import { secretsStore } from "@repo/store";
 
 type EncryptedRow = Pick<
   EncryptedRecordSchema,
-  "recordId" | "vaultId" | "cryptoVersion" | "encryptedData" | "encryptionNonce"
+  "recordId" | "vaultId" | "cryptoVersion" | "keyVersion" | "encryptedData" | "encryptionNonce"
 >;
 
 export function decryptRecord(row: EncryptedRow): RecordPayload {
@@ -16,6 +16,7 @@ export async function decryptRecordWithWorker(row: EncryptedRow): Promise<Record
   const { recordId, vaultId, cryptoVersion } = row;
   const payload = await decryptWorkerService.decrypt(
     { recordId, vaultId, cryptoVersion },
+    row.keyVersion,
     row.encryptedData,
     row.encryptionNonce,
   );

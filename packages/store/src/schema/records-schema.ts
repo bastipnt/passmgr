@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalDb } from "../local-db";
 import { records } from "./tables";
 
-// 10 bound columns per row: well below SQLite's variable limit per statement.
+// 11 bound columns per row: well below SQLite's variable limit per statement.
 const UPSERT_CHUNK_SIZE = 500;
 
 /**
@@ -18,6 +18,7 @@ const replaceOnConflict = {
     encryptedData: sql`excluded.encryptedData`,
     encryptionNonce: sql`excluded.encryptionNonce`,
     cryptoVersion: sql`excluded.cryptoVersion`,
+    keyVersion: sql`excluded.keyVersion`,
     clientUpdatedAt: sql`excluded.clientUpdatedAt`,
     created_at: sql`excluded.created_at`,
     updated_at: sql`excluded.updated_at`,
@@ -45,6 +46,7 @@ export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb):
       encryptedData: r.encryptedData,
       encryptionNonce: r.encryptionNonce,
       cryptoVersion: r.cryptoVersion,
+      keyVersion: r.keyVersion,
       version: r.version,
       clientUpdatedAt: r.clientUpdatedAt,
       created_at: r.created_at,

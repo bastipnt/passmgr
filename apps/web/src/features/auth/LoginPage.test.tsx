@@ -26,6 +26,7 @@ const personalVault: MemberVault = {
   vaultKeyEncryptionNonce: "AAAA",
   encryptedMeta: "AAAA",
   metaEncryptionNonce: "AAAA",
+  previousKeys: [],
 };
 
 const linkedProfile = {

@@ -46,6 +46,7 @@ describe("migration round-trip", () => {
       "records",
       "user_key_pairs",
       "users",
+      "vault_key_links",
       "vault_members",
       "vaults",
     ]);

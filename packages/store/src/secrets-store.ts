@@ -6,10 +6,13 @@ import {
   encryptVaultMeta,
   hkdf,
   type RecordCipherContext,
+  rotateVaultKey,
   signHmac,
   unwrapAccountKey,
+  unwrapPreviousVaultKey,
   unwrapUserPrivateKey,
   unwrapVaultKey,
+  vaultKeyId,
   wipe,
   wrapAccountKey,
 } from "@repo/crypto";
@@ -43,9 +46,12 @@ class SecretsStore {
   private authKey?: Uint8Array;
   private authSalt?: Uint8Array;
 
-  // Vault related keys (ADR 0001 D3): the account key unwraps the vault keys.
+  // Vault related keys (ADR 0001 D3): the account key unwraps the vault keys,
+  // each vault's current key its earlier ones (`vaultKeyId` → key).
   private accountKey?: Uint8Array;
   private vaultKeys = new Map<string, Uint8Array>();
+  // vaultId → the key version new records are encrypted with.
+  private currentKeyVersions = new Map<string, number>();
   private personalVaultId?: string;
   // The X25519 keypair (ADR 0001 D7), checked against each other on load.
   private userPrivateKey?: Uint8Array;
@@ -130,6 +136,10 @@ class SecretsStore {
    * left out (its records stay hidden) and returned, so one bad membership
    * row can't lock the user out of everything else.
    *
+   * Each vault's earlier keys (`previousKeys`) are opened from the current one
+   * down, as far as the chain opens: a broken link only hides the history
+   * below it.
+   *
    * @returns the ids of the vaults that were skipped
    */
   loadVaultKeys(wraps: readonly MemberVault[]): string[] {
@@ -140,18 +150,24 @@ class SecretsStore {
     if (personal.length !== 1) throw new Error("Expected exactly one personal vault");
 
     const keys = new Map<string, Uint8Array>();
+    const current = new Map<string, number>();
     const skipped: string[] = [];
     try {
       for (const wrap of wraps) {
-        if (keys.has(wrap.vaultId) || skipped.includes(wrap.vaultId)) {
+        if (current.has(wrap.vaultId) || skipped.includes(wrap.vaultId)) {
           throw new Error(`Duplicate vault ${wrap.vaultId}`);
         }
+        let key: Uint8Array;
         try {
-          keys.set(wrap.vaultId, unwrapVaultKey(accountKey, wrap));
+          key = unwrapVaultKey(accountKey, wrap);
         } catch (e) {
           if (wrap.kind === "personal") throw e;
           skipped.push(wrap.vaultId);
+          continue;
         }
+        keys.set(vaultKeyId(wrap.vaultId, wrap.keyVersion), key);
+        current.set(wrap.vaultId, wrap.keyVersion);
+        loadPreviousKeys(wrap, key, keys);
       }
     } catch (e) {
       for (const key of keys.values()) wipe(key);
@@ -160,6 +176,7 @@ class SecretsStore {
 
     this.wipeVaultKeys();
     this.vaultKeys = keys;
+    this.currentKeyVersions = current;
     this.personalVaultId = personal[0]!.vaultId;
     return skipped;
   }
@@ -273,36 +290,54 @@ class SecretsStore {
     return this.personalVaultId;
   }
 
-  private vaultKey(vaultId: string): Uint8Array {
-    const key = this.vaultKeys.get(vaultId);
+  /** The key version new records of the vault are encrypted with. */
+  currentKeyVersion(vaultId: string): number {
+    const keyVersion = this.currentKeyVersions.get(vaultId);
+    if (keyVersion === undefined) throw new SessionLockedError();
+    return keyVersion;
+  }
+
+  /** A vault's key: the current one, or the one of `keyVersion`. */
+  private vaultKey(vaultId: string, keyVersion = this.currentKeyVersion(vaultId)): Uint8Array {
+    const key = this.vaultKeys.get(vaultKeyId(vaultId, keyVersion));
     if (!key) throw new SessionLockedError();
     return key;
   }
 
-  /** Encrypt a record payload under its vault's key, bound to the record and vault. */
+  /**
+   * Encrypt a record payload under its vault's current key, bound to the
+   * record and vault. Resolves the key version it used too.
+   */
   encryptRecord(
     context: Omit<RecordCipherContext, "cryptoVersion">,
     data: string,
-  ): [encryptedData: string, nonce: string] {
-    return encryptRecordData(
-      this.vaultKey(context.vaultId),
+  ): [encryptedData: string, nonce: string, keyVersion: number] {
+    const keyVersion = this.currentKeyVersion(context.vaultId);
+    const [encryptedData, nonce] = encryptRecordData(
+      this.vaultKey(context.vaultId, keyVersion),
       { ...context, cryptoVersion: CURRENT_CRYPTO_VERSION },
       data,
     );
+    return [encryptedData, nonce, keyVersion];
   }
 
+  /** Decrypt a record version with the vault key it was encrypted with. */
   decryptRecord(
-    row: RecordCipherContext & { encryptedData: string; encryptionNonce: string },
+    row: RecordCipherContext & {
+      keyVersion: number;
+      encryptedData: string;
+      encryptionNonce: string;
+    },
   ): Uint8Array {
     return decryptRecordData(
-      this.vaultKey(row.vaultId),
+      this.vaultKey(row.vaultId, row.keyVersion),
       row,
       row.encryptedData,
       row.encryptionNonce,
     );
   }
 
-  /** Copies of every vault key, for the decrypt worker. */
+  /** Copies of every vault key (`vaultKeyId` → key), for the decrypt worker. */
   exportVaultKeysForWorker(): Map<string, Uint8Array> {
     if (this.vaultKeys.size === 0) throw new SessionLockedError();
     return new Map([...this.vaultKeys].map(([vaultId, key]) => [vaultId, key.slice()]));
@@ -317,6 +352,23 @@ class SecretsStore {
 
   encryptVaultMeta(vaultId: string, meta: VaultMeta): EncryptedVaultMeta {
     return encryptVaultMeta(this.vaultKey(vaultId), vaultId, meta);
+  }
+
+  /**
+   * A rotation of the vault's key (`vault.rotateKey`): the next key version,
+   * the current key wrapped under it and the metadata re-encrypted. The new
+   * key is loaded with the vault list it ends up in (`loadVaultKeys`).
+   */
+  rotateVaultKey(vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta) {
+    if (!this.accountKey) throw new SessionLockedError();
+    const keyVersion = this.currentKeyVersion(vault.vaultId);
+    return rotateVaultKey(
+      this.accountKey,
+      this.vaultKey(vault.vaultId, keyVersion),
+      vault.vaultId,
+      keyVersion,
+      this.decryptVaultMeta(vault),
+    );
   }
 
   /**
@@ -354,6 +406,7 @@ class SecretsStore {
   private wipeVaultKeys() {
     for (const key of this.vaultKeys.values()) wipe(key);
     this.vaultKeys = new Map();
+    this.currentKeyVersions = new Map();
     this.personalVaultId = undefined;
   }
 
@@ -381,6 +434,30 @@ class SecretsStore {
       vaultKeys: [...this.vaultKeys.values()],
       userPrivateKey: this.userPrivateKey,
     };
+  }
+}
+
+/**
+ * Open a vault's earlier keys into `keys`, each with the key one version
+ * above it, from the newest down. Stops at the first link that is missing or
+ * doesn't open: the keys below it stay unknown.
+ */
+function loadPreviousKeys(
+  vault: MemberVault,
+  currentKey: Uint8Array,
+  keys: Map<string, Uint8Array>,
+) {
+  const links = new Map(vault.previousKeys.map((link) => [link.keyVersion, link]));
+  let newer = currentKey;
+  for (let keyVersion = vault.keyVersion - 1; keyVersion >= 1; keyVersion--) {
+    const link = links.get(keyVersion);
+    if (!link) return;
+    try {
+      newer = unwrapPreviousVaultKey(newer, vault.vaultId, link);
+    } catch {
+      return;
+    }
+    keys.set(vaultKeyId(vault.vaultId, keyVersion), newer);
   }
 }
 

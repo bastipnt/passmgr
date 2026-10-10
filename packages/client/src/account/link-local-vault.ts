@@ -1,8 +1,9 @@
-import type {
-  AccountKeyMaterial,
-  MemberVault,
-  RecoveryKeySchema,
-  VaultUnlockInfo,
+import {
+  type AccountKeyMaterial,
+  isCompleteKeyChain,
+  type MemberVault,
+  type RecoveryKeySchema,
+  type VaultUnlockInfo,
 } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
@@ -22,8 +23,8 @@ import {
 export type LinkTRPCClient = Pick<TRPCClient<AppRouter>, "register" | "login">;
 
 /**
- * The local vault can't be uploaded as it is: no personal vault, or a key
- * that isn't in its first version (registration takes first versions only).
+ * The local vault can't be uploaded as it is: no personal vault, a keypair
+ * that isn't in its first version, or a rotated vault missing earlier keys.
  */
 export class LinkUnavailableError extends Error {
   override message = "LinkUnavailableError";
@@ -66,9 +67,10 @@ export function localVaultKeyring(
   vaults: readonly MemberVault[],
 ): RegistrationKeyring {
   const { userKeyPair, ...passwordWrap } = material;
-  const toInput = ({ kind: _kind, role: _role, keyVersion, ...vault }: MemberVault) => {
-    if (keyVersion !== 1) throw new LinkUnavailableError();
-    return { ...vault, keyVersion: 1 as const };
+  // A rotated vault goes up as it is: its records' key versions need every earlier key.
+  const toInput = ({ kind: _kind, role: _role, ...vault }: MemberVault) => {
+    if (!isCompleteKeyChain(vault.keyVersion, vault.previousKeys)) throw new LinkUnavailableError();
+    return vault;
   };
 
   const personal = vaults.find((v) => v.kind === "personal");

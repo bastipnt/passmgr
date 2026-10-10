@@ -18,6 +18,7 @@ function keyring() {
       role: "owner",
       encryptedMeta: B64_32,
       metaEncryptionNonce: B64_32,
+      previousKeys: [],
     },
   ];
   return { accountKey, vaults, userKeyPair: createUserKeyPair(accountKey) };

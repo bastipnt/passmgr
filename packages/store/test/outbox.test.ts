@@ -23,6 +23,7 @@ function ciphertext(recordId: string, data: string, vaultId = "v-personal") {
     encryptedData: data,
     encryptionNonce: `nonce-${data}`,
     cryptoVersion: 1,
+    keyVersion: 1,
     clientUpdatedAt: T,
   };
 }
@@ -52,6 +53,7 @@ function memberVault(vaultId: string, kind: MemberVault["kind"]): MemberVault {
     vaultKeyEncryptionNonce: `nonce-${vaultId}`,
     encryptedMeta: `meta-${vaultId}`,
     metaEncryptionNonce: `meta-nonce-${vaultId}`,
+    previousKeys: [],
   };
 }
 

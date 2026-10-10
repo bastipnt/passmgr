@@ -1,12 +1,14 @@
 import {
   createUserKeyPair,
   decryptRecordData,
+  encryptRecordData,
   encryptVaultMeta,
   genKey,
   hkdf,
   unwrapAccountKey,
   verifyHmac,
   wrapAccountKey,
+  wrapPreviousVaultKey,
   wrapVaultKey,
 } from "@repo/crypto";
 import type { MemberVault } from "@repo/schema";
@@ -28,6 +30,7 @@ function memberVault(
   return {
     ...wrapVaultKey(accountKey, vaultKey, vaultId, 1),
     ...encryptVaultMeta(vaultKey, vaultId, { name }),
+    previousKeys: [],
     kind,
     role: "owner",
   };
@@ -48,7 +51,7 @@ function keyring() {
 const RECORD_ID = "0199a3c4-0000-7000-8000-0000000000aa";
 
 function decryptAs(
-  [encryptedData, encryptionNonce]: [string, string],
+  [encryptedData, encryptionNonce]: readonly [string, string, ...unknown[]],
   vaultId: string,
   recordId = RECORD_ID,
 ): string {
@@ -56,6 +59,7 @@ function decryptAs(
     recordId,
     vaultId,
     cryptoVersion: 1,
+    keyVersion: 1,
     encryptedData,
     encryptionNonce,
   });
@@ -298,6 +302,93 @@ describe("loadVaultKeys", () => {
 
     expect(secretsStore.isVaultUnlocked).toBe(true);
     expect(decryptAs(sealed, WORK_ID)).toBe("kept");
+  });
+});
+
+describe("rotated vault keys", () => {
+  /** The work vault at key version 3: its keys 1 and 2 each wrapped under their successor. */
+  function rotatedTwice() {
+    const ring = keyring();
+    const key2 = genKey();
+    const key3 = genKey();
+    const work: MemberVault = {
+      ...ring.wraps[1]!,
+      ...wrapVaultKey(ring.accountKey, key3, WORK_ID, 3),
+      ...encryptVaultMeta(key3, WORK_ID, { name: "Work" }),
+      previousKeys: [
+        wrapPreviousVaultKey(key2, ring.workKey, WORK_ID, 1),
+        wrapPreviousVaultKey(key3, key2, WORK_ID, 2),
+      ],
+    };
+    secretsStore.unlockWithAccountKey(ring.accountKey.slice());
+    return { ...ring, key2, key3, wraps: [ring.wraps[0]!, work] };
+  }
+
+  function sealUnder(key: Uint8Array, keyVersion: number, data: string) {
+    const context = { recordId: RECORD_ID, vaultId: WORK_ID, cryptoVersion: 1 };
+    const [encryptedData, encryptionNonce] = encryptRecordData(key, context, data);
+    return {
+      recordId: RECORD_ID,
+      vaultId: WORK_ID,
+      cryptoVersion: 1,
+      keyVersion,
+      encryptedData,
+      encryptionNonce,
+    };
+  }
+
+  it("encrypt under the current key and open records of every earlier one", () => {
+    const { wraps, workKey, key2 } = rotatedTwice();
+    secretsStore.loadVaultKeys(wraps);
+
+    expect(secretsStore.currentKeyVersion(WORK_ID)).toBe(3);
+    const [, , keyVersion] = secretsStore.encryptRecord(
+      { recordId: RECORD_ID, vaultId: WORK_ID },
+      "x",
+    );
+    expect(keyVersion).toBe(3);
+    for (const [key, version] of [
+      [workKey, 1],
+      [key2, 2],
+    ] as const) {
+      const row = sealUnder(key, version, `v${version}`);
+      expect(new TextDecoder().decode(secretsStore.decryptRecord(row))).toBe(`v${version}`);
+    }
+    // The worker gets every version.
+    expect([...secretsStore.exportVaultKeysForWorker().keys()].sort()).toEqual(
+      [`${PERSONAL_ID}/1`, `${WORK_ID}/1`, `${WORK_ID}/2`, `${WORK_ID}/3`].sort(),
+    );
+  });
+
+  it("stop at a link that doesn't open: only the history below it stays closed", () => {
+    const { wraps, workKey, key2 } = rotatedTwice();
+    const work = wraps[1]!;
+    const broken = {
+      ...work,
+      previousKeys: [work.previousKeys[0]!, { ...work.previousKeys[0]!, keyVersion: 2 }],
+    };
+    secretsStore.loadVaultKeys([wraps[0]!, broken]);
+
+    expect(() => secretsStore.decryptRecord(sealUnder(key2, 2, "x"))).toThrow();
+    expect(() => secretsStore.decryptRecord(sealUnder(workKey, 1, "x"))).toThrow();
+    expect(secretsStore.currentKeyVersion(WORK_ID)).toBe(3);
+  });
+
+  it("rotateVaultKey makes the next version, the current key wrapped under it", () => {
+    const { wraps } = unlockWithKeyring();
+    const rotated = secretsStore.rotateVaultKey(wraps[1]!);
+
+    expect(rotated).toMatchObject({
+      vaultId: WORK_ID,
+      keyVersion: 2,
+      previousKey: { keyVersion: 1 },
+    });
+    secretsStore.loadVaultKeys([
+      wraps[0]!,
+      { ...wraps[1]!, ...rotated, previousKeys: [rotated.previousKey] },
+    ]);
+    expect(secretsStore.currentKeyVersion(WORK_ID)).toBe(2);
+    expect(secretsStore.decryptVaultMeta({ ...wraps[1]!, ...rotated })).toEqual({ name: "Work" });
   });
 });
 
@@ -592,8 +683,8 @@ describe("exportVaultKeysForWorker / exportAccountKey", () => {
     const exportedAccount = secretsStore.exportAccountKey();
     expect(exportedVaults).toEqual(
       new Map([
-        [PERSONAL_ID, personalKey],
-        [WORK_ID, workKey],
+        [`${PERSONAL_ID}/1`, personalKey],
+        [`${WORK_ID}/1`, workKey],
       ]),
     );
     expect(exportedAccount).toEqual(accountKey);

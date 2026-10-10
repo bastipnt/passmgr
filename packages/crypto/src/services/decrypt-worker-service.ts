@@ -39,23 +39,38 @@ class DecryptWorkerService {
   }
 
   /**
-   * Hand the worker every vault key (vaultId → key), replacing any it held.
+   * Hand the worker every vault key (`vaultKeyId` → key), replacing any it held.
    * The buffers are transferred: the caller passes copies and loses them.
    */
   init(vaultKeys: Map<string, Uint8Array>): void {
-    const keys = [...vaultKeys].map(([vaultId, key]) => [vaultId, key.buffer] as const);
+    const keys = [...vaultKeys].map(([keyId, key]) => [keyId, key.buffer] as const);
     this.getWorker().postMessage(
       { type: "init", keys },
       keys.map(([, buffer]) => buffer as ArrayBuffer),
     );
   }
 
-  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
-  decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
+  /**
+   * The parsed JSON payload, unchecked: the caller upgrades and types it.
+   * `keyVersion`: the vault key version the ciphertext is encrypted with.
+   */
+  decrypt(
+    context: RecordCipherContext,
+    keyVersion: number,
+    encryptedData: string,
+    nonce: string,
+  ): Promise<unknown> {
     const id = this.createRequestId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
-      this.getWorker().postMessage({ type: "decrypt", id, context, encryptedData, nonce });
+      this.getWorker().postMessage({
+        type: "decrypt",
+        id,
+        context,
+        keyVersion,
+        encryptedData,
+        nonce,
+      });
     });
   }
 

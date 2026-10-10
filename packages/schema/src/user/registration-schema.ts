@@ -1,5 +1,5 @@
 import z from "zod";
-import { createVaultInputSchema } from "../vault-schema";
+import { linkedVaultInputSchema } from "../vault-schema";
 import { emailSchema } from "./email-schema";
 import { userKeyPairSchema, userKeySchema } from "./key-schema";
 
@@ -27,12 +27,13 @@ export const finishRegistrationInputSchema = z.object({
   email: emailSchema,
   registrationRecord: z.string(),
   userKeys: userKeySchema,
-  // The default vault, created together with the account (first key version).
-  personalVault: createVaultInputSchema,
+  // The default vault: created together with the account (first key version, no
+  // earlier keys), or a linked local vault's as it is (ADR 0001 D9).
+  personalVault: linkedVaultInputSchema,
   // The X25519 keypair for sharing (first key version).
   userKeyPair: userKeyPairSchema.extend({ keyVersion: z.literal(1) }),
   // Linking a local vault (ADR 0001 D9): its other vaults, uploaded with their keys as they are.
-  vaults: z.array(createVaultInputSchema).max(MAX_REGISTRATION_VAULTS).optional(),
+  vaults: z.array(linkedVaultInputSchema).max(MAX_REGISTRATION_VAULTS).optional(),
   invite: z.string().max(128).optional(),
 });
 

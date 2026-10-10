@@ -9,6 +9,7 @@ export {
   type RecordCiphertext,
   type RecordConflict,
   RecordWriteError,
+  type ReencryptedVersion,
 } from "./src/schema/outbox-schema";
 export type { LocalProfile, ProfileMode } from "./src/schema/profile-schema";
 export type { RecordHead } from "./src/schema/records-schema";

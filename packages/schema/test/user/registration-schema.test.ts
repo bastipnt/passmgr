@@ -27,7 +27,10 @@ const VALID_PERSONAL_VAULT = {
   vaultKeyEncryptionNonce: b64(24),
   encryptedMeta: b64(40),
   metaEncryptionNonce: b64(24),
+  previousKeys: [],
 };
+
+const LINK = { encryptedVaultKey: b64(48), vaultKeyEncryptionNonce: b64(24) };
 
 const VALID_USER_KEY_PAIR = {
   keyVersion: 1,
@@ -117,7 +120,18 @@ describe("finishRegistrationInputSchema composes key-schema", () => {
   it.each([
     ["a non-UUID vaultId", { vaultId: "personal" }],
     ["keyVersion 0", { keyVersion: 0 }],
-    ["keyVersion 2 (a new vault starts at 1)", { keyVersion: 2 }],
+    ["keyVersion 2 without the earlier key", { keyVersion: 2 }],
+    ["an earlier key it doesn't have", { previousKeys: [{ ...LINK, keyVersion: 1 }] }],
+    [
+      "earlier keys out of order",
+      {
+        keyVersion: 3,
+        previousKeys: [
+          { ...LINK, keyVersion: 2 },
+          { ...LINK, keyVersion: 1 },
+        ],
+      },
+    ],
     ["a truncated wrapped vault key", { encryptedVaultKey: b64(48).slice(0, -1) }],
     ["no vault metadata", { encryptedMeta: undefined }],
     ["oversized vault metadata", { encryptedMeta: b64(3000) }],
@@ -129,6 +143,18 @@ describe("finishRegistrationInputSchema composes key-schema", () => {
         personalVault: { ...VALID_PERSONAL_VAULT, ...override },
       }),
     ).toThrow();
+  });
+
+  it("accepts a rotated vault (linking a local one) with its earlier keys", () => {
+    const personalVault = {
+      ...VALID_PERSONAL_VAULT,
+      keyVersion: 3,
+      previousKeys: [
+        { ...LINK, keyVersion: 1 },
+        { ...LINK, keyVersion: 2 },
+      ],
+    };
+    expect(() => finishRegistrationInputSchema.parse({ ...valid, personalVault })).not.toThrow();
   });
 
   it("rejects a missing keypair", () => {

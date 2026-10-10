@@ -3,7 +3,7 @@ import { keysTable } from "./schema/keys";
 import { recordsTable } from "./schema/records";
 import { userKeyPairsTable } from "./schema/user-key-pairs";
 import { usersTable } from "./schema/users";
-import { vaultMembersTable, vaultsTable } from "./schema/vaults";
+import { vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "./schema/vaults";
 
 export const schema = {
   usersTable,
@@ -11,6 +11,7 @@ export const schema = {
   recordsTable,
   vaultsTable,
   vaultMembersTable,
+  vaultKeyLinksTable,
   userKeyPairsTable,
 };
 

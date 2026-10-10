@@ -30,14 +30,19 @@ import {
   countPendingChanges,
   deleteVaultChanges,
   failPendingChange,
+  getHead,
   getParkedChanges,
   getPendingChanges,
+  getPendingUnderOldKeys,
   getRecordHistory,
   type LocalRecordChange,
   type LocalRecordVersion,
   type PendingChange,
   parkPendingChange,
+  type RecordCiphertext,
+  type ReencryptedVersion,
   rebasePendingVersions,
+  replacePendingCiphertexts,
   retryParkedChanges,
   writeLocalChange,
 } from "./schema/outbox-schema";
@@ -57,9 +62,12 @@ import {
   upsertRecords,
 } from "./schema/records-schema";
 import {
+  clearRekeyTarget,
   clearSyncTable,
   deleteSyncCursors,
+  getRekeyTargets,
   getSyncCursors,
+  setRekeyTarget,
   setSyncCursors,
 } from "./schema/sync-schema";
 import {
@@ -83,8 +91,9 @@ export class VaultExistsError extends Error {
 }
 
 /**
- * Drop vaults from the device with everything in them: records, unsent changes
- * and pull cursors. Changes first: they are found through the records.
+ * Drop vaults from the device with everything in them: records, unsent changes,
+ * pull cursors and unfinished rotations. Changes first: they are found through
+ * the records.
  */
 async function dropVaults(vaultIds: readonly string[], db: LocalDb) {
   await deleteVaultChanges(vaultIds, db);
@@ -109,7 +118,11 @@ export function sameVaults(a: readonly MemberVault[], b: readonly MemberVault[])
     const other = byId.get(vault.vaultId);
     return (
       other !== undefined &&
-      (Object.keys(vault) as (keyof MemberVault)[]).every((key) => other[key] === vault[key])
+      (Object.keys(vault) as (keyof MemberVault)[]).every((key) =>
+        key === "previousKeys"
+          ? JSON.stringify(other[key]) === JSON.stringify(vault[key])
+          : other[key] === vault[key],
+      )
     );
   });
 }
@@ -273,6 +286,69 @@ export class Vault {
   async retryParkedChanges(): Promise<void> {
     await this.ready();
     await retryParkedChanges(this.db);
+  }
+
+  /**
+   * VAULT KEY ROTATION
+   */
+
+  /**
+   * Pending versions with content under an older key than their vault's
+   * current one, oldest first per record: re-encrypt them before a push.
+   */
+  async getPendingUnderOldKeys(): Promise<EncryptedRecordSchema[]> {
+    await this.ready();
+    return await getPendingUnderOldKeys(this.db);
+  }
+
+  /**
+   * Write re-encrypted copies of records as their next versions, in one
+   * transaction, each only if the record's head is still `headVersion` (the
+   * version it was read from): an edit made meanwhile isn't buried under the
+   * old content. Resolves how many were written.
+   */
+  async writeReencryptedVersions(
+    versions: readonly (RecordCiphertext & { headVersion: number })[],
+  ): Promise<number> {
+    await this.ready();
+    const now = new Date().toISOString();
+    return await this.transaction(async (tx) => {
+      let written = 0;
+      for (const { headVersion, ...ciphertext } of versions) {
+        const head = await getHead(ciphertext.recordId, tx);
+        if (head?.version !== headVersion || head.deleted_at !== null) continue;
+        await writeLocalChange({ ...ciphertext, kind: "update" }, now, tx);
+        written++;
+      }
+      return written;
+    });
+  }
+
+  /** Swap re-encrypted ciphertexts into pending versions, atomically. */
+  async replacePendingCiphertexts(versions: readonly ReencryptedVersion[]): Promise<void> {
+    await this.ready();
+    if (versions.length === 0) return;
+    await this.transaction((tx) => replacePendingCiphertexts(versions, tx));
+  }
+
+  /**
+   * vaultId → key version: rotations this device started whose synced records
+   * it still has to re-encrypt (resumed after an interruption).
+   */
+  async getRekeyTargets(): Promise<Record<string, number>> {
+    await this.ready();
+    return await getRekeyTargets(this.db);
+  }
+
+  /** Remember that the vault's records are to be re-encrypted once it reaches `keyVersion`. */
+  async setRekeyTarget(vaultId: string, keyVersion: number): Promise<void> {
+    await this.ready();
+    await setRekeyTarget(vaultId, keyVersion, this.db);
+  }
+
+  async clearRekeyTarget(vaultId: string, keyVersion: number): Promise<void> {
+    await this.ready();
+    await clearRekeyTarget(vaultId, keyVersion, this.db);
   }
 
   /**

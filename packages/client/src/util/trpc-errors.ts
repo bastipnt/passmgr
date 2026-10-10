@@ -23,6 +23,22 @@ export function isServerError(err: unknown): boolean {
   return typeof status === "number" ? status >= 500 : err.data?.code === "INTERNAL_SERVER_ERROR";
 }
 
+/** The resource changed meanwhile (CONFLICT), e.g. another device got there first. */
+export function isConflict(err: unknown): boolean {
+  return (
+    err instanceof TRPCClientError &&
+    (err.data?.code === "CONFLICT" || err.data?.httpStatus === 409)
+  );
+}
+
+/** The server refused the call in the resource's current state (PRECONDITION_FAILED). */
+export function isPreconditionFailed(err: unknown): boolean {
+  return (
+    err instanceof TRPCClientError &&
+    (err.data?.code === "PRECONDITION_FAILED" || err.data?.httpStatus === 412)
+  );
+}
+
 /** Server rejected the call with TOO_MANY_REQUESTS (per-account or per-IP limit). */
 export function isThrottled(err: unknown): boolean {
   return (

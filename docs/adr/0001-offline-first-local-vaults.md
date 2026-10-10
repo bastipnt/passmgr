@@ -332,6 +332,22 @@ the history must not leak into the target.
 > authentication (e.g. the owner signs or authenticates the sealed key with a static key whose
 > fingerprint the invitee checks) before accepting.
 
+> **Amended 2026-10-10** (vault-key rotation): a rotation bumps the vault's `keyVersion` and adds
+> a new key; the old one is wrapped under the new one (`vault_key_links`, AAD `vaultId ‖ keyVersion`,
+> append-only), so a member walks the chain down from the current key and the history below a
+> rotation stays readable (`MemberVault.previousKeys`). Every record version carries the
+> `keyVersion` it is encrypted with. Only the live records are re-encrypted (as new versions, through
+> the outbox, in batches of `REKEY_BATCH_SIZE`); history keeps the old key. `vault.rotateKey`
+> (owners and managers) is a compare-and-swap on `keyVersion` under the vault's row lock, and from
+> its commit `record.push` rejects a put under any other key (`key_version`); deletes carry no
+> ciphertext and still apply. The client re-encrypts such a change in place before the next push
+> (`reencryptPendingVersions`, also the whole history of a local vault on its first push after
+> linking), and only the device that rotated rewrites synced records (`reencryptRotatedVaults`,
+> resumed from a `rekey:` marker set before the server call), so two devices never fork every
+> record. A local vault rotates on the device. Until sharing lands, the server refuses
+> (`PRECONDITION_FAILED`) to rotate a vault with other members: their copy of the new key must be
+> sealed to their public key first.
+
 ### D8 — Sync protocol
 
 - **Outbox** (local table): every write is a single SQLite transaction that writes the record

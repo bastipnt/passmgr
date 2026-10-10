@@ -1,9 +1,15 @@
-import { useVaultActions, VaultsOfflineError } from "@repo/client/src/hooks/use-vaults";
+import {
+  useVaultActions,
+  VaultKeyRotatedElsewhereError,
+  VaultRotationUnavailableError,
+  VaultsOfflineError,
+} from "@repo/client/src/hooks/use-vaults";
 import { SessionContext, type SessionMode } from "@repo/client/src/providers/SessionProvider";
 import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
+import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -19,8 +25,10 @@ const mocks = vi.hoisted(() => {
         create: { mutate: vi.fn(async () => void calls.push("server.create")) },
         updateMeta: { mutate: vi.fn(async () => void calls.push("server.updateMeta")) },
         delete: { mutate: vi.fn(async () => void calls.push("server.delete")) },
+        rotateKey: { mutate: vi.fn(async () => void calls.push("server.rotateKey")) },
       },
     },
+    reencryptForPush: vi.fn(async () => void calls.push("reencrypt")),
     syncFresh: vi.fn(async () => {
       calls.push("syncFresh");
       return true;
@@ -33,6 +41,8 @@ const vault = {
   saveVault: vi.fn(async () => void mocks.calls.push("saveVault")),
   setVaultMeta: vi.fn(async () => void mocks.calls.push("setVaultMeta")),
   removeVault: vi.fn(async () => void mocks.calls.push("removeVault")),
+  setRekeyTarget: vi.fn(async () => void mocks.calls.push("setRekeyTarget")),
+  clearRekeyTarget: vi.fn(async () => void mocks.calls.push("clearRekeyTarget")),
 };
 const active = { vault, syncManager: { syncFresh: mocks.syncFresh } };
 
@@ -45,6 +55,7 @@ vi.mock("@repo/client/src/providers/RecordsProvider", () => ({
   useRecordsContext: () => ({ reload: mocks.reload, vaults: [] }),
 }));
 vi.mock("@repo/client/src/util/trpc", () => ({ useTRPCClient: () => mocks.trpc }));
+vi.mock("@repo/client/src/vaults/rekey", () => ({ reencryptForPush: mocks.reencryptForPush }));
 
 const created = {
   vaultId: "v-new",
@@ -53,6 +64,7 @@ const created = {
   vaultKeyEncryptionNonce: "kn",
   encryptedMeta: "m",
   metaEncryptionNonce: "mn",
+  previousKeys: [],
 };
 const encryptedMeta = { encryptedMeta: "m2", metaEncryptionNonce: "mn2" };
 
@@ -175,5 +187,115 @@ describe("useVaultActions", () => {
     });
     expect(vault.removeVault).not.toHaveBeenCalled();
     expect(mocks.syncFresh).not.toHaveBeenCalled();
+  });
+
+  describe("rotateVaultKey", () => {
+    const work: MemberVault = { ...created, vaultId: "v-work", kind: "shared", role: "owner" };
+    const rotation = {
+      vaultId: "v-work",
+      keyVersion: 2,
+      encryptedVaultKey: "k2",
+      vaultKeyEncryptionNonce: "kn2",
+      ...encryptedMeta,
+      previousKey: { keyVersion: 1, encryptedVaultKey: "pk", vaultKeyEncryptionNonce: "pkn" },
+    };
+    const { previousKey, ...wrap } = rotation;
+    const next = { ...work, ...wrap, previousKeys: [previousKey] };
+
+    beforeEach(() => {
+      mocks.vaults = [work];
+      vi.spyOn(secretsStore, "rotateVaultKey").mockReturnValue(rotation);
+    });
+
+    it("local: notes the rotation, stores the new key and re-encrypts on the device", async () => {
+      const result = render("local");
+
+      await act(async () => {
+        await result.current.rotateVaultKey("v-work");
+      });
+
+      expect(vault.setRekeyTarget).toHaveBeenCalledWith("v-work", 2);
+      expect(vault.saveVault).toHaveBeenCalledWith(next);
+      expect(mocks.calls).toEqual(["setRekeyTarget", "saveVault", "keys", "reencrypt", "reload"]);
+      expect(mocks.trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+    });
+
+    it("online: notes it before the server, then a sync pushes the re-encrypted records", async () => {
+      const result = render("online");
+
+      await act(async () => {
+        await result.current.rotateVaultKey("v-work");
+      });
+
+      expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith(rotation);
+      expect(mocks.calls).toEqual([
+        "setRekeyTarget",
+        "server.rotateKey",
+        "saveVault",
+        "keys",
+        "syncFresh",
+        "reload",
+      ]);
+    });
+
+    it("online: forgets the rotation when the server refuses it", async () => {
+      mocks.trpc.vault.rotateKey.mutate.mockRejectedValueOnce(
+        new TRPCClientError("refused", {
+          result: { error: { code: -32_000, message: "x", data: { code: "PRECONDITION_FAILED" } } },
+        }),
+      );
+      const result = render("online");
+
+      await act(async () => {
+        await expect(result.current.rotateVaultKey("v-work")).rejects.toBeInstanceOf(
+          VaultRotationUnavailableError,
+        );
+      });
+
+      expect(vault.clearRekeyTarget).toHaveBeenCalledWith("v-work", 2);
+      expect(vault.saveVault).not.toHaveBeenCalled();
+    });
+
+    it("online: picks up the other device's key when it rotated first", async () => {
+      mocks.trpc.vault.rotateKey.mutate.mockRejectedValueOnce(
+        new TRPCClientError("conflict", {
+          result: { error: { code: -32_000, message: "x", data: { code: "CONFLICT" } } },
+        }),
+      );
+      const result = render("online");
+
+      await act(async () => {
+        await expect(result.current.rotateVaultKey("v-work")).rejects.toBeInstanceOf(
+          VaultKeyRotatedElsewhereError,
+        );
+      });
+
+      // Not this device's rotation: it must not rewrite the records too.
+      expect(vault.clearRekeyTarget).toHaveBeenCalledWith("v-work", 2);
+      expect(mocks.calls).toEqual(["setRekeyTarget", "clearRekeyTarget", "syncFresh", "reload"]);
+    });
+
+    it("online: keeps the rotation noted when the server didn't answer", async () => {
+      mocks.trpc.vault.rotateKey.mutate.mockRejectedValueOnce(new Error("offline"));
+      const result = render("online");
+
+      await act(async () => {
+        await expect(result.current.rotateVaultKey("v-work")).rejects.toThrow("offline");
+      });
+
+      // It may have gone through: a later sync finishes it once the vault is at key 2.
+      expect(vault.clearRekeyTarget).not.toHaveBeenCalled();
+    });
+
+    it("offline: refused before anything changes", async () => {
+      const result = render("offline");
+
+      await act(async () => {
+        await expect(result.current.rotateVaultKey("v-work")).rejects.toBeInstanceOf(
+          VaultsOfflineError,
+        );
+      });
+      expect(vault.setRekeyTarget).not.toHaveBeenCalled();
+    });
   });
 });

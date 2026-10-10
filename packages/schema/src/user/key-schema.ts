@@ -100,6 +100,34 @@ export const vaultKeyWrapSchema = z.object({
   vaultKeyEncryptionNonce: z.base64().length(32),
 });
 
+/** The most key versions a vault can go through (`vault.rotateKey` refuses past it). */
+export const MAX_VAULT_KEY_VERSION = 256;
+
+/**
+ * A vault's earlier key, wrapped by the key that replaced it (`keyVersion` + 1;
+ * AAD: vaultId + keyVersion). A member holding the current key walks these
+ * down to the older ones, which the history below a rotation is encrypted with.
+ */
+export const vaultKeyLinkSchema = z.object({
+  keyVersion: z.number().int().positive(),
+  encryptedVaultKey: z.base64().length(64),
+  vaultKeyEncryptionNonce: z.base64().length(32),
+});
+
+/**
+ * Every earlier key of a vault at `keyVersion`, oldest first: exactly
+ * versions 1 … keyVersion - 1.
+ */
+export function isCompleteKeyChain(
+  keyVersion: number,
+  previousKeys: readonly { keyVersion: number }[],
+): boolean {
+  return (
+    previousKeys.length === keyVersion - 1 &&
+    previousKeys.every((link, i) => link.keyVersion === i + 1)
+  );
+}
+
 /**
  * The user's X25519 keypair (ADR 0001 D7). The private key is wrapped by the
  * account key (AAD: key version) and checked against `publicKey` on unwrap.
@@ -122,6 +150,7 @@ export type RecoveryKeySchema = z.infer<typeof recoveryKeySchema>;
 export type PasswordKeySchema = z.infer<typeof passwordKeySchema>;
 export type UserKeySchema = z.infer<typeof userKeySchema>;
 export type VaultKeyWrap = z.infer<typeof vaultKeyWrapSchema>;
+export type VaultKeyLink = z.infer<typeof vaultKeyLinkSchema>;
 export type UserKeyPair = z.infer<typeof userKeyPairSchema>;
 export type UserPublicKey = z.infer<typeof userPublicKeySchema>;
 

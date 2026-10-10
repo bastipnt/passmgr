@@ -80,7 +80,7 @@ export async function callSigned(
 /** A `record.push` change writing new ciphertext on top of `baseVersion` (0: a new record). */
 export function putChange(
   vaultId: string,
-  { recordId = crypto.randomUUID(), baseVersion = 0, data = "ENC" } = {},
+  { recordId = crypto.randomUUID(), baseVersion = 0, data = "ENC", keyVersion = 1 } = {},
 ) {
   return {
     op: "put" as const,
@@ -91,6 +91,7 @@ export function putChange(
     encryptedData: data,
     encryptionNonce: "NONCE",
     cryptoVersion: 1,
+    keyVersion,
     clientUpdatedAt: new Date().toISOString(),
   };
 }

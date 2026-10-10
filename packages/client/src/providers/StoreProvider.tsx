@@ -32,6 +32,7 @@ import {
   isThrottled,
   isUnauthorized,
 } from "../util/trpc-errors";
+import { reencryptForPush } from "../vaults/rekey";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
@@ -283,6 +284,8 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
       isOffline: (e) => !isServerAnswer(e),
       onVaultsChanged: reloadVaultKeys,
       resolveConflict: resolveRecordConflict,
+      // Changes under a rotated-out vault key, and the records of a rotation this device started.
+      prepareOutbox: () => reencryptForPush(vault),
     });
     const records = new RecordRepository(vault, () => syncManager.requestSync());
     return { syncManager, records };

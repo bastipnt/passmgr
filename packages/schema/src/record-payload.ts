@@ -8,6 +8,8 @@ export const encryptedRecordSchema = z.object({
   encryptedData: z.string(),
   encryptionNonce: z.string(),
   cryptoVersion: z.number().int().positive(),
+  // The vault key version the ciphertext is encrypted with (a rotation bumps it).
+  keyVersion: z.number().int().positive(),
   version: z.number().int().positive(),
   clientUpdatedAt: z.string(),
   created_at: z.string().nullable().optional(),
@@ -44,6 +46,8 @@ export const pushChangeSchema = z.discriminatedUnion("op", [
     encryptedData: z.string(),
     encryptionNonce: z.string(),
     cryptoVersion: z.number().int().positive(),
+    // Must be the vault's current key version: nothing new is written under a rotated-out key.
+    keyVersion: z.number().int().positive(),
   }),
   z.object({
     ...pushChangeBase,
@@ -73,7 +77,9 @@ export const pushInputSchema = z.object({
  * The answer for one change, never an error for the whole batch:
  * - `applied`: the server holds it (now, or from an earlier try); `record` is its copy.
  * - `stale`: the record moved on (`headVersion`); pull, merge and push again.
- * - `rejected`: it can never apply as sent (no write access, unknown record).
+ * - `rejected`: it can never apply as sent (no write access, unknown record),
+ *   or not under this key: `key_version`, encrypted with a key the vault no longer
+ *   uses (rotated meanwhile); re-encrypt with the current one and push again.
  */
 export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
@@ -89,7 +95,7 @@ export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
     clientChangeId: z.uuid(),
     status: z.literal("rejected"),
-    reason: z.enum(["not_found", "forbidden"]),
+    reason: z.enum(["not_found", "forbidden", "key_version"]),
   }),
 ]);
 

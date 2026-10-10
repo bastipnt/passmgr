@@ -11,10 +11,13 @@ import {
 import {
   createVault,
   generateUserKeys,
+  rotateVaultKey,
   unwrapAccountKey,
   unwrapAccountKeyWithRecoveryKey,
+  unwrapPreviousVaultKey,
   unwrapVaultKey,
   wrapAccountKey,
+  wrapPreviousVaultKey,
   wrapVaultKey,
 } from "../src/user-keys";
 import { genKey } from "../src/util/secrets-utils";
@@ -108,6 +111,45 @@ describe("vault key wraps", () => {
   it("refuse a different account key", () => {
     const wrap = wrapVaultKey(genKey(), genKey(), VAULT_ID, 1);
     expect(() => unwrapVaultKey(genKey(), wrap)).toThrow();
+  });
+});
+
+describe("previous vault keys", () => {
+  it("open with the key that replaced them, bound to vault and version", () => {
+    const oldKey = genKey();
+    const newKey = genKey();
+    const link = wrapPreviousVaultKey(newKey, oldKey, VAULT_ID, 4);
+
+    expect(link.keyVersion).toBe(4);
+    expect(unwrapPreviousVaultKey(newKey, VAULT_ID, link)).toEqual(oldKey);
+    expect(() => unwrapPreviousVaultKey(genKey(), VAULT_ID, link)).toThrow();
+    expect(() => unwrapPreviousVaultKey(newKey, VAULT_ID, { ...link, keyVersion: 3 })).toThrow();
+    expect(() =>
+      unwrapPreviousVaultKey(newKey, "0199a3c4-0000-7000-8000-000000000000", link),
+    ).toThrow();
+  });
+
+  it("can't pass for a vault-key wrap (separate purpose)", () => {
+    const accountKey = genKey();
+    const link = wrapPreviousVaultKey(accountKey, genKey(), VAULT_ID, 1);
+    expect(() => unwrapVaultKey(accountKey, { ...link, vaultId: VAULT_ID })).toThrow();
+  });
+});
+
+describe("rotateVaultKey", () => {
+  it("wraps a fresh next-version key under the account key, and the current key under it", () => {
+    const accountKey = genKey();
+    const vault = createVault(accountKey, { name: "Work" });
+    const currentKey = unwrapVaultKey(accountKey, vault);
+
+    const rotated = rotateVaultKey(accountKey, currentKey, vault.vaultId, 1, { name: "Work" });
+
+    expect(rotated).toMatchObject({ vaultId: vault.vaultId, keyVersion: 2 });
+    const newKey = unwrapVaultKey(accountKey, rotated);
+    expect(newKey).not.toEqual(currentKey);
+    expect(unwrapPreviousVaultKey(newKey, vault.vaultId, rotated.previousKey)).toEqual(currentKey);
+    expect(rotated.previousKey.keyVersion).toBe(1);
+    expect(decryptVaultMeta(newKey, vault.vaultId, rotated)).toEqual({ name: "Work" });
   });
 });
 

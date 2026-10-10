@@ -1,8 +1,8 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, asc, desc, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { upsertRecords } from "./records-schema";
-import { outbox, records } from "./tables";
+import { outbox, records, vaults } from "./tables";
 
 /** A stored record version and whether the server has it yet. */
 export type LocalRecordVersion = EncryptedRecordSchema & { syncState: "synced" | "pending" };
@@ -20,7 +20,13 @@ export type PendingChange = {
 /** The ciphertext of a new record version, encrypted under its vault's key. */
 export type RecordCiphertext = Pick<
   EncryptedRecordSchema,
-  "recordId" | "vaultId" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "clientUpdatedAt"
+  | "recordId"
+  | "vaultId"
+  | "encryptedData"
+  | "encryptionNonce"
+  | "cryptoVersion"
+  | "keyVersion"
+  | "clientUpdatedAt"
 >;
 
 /**
@@ -49,7 +55,7 @@ export async function clearOutboxTable(db: LocalDb) {
 }
 
 /** The newest version of a record (pending or not, deleted or not). */
-async function getHead(recordId: string, db: LocalDb) {
+export async function getHead(recordId: string, db: LocalDb) {
   return await db
     .select()
     .from(records)
@@ -94,6 +100,7 @@ export async function writeLocalChange(
       encryptedData: head.encryptedData,
       encryptionNonce: head.encryptionNonce,
       cryptoVersion: head.cryptoVersion,
+      keyVersion: head.keyVersion,
       clientUpdatedAt: change.clientUpdatedAt,
       version: head.version + 1,
       deleted_at: now,
@@ -210,6 +217,60 @@ export async function parkPendingChange(changeId: string, error: string, db: Loc
 /** Queue the parked changes again, with a fresh attempt count. */
 export async function retryParkedChanges(db: LocalDb) {
   await db.update(outbox).set({ attempts: 0, parkedAt: null }).where(isNotNull(outbox.parkedAt));
+}
+
+/**
+ * Pending versions with content (not tombstones) encrypted under an older key
+ * than their vault's current one: the server won't take them (`key_version`)
+ * until they are re-encrypted (`replacePendingCiphertexts`).
+ */
+export async function getPendingUnderOldKeys(db: LocalDb): Promise<EncryptedRecordSchema[]> {
+  const rows = await db
+    .select({ record: records })
+    .from(records)
+    .innerJoin(vaults, eq(vaults.vaultId, records.vaultId))
+    .where(
+      and(
+        eq(records.syncState, "pending"),
+        isNull(records.deleted_at),
+        lt(records.keyVersion, vaults.keyVersion),
+      ),
+    )
+    .orderBy(asc(records.recordId), asc(records.version));
+  return rows.map(({ record }) => record);
+}
+
+/** A pending version's content, re-encrypted under another key. */
+export type ReencryptedVersion = Pick<
+  EncryptedRecordSchema,
+  "recordId" | "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
+> & {
+  /** The key version it was read under: a row changed meanwhile is left alone. */
+  fromKeyVersion: number;
+};
+
+/**
+ * Swap the ciphertext of pending versions in place: they aren't the server's
+ * yet, so nothing else holds them. Only rows still pending under
+ * `fromKeyVersion` change. Run inside a transaction.
+ */
+export async function replacePendingCiphertexts(
+  versions: readonly ReencryptedVersion[],
+  db: LocalDb,
+): Promise<void> {
+  for (const { recordId, version, fromKeyVersion, ...ciphertext } of versions) {
+    await db
+      .update(records)
+      .set(ciphertext)
+      .where(
+        and(
+          eq(records.recordId, recordId),
+          eq(records.version, version),
+          eq(records.syncState, "pending"),
+          eq(records.keyVersion, fromKeyVersion),
+        ),
+      );
+  }
 }
 
 /** Drop the outbox entries of records in these vaults (access was revoked). */

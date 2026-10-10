@@ -31,6 +31,7 @@ function fakeStore(vaultsChanged: boolean, outbox: PendingChange[] = []) {
   return {
     queue,
     getSyncCursors: vi.fn(async () => ({ v1: 3 })),
+    getVaults: vi.fn(async () => (vaultsChanged ? [] : vaults)),
     applySync: vi.fn(async () => vaultsChanged),
     getPendingChanges: vi.fn(async () => queue.map((c) => ({ ...c }))),
     countPendingChanges: vi.fn(async () => queue.length),
@@ -74,6 +75,7 @@ function change(changeId: string, recordId: string, version: number): PendingCha
       encryptedData: `ENC-${changeId}`,
       encryptionNonce: "N",
       cryptoVersion: 1,
+      keyVersion: 1,
       clientUpdatedAt: "2026-10-02T00:00:00.000Z",
     } as EncryptedRecordSchema,
   };
@@ -131,10 +133,15 @@ describe("SyncManager pull", () => {
     expect(pull).toHaveBeenCalledTimes(2);
   });
 
-  it("reloads vault keys before notifying listeners when the vault list changed", async () => {
+  it("reloads vault keys before applying the page when the vault list changed", async () => {
     const calls: string[] = [];
+    const store = fakeStore(true);
+    store.applySync.mockImplementation(async () => {
+      calls.push("apply");
+      return true;
+    });
     const onVaultsChanged = vi.fn(async () => void calls.push("keys"));
-    const manager = new SyncManager(fakeStore(true) as unknown as Vault, {
+    const manager = new SyncManager(store as unknown as Vault, {
       pull: async () => batch,
       onVaultsChanged,
     });
@@ -145,7 +152,8 @@ describe("SyncManager pull", () => {
 
     expect(onVaultsChanged).toHaveBeenCalledWith(vaults);
     expect(listener).toHaveBeenCalledWith({ vaultsChanged: true });
-    expect(calls).toEqual(["keys", "listener"]);
+    // The page's merges may need a key it brings (a new vault, a rotation).
+    expect(calls).toEqual(["keys", "apply", "listener"]);
   });
 
   it("leaves the keys alone when the vault list is unchanged", async () => {
@@ -180,13 +188,14 @@ describe("SyncManager pull", () => {
     expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined);
   });
 
-  it("tells listeners of each page, and reloads keys before the next one", async () => {
+  it("tells listeners of each page, reloading keys before the page that changes them", async () => {
     const calls: string[] = [];
     const store = fakeStore(false);
+    store.getVaults.mockResolvedValueOnce([]);
     store.getSyncCursors.mockResolvedValueOnce({ v1: 3 }).mockResolvedValueOnce({ v1: 5 });
     store.applySync.mockImplementation(async () => {
       calls.push("apply");
-      return calls.length === 1;
+      return store.applySync.mock.calls.length === 1;
     });
     const pull = vi
       .fn<() => Promise<SyncPage>>()
@@ -198,7 +207,7 @@ describe("SyncManager pull", () => {
 
     await manager.sync();
 
-    expect(calls).toEqual(["apply", "keys", "listener:true", "apply", "listener:false"]);
+    expect(calls).toEqual(["keys", "apply", "listener:true", "apply", "listener:false"]);
   });
 
   it("fails the round when a page claiming more moved no cursor", async () => {
@@ -377,6 +386,50 @@ describe("SyncManager push", () => {
     expect(store.parkPendingChange).toHaveBeenCalledWith("c1", "rejected: forbidden");
     expect(store.failPendingChange).not.toHaveBeenCalled();
     expect(store.ackPendingChange).not.toHaveBeenCalled();
+  });
+
+  it("retries a change rejected for an old vault key, prepared again before the next push", async () => {
+    const store = fakeStore(false, [change("c1", "r1", 1)]);
+    let rekeyed = false;
+    const prepareOutbox = vi.fn(async () => {
+      // The pull between the two pushes brought the rotated key.
+      if (store.applySync.mock.calls.length > 0) rekeyed = true;
+    });
+    const push = pusher((c) =>
+      rekeyed
+        ? undefined
+        : { clientChangeId: c.clientChangeId, status: "rejected", reason: "key_version" },
+    );
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      push,
+      prepareOutbox,
+    });
+
+    expect(await manager.sync()).toBe(true);
+
+    expect(prepareOutbox).toHaveBeenCalledTimes(2);
+    expect(store.parkPendingChange).not.toHaveBeenCalled();
+    expect(store.failPendingChange).toHaveBeenCalledWith("c1", "rejected: key_version");
+    expect(ids(push)).toEqual([["c1"], ["c1"]]);
+    expect(store.queue).toEqual([]);
+  });
+
+  it("pushes anyway when preparing the outbox fails", async () => {
+    const store = fakeStore(false, [change("c1", "r1", 1)]);
+    const push = pusher();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      push,
+      prepareOutbox: async () => {
+        throw new Error("no key");
+      },
+    });
+
+    expect(await manager.sync()).toBe(true);
+    expect(ids(push)).toEqual([["c1"]]);
+    warn.mockRestore();
   });
 
   it("stops the round on an error that concerns every change, without counting it", async () => {
@@ -710,6 +763,7 @@ describe("toPushChange", () => {
       encryptedData: "ENC-c1",
       encryptionNonce: "N",
       cryptoVersion: 1,
+      keyVersion: 1,
       clientUpdatedAt: "2026-10-02T00:00:00.000Z",
     });
 

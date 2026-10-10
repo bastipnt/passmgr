@@ -95,6 +95,7 @@ async function registerCapturingKeys(email: string, password: string) {
       vaultKeyEncryptionNonce,
       encryptedMeta,
       metaEncryptionNonce,
+      previousKeys: [],
     },
     userKeyPair,
   });
