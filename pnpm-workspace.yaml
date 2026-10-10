@@ -98,6 +98,9 @@ minimumReleaseAgeExclude:
   - expo-router@56.2.11
   - find-my-way@9.6.1
   - source-map-js@1.2.2
+  - decode-uri-component@0.4.3
+  - qs@6.15.4
+  - sprintf-js@1.1.4
 
 nodeLinker: hoisted
 
