@@ -1,6 +1,10 @@
 export { DeleteVaultDialog } from "./DeleteVaultDialog";
+export { Fingerprint } from "./Fingerprint";
+export { RevokedVaults } from "./RevokedVaults";
 export { RotateVaultKeyDialog } from "./RotateVaultKeyDialog";
 export { VaultDialog } from "./VaultDialog";
+export { VaultInvitations } from "./VaultInvitations";
+export { VaultMembersDialog } from "./VaultMembersDialog";
 export { VaultPicker } from "./VaultPicker";
 export { VaultSwitcher } from "./VaultSwitcher";
 export { VaultBadge, VaultTile } from "./VaultTile";

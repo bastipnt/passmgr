@@ -307,8 +307,9 @@ resumable). History keeps the old key. The new key is sealed to every other memb
 the server's member set, else `PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the
 current key (`CONFLICT` otherwise). Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
 
-Sharing (ADR 0001 D7, `apps/server/src/vault/sharing.ts`, client `vaults/sharing.ts` + `useVaultSharing`; UI not built
-yet): `vault.invite` (owners / managers, never above their own role (`canAssignRole`), never the personal vault) stores
+Sharing (ADR 0001 D7, `apps/server/src/vault/sharing.ts`, client `vaults/sharing.ts` + `useVaultSharing`; UI: web
+Settings → Vaults (`VaultMembersDialog`, `InviteMemberDialog`, `VaultInvitations`, `RevokedVaults`), mobile
+`settings/members` page + `member` / `invite` sheets; errors via `sharingErrorMessage`, per-call by tRPC code): `vault.invite` (owners / managers, never above their own role (`canAssignRole`), never the personal vault) stores
 a `pending` `vault_members` row with the vault key sealed to the invitee's current public key from the inviter's
 (`sealVaultKey`: ephemeral + static X25519, so it opens only as from that sender). The invitee lists
 `vault.invitations`, compares the inviter's fingerprint, and `vault.acceptKey` stores their own wrap (row → `active`).

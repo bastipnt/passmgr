@@ -8,6 +8,12 @@ export default function SettingsLayout() {
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const foregroundColor = useCSSVariable("--color-foreground") as string;
 
+  const formSheet = {
+    presentation: "formSheet",
+    sheetGrabberVisible: true,
+    contentStyle: sheetStyle,
+  } as const;
+
   // The index is a tab root with a native large title (web's display-font
   // page title); sub-screens get the back item.
   return (
@@ -42,14 +48,10 @@ export default function SettingsLayout() {
       <Stack.Screen name="generator" options={{ title: "Password Generator" }} />
       <Stack.Screen name="security" options={{ title: "Security" }} />
       <Stack.Screen name="vaults" options={{ title: "Vaults" }} />
-      <Stack.Screen
-        name="vault"
-        options={{
-          presentation: "formSheet",
-          sheetGrabberVisible: true,
-          contentStyle: sheetStyle,
-        }}
-      />
+      <Stack.Screen name="members" options={{ title: "Members" }} />
+      <Stack.Screen name="vault" options={formSheet} />
+      <Stack.Screen name="member" options={formSheet} />
+      <Stack.Screen name="invite" options={formSheet} />
     </Stack>
   );
 }

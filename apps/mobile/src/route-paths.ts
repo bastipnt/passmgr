@@ -39,4 +39,11 @@ export const settingsPaths = {
   /** The vault form sheet: a new vault, or the one given to edit. */
   vault: (vaultId?: string) =>
     (vaultId ? `/settings/vault?vaultId=${vaultId}` : "/settings/vault") as Href,
+  /** A shared vault's members (web's `VaultMembersDialog`). */
+  vaultMembers: (vaultId: string) => `/settings/members?vaultId=${vaultId}` as Href,
+  /** The sheet for one member: role, hand over, remove. */
+  vaultMember: (vaultId: string, userId: string) =>
+    `/settings/member?vaultId=${vaultId}&userId=${userId}` as Href,
+  /** The invite sheet (web's `InviteMemberDialog`). */
+  inviteMember: (vaultId: string) => `/settings/invite?vaultId=${vaultId}` as Href,
 } as const;
