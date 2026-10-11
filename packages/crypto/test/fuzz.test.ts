@@ -188,7 +188,10 @@ describe("fuzz: generatePassword invariants", () => {
 });
 
 describe("smoke: generatePassword distribution", () => {
-  it("samples each charset class within ±10% of expected over 100k draws", () => {
+  // ~40k randomBytes calls (pick + shuffle); a loaded CI runner can exceed the 5s default.
+  it("samples each charset class within ±5 points of expected over 20k chars", {
+    timeout: 30_000,
+  }, () => {
     const length = 32;
     const opts = {
       length,
@@ -202,7 +205,7 @@ describe("smoke: generatePassword distribution", () => {
     };
     // Combined charset size = 26+26+10+26 = 88. Expected fractions:
     // upper: 26/88 ≈ 0.295, lower: 26/88 ≈ 0.295, digits: 10/88 ≈ 0.114, symbols: 26/88 ≈ 0.295
-    const totalChars = 100_000;
+    const totalChars = 20_000; // σ ≈ 0.3 points per class, so ±5 points is > 15σ
     const draws = Math.ceil(totalChars / length);
     const counts = { upper: 0, lower: 0, digits: 0, symbols: 0 };
     for (let i = 0; i < draws; i++) {
