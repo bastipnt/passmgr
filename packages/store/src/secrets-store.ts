@@ -79,8 +79,15 @@ class SecretsStore {
    * come before the unlock (login) or after it (reconnect).
    */
   async unlockSession(sessionId: string, sessionKey: string, authSalt: Uint8Array) {
+    const epoch = this.epoch;
     const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
     const authKey = await hkdf(sessionSecret, "sessionAuth", authSalt);
+    // Locked while deriving: the caller is gone, a session must not outlive the lock.
+    if (this.epoch !== epoch) {
+      wipe(sessionSecret);
+      wipe(authKey);
+      return;
+    }
     this.detachServer();
     this.sessionId = sessionId;
     this.sessionSecret = sessionSecret;

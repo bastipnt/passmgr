@@ -241,6 +241,8 @@ describe("LoginPage stored vault", () => {
     // Same account, same profile: only its key material is refreshed.
     expect(store.saveAccount.mock.calls[0]?.[0]).toBe(linkedProfile.profileId);
     expect(store.saveAccount.mock.calls[0]?.[3]).toBeUndefined();
+    // Let the background connect finish, so it can't leak into the next test.
+    await waitFor(() => expect(secretsStore.hasServerSession).toBe(true));
   });
 
   it("never attaches a session of another account to the unlocked vault", async () => {
