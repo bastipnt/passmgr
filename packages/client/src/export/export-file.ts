@@ -19,7 +19,7 @@ import {
   exportDataSchema,
   exportEnvelopeSchema,
 } from "@repo/schema";
-import { fromBase64 } from "@repo/util";
+import { fromBase64, localDateStamp } from "@repo/util";
 import { timed } from "../util/perf";
 
 /*
@@ -234,8 +234,7 @@ export type ExportFile = { fileName: string; mimeType: string; content: string }
 
 /** `passmgr-backup-2026-10-08.json`, `passmgr-export-2026-10-08.csv`, …: the local date. */
 export function exportFileName(format: ExportFormat, now: Date = new Date()): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  const date = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+  const date = localDateStamp(now);
   return format === "encrypted"
     ? `passmgr-backup-${date}.json`
     : `passmgr-export-${date}.${format}`;

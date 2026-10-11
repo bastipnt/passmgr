@@ -1,11 +1,15 @@
 // Deep import on purpose: several suites replace the whole "@repo/client"
 // barrel with vi.mock, which would blank out the provider.
+import { ServerUrlContext } from "@repo/client/src/providers/ClientProvider";
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type RenderOptions, type RenderResult, render } from "@testing-library/react";
 import { type ReactElement, type ReactNode, useState } from "react";
 
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
+
+/** What `ClientProvider` would be configured with (`useServerUrl`). */
+export const TEST_SERVER_URL = "https://vault.example.com/trpc";
 
 /**
  * Preferences are read deep in the tree (copy behaviour, reveal timeouts), so
@@ -16,9 +20,11 @@ import { usePreferencesStore } from "@/hooks/use-preferences-store";
 function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
   return (
-    <QueryClientProvider client={queryClient}>
-      <PreferencesProvider store={usePreferencesStore()}>{children}</PreferencesProvider>
-    </QueryClientProvider>
+    <ServerUrlContext value={TEST_SERVER_URL}>
+      <QueryClientProvider client={queryClient}>
+        <PreferencesProvider store={usePreferencesStore()}>{children}</PreferencesProvider>
+      </QueryClientProvider>
+    </ServerUrlContext>
   );
 }
 

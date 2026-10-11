@@ -216,6 +216,14 @@ and logs in; the account must hold the vault's public key. Then `saveAccount` ma
 (drops the local recovery wrap) **before** `linkServer` goes online: the first sync pushes the outbox,
 which already holds every local version, so the upload resumes by itself. Repeating a half-done link is safe.
 
+Emergency kit (`createEmergencyKit` / `useEmergencyKit`, `packages/client/src/account/emergency-kit.ts`): a one-page
+PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a local vault), a write-in field for the
+master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
+only where a recovery key is issued (`RecoveryKeyDialog`: register, local vault, restore, recovery): it can't be made
+later, the key isn't kept. Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
+dialog hidden meanwhile on iOS), which counts only on iOS, where a cancelled print rejects. The server is printed
+as a full URL (web may be configured with a path, `/trpc`).
+
 Recovery (forgotten password, `auth/recovery-router.ts`):
 
 1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`

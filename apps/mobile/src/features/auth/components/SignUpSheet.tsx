@@ -43,6 +43,7 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
   const [loading, setLoading] = useState(false);
   const [agreed, setAgreed] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState("");
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
@@ -67,6 +68,7 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
     if (!key) return;
     // Dismiss the form sheet, then present the recovery key over the welcome screen.
     sheetRef.current?.triggerShowHide(false);
+    setRegisteredEmail(email);
     setRecoveryKey(key);
   };
 
@@ -74,6 +76,7 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
     <>
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
+        email={registeredEmail}
         onDone={() => {
           setRecoveryKey(null);
           onSwitchToSignIn();

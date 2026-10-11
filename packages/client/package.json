@@ -20,6 +20,7 @@
     "@trpc/client": "catalog:",
     "@trpc/server": "catalog:",
     "@trpc/tanstack-react-query": "catalog:",
+    "pdf-lib": "catalog:",
     "tinykeys": "^4.0.0",
     "uqr": "^0.1.3"
   },

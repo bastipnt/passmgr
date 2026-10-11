@@ -9,7 +9,7 @@ import {
   type TRPCClient,
 } from "@trpc/client";
 import type { EventSourceLike } from "@trpc/server/unstable-core-do-not-import";
-import { type ReactNode, useState } from "react";
+import { createContext, type ReactNode, useContext, useState } from "react";
 import { generateAuthHeaders, generateSubscriptionParams } from "../util/headers";
 import { TRPCProvider } from "../util/trpc";
 
@@ -23,6 +23,15 @@ function makeQueryClient() {
       },
     },
   });
+}
+
+export const ServerUrlContext = createContext<string | null>(null);
+
+/** The server address `ClientProvider` talks to (as configured, e.g. for the emergency kit). */
+export function useServerUrl(): string {
+  const serverUrl = useContext(ServerUrlContext);
+  if (serverUrl === null) throw new Error("useServerUrl must be used within ClientProvider");
+  return serverUrl;
 }
 
 let browserQueryClient: QueryClient | undefined = undefined;
@@ -99,10 +108,12 @@ export default function ClientProvider({
   const [trpcClient] = useState(() => createTrpcClientWithHeaders());
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
-        {children}
-      </TRPCProvider>
-    </QueryClientProvider>
+    <ServerUrlContext value={serverUrl}>
+      <QueryClientProvider client={queryClient}>
+        <TRPCProvider trpcClient={trpcClient} queryClient={queryClient}>
+          {children}
+        </TRPCProvider>
+      </QueryClientProvider>
+    </ServerUrlContext>
   );
 }

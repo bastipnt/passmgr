@@ -33,6 +33,7 @@
     "expo-haptics": "catalog:",
     "expo-image": "catalog:",
     "expo-linking": "catalog:",
+    "expo-print": "catalog:",
     "expo-router": "catalog:",
     "expo-secure-store": "catalog:",
     "expo-splash-screen": "catalog:",

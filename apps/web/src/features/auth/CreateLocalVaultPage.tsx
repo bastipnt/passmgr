@@ -64,6 +64,7 @@ export default function CreateLocalVaultPage() {
   const { createLocalVault, finishLocalVault, createError } = useCreateLocalVault();
   const [loading, setLoading] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [vaultName, setVaultName] = useState("");
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(localVaultSchema),
@@ -77,7 +78,10 @@ export default function CreateLocalVaultPage() {
     setLoading(true);
     try {
       const key = await createLocalVault(password, name);
-      if (key) setRecoveryKey(key);
+      if (key) {
+        setVaultName(name);
+        setRecoveryKey(key);
+      }
     } finally {
       setLoading(false);
     }
@@ -88,6 +92,7 @@ export default function CreateLocalVaultPage() {
       <PageMeta title="Vault on this device" noindex />
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
+        name={vaultName}
         onDone={() => {
           // Unlocking leaves the auth routes on its own.
           void finishLocalVault();

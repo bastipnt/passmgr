@@ -1,13 +1,25 @@
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { renderWithProviders, screen, TEST_SERVER_URL, waitFor } from "@/test/render";
 import RegisterPage from "./RegisterPage";
 
 const registerNewUser = vi.fn();
+const { createEmergencyKit } = vi.hoisted(() => ({
+  createEmergencyKit: vi.fn(async () => ({
+    fileName: "passmgr-emergency-kit.pdf",
+    bytes: new Uint8Array([37, 80, 68, 70]),
+  })),
+}));
+
+vi.mock("@repo/client/src/account/emergency-kit", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/account/emergency-kit")>()),
+  createEmergencyKit,
+}));
 const navigate = vi.fn();
 const writeText = vi.fn().mockResolvedValue(undefined);
 
-vi.mock("@repo/client", () => ({
+vi.mock("@repo/client", async () => ({
+  ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
   useRegistration: () => ({
     registerNewUser,
     registrationError: mockRegistrationError,
@@ -77,6 +89,33 @@ describe("RegisterPage", () => {
 
     expect(writeText).toHaveBeenCalledWith("AQID");
     expect(saved).toBeEnabled();
+  });
+
+  it("downloads the emergency kit for the registered email, which counts as saved", async () => {
+    const key = new Uint8Array([1, 2, 3]);
+    registerNewUser.mockResolvedValue(key);
+    const createObjectURL = vi.fn(() => "blob:kit");
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+
+    renderWithProviders(<RegisterPage />);
+    await submitForm();
+
+    const saved = await screen.findByRole("button", { name: /i saved it/i });
+    await userEvent.click(screen.getByRole("button", { name: /emergency kit/i }));
+
+    expect(createEmergencyKit).toHaveBeenCalledWith({
+      recoveryKey: key,
+      account: { email: "new@example.com", serverUrl: TEST_SERVER_URL },
+      name: undefined,
+      appUrl: window.location.origin,
+    });
+    expect(createObjectURL).toHaveBeenCalledTimes(1);
+    expect(click).toHaveBeenCalledTimes(1);
+    expect(await screen.findByText(/emergency kit downloaded/i)).toBeInTheDocument();
+    expect(saved).toBeEnabled();
+    click.mockRestore();
   });
 
   it("wipes recovery key and navigates to /login on confirm", async () => {

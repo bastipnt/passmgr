@@ -1,10 +1,12 @@
+import { recoveryKeyChunks, useEmergencyKit } from "@repo/client";
 import { wipe } from "@repo/crypto";
 import { Button } from "@repo/ui-native";
 import { toBase64 } from "@repo/util";
 import * as Clipboard from "expo-clipboard";
+import * as Print from "expo-print";
 import { KeyRound } from "lucide-react-native";
-import { type ReactNode, useMemo, useState } from "react";
-import { Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { type ReactNode, useMemo } from "react";
+import { Alert, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { FullWindowOverlay } from "react-native-screens";
 
 /**
@@ -47,43 +49,70 @@ const CHUNK_COLOR = [
   "text-[#5b3df0] dark:text-[#c3b4ff]",
 ];
 
-function chunk(value: string, parts: number): string[] {
-  const size = Math.ceil(value.length / parts);
-  return Array.from({ length: parts }, (_, i) => value.slice(i * size, (i + 1) * size)).filter(
-    Boolean,
-  );
-}
-
 type RecoveryKeyDialogProps = {
   /** Visible while set. Wiped once the user confirms. */
   recoveryKey: Uint8Array | null;
   description?: string;
+  /** The account's email, printed on the emergency kit; absent for a local vault. */
+  email?: string;
+  /** The profile's display name, printed on the emergency kit. */
+  name?: string;
   onDone: () => void;
 };
 
-/** Shows a freshly issued recovery key once; "I saved it" unlocks after copying. */
+/**
+ * Shows a freshly issued recovery key once; "I saved it" unlocks after copying
+ * it, or on iOS after printing the emergency kit (a PDF built on the device;
+ * the print sheet also saves or shares it). Android's print dialog resolves on
+ * cancel too, so there only copying counts.
+ */
 export function RecoveryKeyDialog({
   recoveryKey,
   description = "Store this key in a safe place. It is the only way to recover your vault if you forget your password. It is shown once and never sent to the server.",
+  email,
+  name,
   onDone,
 }: RecoveryKeyDialogProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, markCopied, kitSaved, kitBusy, saved, saveKit, reset } = useEmergencyKit(
+    recoveryKey,
+    { email, name },
+  );
   const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
+  const chunks = useMemo(() => (recoveryKey ? recoveryKeyChunks(recoveryKey) : []), [recoveryKey]);
 
   const onCopy = async () => {
     if (!recoveryKey) return;
     await Clipboard.setStringAsync(recoveryKeyB64);
-    setCopied(true);
+    markCopied();
+  };
+
+  const onSaveKit = async () => {
+    const result = await saveKit(async (kit) => {
+      // A data URI: no file with the key is left in the app's storage.
+      await Print.printAsync({ uri: `data:application/pdf;base64,${toBase64(kit.bytes)}` });
+      // iOS rejects a print closed without printing or saving.
+      return Platform.OS === "ios";
+    });
+    if (result === "failed") {
+      Alert.alert("Emergency kit", "The emergency kit couldn't be created. Copy the key instead.");
+    }
   };
 
   const onConfirm = () => {
     if (recoveryKey) wipe(recoveryKey);
-    setCopied(false);
+    reset();
     onDone();
   };
 
   return (
-    <DialogPortal visible={recoveryKey !== null} onRequestClose={onConfirm}>
+    // Hidden while iOS prints: the print sheet presents from the app's window,
+    // under the overlay's.
+    <DialogPortal
+      visible={recoveryKey !== null && !(kitBusy && Platform.OS === "ios")}
+      onRequestClose={() => {
+        if (!kitBusy) onConfirm();
+      }}
+    >
       <View className="flex-1 items-center justify-center bg-black/50 p-5">
         <View className="w-full gap-5 rounded-3xl border border-foreground/10 bg-popover p-6">
           <View className="gap-3">
@@ -102,7 +131,7 @@ export function RecoveryKeyDialog({
             className="rounded-2xl border border-foreground/10 bg-foreground/3 px-5 py-4 dark:border-white/10 dark:bg-black/30"
           >
             <Text selectable className="font-mono-medium text-sm leading-6">
-              {chunk(recoveryKeyB64, 4).map((part, i) => (
+              {chunks.map((part, i) => (
                 <Text key={i} className={CHUNK_COLOR[i % CHUNK_COLOR.length]}>
                   {part}
                 </Text>
@@ -115,7 +144,16 @@ export function RecoveryKeyDialog({
             <Button native={false} variant="outline" size="lg" onPress={onCopy}>
               {copied ? "Copied" : "Copy to clipboard"}
             </Button>
-            <Button native={false} size="lg" onPress={onConfirm} disabled={!copied}>
+            <Button
+              native={false}
+              variant="outline"
+              size="lg"
+              loading={kitBusy}
+              onPress={onSaveKit}
+            >
+              {kitSaved ? "Emergency kit saved" : "Print or save emergency kit"}
+            </Button>
+            <Button native={false} size="lg" onPress={onConfirm} disabled={!saved}>
               I saved it
             </Button>
           </View>

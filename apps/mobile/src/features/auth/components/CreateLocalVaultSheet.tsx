@@ -43,6 +43,7 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
   const { createLocalVault, finishLocalVault, createError } = useCreateLocalVault();
   const [loading, setLoading] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [vaultName, setVaultName] = useState("");
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
@@ -67,6 +68,7 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
     if (!key) return;
     // Dismiss the form sheet, then present the recovery key over the welcome screen.
     sheetRef.current?.triggerShowHide(false);
+    setVaultName(name);
     setRecoveryKey(key);
   };
 
@@ -74,6 +76,7 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
     <>
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
+        name={vaultName}
         onDone={() => {
           setRecoveryKey(null);
           // Unlocking swaps the root guard over to the app. If it fails, the

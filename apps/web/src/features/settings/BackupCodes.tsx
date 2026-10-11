@@ -1,22 +1,12 @@
 import { Button } from "@repo/ui/components/Button";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
+import { downloadFile } from "@/lib/download";
 
 const FILE_NAME = "passmgr-backup-codes.txt";
 
 function codesText(codes: string[]) {
   return `passmgr two-factor backup codes\nEach code works once.\n\n${codes.join("\n")}\n`;
-}
-
-/** Hand the codes to the browser's download, as a text file. */
-function download(codes: string[]) {
-  const url = URL.createObjectURL(new Blob([codesText(codes)], { type: "text/plain" }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = FILE_NAME;
-  link.click();
-  // Not right after the click: some browsers cancel a download whose URL is gone.
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /**
@@ -51,7 +41,7 @@ export default function BackupCodes({ codes, onSaved }: { codes: string[]; onSav
           type="button"
           variant="outline"
           onClick={() => {
-            download(codes);
+            downloadFile(FILE_NAME, codesText(codes), "text/plain");
             onSaved();
           }}
         >

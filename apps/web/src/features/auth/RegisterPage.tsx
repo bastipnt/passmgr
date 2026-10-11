@@ -50,6 +50,7 @@ export default function RegisterPage() {
   const invite = searchParams.get("invite") ?? undefined;
   const [loading, setLoading] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [registeredEmail, setRegisteredEmail] = useState("");
   const { registerNewUser, registrationError } = useRegistration();
 
   const userCredentialsSchema = z.object({
@@ -71,7 +72,10 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       const key = await registerNewUser(email, password, invite);
-      if (key) setRecoveryKey(key);
+      if (key) {
+        setRegisteredEmail(email);
+        setRecoveryKey(key);
+      }
     } finally {
       setLoading(false);
     }
@@ -86,6 +90,7 @@ export default function RegisterPage() {
       />
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
+        email={registeredEmail}
         onDone={() => {
           setRecoveryKey(null);
           navigate(authPaths.login);

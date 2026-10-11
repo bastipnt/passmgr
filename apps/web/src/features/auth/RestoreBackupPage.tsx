@@ -117,6 +117,7 @@ function NewVaultForm({ data }: { data: ExportData }) {
   const { restore, finishRestore, restoreError } = useRestoreBackup();
   const [loading, setLoading] = useState(false);
   const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
+  const [vaultName, setVaultName] = useState("");
 
   const { handleSubmit, control } = useForm<FormValues>({
     resolver: zodResolver(restoreSchema),
@@ -129,7 +130,10 @@ function NewVaultForm({ data }: { data: ExportData }) {
     setLoading(true);
     try {
       const key = await restore(data, password, name);
-      if (key) setRecoveryKey(key);
+      if (key) {
+        setVaultName(name);
+        setRecoveryKey(key);
+      }
     } finally {
       setLoading(false);
     }
@@ -139,6 +143,7 @@ function NewVaultForm({ data }: { data: ExportData }) {
     <>
       <RecoveryKeyDialog
         recoveryKey={recoveryKey}
+        name={vaultName}
         onDone={() => {
           setRecoveryKey(null);
           // Unlocking leaves the auth routes on its own; the import runs on after that.

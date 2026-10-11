@@ -78,6 +78,7 @@ export default function RecoverPage() {
   const local = searchParams.get("vault") === "local" && profile?.mode === "local";
   const [loading, setLoading] = useState(false);
   const [newRecoveryKey, setNewRecoveryKey] = useState<Uint8Array | null>(null);
+  const [recoveredEmail, setRecoveredEmail] = useState("");
   const { recover, recoverLocal, recoveryError } = useRecovery();
 
   const { handleSubmit, control, setValue } = useForm<RecoverFormValues>({
@@ -94,7 +95,10 @@ export default function RecoverPage() {
       const key = local
         ? await recoverLocal(recoveryKey, password)
         : await recover(email, recoveryKey, password);
-      if (key) setNewRecoveryKey(key);
+      if (key) {
+        setRecoveredEmail(local ? "" : email);
+        setNewRecoveryKey(key);
+      }
     } finally {
       setLoading(false);
     }
@@ -110,6 +114,7 @@ export default function RecoverPage() {
       <PageMeta title="Recover account" noindex />
       <RecoveryKeyDialog
         recoveryKey={newRecoveryKey}
+        email={recoveredEmail || undefined}
         description={
           local
             ? "Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never leaves this device."

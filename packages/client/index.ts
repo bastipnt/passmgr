@@ -1,5 +1,8 @@
 // Utils
 
+// Account
+export * from "./src/account/emergency-kit";
+
 // Export
 export * from "./src/export/collect-export";
 export * from "./src/export/export-file";
@@ -15,6 +18,7 @@ export * from "./src/hooks/use-create-local-vault";
 export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-delete-account";
 export * from "./src/hooks/use-delete-record";
+export * from "./src/hooks/use-emergency-kit";
 export * from "./src/hooks/use-export";
 export * from "./src/hooks/use-generator-defaults";
 export * from "./src/hooks/use-import";
@@ -46,7 +50,7 @@ export * from "./src/preferences/PreferencesStore";
 // Preferences
 export * from "./src/preferences/preference-keys";
 export * from "./src/preferences/security-choices";
-export { default as ClientProvider } from "./src/providers/ClientProvider";
+export { default as ClientProvider, useServerUrl } from "./src/providers/ClientProvider";
 export * from "./src/providers/PreferencesProvider";
 export * from "./src/providers/RecordsProvider";
 export * from "./src/providers/SecondFactorPromptProvider";

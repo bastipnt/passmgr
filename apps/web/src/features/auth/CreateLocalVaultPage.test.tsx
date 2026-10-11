@@ -9,7 +9,8 @@ const writeText = vi.fn().mockResolvedValue(undefined);
 let mockCreateError: string | undefined;
 let mockProfile: object | null = null;
 
-vi.mock("@repo/client", () => ({
+vi.mock("@repo/client", async () => ({
+  ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
   useAppConfig: () => ({ registrationEnabled: false, isLoading: false }),
   useStore: () => ({ profile: mockProfile }),
   useCreateLocalVault: () => ({

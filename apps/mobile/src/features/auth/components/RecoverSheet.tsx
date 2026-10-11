@@ -39,6 +39,7 @@ export function RecoverSheet({
   const { recover, recoverLocal, recoveryError } = useRecovery();
   const [loading, setLoading] = useState(false);
   const [newRecoveryKey, setNewRecoveryKey] = useState<Uint8Array | null>(null);
+  const [recoveredEmail, setRecoveredEmail] = useState("");
 
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
@@ -66,6 +67,7 @@ export function RecoverSheet({
     // Dismiss the form sheet, then present the new key over the welcome screen.
     sheetRef.current?.triggerShowHide(false);
     reset();
+    setRecoveredEmail(local ? "" : email);
     setNewRecoveryKey(key);
   };
 
@@ -73,6 +75,7 @@ export function RecoverSheet({
     <>
       <RecoveryKeyDialog
         recoveryKey={newRecoveryKey}
+        email={recoveredEmail || undefined}
         description={
           local
             ? "Your password was reset and your old recovery key no longer works. Store this new key in a safe place. It is shown once and never leaves this device."

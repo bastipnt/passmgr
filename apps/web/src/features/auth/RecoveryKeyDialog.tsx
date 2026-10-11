@@ -1,4 +1,6 @@
+import { recoveryKeyChunks, useEmergencyKit } from "@repo/client";
 import { wipe } from "@repo/crypto";
+import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
   Dialog,
@@ -10,8 +12,9 @@ import {
 } from "@repo/ui/components/Dialog";
 import { cn } from "@repo/ui/lib/utils";
 import { toBase64 } from "@repo/util";
-import { ArrowRightIcon, CheckIcon, CopyIcon, KeyRoundIcon } from "lucide-react";
-import { type ReactNode, useMemo, useState } from "react";
+import { ArrowRightIcon, CheckIcon, CopyIcon, FileDownIcon, KeyRoundIcon } from "lucide-react";
+import { type ReactNode, useMemo } from "react";
+import { downloadFile } from "@/lib/download";
 
 // Color-coded chunks make the key easier to transcribe and compare.
 const CHUNK_COLOR = [
@@ -21,21 +24,21 @@ const CHUNK_COLOR = [
   "text-[#5b3df0] dark:text-[#c3b4ff]",
 ];
 
-function chunk(value: string, parts: number): string[] {
-  const size = Math.ceil(value.length / parts);
-  return Array.from({ length: parts }, (_, i) => value.slice(i * size, (i + 1) * size)).filter(
-    Boolean,
-  );
-}
-
 type RecoveryKeyDialogProps = {
   /** Open while set. Wiped once the user confirms. */
   recoveryKey: Uint8Array | null;
   description?: ReactNode;
+  /** The account's email, printed on the emergency kit; absent for a local vault. */
+  email?: string;
+  /** The profile's display name, printed on the emergency kit. */
+  name?: string;
   onDone: () => void;
 };
 
-/** Shows a freshly issued recovery key once; "I saved it" unlocks after copying. */
+/**
+ * Shows a freshly issued recovery key once; "I saved it" unlocks after copying
+ * it or downloading the emergency kit (a printable PDF built on the device).
+ */
 export default function RecoveryKeyDialog({
   recoveryKey,
   description = (
@@ -45,20 +48,37 @@ export default function RecoveryKeyDialog({
       you forget your password. It is shown once and never sent to the server.
     </>
   ),
+  email,
+  name,
   onDone,
 }: RecoveryKeyDialogProps) {
-  const [copied, setCopied] = useState(false);
+  const { copied, markCopied, kitSaved, kitBusy, saved, saveKit, reset } = useEmergencyKit(
+    recoveryKey,
+    { email, name, appUrl: window.location.origin },
+  );
   const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
+  const chunks = useMemo(() => (recoveryKey ? recoveryKeyChunks(recoveryKey) : []), [recoveryKey]);
 
   const onCopy = async () => {
     if (!recoveryKey) return;
     await navigator.clipboard.writeText(recoveryKeyB64);
-    setCopied(true);
+    markCopied();
+  };
+
+  const onDownloadKit = async () => {
+    // The browser can't tell whether the download finished: handing it over counts.
+    const result = await saveKit((kit) => {
+      downloadFile(kit.fileName, kit.bytes, "application/pdf");
+      return true;
+    });
+    if (result === "failed") {
+      toast.error("The emergency kit couldn't be created. Copy the key instead.");
+    }
   };
 
   const onConfirm = () => {
     if (recoveryKey) wipe(recoveryKey);
-    setCopied(false);
+    reset();
     onDone();
   };
 
@@ -66,7 +86,7 @@ export default function RecoveryKeyDialog({
     <Dialog
       open={recoveryKey !== null}
       onOpenChange={(open) => {
-        if (!open && copied) onConfirm();
+        if (!open && saved) onConfirm();
       }}
     >
       <DialogContent showCloseButton={false} className="sm:max-w-lg">
@@ -81,7 +101,7 @@ export default function RecoveryKeyDialog({
         {/* Inline chunks with no whitespace between them, so selecting or reading the
             element yields the exact key (grid/flex items would copy with newlines). */}
         <code className="block select-all break-all rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-5 py-4 font-medium font-mono text-sm dark:border-white/10 dark:bg-black/30">
-          {chunk(recoveryKeyB64, 4).map((part, i) => (
+          {chunks.map((part, i) => (
             <span
               key={i}
               className={cn("inline-block w-1/2 py-0.5", CHUNK_COLOR[i % CHUNK_COLOR.length])}
@@ -100,6 +120,15 @@ export default function RecoveryKeyDialog({
           </p>
         )}
 
+        {kitSaved && (
+          <p className="flex items-center gap-2 text-muted-foreground text-xs">
+            <span className="grid size-4 place-items-center rounded bg-primary text-primary-foreground">
+              <CheckIcon className="size-3" aria-hidden />
+            </span>
+            Emergency kit downloaded — print it, then delete the file
+          </p>
+        )}
+
         <DialogFooter className="sm:grid sm:grid-cols-2">
           <Button variant="outline" size="lg" onClick={onCopy} aria-label="Copy to clipboard">
             {copied ? (
@@ -109,7 +138,15 @@ export default function RecoveryKeyDialog({
             )}
             {copied ? "Copied" : "Copy"}
           </Button>
-          <Button size="lg" onClick={onConfirm} disabled={!copied}>
+          <Button variant="outline" size="lg" onClick={onDownloadKit} disabled={kitBusy}>
+            {kitSaved ? (
+              <CheckIcon data-icon="inline-start" className="text-success" />
+            ) : (
+              <FileDownIcon data-icon="inline-start" />
+            )}
+            Emergency kit
+          </Button>
+          <Button size="lg" className="sm:col-span-2" onClick={onConfirm} disabled={!saved}>
             I saved it
             <ArrowRightIcon data-icon="inline-end" />
           </Button>

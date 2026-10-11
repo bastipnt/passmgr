@@ -3,7 +3,6 @@ import {
   EXPORT_ERROR_MESSAGES,
   type ExportFormat,
   type ExportRequest,
-  type ExportResult,
   useExport,
 } from "@repo/client";
 import { type ExportPasswordFormValues, exportPasswordFormSchema } from "@repo/schema";
@@ -36,6 +35,7 @@ import { type ReactElement, type ReactNode, useState } from "react";
 import { type Control, type Path, useWatch } from "react-hook-form";
 import z from "zod";
 import { PasswordStrengthMeter } from "@/features/password-generation";
+import { downloadFile } from "@/lib/download";
 
 const FORMATS: { value: ExportFormat; label: string }[] = [
   { value: "encrypted", label: "Encrypted backup (.json)" },
@@ -53,18 +53,6 @@ const DESCRIPTIONS: Record<ExportFormat, string> = {
 const plainSchema = z.object({ masterPassword: z.string().min(1, "Enter your master password") });
 type PlainFormValues = z.infer<typeof plainSchema>;
 
-/** Hand the file to the browser's download. */
-function downloadFile({ fileName, mimeType, content }: ExportResult) {
-  const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
-  const link = document.createElement("a");
-  link.href = url;
-  link.download = fileName;
-  link.click();
-  // Not right after the click: some browsers (older Safari) cancel a download
-  // whose URL is revoked before it started.
-  setTimeout(() => URL.revokeObjectURL(url), 10_000);
-}
-
 /**
  * Export the vault (ADR 0001 D12): an encrypted backup (the backup a local
  * vault relies on), or plain JSON / CSV behind the master password and a
@@ -78,7 +66,7 @@ export default function ExportDialog({ children }: { children: ReactElement }) {
   const run = async (request: ExportRequest): Promise<boolean> => {
     const result = await createExport(request);
     if (!result) return false;
-    downloadFile(result);
+    downloadFile(result.fileName, result.content, result.mimeType);
     // The browser can't tell whether the download finished: handing it over counts.
     await markSaved(result);
     if (result.skipped > 0) {
