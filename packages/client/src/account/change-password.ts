@@ -10,7 +10,11 @@ import {
   LoginThrottledError,
   type LoginTRPCClient,
   loginUser,
+  noSecondFactor,
   OpaqueLoginFailedError,
+  SecondFactorCancelledError,
+  SecondFactorExpiredError,
+  type SecondFactorPrompt,
 } from "../login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "../opaque";
 import { derivePasswordKek } from "../util/derive-password-kek";
@@ -98,8 +102,8 @@ export async function changeLocalPassword(
  * 3. The server swaps both and revokes every session, this one included: the
  *    caller logs in again with the new password.
  *
- * Throws `WrongPasswordError`, `LoginThrottledError`,
- * `PasswordChangeFailedError` (nothing changed on the server) or
+ * Throws `WrongPasswordError`, `LoginThrottledError`, a second-factor error
+ * (see `freshLogin`), `PasswordChangeFailedError` (nothing changed on the server) or
  * `PasswordChangeUnconfirmedError` (the last request got no answer: the server
  * may have taken it).
  *
@@ -112,9 +116,17 @@ export async function changeAccountPassword(
   material: AccountKeyMaterial,
   currentPassword: string,
   newPassword: string,
+  onSecondFactor?: SecondFactorPrompt,
 ): Promise<AccountKeyMaterial> {
   const email = normalizeEmail(account.email);
-  await freshLogin(trpc, attach, { ...account, email }, currentPassword, PasswordChangeFailedError);
+  await freshLogin(
+    trpc,
+    attach,
+    { ...account, email },
+    currentPassword,
+    PasswordChangeFailedError,
+    onSecondFactor,
+  );
 
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
   const req = await client.registerInit(newPassword);
@@ -160,8 +172,11 @@ export async function changeAccountPassword(
  * `attach` once it is known to be `account.userId`'s; the session it replaces
  * is ended first (best-effort), so a change that fails later leaves none behind.
  *
- * Throws `WrongPasswordError`, `LoginThrottledError` or `failed` (the server
- * couldn't be reached, or the email now belongs to another account).
+ * With two-factor on, `onSecondFactor` is asked for a code.
+ *
+ * Throws `WrongPasswordError`, `LoginThrottledError`,
+ * `SecondFactorCancelledError`, `SecondFactorExpiredError` or `failed` (the
+ * server couldn't be reached, or the email now belongs to another account).
  */
 export async function freshLogin(
   trpc: LoginTRPCClient,
@@ -169,6 +184,7 @@ export async function freshLogin(
   account: { email: string; userId: string },
   password: string,
   failed: new () => Error,
+  onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<void> {
   let session: Parameters<LoginSessionFn> | undefined;
   try {
@@ -179,12 +195,19 @@ export async function freshLogin(
       },
       account.email,
       password,
+      onSecondFactor,
     );
     // The email now belongs to another account: never touch it.
     if (info.userId !== account.userId || !session) throw new failed();
   } catch (e) {
     if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
-    if (e instanceof LoginThrottledError || e instanceof failed) throw e;
+    if (
+      e instanceof LoginThrottledError ||
+      e instanceof SecondFactorCancelledError ||
+      e instanceof SecondFactorExpiredError ||
+      e instanceof failed
+    )
+      throw e;
     throw new failed();
   }
   if (secretsStore.hasServerSession) await endServerSession(trpc);

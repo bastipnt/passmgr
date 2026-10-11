@@ -7,6 +7,7 @@ const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle
 export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60_000; // 30 days
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
+const TOTP_ENROLLMENT_TTL_SECONDS = 10 * 60; // 10min to scan and confirm
 export const INVITE_TTL_SECONDS = 60 * 60 * 24; // 24h
 
 // Per-account login throttling. OPAQUE lets the client check a password guess
@@ -28,6 +29,9 @@ type Session = {
   authenticatedAt: number;
   // Label the client sent at login ("Firefox on macOS"), for the session list.
   deviceName?: string;
+  // The login passed a second factor (`login.verifySecondFactor`). Changing
+  // two-factor needs a session that did.
+  secondFactor?: boolean;
 };
 
 /** A live session of a user, as the session list shows it. */
@@ -52,6 +56,18 @@ type PasswordChangeAttempt = {
   keySetId: string;
 };
 
+/** A login whose password was right, waiting for its second factor. */
+type SecondFactorChallenge = {
+  userId: string;
+  emailHash: string;
+  // The session's auth key, derived at finishLogin; the session is created
+  // with it once the code checks out.
+  rawAuthKey: string;
+  deviceName?: string;
+  // The login's startLogin (LoginAttempt.startedAt), see isLoginRevoked.
+  startedAt: number;
+};
+
 type Invite = {
   // When set, the invite can only register this exact email.
   email?: string;
@@ -64,6 +80,8 @@ type LoginAttempt = {
   // Base64-encoded ExpectedAuthResult from @cloudflare/opaque-ts authInit.
   // Threaded from startLogin to finishLogin (5min TTL = OPAQUE replay window).
   expected: string;
+  // Unix ms when startLogin read the registration record, see isLoginRevoked.
+  startedAt: number;
 };
 
 function sessionKey(sessionId: string) {
@@ -78,6 +96,16 @@ function loginKey(attemptId: string) {
 
 function recoveryKey(attemptId: string) {
   return `recovery:${attemptId}`;
+}
+
+// A hash: the challenge's fields plus an `attempts` counter.
+function secondFactorKey(challengeId: string) {
+  return `login2fa:${challengeId}`;
+}
+
+// The secret of a TOTP enrollment the user hasn't confirmed with a code yet.
+function totpEnrollmentKey(userId: string) {
+  return `totpenroll:${userId}`;
 }
 
 function passwordChangeKey(attemptId: string) {
@@ -278,6 +306,16 @@ export async function revokeUserSessions(userId: string, exceptSessionId?: strin
 }
 
 /**
+ * A login started (registration record read) at or before the user's last
+ * revokeUserSessions: it ran against the old password and must not create a
+ * session. Its session would be stamped later and slip past the cut-off.
+ */
+export async function isLoginRevoked(userId: string, startedAt: number): Promise<boolean> {
+  const epoch = await redis.get(sessionEpochKey(userId));
+  return epoch !== null && startedAt <= Number(epoch);
+}
+
+/**
  * End every session of a deleted account (`revokeUserSessions`). The cut-off
  * expires once no session from before it could still be live: nothing
  * outlives the account.
@@ -308,6 +346,66 @@ export async function takeLoginAttempt(attemptId: string): Promise<LoginAttempt 
   if (rawLoginAttempt === null) return undefined;
 
   return JSON.parse(rawLoginAttempt);
+}
+
+/** Store a second-factor challenge and return its id (for verifySecondFactor). */
+export async function setSecondFactorChallenge(challenge: SecondFactorChallenge): Promise<string> {
+  const challengeId = crypto.randomUUID();
+  const key = secondFactorKey(challengeId);
+  await redis
+    .multi()
+    .hset(key, { ...challenge, deviceName: challenge.deviceName ?? "", attempts: 0 })
+    .expire(key, LOGIN_ATTEMPT_TTL_SECONDS)
+    .exec();
+  return challengeId;
+}
+
+/** The challenge, or undefined when it expired, was used or burned. */
+export async function getSecondFactorChallenge(
+  challengeId: string,
+): Promise<SecondFactorChallenge | undefined> {
+  const raw = await redis.hgetall(secondFactorKey(challengeId));
+  if (!raw.userId || !raw.emailHash || !raw.rawAuthKey || !raw.startedAt) return undefined;
+  return {
+    userId: raw.userId,
+    emailHash: raw.emailHash,
+    rawAuthKey: raw.rawAuthKey,
+    deviceName: raw.deviceName || undefined,
+    startedAt: Number(raw.startedAt),
+  };
+}
+
+// HINCRBY alone would recreate an expired challenge (without a TTL).
+const COUNT_ATTEMPT_SCRIPT = `
+if redis.call("exists", KEYS[1]) == 0 then return -1 end
+return redis.call("hincrby", KEYS[1], "attempts", 1)
+`;
+
+/**
+ * Count one code tried against the challenge; returns the count including it,
+ * or -1 when the challenge is gone. Counted before the code is checked, so
+ * parallel guesses can't exceed the cap.
+ */
+export async function countSecondFactorAttempt(challengeId: string): Promise<number> {
+  return Number(await redis.eval(COUNT_ATTEMPT_SCRIPT, 1, secondFactorKey(challengeId)));
+}
+
+/** End a challenge. True only for the one caller that ended it (single use). */
+export async function takeSecondFactorChallenge(challengeId: string): Promise<boolean> {
+  return (await redis.del(secondFactorKey(challengeId))) === 1;
+}
+
+/** Keep the secret of a TOTP enrollment until it's confirmed (replaces an older one). */
+export async function setTotpEnrollment(userId: string, secret: string): Promise<void> {
+  await redis.set(totpEnrollmentKey(userId), secret, "EX", TOTP_ENROLLMENT_TTL_SECONDS);
+}
+
+export async function getTotpEnrollment(userId: string): Promise<string | undefined> {
+  return (await redis.get(totpEnrollmentKey(userId))) ?? undefined;
+}
+
+export async function deleteTotpEnrollment(userId: string): Promise<void> {
+  await redis.del(totpEnrollmentKey(userId));
 }
 
 /** Store a recovery attempt and return its id (handed to the client for finishRecovery). */

@@ -1,6 +1,7 @@
 import { defineRelationsPart } from "drizzle-orm";
 import { keysTable } from "./schema/keys";
 import { recordsTable } from "./schema/records";
+import { userBackupCodesTable, userTotpTable } from "./schema/two-factor";
 import { userKeyPairsTable } from "./schema/user-key-pairs";
 import { usersTable } from "./schema/users";
 import { vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "./schema/vaults";
@@ -13,6 +14,8 @@ export const schema = {
   vaultMembersTable,
   vaultKeyLinksTable,
   userKeyPairsTable,
+  userTotpTable,
+  userBackupCodesTable,
 };
 
 const mainPart = defineRelationsPart(schema);

@@ -24,8 +24,8 @@ describe("users unique constraints", () => {
     const dupe = makeUserRow({ encryptedEmail: first.encryptedEmail });
     await expect(
       client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasTwoFactorEnabled", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           dupe.userId,
           dupe.encryptedEmail,
@@ -33,7 +33,6 @@ describe("users unique constraints", () => {
           dupe.emailEncryptionKeySalt,
           dupe.emailHash,
           dupe.registrationRecord,
-          dupe.hasTwoFactorEnabled,
           dupe.hasEmailVerified,
         ],
       ),
@@ -45,8 +44,8 @@ describe("users unique constraints", () => {
     const dupe = makeUserRow({ emailHash: first.emailHash });
     await expect(
       client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasTwoFactorEnabled", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           dupe.userId,
           dupe.encryptedEmail,
@@ -54,7 +53,6 @@ describe("users unique constraints", () => {
           dupe.emailEncryptionKeySalt,
           dupe.emailHash,
           dupe.registrationRecord,
-          dupe.hasTwoFactorEnabled,
           dupe.hasEmailVerified,
         ],
       ),
@@ -66,8 +64,8 @@ describe("users unique constraints", () => {
     const dupe = makeUserRow({ registrationRecord: first.registrationRecord });
     await expect(
       client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasTwoFactorEnabled", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
         [
           dupe.userId,
           dupe.encryptedEmail,
@@ -75,7 +73,6 @@ describe("users unique constraints", () => {
           dupe.emailEncryptionKeySalt,
           dupe.emailHash,
           dupe.registrationRecord,
-          dupe.hasTwoFactorEnabled,
           dupe.hasEmailVerified,
         ],
       ),

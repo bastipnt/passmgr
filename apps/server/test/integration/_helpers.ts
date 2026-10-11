@@ -33,10 +33,15 @@ export async function register(
   return { recoveryKey, accountKey };
 }
 
+/**
+ * An OPAQUE login. For an account with two-factor on, `secondFactorCode` gives
+ * the code for the second step (without it, such a login throws).
+ */
 export async function loginAndGetAuthKey(
   email: string,
   password: string,
   deviceName?: string,
+  secondFactorCode?: () => Promise<string>,
 ): Promise<{
   sessionId: string;
   authKey: Uint8Array;
@@ -53,12 +58,19 @@ export async function loginAndGetAuthKey(
   if (!result) throw new Error("OPAQUE authFinish failed");
   const authSalt = genKey();
   const finishCaller = createCaller(buildTestContext(undefined, deviceName));
-  const finished = await finishCaller.login.finishLogin({
+  let finished = await finishCaller.login.finishLogin({
     email,
     attemptId,
     finishLoginRequest: result.finishLoginRequest,
     authSalt: toBase64(authSalt),
   });
+  if ("secondFactorRequired" in finished) {
+    if (!secondFactorCode) throw new Error("second factor required");
+    finished = await finishCaller.login.verifySecondFactor({
+      challengeId: finished.challengeId,
+      code: await secondFactorCode(),
+    });
+  }
   const authKey = await deriveAuthKey(result.sessionKey, authSalt);
   return {
     sessionId: finished.sessionId,

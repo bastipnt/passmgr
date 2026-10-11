@@ -1,4 +1,5 @@
 import { genKey } from "@repo/crypto";
+import { db, usersTable } from "@repo/db";
 import { toBase64, UUIDV4_RE } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
@@ -9,7 +10,7 @@ import { buildRegistrationKeys } from "../../test/setup/user-keys";
 import { redis } from "../redis";
 import { appRouter } from "../router";
 import { createCallerFactory } from "../trpc";
-import { LOGIN_FREE_ATTEMPTS } from "../util/redis-utils";
+import { LOGIN_FREE_ATTEMPTS, revokeUserSessions } from "../util/redis-utils";
 
 const createCaller = createCallerFactory(appRouter);
 
@@ -59,6 +60,31 @@ async function login(email: string, password: string) {
 describe("loginRouter — edge cases", () => {
   const email = "alice@example.com";
   const password = "correct horse battery staple";
+
+  it("finishLogin → UNAUTHORIZED when sessions were revoked after startLogin", async () => {
+    await register(email, password);
+    const caller = createCaller(buildTestContext(undefined));
+    const started = await clientStartLogin(password);
+    const { loginResponse, attemptId } = await caller.login.startLogin({
+      email,
+      startLoginRequest: started.startLoginRequest,
+    });
+    const result = await started.finish(loginResponse, email);
+    if (!result) throw new Error("OPAQUE authFinish failed");
+    // Password changed or recovered in between: the old password's login is dead.
+    const [user] = await db.select({ userId: usersTable.userId }).from(usersTable);
+    await revokeUserSessions(user!.userId);
+
+    await expect(
+      caller.login.finishLogin({
+        email,
+        attemptId,
+        finishLoginRequest: result.finishLoginRequest,
+        authSalt: AUTH_SALT,
+      }),
+    ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await login(email, password)).toHaveProperty("sessionId");
+  });
 
   it("finishLogin → UNAUTHORIZED with the wrong password", async () => {
     await register(email, password);
@@ -168,7 +194,7 @@ describe("loginRouter — login attempts", () => {
       finishLoginRequest: result.finishLoginRequest,
       authSalt: AUTH_SALT,
     });
-    expect(finished.sessionId).toMatch(UUIDV4_RE);
+    expect("sessionId" in finished && finished.sessionId).toMatch(UUIDV4_RE);
   });
 
   it("an attempt id can only be finished once", async () => {

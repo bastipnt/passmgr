@@ -8,7 +8,7 @@ export async function getClient(): Promise<Client> {
 
 export async function truncateAll(client: Client): Promise<void> {
   await client.query(
-    'TRUNCATE "users", "keys", "records", "vaults", "vault_members", "vault_key_links", "user_key_pairs" RESTART IDENTITY CASCADE',
+    'TRUNCATE "users", "keys", "records", "vaults", "vault_members", "vault_key_links", "user_key_pairs", "user_totp", "user_backup_codes" RESTART IDENTITY CASCADE',
   );
 }
 
@@ -21,7 +21,6 @@ export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
     emailEncryptionKeySalt: `enc-email-salt-${uniq}`,
     emailHash: `email-hash-${uniq}`,
     registrationRecord: `reg-record-${uniq}`,
-    hasTwoFactorEnabled: false,
     hasEmailVerified: true,
     ...overrides,
   };
@@ -33,8 +32,8 @@ export async function insertUser(
 ): Promise<UserRow> {
   const row = makeUserRow(overrides);
   await client.query(
-    `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasTwoFactorEnabled", "hasEmailVerified")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+    `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
     [
       row.userId,
       row.encryptedEmail,
@@ -42,7 +41,6 @@ export async function insertUser(
       row.emailEncryptionKeySalt,
       row.emailHash,
       row.registrationRecord,
-      row.hasTwoFactorEnabled,
       row.hasEmailVerified,
     ],
   );

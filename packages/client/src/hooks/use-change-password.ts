@@ -8,7 +8,13 @@ import {
   PasswordChangeUnconfirmedError,
   WrongPasswordError,
 } from "../account/change-password";
-import { LoginThrottledError } from "../login";
+import {
+  LoginThrottledError,
+  SecondFactorCancelledError,
+  SecondFactorExpiredError,
+  type SecondFactorPrompt,
+} from "../login";
+import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { persistSession } from "../util/persist-session";
@@ -20,6 +26,7 @@ import { canReleasePassword, useConnectServer } from "./use-connect-server";
  * - `offline`: a linked vault without a server session; the change waits
  *   until it's online (ADR 0001 D10: the key sets would diverge otherwise)
  * - `throttled`: too many login attempts, retry later
+ * - `second_factor`: the login's two-factor step didn't finish (closed, or ran out)
  * - `failed`: the server couldn't be reached or refused, or storing failed
  * - `unconfirmed`: the change got no answer and the server can't be reached to
  *   check; the next login with either password tells
@@ -28,6 +35,7 @@ export type ChangePasswordError =
   | "wrong_password"
   | "offline"
   | "throttled"
+  | "second_factor"
   | "failed"
   | "unconfirmed";
 
@@ -37,6 +45,8 @@ export const CHANGE_PASSWORD_ERROR_MESSAGES: Record<ChangePasswordError, string>
   offline:
     "Changing the password of an online account needs a connection to the server. Try again once you're online.",
   throttled: "Too many attempts. Please wait and try again.",
+  second_factor:
+    "The two-factor step of the sign-in didn't finish. Your current password still works.",
   failed: "The password couldn't be changed. Your current password still works.",
   unconfirmed:
     "The server didn't confirm the change. Sign in with your new password next time; if that doesn't work, your current password still does.",
@@ -51,17 +61,22 @@ export const CHANGE_PASSWORD_ERROR_MESSAGES: Record<ChangePasswordError, string>
  *   A new OPAQUE registration and password wrap replace the server's, which
  *   signs out every device, then this one logs in again with the new password.
  *
+ * `onSecondFactor`: how the logins ask for a two-factor code (default: the
+ * app's `SecondFactorPromptProvider`).
+ *
  * Either way only the account key wrap changes: vault keys, records and the
  * recovery key stay. Biometric unlock is dropped (it holds the old password)
  * and offered again at the next unlock.
  */
-export function useChangePassword() {
+export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
   const [changeError, setChangeError] = useState<ChangePasswordError>();
   const [changing, setChanging] = useState(false);
   const { mode, networkOffline, attachServer, detachServer } = useContext(SessionContext);
   const store = useStore();
   const trpc = useTRPCClient();
-  const { connect } = useConnectServer();
+  const contextPrompt = useSecondFactorPrompt();
+  const prompt = onSecondFactor ?? contextPrompt;
+  const { connect } = useConnectServer(onSecondFactor);
 
   /** A linked vault that can't reach the server right now. */
   const blocked = mode === "offline" || (mode === "online" && networkOffline);
@@ -101,12 +116,15 @@ export function useChangePassword() {
               material,
               currentPassword,
               newPassword,
+              prompt,
             );
     } catch (e) {
       if (e instanceof PasswordChangeUnconfirmedError)
         return await confirmChange(active, currentPassword, newPassword);
       if (e instanceof WrongPasswordError) return "wrong_password";
       if (e instanceof LoginThrottledError) return "throttled";
+      if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
+        return "second_factor";
       if (!(e instanceof PasswordChangeFailedError)) console.error("Password change failed", e);
       return "failed";
     }

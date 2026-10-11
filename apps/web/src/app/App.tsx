@@ -9,7 +9,7 @@ import {
 import { Toaster } from "@repo/ui/components/Toaster";
 import { ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 import { ErrorBoundary } from "react-error-boundary";
-import { onSignedOutElsewhere } from "@/features/auth";
+import { onSignedOutElsewhere, SecondFactorPromptRoot } from "@/features/auth";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
 import { deviceNameFromUserAgent } from "@/lib/device-name";
@@ -35,7 +35,9 @@ function App() {
                 <StoreProvider profiles={profileStore} onSignedOut={onSignedOutElsewhere}>
                   <RecordsProvider>
                     <Toaster mobileOffset={{ bottom: PHONE_TOAST_BOTTOM }} />
-                    <Routes />
+                    <SecondFactorPromptRoot>
+                      <Routes />
+                    </SecondFactorPromptRoot>
                   </RecordsProvider>
                 </StoreProvider>
               </ClientProvider>

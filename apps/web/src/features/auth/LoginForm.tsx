@@ -49,6 +49,8 @@ type LoginFormProps = {
   footer?: ReactNode;
   loginError: boolean;
   loginThrottled?: boolean;
+  /** The two-factor step ran out (too slow, or too many wrong codes). */
+  secondFactorExpired?: boolean;
   unlockError?: UnlockError;
   loading: boolean;
   /** The user edited a field — a shown error no longer applies. */
@@ -64,6 +66,7 @@ export default function LoginForm({
   onSubmit,
   loginError,
   loginThrottled = false,
+  secondFactorExpired = false,
   unlockError,
   loading,
   onEdit,
@@ -156,6 +159,11 @@ export default function LoginForm({
                   <strong className="font-semibold">Too many login attempts.</strong> Please wait
                   and try again.
                 </FieldWarning>
+              ) : secondFactorExpired ? (
+                <FieldError variant="box">
+                  <strong className="font-semibold">Two-factor sign-in timed out.</strong> It took
+                  too long or had too many wrong codes. Sign in again.
+                </FieldError>
               ) : unlockError === "wrong_account" ? (
                 <FieldError variant="box">
                   <strong className="font-semibold">Can&apos;t add an account offline.</strong> Only

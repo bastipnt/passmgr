@@ -1,12 +1,17 @@
 import { RegistrationRequest } from "@cloudflare/opaque-ts";
-import { hashEmail } from "@repo/crypto";
+import { decryptEmail, hashEmail, verifyToken } from "@repo/crypto";
 import { db, keysTable, userKeyPairsTable, usersTable } from "@repo/db";
 import {
+  backupCodesOutputSchema,
+  confirmTotpInputSchema,
   finishPasswordChangeInputSchema,
   type PasswordKeySchema,
   passwordKeySchema,
   startPasswordChangeInputSchema,
   startPasswordChangeOutputSchema,
+  startTotpEnrollmentOutputSchema,
+  twoFactorEmptyInputSchema,
+  twoFactorStatusSchema,
   userPublicKeyInputSchema,
   userPublicKeySchema,
 } from "@repo/schema";
@@ -14,13 +19,24 @@ import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware";
+import {
+  disableTotp,
+  enableTotp,
+  hasTotp,
+  newTotpEnrollment,
+  regenerateBackupCodes,
+  twoFactorStatus,
+} from "../auth/two-factor";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import {
+  deleteTotpEnrollment,
   endDeletedUserSessions,
+  getTotpEnrollment,
   resetLoginThrottle,
   revokeUserSessions,
   setPasswordChangeAttempt,
+  setTotpEnrollment,
   takePasswordChangeAttempt,
 } from "../util/redis-utils";
 import { notifyVaultMembers } from "../vault/access";
@@ -69,6 +85,17 @@ async function replacePasswordWrap(
     valid_from: now,
   });
 }
+
+/**
+ * Changing an enrolled second factor: a fresh login that passed it. A session
+ * from before two-factor was turned on (fresh, but without a code) can't.
+ */
+const secondFactorProcedure = freshAuthProcedure.use(async (opts) => {
+  if (!opts.ctx.secondFactor) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "second factor required" });
+  }
+  return opts.next();
+});
 
 export const userRouter = router({
   // Lightweight liveness check. The mobile client calls this to validate a
@@ -219,4 +246,72 @@ export const userRouter = router({
     }
     return { ok: true } as const;
   }),
+
+  // Two-factor (TOTP + backup codes) for the server login, opt-in.
+  twoFactorStatus: protectedProcedure.output(twoFactorStatusSchema).query(async ({ ctx }) => {
+    return await twoFactorStatus(ctx.userId);
+  }),
+
+  // Turning it on, step 1: a new secret, kept aside until a code from the
+  // authenticator app confirms it was enrolled (`confirmTotp`).
+  startTotpEnrollment: freshAuthProcedure
+    .input(twoFactorEmptyInputSchema)
+    .output(startTotpEnrollmentOutputSchema)
+    .mutation(async ({ ctx }) => {
+      if (await hasTotp(ctx.userId)) {
+        throw new TRPCError({ code: "CONFLICT", message: "two-factor is already on" });
+      }
+      const user = await db.query.usersTable.findFirst({
+        columns: { encryptedEmail: true, emailNonce: true, emailEncryptionKeySalt: true },
+        where: { userId: ctx.userId, deleted_at: { isNull: true } },
+      });
+      if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+      const email = await decryptEmail(
+        serverKey,
+        user.encryptedEmail,
+        user.emailNonce,
+        user.emailEncryptionKeySalt,
+      );
+
+      const { secret, uri } = newTotpEnrollment(email);
+      await setTotpEnrollment(ctx.userId, secret);
+      return { secret, uri };
+    }),
+
+  // Step 2: the first code from the app. Stores the secret and hands out the
+  // backup codes, once.
+  confirmTotp: freshAuthProcedure
+    .input(confirmTotpInputSchema)
+    .output(backupCodesOutputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const secret = await getTotpEnrollment(ctx.userId);
+      if (!secret) throw new TRPCError({ code: "NOT_FOUND", message: "no enrollment" });
+      const step = await verifyToken(secret, input.code, null);
+      if (step === null) throw new TRPCError({ code: "BAD_REQUEST", message: "wrong code" });
+
+      const backupCodes = await enableTotp(ctx.userId, secret, step);
+      if (!backupCodes) {
+        throw new TRPCError({ code: "CONFLICT", message: "two-factor is already on" });
+      }
+      await deleteTotpEnrollment(ctx.userId);
+      ctx.req?.log.info({}, "auth.two_factor.enabled");
+      return { backupCodes };
+    }),
+
+  // Back to password-only.
+  disableTotp: secondFactorProcedure.input(twoFactorEmptyInputSchema).mutation(async ({ ctx }) => {
+    await disableTotp(ctx.userId);
+    ctx.req?.log.info({}, "auth.two_factor.disabled");
+    return { ok: true } as const;
+  }),
+
+  // New backup codes; the old ones stop working.
+  regenerateBackupCodes: secondFactorProcedure
+    .input(twoFactorEmptyInputSchema)
+    .output(backupCodesOutputSchema)
+    .mutation(async ({ ctx }) => {
+      const backupCodes = await regenerateBackupCodes(ctx.userId);
+      if (!backupCodes) throw new TRPCError({ code: "NOT_FOUND", message: "two-factor is off" });
+      return { backupCodes };
+    }),
 });

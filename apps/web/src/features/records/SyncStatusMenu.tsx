@@ -1,4 +1,4 @@
-import { type SyncState, useLastSyncedLabel, useSyncSummary } from "@repo/client";
+import { type SyncState, useLastSyncedLabel, useReconnect, useSyncSummary } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -14,11 +14,13 @@ import {
   CloudOffIcon,
   CloudUploadIcon,
   HardDriveIcon,
+  LogInIcon,
   type LucideIcon,
   RefreshCwIcon,
   RotateCcwIcon,
   UserRoundIcon,
 } from "lucide-react";
+import { useState } from "react";
 import { Link } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
 
@@ -45,10 +47,13 @@ type SyncStatusMenuProps = {
 export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
   const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
+  const { canReconnect, reconnect } = useReconnect();
+  // Controlled, so opening re-renders and reads `canReconnect()` afresh.
+  const [open, setOpen] = useState(false);
   const Icon = ICONS[summary.state];
 
   return (
-    <DropdownMenu>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger
         render={
           <Button
@@ -86,6 +91,12 @@ export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
           <DropdownMenuItem onClick={() => void retryParked()}>
             <RotateCcwIcon />
             Retry failed changes
+          </DropdownMenuItem>
+        )}
+        {open && canReconnect() && (
+          <DropdownMenuItem onClick={() => void reconnect()}>
+            <LogInIcon />
+            Connect now
           </DropdownMenuItem>
         )}
         {canSync && (

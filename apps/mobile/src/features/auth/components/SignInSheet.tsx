@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { profileLabel, useLogin, useStore, useUnlock } from "@repo/client";
+import { profileLabel, useLogin, useSecondFactorRequest, useStore, useUnlock } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import { normalizeEmail } from "@repo/crypto";
 import {
@@ -15,6 +15,7 @@ import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "reac
 import { useForm } from "react-hook-form";
 import { Pressable, Text, View } from "react-native";
 import z from "zod";
+import { SecondFactorStep } from "./SecondFactorStep";
 
 const credentialsSchema = z.object({
   email: z.email(),
@@ -38,7 +39,11 @@ type SignInSheetProps = {
 
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { loginUser, clearLoginError, loginError, loginThrottled } = useLogin();
+  const { loginUser, clearLoginError, loginError, loginThrottled, secondFactorExpired } =
+    useLogin();
+  // An account with two-factor on: the code step takes the form's place.
+  const secondFactor = useSecondFactorRequest();
+  const { request: secondFactorRequest } = secondFactor;
   const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
   const { active, profiles } = useStore();
@@ -62,6 +67,11 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   useImperativeHandle(ref, () => ({
     triggerShowHide: (show: boolean) => sheetRef.current?.triggerShowHide(show),
   }));
+
+  // The sheet may be dismissed already (sheet-first unlock): bring it back for the code.
+  useEffect(() => {
+    if (secondFactorRequest) sheetRef.current?.triggerShowHide(true);
+  }, [secondFactorRequest]);
 
   const { handleSubmit, control, watch, setValue } = useForm<FormValues>({
     resolver: zodResolver(localVault ? localUnlockSchema : credentialsSchema),
@@ -91,7 +101,9 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         // Unlocks without the server; the session follows in the background.
         // Same sheet-first dismissal as below.
         sheetRef.current?.triggerShowHide(false);
-        const unlocked = await timed("total unlock time", () => unlockLocal(password));
+        const unlocked = await timed("total unlock time", () =>
+          unlockLocal(password, secondFactor.prompt),
+        );
         if (!unlocked) sheetRef.current?.triggerShowHide(true);
         return;
       }
@@ -99,13 +111,17 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
       // A profile on this device: unlocked as if picked (same sheet-first dismissal).
       const known = profiles.some((p) => p.mode === "linked" && p.email === normalizeEmail(email));
       if (known) sheetRef.current?.triggerShowHide(false);
-      const unlocked = await timed("total unlock time", () => unlockByEmail(email, password));
+      const unlocked = await timed("total unlock time", () =>
+        unlockByEmail(email, password, secondFactor.prompt),
+      );
       if (unlocked !== undefined) {
         if (!unlocked && known) sheetRef.current?.triggerShowHide(true);
         return;
       }
 
-      const unlockInfo = await timed("total login time", () => loginUser(email, password));
+      const unlockInfo = await timed("total login time", () =>
+        loginUser(email, password, secondFactor.prompt),
+      );
       if (!unlockInfo) return;
       // Close the sheet before unlocking. `unlock()` flips `loggedIn`, which makes the
       // root `!loggedIn` guard swap to `(app)`; dismissing the native sheet first keeps
@@ -121,96 +137,121 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
     <BottomSheet
       ref={sheetRef}
       className="gap-6 px-6 pt-7 pb-6"
+      onDismiss={secondFactor.cancel}
       footer={
-        <Button size="lg" loading={loading} onPress={handleSubmit(onSubmit)}>
-          {unlocking ? "Unlock" : "Sign in"}
-        </Button>
+        secondFactorRequest ? (
+          <View />
+        ) : (
+          <Button size="lg" loading={loading} onPress={handleSubmit(onSubmit)}>
+            {unlocking ? "Unlock" : "Sign in"}
+          </Button>
+        )
       }
     >
-      <View className="gap-1">
-        <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
-          {unlocking ? "Unlock" : "Sign in"}
-        </Text>
-        <Text className="text-muted-foreground text-sm">
-          {localVault
-            ? `${activeLabel} · no account`
-            : unlocking
-              ? storedEmail
-              : "Welcome back to Passmgr."}
-        </Text>
-      </View>
+      {secondFactorRequest && (
+        <SecondFactorStep
+          request={secondFactorRequest}
+          onSubmit={secondFactor.submit}
+          onCancel={secondFactor.cancel}
+        />
+      )}
+      {/* Hidden, not unmounted: the typed credentials stay for the unlock that follows. */}
+      <View className={secondFactorRequest ? "hidden" : "gap-6"}>
+        <View className="gap-1">
+          <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
+            {unlocking ? "Unlock" : "Sign in"}
+          </Text>
+          <Text className="text-muted-foreground text-sm">
+            {localVault
+              ? `${activeLabel} · no account`
+              : unlocking
+                ? storedEmail
+                : "Welcome back to Passmgr."}
+          </Text>
+        </View>
 
-      <FormLock locked={loading} className="gap-5">
-        {!unlocking && (
-          <ControlledInput
+        <FormLock locked={loading} className="gap-5">
+          {!unlocking && (
+            <ControlledInput
+              control={control}
+              name="email"
+              label="Email"
+              autoCapitalize="none"
+              autoComplete="username"
+              keyboardType="email-address"
+              textContentType="emailAddress"
+            />
+          )}
+
+          <ControlledPasswordInput
             control={control}
-            name="email"
-            label="Email"
-            autoCapitalize="none"
-            autoComplete="username"
-            keyboardType="email-address"
-            textContentType="emailAddress"
+            name="password"
+            label="Password"
+            textContentType="password"
+            note={
+              <Pressable
+                className="mt-1 self-end"
+                hitSlop={8}
+                onPress={() => {
+                  sheetRef.current?.triggerShowHide(false);
+                  onForgotPassword(localVault);
+                }}
+              >
+                <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
+              </Pressable>
+            }
           />
+        </FormLock>
+
+        {unlockable !== null && (
+          <Pressable
+            className="self-center"
+            hitSlop={8}
+            onPress={() => {
+              clearLoginError();
+              clearUnlockError();
+              setOtherAccount((other) => !other);
+            }}
+          >
+            <Text className="text-muted-foreground text-xs underline">
+              {unlocking ? "Use another account" : `Unlock ${activeLabel} instead`}
+            </Text>
+          </Pressable>
         )}
 
-        <ControlledPasswordInput
-          control={control}
-          name="password"
-          label="Password"
-          textContentType="password"
-          note={
-            <Pressable
-              className="mt-1 self-end"
-              hitSlop={8}
-              onPress={() => {
-                sheetRef.current?.triggerShowHide(false);
-                onForgotPassword(localVault);
-              }}
-            >
-              <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
-            </Pressable>
-          }
-        />
-      </FormLock>
-
-      {unlockable !== null && (
-        <Pressable
-          className="self-center"
-          hitSlop={8}
-          onPress={() => {
-            clearLoginError();
-            clearUnlockError();
-            setOtherAccount((other) => !other);
-          }}
-        >
-          <Text className="text-muted-foreground text-xs underline">
-            {unlocking ? "Use another account" : `Unlock ${activeLabel} instead`}
-          </Text>
-        </Pressable>
-      )}
-
-      {loginThrottled ? (
-        <FieldError
-          variant="box"
-          errors={[{ message: "Too many login attempts. Please wait and try again." }]}
-        />
-      ) : (
-        (loginError || unlockError) && (
+        {loginThrottled ? (
+          <FieldError
+            variant="box"
+            errors={[{ message: "Too many login attempts. Please wait and try again." }]}
+          />
+        ) : secondFactorExpired ? (
           <FieldError
             variant="box"
             errors={[
               {
                 message:
-                  unlockError === "wrong_account"
-                    ? "Can't add an account offline. Only the vaults on this device unlock without a connection."
-                    : localVault
-                      ? "Wrong password, please try again"
-                      : "Login error please try again",
+                  "Two-factor sign-in timed out: it took too long or had too many wrong codes. Sign in again.",
               },
             ]}
           />
-        )
-      )}
+        ) : (
+          (loginError || unlockError) && (
+            <FieldError
+              variant="box"
+              errors={[
+                {
+                  message:
+                    unlockError === "wrong_account"
+                      ? "Can't add an account offline. Only the vaults on this device unlock without a connection."
+                      : localVault
+                        ? "Wrong password, please try again"
+                        : "Login error please try again",
+                },
+              ]}
+            />
+          )
+        )}
+      </View>
     </BottomSheet>
   );
 }

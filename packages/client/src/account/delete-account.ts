@@ -1,6 +1,6 @@
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient, TRPCClientError } from "@trpc/client";
-import { type LoginSessionFn, LoginThrottledError } from "../login";
+import { type LoginSessionFn, LoginThrottledError, type SecondFactorPrompt } from "../login";
 import { isPreconditionFailed, isServerAnswer, isThrottled } from "../util/trpc-errors";
 import { freshLogin } from "./change-password";
 
@@ -33,7 +33,8 @@ export class AccountDeletionUnconfirmedError extends Error {
  * `attach`, then `user.deleteAccount`. Every session ends, this one included.
  * The local copy is the caller's to remove.
  *
- * Throws `WrongPasswordError`, `LoginThrottledError`, `SoleVaultOwnerError`,
+ * Throws `WrongPasswordError`, `LoginThrottledError`, a second-factor error
+ * (see `freshLogin`), `SoleVaultOwnerError`,
  * `AccountDeletionFailedError` (nothing changed on the server) or
  * `AccountDeletionUnconfirmedError`.
  */
@@ -42,8 +43,9 @@ export async function deleteAccount(
   attach: LoginSessionFn,
   account: { email: string; userId: string },
   password: string,
+  onSecondFactor?: SecondFactorPrompt,
 ): Promise<void> {
-  await freshLogin(trpc, attach, account, password, AccountDeletionFailedError);
+  await freshLogin(trpc, attach, account, password, AccountDeletionFailedError, onSecondFactor);
   try {
     await trpc.user.deleteAccount.mutate();
   } catch (e) {

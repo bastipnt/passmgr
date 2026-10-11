@@ -12,6 +12,8 @@ export const hkdfInfo = {
   opaqueFakeRecordKey: fromString("opaque-fake-record-key"),
   opaqueFakeKeySeed: fromString("opaque-fake-key-seed"),
   opaqueFakeMaskingKey: fromString("opaque-fake-masking-key"),
+  totpSecret: fromString("totp-secret"),
+  backupCode: fromString("backup-code"),
 };
 
 export const SESSION_ID_HEADER = "x-session-id";

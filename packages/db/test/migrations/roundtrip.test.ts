@@ -44,7 +44,9 @@ describe("migration round-trip", () => {
     expect(tables.rows.map((r) => r.tablename)).toEqual([
       "keys",
       "records",
+      "user_backup_codes",
       "user_key_pairs",
+      "user_totp",
       "users",
       "vault_key_links",
       "vault_members",

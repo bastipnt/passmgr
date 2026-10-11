@@ -15,10 +15,6 @@ export const usersTable = pgTable("users", {
 
   registrationRecord: varchar().notNull().unique(),
 
-  hasTwoFactorEnabled: boolean()
-    .notNull()
-    .$defaultFn(() => false),
-
   hasEmailVerified: boolean()
     .notNull()
     .$defaultFn(() => true), // TODO: set to false

@@ -201,6 +201,7 @@ describe("useChangePassword — linked account", () => {
       local.material,
       PASSWORD,
       NEW_PASSWORD,
+      expect.any(Function),
     );
     expect(store.saveAccount).toHaveBeenCalledWith(ALICE.profileId, changed, local.vaults);
     expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId);

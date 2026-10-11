@@ -2,11 +2,19 @@ import {
   unsyncedChangesWarning,
   useLogin,
   usePendingChangeCount,
+  useSecondFactorRequest,
   useStore,
   useUnlock,
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
 import { EyeOffIcon, ShieldCheckIcon, TrashIcon } from "lucide-react";
 import { useCallback, useState } from "react";
@@ -18,6 +26,7 @@ import { BiometricUnlockButton } from "./BiometricUnlockButton";
 import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
 import ProfileList from "./ProfileList";
+import SecondFactorForm from "./SecondFactorForm";
 import StoredAccountRow from "./StoredAccountRow";
 import { SignedOutNote } from "./signed-out";
 
@@ -28,7 +37,16 @@ import { SignedOutNote } from "./signed-out";
  * profile on the device unlocks that profile; another account adds one.
  */
 export default function LoginPage() {
-  const { loginUser, clearLoginError, clearLoginErrors, loginError, loginThrottled } = useLogin();
+  const {
+    loginUser,
+    clearLoginError,
+    clearLoginErrors,
+    loginError,
+    loginThrottled,
+    secondFactorExpired,
+  } = useLogin();
+  // An account with two-factor on: the code step takes the form's place.
+  const secondFactor = useSecondFactorRequest();
   const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
 
   // "Switch": the login with the device's profiles, instead of the active profile's unlock.
@@ -51,16 +69,20 @@ export default function LoginPage() {
     try {
       // The active profile: unlock it locally, the server session follows.
       if (unlocking) {
-        await timed("total unlock time", () => unlockLocal(password));
+        await timed("total unlock time", () => unlockLocal(password, secondFactor.prompt));
         return;
       }
 
       // A profile on this device: unlocked as if picked.
-      const unlocked = await timed("total unlock time", () => unlockByEmail(email, password));
+      const unlocked = await timed("total unlock time", () =>
+        unlockByEmail(email, password, secondFactor.prompt),
+      );
       if (unlocked !== undefined) return;
 
       // An account new to this device: the server login adds its profile.
-      const unlockVaultInfo = await timed("total login time", () => loginUser(email, password));
+      const unlockVaultInfo = await timed("total login time", () =>
+        loginUser(email, password, secondFactor.prompt),
+      );
       if (!unlockVaultInfo) return;
       await timed("total unlock time", () => unlock(unlockVaultInfo));
     } finally {
@@ -126,64 +148,83 @@ export default function LoginPage() {
 
       <div className="flex w-full flex-col gap-4">
         <SignedOutNote />
-        <LoginForm
-          localVault={localVault}
-          storedEmail={unlocking ? storedEmail : undefined}
-          account={
-            unlocking && (
-              <StoredAccountRow
-                email={storedEmail}
-                name={active?.entry.name}
-                onSwitch={() => {
-                  clearErrors();
-                  setSwitching(true);
-                }}
+        {secondFactor.request && (
+          <Card variant="glass">
+            <CardHeader>
+              <CardTitle>Two-factor authentication</CardTitle>
+              <CardDescription>Enter the code from your authenticator app.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <SecondFactorForm
+                request={secondFactor.request}
+                onSubmit={secondFactor.submit}
+                onCancel={secondFactor.cancel}
               />
-            )
-          }
-          alternative={
-            unlocking &&
-            store.biometricKeyMaterial && (
-              <BiometricUnlockButton loading={loading} setLoading={setLoading} />
-            )
-          }
-          footer={
-            unlocking ? (
-              <RemoveDialog
-                title="Remove vault"
-                description={
-                  localVault
-                    ? "This deletes the vault from this device. It has no account, so this is its only copy: everything in it is lost for good."
-                    : `This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials.${unsyncedChangesWarning(pendingChanges)}`
-                }
-                removeTitle="Remove vault"
-                onRemove={() => {
-                  // Locked here: nothing to lock or sign out first.
-                  if (active) void store.removeProfile(active.entry.profileId);
-                }}
-              >
-                <button
-                  type="button"
-                  className="mx-auto flex cursor-pointer items-center gap-1.5 text-muted-foreground text-xs hover:text-foreground"
+            </CardContent>
+          </Card>
+        )}
+        {/* Hidden, not unmounted: the typed credentials stay for the unlock that follows. */}
+        <div hidden={secondFactor.request !== null}>
+          <LoginForm
+            localVault={localVault}
+            storedEmail={unlocking ? storedEmail : undefined}
+            account={
+              unlocking && (
+                <StoredAccountRow
+                  email={storedEmail}
+                  name={active?.entry.name}
+                  onSwitch={() => {
+                    clearErrors();
+                    setSwitching(true);
+                  }}
+                />
+              )
+            }
+            alternative={
+              unlocking &&
+              store.biometricKeyMaterial && (
+                <BiometricUnlockButton loading={loading} setLoading={setLoading} />
+              )
+            }
+            footer={
+              unlocking ? (
+                <RemoveDialog
+                  title="Remove vault"
+                  description={
+                    localVault
+                      ? "This deletes the vault from this device. It has no account, so this is its only copy: everything in it is lost for good."
+                      : `This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials.${unsyncedChangesWarning(pendingChanges)}`
+                  }
+                  removeTitle="Remove vault"
+                  onRemove={() => {
+                    // Locked here: nothing to lock or sign out first.
+                    if (active) void store.removeProfile(active.entry.profileId);
+                  }}
                 >
-                  <TrashIcon className="size-3.5" aria-hidden />
-                  Remove vault from this device
-                </button>
-              </RemoveDialog>
-            ) : (
-              <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
-                <ShieldCheckIcon className="size-3.5" aria-hidden />
-                Your password never leaves this device
-              </p>
-            )
-          }
-          onSubmit={onSubmit}
-          loginError={loginError}
-          loginThrottled={loginThrottled}
-          unlockError={unlockError}
-          loading={loading}
-          onEdit={onEdit}
-        />
+                  <button
+                    type="button"
+                    className="mx-auto flex cursor-pointer items-center gap-1.5 text-muted-foreground text-xs hover:text-foreground"
+                  >
+                    <TrashIcon className="size-3.5" aria-hidden />
+                    Remove vault from this device
+                  </button>
+                </RemoveDialog>
+              ) : (
+                <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
+                  <ShieldCheckIcon className="size-3.5" aria-hidden />
+                  Your password never leaves this device
+                </p>
+              )
+            }
+            onSubmit={onSubmit}
+            loginError={loginError}
+            loginThrottled={loginThrottled}
+            secondFactorExpired={secondFactorExpired}
+            unlockError={unlockError}
+            loading={loading}
+            onEdit={onEdit}
+          />
+        </div>
 
         {persistent === false && (
           <p

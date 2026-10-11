@@ -7,7 +7,12 @@ import {
   deleteAccount,
   SoleVaultOwnerError,
 } from "../account/delete-account";
-import { LoginThrottledError } from "../login";
+import {
+  LoginThrottledError,
+  SecondFactorCancelledError,
+  SecondFactorExpiredError,
+} from "../login";
+import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
@@ -17,6 +22,7 @@ import { useLock } from "./use-lock";
  * - `wrong_password`: the password is wrong
  * - `offline`: no server session; deleting needs the server
  * - `throttled`: too many login attempts, retry later
+ * - `second_factor`: the login's two-factor step didn't finish (closed, or ran out)
  * - `sole_owner`: the account alone owns a shared vault others are in
  * - `failed`: the server couldn't be reached or refused; nothing was deleted
  * - `unconfirmed`: no answer came back; the account may be gone
@@ -27,6 +33,7 @@ export type DeleteAccountError =
   | "wrong_password"
   | "offline"
   | "throttled"
+  | "second_factor"
   | "sole_owner"
   | "failed"
   | "unconfirmed"
@@ -37,6 +44,7 @@ export const DELETE_ACCOUNT_ERROR_MESSAGES: Record<DeleteAccountError, string> =
   wrong_password: "That's not your master password.",
   offline: "Deleting your account needs a connection to the server. Try again once you're online.",
   throttled: "Too many attempts. Please wait and try again.",
+  second_factor: "The two-factor step of the sign-in didn't finish. Nothing was deleted.",
   sole_owner:
     "You're the only owner of shared vaults other people are in. Make someone else an owner or delete them first.",
   failed: "The account couldn't be deleted. Nothing was changed.",
@@ -62,6 +70,7 @@ export function useDeleteAccount() {
   const { mode, networkOffline, attachServer } = useContext(SessionContext);
   const store = useStore();
   const trpc = useTRPCClient();
+  const prompt = useSecondFactorPrompt();
   const lock = useLock();
 
   const blocked = mode !== "online" || networkOffline;
@@ -87,13 +96,15 @@ export function useDeleteAccount() {
     if (blocked || !secretsStore.hasServerSession) return "offline";
 
     try {
-      await deleteAccount(trpc, attachServer, profile, password);
+      await deleteAccount(trpc, attachServer, profile, password, prompt);
     } catch (e) {
       if (e instanceof WrongPasswordError) {
         // A deleted account answers like a wrong password (no enumeration).
         return unconfirmed.current ? "maybe_deleted" : "wrong_password";
       }
       if (e instanceof LoginThrottledError) return "throttled";
+      if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
+        return "second_factor";
       if (e instanceof SoleVaultOwnerError) {
         setSoleOwnedVaultIds(e.vaultIds);
         return "sole_owner";

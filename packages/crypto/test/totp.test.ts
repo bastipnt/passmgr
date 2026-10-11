@@ -1,6 +1,6 @@
 import { fromString } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getRemainingTime, getToken } from "../src/totp";
+import { generateTotpSecret, getRemainingTime, getToken, totpUri, verifyToken } from "../src/totp";
 
 // RFC 6238 Appendix B test vectors, SHA-1, 30s period, 6-digit:
 // Secret (ASCII): "12345678901234567890" (20 bytes)
@@ -111,5 +111,72 @@ describe("getRemainingTime", () => {
       expect(r).toBeGreaterThanOrEqual(1);
       expect(r).toBeLessThanOrEqual(30);
     }
+  });
+});
+
+describe("verifyToken", () => {
+  // RFC vector: "287082" at t=59 (step 1).
+  const base32 = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("returns the step of a current code", async () => {
+    vi.setSystemTime(new Date(59 * 1000));
+    expect(await verifyToken(base32, "287082", null)).toBe(1);
+  });
+
+  it("accepts the previous and the next step, not two away", async () => {
+    vi.setSystemTime(new Date(1111111109 * 1000));
+    const code = await getToken(base32);
+    const step = Math.floor(1111111109 / 30);
+
+    vi.setSystemTime(new Date((1111111109 + 30) * 1000));
+    expect(await verifyToken(base32, code, null)).toBe(step);
+    vi.setSystemTime(new Date((1111111109 - 30) * 1000));
+    expect(await verifyToken(base32, code, null)).toBe(step);
+    vi.setSystemTime(new Date((1111111109 + 61) * 1000));
+    expect(await verifyToken(base32, code, null)).toBeNull();
+  });
+
+  it("refuses a step at or below lastStep (replay)", async () => {
+    vi.setSystemTime(new Date(1111111109 * 1000));
+    const code = await getToken(base32);
+    const step = (await verifyToken(base32, code, null))!;
+    expect(await verifyToken(base32, code, step)).toBeNull();
+    expect(await verifyToken(base32, code, step + 1)).toBeNull();
+    expect(await verifyToken(base32, code, step - 1)).toBe(step);
+  });
+
+  it("refuses wrong and malformed codes", async () => {
+    vi.setSystemTime(new Date(59 * 1000));
+    expect(await verifyToken(base32, "287083", null)).toBeNull();
+    expect(await verifyToken(base32, "28708", null)).toBeNull();
+    expect(await verifyToken(base32, "abcdef", null)).toBeNull();
+  });
+
+  it("refuses a lastStep from the future instead of throwing", async () => {
+    vi.setSystemTime(new Date(59 * 1000));
+    expect(await verifyToken(base32, "287082", 1_000_000)).toBeNull();
+  });
+});
+
+describe("generateTotpSecret / totpUri", () => {
+  it("makes a 20-byte base32 secret that tokens verify against", async () => {
+    const secret = generateTotpSecret();
+    expect(secret).toMatch(/^[A-Z2-7]{32}$/);
+    expect(await verifyToken(secret, await getToken(secret), null)).not.toBeNull();
+  });
+
+  it("builds an otpauth URI", () => {
+    const uri = totpUri("GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ", "passmgr", "a@b.c");
+    expect(uri).toMatch(/^otpauth:\/\/totp\//);
+    expect(uri).toContain("secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    expect(uri).toContain("issuer=passmgr");
   });
 });

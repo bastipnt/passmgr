@@ -3,6 +3,9 @@ import {
   type LoginSessionFn,
   LoginThrottledError,
   loginUser as loginUserCore,
+  SecondFactorCancelledError,
+  SecondFactorExpiredError,
+  type SecondFactorPrompt,
 } from "@repo/client/src/login";
 import { getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
@@ -363,6 +366,113 @@ describe("LoginPage online", () => {
 
     await userEvent.click(profileButton(/alice@example.com/i));
     expect(screen.queryByText(/too many login attempts/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("LoginPage two-factor", () => {
+  beforeEach(() => {
+    resetMocks();
+    store.profiles = [];
+    store.profile = null;
+  });
+
+  /** A login whose server asks for a code: passes once `expected` is given. */
+  function challengedLogin(expected: string) {
+    return async (
+      trpc: unknown,
+      attach: LoginSessionFn,
+      _email: string,
+      _password: string,
+      prompt?: SecondFactorPrompt,
+    ) => {
+      let invalid = false;
+      for (;;) {
+        const code = await prompt!({ invalid });
+        if (code === null) throw new SecondFactorCancelledError();
+        if (code === expected) break;
+        invalid = true;
+      }
+      prompt!.done?.();
+      return await serverLogin("user-bob")(trpc, attach);
+    };
+  }
+
+  it("asks for the code in place of the form, then signs in", async () => {
+    vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "right password");
+
+    const code = await screen.findByLabelText("Authentication code");
+    expect(screen.getByLabelText("Password")).not.toBeVisible();
+    await userEvent.type(code, "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Verify" }));
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(screen.queryByLabelText("Authentication code")).toBeNull();
+  });
+
+  it("says a wrong code didn't work and asks again", async () => {
+    vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "right password");
+
+    await userEvent.type(await screen.findByLabelText("Authentication code"), "000000");
+    await userEvent.click(screen.getByRole("button", { name: "Verify" }));
+    await screen.findByText(/that code didn't work/i);
+
+    await userEvent.type(screen.getByLabelText("Authentication code"), "123456");
+    await userEvent.click(screen.getByRole("button", { name: "Verify" }));
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+  });
+
+  it("takes a backup code", async () => {
+    vi.mocked(loginUserCore).mockImplementation(challengedLogin("abcde-fghjk"));
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "right password");
+
+    await userEvent.click(await screen.findByRole("button", { name: "Use a backup code" }));
+    await userEvent.type(screen.getByLabelText("Backup code"), "abcde-fghjk");
+    await userEvent.click(screen.getByRole("button", { name: "Verify" }));
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+  });
+
+  it("cancelling goes back to the form without an error", async () => {
+    vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "right password");
+
+    await screen.findByLabelText("Authentication code");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Password")).toBeVisible());
+    expect(screen.queryByText(/check your email and password/i)).toBeNull();
+    expect(unlockVault).not.toHaveBeenCalled();
+  });
+
+  it("closing the code prompt of the unlock's server fallback is no wrong password", async () => {
+    store.profiles = [profileEntry(linkedProfile)];
+    store.profile = linkedProfile;
+    // The local copy doesn't open (password changed elsewhere): the server decides.
+    unlockVault.mockImplementation(() => {
+      throw new Error("decrypt failed");
+    });
+    vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
+    renderPage({ networkOffline: false });
+    await unlockStored("new password");
+
+    await screen.findByLabelText("Authentication code");
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() => expect(screen.getByLabelText("Password")).toBeVisible());
+    expect(screen.queryByText(/that didn.t work/i)).toBeNull();
+  });
+
+  it("says when the two-factor step ran out", async () => {
+    vi.mocked(loginUserCore).mockRejectedValue(new SecondFactorExpiredError());
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "right password");
+
+    await screen.findByText(/two-factor sign-in timed out/i);
   });
 });
 

@@ -1,5 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CHANGE_PASSWORD_ERROR_MESSAGES, useChangePassword } from "@repo/client";
+import {
+  CHANGE_PASSWORD_ERROR_MESSAGES,
+  useChangePassword,
+  useSecondFactorRequest,
+} from "@repo/client";
 import { type ChangePasswordFormValues, changePasswordFormSchema } from "@repo/schema";
 import {
   BottomSheet,
@@ -12,6 +16,7 @@ import {
 import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { Text, View } from "react-native";
+import { SecondFactorStep } from "@/features/auth/components/SecondFactorStep";
 
 type ChangePasswordSheetProps = {
   ref: Ref<BottomSheetRef>;
@@ -25,7 +30,12 @@ type ChangePasswordSheetProps = {
  */
 export function ChangePasswordSheet({ ref, linked }: ChangePasswordSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { changePassword, changeError, clearChangeError, changing, blocked } = useChangePassword();
+  // Two-factor on: both logins (before and after the change) ask here.
+  const secondFactor = useSecondFactorRequest();
+  const { request: secondFactorRequest } = secondFactor;
+  const { changePassword, changeError, clearChangeError, changing, blocked } = useChangePassword(
+    secondFactor.prompt,
+  );
 
   const { handleSubmit, control, reset } = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordFormSchema),
@@ -54,49 +64,65 @@ export function ChangePasswordSheet({ ref, linked }: ChangePasswordSheetProps) {
       ref={sheetRef}
       snapPoints={["full"]}
       // The typed passwords don't outlive the sheet.
-      onDismiss={() => reset()}
+      onDismiss={() => {
+        secondFactor.cancel();
+        reset();
+      }}
       className="gap-6 px-6 pt-7 pb-6"
       footer={
-        <Button size="lg" loading={changing} disabled={blocked} onPress={handleSubmit(onSubmit)}>
-          Change password
-        </Button>
+        secondFactorRequest ? (
+          <View />
+        ) : (
+          <Button size="lg" loading={changing} disabled={blocked} onPress={handleSubmit(onSubmit)}>
+            Change password
+          </Button>
+        )
       }
     >
-      <View className="gap-1">
-        <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
-          Change password
-        </Text>
-        <Text className="text-muted-foreground text-sm">
-          {linked
-            ? "Your other devices are signed out and unlock with the new password. Your recovery key stays the same."
-            : "Only this device holds the vault, so the change stays here. Your recovery key stays the same."}
-        </Text>
-      </View>
-
-      <FormLock locked={changing} className="gap-5">
-        <ControlledPasswordInput
-          control={control}
-          name="currentPassword"
-          label="Current password"
-          textContentType="password"
+      {secondFactorRequest && (
+        <SecondFactorStep
+          request={secondFactorRequest}
+          onSubmit={secondFactor.submit}
+          onCancel={secondFactor.cancel}
         />
-        <ControlledPasswordInput
-          control={control}
-          name="password"
-          label="New password"
-          textContentType="newPassword"
-        />
-        <ControlledPasswordInput
-          control={control}
-          name="confirmPassword"
-          label="Confirm new password"
-          textContentType="newPassword"
-        />
-      </FormLock>
-
-      {error && (
-        <FieldError variant="box" errors={[{ message: CHANGE_PASSWORD_ERROR_MESSAGES[error] }]} />
       )}
+      <View className={secondFactorRequest ? "hidden" : "gap-6"}>
+        <View className="gap-1">
+          <Text className="font-display-bold text-[28px] text-foreground tracking-[-0.6px]">
+            Change password
+          </Text>
+          <Text className="text-muted-foreground text-sm">
+            {linked
+              ? "Your other devices are signed out and unlock with the new password. Your recovery key stays the same."
+              : "Only this device holds the vault, so the change stays here. Your recovery key stays the same."}
+          </Text>
+        </View>
+
+        <FormLock locked={changing} className="gap-5">
+          <ControlledPasswordInput
+            control={control}
+            name="currentPassword"
+            label="Current password"
+            textContentType="password"
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="password"
+            label="New password"
+            textContentType="newPassword"
+          />
+          <ControlledPasswordInput
+            control={control}
+            name="confirmPassword"
+            label="Confirm new password"
+            textContentType="newPassword"
+          />
+        </FormLock>
+
+        {error && (
+          <FieldError variant="box" errors={[{ message: CHANGE_PASSWORD_ERROR_MESSAGES[error] }]} />
+        )}
+      </View>
     </BottomSheet>
   );
 }

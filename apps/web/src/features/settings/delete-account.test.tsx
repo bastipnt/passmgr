@@ -72,7 +72,13 @@ describe("useDeleteAccount", () => {
       expect(await result.current.deleteAccount(PASSWORD)).toBe(true);
     });
 
-    expect(deleteAccount).toHaveBeenCalledWith(expect.anything(), attachServer, ALICE, PASSWORD);
+    expect(deleteAccount).toHaveBeenCalledWith(
+      expect.anything(),
+      attachServer,
+      ALICE,
+      PASSWORD,
+      expect.any(Function),
+    );
     expect(lock).toHaveBeenCalled();
     expect(store.removeProfile).toHaveBeenCalledWith(ALICE.profileId);
     expect(lock.mock.invocationCallOrder[0]).toBeLessThan(

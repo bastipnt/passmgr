@@ -148,6 +148,7 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
       userId: session.userId,
       sessionId,
       authenticatedAt: session.authenticatedAt,
+      secondFactor: session.secondFactor === true,
     },
   });
 });

@@ -8,10 +8,18 @@ import {
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
 } from "@repo/client";
 import { Screen } from "@repo/ui-native";
+import { useRef } from "react";
 import { ScrollView } from "react-native";
 import { SettingsChoice } from "@/features/settings/components/SettingsChoice";
+import { TwoFactorSection } from "@/features/settings/components/TwoFactorSection";
+import {
+  TwoFactorSheet,
+  type TwoFactorSheetRef,
+} from "@/features/settings/components/TwoFactorSheet";
 
 export default function SecuritySettingsScreen() {
+  const twoFactorRef = useRef<TwoFactorSheetRef>(null);
+
   return (
     <Screen>
       <ScrollView
@@ -19,6 +27,8 @@ export default function SecuritySettingsScreen() {
         contentInsetAdjustmentBehavior="automatic"
         contentContainerClassName="gap-8 pt-4 pb-10"
       >
+        <TwoFactorSection sheetRef={twoFactorRef} />
+
         <SettingsChoice
           title="Clear clipboard"
           description="Applies to values you copy out of a record."
@@ -43,6 +53,7 @@ export default function SecuritySettingsScreen() {
           fallback={REVEAL_TIMEOUT_DEFAULT_SECONDS}
         />
       </ScrollView>
+      <TwoFactorSheet ref={twoFactorRef} />
     </Screen>
   );
 }

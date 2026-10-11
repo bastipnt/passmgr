@@ -3,6 +3,8 @@ import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
 import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
+import type { SecondFactorPrompt } from "../login";
+import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
@@ -25,6 +27,7 @@ export function useUnlock() {
   const { unlockVault, unlockWithAccountKey, lock, networkOffline } = useContext(SessionContext);
   const store = useStore();
   const { loginUser } = useLogin();
+  const contextPrompt = useSecondFactorPrompt();
   const { connect } = useConnectServer();
   const trpc = useTRPCClient();
 
@@ -102,7 +105,10 @@ export function useUnlock() {
    * Should the email now belong to another account, that account gets a
    * profile of its own; this one stays as it is.
    */
-  async function unlockLocal(password: string): Promise<boolean> {
+  async function unlockLocal(
+    password: string,
+    onSecondFactor?: SecondFactorPrompt,
+  ): Promise<boolean> {
     setUnlockError(undefined);
     const active = store.current();
     const profile = active?.profile;
@@ -125,8 +131,20 @@ export function useUnlock() {
     }
 
     if (profile.mode === "linked" && !networkOffline) {
-      const info = await loginUser(profile.email, password);
+      // A closed code prompt isn't a wrong password: no error for it.
+      let cancelled = false;
+      const ask = onSecondFactor ?? contextPrompt;
+      const tracked: SecondFactorPrompt = Object.assign(
+        async (state: { invalid: boolean }) => {
+          const code = await ask(state);
+          if (code === null) cancelled = true;
+          return code;
+        },
+        { done: ask.done },
+      );
+      const info = await loginUser(profile.email, password, tracked);
       if (info) return await unlock(info);
+      if (cancelled) return false;
     }
     setUnlockError("failed");
     return false;
@@ -139,7 +157,11 @@ export function useUnlock() {
    * there is none: the caller logs in to the server (`loginUser` + `unlock`),
    * which adds a profile. Offline that can't work: `wrong_account`.
    */
-  async function unlockByEmail(email: string, password: string): Promise<boolean | undefined> {
+  async function unlockByEmail(
+    email: string,
+    password: string,
+    onSecondFactor?: SecondFactorPrompt,
+  ): Promise<boolean | undefined> {
     setUnlockError(undefined);
     const existing = store.profiles.find(
       (p) => p.mode === "linked" && p.email === normalizeEmail(email),
@@ -152,7 +174,7 @@ export function useUnlock() {
         setUnlockError("failed");
         return false;
       }
-      return await unlockLocal(password);
+      return await unlockLocal(password, onSecondFactor);
     }
     if (networkOffline) {
       setUnlockError("wrong_account");

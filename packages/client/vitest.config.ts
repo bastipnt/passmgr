@@ -4,6 +4,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["test/**/*.test.ts"],
+    // Real OPAQUE + key derivation: ~1s alone, several times that while turbo
+    // runs every package's tests at once.
+    testTimeout: 20_000,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

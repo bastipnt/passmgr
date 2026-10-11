@@ -1,13 +1,18 @@
 import { type AuthClient, KE2, OpaqueClient } from "@cloudflare/opaque-ts";
 import { genSalt, normalizeEmail } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import type { MemberVault, PasswordKeySchema, UserKeyPair, VaultUnlockInfo } from "@repo/schema";
+import {
+  type LoginSuccess,
+  SECOND_FACTOR_EXPIRED,
+  SECOND_FACTOR_INVALID,
+  type VaultUnlockInfo,
+} from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
-import type { TRPCClient } from "@trpc/client";
+import { type TRPCClient, TRPCClientError } from "@trpc/client";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 import { timed } from "./util/perf";
-import { isThrottled } from "./util/trpc-errors";
+import { isThrottled, isUnauthorized } from "./util/trpc-errors";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
 
@@ -34,11 +39,49 @@ export class LoginThrottledError extends Error {
   override message = "LoginThrottledError";
 }
 
+/** The user closed the second-factor prompt: no session. */
+export class SecondFactorCancelledError extends Error {
+  override message = "SecondFactorCancelledError";
+}
+
+/**
+ * The second-factor challenge is gone (expired, or too many wrong codes): the
+ * login has to start over with the password.
+ */
+export class SecondFactorExpiredError extends Error {
+  override message = "SecondFactorExpiredError";
+}
+
+/**
+ * Asks the user for a second-factor code (TOTP or backup code) when the
+ * account has two-factor on. `invalid`: the last code was wrong. Resolves the
+ * code, or null when the user cancels. `done` is called once the login is
+ * past the code step (it passed, or failed for good): the prompt can close.
+ */
+export type SecondFactorPrompt = {
+  (state: { invalid: boolean }): Promise<string | null>;
+  done?: () => void;
+};
+
+/** For logins that can't ask (a brand-new account never has two-factor on). */
+export const noSecondFactor: SecondFactorPrompt = async () => null;
+
+/**
+ * The OPAQUE login. When the account has two-factor on, `onSecondFactor` is
+ * asked for a code (again after a wrong one) before there is a session; it is
+ * never called otherwise.
+ *
+ * Throws `OpaqueLoginFailedError` (wrong password or unknown email),
+ * `LoginThrottledError`, `SecondFactorCancelledError`,
+ * `SecondFactorExpiredError`, `LoginStartFailedError` or
+ * `LoginFinishFailedError`.
+ */
 export async function loginUser(
   trpc: LoginTRPCClient,
   loginSession: LoginSessionFn,
   rawEmail: string,
   password: string,
+  onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<VaultUnlockInfo> {
   const email = normalizeEmail(rawEmail);
   const client: AuthClient = new OpaqueClient(config, opaqueKsf);
@@ -76,27 +119,64 @@ export async function loginUser(
   const sessionKey = bytesToB64(session_key);
   const authSalt = genSalt();
 
-  let sessionId: string;
-  let userId: string;
-  let userPasswordKeys: PasswordKeySchema;
-  let vaultKeys: MemberVault[];
-  let userKeyPair: UserKeyPair;
+  let finishedLogin: Awaited<ReturnType<LoginTRPCClient["login"]["finishLogin"]["mutate"]>>;
   try {
-    ({ sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } = await timed(
-      "opaque finishLogin",
-      () =>
-        trpc.login.finishLogin.mutate({
-          email,
-          attemptId,
-          finishLoginRequest,
-          authSalt: toBase64(authSalt),
-        }),
-    ));
+    finishedLogin = await timed("opaque finishLogin", () =>
+      trpc.login.finishLogin.mutate({
+        email,
+        attemptId,
+        finishLoginRequest,
+        authSalt: toBase64(authSalt),
+      }),
+    );
   } catch {
     throw new LoginFinishFailedError();
   }
 
+  const { sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } =
+    "secondFactorRequired" in finishedLogin
+      ? await passSecondFactor(trpc, finishedLogin.challengeId, onSecondFactor)
+      : finishedLogin;
+
   await loginSession(sessionId, sessionKey, authSalt);
 
   return { email, userId, password, userPasswordKeys, vaultKeys, userKeyPair };
+}
+
+/** Ask for codes until one is right, the user cancels or the challenge is gone. */
+async function passSecondFactor(
+  trpc: LoginTRPCClient,
+  challengeId: string,
+  onSecondFactor: SecondFactorPrompt,
+): Promise<LoginSuccess> {
+  try {
+    return await askUntilVerified(trpc, challengeId, onSecondFactor);
+  } finally {
+    onSecondFactor.done?.();
+  }
+}
+
+async function askUntilVerified(
+  trpc: LoginTRPCClient,
+  challengeId: string,
+  onSecondFactor: SecondFactorPrompt,
+): Promise<LoginSuccess> {
+  let invalid = false;
+  for (;;) {
+    const code = await onSecondFactor({ invalid });
+    if (code === null) throw new SecondFactorCancelledError();
+    try {
+      return await trpc.login.verifySecondFactor.mutate({ challengeId, code });
+    } catch (err) {
+      if (isThrottled(err)) throw new LoginThrottledError();
+      if (isUnauthorized(err) && err instanceof TRPCClientError) {
+        if (err.message === SECOND_FACTOR_INVALID) {
+          invalid = true;
+          continue;
+        }
+        if (err.message === SECOND_FACTOR_EXPIRED) throw new SecondFactorExpiredError();
+      }
+      throw new LoginFinishFailedError();
+    }
+  }
 }

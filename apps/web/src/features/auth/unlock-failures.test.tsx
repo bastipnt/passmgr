@@ -11,7 +11,9 @@ import {
   LoginThrottledError,
   loginUser as loginUserCore,
   OpaqueLoginFailedError,
+  SecondFactorCancelledError,
 } from "@repo/client/src/login";
+import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFactorPromptProvider";
 import {
   createUserKeyPair,
   genKey,
@@ -459,6 +461,33 @@ describe("useConnectServer", () => {
     expect(session.attachServer).not.toHaveBeenCalled();
     expect(secretsStore.hasServerSession).toBe(false);
     expect(store.saveAccount).not.toHaveBeenCalled();
+  });
+
+  it("asks the app's second-factor prompt, and attaches nothing when it's closed", async () => {
+    unlockedVault();
+    const prompt = vi.fn(async () => null);
+    vi.mocked(loginUserCore).mockImplementation(async (_trpc, _attach, _email, _pw, ask) => {
+      if ((await ask!({ invalid: false })) === null) throw new SecondFactorCancelledError();
+      throw new Error("unreachable");
+    });
+    const result = renderHook(() => useConnectServer(), {
+      wrapper: ({ children }: { children: ReactNode }) =>
+        wrapper({
+          children: (
+            <SecondFactorPromptProvider prompt={prompt}>{children}</SecondFactorPromptProvider>
+          ),
+        }),
+    }).result;
+
+    let outcome: ConnectResult | undefined;
+    await act(async () => {
+      outcome = await result.current.connect("pw");
+    });
+    expect(outcome).toBe("second_factor");
+    expect(prompt).toHaveBeenCalledOnce();
+    expect(session.attachServer).not.toHaveBeenCalled();
+    // The password stays for a connect by hand.
+    expect(canReleasePassword("second_factor", false)).toBe(false);
   });
 
   it("attaches nothing without a linked profile", async () => {

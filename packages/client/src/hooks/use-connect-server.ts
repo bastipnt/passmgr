@@ -7,7 +7,11 @@ import {
   LoginThrottledError,
   loginUser,
   OpaqueLoginFailedError,
+  SecondFactorCancelledError,
+  SecondFactorExpiredError,
+  type SecondFactorPrompt,
 } from "../login";
+import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { reloadVaultKeys, useStore } from "../providers/StoreProvider";
 import { persistSession } from "../util/persist-session";
@@ -20,8 +24,16 @@ import { useTRPCClient } from "../util/trpc";
  * - `throttled`: too many login attempts, retry later
  * - `unreachable`: network or server error, retry later
  * - `cancelled`: the vault was locked (or isn't linked) before it finished
+ * - `second_factor`: the account has two-factor on and the code prompt was
+ *   closed (or ran out); connect again to be asked again
  */
-export type ConnectResult = "online" | "rejected" | "throttled" | "unreachable" | "cancelled";
+export type ConnectResult =
+  | "online"
+  | "rejected"
+  | "throttled"
+  | "unreachable"
+  | "cancelled"
+  | "second_factor";
 
 /**
  * Whether the password kept in memory for reconnecting can go: it got us
@@ -48,10 +60,16 @@ type SessionParams = Parameters<LoginSessionFn>;
  * replace this vault's data with that account's. The vault stays unlocked
  * whatever happens here.
  */
-export function useConnectServer() {
+/**
+ * `onSecondFactor`: how a login with two-factor on asks for the code
+ * (default: the app's `SecondFactorPromptProvider`).
+ */
+export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
   const { attachServer } = useContext(SessionContext);
   const store = useStore();
   const trpc = useTRPCClient();
+  const contextPrompt = useSecondFactorPrompt();
+  const prompt = onSecondFactor ?? contextPrompt;
   // The caller may hold an older render's `connect` (effects, promises).
   const storeRef = useRef(store);
   storeRef.current = store;
@@ -94,9 +112,12 @@ export function useConnectServer() {
         },
         profile.email,
         password,
+        prompt,
       );
     } catch (e) {
       if (e instanceof OpaqueLoginFailedError) return "rejected";
+      if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
+        return "second_factor";
       if (e instanceof LoginThrottledError) return "throttled";
       return "unreachable";
     }

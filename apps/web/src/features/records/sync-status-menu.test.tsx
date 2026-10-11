@@ -1,4 +1,5 @@
 import { SessionContext, type SessionMode, type SyncStatus } from "@repo/client";
+import { secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -15,6 +16,12 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   useStore: () => store,
 }));
 
+const connect = vi.fn(async () => "online" as const);
+vi.mock("@repo/client/src/hooks/use-connect-server", async (importActual) => ({
+  ...(await importActual<object>()),
+  useConnectServer: () => ({ connect }),
+}));
+
 let status: SyncStatus;
 const sync = vi.fn(async () => true);
 const retryParked = vi.fn(async () => undefined);
@@ -24,6 +31,7 @@ beforeEach(() => {
   // The fake only grows what the menu calls.
   Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });
   vi.clearAllMocks();
+  secretsStore.clearPassword();
 });
 
 function renderMenu(mode: SessionMode, networkOffline = false) {
@@ -84,5 +92,23 @@ describe("SyncStatusMenu", () => {
     );
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry failed changes" }));
     expect(retryParked).toHaveBeenCalledOnce();
+  });
+
+  it("not connected with the unlock's password at hand: connect by hand", async () => {
+    // E.g. the two-factor prompt of the automatic reconnect was closed.
+    secretsStore.setPassword("hunter2hunter2");
+    status = { ...status, phase: "offline" };
+    renderMenu("offline");
+    await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
+    expect(connect).toHaveBeenCalledWith("hunter2hunter2");
+  });
+
+  it("no connect by hand without the password, or without network", async () => {
+    status = { ...status, phase: "offline" };
+    renderMenu("offline");
+    await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
+    await screen.findByRole("menuitem", { name: "Account & sync" });
+    expect(screen.queryByRole("menuitem", { name: "Connect now" })).toBeNull();
   });
 });

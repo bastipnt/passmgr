@@ -29,16 +29,19 @@ export * from "./src/hooks/use-records";
 export * from "./src/hooks/use-recovery";
 export * from "./src/hooks/use-register";
 export * from "./src/hooks/use-restore-backup";
+export * from "./src/hooks/use-second-factor-request";
 export * from "./src/hooks/use-session-restore";
 export * from "./src/hooks/use-sessions";
 export * from "./src/hooks/use-shortcut";
 export * from "./src/hooks/use-sign-out";
 export * from "./src/hooks/use-sync-status";
 export * from "./src/hooks/use-totp";
+export * from "./src/hooks/use-two-factor";
 export * from "./src/hooks/use-unlock";
 export * from "./src/hooks/use-update-record";
 export * from "./src/hooks/use-vault-sharing";
 export * from "./src/hooks/use-vaults";
+export type { SecondFactorPrompt } from "./src/login";
 export * from "./src/preferences/PreferencesStore";
 // Preferences
 export * from "./src/preferences/preference-keys";
@@ -46,6 +49,7 @@ export * from "./src/preferences/security-choices";
 export { default as ClientProvider } from "./src/providers/ClientProvider";
 export * from "./src/providers/PreferencesProvider";
 export * from "./src/providers/RecordsProvider";
+export * from "./src/providers/SecondFactorPromptProvider";
 export {
   default as SessionProvider,
   SessionContext,

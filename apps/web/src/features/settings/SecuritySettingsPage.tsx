@@ -20,6 +20,7 @@ import {
 } from "@repo/ui/components/Select";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 import ExportSettings from "./ExportSettings";
+import TwoFactorSettings from "./TwoFactorSettings";
 
 type ChoiceSettingProps = {
   title: string;
@@ -102,6 +103,8 @@ export default function SecuritySettingsPage() {
             value={revealTimeoutSeconds}
             onValueChange={setRevealTimeoutSeconds}
           />
+
+          <TwoFactorSettings />
 
           <ExportSettings />
         </ItemGroup>
