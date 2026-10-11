@@ -2,6 +2,7 @@ import { appConfigRouter } from "./app-config-router";
 import { loginRouter } from "./auth/login-router";
 import { recoveryRouter } from "./auth/recovery-router";
 import { registrationRouter } from "./auth/registration-router";
+import { sessionRouter } from "./auth/session-router";
 import { recordRouter } from "./record/router";
 import { router } from "./trpc";
 import { userRouter } from "./user/router";
@@ -13,6 +14,7 @@ export const appRouter = router({
   record: recordRouter,
   vault: vaultRouter,
   login: loginRouter,
+  session: sessionRouter,
   register: registrationRouter,
   recovery: recoveryRouter,
 });

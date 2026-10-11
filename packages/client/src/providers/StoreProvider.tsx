@@ -18,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { useLock } from "../hooks/use-lock";
 import { backupReminderSnoozedKey, biometricDismissedKey } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";
 import { resolveRecordConflict } from "../records/resolve-record-conflict";
@@ -29,6 +30,7 @@ import {
   isRetryLater,
   isServerAnswer,
   isServerError,
+  isSignedOut,
   isThrottled,
   isUnauthorized,
 } from "../util/trpc-errors";
@@ -152,6 +154,11 @@ type StoreContextValue = {
    * password: its biometric enrollment and persisted login. Keeps its data.
    */
   forgetQuickUnlock: (profileId?: string) => Promise<void>;
+  /**
+   * The server says this device was signed out from elsewhere: lock, drop the
+   * persisted mobile login and call `onSignedOut`. Sync handles it itself.
+   */
+  signedOut: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
@@ -200,11 +207,22 @@ type StoreProviderProps = {
    * the stream has to be torn down and re-established rather than left to rot.
    */
   syncEnabled?: boolean;
+  /**
+   * Called after the vault locked because another device signed this one out
+   * (or the password changed elsewhere): tell the user, reload on web.
+   */
+  onSignedOut?: () => void;
   children: ReactNode;
 };
 
-export function StoreProvider({ profiles, syncEnabled = true, children }: StoreProviderProps) {
+export function StoreProvider({
+  profiles,
+  syncEnabled = true,
+  onSignedOut,
+  children,
+}: StoreProviderProps) {
   const { mode, networkOffline, detachServer } = useContext(SessionContext);
+  const lock = useLock();
   const trpc = useTRPCClient();
   const preferences = usePreferences();
 
@@ -237,64 +255,84 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     setPreferencesRevision((r) => r + 1);
   }
 
-  // The server no longer accepts the session (expired, revoked): go offline
-  // instead of locking, and stop persisting the dead session.
+  // The server no longer accepts the session. Expired: go offline instead of
+  // locking, and stop persisting the dead session. Signed out from elsewhere:
+  // lock like a sign-out (the vault stays on the device).
   const detachRef = useRef(detachServer);
   detachRef.current = detachServer;
+  const lockRef = useRef(lock);
+  lockRef.current = lock;
+  const onSignedOutRef = useRef(onSignedOut);
+  onSignedOutRef.current = onSignedOut;
   const trpcRef = useRef(trpc);
   trpcRef.current = trpc;
 
-  /** The sync and record access of one profile's vault. */
-  const bind = useCallback((vault: Vault) => {
-    function onUnauthorized() {
-      detachRef.current();
-      const profileId = activeRef.current?.entry.profileId;
-      if (profileId) void persistSession(profileId);
-    }
-
-    // Requests fail fast offline, and an expired session detaches the server.
-    // Only the session the request was signed with: a late answer to an old
-    // one (a password change revokes every session, then logs in again) must
-    // not detach its successor.
-    async function request<T>(send: () => Promise<T>): Promise<T> {
-      if (typeof navigator !== "undefined" && navigator.onLine === false)
-        throw new Error("offline");
-      const sessionId = secretsStore.sessionId;
-      try {
-        return await send();
-      } catch (e) {
-        if (isUnauthorized(e) && secretsStore.sessionId === sessionId) onUnauthorized();
-        throw e;
-      }
-    }
-
-    const syncManager = new SyncManager(vault, {
-      pull: (cursors) => request(() => trpcRef.current.record.sync.query({ cursors })),
-      push: async (changes) =>
-        (await request(() => trpcRef.current.record.push.mutate({ changes }))).results,
-      // Offline, a network failure, an unsigned request (locked), a rejected
-      // session, a busy, throttling or failing server: every other batch would
-      // fail the same way. Only an answer about the batch itself (a 4xx) is
-      // split down to the bad change and counted against it.
-      stopsRound: (e) =>
-        !isServerAnswer(e) ||
-        isUnauthorized(e) ||
-        isRetryLater(e) ||
-        isThrottled(e) ||
-        isServerError(e),
-      isOffline: (e) => !isServerAnswer(e),
-      onVaultsChanged: reloadVaultKeys,
-      resolveConflict: resolveRecordConflict,
-      // Changes under a rotated-out vault key, and the records of a rotation this device started.
-      prepareOutbox: () => reencryptForPush(vault),
-      // Keys sealed to this user after a rotation, rotations due after a member left (ADR 0001 D7).
-      // Through `request`: offline fails fast, a rejected session detaches.
-      onSharingTasks: (tasks) =>
-        request(() => runSharingTasks({ vault, trpc: trpcRef.current, reloadVaultKeys }, tasks)),
-    });
-    const records = new RecordRepository(vault, () => syncManager.requestSync());
-    return { syncManager, records };
+  /** Lock (keys wiped first), forget the persisted mobile login, then tell the app. */
+  const signedOut = useCallback(async () => {
+    const profileId = activeRef.current?.entry.profileId;
+    lockRef.current();
+    if (profileId) await clearLoginBundle(profileId).catch(() => undefined);
+    onSignedOutRef.current?.();
   }, []);
+
+  /** The sync and record access of one profile's vault. */
+  const bind = useCallback(
+    (vault: Vault) => {
+      function onUnauthorized(e: unknown) {
+        if (isSignedOut(e)) {
+          void signedOut();
+          return;
+        }
+        detachRef.current();
+        const profileId = activeRef.current?.entry.profileId;
+        if (profileId) void persistSession(profileId);
+      }
+
+      // Requests fail fast offline, and an expired session detaches the server.
+      // Only the session the request was signed with: a late answer to an old
+      // one (a password change revokes every session, then logs in again) must
+      // not detach its successor.
+      async function request<T>(send: () => Promise<T>): Promise<T> {
+        if (typeof navigator !== "undefined" && navigator.onLine === false)
+          throw new Error("offline");
+        const sessionId = secretsStore.sessionId;
+        try {
+          return await send();
+        } catch (e) {
+          if (isUnauthorized(e) && secretsStore.sessionId === sessionId) onUnauthorized(e);
+          throw e;
+        }
+      }
+
+      const syncManager = new SyncManager(vault, {
+        pull: (cursors) => request(() => trpcRef.current.record.sync.query({ cursors })),
+        push: async (changes) =>
+          (await request(() => trpcRef.current.record.push.mutate({ changes }))).results,
+        // Offline, a network failure, an unsigned request (locked), a rejected
+        // session, a busy, throttling or failing server: every other batch would
+        // fail the same way. Only an answer about the batch itself (a 4xx) is
+        // split down to the bad change and counted against it.
+        stopsRound: (e) =>
+          !isServerAnswer(e) ||
+          isUnauthorized(e) ||
+          isRetryLater(e) ||
+          isThrottled(e) ||
+          isServerError(e),
+        isOffline: (e) => !isServerAnswer(e),
+        onVaultsChanged: reloadVaultKeys,
+        resolveConflict: resolveRecordConflict,
+        // Changes under a rotated-out vault key, and the records of a rotation this device started.
+        prepareOutbox: () => reencryptForPush(vault),
+        // Keys sealed to this user after a rotation, rotations due after a member left (ADR 0001 D7).
+        // Through `request`: offline fails fast, a rejected session detaches.
+        onSharingTasks: (tasks) =>
+          request(() => runSharingTasks({ vault, trpc: trpcRef.current, reloadVaultKeys }, tasks)),
+      });
+      const records = new RecordRepository(vault, () => syncManager.requestSync());
+      return { syncManager, records };
+    },
+    [signedOut],
+  );
 
   /** Read what the profile's database holds for an unlock. */
   const load = useCallback(
@@ -388,8 +426,17 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
 
     let resubscribing = false;
     function subscribe() {
+      // Only this stream's session: a stale event must not sign out its successor.
+      const sessionId = secretsStore.sessionId;
+      const signedOutHere = () => {
+        if (secretsStore.sessionId === sessionId) void signedOut();
+      };
       currentSubscription = trpc.record.onRecordChange.subscribe(undefined, {
         onData: (event) => {
+          if (event.data.type === "signedOut") {
+            signedOutHere();
+            return;
+          }
           // Back after a dropped stream: catch up on what changed meanwhile.
           if (event.data.type === "connected" && resubscribing) {
             resubscribing = false;
@@ -402,9 +449,13 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
             void syncManager?.sync();
           }
         },
-        onError: () => {
+        onError: (e) => {
           currentSubscription = null;
           if (disposed) return;
+          if (isSignedOut(e)) {
+            signedOutHere();
+            return;
+          }
           const delay = retryDelay;
           retryDelay = Math.min(retryDelay * 2, 60_000);
           resubscribing = true;
@@ -428,7 +479,7 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
       syncManager.stopPeriodicSync();
       syncManager.setEnabled(false);
     };
-  }, [online, networkOffline, syncEnabled, syncManager, trpc]);
+  }, [online, networkOffline, syncEnabled, syncManager, trpc, signedOut]);
 
   async function selectProfile(profileId: string) {
     return await switchLock(async () => {
@@ -630,6 +681,7 @@ export function StoreProvider({ profiles, syncEnabled = true, children }: StoreP
     markExported,
     saveBiometricKeyMaterial,
     forgetQuickUnlock,
+    signedOut,
   };
 
   return <StoreContext value={value}>{children}</StoreContext>;

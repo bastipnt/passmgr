@@ -1,11 +1,12 @@
 import {
+  DEVICE_NAME_HEADER,
   SESSION_ID_HEADER,
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
   SESSION_TIMESTAMP_HEADER,
 } from "@repo/crypto";
 import type { CreateFastifyContextOptions } from "@trpc/server/adapters/fastify";
-import { getConnectionParamsSave, getHeaderSave } from "./util/general";
+import { getConnectionParamsSave, getHeaderSave, sanitizeDeviceName } from "./util/general";
 
 type Session = {
   sessionId?: string;
@@ -16,11 +17,13 @@ type Session = {
 
 interface CreateInnerContextOptions extends Partial<CreateFastifyContextOptions> {
   session: Session | null;
+  deviceName?: string;
 }
 
 async function createContextInner(opts?: CreateInnerContextOptions) {
   return {
     session: opts?.session,
+    deviceName: opts?.deviceName,
   };
 }
 
@@ -38,7 +41,10 @@ export async function createContext(opts: CreateFastifyContextOptions) {
       }
     : getConnectionParamsSave(query);
 
-  const contextInner = await createContextInner({ session });
+  const contextInner = await createContextInner({
+    session,
+    deviceName: sanitizeDeviceName(getHeaderSave(headers, DEVICE_NAME_HEADER)),
+  });
 
   return {
     ...contextInner,

@@ -144,6 +144,7 @@ export function createFakeStore() {
     removeAllProfiles: vi.fn(),
     saveBiometricKeyMaterial: vi.fn(),
     forgetQuickUnlock: vi.fn(),
+    signedOut: vi.fn(async () => undefined),
     markExported: vi.fn(),
   };
   return store;

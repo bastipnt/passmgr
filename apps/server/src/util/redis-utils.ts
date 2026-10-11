@@ -1,7 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
+import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h
+const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle
+// Hard cap from the OPAQUE login, however active the session stays.
+export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60_000; // 30 days
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
 export const INVITE_TTL_SECONDS = 60 * 60 * 24; // 24h
@@ -20,8 +23,20 @@ const LOGIN_THROTTLE_WINDOW_SECONDS = 60 * 60; // 1h without starts resets the c
 type Session = {
   userId: string;
   rawAuthKey: string;
-  // Unix ms of the OPAQUE login that created this session (fresh-auth checks).
+  // Unix ms of the OPAQUE login that created this session (fresh-auth checks,
+  // SESSION_MAX_AGE_MS).
   authenticatedAt: number;
+  // Label the client sent at login ("Firefox on macOS"), for the session list.
+  deviceName?: string;
+};
+
+/** A live session of a user, as the session list shows it. */
+export type UserSession = {
+  sessionId: string;
+  deviceName?: string;
+  authenticatedAt: number;
+  // Unix ms of the last authenticated request (or the login).
+  lastSeenAt: number;
 };
 
 type RecoveryAttempt = {
@@ -75,6 +90,19 @@ function sessionEpochKey(userId: string) {
   return `sessionepoch:${userId}`;
 }
 
+// Sorted set of a user's session ids, scored by last activity (Unix ms). The
+// only way to find a user's sessions (session list, log out other devices).
+// Members may outlive their session; readers drop them.
+function userSessionsKey(userId: string) {
+  return `usersessions:${userId}`;
+}
+
+// Set when a session is signed out from elsewhere (revoked, password changed);
+// outlives the session so the device learns why it was refused.
+function signedOutKey(sessionId: string) {
+  return `signedout:${sessionId}`;
+}
+
 function loginThrottleKey(emailHash: string) {
   return `loginthrottle:${emailHash}`;
 }
@@ -83,15 +111,27 @@ function loginLockKey(emailHash: string) {
   return `loginlock:${emailHash}`;
 }
 
+function isLive(session: Session, epoch: string | null, now: number): boolean {
+  // `?? 0`: a session without a login time counts as oldest (expired).
+  const authenticatedAt = session.authenticatedAt ?? 0;
+  if (epoch !== null && authenticatedAt <= Number(epoch)) return false;
+  return now - authenticatedAt < SESSION_MAX_AGE_MS;
+}
+
+/** The sliding idle TTL, capped by what is left of the session's max age. */
+function sessionTtlSeconds(session: Session, now: number): number {
+  const leftSeconds = Math.ceil((session.authenticatedAt + SESSION_MAX_AGE_MS - now) / 1000);
+  return Math.min(SESSION_TTL_SECONDS, leftSeconds);
+}
+
 export async function getSession(sessionId: string): Promise<Session | undefined> {
   const rawSession = await redis.get(sessionKey(sessionId));
   if (rawSession === null) return undefined;
 
   const session: Session = JSON.parse(rawSession);
   const epoch = await redis.get(sessionEpochKey(session.userId));
-  // `?? 0`: sessions minted before authenticatedAt existed count as oldest.
-  if (epoch !== null && (session.authenticatedAt ?? 0) <= Number(epoch)) {
-    await deleteSession(sessionId);
+  if (!isLive(session, epoch, Date.now())) {
+    await deleteSession(sessionId, session.userId);
     return undefined;
   }
 
@@ -100,8 +140,18 @@ export async function getSession(sessionId: string): Promise<Session | undefined
 
 export async function setSession(session: Session): Promise<string> {
   const sessionId = crypto.randomUUID();
+  const now = Date.now();
+  const index = userSessionsKey(session.userId);
 
-  await redis.set(sessionKey(sessionId), JSON.stringify(session), "EX", SESSION_TTL_SECONDS);
+  await redis
+    .multi()
+    .set(sessionKey(sessionId), JSON.stringify(session), "EX", sessionTtlSeconds(session, now))
+    .zadd(index, now, sessionId)
+    // Idle longer than the TTL: those sessions are gone.
+    .zremrangebyscore(index, "-inf", now - SESSION_TTL_SECONDS * 1000)
+    // No session in it can outlive the newest one's max age.
+    .pexpire(index, SESSION_MAX_AGE_MS)
+    .exec();
 
   return sessionId;
 }
@@ -109,23 +159,122 @@ export async function setSession(session: Session): Promise<string> {
 /**
  * Sliding-expiration refresh: roll the session's 24h TTL forward on activity so
  * an active user (mobile session restored on each reopen) stays logged in,
- * while an idle session still expires after 24h. Best-effort.
+ * while an idle session still expires after 24h. Never past
+ * SESSION_MAX_AGE_MS from the login. Best-effort.
  */
-export async function touchSession(sessionId: string): Promise<void> {
-  await redis.expire(sessionKey(sessionId), SESSION_TTL_SECONDS);
+export async function touchSession(sessionId: string, session: Session): Promise<void> {
+  const now = Date.now();
+  const ttl = sessionTtlSeconds(session, now);
+  if (ttl <= 0) return;
+  await redis
+    .multi()
+    .expire(sessionKey(sessionId), ttl)
+    // XX: a session revoked meanwhile is not listed again.
+    .zadd(userSessionsKey(session.userId), "XX", now, sessionId)
+    .exec();
 }
 
-export async function deleteSession(sessionId: string): Promise<void> {
-  await redis.del(sessionKey(sessionId));
+export async function deleteSession(sessionId: string, userId: string): Promise<void> {
+  await redis.multi().del(sessionKey(sessionId)).zrem(userSessionsKey(userId), sessionId).exec();
+}
+
+/** The user's live sessions, most recently active first. Drops dead index entries. */
+export async function listUserSessions(userId: string): Promise<UserSession[]> {
+  const index = userSessionsKey(userId);
+  const scored = await redis.zrevrange(index, 0, -1, "WITHSCORES");
+  if (scored.length === 0) return [];
+
+  const ids: string[] = [];
+  const scores: number[] = [];
+  for (let i = 0; i < scored.length; i += 2) {
+    ids.push(scored[i]!);
+    scores.push(Number(scored[i + 1]));
+  }
+  const [raws, epoch] = await Promise.all([
+    redis.mget(ids.map(sessionKey)),
+    redis.get(sessionEpochKey(userId)),
+  ]);
+
+  const now = Date.now();
+  const live: UserSession[] = [];
+  const dead: string[] = [];
+  ids.forEach((sessionId, i) => {
+    const raw = raws[i];
+    const session: Session | undefined = raw ? JSON.parse(raw) : undefined;
+    if (!session || session.userId !== userId || !isLive(session, epoch, now)) {
+      dead.push(sessionId);
+      return;
+    }
+    live.push({
+      sessionId,
+      deviceName: session.deviceName,
+      authenticatedAt: session.authenticatedAt,
+      lastSeenAt: scores[i]!,
+    });
+  });
+  if (dead.length > 0) await redis.zrem(index, ...dead);
+
+  return live;
+}
+
+/** Ids in the user's session index (may include sessions that already ended). */
+export async function userSessionIds(userId: string): Promise<string[]> {
+  return await redis.zrange(userSessionsKey(userId), 0, -1);
 }
 
 /**
- * Invalidate every existing session of a user (e.g. after the password was
- * reset). There is no per-user session index, so instead of deleting keys this
- * records a cut-off that getSession checks; sessions created afterwards work.
+ * End sessions and mark them signed out: a request with one of them is
+ * refused with SESSION_SIGNED_OUT (the device locks instead of going offline),
+ * and its open record stream is told right away.
  */
-export async function revokeUserSessions(userId: string): Promise<void> {
+async function signOutSessions(userId: string, sessionIds: string[]): Promise<void> {
+  if (sessionIds.length === 0) return;
+  const tx = redis.multi();
+  for (const id of sessionIds) {
+    tx.del(sessionKey(id)).set(signedOutKey(id), "1", "PX", SESSION_MAX_AGE_MS);
+  }
+  await tx.zrem(userSessionsKey(userId), ...sessionIds).exec();
+  for (const id of sessionIds) emitSessionSignedOut(id);
+}
+
+/** Whether this session was ended by a sign-out from elsewhere (not expired). */
+export async function isSignedOut(sessionId: string): Promise<boolean> {
+  return (await redis.exists(signedOutKey(sessionId))) === 1;
+}
+
+/** Sign one of the user's sessions out. False when it isn't theirs (or already gone). */
+export async function revokeUserSession(userId: string, sessionId: string): Promise<boolean> {
+  const listed = await redis.zscore(userSessionsKey(userId), sessionId);
+  if (listed === null) return false;
+  await signOutSessions(userId, [sessionId]);
+  return true;
+}
+
+/** Sign out every session of the user except `keepSessionId` ("sign out other devices"). */
+export async function revokeOtherUserSessions(
+  userId: string,
+  keepSessionId: string,
+): Promise<number> {
+  const others = (await userSessionIds(userId)).filter((id) => id !== keepSessionId);
+  await signOutSessions(userId, others);
+  return others.length;
+}
+
+/**
+ * Invalidate every existing session of a user (password changed or
+ * recovered). Records a cut-off that getSession checks (covers a session whose
+ * index entry was lost) and signs the indexed sessions out. `exceptSessionId`
+ * (the device making the change, which logs in again right away) only ends,
+ * without the sign-out. Sessions created afterwards work.
+ */
+export async function revokeUserSessions(userId: string, exceptSessionId?: string): Promise<void> {
+  const ids = await userSessionIds(userId);
   await redis.set(sessionEpochKey(userId), String(Date.now()));
+  await signOutSessions(
+    userId,
+    ids.filter((id) => id !== exceptSessionId),
+  );
+  if (exceptSessionId) await deleteSession(exceptSessionId, userId);
 }
 
 /** Store a login attempt and return its id (handed to the client for finishLogin). */

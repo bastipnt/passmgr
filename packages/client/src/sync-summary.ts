@@ -86,14 +86,19 @@ function ago(count: number, unit: string): string {
   return `${count} ${unit}${count === 1 ? "" : "s"} ago`;
 }
 
+/** "just now / 5 minutes ago / yesterday / 3 days ago" for a time (ms since epoch). */
+export function formatTimeAgo(at: number, now = Date.now()): string {
+  const seconds = Math.round((now - at) / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return ago(minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) return ago(hours, "hour");
+  const days = Math.round(hours / 24);
+  return days === 1 ? "yesterday" : ago(days, "day");
+}
+
 /** "Last synced just now / 5 minutes ago / …" for a sync time (ms since epoch). */
 export function formatLastSynced(at: number, now = Date.now()): string {
-  const seconds = Math.round((now - at) / 1000);
-  if (seconds < 60) return "Last synced just now";
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) return `Last synced ${ago(minutes, "minute")}`;
-  const hours = Math.round(minutes / 60);
-  if (hours < 24) return `Last synced ${ago(hours, "hour")}`;
-  const days = Math.round(hours / 24);
-  return `Last synced ${days === 1 ? "yesterday" : ago(days, "day")}`;
+  return `Last synced ${formatTimeAgo(at, now)}`;
 }

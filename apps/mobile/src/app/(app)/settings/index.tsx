@@ -24,6 +24,7 @@ import { useCSSVariable } from "uniwind";
 import { ReconnectSheet } from "@/features/auth/components/ReconnectSheet";
 import { ChangePasswordSheet } from "@/features/settings/components/ChangePasswordSheet";
 import { CreateAccountSheet } from "@/features/settings/components/CreateAccountSheet";
+import { SessionsSection } from "@/features/settings/components/SessionsSection";
 import { SyncSection } from "@/features/settings/components/SyncSection";
 import { settingsPaths } from "@/route-paths";
 
@@ -120,6 +121,7 @@ export default function SettingsScreen() {
         )}
 
         {linked && <SyncSection />}
+        {linked && <SessionsSection />}
 
         <RemoveDialog
           title="Remove vault from this device?"

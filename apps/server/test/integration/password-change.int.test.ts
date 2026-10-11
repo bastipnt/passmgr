@@ -1,4 +1,4 @@
-import { retrievePRK, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
+import { retrievePRK, SESSION_SIGNED_OUT, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
 import { db, keysTable, usersTable, vaultMembersTable } from "@repo/db";
 import { fromBase64 } from "@repo/util";
 import { and, isNull } from "drizzle-orm";
@@ -176,10 +176,29 @@ describe("password change (real Postgres + Redis)", () => {
     await expect(loginAndGetAuthKey(email, newPassword)).resolves.toBeDefined();
 
     // Every session from before is dead, the fresh one used for the change too.
-    for (const s of [oldSession, session()!]) {
-      const cc = await callSigned(s.sessionId, s.authKey, "query", "user.heartbeat", undefined);
-      await expect(cc.user.heartbeat()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
-    }
+    // Other devices are signed out (they lock); the changing one just logs in again.
+    const ccOld = await callSigned(
+      oldSession.sessionId,
+      oldSession.authKey,
+      "query",
+      "user.heartbeat",
+      undefined,
+    );
+    await expect(ccOld.user.heartbeat()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+      message: SESSION_SIGNED_OUT,
+    });
+    const own = session()!;
+    const ccOwn = await callSigned(
+      own.sessionId,
+      own.authKey,
+      "query",
+      "user.heartbeat",
+      undefined,
+    );
+    const ownError = await ccOwn.user.heartbeat().catch((e: unknown) => e);
+    expect(ownError).toMatchObject({ code: "UNAUTHORIZED" });
+    expect(ownError).not.toMatchObject({ message: SESSION_SIGNED_OUT });
   });
 
   it("refuses a wrong current password without touching the account", async () => {

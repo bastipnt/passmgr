@@ -10,7 +10,7 @@ import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
-import { isUnauthorized } from "../util/trpc-errors";
+import { isSignedOut, isUnauthorized } from "../util/trpc-errors";
 
 export type RestoreStatus = "restoring" | "restored" | "needs-login";
 
@@ -21,15 +21,15 @@ export type RestoreStatus = "restoring" | "restored" | "needs-login";
  * bundle's account key; no server is needed to enter the app.
  *
  * A linked profile's persisted server session is checked with a heartbeat in
- * the background: one the server rejects only drops the session (`online` →
- * `offline`), it never forces a new login.
+ * the background: an expired one only drops the session (`online` →
+ * `offline`); one signed out from another device locks (`signedOut`).
  *
  * On web `isPersistentLoginAvailable()` is false, so this resolves straight to
  * `"needs-login"` without touching storage.
  */
 export function useSessionRestore() {
   const { restoreLogin, detachServer, lock } = useContext(SessionContext);
-  const { loaded, active } = useStore();
+  const { loaded, active, signedOut } = useStore();
   const trpc = useTRPCClient();
   const [status, setStatus] = useState<RestoreStatus>(
     isPersistentLoginAvailable() ? "restoring" : "needs-login",
@@ -78,12 +78,18 @@ export function useSessionRestore() {
       try {
         await trpc.user.heartbeat.query();
       } catch (e) {
+        if (isSignedOut(e)) {
+          // Signed out from another device (or the password changed): sign in again.
+          setStatus("needs-login");
+          await signedOut();
+          return;
+        }
         if (!isUnauthorized(e)) return;
         detachServer();
         await persistSession(profileId);
       }
     }
-  }, [restoreLogin, detachServer, lock, loaded, active, trpc]);
+  }, [restoreLogin, detachServer, lock, loaded, active, trpc, signedOut]);
 
   return { status, tryRestore };
 }

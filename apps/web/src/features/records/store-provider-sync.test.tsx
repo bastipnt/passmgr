@@ -1,5 +1,6 @@
 import { SessionContext, type SessionMode } from "@repo/client";
 import { StoreProvider, useStore } from "@repo/client/src/providers/StoreProvider";
+import { SESSION_SIGNED_OUT } from "@repo/crypto";
 import {
   type PendingChange,
   type ProfileEntry,
@@ -61,6 +62,8 @@ const profiles = {
 } as unknown as ProfileStore;
 
 const detachServer = vi.fn();
+const lock = vi.fn();
+const onSignedOut = vi.fn();
 
 function session(mode: SessionMode | undefined) {
   return {
@@ -68,16 +71,24 @@ function session(mode: SessionMode | undefined) {
     mode,
     networkOffline: false,
     detachServer,
-    lock: vi.fn(),
+    lock,
   } as unknown as ContextType<typeof SessionContext>;
 }
 
 function ui(mode: SessionMode | undefined) {
   return (
     <SessionContext.Provider value={session(mode)}>
-      <StoreProvider profiles={profiles}>{null}</StoreProvider>
+      <StoreProvider profiles={profiles} onSignedOut={onSignedOut}>
+        {null}
+      </StoreProvider>
     </SessionContext.Provider>
   );
+}
+
+function unauthorized(message = "UNAUTHORIZED") {
+  return TRPCClientError.from({
+    error: { code: -32001, message, data: { code: "UNAUTHORIZED", httpStatus: 401 } },
+  });
 }
 
 beforeEach(() => {
@@ -319,6 +330,65 @@ describe("StoreProvider sync", () => {
     expect(trpcClient.record.push.mutate).toHaveBeenCalledTimes(1);
     expect(vault.failPendingChange).not.toHaveBeenCalled();
     expect(trpcClient.record.sync.query).not.toHaveBeenCalled();
+  });
+});
+
+describe("StoreProvider sign-out from elsewhere", () => {
+  type Handlers = {
+    onData: (event: { data: { type: string } }) => void;
+    onError: (e?: unknown) => void;
+  };
+  function captureStreams() {
+    const streams: Handlers[] = [];
+    const subscribe = trpcClient.record.onRecordChange.subscribe as unknown as {
+      mockImplementation: (fn: (input: unknown, handlers: Handlers) => unknown) => void;
+    };
+    subscribe.mockImplementation((_input, handlers) => {
+      streams.push(handlers);
+      return { unsubscribe: () => undefined };
+    });
+    return streams;
+  }
+
+  it("locks instead of going offline when the server says the session was signed out", async () => {
+    trpcClient.record.sync.query.mockRejectedValue(unauthorized(SESSION_SIGNED_OUT));
+
+    renderWithProviders(ui("online"));
+
+    await waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
+    expect(lock).toHaveBeenCalledTimes(1);
+    expect(detachServer).not.toHaveBeenCalled();
+  });
+
+  it("still only goes offline when the session merely expired", async () => {
+    trpcClient.record.sync.query.mockRejectedValue(unauthorized());
+
+    renderWithProviders(ui("online"));
+
+    await waitFor(() => expect(detachServer).toHaveBeenCalledTimes(1));
+    expect(lock).not.toHaveBeenCalled();
+    expect(onSignedOut).not.toHaveBeenCalled();
+  });
+
+  it("locks on the change stream's signedOut event", async () => {
+    const streams = captureStreams();
+    renderWithProviders(ui("online"));
+    await waitFor(() => expect(streams).toHaveLength(1));
+
+    streams[0]!.onData({ data: { type: "signedOut" } });
+
+    await waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
+    expect(lock).toHaveBeenCalledTimes(1);
+  });
+
+  it("locks when the stream's reconnect is refused as signed out", async () => {
+    const streams = captureStreams();
+    renderWithProviders(ui("online"));
+    await waitFor(() => expect(streams).toHaveLength(1));
+
+    streams[0]!.onError(unauthorized(SESSION_SIGNED_OUT));
+
+    await waitFor(() => expect(onSignedOut).toHaveBeenCalledTimes(1));
   });
 });
 

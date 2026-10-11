@@ -179,6 +179,7 @@ export const loginRouter = router({
         userId,
         rawAuthKey: toBase64(authKey),
         authenticatedAt: Date.now(),
+        deviceName: ctx.deviceName,
       });
 
       wipe(sessionSecret);
@@ -189,7 +190,7 @@ export const loginRouter = router({
     }),
 
   logout: protectedProcedure.input(logoutInputSchema).mutation(async ({ ctx }) => {
-    await deleteSession(ctx.sessionId);
+    await deleteSession(ctx.sessionId, ctx.userId);
     ctx.req?.log?.info({ sidHash: await shortHash(ctx.sessionId) }, "auth.logout");
     return { ok: true } as const;
   }),

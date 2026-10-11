@@ -36,6 +36,7 @@ export async function register(
 export async function loginAndGetAuthKey(
   email: string,
   password: string,
+  deviceName?: string,
 ): Promise<{
   sessionId: string;
   authKey: Uint8Array;
@@ -51,7 +52,8 @@ export async function loginAndGetAuthKey(
   const result = await started.finish(loginResponse, email);
   if (!result) throw new Error("OPAQUE authFinish failed");
   const authSalt = genKey();
-  const finished = await caller.login.finishLogin({
+  const finishCaller = createCaller(buildTestContext(undefined, deviceName));
+  const finished = await finishCaller.login.finishLogin({
     email,
     attemptId,
     finishLoginRequest: result.finishLoginRequest,

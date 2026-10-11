@@ -19,6 +19,7 @@ import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
 import ProfileList from "./ProfileList";
 import StoredAccountRow from "./StoredAccountRow";
+import { SignedOutNote } from "./signed-out";
 
 /**
  * Unlock a profile on this device, or sign in (ADR 0001 D2). The last used
@@ -124,6 +125,7 @@ export default function LoginPage() {
       )}
 
       <div className="flex w-full flex-col gap-4">
+        <SignedOutNote />
         <LoginForm
           localVault={localVault}
           storedEmail={unlocking ? storedEmail : undefined}

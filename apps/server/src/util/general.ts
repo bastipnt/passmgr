@@ -13,6 +13,26 @@ export function getHeaderSave(
   return extractedHeaders;
 }
 
+const DEVICE_NAME_MAX_LENGTH = 64;
+
+/**
+ * The client's device label, cleaned for display: URI-decoded (header values
+ * are Latin-1 only, so clients encode it), no control characters, capped.
+ */
+export function sanitizeDeviceName(raw: string | undefined): string | undefined {
+  let decoded = raw;
+  try {
+    if (raw) decoded = decodeURIComponent(raw);
+  } catch {
+    // Not encoded: keep it as sent.
+  }
+  const name = decoded
+    ?.replace(/\p{Cc}/gu, "")
+    .trim()
+    .slice(0, DEVICE_NAME_MAX_LENGTH);
+  return name || undefined;
+}
+
 export type SubscriptionAuthParams = {
   sessionId?: string;
   timestamp?: string;

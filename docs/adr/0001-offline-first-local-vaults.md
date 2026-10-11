@@ -153,6 +153,18 @@ server, apart from account operations that genuinely need it (registration, logi
 >   registry's `registry_meta`), so no vault or email lingers where no "remove" reaches.
 > - Not covered: tabs see the registry as of their own load (a profile added in another tab shows
 >   after a reload); renaming a profile has no UI yet (`ProfileStore.rename` exists).
+>
+> **Amended 2026-10-11** (session management): a session the server ended *on purpose* now locks
+> the device instead of detaching it. Another device signing it out (`session.revoke` /
+> `revokeOthers`) or a password change / recovery elsewhere leaves a `signedout:<sessionId>` marker;
+> requests with that session are refused with `UNAUTHORIZED` + message `SESSION_SIGNED_OUT`, and its
+> open record stream ends with a `signedOut` event. The client then does a local sign-out
+> (`StoreProvider.signedOut`: lock, drop the persisted mobile login, `onSignedOut` tells the user;
+> web reloads). The vault and its unsynced outbox stay on the device and sync after the next
+> sign-in. Staying `offline` there was a dead end: the server would never take that session again,
+> and web had no way to reconnect. An *expired* session (24h idle, 30-day cap) still only detaches
+> (`online` → `offline`). The device doing a password change is excepted: its old session just
+> ends, and it logs in again with the new password.
 
 ### D3 — Key hierarchy v2: account key wrapping per-vault keys
 

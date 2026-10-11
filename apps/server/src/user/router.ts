@@ -189,7 +189,8 @@ export const userRouter = router({
         return user.emailHash;
       });
 
-      await revokeUserSessions(ctx.userId);
+      // This device logs in again with the new password; every other one is signed out.
+      await revokeUserSessions(ctx.userId, ctx.sessionId);
       await resetLoginThrottle(emailHash);
       ctx.req?.log.info({ emailHash }, "auth.password_change.success");
       return { ok: true } as const;

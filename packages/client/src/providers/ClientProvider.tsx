@@ -1,3 +1,4 @@
+import { DEVICE_NAME_HEADER } from "@repo/crypto";
 import type { AppRouter } from "@repo/types";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
@@ -49,9 +50,19 @@ type ClientProviderProps = {
    * Must be a stable reference — the tRPC client is created once.
    */
   eventSource?: EventSourceLike.AnyConstructor;
+  /**
+   * How this device is named in the account's session list ("Firefox on
+   * macOS"). Sent with each login.
+   */
+  deviceName?: string;
 };
 
-export default function ClientProvider({ children, serverUrl, eventSource }: ClientProviderProps) {
+export default function ClientProvider({
+  children,
+  serverUrl,
+  eventSource,
+  deviceName,
+}: ClientProviderProps) {
   const queryClient = getQueryClient();
 
   const createTrpcClientWithHeaders = (): TRPCClient<AppRouter> =>
@@ -67,7 +78,12 @@ export default function ClientProvider({ children, serverUrl, eventSource }: Cli
           false: httpLink({
             url: serverUrl,
             async headers({ op }) {
-              return await generateAuthHeaders(op);
+              const headers = await generateAuthHeaders(op);
+              // Header values are Latin-1 only; device names may not be.
+              if (deviceName && op.path === "login.finishLogin") {
+                headers[DEVICE_NAME_HEADER] = encodeURIComponent(deviceName);
+              }
+              return headers;
             },
             async fetch(url, options) {
               return fetch(url, {

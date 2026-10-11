@@ -8,10 +8,12 @@ export * from "./src/totp";
 export * from "./src/user-key-pair";
 export * from "./src/user-keys";
 export {
+  DEVICE_NAME_HEADER,
   hkdfInfo,
   SESSION_ID_HEADER,
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,
+  SESSION_SIGNED_OUT,
   SESSION_TIMESTAMP_HEADER,
   SUBSCRIPTION_SIGNATURE_PATH,
 } from "./src/util/constants";

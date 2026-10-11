@@ -180,7 +180,7 @@ Login:
 1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
 2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
-4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, `authenticatedAt`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
+4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`, creates session in Redis (24h sliding TTL, hard cap `SESSION_MAX_AGE_MS` = 30 days from `authenticatedAt`; indexed per user in `usersessions:<userId>`, a sorted set by last activity; `deviceName` from the client's `x-device-name` header, `ClientProvider`'s `deviceName`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
 5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the account's profile database for offline unlock (`StoreProvider.openAccountProfile`: the profile of that `userId`, or a new one next to the others; never a wipe). Signing in with the email of a profile on the device unlocks it locally like picking it (`useUnlock().unlockByEmail`). Memory only on web; mobile persists the session bundle per profile in Keychain/Keystore
 
 Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `generateKeyring` (same
@@ -245,8 +245,10 @@ per user) — never `UPDATE` key material in place.
 Session modes (ADR 0001 D2, `SessionProvider`): unlocking never needs the server; server auth is attached
 separately. `local` = a `local` profile, never talks to the server (no `authKey`, no sync). `online` = a `linked`
 profile with server auth attached: signed requests, `SyncManager` enabled, SSE subscribed. `offline` = `linked`
-without server auth (not attached yet, or a session the server rejected: `UNAUTHORIZED` only detaches, it never
-locks). Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
+without server auth (not attached yet, or a session that expired: `UNAUTHORIZED` only detaches). A session ended
+on purpose (signed out from another device, password changed or recovered elsewhere) is refused with message
+`SESSION_SIGNED_OUT` (`isSignedOut`) or a `signedOut` SSE event: the device locks like Sign out
+(`StoreProvider.signedOut` → `onSignedOut`; web reloads and shows a note), its outbox stays. Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
 / `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
 database + outbox in every mode; the `online` event (or attaching server auth) syncs.
 
@@ -343,6 +345,9 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
 - `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
   invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `protectedProcedure`
+- `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
+  a revoked device locks: `signedout:<sessionId>` marker, see Session modes) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
+  mobile Settings (`SessionsSection`)
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)

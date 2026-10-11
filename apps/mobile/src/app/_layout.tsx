@@ -15,6 +15,7 @@ import {
 } from "@repo/client";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { Alert } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
@@ -25,9 +26,19 @@ import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
 import { applyTheme, getStoredTheme, useThemePreference } from "@/hooks/use-theme-preference";
+import { deviceName } from "@/lib/device-name";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
+const DEVICE_NAME = deviceName();
+
+/** After the lock (`StoreProvider`): another device signed this one out, or the password changed. */
+function onSignedOutElsewhere() {
+  Alert.alert(
+    "Signed out",
+    "You were signed out from another device. Changes that hadn't synced stay on this phone and sync after you sign in again.",
+  );
+}
 
 function Routes() {
   const { vaultUnlocked } = useContext(SessionContext);
@@ -88,8 +99,16 @@ export default function RootLayout() {
       <KeyboardProvider>
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
-            <ClientProvider serverUrl={serverUrl} eventSource={RNEventSourcePonyfill}>
-              <StoreProvider profiles={profileStore} syncEnabled={appActive}>
+            <ClientProvider
+              serverUrl={serverUrl}
+              eventSource={RNEventSourcePonyfill}
+              deviceName={DEVICE_NAME}
+            >
+              <StoreProvider
+                profiles={profileStore}
+                syncEnabled={appActive}
+                onSignedOut={onSignedOutElsewhere}
+              >
                 <Routes />
               </StoreProvider>
             </ClientProvider>

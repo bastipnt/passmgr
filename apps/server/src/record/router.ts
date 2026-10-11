@@ -11,7 +11,7 @@ import { TRPCError, tracked } from "@trpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 import z from "zod";
 import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
-import { onRecordsChanged } from "../events/record-events";
+import { onRecordsChanged, onSessionSignedOut } from "../events/record-events";
 import { router } from "../trpc";
 import {
   keyUpdates,
@@ -126,29 +126,43 @@ export const recordRouter = router({
     }),
 
   onRecordChange: protectedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
-    yield tracked("connected", { type: "connected" as const });
-
+    // Listening starts before "connected" is sent: a sign-out right after the
+    // connect must not slip through while the generator is paused.
     let resolve: (() => void) | null = null;
-    const unsubscribe = onRecordsChanged(ctx.userId, () => {
+    const wake = () => {
       if (resolve) {
         const r = resolve;
         resolve = null;
         r();
       }
+    };
+    // This session signed out from elsewhere: tell the device, then end the stream.
+    let signedOut = false;
+    const unsubscribe = onRecordsChanged(ctx.userId, wake);
+    const unsubscribeSignedOut = onSessionSignedOut(ctx.sessionId, () => {
+      signedOut = true;
+      wake();
     });
 
     try {
+      yield tracked("connected", { type: "connected" as const });
       while (!signal?.aborted) {
         await new Promise<void>((r) => {
+          // Signed out while an event was being sent: don't wait.
+          if (signedOut) return r();
           resolve = r;
           signal?.addEventListener("abort", () => r(), { once: true });
         });
-        if (!signal?.aborted) {
-          yield tracked(Date.now().toString(), { type: "changed" as const });
+        if (signal?.aborted) break;
+        if (signedOut) {
+          yield tracked(Date.now().toString(), { type: "signedOut" as const });
+          return;
         }
+        yield tracked(Date.now().toString(), { type: "changed" as const });
       }
     } finally {
       unsubscribe();
+      unsubscribeSignedOut();
     }
   }),
 });

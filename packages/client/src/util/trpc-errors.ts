@@ -1,3 +1,4 @@
+import { SESSION_SIGNED_OUT } from "@repo/crypto";
 import { TRPCClientError } from "@trpc/client";
 
 /** The server rejected the session (expired, revoked or unknown). */
@@ -6,6 +7,14 @@ export function isUnauthorized(err: unknown): boolean {
     err instanceof TRPCClientError &&
     (err.data?.code === "UNAUTHORIZED" || err.data?.httpStatus === 401)
   );
+}
+
+/**
+ * The session was signed out from elsewhere (another device revoked it, or the
+ * password changed): lock like a sign-out instead of going offline.
+ */
+export function isSignedOut(err: unknown): boolean {
+  return isUnauthorized(err) && (err as Error).message === SESSION_SIGNED_OUT;
 }
 
 /** The server can't take the request right now (e.g. a vault is locked); try again later. */

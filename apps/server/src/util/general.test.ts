@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stripQuery } from "../logger";
-import { getConnectionParamsSave, isUniqueViolation } from "./general";
+import { getConnectionParamsSave, isUniqueViolation, sanitizeDeviceName } from "./general";
 
 describe("getConnectionParamsSave", () => {
   it("extracts the four auth fields", () => {
@@ -45,5 +45,21 @@ describe("isUniqueViolation", () => {
     ["undefined", undefined],
   ])("is false for %s", (_label, error) => {
     expect(isUniqueViolation(error)).toBe(false);
+  });
+});
+
+describe("sanitizeDeviceName", () => {
+  it("strips control characters, trims and caps the label", () => {
+    expect(sanitizeDeviceName("  Firefox\non macOS\u0000 ")).toBe("Firefoxon macOS");
+    expect(sanitizeDeviceName("x".repeat(100))).toHaveLength(64);
+  });
+
+  it("decodes a URI-encoded label and keeps a malformed one as sent", () => {
+    expect(sanitizeDeviceName(encodeURIComponent("Basti’s iPhone"))).toBe("Basti’s iPhone");
+    expect(sanitizeDeviceName("100%")).toBe("100%");
+  });
+
+  it.each([[undefined], [""], ["  \u0007 "]])("drops an empty label (%j)", (raw) => {
+    expect(sanitizeDeviceName(raw)).toBeUndefined();
   });
 });

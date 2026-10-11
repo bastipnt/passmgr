@@ -6,9 +6,13 @@ import type { SignedSessionHeaders } from "./signed-request";
  * but with no Fastify req/res. The middleware only reads `ctx.session` and
  * (optionally) `ctx.req?.log`, both of which we control here.
  */
-export function buildTestContext(session: Partial<SignedSessionHeaders> | undefined): Context {
+export function buildTestContext(
+  session: Partial<SignedSessionHeaders> | undefined,
+  deviceName?: string,
+): Context {
   return {
     session: session as Context["session"],
+    deviceName,
     req: undefined as unknown as Context["req"],
     res: undefined as unknown as Context["res"],
   };

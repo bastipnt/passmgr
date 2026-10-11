@@ -263,7 +263,11 @@ describe("loginRouter — logout", () => {
     const authKey = await deriveAuthKey(SESSION_KEY, authSalt);
     await redis.set(
       `session:${SESSION_ID}`,
-      JSON.stringify({ userId: "user-A", rawAuthKey: toBase64(authKey) }),
+      JSON.stringify({
+        userId: "user-A",
+        rawAuthKey: toBase64(authKey),
+        authenticatedAt: Date.now(),
+      }),
       "EX",
       3600,
     );

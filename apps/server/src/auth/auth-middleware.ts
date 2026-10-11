@@ -1,9 +1,14 @@
-import { getMessage, SUBSCRIPTION_SIGNATURE_PATH, verifyHmac } from "@repo/crypto";
+import {
+  getMessage,
+  SESSION_SIGNED_OUT,
+  SUBSCRIPTION_SIGNATURE_PATH,
+  verifyHmac,
+} from "@repo/crypto";
 import { fromBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import type { Context } from "../context";
 import { loggedProcedure, shortHash } from "../logger";
-import { claimNonce, getSession, touchSession } from "../util/redis-utils";
+import { claimNonce, getSession, isSignedOut, touchSession } from "../util/redis-utils";
 
 // Key changes need an OPAQUE login this recent; a restored or stolen
 // long-lived session can't rewrite key material.
@@ -18,6 +23,7 @@ function checkTimestamp(timestamp: string): boolean {
 
 type AuthFailReason =
   | "session_not_found"
+  | "session_signed_out"
   | "missing_auth_headers"
   | "stale_timestamp"
   | "invalid_signature"
@@ -32,10 +38,11 @@ async function denyAuth(
   reason: AuthFailReason,
   sessionId?: string,
   code: "UNAUTHORIZED" | "FORBIDDEN" = "UNAUTHORIZED",
+  message?: string,
 ): Promise<never> {
   const sidHash = sessionId ? await shortHash(sessionId) : undefined;
   log?.warn({ reason, path, sidHash }, "auth.unauthorized");
-  throw new TRPCError({ code });
+  throw new TRPCError({ code, message });
 }
 
 /**
@@ -69,7 +76,20 @@ async function verifySignedRequest(opts: {
   if (!checkTimestamp(timestamp)) return denyAuth(log, path, "stale_timestamp", sessionId);
 
   const session = await getSession(sessionId);
-  if (!session) return denyAuth(log, path, "session_not_found", sessionId);
+  if (!session) {
+    // Signed out from elsewhere: say so, the client locks instead of going offline.
+    if (await isSignedOut(sessionId)) {
+      return denyAuth(
+        log,
+        path,
+        "session_signed_out",
+        sessionId,
+        "UNAUTHORIZED",
+        SESSION_SIGNED_OUT,
+      );
+    }
+    return denyAuth(log, path, "session_not_found", sessionId);
+  }
 
   // The raw input is covered by the HMAC; zod validates its shape in the procedure.
   const message = getMessage(
@@ -121,7 +141,7 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   });
 
   // Sliding expiration: any authenticated activity rolls the 24h TTL forward.
-  void touchSession(sessionId);
+  void touchSession(sessionId, session);
 
   return opts.next({
     ctx: {
