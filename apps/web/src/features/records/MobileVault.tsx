@@ -15,7 +15,7 @@ import { recordPaths, settingsPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
 import { VaultSwitcher } from "@/features/vaults";
 import { createSheetSearch } from "./CreateRecordSheet";
-import { lockVault } from "./lock-vault";
+import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { RecordSortMenu } from "./RecordSortMenu";
@@ -73,6 +73,7 @@ function MobileSearchInput() {
 export default function MobileVault() {
   const { query, sortedRecords, hasGroupLabels } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
+  const lockVault = useLockVault();
 
   return (
     // --list-top: the bar's exact height (top pad + size-12 buttons + pb-3),

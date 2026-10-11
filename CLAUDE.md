@@ -248,7 +248,9 @@ profile with server auth attached: signed requests, `SyncManager` enabled, SSE s
 without server auth (not attached yet, or a session that expired: `UNAUTHORIZED` only detaches). A session ended
 on purpose (signed out from another device, password changed or recovered elsewhere) is refused with message
 `SESSION_SIGNED_OUT` (`isSignedOut`) or a `signedOut` SSE event: the device locks like Sign out
-(`StoreProvider.signedOut` → `onSignedOut`; web reloads and shows a note), its outbox stays. Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
+(`StoreProvider.signedOut` → `onSignedOut`; web reloads and shows a note), its outbox stays. Web lock (`useLockVault`, `features/records/lock-vault.ts`) ends the server session best-effort
+(`endServerSession`: aborted after `END_SERVER_SESSION_TIMEOUT_MS`; the page goes hidden + inert meanwhile) before the reload: the keys are memory-only, so nothing could reuse it; mobile lock keeps it
+(the persisted bundle restores it). Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
 / `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
 database + outbox in every mode; the `online` event (or attaching server auth) syncs.
 

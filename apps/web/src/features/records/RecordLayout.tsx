@@ -32,7 +32,7 @@ import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
 import { createSheetSearch } from "./CreateRecordSheet";
-import { lockVault } from "./lock-vault";
+import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { SyncStatusMenu } from "./SyncStatusMenu";
@@ -96,6 +96,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   const [, navigate] = useLocation();
   const [helpOpen, setHelpOpen] = useState(false);
   const isMobile = useIsMobile();
+  const lockVault = useLockVault();
   const [autoLockMinutes] = usePreference<number>(
     PREF_KEYS.autoLockMinutes,
     AUTO_LOCK_DEFAULT_MINUTES,
