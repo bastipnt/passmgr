@@ -388,6 +388,27 @@ describe("SyncManager push", () => {
     expect(store.ackPendingChange).not.toHaveBeenCalled();
   });
 
+  it("counts a purge of a record the server never got as done", async () => {
+    const purge = change("c1", "r1", 3);
+    purge.record = {
+      ...purge.record,
+      deleted_at: "2026-10-02T00:00:00.000Z",
+      tombstoneKind: "purged",
+    };
+    const store = fakeStore(false, [purge]);
+    const push = pusher((c) => ({
+      clientChangeId: c.clientChangeId,
+      status: "rejected",
+      reason: "not_found",
+    }));
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    expect(store.ackPendingChange).toHaveBeenCalledWith("c1", null);
+    expect(store.parkPendingChange).not.toHaveBeenCalled();
+  });
+
   it("retries a change rejected for an old vault key, prepared again before the next push", async () => {
     const store = fakeStore(false, [change("c1", "r1", 1)]);
     let rekeyed = false;
@@ -776,6 +797,12 @@ describe("toPushChange", () => {
       baseVersion: 2,
       clientUpdatedAt: "2026-10-02T00:00:00.000Z",
     });
+
+    const purge = {
+      ...tombstone,
+      record: { ...tombstone.record, tombstoneKind: "purged" as const },
+    };
+    expect(toPushChange(purge)).toMatchObject({ op: "delete", tombstoneKind: "purged" });
   });
 });
 

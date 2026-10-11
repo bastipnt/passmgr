@@ -270,6 +270,20 @@ Rejected alternatives:
   overwrites newer edits.
 - Always creating a "conflict copy": noisy, and the user has to clean up duplicate records.
 
+> **Amended 2026-10-11** (trash): a tombstone carries `tombstoneKind` (local + server + sync): null
+> is a delete (the record is in the trash), `moved` the source of a move (not in the trash: it lives
+> on in the target), `purged` a record deleted for good. Restore is an update with the tombstone's
+> content, re-encrypted under the vault's current key. A purge (`Vault.purgeRecords`) drops every
+> local version and unsent change of the record and, when the server has it, writes a `purged`
+> tombstone without content on top of the last synced version; it is pushed as a delete with
+> `tombstoneKind: "purged"`, compare-and-swap like any change, and the server drops every version
+> below it in the same transaction (`dropPurgedHistory`), so the purge is final there. The tombstone
+> keeps its seq, so other devices pull it and drop their copies (`dropPurgedHistory`); a pending
+> chain there that ends in a delete goes too, an unsent edit stays on top and restores the record
+> (an edit beats a delete). A delete on a purged head stays purged. A purge that lost the race to
+> an edit (stale) goes on top of it after the pull (no base to merge): the purge wins, the edit's
+> versions are dropped. Offline purges queue like any write.
+
 ### D6 — Vaults in the data model
 
 **Local** (part of schema v2):

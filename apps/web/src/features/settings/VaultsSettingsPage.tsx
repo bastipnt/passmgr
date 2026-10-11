@@ -1,4 +1,5 @@
 import {
+  itemCount,
   ownFingerprint,
   SessionContext,
   useGetRecords,
@@ -33,10 +34,6 @@ import {
   VaultTile,
 } from "@/features/vaults";
 import CreateAccountDialog from "./CreateAccountDialog";
-
-function itemCount(count: number): string {
-  return count === 1 ? "1 item" : `${count} items`;
-}
 
 /**
  * The profile's vaults (ADR 0001 D6): create one, rename it or change its icon

@@ -17,7 +17,7 @@ import {
   SettingsSection,
 } from "@repo/ui-native";
 import { useRouter } from "expo-router";
-import { KeyRound, Layers, ShieldCheck, SlidersHorizontal } from "lucide-react-native";
+import { KeyRound, Layers, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react-native";
 import { useContext, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
@@ -74,6 +74,11 @@ export default function SettingsScreen() {
             title="Security"
             icon={<ShieldCheck size={18} color={iconColor} />}
             onPress={() => router.navigate(settingsPaths.security)}
+          />
+          <SettingsNavRow
+            title="Trash"
+            icon={<Trash2 size={18} color={iconColor} />}
+            onPress={() => router.navigate(settingsPaths.trash)}
           />
         </SettingsGroup>
 

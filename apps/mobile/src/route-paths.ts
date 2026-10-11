@@ -36,6 +36,8 @@ export const settingsPaths = {
   generator: "/settings/generator" as Href,
   security: "/settings/security" as Href,
   vaults: "/settings/vaults" as Href,
+  /** Deleted records: restore or delete for good. */
+  trash: "/settings/trash" as Href,
   /** The vault form sheet: a new vault, or the one given to edit. */
   vault: (vaultId?: string) =>
     (vaultId ? `/settings/vault?vaultId=${vaultId}` : "/settings/vault") as Href,

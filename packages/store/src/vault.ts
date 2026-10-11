@@ -2,6 +2,7 @@ import type { BiometricKeyMaterial } from "@repo/crypto";
 import {
   ACCOUNT_KEY_MATERIAL_KEYS,
   type AccountKeyMaterial,
+  canWriteVault,
   type EncryptedRecordSchema,
   type EncryptedVaultMeta,
   type MemberVault,
@@ -34,6 +35,8 @@ import {
   countParkedChanges,
   countPendingChanges,
   deleteVaultChanges,
+  dropDeletesOfPurged,
+  dropPurgedHistory,
   failPendingChange,
   getHead,
   getParkedChanges,
@@ -44,7 +47,9 @@ import {
   type LocalRecordVersion,
   type PendingChange,
   parkPendingChange,
+  purgeRecord,
   type RecordCiphertext,
+  RecordWriteError,
   type ReencryptedVersion,
   rebasePendingVersions,
   replacePendingCiphertexts,
@@ -62,6 +67,7 @@ import {
   deleteVaultRecords,
   getAllRecordsLatest,
   getByRecordId,
+  getDeletedRecords,
   getRecordHeads,
   type RecordHead,
   upsertRecords,
@@ -199,8 +205,13 @@ export class Vault {
     await this.ready();
     if (records.length === 0) return;
     await this.transaction(async (tx) => {
+      await dropDeletesOfPurged(records, tx);
       await rebasePendingVersions(records, tx);
       await upsertRecords(records, tx);
+      await dropPurgedHistory(
+        records.map((r) => r.recordId),
+        tx,
+      );
     });
   }
 
@@ -245,6 +256,39 @@ export class Vault {
       for (const change of changes) written.push(await writeLocalChange(change, now, tx));
       return written;
     });
+  }
+
+  /**
+   * Delete records for good, in one transaction (`purgeRecord`): every version
+   * and unsent change goes; one the server has leaves a `purged` tombstone to
+   * push. A record that isn't here or is purged already is skipped. Throws,
+   * purging nothing, for a record in a vault the user may not write to: the
+   * server would refuse it, and the local copy would be gone for nothing.
+   */
+  async purgeRecords(recordIds: readonly string[]): Promise<void> {
+    await this.ready();
+    const now = new Date().toISOString();
+    await this.transaction(async (tx) => {
+      const writable = new Set(
+        (await getVaults(tx)).filter((v) => canWriteVault(v.role)).map((v) => v.vaultId),
+      );
+      for (const recordId of recordIds) {
+        const head = await getHead(recordId, tx);
+        if (head && !writable.has(head.vaultId)) {
+          throw new RecordWriteError(recordId, "its vault is read-only");
+        }
+        await purgeRecord(recordId, now, now, tx);
+      }
+    });
+  }
+
+  /**
+   * Records in the trash (deleted, not moved or purged): their tombstones, which
+   * carry the content they had, of one vault or of all of them.
+   */
+  async getDeletedRecords(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+    await this.ready();
+    return await getDeletedRecords(this.db, vaultId);
   }
 
   /** Changes waiting for the server, oldest first. */
@@ -543,8 +587,13 @@ export class Vault {
       if (vaultsChanged) await replaceVaults(vaults, tx);
 
       const pulled = records.filter((r) => current.has(r.vaultId));
+      await dropDeletesOfPurged(pulled, tx);
       await rebasePendingVersions(pulled, tx, { resolve, receivedAt: serverTimestamp });
       await upsertRecords(pulled, tx);
+      await dropPurgedHistory(
+        pulled.map((r) => r.recordId),
+        tx,
+      );
       await setSyncCursors(
         Object.fromEntries(Object.entries(cursors).filter(([vaultId]) => current.has(vaultId))),
         tx,

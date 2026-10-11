@@ -21,6 +21,8 @@ export const records = sqliteTable(
     created_at: text(),
     updated_at: text(),
     deleted_at: text(),
+    // `TombstoneKind` of a tombstone that isn't in the trash: `moved` or `purged`.
+    tombstoneKind: text({ enum: ["moved", "purged"] }),
 
     // `pending`: written on this device and not acknowledged by the server yet
     // (it has an `outbox` entry); its version is provisional (ADR 0001 D5).

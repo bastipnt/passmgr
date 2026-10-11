@@ -331,6 +331,13 @@ A pull that collides with pending local versions merges field by field (ADR 0001
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
 
+Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`, mobile `settings/trash`): a
+tombstone's `tombstoneKind` is null for a delete (in the trash), `moved` for a move's source, `purged` for
+a record deleted for good. Restore = update with the tombstone's content (`RecordRepository.restore`).
+Purge (`RecordRepository.purge` → `Vault.purgeRecords`) drops every local version + unsent change; a
+record the server has leaves a contentless `purged` tombstone, pushed as `delete` + `tombstoneKind`,
+and the server (and every device that pulls it) drops all versions below it (`dropPurgedHistory`).
+
 Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
 `keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`
 loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Every record version carries the

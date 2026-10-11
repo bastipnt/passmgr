@@ -1,6 +1,7 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
+import { getProfile } from "./profile-schema";
 import { upsertRecords } from "./records-schema";
 import { outbox, records, vaults } from "./tables";
 
@@ -33,12 +34,12 @@ export type RecordCiphertext = Pick<
  * One local write (ADR 0001 D1). `update` appends to the record whatever its
  * head is, a tombstone included (an edit restores a deleted record, D5);
  * `delete` appends a tombstone carrying the head's ciphertext, so the history
- * still opens.
+ * still opens (`moved`: the source of a move, kept out of the trash).
  */
 export type LocalRecordChange =
   | ({ kind: "create" } & RecordCiphertext)
   | ({ kind: "update" } & RecordCiphertext)
-  | { kind: "delete"; recordId: string; clientUpdatedAt: string };
+  | { kind: "delete"; recordId: string; clientUpdatedAt: string; moved?: boolean };
 
 export class RecordWriteError extends Error {
   readonly recordId: string;
@@ -104,9 +105,18 @@ export async function writeLocalChange(
       clientUpdatedAt: change.clientUpdatedAt,
       version: head.version + 1,
       deleted_at: now,
+      tombstoneKind: change.moved ? "moved" : null,
     };
   }
 
+  return await insertPending(row, now, db);
+}
+
+async function insertPending(
+  row: Omit<EncryptedRecordSchema, "created_at" | "updated_at">,
+  now: string,
+  db: LocalDb,
+): Promise<EncryptedRecordSchema> {
   const written = { ...row, created_at: now, updated_at: now };
   await db.insert(records).values({ ...written, syncState: "pending" });
   await db.insert(outbox).values({
@@ -117,6 +127,130 @@ export async function writeLocalChange(
   });
   return written;
 }
+
+/**
+ * Delete a record for good (the trash's "delete permanently"): every version
+ * and unsent change of it goes. A record the server has gets a `purged`
+ * tombstone without content on top of the last synced version, pushed as a
+ * purge, so the server and the other devices drop their copies too. A linked
+ * profile's record with unsent changes only gets one on top of the newest of
+ * them: they may be on their way (a push in flight), and the server answers a
+ * purge of a record it never got `not_found`, which counts as done. Only a
+ * `local` profile's record just goes (it never syncs). A record that's gone or
+ * purged already (e.g. a purge pulled meanwhile) is skipped. Run inside a
+ * transaction.
+ */
+export async function purgeRecord(
+  recordId: string,
+  clientUpdatedAt: string,
+  now: string,
+  db: LocalDb,
+): Promise<void> {
+  const head = await getHead(recordId, db);
+  if (!head || head.tombstoneKind === "purged") return;
+  const synced = await db
+    .select({ version: records.version })
+    .from(records)
+    .where(and(eq(records.recordId, recordId), eq(records.syncState, "synced")))
+    .orderBy(desc(records.version))
+    .limit(1)
+    .get();
+
+  const linked = (await getProfile(db))?.mode === "linked";
+
+  await db.delete(outbox).where(eq(outbox.recordId, recordId));
+  await db.delete(records).where(eq(records.recordId, recordId));
+  if (!synced && !linked) return;
+  await insertPending(
+    {
+      recordId,
+      vaultId: head.vaultId,
+      ...PURGED_CONTENT,
+      cryptoVersion: head.cryptoVersion,
+      keyVersion: head.keyVersion,
+      clientUpdatedAt,
+      version: (synced ? synced.version : head.version) + 1,
+      deleted_at: now,
+      tombstoneKind: "purged",
+    },
+    now,
+    db,
+  );
+}
+
+/** A purged tombstone's (empty) ciphertext: nothing of the record is kept. */
+const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
+
+/**
+ * Pulled purged tombstones (another device deleted these records for good): a
+ * pending chain here that ends in a delete goes, it wanted the same. Unsent
+ * edits stay (an edit beats a delete, D5): they move on top of the tombstone
+ * and restore the record. Only a purge that is the record's newest version
+ * counts: an old one (a full re-pull of a record restored since) leaves a
+ * delete made after the restore alone. Run inside a transaction, before the
+ * rows are rebased; `dropPurgedHistory` after they are written.
+ */
+export async function dropDeletesOfPurged(
+  incoming: readonly EncryptedRecordSchema[],
+  db: LocalDb,
+): Promise<void> {
+  const newest = new Map<string, number>();
+  for (const { recordId, version } of incoming) {
+    newest.set(recordId, Math.max(version, newest.get(recordId) ?? 0));
+  }
+  for (const row of incoming) {
+    if (row.tombstoneKind !== "purged" || newest.get(row.recordId) !== row.version) continue;
+    const head = await getHead(row.recordId, db);
+    if (head?.syncState !== "pending" || head.deleted_at === null) continue;
+    const synced = await db
+      .select({ version: max(records.version) })
+      .from(records)
+      .where(and(eq(records.recordId, row.recordId), eq(records.syncState, "synced")))
+      .get();
+    if ((synced?.version ?? 0) > row.version) continue;
+    await db.delete(outbox).where(eq(outbox.recordId, row.recordId));
+    await db
+      .delete(records)
+      .where(and(eq(records.recordId, row.recordId), eq(records.syncState, "pending")));
+  }
+}
+
+/**
+ * Drop the synced versions below a purged tombstone of these records, pulled
+ * or still pending here: whatever reached the device of a purged history (a
+ * pull of edits that lost to a purge pushed from here too) doesn't stay.
+ */
+export async function dropPurgedHistory(recordIds: Iterable<string>, db: LocalDb): Promise<void> {
+  const ids = [...new Set(recordIds)];
+  // One lookup per chunk, not per record: a pull page holds hundreds, purges are rare.
+  for (let i = 0; i < ids.length; i += PURGE_LOOKUP_CHUNK_SIZE) {
+    const purges = await db
+      .select({ recordId: records.recordId, version: max(records.version) })
+      .from(records)
+      .where(
+        and(
+          inArray(records.recordId, ids.slice(i, i + PURGE_LOOKUP_CHUNK_SIZE)),
+          eq(records.tombstoneKind, "purged"),
+        ),
+      )
+      .groupBy(records.recordId);
+    for (const { recordId, version } of purges) {
+      if (version === null) continue;
+      await db
+        .delete(records)
+        .where(
+          and(
+            eq(records.recordId, recordId),
+            eq(records.syncState, "synced"),
+            lt(records.version, version),
+          ),
+        );
+    }
+  }
+}
+
+// Well below SQLite's bound-variable limit per statement.
+const PURGE_LOOKUP_CHUNK_SIZE = 500;
 
 function selectPendingChanges(db: LocalDb) {
   return db
@@ -365,7 +499,9 @@ export async function rebasePendingVersions(
         .where(and(eq(outbox.recordId, recordId), eq(outbox.version, version)));
     }
 
-    if (!resolve || !base) continue;
+    // A purge has nothing to merge: whichever side came last stays on top.
+    const purged = [...chain, ...remote].some((row) => row.tombstoneKind === "purged");
+    if (!resolve || !base || purged) continue;
     let merged: RecordCiphertext | null;
     try {
       const local = chain.map((row) => ({ ...row, version: row.version + shift }));

@@ -33,3 +33,8 @@ export function getRecordSubtitle(record: RecordData): string | undefined {
 export function getRecordWebsites(record: RecordData): { value: string }[] | undefined {
   return record.type === "login" ? record.websites : undefined;
 }
+
+/** "1 item" / "3 items": a count of records, for labels. */
+export function itemCount(count: number): string {
+  return count === 1 ? "1 item" : `${count} items`;
+}

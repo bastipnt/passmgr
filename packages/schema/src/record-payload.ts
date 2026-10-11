@@ -3,6 +3,15 @@ import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
 import { vaultKeyUpdateSchema } from "./sharing-schema";
 import { memberVaultSchema } from "./vault-schema";
 
+/**
+ * Why a record is gone without being in the trash: `moved` to another vault (a
+ * new record there), or `purged` (permanently deleted: the server drops every
+ * other version and keeps this one without content, so other devices drop
+ * theirs too).
+ */
+export const tombstoneKindSchema = z.enum(["moved", "purged"]);
+export type TombstoneKind = z.infer<typeof tombstoneKindSchema>;
+
 export const encryptedRecordSchema = z.object({
   recordId: z.uuid(),
   vaultId: z.uuid(),
@@ -16,6 +25,9 @@ export const encryptedRecordSchema = z.object({
   created_at: z.string().nullable().optional(),
   updated_at: z.string().nullable().optional(),
   deleted_at: z.string().nullable().optional(),
+  // What a tombstone (`deleted_at` set) marks: null a delete (in the trash),
+  // `moved` the source of a move, `purged` a record deleted for good.
+  tombstoneKind: tombstoneKindSchema.nullable().optional(),
 });
 
 export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema> & {
@@ -37,7 +49,8 @@ const pushChangeBase = {
 /**
  * One local change to push (ADR 0001 D5/D8): compare-and-swap on `baseVersion`,
  * the server version the change builds on (0: a new record). `put` writes the
- * new ciphertext (restoring a deleted record); `delete` tombstones the record.
+ * new ciphertext (restoring a deleted record); `delete` tombstones the record
+ * (or purges it, `tombstoneKind`).
  */
 export const pushChangeSchema = z.discriminatedUnion("op", [
   z.object({
@@ -54,6 +67,8 @@ export const pushChangeSchema = z.discriminatedUnion("op", [
     ...pushChangeBase,
     op: z.literal("delete"),
     baseVersion: z.number().int().positive(),
+    // A plain delete when absent. `purged` deletes the record's history for good.
+    tombstoneKind: tombstoneKindSchema.optional(),
   }),
 ]);
 

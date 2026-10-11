@@ -1,10 +1,10 @@
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, desc, eq, inArray, isNull, max, min, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, isNotNull, isNull, max, min, type SQL, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalDb } from "../local-db";
 import { records } from "./tables";
 
-// 11 bound columns per row: well below SQLite's variable limit per statement.
+// 12 bound columns per row: well below SQLite's variable limit per statement.
 const UPSERT_CHUNK_SIZE = 500;
 
 /**
@@ -23,6 +23,7 @@ const replaceOnConflict = {
     created_at: sql`excluded.created_at`,
     updated_at: sql`excluded.updated_at`,
     deleted_at: sql`excluded.deleted_at`,
+    tombstoneKind: sql`excluded.tombstoneKind`,
     syncState: sql`excluded.syncState`,
   },
 };
@@ -52,6 +53,7 @@ export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb):
       created_at: r.created_at,
       updated_at: r.updated_at,
       deleted_at: r.deleted_at,
+      tombstoneKind: r.tombstoneKind ?? null,
     }));
     await db.insert(records).values(chunk).onConflictDoUpdate(replaceOnConflict);
   }
@@ -64,6 +66,29 @@ export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb):
 export async function getAllRecordsLatest(
   db: LocalDb,
   vaultId?: string,
+): Promise<EncryptedRecordSchema[]> {
+  return await getLatestVersions(db, isNull(records.deleted_at), vaultId);
+}
+
+/**
+ * The records in the trash: deleted (not moved or purged), as their tombstone,
+ * which carries the content they had, with its first creation date.
+ */
+export async function getDeletedRecords(
+  db: LocalDb,
+  vaultId?: string,
+): Promise<EncryptedRecordSchema[]> {
+  return await getLatestVersions(
+    db,
+    and(isNotNull(records.deleted_at), isNull(records.tombstoneKind)),
+    vaultId,
+  );
+}
+
+async function getLatestVersions(
+  db: LocalDb,
+  filter: SQL | undefined,
+  vaultId: string | undefined,
 ): Promise<EncryptedRecordSchema[]> {
   const latest = db
     .select({
@@ -82,12 +107,7 @@ export async function getAllRecordsLatest(
       latest,
       and(eq(records.recordId, latest.recordId), eq(records.version, latest.maxVersion)),
     )
-    .where(
-      and(
-        isNull(records.deleted_at),
-        vaultId === undefined ? undefined : eq(records.vaultId, vaultId),
-      ),
-    );
+    .where(and(filter, vaultId === undefined ? undefined : eq(records.vaultId, vaultId)));
 
   return rows.map(({ record, firstCreatedAt }) => ({
     ...record,

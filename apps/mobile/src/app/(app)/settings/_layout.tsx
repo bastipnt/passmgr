@@ -49,6 +49,7 @@ export default function SettingsLayout() {
       <Stack.Screen name="security" options={{ title: "Security" }} />
       <Stack.Screen name="vaults" options={{ title: "Vaults" }} />
       <Stack.Screen name="members" options={{ title: "Members" }} />
+      <Stack.Screen name="trash" options={{ title: "Trash" }} />
       <Stack.Screen name="vault" options={formSheet} />
       <Stack.Screen name="member" options={formSheet} />
       <Stack.Screen name="invite" options={formSheet} />

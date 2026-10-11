@@ -385,3 +385,165 @@ describe("applySync with pending changes", () => {
     expect(await vault.countPendingChanges()).toBe(0);
   });
 });
+
+describe("trash and purge", () => {
+  const sync = (...records: EncryptedRecordSchema[]) =>
+    vault.applySync({ records, vaults: [personal], cursors: {}, serverTimestamp: T });
+
+  it("lists deleted records, not moved or purged ones, as their tombstone", async () => {
+    await sync(serverRow("r1", 1), serverRow("r2", 1), serverRow("r3", 1));
+    await vault.writeLocalChanges([
+      { kind: "delete", recordId: "r1", clientUpdatedAt: T },
+      { kind: "delete", recordId: "r2", clientUpdatedAt: T, moved: true },
+    ]);
+    await sync(serverRow("r3", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }));
+
+    expect(await vault.getDeletedRecords()).toMatchObject([
+      { recordId: "r1", version: 2, encryptedData: "server-r1-1" },
+    ]);
+    expect((await vault.getByRecordId("r2"))?.tombstoneKind).toBe("moved");
+    expect(await vault.getDeletedRecords("v-work")).toEqual([]);
+  });
+
+  it("purges a synced record to one pending tombstone without content", async () => {
+    await sync(serverRow("r1", 1), serverRow("r1", 2));
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+
+    await vault.purgeRecords(["r1"]);
+
+    expect(await history("r1")).toEqual([[3, "", "pending"]]);
+    expect(await vault.getPendingChanges()).toMatchObject([
+      {
+        record: {
+          recordId: "r1",
+          version: 3,
+          tombstoneKind: "purged",
+          deleted_at: expect.any(String),
+        },
+      },
+    ]);
+    expect(await vault.getDeletedRecords()).toEqual([]);
+    // Purged already (or gone): nothing more to do.
+    await vault.purgeRecords(["r1", "missing"]);
+    expect(await history("r1")).toEqual([[3, "", "pending"]]);
+  });
+
+  it("refuses to purge a record of a read-only vault", async () => {
+    await vault.setAccountKeyMaterial(
+      {
+        passwordKekParams: { t: 3, m: 65536, p: 4 },
+        passwordKekSalt: "salt",
+        encryptedAccountKey: "enc",
+        accountKeyEncryptionNonce: "nonce",
+        userKeyPair: {
+          keyVersion: 1,
+          publicKey: "pub",
+          encryptedPrivateKey: "priv",
+          privateKeyEncryptionNonce: "n",
+        },
+      },
+      [personal, { ...work, role: "read" }],
+    );
+    await vault.upsertRecords([serverRow("r1", 1, { vaultId: "v-work" })]);
+
+    await expect(vault.purgeRecords(["r1"])).rejects.toBeInstanceOf(RecordWriteError);
+    expect(await history("r1")).toHaveLength(1);
+  });
+
+  it("drops a local profile's record without a trace", async () => {
+    await sync();
+    await vault.writeLocalChanges([{ kind: "create", ...ciphertext("r1", "a") }]);
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+
+    await vault.purgeRecords(["r1"]);
+
+    expect(await vault.getByRecordId("r1")).toBeUndefined();
+    expect(await vault.countPendingChanges()).toBe(0);
+  });
+
+  it("purges a linked profile's unsent record with a tombstone: its create may be in flight", async () => {
+    await vault.setAccountKeyMaterial(
+      {
+        passwordKekParams: { t: 3, m: 65536, p: 4 },
+        passwordKekSalt: "salt",
+        encryptedAccountKey: "enc",
+        accountKeyEncryptionNonce: "nonce",
+        userKeyPair: {
+          keyVersion: 1,
+          publicKey: "pub",
+          encryptedPrivateKey: "priv",
+          privateKeyEncryptionNonce: "n",
+        },
+      },
+      [personal],
+      { profileId: "p1", mode: "linked", email: "a@example.com", userId: "u1" },
+    );
+    await vault.writeLocalChanges([{ kind: "create", ...ciphertext("r1", "a") }]);
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+
+    await vault.purgeRecords(["r1"]);
+
+    expect(await history("r1")).toEqual([[3, "", "pending"]]);
+    expect(await vault.getPendingChanges()).toMatchObject([
+      { record: { version: 3, tombstoneKind: "purged" } },
+    ]);
+  });
+
+  it("drops the history below a pulled purge, and a pending delete with it", async () => {
+    await sync(serverRow("r1", 1), serverRow("r2", 1));
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r2", clientUpdatedAt: T }]);
+
+    await sync(
+      serverRow("r1", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }),
+      serverRow("r2", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }),
+    );
+
+    expect(await history("r1")).toEqual([[2, "", "synced"]]);
+    expect(await history("r2")).toEqual([[2, "", "synced"]]);
+    expect(await vault.countPendingChanges()).toBe(0);
+  });
+
+  it("keeps an unsent edit on top of a pulled purge (an edit beats a delete)", async () => {
+    await sync(serverRow("r1", 1));
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
+
+    await sync(serverRow("r1", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }));
+
+    expect(await history("r1")).toEqual([
+      [3, "mine", "pending"],
+      [2, "", "synced"],
+    ]);
+    expect(await pending()).toEqual([["r1", 3, "mine"]]);
+  });
+
+  it("drops edits pulled under a purge pushed from here", async () => {
+    await sync(serverRow("r1", 1));
+    await vault.purgeRecords(["r1"]);
+
+    // Another device edited before the purge reached the server.
+    await sync(serverRow("r1", 2));
+
+    expect(await history("r1")).toEqual([[3, "", "pending"]]);
+  });
+});
+
+describe("trash and purge — stale purges", () => {
+  it("leaves a delete made after a restore when an old purge is pulled again", async () => {
+    const sync = (...records: EncryptedRecordSchema[]) =>
+      vault.applySync({ records, vaults: [personal], cursors: {}, serverTimestamp: T });
+    await sync(
+      serverRow("r1", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }),
+      serverRow("r1", 3),
+    );
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+
+    // A full re-pull: the old purge comes again, the restore after it too.
+    await sync(
+      serverRow("r1", 2, { deleted_at: T, tombstoneKind: "purged", encryptedData: "" }),
+      serverRow("r1", 3),
+    );
+
+    expect(await vault.countPendingChanges()).toBe(1);
+    expect(await vault.getDeletedRecords()).toMatchObject([{ recordId: "r1", version: 4 }]);
+  });
+});

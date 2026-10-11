@@ -41,6 +41,10 @@ export const recordsTable = pgTable(
     // The client's id for the change that wrote this version, unique per
     // record: a retried push finds it instead of appending again (ADR 0001 D5).
     clientChangeId: varchar().notNull(),
+    // Set on a tombstone that isn't in the trash (`TombstoneKind`): `moved` (the
+    // source of a move) or `purged` (deleted for good, without content: nothing
+    // of the record is kept below it; a put on top starts it over).
+    tombstoneKind: varchar({ enum: ["moved", "purged"] }),
     ...timestamps,
   },
   (table) => [

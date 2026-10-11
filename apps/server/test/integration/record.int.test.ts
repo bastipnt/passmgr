@@ -142,6 +142,57 @@ describe("record.push", () => {
     ]);
   });
 
+  it("purges a record: drops its history and keeps one tombstone without content", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId, { data: "SECRET" });
+    await push(alice, record);
+    await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+
+    const purge = {
+      ...deleteChange(alice.vaultId, record.recordId, 2),
+      tombstoneKind: "purged" as const,
+    };
+    expect(await push(alice, purge)).toMatchObject([
+      {
+        status: "applied",
+        record: {
+          version: 3,
+          encryptedData: "",
+          tombstoneKind: "purged",
+          deleted_at: expect.any(String),
+        },
+      },
+    ]);
+    const left = await history(alice, record.recordId);
+    expect(left).toMatchObject([{ version: 3, encryptedData: "", tombstoneKind: "purged" }]);
+
+    // A delete on top stays purged; an edit starts the record over.
+    const again = deleteChange(alice.vaultId, record.recordId, 3);
+    const restore = putChange(alice.vaultId, {
+      recordId: record.recordId,
+      baseVersion: 4,
+      data: "NEW",
+    });
+    expect(await push(alice, again, restore)).toMatchObject([
+      { status: "applied", record: { version: 4, encryptedData: "", tombstoneKind: "purged" } },
+      { status: "applied", record: { version: 5, encryptedData: "NEW", tombstoneKind: null } },
+    ]);
+  });
+
+  it("marks the source of a move, keeping its content", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId, { data: "LAST" });
+    await push(alice, record);
+    const moved = {
+      ...deleteChange(alice.vaultId, record.recordId, 1),
+      tombstoneKind: "moved" as const,
+    };
+    expect(await push(alice, moved)).toMatchObject([
+      { status: "applied", record: { version: 2, encryptedData: "LAST", tombstoneKind: "moved" } },
+    ]);
+    expect(await history(alice, record.recordId)).toHaveLength(2);
+  });
+
   it("answers a delete that missed an edit as stale", async () => {
     const alice = await signUp("alice@example.com");
     const record = putChange(alice.vaultId);

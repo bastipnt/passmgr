@@ -32,6 +32,11 @@ export class RecordRepository {
     return await this.vault.getAllLatest(vaultId);
   }
 
+  /** The records in the trash (deleted, not moved or purged), as their tombstones. */
+  async getDeleted(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+    return await this.vault.getDeletedRecords(vaultId);
+  }
+
   /** Every record id on the device, tombstones included. */
   async heads(): Promise<RecordHead[]> {
     return await this.vault.getRecordHeads();
@@ -66,9 +71,24 @@ export class RecordRepository {
     return updated!;
   }
 
-  /** Tombstone the record; its history stays. */
+  /** Tombstone the record (it goes to the trash); its history stays. */
   async delete(recordId: string): Promise<void> {
     await this.write([{ kind: "delete", recordId, clientUpdatedAt: now() }]);
+  }
+
+  /**
+   * Take a record out of the trash: `data` (its tombstone's content) as its
+   * next version, encrypted under the vault's current key.
+   */
+  async restore(record: RecordRef, data: RecordData): Promise<EncryptedRecordSchema> {
+    return await this.update(record, data);
+  }
+
+  /** Delete records for good, with their history, here and on the server (`Vault.purgeRecords`). */
+  async purge(recordIds: readonly string[]): Promise<void> {
+    if (recordIds.length === 0) return;
+    await this.vault.purgeRecords(recordIds);
+    this.onWrite();
   }
 
   /**
@@ -85,7 +105,7 @@ export class RecordRepository {
     const recordId = crypto.randomUUID();
     const [moved] = await this.write([
       { kind: "create", ...this.encrypt(data, { recordId, vaultId: targetVaultId }) },
-      { kind: "delete", recordId: record.recordId, clientUpdatedAt: now() },
+      { kind: "delete", recordId: record.recordId, clientUpdatedAt: now(), moved: true },
     ]);
     return moved!;
   }

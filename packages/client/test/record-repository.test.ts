@@ -13,6 +13,7 @@ let vault: Vault;
 let repository: RecordRepository;
 let onWrite: ReturnType<typeof vi.fn<() => void>>;
 let personalId: string;
+let personalVault: MemberVault;
 let workId: string;
 
 const previousParams = getPasswordKekParams();
@@ -23,7 +24,8 @@ beforeAll(async () => {
   const work = secretsStore.createVault({ name: "Work" });
   const workVault: MemberVault = { ...work, kind: "shared", role: "owner" };
   secretsStore.loadVaultKeys([...vaults, workVault]);
-  personalId = vaults[0]!.vaultId;
+  personalVault = vaults[0]!;
+  personalId = personalVault.vaultId;
   workId = work.vaultId;
 });
 afterAll(() => {
@@ -79,6 +81,31 @@ describe("RecordRepository", () => {
     expect((await repository.getAll(workId)).map((r) => r.recordId)).toEqual([moved.recordId]);
     expect(await repository.getAll(personalId)).toEqual([]);
     expect((await repository.getById(source.recordId))?.deleted_at).not.toBeNull();
+    // Gone from here, but not to the trash: it lives on in the target.
+    expect(await repository.getDeleted()).toEqual([]);
+  });
+
+  it("puts a deleted record in the trash, restores it and purges it", async () => {
+    // A purge checks the vault is writable.
+    await vault.saveVault(personalVault);
+    const created = await repository.create(login("Trashed"));
+    await repository.delete(created.recordId);
+
+    const [trashed] = await repository.getDeleted();
+    expect(trashed).toMatchObject({ recordId: created.recordId });
+    expect(titleOf(trashed!)).toBe("Trashed");
+
+    await repository.restore(created, login("Trashed"));
+    expect(await repository.getDeleted()).toEqual([]);
+    expect((await repository.getAll()).map((r) => r.recordId)).toEqual([created.recordId]);
+
+    await repository.delete(created.recordId);
+    onWrite.mockClear();
+    await repository.purge([created.recordId]);
+    // Never pushed: nothing is left to tell the server.
+    expect(await repository.getById(created.recordId)).toBeUndefined();
+    expect(await vault.countPendingChanges()).toBe(0);
+    expect(onWrite).toHaveBeenCalledTimes(1);
   });
 
   it("writes nothing (and doesn't schedule a sync) when a change doesn't fit", async () => {

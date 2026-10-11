@@ -50,6 +50,7 @@ export default function SettingsOverview({ className }: SettingsOverviewProps) {
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />
           <SidebarItem title="Security" path={settingsPaths.security} />
           <SidebarItem title="Pass Monitor" path={settingsPaths.passMonitor} />
+          <SidebarItem title="Trash" path={settingsPaths.trash} />
         </ItemGroup>
       </div>
     </section>

@@ -416,6 +416,15 @@ export class SyncManager {
         await this.store.ackPendingChange(change.changeId, result.record);
         continue;
       }
+      if (
+        result?.status === "rejected" &&
+        result.reason === "not_found" &&
+        change.record.tombstoneKind === "purged"
+      ) {
+        // A purge of a record the server never got (its create never arrived): done.
+        await this.store.ackPendingChange(change.changeId, null);
+        continue;
+      }
       failed.add(change.record.recordId);
       if (result?.status === "rejected" && result.reason === "key_version") {
         // Under a key the vault rotated away from: re-encrypted (`prepareOutbox`)
@@ -527,7 +536,10 @@ export function toPushChange({ changeId, record }: PendingChange): PushChange {
     baseVersion: record.version - 1,
     clientUpdatedAt: record.clientUpdatedAt,
   };
-  if (record.deleted_at) return { ...common, op: "delete" };
+  if (record.deleted_at) {
+    const { tombstoneKind } = record;
+    return tombstoneKind ? { ...common, op: "delete", tombstoneKind } : { ...common, op: "delete" };
+  }
   return {
     ...common,
     op: "put",

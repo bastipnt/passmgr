@@ -2,7 +2,7 @@ import type { DecryptedRecord } from "@repo/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
-import { decryptRecordWithWorker } from "../util/decrypt-record";
+import { decryptRecordRow } from "../util/decrypt-record";
 
 /**
  * Every stored revision of a record, newest first, decrypted client-side.
@@ -31,17 +31,9 @@ export function useRecordHistory(recordId: string | undefined) {
     queryFn: async (): Promise<DecryptedRecord[]> => {
       const encrypted = await requireActive(store).records.history(recordId!);
       const results = await Promise.allSettled(
-        encrypted.map(async (row) => ({
-          ...(await decryptRecordWithWorker(row)),
-          recordId: row.recordId,
-          vaultId: row.vaultId,
-          version: row.version,
-          clientUpdatedAt: row.clientUpdatedAt,
-          created_at: row.created_at ?? null,
-          // Per-revision rows carry no first-created marker; each row's own
-          // `created_at` is when that revision was written.
-          firstCreatedAt: null,
-        })),
+        // Per-revision rows carry no first-created marker; each row's own
+        // `created_at` is when that revision was written.
+        encrypted.map((row) => decryptRecordRow(row, null)),
       );
       // A revision that doesn't open (or is in a format this client can't
       // read) is left out, like in the record list, rather than failing the

@@ -62,5 +62,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "CREATE TABLE `revoked_vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`role` text NOT NULL,\n\t`keyVersion` integer NOT NULL,\n\t`encryptedVaultKey` text NOT NULL,\n\t`vaultKeyEncryptionNonce` text NOT NULL,\n\t`previousKeys` text DEFAULT '[]' NOT NULL,\n\t`encryptedMeta` text NOT NULL,\n\t`metaEncryptionNonce` text NOT NULL,\n\t`revokedAt` text NOT NULL\n);",
       "CREATE INDEX `revoked_records_vault_idx` ON `revoked_records` (`vaultId`);"
     ]
+  },
+  {
+    "name": "20261011195948_trash",
+    "statements": [
+      "ALTER TABLE `records` ADD `tombstoneKind` text;"
+    ]
   }
 ];

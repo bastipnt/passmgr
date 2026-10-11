@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { decryptRecordWithWorker } from "../util/decrypt-record";
+import { decryptRecordRow } from "../util/decrypt-record";
 import { timed } from "../util/perf";
 import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-info";
 import { SessionContext } from "./SessionProvider";
@@ -38,19 +38,6 @@ export function useRecordsContext() {
 // The version too: a sync can renumber a pending local version without touching its ciphertext.
 function buildFingerprint(record: EncryptedRecordSchema): string {
   return `${record.vaultId}|${record.version}|${record.encryptedData}|${record.encryptionNonce}`;
-}
-
-async function decryptRecord(encrypted: EncryptedRecordSchema): Promise<DecryptedRecord> {
-  const decrypted = await decryptRecordWithWorker(encrypted);
-  return {
-    ...decrypted,
-    recordId: encrypted.recordId,
-    vaultId: encrypted.vaultId,
-    version: encrypted.version,
-    clientUpdatedAt: encrypted.clientUpdatedAt,
-    created_at: encrypted.created_at ?? null,
-    firstCreatedAt: encrypted.firstCreatedAt ?? null,
-  };
 }
 
 type DecryptedRecordsProviderProps = {
@@ -103,7 +90,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     // out and retried on the next run, instead of hiding every other record.
     if (toDecrypt.length > 0) {
       const results = await timed(`decrypt ${toDecrypt.length} records`, () =>
-        Promise.allSettled(toDecrypt.map(decryptRecord)),
+        Promise.allSettled(toDecrypt.map((row) => decryptRecordRow(row))),
       );
 
       let failed = 0;
@@ -171,7 +158,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
         recordsMapRef.current.delete(id);
         fingerprintMapRef.current.delete(id);
       } else {
-        const decrypted = await decryptRecord(encrypted);
+        const decrypted = await decryptRecordRow(encrypted);
         recordsMapRef.current.set(id, decrypted);
         fingerprintMapRef.current.set(id, buildFingerprint(encrypted));
       }

@@ -1,4 +1,5 @@
 import {
+  itemCount,
   type OpenedInvitation,
   ownFingerprint,
   type RevokedVaultInfo,
@@ -24,10 +25,6 @@ import { useCSSVariable } from "uniwind";
 import { Fingerprint } from "@/features/vaults/Fingerprint";
 import { VaultTile } from "@/features/vaults/VaultTile";
 import { settingsPaths } from "@/route-paths";
-
-function itemCount(count: number): string {
-  return count === 1 ? "1 item" : `${count} items`;
-}
 
 /**
  * Web's Settings → Vaults: every vault and a new one. A shared vault opens its

@@ -13,6 +13,7 @@ const VaultsSettingsPage = lazyPreload(() => import("./VaultsSettingsPage"));
 const GeneralSettingsPage = lazyPreload(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazyPreload(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazyPreload(() => import("./SecuritySettingsPage"));
+const TrashPage = lazyPreload(() => import("./TrashPage"));
 const PassMonitorPage = lazyPreload(() => import("./PassMonitorPage"));
 const ReusedPasswordsPage = lazyPreload(() => import("./ReusedPasswordsPage"));
 const DuplicatesPage = lazyPreload(() => import("./DuplicatesPage"));
@@ -45,6 +46,7 @@ export default function SettingsRoutes() {
         <Route path={settingsPaths.general} component={GeneralSettingsPage} />
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />
+        <Route path={settingsPaths.trash} component={TrashPage} />
         <Route path={settingsPaths.passMonitor} component={PassMonitorPage} />
         <Route path={settingsPaths.reusedPasswords} component={ReusedPasswordsPage} />
         <Route path={settingsPaths.duplicates} component={DuplicatesPage} />

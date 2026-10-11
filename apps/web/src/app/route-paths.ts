@@ -49,6 +49,8 @@ export const settingsPaths = {
   general: "/settings/general",
   generator: "/settings/generator",
   security: "/settings/security",
+  /** Deleted records: restore or delete for good. */
+  trash: "/settings/trash",
   passMonitor: "/settings/pass-monitor",
   reusedPasswords: "/settings/reused-passwords",
   duplicates: "/settings/pass-monitor/duplicates",

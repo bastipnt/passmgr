@@ -1,6 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { requireActive, useStore } from "../providers/StoreProvider";
+import { recordDataOf } from "../util/decrypt-record";
 import { useRefreshRecord } from "./use-records";
 
 type UseMoveRecordOpts = {
@@ -25,19 +26,8 @@ export function useMoveRecord({ onSuccess, onError }: UseMoveRecordOpts) {
   } = useMutation({
     // Local only (ADR 0001 D1): never paused while the browser reports offline.
     networkMode: "always",
-    mutationFn: ({ record, targetVaultId }: { record: DecryptedRecord; targetVaultId: string }) => {
-      const {
-        recordId: _recordId,
-        vaultId: _vaultId,
-        version: _version,
-        clientUpdatedAt: _clientUpdatedAt,
-        created_at: _createdAt,
-        firstCreatedAt: _firstCreatedAt,
-        schemaVersion: _schemaVersion,
-        ...data
-      } = record;
-      return requireActive(store).records.move(record, data, targetVaultId);
-    },
+    mutationFn: ({ record, targetVaultId }: { record: DecryptedRecord; targetVaultId: string }) =>
+      requireActive(store).records.move(record, recordDataOf(record), targetVaultId),
     onSuccess: async (moved, { record, targetVaultId }) => {
       await refreshRecord(record.recordId);
       await refreshRecord(moved.recordId);

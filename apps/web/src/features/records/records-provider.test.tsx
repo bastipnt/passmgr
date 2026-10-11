@@ -7,7 +7,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const decryptRecordWithWorker = vi.fn();
 vi.mock("@repo/client/src/util/decrypt-record", () => ({
-  decryptRecordWithWorker: (row: EncryptedRecordSchema) => decryptRecordWithWorker(row),
+  decryptRecordRow: async (row: EncryptedRecordSchema) => ({
+    ...(await decryptRecordWithWorker(row)),
+    recordId: row.recordId,
+    vaultId: row.vaultId,
+  }),
 }));
 
 function encrypted(recordId: string): EncryptedRecordSchema {

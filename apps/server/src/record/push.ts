@@ -1,7 +1,7 @@
 import { db, type RecordType, recordsTable } from "@repo/db";
 import { type PushChange, type PushResult, VAULT_WRITE_ROLES } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, desc, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { isLockTimeout, isUniqueViolation } from "../util/general";
 import {
   type DbExecutor,
@@ -30,11 +30,13 @@ type Outcome =
 /** The record as pass 1 has it after the changes before. */
 type SimulatedHead = { version: number; vaultId: string } | null;
 
-/** What a new version needs from the one below it (a tombstone keeps its ciphertext). */
-type HeadContent = Pick<
-  RecordType,
-  "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
-> | null;
+/** What a new version needs from the one below it (a tombstone keeps its ciphertext, unless purged). */
+type HeadContent =
+  | (Pick<
+      RecordType,
+      "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
+    > & { tombstoneKind?: RecordType["tombstoneKind"] })
+  | null;
 
 type NewVersion = Omit<typeof recordsTable.$inferInsert, "seq"> & {
   version: number;
@@ -58,10 +60,16 @@ export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
  * A record's changes are a chain: they apply all together or not at all, so
  * no other device ever pulls half of it (e.g. a losing edit without the merge
  * on top). A change whose `clientChangeId` the record already has answers with
- * the stored version, so a retry after a lost response appends nothing.
+ * the stored version, so a retry after a lost response appends nothing (unless
+ * a purge dropped that version meanwhile: the retry is then stale).
  *
  * Every applied change appends exactly one version (a delete of a deleted
  * record too), so the server numbers a chain the way the client did.
+ *
+ * A purge (`tombstoneKind: "purged"`) appends a tombstone without content and
+ * drops every version below it, in the same transaction: the history is gone
+ * for good, and the tombstone (with its seq) tells the other devices to drop
+ * their copies. A put on it starts the record over (an edit beats a delete).
  *
  * A put must be encrypted under the vault's current key: one under a key a
  * rotation replaced is rejected (`key_version`), so nothing new is written that
@@ -123,6 +131,7 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
         planned.map((p) => p.version),
         tx,
       );
+      await dropPurgedHistory(written, tx);
       for (const [i, { index }] of planned.entries()) {
         const row = written[i]!;
         results[index] = {
@@ -235,9 +244,19 @@ function nextVersion(change: PushChange, head: HeadContent, userId: string): New
     const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = change;
     return { ...common, encryptedData, encryptionNonce, cryptoVersion, keyVersion };
   }
-  // A tombstone keeps the head's ciphertext (and its key), so the history still opens.
   if (!head) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
   const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = head;
+  // A purged record stays purged, a moved one moved, whatever tombstone comes on top of it.
+  const tombstoneKind =
+    head.tombstoneKind === "purged"
+      ? "purged"
+      : (change.tombstoneKind ?? head.tombstoneKind ?? null);
+  if (tombstoneKind === "purged") {
+    // Nothing of the content is kept.
+    const deleted_at = new Date();
+    return { ...common, ...PURGED_CONTENT, cryptoVersion, keyVersion, deleted_at, tombstoneKind };
+  }
+  // A tombstone keeps the head's ciphertext (and its key), so the history still opens.
   return {
     ...common,
     encryptedData,
@@ -245,7 +264,21 @@ function nextVersion(change: PushChange, head: HeadContent, userId: string): New
     cryptoVersion,
     keyVersion,
     deleted_at: new Date(),
+    tombstoneKind,
   };
+}
+
+/** A purged tombstone's (empty) ciphertext. */
+const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
+
+/** Drop every version below a purged tombstone just written: its history is gone for good. */
+async function dropPurgedHistory(written: RecordType[], tx: DbExecutor) {
+  for (const row of written) {
+    if (row.tombstoneKind !== "purged") continue;
+    await tx
+      .delete(recordsTable)
+      .where(and(eq(recordsTable.recordId, row.recordId), lt(recordsTable.version, row.version)));
+  }
 }
 
 /**
