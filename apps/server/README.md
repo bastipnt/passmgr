@@ -32,6 +32,13 @@ Procedure chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure
 
 No cookies. The client signs every request from material derived during login.
 
+## Health and metrics
+
+Served at the server root, outside `PREFIX`, so the public proxy (which forwards only `/trpc/*`) never exposes them:
+
+- `GET /health` — `200 {"status":"ok","checks":{"db":"ok","redis":"ok"}}`, or `503` with the failing dependency (`select 1` / `PING`, 2 s timeout each; error details go to the log only). Used by the compose healthchecks.
+- `GET /metrics` — Prometheus text: `passmgr_dependency_up{dependency}`, `passmgr_trpc_requests_total{path,type,code}`, `passmgr_trpc_request_duration_seconds{path,type}` and the default process metrics (`passmgr_process_*`, `passmgr_nodejs_*`).
+
 ## Env vars
 
 Create `.env` in this directory:

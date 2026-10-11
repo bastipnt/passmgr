@@ -5,8 +5,12 @@ import { type AppRouter, appRouter } from "./router";
 import "./opaque";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
+import { db } from "@repo/db";
+import { sql } from "drizzle-orm";
 import { createContext } from "./context";
+import { registerHealthRoutes } from "./health";
 import { stripQuery } from "./logger";
+import { metricsRegistry } from "./metrics";
 import { redis } from "./redis";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -105,6 +109,16 @@ await server.register(cors, {
     cb(null, false);
   },
   credentials: true,
+});
+
+registerHealthRoutes(server, {
+  checks: {
+    db: () => db.execute(sql`select 1`),
+    // ioredis queues commands while disconnected; a probe must not pile up there.
+    redis: () =>
+      redis.status === "ready" ? redis.ping() : Promise.reject(new Error(`redis ${redis.status}`)),
+  },
+  registry: metricsRegistry,
 });
 
 await server.register(fastifyTRPCPlugin, {

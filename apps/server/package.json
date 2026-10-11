@@ -22,6 +22,7 @@
     "@fastify/cors": "^11.3.0",
     "@fastify/rate-limit": "^11.1.0",
     "@fastify/redis": "^8.0.0",
+    "@prometheus-io/client": "^0.16.1",
     "@repo/crypto": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/schema": "workspace:*",

@@ -1,9 +1,11 @@
+import { recordTrpcCall } from "./metrics";
 import { publicProcedure } from "./trpc";
 
 export const loggedProcedure = publicProcedure.use(async (opts) => {
   const start = Date.now();
   const result = await opts.next();
   const durationMs = Date.now() - start;
+  recordTrpcCall(opts.path, opts.type, result.ok ? "OK" : result.error.code, durationMs);
   const log = opts.ctx.req?.log;
   const meta = { path: opts.path, type: opts.type, durationMs };
   if (result.ok) log?.info(meta, "trpc.ok");
