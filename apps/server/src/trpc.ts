@@ -1,5 +1,6 @@
 import { initTRPC } from "@trpc/server";
 import type { Context } from "./context";
+import { SoleOwnerCause } from "./user/sole-owner";
 
 const t = initTRPC.context<Context>().create({
   sse: {
@@ -9,6 +10,11 @@ const t = initTRPC.context<Context>().create({
     // once the pings stop arriving.
     ping: { enabled: true, intervalMs: 15_000 },
     client: { reconnectAfterInactivityMs: 45_000 },
+  },
+  errorFormatter({ shape, error }) {
+    // `user.deleteAccount`: the shared vaults to hand over or delete first.
+    const vaultIds = error.cause instanceof SoleOwnerCause ? error.cause.vaultIds : undefined;
+    return vaultIds ? { ...shape, data: { ...shape.data, vaultIds } } : shape;
   },
 });
 

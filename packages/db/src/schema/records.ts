@@ -24,10 +24,9 @@ export const recordsTable = pgTable(
     vaultId: varchar()
       .notNull()
       .references(() => vaultsTable.vaultId, { onDelete: "cascade" }),
-    // The author of this version.
-    userId: varchar()
-      .notNull()
-      .references(() => usersTable.userId, { onDelete: "cascade" }),
+    // The author of this version. Null once they deleted their account: the
+    // version stays with the vault (a shared one outlives its author).
+    userId: varchar().references(() => usersTable.userId, { onDelete: "set null" }),
     encryptedData: varchar().notNull(),
     encryptionNonce: varchar().notNull(),
     cryptoVersion: integer().notNull().default(1),

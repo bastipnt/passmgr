@@ -17,11 +17,14 @@ import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware"
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import {
+  endDeletedUserSessions,
   resetLoginThrottle,
   revokeUserSessions,
   setPasswordChangeAttempt,
   takePasswordChangeAttempt,
 } from "../util/redis-utils";
+import { notifyVaultMembers } from "../vault/access";
+import { deleteAccount } from "./delete-account";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -195,4 +198,25 @@ export const userRouter = router({
       ctx.req?.log.info({ emailHash }, "auth.password_change.success");
       return { ok: true } as const;
     }),
+
+  // Delete the account and everything stored for it, for good (see
+  // `deleteAccount`). Requires a fresh OPAQUE login. PRECONDITION_FAILED
+  // (`SOLE_OWNER`) while the user alone owns a shared vault others are in.
+  // Every session ends; the other devices lock like after a sign-out.
+  deleteAccount: freshAuthProcedure.mutation(async ({ ctx }) => {
+    const { emailHash, leftVaultIds } = await deleteAccount(ctx.userId);
+    ctx.req?.log.info({ emailHash }, "auth.account.deleted");
+
+    // Best-effort: the account is gone, so this answers ok whatever happens
+    // here. A session left behind finds no user (and expires with its TTL).
+    try {
+      await endDeletedUserSessions(ctx.userId, ctx.sessionId);
+      await resetLoginThrottle(emailHash);
+      // The members who stay: the member list changed and the key needs rotating.
+      await notifyVaultMembers(...leftVaultIds);
+    } catch (error) {
+      ctx.req?.log.error({ err: error, emailHash }, "auth.account.deleted.cleanup_failed");
+    }
+    return { ok: true } as const;
+  }),
 });

@@ -1,0 +1,2 @@
+ALTER TABLE "records" ALTER COLUMN "userId" DROP NOT NULL;--> statement-breakpoint
+ALTER TABLE "records" DROP CONSTRAINT "records_userId_users_userId_fkey", ADD CONSTRAINT "records_userId_users_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("userId") ON DELETE SET NULL;

@@ -277,6 +277,19 @@ export async function revokeUserSessions(userId: string, exceptSessionId?: strin
   if (exceptSessionId) await deleteSession(exceptSessionId, userId);
 }
 
+/**
+ * End every session of a deleted account (`revokeUserSessions`). The cut-off
+ * expires once no session from before it could still be live: nothing
+ * outlives the account.
+ */
+export async function endDeletedUserSessions(
+  userId: string,
+  exceptSessionId?: string,
+): Promise<void> {
+  await revokeUserSessions(userId, exceptSessionId);
+  await redis.pexpire(sessionEpochKey(userId), SESSION_MAX_AGE_MS);
+}
+
 /** Store a login attempt and return its id (handed to the client for finishLogin). */
 export async function setLoginAttempt(loginAttempt: LoginAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();

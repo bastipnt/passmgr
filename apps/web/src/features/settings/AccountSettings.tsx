@@ -16,10 +16,11 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { CloudUploadIcon, KeyRoundIcon, LogOutIcon, TrashIcon } from "lucide-react";
+import { CloudUploadIcon, KeyRoundIcon, LogOutIcon, TrashIcon, UserRoundXIcon } from "lucide-react";
 import { useContext } from "react";
 import ChangePasswordDialog from "./ChangePasswordDialog";
 import CreateAccountDialog from "./CreateAccountDialog";
+import DeleteAccountDialog from "./DeleteAccountDialog";
 
 const STATUS: Record<SessionMode, string> = {
   local: "This vault lives only on this device. It has no account and is not backed up.",
@@ -35,7 +36,7 @@ const reload = () => window.location.reload();
  * Account actions (ADR 0001 D2): sign out ends the server session and keeps
  * the vault on this device; removing the vault deletes the local copy. A
  * local vault can become an online account (D9). The master password changes
- * in both modes (D10).
+ * in both modes (D10). An online account can be deleted for good.
  */
 export default function AccountSettings() {
   const { mode } = useContext(SessionContext);
@@ -93,6 +94,14 @@ export default function AccountSettings() {
             Remove from device
           </Button>
         </RemoveDialog>
+        {linked && (
+          <DeleteAccountDialog onDeleted={reload}>
+            <Button variant="destructive" disabled={signingOut || removing}>
+              <UserRoundXIcon />
+              Delete account
+            </Button>
+          </DeleteAccountDialog>
+        )}
       </ItemActions>
     </Item>
   );

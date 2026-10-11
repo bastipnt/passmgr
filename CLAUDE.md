@@ -227,6 +227,14 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
 Both modes drop the biometric enrollment (it holds the old password); recovery key and vault keys stay.
 
+Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account & sync): a fresh OPAQUE login
+(`freshLogin`) then `user.deleteAccount` (`apps/server/src/user/delete-account.ts`), a hard delete in one transaction:
+user row → cascades to key sets, keypair, memberships and every vault it owns (personal + soft-deleted) with their
+records. Shared vaults: nobody else active → deleted; the user is the only active owner of one others are in →
+`PRECONDITION_FAILED` `sole_owner` (the vaults in `data.vaultIds`, `SoleOwnerCause` via the `errorFormatter`), nothing deleted; otherwise the user leaves (`keyRotationNeeded`, `ownerId`
+handed to another owner) and their versions stay with `records.userId` null. Unaccepted invites they sent are dropped.
+All sessions end; the client locks and removes the profile from the device.
+
 ### Request Authentication
 
 Authenticated requests use HMAC-signed headers (no cookies):
@@ -350,7 +358,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 - `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
   a revoked device locks: `signedout:<sessionId>` marker, see Session modes) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
   mobile Settings (`SessionsSection`)
-- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, publicKey — another user's public key by email)
+- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)
 

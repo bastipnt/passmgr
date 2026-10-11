@@ -2,16 +2,19 @@ import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cl
 import { normalizeEmail, unwrapAccountKey, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AccountKeyMaterial } from "@repo/schema";
+import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import {
   type LoginSessionFn,
   LoginThrottledError,
+  type LoginTRPCClient,
   loginUser,
   OpaqueLoginFailedError,
 } from "../login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "../opaque";
 import { derivePasswordKek } from "../util/derive-password-kek";
+import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
 import { wrapAccountKeyForPassword } from "./rekey-password-keys";
 
@@ -111,25 +114,7 @@ export async function changeAccountPassword(
   newPassword: string,
 ): Promise<AccountKeyMaterial> {
   const email = normalizeEmail(account.email);
-
-  let session: Parameters<LoginSessionFn> | undefined;
-  try {
-    const info = await loginUser(
-      trpc,
-      async (...params) => {
-        session = params;
-      },
-      email,
-      currentPassword,
-    );
-    // The email now belongs to another account: never touch it.
-    if (info.userId !== account.userId || !session) throw new PasswordChangeFailedError();
-  } catch (e) {
-    if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
-    if (e instanceof LoginThrottledError || e instanceof PasswordChangeFailedError) throw e;
-    throw new PasswordChangeFailedError();
-  }
-  await attach(...session);
+  await freshLogin(trpc, attach, { ...account, email }, currentPassword, PasswordChangeFailedError);
 
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
   const req = await client.registerInit(newPassword);
@@ -167,6 +152,43 @@ export async function changeAccountPassword(
   }
 
   return changed;
+}
+
+/**
+ * A fresh OPAQUE login with the account's password (the server's proof that it
+ * is still known, `freshAuthProcedure`). Its session is attached with
+ * `attach` once it is known to be `account.userId`'s; the session it replaces
+ * is ended first (best-effort), so a change that fails later leaves none behind.
+ *
+ * Throws `WrongPasswordError`, `LoginThrottledError` or `failed` (the server
+ * couldn't be reached, or the email now belongs to another account).
+ */
+export async function freshLogin(
+  trpc: LoginTRPCClient,
+  attach: LoginSessionFn,
+  account: { email: string; userId: string },
+  password: string,
+  failed: new () => Error,
+): Promise<void> {
+  let session: Parameters<LoginSessionFn> | undefined;
+  try {
+    const info = await loginUser(
+      trpc,
+      async (...params) => {
+        session = params;
+      },
+      account.email,
+      password,
+    );
+    // The email now belongs to another account: never touch it.
+    if (info.userId !== account.userId || !session) throw new failed();
+  } catch (e) {
+    if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
+    if (e instanceof LoginThrottledError || e instanceof failed) throw e;
+    throw new failed();
+  }
+  if (secretsStore.hasServerSession) await endServerSession(trpc);
+  await attach(...session);
 }
 
 async function callServer<T>(send: () => Promise<T>): Promise<T> {
