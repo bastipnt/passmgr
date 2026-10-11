@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import {
+  expectLoginRejected,
   loginUser,
   randomEmail,
   randomPassword,
@@ -41,10 +42,7 @@ test.describe("forgotten password → recover with recovery key", () => {
     await page.waitForURL(/\/login/, { timeout: 15_000 });
 
     // Old password is gone.
-    await page.locator('input[name="email"]').fill(email);
-    await page.locator('input[name="password"]').fill(oldPassword);
-    await page.locator('form button[type="submit"]').click();
-    await expect(page.getByText(/that didn.t work/i)).toBeVisible({ timeout: 30_000 });
+    await expectLoginRejected(page, oldPassword, email);
 
     await loginUser(page, email, newPassword);
     await skipBiometricIfShown(page);

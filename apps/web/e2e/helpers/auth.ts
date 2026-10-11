@@ -66,6 +66,21 @@ export async function loginUser(page: Page, email: string, password: string): Pr
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 30_000 });
 }
 
+/**
+ * Submit the login form on screen with `password` (and `email`, for the email
+ * login; an unlock card asks for the password only) and expect it turned down.
+ */
+export async function expectLoginRejected(
+  page: Page,
+  password: string,
+  email?: string,
+): Promise<void> {
+  if (email !== undefined) await page.locator('input[name="email"]').fill(email);
+  await page.locator('input[name="password"]').fill(password);
+  await page.locator('form button[type="submit"]').click();
+  await expect(page.getByText(/that didn.t work/i)).toBeVisible({ timeout: 30_000 });
+}
+
 /** Click the "Skip" button on /enroll-biometric if present. */
 export async function skipBiometricIfShown(page: Page): Promise<void> {
   if (page.url().includes("/enroll-biometric")) {
