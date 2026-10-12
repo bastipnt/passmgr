@@ -15,6 +15,8 @@ test.describe("security headers", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    // The breach check's only third-party call (HIBP range API).
+    expect(csp).toMatch(/connect-src[^;]* https:\/\/api\.pwnedpasswords\.com[ ;]/);
   });
 
   // The SPA must actually boot under the CSP (sqlite-wasm needs

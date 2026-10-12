@@ -344,6 +344,12 @@ in chunks, ratings cached per version, never the password), reused = exact match
 website host, old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
 `RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
 `password` in `mergeRecord`.
+Breach check (`useBreachCheck`, `records/breach-check.ts`): opt-in per profile + device (`Vault.setBreachCheckEnabled`,
+off deletes every result), while the Pass Monitor is open the HIBP range API is asked directly from the client
+(`pwnedPasswordHash`: only the 5-char SHA-1 prefix, `Add-Padding`; one request per prefix, 4 at a time, 429 backoff)
+for passwords without a result or with one ≥ `BREACH_RECHECK_DAYS`. Results per record version in the profile DB
+(`breach_checks`, never synced, pruned to current versions); record detail reads them only (`useStoredBreachCount`).
+`api.pwnedpasswords.com` is the one third-party host in the `Caddyfile` CSP `connect-src`.
 
 Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
 `keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`

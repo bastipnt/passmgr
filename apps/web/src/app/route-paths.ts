@@ -63,6 +63,7 @@ export const passMonitorPaths = {
   reused: "/settings/pass-monitor/reused",
   duplicates: "/settings/pass-monitor/duplicates",
   old: "/settings/pass-monitor/old",
+  breached: "/settings/pass-monitor/breached",
   /** One of the finding pages, below the overview. */
   page: "/settings/pass-monitor/*",
   any: "/settings/pass-monitor/*?",

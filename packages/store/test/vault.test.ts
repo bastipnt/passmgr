@@ -930,3 +930,105 @@ describe("peer keys", () => {
     expect(await vault.getPeerKey("u-bob")).toBeNull();
   });
 });
+
+describe("breach check", () => {
+  const check = (recordId: string, version: number, count: number, vaultId = "v-personal") => ({
+    recordId,
+    version,
+    clientUpdatedAt: `2026-10-0${version}T00:00:00.000Z`,
+    vaultId,
+    count,
+    checkedAt: "2026-10-12T00:00:00.000Z",
+  });
+  const versionOf = ({ recordId, version, clientUpdatedAt }: ReturnType<typeof check>) => ({
+    recordId,
+    version,
+    clientUpdatedAt,
+  });
+
+  it("is off by default and stores nothing while off", async () => {
+    expect(await vault.isBreachCheckEnabled()).toBe(false);
+
+    await vault.saveBreachChecks([check("r1", 1, 3)], [versionOf(check("r1", 1, 3))]);
+
+    expect(await vault.getBreachChecks()).toEqual([]);
+  });
+
+  it("keeps only the results of current versions", async () => {
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3), check("r2", 1, 0)], []);
+    expect(await vault.getBreachChecks()).toEqual([]);
+
+    await vault.saveBreachChecks(
+      [check("r1", 1, 3), check("r2", 1, 0)],
+      [versionOf(check("r1", 1, 3)), versionOf(check("r2", 1, 0))],
+    );
+    await vault.saveBreachChecks([check("r1", 2, 0)], [versionOf(check("r1", 2, 0))]);
+
+    expect(await vault.getBreachChecks()).toEqual([check("r1", 2, 0)]);
+  });
+
+  it("forgets every result when turned off", async () => {
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3)], [versionOf(check("r1", 1, 3))]);
+
+    await vault.setBreachCheckEnabled(false);
+
+    expect(await vault.isBreachCheckEnabled()).toBe(false);
+    expect(await vault.getBreachChecks()).toEqual([]);
+  });
+
+  it("drops a purged record's results", async () => {
+    await vault.saveVault(personal);
+    await vault.upsertRecords([record("r1", 1)]);
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3)], [versionOf(check("r1", 1, 3))]);
+
+    await vault.purgeRecords(["r1"]);
+
+    expect(await vault.getBreachChecks()).toEqual([]);
+  });
+
+  it("reads one version's result, only while on", async () => {
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3)]);
+
+    expect(await vault.getBreachCheck(versionOf(check("r1", 1, 3)))).toEqual(check("r1", 1, 3));
+    expect(await vault.getBreachCheck(versionOf(check("r1", 2, 3)))).toBeNull();
+    await vault.setBreachCheckEnabled(false);
+    expect(await vault.getBreachCheck(versionOf(check("r1", 1, 3)))).toBeNull();
+  });
+
+  it("drops a removed vault's results", async () => {
+    await vault.saveVault(personal);
+    await vault.saveVault(vaultKey("v-work"));
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3), check("r2", 1, 5, "v-work")]);
+
+    await vault.removeVault("v-work");
+
+    expect(await vault.getBreachChecks()).toEqual([check("r1", 1, 3)]);
+  });
+
+  it("drops the results of a record purged on another device", async () => {
+    await vault.upsertRecords([record("r1", 1)]);
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3)]);
+
+    await vault.upsertRecords([
+      record("r1", 2, { deleted_at: "2026-10-02T00:00:00.000Z", tombstoneKind: "purged" }),
+    ]);
+
+    expect(await vault.getBreachChecks()).toEqual([]);
+  });
+
+  it("is cleared with the profile", async () => {
+    await vault.setBreachCheckEnabled(true);
+    await vault.saveBreachChecks([check("r1", 1, 3)], [versionOf(check("r1", 1, 3))]);
+
+    await vault.clear();
+
+    expect(await vault.isBreachCheckEnabled()).toBe(false);
+    expect(await vault.getBreachChecks()).toEqual([]);
+  });
+});

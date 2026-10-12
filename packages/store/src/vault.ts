@@ -14,6 +14,20 @@ import type { SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate } from "./migrations";
 import {
+  type BreachCheck,
+  type BreachCheckVersion,
+  clearBreachChecks,
+  clearProfileSettingsTable,
+  deleteBreachChecksOf,
+  deleteVaultBreachChecks,
+  getBreachCheck,
+  getBreachChecks,
+  isBreachCheckEnabled,
+  retainBreachChecks,
+  setBreachCheckEnabled,
+  upsertBreachChecks,
+} from "./schema/breach-schema";
+import {
   clearBiometricKey,
   clearKeysTable,
   clearRecoveryKey,
@@ -117,6 +131,13 @@ async function dropVaults(vaultIds: readonly string[], db: LocalDb) {
   await deleteVaultChanges(vaultIds, db);
   await deleteVaultRecords(vaultIds, db);
   await deleteSyncCursors(vaultIds, db);
+  await deleteVaultBreachChecks(vaultIds, db);
+}
+
+/** Records a pulled `purged` tombstone deleted for good take their breach results along. */
+async function dropPurgedBreachChecks(pulled: readonly EncryptedRecordSchema[], db: LocalDb) {
+  const purged = pulled.filter((r) => r.tombstoneKind === "purged").map((r) => r.recordId);
+  await deleteBreachChecksOf(purged, db);
 }
 
 /** One pull from the server: changed records plus the full list of the user's vaults. */
@@ -212,6 +233,7 @@ export class Vault {
         records.map((r) => r.recordId),
         tx,
       );
+      await dropPurgedBreachChecks(records, tx);
     });
   }
 
@@ -279,6 +301,7 @@ export class Vault {
         }
         await purgeRecord(recordId, now, now, tx);
       }
+      await deleteBreachChecksOf(recordIds, tx);
     });
   }
 
@@ -594,6 +617,7 @@ export class Vault {
         pulled.map((r) => r.recordId),
         tx,
       );
+      await dropPurgedBreachChecks(pulled, tx);
       await setSyncCursors(
         Object.fromEntries(Object.entries(cursors).filter(([vaultId]) => current.has(vaultId))),
         tx,
@@ -665,6 +689,49 @@ export class Vault {
   }
 
   /**
+   * BREACH CHECK
+   */
+
+  async isBreachCheckEnabled(): Promise<boolean> {
+    await this.ready();
+    return await isBreachCheckEnabled(this.db);
+  }
+
+  /** Off forgets every result, atomically. */
+  async setBreachCheckEnabled(enabled: boolean): Promise<void> {
+    await this.ready();
+    await this.transaction((tx) => setBreachCheckEnabled(enabled, tx));
+  }
+
+  async getBreachChecks(): Promise<BreachCheck[]> {
+    await this.ready();
+    return await getBreachChecks(this.db);
+  }
+
+  /** One version's stored result; `null` when the check is off or it wasn't checked. */
+  async getBreachCheck(version: BreachCheckVersion): Promise<BreachCheck | null> {
+    await this.ready();
+    if (!(await isBreachCheckEnabled(this.db))) return null;
+    return await getBreachCheck(version, this.db);
+  }
+
+  /**
+   * Store new results and, with `current`, drop those of every other version, in
+   * one transaction. Nothing is stored once the check was turned off meanwhile.
+   */
+  async saveBreachChecks(
+    checks: readonly BreachCheck[],
+    current?: readonly BreachCheckVersion[],
+  ): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => {
+      if (!(await isBreachCheckEnabled(tx))) return;
+      await upsertBreachChecks(checks, tx);
+      if (current) await retainBreachChecks(current, tx);
+    });
+  }
+
+  /**
    * CLEANUP
    */
 
@@ -678,6 +745,8 @@ export class Vault {
       await clearVaultsTable(tx);
       await clearRevokedTables(tx);
       await clearProfileTable(tx);
+      await clearBreachChecks(tx);
+      await clearProfileSettingsTable(tx);
     });
   }
 

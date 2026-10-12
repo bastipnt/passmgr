@@ -2,6 +2,11 @@ export type { OpenDatabase, SqlDriver } from "./src/driver";
 export { createLock, type Lock } from "./src/lock";
 export * from "./src/profiles";
 export {
+  type BreachCheck,
+  type BreachCheckVersion,
+  breachCheckKey,
+} from "./src/schema/breach-schema";
+export {
   type ConflictResolver,
   type LocalRecordChange,
   type LocalRecordVersion,

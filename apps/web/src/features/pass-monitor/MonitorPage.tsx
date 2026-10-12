@@ -13,6 +13,10 @@ type MonitorPageProps = {
   empty: string;
   /** Shown instead of the findings when the check couldn't run. */
   error?: string;
+  /** Next to the title. */
+  actions?: ReactNode;
+  /** Below the description, whatever the findings. */
+  status?: ReactNode;
   children: ReactNode;
 };
 
@@ -23,6 +27,8 @@ export function MonitorPage({
   count,
   empty,
   error,
+  actions,
+  status,
   children,
 }: MonitorPageProps) {
   return (
@@ -38,9 +44,11 @@ export function MonitorPage({
           <ArrowLeft />
         </Link>
         <PanelTitle>{title}</PanelTitle>
+        {actions}
       </PanelHeader>
       <div className="flex flex-col gap-3 px-4 pb-4">
         <p className="text-muted-foreground text-sm">{description}</p>
+        {status}
         {error ? (
           <p className="text-destructive text-sm">{error}</p>
         ) : count === undefined ? (

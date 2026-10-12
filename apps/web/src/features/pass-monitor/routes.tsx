@@ -1,5 +1,6 @@
 import { Route, Switch } from "wouter";
 import { passMonitorPaths } from "@/app/route-paths";
+import BreachedPasswordsPage from "./BreachedPasswordsPage";
 import DuplicatesPage from "./DuplicatesPage";
 import OldPasswordsPage from "./OldPasswordsPage";
 import PassMonitorPage from "./PassMonitorPage";
@@ -14,6 +15,7 @@ export default function PassMonitorRoutes() {
       <Route path={passMonitorPaths.reused} component={ReusedPasswordsPage} />
       <Route path={passMonitorPaths.duplicates} component={DuplicatesPage} />
       <Route path={passMonitorPaths.old} component={OldPasswordsPage} />
+      <Route path={passMonitorPaths.breached} component={BreachedPasswordsPage} />
     </Switch>
   );
 }

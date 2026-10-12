@@ -134,3 +134,30 @@ export const profile = sqliteTable("profile", {
   email: text(),
   userId: text(),
 });
+
+/** Settings of this profile on this device, never synced. */
+export const profileSettings = sqliteTable("profile_settings", {
+  key: text().primaryKey(),
+  value: text().notNull(),
+});
+
+/**
+ * Breach check results (HIBP) per record version, never synced: how often the
+ * version's password appears in known breaches. Holds no password, hash or prefix.
+ * No foreign key: a pending version's number is provisional, so stale rows are pruned instead.
+ */
+export const breachChecks = sqliteTable(
+  "breach_checks",
+  {
+    recordId: text().notNull(),
+    version: integer().notNull(),
+    clientUpdatedAt: text().notNull(),
+    vaultId: text().notNull(),
+    count: integer().notNull(),
+    checkedAt: text().notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.recordId, t.version, t.clientUpdatedAt] }),
+    index("breach_checks_vault_idx").on(t.vaultId),
+  ],
+);

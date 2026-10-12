@@ -1,4 +1,10 @@
-import { getPasswordHealth, useGetRecords, usePasswordStrength } from "@repo/client";
+import {
+  breachCountLabel,
+  getPasswordHealth,
+  useGetRecords,
+  usePasswordStrength,
+  useStoredBreachCount,
+} from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
@@ -48,6 +54,7 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
   const { records } = useGetRecords();
   const health = useMemo(() => getPasswordHealth(record, records), [record, records]);
   const strength = usePasswordStrength(isRecordType(record, "login") ? record.password : undefined);
+  const breachCount = useStoredBreachCount(record);
 
   if (!health) return null;
 
@@ -74,6 +81,13 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
               : `Unique across ${health.checkedCount} ${health.checkedCount === 1 ? "password" : "passwords"}`
           }
         />
+        {breachCount !== null && (
+          <HealthRow
+            tone={breachCount > 0 ? "warn" : "good"}
+            title={breachCount > 0 ? "Breached" : "Not breached"}
+            detail={breachCount > 0 ? breachCountLabel(breachCount) : "Not in known data breaches"}
+          />
+        )}
         <HealthRow
           tone={health.hasTotp ? "good" : "neutral"}
           title={health.hasTotp ? "2FA enabled" : "No 2FA"}

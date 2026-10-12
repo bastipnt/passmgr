@@ -68,5 +68,13 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "ALTER TABLE `records` ADD `tombstoneKind` text;"
     ]
+  },
+  {
+    "name": "20261012143643_breach_checks",
+    "statements": [
+      "CREATE TABLE `breach_checks` (\n\t`recordId` text NOT NULL,\n\t`version` integer NOT NULL,\n\t`clientUpdatedAt` text NOT NULL,\n\t`vaultId` text NOT NULL,\n\t`count` integer NOT NULL,\n\t`checkedAt` text NOT NULL,\n\tCONSTRAINT `breach_checks_pk` PRIMARY KEY(`recordId`, `version`, `clientUpdatedAt`)\n);",
+      "CREATE TABLE `profile_settings` (\n\t`key` text PRIMARY KEY,\n\t`value` text NOT NULL\n);",
+      "CREATE INDEX `breach_checks_vault_idx` ON `breach_checks` (`vaultId`);"
+    ]
   }
 ];

@@ -1,18 +1,22 @@
-import type { PassMonitor } from "@repo/client";
+import type { BreachCheckState, PassMonitor } from "@repo/client";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
 import { renderWithProviders, screen } from "@/test/render";
+import BreachedPasswordsPage from "./BreachedPasswordsPage";
 import PassMonitorPage from "./PassMonitorPage";
 import ReusedPasswordsPage from "./ReusedPasswordsPage";
 import WeakPasswordsPage from "./WeakPasswordsPage";
 
 const mocks = vi.hoisted(() => ({
   monitor: {} as PassMonitor,
+  breach: {} as BreachCheckState,
 }));
 
 vi.mock("@repo/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client")>()),
   usePassMonitor: () => mocks.monitor,
+  useBreachCheck: () => mocks.breach,
   useVaults: () => ({ getVault: () => undefined, hasSeveralVaults: false }),
 }));
 
@@ -40,9 +44,20 @@ const checking: PassMonitor = {
   old: null,
 };
 
+const breachOff: BreachCheckState = {
+  enabled: false,
+  setEnabled: vi.fn(async () => undefined),
+  breached: null,
+  checking: false,
+  failed: false,
+  offline: false,
+  lastCheckedAt: null,
+};
+
 // Braces: a returned function would run as the hook's teardown.
 beforeEach(() => {
   mocks.monitor = checking;
+  mocks.breach = breachOff;
 });
 
 describe("PassMonitorPage", () => {
@@ -95,5 +110,41 @@ describe("ReusedPasswordsPage", () => {
     renderWithProviders(<ReusedPasswordsPage />);
 
     expect(screen.getByText("Every password is unique.")).toBeInTheDocument();
+  });
+});
+
+describe("BreachedPasswordsPage", () => {
+  it("is off until turned on, and the overview says so", async () => {
+    const { unmount } = renderWithProviders(<PassMonitorPage />);
+    expect(screen.getByRole("link", { name: /Breached passwords/ })).toHaveTextContent("Off");
+    unmount();
+
+    renderWithProviders(<BreachedPasswordsPage />);
+    await userEvent.click(screen.getByRole("button", { name: "Turn on breach check" }));
+
+    expect(mocks.breach.setEnabled).toHaveBeenCalledWith(true);
+  });
+
+  it("lists breached passwords with how often they were seen", () => {
+    mocks.breach = {
+      ...breachOff,
+      enabled: true,
+      breached: [{ record: login("a", "GitHub"), count: 1200 }],
+      lastCheckedAt: new Date().toISOString(),
+    };
+    renderWithProviders(<BreachedPasswordsPage />);
+
+    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveTextContent(
+      "Seen 1,200 times in data breaches",
+    );
+    expect(screen.getByText(/Last checked just now/)).toBeInTheDocument();
+    expect(screen.getByRole("switch", { name: "Breach check" })).toBeChecked();
+  });
+
+  it("explains an offline device without stored results", () => {
+    mocks.breach = { ...breachOff, enabled: true, offline: true };
+    renderWithProviders(<BreachedPasswordsPage />);
+
+    expect(screen.getByText(/You're offline/)).toBeInTheDocument();
   });
 });

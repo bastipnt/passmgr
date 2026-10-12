@@ -171,9 +171,11 @@ describe("MIGRATIONS", () => {
 
     expect(await userVersion()).toBe(MIGRATIONS.length);
     expect(await tableNames()).toEqual([
+      "breach_checks",
       "key_material",
       "outbox",
       "profile",
+      "profile_settings",
       "records",
       "revoked_records",
       "revoked_vaults",

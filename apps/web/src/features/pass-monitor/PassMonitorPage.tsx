@@ -1,4 +1,4 @@
-import { usePassMonitor } from "@repo/client";
+import { useBreachCheck, usePassMonitor } from "@repo/client";
 import { Badge } from "@repo/ui/components/Badge";
 import {
   Item,
@@ -20,9 +20,10 @@ type CategoryProps = {
   description: string;
   count: number | undefined;
   failed?: boolean;
+  off?: boolean;
 };
 
-function Category({ path, title, description, count, failed }: CategoryProps) {
+function Category({ path, title, description, count, failed, off }: CategoryProps) {
   return (
     <Item variant="outline" render={<WouterLink href={path} />}>
       <ItemContent className="gap-1">
@@ -30,7 +31,9 @@ function Category({ path, title, description, count, failed }: CategoryProps) {
         <ItemDescription>{description}</ItemDescription>
       </ItemContent>
       <ItemActions>
-        {failed ? (
+        {off ? (
+          <Badge variant="outline">Off</Badge>
+        ) : failed ? (
           <Badge variant="outline" aria-label={`${title} couldn't be checked`}>
             —
           </Badge>
@@ -52,6 +55,7 @@ const groupedCount = (groups: { records: unknown[] }[] | null) =>
 
 export default function PassMonitorPage() {
   const { weak, weakFailed, reused, duplicates, old } = usePassMonitor();
+  const breach = useBreachCheck();
 
   return (
     <>
@@ -84,6 +88,20 @@ export default function PassMonitorPage() {
             description="Unchanged for a year or longer"
             path={passMonitorPaths.old}
             count={old?.length}
+          />
+          <Category
+            title="Breached passwords"
+            description={
+              breach.enabled === false
+                ? "Check against known data breaches"
+                : "Found in known data breaches"
+            }
+            path={passMonitorPaths.breached}
+            count={breach.breached?.length}
+            failed={
+              breach.breached === null && !breach.checking && (breach.failed || breach.offline)
+            }
+            off={breach.enabled === false}
           />
         </ItemGroup>
       </div>
