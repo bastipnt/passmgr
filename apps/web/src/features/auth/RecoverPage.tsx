@@ -225,8 +225,8 @@ export default function RecoverPage() {
 }
 
 function NewPasswordHint({ control }: { control: Control<RecoverFormValues> }) {
-  const password = useWatch({ control, name: "password" }) ?? "";
-  return <PasswordStrengthMeter password={password} />;
+  const [email, password] = useWatch({ control, name: ["email", "password"] });
+  return <PasswordStrengthMeter password={password ?? ""} userInputs={[email]} />;
 }
 
 function PasswordsMatch({ control }: { control: Control<RecoverFormValues> }) {

@@ -1,6 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useCreateLocalVault } from "@repo/client";
-import { getStrengthFromString } from "@repo/crypto";
+import { useCreateLocalVault, usePasswordStrength } from "@repo/client";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -11,7 +10,7 @@ import {
   FormLock,
   StrengthMeter,
 } from "@repo/ui-native";
-import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { type Ref, useImperativeHandle, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Text, View } from "react-native";
 import z from "zod";
@@ -55,7 +54,7 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
   });
 
   const password = useWatch({ control, name: "password" });
-  const strength = useMemo(() => (password ? getStrengthFromString(password) : null), [password]);
+  const strength = usePasswordStrength(password);
 
   const onSubmit = async ({ name, password }: FormValues) => {
     setLoading(true);
@@ -119,7 +118,15 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
             name="password"
             label="Master password"
             textContentType="newPassword"
-            note={strength && <StrengthMeter level={strength.level} label={strength.label} />}
+            note={
+              strength && (
+                <StrengthMeter
+                  level={strength.level}
+                  label={strength.label}
+                  hint={strength.warning}
+                />
+              )
+            }
           />
           <ControlledPasswordInput
             control={control}

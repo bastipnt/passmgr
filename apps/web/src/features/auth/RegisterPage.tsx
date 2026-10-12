@@ -181,6 +181,6 @@ function NewPasswordStrength({
 }: {
   control: Control<{ email: string; password: string }>;
 }) {
-  const password = useWatch({ control, name: "password" }) ?? "";
-  return <PasswordStrengthMeter password={password} />;
+  const [email, password] = useWatch({ control, name: ["email", "password"] });
+  return <PasswordStrengthMeter password={password ?? ""} userInputs={[email]} />;
 }

@@ -2,9 +2,9 @@ import {
   type FieldSpec,
   PREF_KEYS,
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
+  usePasswordStrength,
   usePreference,
 } from "@repo/client";
-import { getStrengthFromString } from "@repo/crypto";
 import { RecordDetailsItem } from "@repo/ui-native";
 import { Earth, Key, Lock, Mail, NotebookPen, NotebookText, Tag } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
@@ -30,6 +30,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
     REVEAL_TIMEOUT_DEFAULT_SECONDS,
   );
   const revealTimeoutMs = revealSeconds * 1_000;
+  const strength = usePasswordStrength(spec.kind === "password" ? spec.value : undefined);
   const copy = onCopy ? () => onCopy(spec.copyValue ?? spec.value) : undefined;
 
   switch (spec.kind) {
@@ -60,7 +61,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
           title={spec.label}
           value={spec.value}
           variant={spec.value ? "password" : "noAction"}
-          strength={spec.value ? getStrengthFromString(spec.value) : undefined}
+          strength={strength ?? undefined}
           revealTimeoutMs={revealTimeoutMs}
           mono
           onCopy={copy}

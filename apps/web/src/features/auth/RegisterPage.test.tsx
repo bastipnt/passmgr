@@ -20,6 +20,7 @@ const writeText = vi.fn().mockResolvedValue(undefined);
 
 vi.mock("@repo/client", async () => ({
   ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
+  usePasswordStrength: () => null,
   useRegistration: () => ({
     registerNewUser,
     registrationError: mockRegistrationError,

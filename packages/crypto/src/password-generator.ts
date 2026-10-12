@@ -1,5 +1,4 @@
 import { randomBytes } from "@noble/hashes/utils.js";
-import type { PasswordStrength } from "@repo/util";
 
 export type PasswordOptions = {
   length: number;
@@ -140,46 +139,6 @@ export function generatePassword(opts: PasswordOptions): string {
   return shuffle(chars).join("");
 }
 
-export function getCharsetSize(opts: PasswordOptions): number {
-  let size = 0;
-  if (opts.uppercase) size += (opts.avoidAmbiguous ? stripAmbiguous(UPPER) : UPPER).length;
-  if (opts.lowercase) size += (opts.avoidAmbiguous ? stripAmbiguous(LOWER) : LOWER).length;
-  if (opts.digits) size += (opts.avoidAmbiguous ? stripAmbiguous(DIGITS) : DIGITS).length;
-  if (opts.symbols) size += SYMBOLS.length;
-  return size;
-}
-
-export function estimateEntropy(length: number, charsetSize: number): number {
-  if (length <= 0 || charsetSize <= 1) return 0;
-  return length * Math.log2(charsetSize);
-}
-
-export function estimatePassphraseEntropy(wordCount: number, wordlistSize: number): number {
-  if (wordCount <= 0 || wordlistSize <= 1) return 0;
-  return wordCount * Math.log2(wordlistSize);
-}
-
-export function estimateEntropyFromString(password: string): number {
-  if (!password) return 0;
-  let charsetSize = 0;
-  if (/[a-z]/.test(password)) charsetSize += 26;
-  if (/[A-Z]/.test(password)) charsetSize += 26;
-  if (/[0-9]/.test(password)) charsetSize += 10;
-  if (/[^A-Za-z0-9]/.test(password)) charsetSize += 32;
-  return estimateEntropy(password.length, charsetSize);
-}
-
-export function getStrength(bits: number): PasswordStrength {
-  if (bits < 40) return { level: "weak", label: "Weak", bits };
-  if (bits < 60) return { level: "fair", label: "Fair", bits };
-  if (bits < 80) return { level: "strong", label: "Strong", bits };
-  return { level: "very-strong", label: "Very strong", bits };
-}
-
-export function getStrengthFromString(password: string): PasswordStrength {
-  return getStrength(estimateEntropyFromString(password));
-}
-
 export async function generatePassphrase(opts: PassphraseOptions): Promise<string> {
   const { wordlist } = await import("./wordlist-eff-large");
   const count = Math.max(1, Math.floor(opts.wordCount));
@@ -197,5 +156,3 @@ export async function generatePassphrase(opts: PassphraseOptions): Promise<strin
   }
   return words.join(opts.separator);
 }
-
-export const EFF_WORDLIST_SIZE = 7776;

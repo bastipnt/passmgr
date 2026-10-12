@@ -14,10 +14,12 @@ export type StrengthMeterProps = {
   label: string;
   /** Muted text at the trailing edge, e.g. "16 characters". */
   detail?: string;
+  /** Why the password is guessable (`PasswordStrength.warning`). */
+  hint?: string;
 };
 
 /** Web's four-segment strength meter: thin pills over a label row. */
-export function StrengthMeter({ level, label, detail }: StrengthMeterProps) {
+export function StrengthMeter({ level, label, detail, hint }: StrengthMeterProps) {
   const filled = LEVEL_INDEX[level];
   const color = LEVEL_COLOR[level];
 
@@ -38,6 +40,7 @@ export function StrengthMeter({ level, label, detail }: StrengthMeterProps) {
         </Text>
         {detail ? <Text className="text-muted-foreground text-xs">{detail}</Text> : null}
       </View>
+      {hint ? <Text className="text-muted-foreground text-xs">{hint}</Text> : null}
     </View>
   );
 }

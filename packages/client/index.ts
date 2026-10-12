@@ -26,6 +26,7 @@ export * from "./src/hooks/use-link-account";
 export * from "./src/hooks/use-lock";
 export * from "./src/hooks/use-login";
 export * from "./src/hooks/use-move-record";
+export * from "./src/hooks/use-password-strength";
 export * from "./src/hooks/use-pending-change-count";
 export * from "./src/hooks/use-preference";
 export * from "./src/hooks/use-record-history";

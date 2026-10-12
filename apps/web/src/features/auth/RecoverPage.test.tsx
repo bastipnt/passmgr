@@ -25,6 +25,7 @@ vi.mock("@repo/client", async () => {
   >("@repo/client/src/providers/SessionProvider");
   return {
     ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
+    usePasswordStrength: () => null,
     RECOVERY_ERROR_MESSAGES,
     SessionContext,
     useRecovery: () => ({ recover, recoverLocal, recoveryError: mockRecoveryError }),

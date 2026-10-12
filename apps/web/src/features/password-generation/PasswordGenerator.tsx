@@ -2,14 +2,9 @@
 
 import { ShortcutLayer, useGeneratorDefaults } from "@repo/client";
 import {
-  EFF_WORDLIST_SIZE,
-  estimateEntropy,
-  estimatePassphraseEntropy,
   type GeneratorMode,
   generatePassphrase,
   generatePassword,
-  getCharsetSize,
-  getStrength,
   type PassphraseOptions,
   PasswordGeneratorError,
   type PasswordOptions,
@@ -23,11 +18,11 @@ import { Button } from "@repo/ui/components/Button";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import GeneratorModeSwitch from "./GeneratorModeSwitch";
 import PassphraseOptionsForm from "./PassphraseOptionsForm";
 import PasswordOptionsForm from "./PasswordOptionsForm";
-import { PasswordStrengthBar } from "./PasswordStrengthBar";
+import PasswordStrengthMeter from "./PasswordStrengthMeter";
 
 type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;
@@ -83,15 +78,6 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
     if (!open) return;
     void regenerate();
   }, [open, regenerate]);
-
-  const entropy = useMemo(() => {
-    if (mode === "password") {
-      return estimateEntropy(pwOpts.length, getCharsetSize(pwOpts));
-    }
-    return estimatePassphraseEntropy(phOpts.wordCount, EFF_WORDLIST_SIZE);
-  }, [mode, pwOpts, phOpts]);
-
-  const strength = getStrength(entropy);
 
   async function handleCopy() {
     if (!generated) return;
@@ -163,11 +149,7 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
               <div className="min-h-9 break-all rounded-md border border-input bg-muted/50 px-2.5 py-2 font-mono text-sm">
                 {generated || (error ? <span className="text-destructive">{error}</span> : "")}
               </div>
-              <PasswordStrengthBar
-                level={strength.level}
-                label={strength.label}
-                bits={strength.bits}
-              />
+              <PasswordStrengthMeter password={error ? "" : generated} />
             </div>
 
             {mode === "password" ? (

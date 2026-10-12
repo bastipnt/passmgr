@@ -1,6 +1,6 @@
-import { getStrengthFromString } from "@repo/crypto";
+import { usePasswordStrength } from "@repo/client";
 import { cn } from "@repo/ui/lib/utils";
-import type { PasswordStrengthLevel } from "@repo/util";
+import type { PasswordStrength, PasswordStrengthLevel } from "@repo/util";
 import type { ReactNode } from "react";
 
 const LEVELS: PasswordStrengthLevel[] = ["weak", "fair", "strong", "very-strong"];
@@ -21,8 +21,15 @@ const LABEL_COLOR: Record<PasswordStrengthLevel, string> = {
   "very-strong": "text-[#059669] dark:text-strength-very-strong",
 };
 
-type PasswordStrengthMeterProps = {
-  password: string;
+type PasswordStrengthMeterProps = (
+  | {
+      password: string;
+      /** Words the password shouldn't lean on, e.g. the account email. */
+      userInputs?: string[];
+      strength?: never;
+    }
+  | { strength: PasswordStrength | null; password?: never; userInputs?: never }
+) & {
   /** Right-aligned hint on the label row, e.g. a character count. */
   aside?: ReactNode;
   /** Segments only, no label row — for tight spots like the health panel. */
@@ -33,11 +40,17 @@ type PasswordStrengthMeterProps = {
 /** Four fixed-color segments filling with the password's estimated strength. */
 export default function PasswordStrengthMeter({
   password,
+  userInputs,
+  strength: givenStrength,
   aside,
   compact = false,
   className,
 }: PasswordStrengthMeterProps) {
-  const strength = password ? getStrengthFromString(password) : null;
+  const ownStrength = usePasswordStrength(
+    givenStrength === undefined ? password : undefined,
+    userInputs,
+  );
+  const strength = givenStrength === undefined ? ownStrength : givenStrength;
   const filled = strength ? LEVELS.indexOf(strength.level) + 1 : 0;
 
   return (
@@ -73,6 +86,9 @@ export default function PasswordStrengthMeter({
         </span>
         {aside}
       </div>
+      {strength?.warning && !compact && (
+        <p className="text-muted-foreground text-xs">{strength.warning}</p>
+      )}
     </div>
   );
 }

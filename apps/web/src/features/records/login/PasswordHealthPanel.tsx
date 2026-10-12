@@ -1,4 +1,4 @@
-import { useGetRecords } from "@repo/client";
+import { useGetRecords, usePasswordStrength } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
@@ -48,10 +48,11 @@ function listTitles(records: DecryptedRecord[]) {
 export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
   const { records } = useGetRecords();
   const health = useMemo(() => getPasswordHealth(record, records), [record, records]);
+  const strength = usePasswordStrength(isRecordType(record, "login") ? record.password : undefined);
 
   if (!health) return null;
 
-  const strong = health.strength.level === "strong" || health.strength.level === "very-strong";
+  const strong = strength?.level === "strong" || strength?.level === "very-strong";
   const reused = health.reusedIn.length > 0;
 
   return (
@@ -61,15 +62,9 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
       </h2>
       <ul className="divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:bg-transparent dark:divide-white/8 dark:border-white/10 dark:bg-white/3 max-sm:dark:bg-transparent max-sm:[&>li]:px-5">
         <HealthRow
-          tone={strong ? "good" : "warn"}
-          title={`${health.strength.label} password`}
-          detail={
-            <PasswordStrengthMeter
-              password={isRecordType(record, "login") ? (record.password ?? "") : ""}
-              compact
-              className="ml-auto"
-            />
-          }
+          tone={!strength ? "neutral" : strong ? "good" : "warn"}
+          title={strength ? `${strength.label} password` : "Checking strength"}
+          detail={<PasswordStrengthMeter strength={strength} compact className="ml-auto" />}
         />
         <HealthRow
           tone={reused ? "warn" : "good"}

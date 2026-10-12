@@ -1,9 +1,6 @@
-import { getStrengthFromString } from "@repo/crypto";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
-import type { PasswordStrength } from "@repo/util";
 
 export type PasswordHealth = {
-  strength: PasswordStrength;
   /** Other logins that use the exact same password. */
   reusedIn: DecryptedRecord[];
   /** How many logins (including this one) the reuse check looked at. */
@@ -20,7 +17,6 @@ export function getPasswordHealth(
   const logins = allRecords.filter((other) => isRecordType(other, "login"));
 
   return {
-    strength: getStrengthFromString(record.password),
     reusedIn: logins.filter(
       (other) => other.recordId !== record.recordId && other.password === record.password,
     ),

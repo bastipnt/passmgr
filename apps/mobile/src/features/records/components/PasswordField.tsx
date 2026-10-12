@@ -1,4 +1,4 @@
-import { getStrengthFromString } from "@repo/crypto";
+import { usePasswordStrength } from "@repo/client";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
 import { type Href, useRouter } from "expo-router";
 import { KeyIcon, WandSparkles } from "lucide-react-native";
@@ -27,7 +27,7 @@ export default function PasswordField<T extends PasswordFormValues>(props: Passw
 
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
   const password = useWatch({ control, name: "password" }) ?? "";
-  const strength = password ? getStrengthFromString(password) : null;
+  const strength = usePasswordStrength(password);
 
   const openGenerator = () => {
     registerTarget((generated) =>
@@ -49,6 +49,7 @@ export default function PasswordField<T extends PasswordFormValues>(props: Passw
             level={strength.level}
             label={`Strength: ${strength.label}`}
             detail={`${password.length} characters`}
+            hint={strength.warning}
           />
         )
       }

@@ -1,13 +1,8 @@
-import { useGeneratorDefaults } from "@repo/client";
+import { useGeneratorDefaults, usePasswordStrength } from "@repo/client";
 import {
-  EFF_WORDLIST_SIZE,
-  estimateEntropy,
-  estimatePassphraseEntropy,
   type GeneratorMode,
   generatePassphrase,
   generatePassword,
-  getCharsetSize,
-  getStrength,
   type PassphraseOptions,
   PasswordGeneratorError,
   type PasswordOptions,
@@ -15,7 +10,7 @@ import {
 import { Button, StrengthMeter } from "@repo/ui-native";
 import * as Clipboard from "expo-clipboard";
 import { Stack, useRouter } from "expo-router";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
@@ -66,14 +61,7 @@ export default function PasswordGenerator() {
     void regenerate();
   }, [regenerate]);
 
-  const entropy = useMemo(() => {
-    if (mode === "password") {
-      return estimateEntropy(pwOpts.length, getCharsetSize(pwOpts));
-    }
-    return estimatePassphraseEntropy(phOpts.wordCount, EFF_WORDLIST_SIZE);
-  }, [mode, pwOpts, phOpts]);
-
-  const strength = getStrength(entropy);
+  const strength = usePasswordStrength(error ? undefined : generated);
 
   const onCopy = async () => {
     if (!generated) return;
@@ -134,10 +122,9 @@ export default function PasswordGenerator() {
             )}
           </View>
 
-          <StrengthMeter
-            level={strength.level}
-            label={`${strength.label} · ${Math.round(strength.bits)} bits`}
-          />
+          {strength && (
+            <StrengthMeter level={strength.level} label={strength.label} hint={strength.warning} />
+          )}
 
           <View className="flex-row gap-2.5">
             <Button
