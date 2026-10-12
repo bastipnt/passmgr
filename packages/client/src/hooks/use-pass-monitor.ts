@@ -6,14 +6,19 @@ import { useRecordsContext } from "../providers/RecordsProvider";
 import { useStore } from "../providers/StoreProvider";
 import {
   findDuplicateLogins,
+  findInsecureWebsites,
+  findMissingTwoFactor,
   findOldPasswords,
   findReusedPasswords,
+  type InsecureWebsite,
+  type MissingTwoFactor,
   type MonitorGroup,
   type OldPassword,
   sortWeakPasswords,
   type WeakPassword,
   weakPasswordOf,
 } from "../records/pass-monitor";
+import { useTwoFactorDirectory } from "./use-two-factor-directory";
 
 export type PassMonitor = {
   /** `null` until the records are decrypted and every password is rated. */
@@ -23,6 +28,11 @@ export type PassMonitor = {
   reused: MonitorGroup[] | null;
   duplicates: MonitorGroup[] | null;
   old: OldPassword[] | null;
+  insecure: InsecureWebsite[] | null;
+  /** `null` until the records are decrypted and the 2FA directory loaded. */
+  missingTwoFactor: MissingTwoFactor[] | null;
+  /** The 2FA directory didn't load: `missingTwoFactor` stays `null`. */
+  twoFactorFailed: boolean;
 };
 
 const CHUNK_SIZE = 20;
@@ -43,12 +53,16 @@ function cachedRate(ratings: Map<string, PasswordStrength | null>, record: Decry
 
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-/** Weak, reused, duplicate and old passwords across every vault, from the decrypted records. */
+/**
+ * Weak, reused, duplicate and old passwords, insecure websites and logins missing 2FA
+ * across every vault, from the decrypted records.
+ */
 export function usePassMonitor(): PassMonitor {
   const { records, ready, revision } = useRecordsContext();
   const { vault } = useStore();
   const [rated, setRated] = useState<WeakPassword[] | null>(null);
   const [weakFailed, setWeakFailed] = useState(false);
+  const { directory, failed: twoFactorFailed } = useTwoFactorDirectory();
 
   // `records` is a new array on every render; `revision` says when its content changed.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -61,6 +75,7 @@ export function usePassMonitor(): PassMonitor {
             reused: findReusedPasswords(snapshot),
             duplicates: findDuplicateLogins(snapshot),
             old: findOldPasswords(snapshot),
+            insecure: findInsecureWebsites(snapshot),
           }
         : null,
     [snapshot, ready],
@@ -103,11 +118,19 @@ export function usePassMonitor(): PassMonitor {
     return rated.filter((finding) => ids.has(finding.record.recordId));
   }, [snapshot, ready, rated]);
 
+  const missingTwoFactor = useMemo(
+    () => (ready && directory ? findMissingTwoFactor(snapshot, directory) : null),
+    [snapshot, ready, directory],
+  );
+
   return {
     weak,
     weakFailed,
     reused: cheap?.reused ?? null,
     duplicates: cheap?.duplicates ?? null,
     old: cheap?.old ?? null,
+    insecure: cheap?.insecure ?? null,
+    missingTwoFactor,
+    twoFactorFailed,
   };
 }

@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
 import { renderWithProviders, screen } from "@/test/render";
 import BreachedPasswordsPage from "./BreachedPasswordsPage";
+import InsecureWebsitesPage from "./InsecureWebsitesPage";
+import MissingTwoFactorPage from "./MissingTwoFactorPage";
 import PassMonitorPage from "./PassMonitorPage";
 import ReusedPasswordsPage from "./ReusedPasswordsPage";
 import WeakPasswordsPage from "./WeakPasswordsPage";
@@ -42,6 +44,9 @@ const checking: PassMonitor = {
   reused: null,
   duplicates: null,
   old: null,
+  insecure: null,
+  missingTwoFactor: null,
+  twoFactorFailed: false,
 };
 
 const breachOff: BreachCheckState = {
@@ -73,12 +78,17 @@ describe("PassMonitorPage", () => {
       reused: [{ id: "a", records: [github, figma] }],
       duplicates: [],
       old: [],
+      insecure: [{ record: figma, hosts: ["figma.com"] }],
+      missingTwoFactor: [],
+      twoFactorFailed: false,
     };
     rerender(<PassMonitorPage />);
 
     expect(screen.getByLabelText("1 Weak passwords")).toBeInTheDocument();
     expect(screen.getByLabelText("2 Reused passwords")).toBeInTheDocument();
     expect(screen.getByLabelText("0 Duplicates")).toBeInTheDocument();
+    expect(screen.getByLabelText("1 Insecure websites")).toBeInTheDocument();
+    expect(screen.getByLabelText("0 Missing 2FA")).toBeInTheDocument();
   });
 
   it("says when the strength check couldn't run", () => {
@@ -146,5 +156,44 @@ describe("BreachedPasswordsPage", () => {
     renderWithProviders(<BreachedPasswordsPage />);
 
     expect(screen.getByText(/You're offline/)).toBeInTheDocument();
+  });
+});
+
+describe("InsecureWebsitesPage", () => {
+  it("lists logins with their plain HTTP websites", () => {
+    mocks.monitor = {
+      ...checking,
+      insecure: [{ record: login("a", "Router"), hosts: ["192.168.1.1", "router.lan"] }],
+    };
+    renderWithProviders(<InsecureWebsitesPage />);
+
+    expect(screen.getByRole("link", { name: /Router/ })).toHaveTextContent(
+      "http://192.168.1.1, http://router.lan",
+    );
+  });
+});
+
+describe("MissingTwoFactorPage", () => {
+  it("names the site that supports 2FA and credits 2fa.directory", () => {
+    mocks.monitor = {
+      ...checking,
+      missingTwoFactor: [{ record: login("a", "GitHub"), site: { domain: "github.com" } }],
+    };
+    renderWithProviders(<MissingTwoFactorPage />);
+
+    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveTextContent(
+      "github.com supports 2FA",
+    );
+    expect(screen.getByRole("link", { name: "2fa.directory" })).toHaveAttribute(
+      "href",
+      "https://2fa.directory",
+    );
+  });
+
+  it("says when the directory couldn't load", () => {
+    mocks.monitor = { ...checking, twoFactorFailed: true };
+    renderWithProviders(<MissingTwoFactorPage />);
+
+    expect(screen.getByText(/2FA directory couldn't load/)).toBeInTheDocument();
   });
 });

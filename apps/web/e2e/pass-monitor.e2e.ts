@@ -5,8 +5,8 @@ import { createLocalVault, createLogin } from "./helpers/vault";
 
 /**
  * Pass Monitor (Settings → Pass Monitor): weak, reused, duplicate and old
- * passwords, checked on the device after decryption; breached ones against a
- * stubbed HIBP range API.
+ * passwords, insecure websites and missing 2FA, checked on the device after
+ * decryption; breached ones against a stubbed HIBP range API.
  */
 test("finds a weak password reused by two logins and opens one of them", async ({ page }) => {
   test.setTimeout(90_000);
@@ -26,6 +26,8 @@ test("finds a weak password reused by two logins and opens one of them", async (
   await expect(page.getByLabel("2 Reused passwords")).toBeVisible();
   await expect(page.getByLabel("0 Duplicates")).toBeVisible();
   await expect(page.getByLabel("0 Old passwords")).toBeVisible();
+  await expect(page.getByLabel("0 Insecure websites")).toBeVisible();
+  await expect(page.getByLabel("0 Missing 2FA")).toBeVisible();
 
   await page.getByRole("link", { name: /Reused passwords/ }).click();
   await expect(page.getByRole("heading", { name: "Used in 2 places" })).toBeVisible();
@@ -78,4 +80,48 @@ test("checks passwords against HIBP only by hash prefix, once turned on", async 
   await breached.click();
   await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
   await expect(page.getByText("Seen 2,254,650 times in data breaches")).toBeVisible();
+});
+
+test("flags plain HTTP websites and logins missing 2FA from the bundled list", async ({ page }) => {
+  test.setTimeout(90_000);
+  const directoryRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().includes("2fa.directory")) directoryRequests.push(request.url());
+  });
+
+  await createLocalVault(page, "Hints", randomPassword());
+  const router = await createLogin(page, {
+    title: "Router",
+    password: randomPassword(),
+    website: "http://router.example",
+  });
+  const github = await createLogin(page, {
+    title: "GitHub",
+    username: "jana",
+    password: randomPassword(),
+    website: "https://github.com",
+  });
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: /Pass Monitor/ }).click();
+  await expect(page.getByLabel("1 Insecure websites")).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByLabel("1 Missing 2FA")).toBeVisible();
+
+  await page.getByRole("link", { name: /Insecure websites/ }).click();
+  await expect(page.getByRole("link", { name: /Router/ })).toContainText("http://router.example");
+  await page.getByRole("link", { name: /Router/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/record/${router}$`));
+
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: /Pass Monitor/ }).click();
+  await page.getByRole("link", { name: /Missing 2FA/ }).click();
+  await expect(page.getByRole("link", { name: /GitHub/ })).toContainText("github.com supports 2FA");
+  await page.getByRole("link", { name: /GitHub/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
+  await expect(page.getByRole("link", { name: "github.com supports 2FA" })).toHaveAttribute(
+    "href",
+    /^https:\/\//,
+  );
+
+  expect(directoryRequests).toEqual([]);
 });

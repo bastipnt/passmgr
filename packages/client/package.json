@@ -7,7 +7,8 @@
     "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "two-factor-directory:update": "bun ./scripts/update-two-factor-directory.ts"
   },
   "dependencies": {
     "@cloudflare/opaque-ts": "catalog:",

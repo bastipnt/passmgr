@@ -3,6 +3,8 @@ import type { PasswordStrength } from "@repo/util";
 import { describe, expect, it } from "vitest";
 import {
   findDuplicateLogins,
+  findInsecureWebsites,
+  findMissingTwoFactor,
   findOldPasswords,
   findReusedPasswords,
   passwordAgeLabel,
@@ -10,6 +12,7 @@ import {
   sortWeakPasswords,
   weakPasswordOf,
 } from "../src/records/pass-monitor";
+import { loadTwoFactorDirectory, twoFactorSiteOf } from "../src/records/two-factor-directory";
 
 function record(recordId: string, fields: Record<string, unknown> = {}): DecryptedRecord {
   return {
@@ -156,5 +159,67 @@ describe("weakPasswordOf", () => {
   it("skips records without a password and unrated ones", () => {
     expect(weakPasswordOf(record("a"), () => level("weak"))).toBeUndefined();
     expect(weakPasswordOf(record("b", { password: "x" }), () => null)).toBeUndefined();
+  });
+});
+
+describe("findInsecureWebsites", () => {
+  it("flags logins with a plain http:// website, never loopback or schemeless ones", () => {
+    const found = findInsecureWebsites([
+      record("b", site("http://router.example", "HTTP://router.example/admin")),
+      record("a", site("https://secure.example", "http://192.168.1.1")),
+      record("c", site("https://secure.example", "example.com")),
+      record("d", site("http://localhost:3000", "http://127.0.0.1")),
+      record("e", { type: "wifi", ...site("http://wifi.example") }),
+    ]);
+
+    expect(found.map(({ record, hosts }) => [record.recordId, hosts])).toEqual([
+      ["a", ["192.168.1.1"]],
+      ["b", ["router.example"]],
+    ]);
+  });
+});
+
+describe("twoFactorSiteOf", () => {
+  const directory = new Map([
+    ["example.com", "https://example.com/2fa"],
+    ["chat.other.com", ""],
+  ]);
+
+  it("matches the host or a domain above it, never a bare suffix or a sibling", () => {
+    expect(twoFactorSiteOf("login.example.com", directory)).toEqual({
+      domain: "example.com",
+      documentation: "https://example.com/2fa",
+    });
+    expect(twoFactorSiteOf("chat.other.com", directory)).toEqual({ domain: "chat.other.com" });
+    expect(twoFactorSiteOf("mail.other.com", directory)).toBeUndefined();
+    expect(twoFactorSiteOf("com", new Map([["com", ""]]))).toBeUndefined();
+  });
+
+  it("finds well-known sites in the bundled snapshot", async () => {
+    const bundled = await loadTwoFactorDirectory();
+    expect(twoFactorSiteOf("github.com", bundled)?.documentation).toMatch(/^https:\/\//);
+  });
+});
+
+describe("findMissingTwoFactor", () => {
+  const directory = new Map([["example.com", ""]]);
+
+  it("lists logins with a password for a 2FA site and no TOTP secret", () => {
+    const found = findMissingTwoFactor(
+      [
+        record("b", { password: "x", ...site("https://www.example.com") }),
+        record("a", { password: "x", ...site("https://nope.test", "app.example.com") }),
+        record("c", { password: "x", totp: "otpauth://totp/x", ...site("example.com") }),
+        record("d", { password: "", ...site("example.com") }),
+        record("e", { password: "x", ...site("nope.test") }),
+        record("f", { type: "wifi", password: "x", ...site("example.com") }),
+      ],
+      directory,
+    );
+
+    expect(found.map(({ record, site }) => [record.recordId, site.domain])).toEqual([
+      ["a", "example.com"],
+      ["b", "example.com"],
+    ]);
   });
 });

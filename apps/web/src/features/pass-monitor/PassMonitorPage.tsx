@@ -54,7 +54,8 @@ const groupedCount = (groups: { records: unknown[] }[] | null) =>
   groups?.reduce((sum, group) => sum + group.records.length, 0);
 
 export default function PassMonitorPage() {
-  const { weak, weakFailed, reused, duplicates, old } = usePassMonitor();
+  const { weak, weakFailed, reused, duplicates, old, insecure, missingTwoFactor, twoFactorFailed } =
+    usePassMonitor();
   const breach = useBreachCheck();
 
   return (
@@ -102,6 +103,19 @@ export default function PassMonitorPage() {
               breach.breached === null && !breach.checking && (breach.failed || breach.offline)
             }
             off={breach.enabled === false}
+          />
+          <Category
+            title="Insecure websites"
+            description="Logins on plain HTTP"
+            path={passMonitorPaths.insecure}
+            count={insecure?.length}
+          />
+          <Category
+            title="Missing 2FA"
+            description="Sites that offer two-factor authentication"
+            path={passMonitorPaths.twoFactor}
+            count={missingTwoFactor?.length}
+            failed={twoFactorFailed}
           />
         </ItemGroup>
       </div>

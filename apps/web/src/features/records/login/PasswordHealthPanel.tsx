@@ -2,10 +2,12 @@ import {
   breachCountLabel,
   getPasswordHealth,
   useGetRecords,
+  useMissingTwoFactor,
   usePasswordStrength,
   useStoredBreachCount,
 } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
+import { ExternalLink } from "@repo/ui/components/ExternalLink";
 import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
@@ -55,6 +57,7 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
   const health = useMemo(() => getPasswordHealth(record, records), [record, records]);
   const strength = usePasswordStrength(isRecordType(record, "login") ? record.password : undefined);
   const breachCount = useStoredBreachCount(record);
+  const twoFactorSite = useMissingTwoFactor(record);
 
   if (!health) return null;
 
@@ -89,9 +92,21 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
           />
         )}
         <HealthRow
-          tone={health.hasTotp ? "good" : "neutral"}
+          tone={health.hasTotp ? "good" : twoFactorSite ? "warn" : "neutral"}
           title={health.hasTotp ? "2FA enabled" : "No 2FA"}
-          detail={health.hasTotp ? "TOTP" : "Add a TOTP secret when editing"}
+          detail={
+            health.hasTotp ? (
+              "TOTP"
+            ) : !twoFactorSite ? (
+              "Add a TOTP secret when editing"
+            ) : twoFactorSite.documentation ? (
+              <ExternalLink href={twoFactorSite.documentation}>
+                {twoFactorSite.domain} supports 2FA
+              </ExternalLink>
+            ) : (
+              `${twoFactorSite.domain} supports 2FA`
+            )
+          }
         />
       </ul>
     </section>

@@ -1,12 +1,19 @@
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { normalize, type PasswordStrength, websiteHost } from "@repo/util";
 import { monitoredPassword } from "./password-health";
+import {
+  type TwoFactorDirectory,
+  type TwoFactorSite,
+  twoFactorSiteOf,
+} from "./two-factor-directory";
 
 export const OLD_PASSWORD_DAYS = 365;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export type WeakPassword = { record: DecryptedRecord; strength: PasswordStrength };
 export type OldPassword = { record: DecryptedRecord; changedAt: string; ageDays: number };
+export type InsecureWebsite = { record: DecryptedRecord; hosts: string[] };
+export type MissingTwoFactor = { record: DecryptedRecord; site: TwoFactorSite };
 /** Records that share something; `id` is a member's record id, never the shared value. */
 export type MonitorGroup = { id: string; records: DecryptedRecord[] };
 
@@ -132,4 +139,49 @@ export function findOldPasswords(
 export function passwordAgeLabel(ageDays: number): string {
   const years = Math.max(1, Math.floor(ageDays / 365));
   return `Unchanged for ${years} ${years === 1 ? "year" : "years"}`;
+}
+
+// Loopback traffic never leaves the device, so plain HTTP there exposes nothing.
+const LOOPBACK_HOST = /^(localhost|127(\.\d{1,3}){3}|\[::1\])$/;
+
+/** Logins with a website on plain `http://`, by title. */
+export function findInsecureWebsites(records: readonly DecryptedRecord[]): InsecureWebsite[] {
+  return records
+    .flatMap((record) => {
+      if (!isRecordType(record, "login")) return [];
+      const hosts = (record.websites ?? []).flatMap(({ value }) => {
+        const url = value.trim();
+        if (!url.toLowerCase().startsWith("http://")) return [];
+        const host = websiteHost(url);
+        return host && !LOOPBACK_HOST.test(host) ? [host] : [];
+      });
+      return hosts.length > 0 ? [{ record, hosts: [...new Set(hosts)] }] : [];
+    })
+    .sort((a, b) => byTitle(a.record, b.record));
+}
+
+/** The 2FA-capable site of a login with a password, unless it already holds a TOTP secret. */
+export function missingTwoFactorOf(
+  record: DecryptedRecord,
+  directory: TwoFactorDirectory,
+): TwoFactorSite | undefined {
+  if (!isRecordType(record, "login") || record.totp || !monitoredPassword(record)) return undefined;
+  for (const host of loginHosts(record)) {
+    const site = twoFactorSiteOf(host, directory);
+    if (site) return site;
+  }
+  return undefined;
+}
+
+/** Logins for sites that offer TOTP but have none saved, by title. */
+export function findMissingTwoFactor(
+  records: readonly DecryptedRecord[],
+  directory: TwoFactorDirectory,
+): MissingTwoFactor[] {
+  return records
+    .flatMap((record) => {
+      const site = missingTwoFactorOf(record, directory);
+      return site ? [{ record, site }] : [];
+    })
+    .sort((a, b) => byTitle(a.record, b.record));
 }

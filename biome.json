@@ -15,6 +15,7 @@
       "!packages/store/drizzle-registry/**",
       "!packages/store/src/migrations.generated.ts",
       "!packages/store/src/registry-migrations.generated.ts",
+      "!packages/client/src/records/two-factor-directory.json",
       "!**/CHANGELOG.md",
       "!apps/mobile/eas.json",
       "!apps/web/brand/**"

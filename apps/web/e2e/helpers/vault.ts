@@ -12,6 +12,8 @@ export type LoginFields = {
   username?: string;
   password?: string;
   note?: string;
+  /** Added as a new website, after any the login has. */
+  website?: string;
 };
 
 /** Resolves once the vault is open on the record list (or a record). */
@@ -55,10 +57,15 @@ export async function reloadAndUnlock(page: Page, password: string): Promise<voi
 
 async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
   const sheet = page.getByRole("dialog");
-  for (const [name, value] of Object.entries(fields)) {
+  const { website, ...inputs } = fields;
+  for (const [name, value] of Object.entries(inputs)) {
     if (value === undefined) continue;
     const input = sheet.locator(`[name="${name}"]`);
     await input.fill(value);
+  }
+  if (website !== undefined) {
+    await sheet.getByRole("button", { name: "Add website" }).click();
+    await sheet.locator('[name^="websites."][name$=".value"]').last().fill(website);
   }
 }
 

@@ -56,7 +56,7 @@ export const settingsPaths = {
   any: "/settings/*?",
 } as const;
 
-/** Weak, reused, duplicate and old passwords; rendered in the settings layout. */
+/** Pass Monitor findings; rendered in the settings layout. */
 export const passMonitorPaths = {
   index: "/settings/pass-monitor",
   weak: "/settings/pass-monitor/weak",
@@ -64,6 +64,8 @@ export const passMonitorPaths = {
   duplicates: "/settings/pass-monitor/duplicates",
   old: "/settings/pass-monitor/old",
   breached: "/settings/pass-monitor/breached",
+  insecure: "/settings/pass-monitor/insecure",
+  twoFactor: "/settings/pass-monitor/two-factor",
   /** One of the finding pages, below the overview. */
   page: "/settings/pass-monitor/*",
   any: "/settings/pass-monitor/*?",

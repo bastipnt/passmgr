@@ -25,7 +25,7 @@ export function capitalize(input: string): string {
 }
 
 export function normalizeWebsiteUrl(value: string) {
-  return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
 }
 
 /** A website's host for matching: lowercase, no `www.`, port or path; `undefined` if it isn't a URL. */

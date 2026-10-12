@@ -344,6 +344,10 @@ in chunks, ratings cached per version, never the password), reused = exact match
 website host, old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
 `RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
 `password` in `mergeRecord`.
+Logins only: insecure websites = a website on `http://` (loopback aside), missing 2FA = a password and no `totp`, the
+host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
+refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
+setup docs (`useMissingTwoFactor`). No network request.
 Breach check (`useBreachCheck`, `records/breach-check.ts`): opt-in per profile + device (`Vault.setBreachCheckEnabled`,
 off deletes every result), while the Pass Monitor is open the HIBP range API is asked directly from the client
 (`pwnedPasswordHash`: only the 5-char SHA-1 prefix, `Add-Padding`; one request per prefix, 4 at a time, 429 backoff)
