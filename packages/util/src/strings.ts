@@ -28,4 +28,13 @@ export function normalizeWebsiteUrl(value: string) {
   return value.startsWith("http://") || value.startsWith("https://") ? value : `https://${value}`;
 }
 
+/** A website's host for matching: lowercase, no `www.`, port or path; `undefined` if it isn't a URL. */
+export function websiteHost(url: string): string | undefined {
+  try {
+    return new URL(normalizeWebsiteUrl(url.trim())).hostname.replace(/^www\./, "") || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export const UUIDV4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;

@@ -7,7 +7,7 @@ import { ArrowLeft, ChevronLeftIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useRoute } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
-import { recordPaths, settingsPaths } from "@/app/route-paths";
+import { passMonitorPaths, recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import SettingsOverview from "./SettingsOverview";
 
@@ -23,7 +23,13 @@ type SettingsLayoutProps = {
 export default function SettingsLayout({ children }: SettingsLayoutProps) {
   const isMobile = useIsMobile();
   const [isIndex] = useRoute(settingsPaths.index);
-  const backLink = isIndex || !isMobile ? recordPaths.index : settingsPaths.index;
+  const [isMonitorPage] = useRoute(passMonitorPaths.page);
+  const backLink =
+    isIndex || !isMobile
+      ? recordPaths.index
+      : isMonitorPage
+        ? passMonitorPaths.index
+        : settingsPaths.index;
   const goBack = usePageBack(backLink);
 
   return (

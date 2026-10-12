@@ -114,4 +114,69 @@ describe("RecordRepository", () => {
     expect(await vault.countPendingChanges()).toBe(0);
     expect(onWrite).not.toHaveBeenCalled();
   });
+
+  describe("passwordChangedAt", () => {
+    const withPassword = (password: string, extra: object = {}) =>
+      ({ type: "login", title: "GitHub", password, ...extra }) as RecordData;
+    const changedAt = (row: Parameters<typeof decryptRecord>[0]) =>
+      (decryptRecord(row) as { passwordChangedAt?: string }).passwordChangedAt;
+
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    function setNow(iso: string) {
+      vi.useFakeTimers({ toFake: ["Date"] });
+      vi.setSystemTime(new Date(iso));
+    }
+
+    it("is set on create and kept until the password changes", async () => {
+      setNow("2026-01-01T00:00:00.000Z");
+      const created = await repository.create(withPassword("one"));
+      setNow("2026-02-01T00:00:00.000Z");
+      // A form never sends the date: it comes from the current version.
+      const renamed = await repository.update(created, withPassword("one", { note: "x" }));
+      setNow("2026-03-01T00:00:00.000Z");
+      const changed = await repository.update(created, withPassword("two"));
+
+      expect(changedAt(created)).toBe("2026-01-01T00:00:00.000Z");
+      expect(changedAt(renamed)).toBe("2026-01-01T00:00:00.000Z");
+      expect(changedAt(changed)).toBe("2026-03-01T00:00:00.000Z");
+    });
+
+    it("is absent without a password and on types without one", async () => {
+      const created = await repository.create(withPassword("one"));
+      const cleared = await repository.update(created, withPassword(""));
+      const note = await repository.create({ type: "note", title: "N" } as RecordData);
+
+      expect(changedAt(cleared)).toBeUndefined();
+      expect(changedAt(note)).toBeUndefined();
+    });
+
+    it("keeps the stored date when older content with the same password is saved", async () => {
+      setNow("2026-01-01T00:00:00.000Z");
+      const created = await repository.create(withPassword("one"));
+      setNow("2026-02-01T00:00:00.000Z");
+      await repository.update(created, withPassword("two"));
+      setNow("2026-03-01T00:00:00.000Z");
+      await repository.update(created, withPassword("one"));
+
+      const saved = await repository.update(created, decryptRecord(created));
+
+      expect(changedAt(saved)).toBe("2026-03-01T00:00:00.000Z");
+    });
+
+    it("survives a move and a restore from the trash", async () => {
+      setNow("2026-01-01T00:00:00.000Z");
+      const created = await repository.create(withPassword("one"));
+      const data = decryptRecord(created);
+      setNow("2026-05-01T00:00:00.000Z");
+      const moved = await repository.move(created, data, workId);
+      await repository.delete(moved.recordId);
+      const restored = await repository.restore(moved, decryptRecord(moved));
+
+      expect(changedAt(moved)).toBe("2026-01-01T00:00:00.000Z");
+      expect(changedAt(restored)).toBe("2026-01-01T00:00:00.000Z");
+    });
+  });
 });

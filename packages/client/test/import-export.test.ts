@@ -189,6 +189,48 @@ describe("importExportData", () => {
     expect((await repository.history(mail.recordId)).map((r) => r.version)).toEqual([1]);
   });
 
+  describe("passwordChangedAt", () => {
+    const changedAt = async (recordId: string) =>
+      (decryptRecord((await repository.getById(recordId))!) as { passwordChangedAt?: string })
+        .passwordChangedAt;
+    const withoutDate = (data: ExportData): ExportData => ({
+      ...data,
+      records: data.records.map((record) => {
+        const { passwordChangedAt: _, ...rest } = record as typeof record & {
+          passwordChangedAt?: string;
+        };
+        return { ...rest, createdAt: "2020-01-01T00:00:00.000Z" };
+      }) as ExportData["records"],
+    });
+
+    it("dates an undated backup's password by the record's creation, not the import", async () => {
+      const mail = await repository.create(login("Mail"));
+      const data = withoutDate(await exported());
+      await vault.destroy();
+      vault = new Vault(createTestDriver());
+      repository = new RecordRepository(vault);
+
+      await runImport(data, options());
+
+      expect(await changedAt(mail.recordId)).toBe("2020-01-01T00:00:00.000Z");
+    });
+
+    it("skips an undated backup's unchanged record, and keeps the stored date on overwrite", async () => {
+      const mail = await repository.create(login("Mail"));
+      const stored = await changedAt(mail.recordId);
+      const data = withoutDate(await exported());
+
+      expect(await runImport(data, options({ duplicates: "overwrite" }))).toMatchObject({
+        updated: 0,
+        skipped: 1,
+      });
+
+      data.records[0]!.title = "Mail (renamed)";
+      await runImport(data, options({ duplicates: "overwrite" }));
+      expect(await changedAt(mail.recordId)).toBe(stored);
+    });
+  });
+
   it("writes large files in batches", async () => {
     const data = await exported();
     const count = IMPORT_BATCH_SIZE * 2 + 1;

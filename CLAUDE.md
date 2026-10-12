@@ -89,7 +89,7 @@ packages/
 
 ```
 app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
-features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/
+features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/
 components/  App-wide, feature-agnostic components only
 hooks/ lib/ test/ types/
 ```
@@ -337,6 +337,13 @@ a record deleted for good. Restore = update with the tombstone's content (`Recor
 Purge (`RecordRepository.purge` → `Vault.purgeRecords`) drops every local version + unsent change; a
 record the server has leaves a contentless `purged` tombstone, pushed as `delete` + `tombstoneKind`,
 and the server (and every device that pulls it) drops all versions below it (`dropPurgedHistory`).
+
+Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and
+Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after decryption. Weak = zxcvbn score < 3 (rated
+in chunks, ratings cached per version, never the password), reused = exact match, duplicates = same username on a shared
+website host, old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
+`RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
+`password` in `mergeRecord`.
 
 Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
 `keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`

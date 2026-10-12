@@ -2,7 +2,7 @@ import { SessionContext, useAutoReconnect } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
-import { authPaths, settingsPaths } from "@/app/route-paths";
+import { authPaths, passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { lazyPreload } from "@/lib/lazy-preload";
 import SettingsLayout from "./SettingsLayout";
@@ -14,10 +14,7 @@ const GeneralSettingsPage = lazyPreload(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazyPreload(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazyPreload(() => import("./SecuritySettingsPage"));
 const TrashPage = lazyPreload(() => import("./TrashPage"));
-const PassMonitorPage = lazyPreload(() => import("./PassMonitorPage"));
-const ReusedPasswordsPage = lazyPreload(() => import("./ReusedPasswordsPage"));
-const DuplicatesPage = lazyPreload(() => import("./DuplicatesPage"));
-const WeakPasswordsPage = lazyPreload(() => import("./WeakPasswordsPage"));
+const PassMonitorRoutes = lazyPreload(() => import("@/features/pass-monitor"));
 
 export default function SettingsRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
@@ -47,10 +44,7 @@ export default function SettingsRoutes() {
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />
         <Route path={settingsPaths.trash} component={TrashPage} />
-        <Route path={settingsPaths.passMonitor} component={PassMonitorPage} />
-        <Route path={settingsPaths.reusedPasswords} component={ReusedPasswordsPage} />
-        <Route path={settingsPaths.duplicates} component={DuplicatesPage} />
-        <Route path={settingsPaths.weakPasswords} component={WeakPasswordsPage} />
+        <Route path={passMonitorPaths.any} component={PassMonitorRoutes} />
 
         <Route>
           <NotFound />

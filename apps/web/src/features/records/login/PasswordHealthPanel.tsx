@@ -1,10 +1,9 @@
-import { useGetRecords, usePasswordStrength } from "@repo/client";
+import { getPasswordHealth, useGetRecords, usePasswordStrength } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { PasswordStrengthMeter } from "@/features/password-generation";
-import { getPasswordHealth } from "../password-health";
 
 type Tone = "good" | "warn" | "neutral";
 
@@ -72,7 +71,7 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
           detail={
             reused
               ? `Also used by ${listTitles(health.reusedIn)}`
-              : `Unique across ${health.checkedCount} ${health.checkedCount === 1 ? "login" : "logins"}`
+              : `Unique across ${health.checkedCount} ${health.checkedCount === 1 ? "password" : "passwords"}`
           }
         />
         <HealthRow

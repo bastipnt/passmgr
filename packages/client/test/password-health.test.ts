@@ -1,6 +1,6 @@
 import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
-import { getPasswordHealth } from "./password-health";
+import { getPasswordHealth } from "../src/records/password-health";
 
 function makeRecord(recordId: string, fields: Partial<LoginRecord> = {}): DecryptedRecord {
   return {
@@ -33,14 +33,15 @@ describe("getPasswordHealth", () => {
     expect(health?.checkedCount).toBe(3);
   });
 
-  it("only checks logins: other types neither get a health nor count as reuse", () => {
+  it("counts a Wi-Fi password as reuse, but other types' secrets not", () => {
     const github = makeRecord("github", { password: "shared-secret-1" });
     const wifi = { ...makeRecord("wifi"), type: "wifi", password: "shared-secret-1" } as const;
+    const card = { ...makeRecord("card"), type: "card", pin: "shared-secret-1" } as const;
 
     expect(getPasswordHealth(wifi, [github, wifi])).toBeNull();
-    expect(getPasswordHealth(github, [github, wifi])).toMatchObject({
-      reusedIn: [],
-      checkedCount: 1,
+    expect(getPasswordHealth(github, [github, wifi, card])).toMatchObject({
+      reusedIn: [wifi],
+      checkedCount: 2,
     });
   });
 

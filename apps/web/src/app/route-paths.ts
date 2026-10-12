@@ -51,13 +51,21 @@ export const settingsPaths = {
   security: "/settings/security",
   /** Deleted records: restore or delete for good. */
   trash: "/settings/trash",
-  passMonitor: "/settings/pass-monitor",
-  reusedPasswords: "/settings/reused-passwords",
-  duplicates: "/settings/pass-monitor/duplicates",
-  weakPasswords: "/settings/pass-monitor/weak-passwords",
 
   /** Prefix the app-level router hands to the settings feature. */
   any: "/settings/*?",
+} as const;
+
+/** Weak, reused, duplicate and old passwords; rendered in the settings layout. */
+export const passMonitorPaths = {
+  index: "/settings/pass-monitor",
+  weak: "/settings/pass-monitor/weak",
+  reused: "/settings/pass-monitor/reused",
+  duplicates: "/settings/pass-monitor/duplicates",
+  old: "/settings/pass-monitor/old",
+  /** One of the finding pages, below the overview. */
+  page: "/settings/pass-monitor/*",
+  any: "/settings/pass-monitor/*?",
 } as const;
 
 /**
@@ -70,7 +78,6 @@ export const pageDepths = [
   // Edit and versions are sheets over the record, not pages: same depth.
   [recordPaths.detailAny, 1],
   [settingsPaths.index, 1],
-  [settingsPaths.duplicates, 3],
-  [settingsPaths.weakPasswords, 3],
+  [passMonitorPaths.page, 3],
   [settingsPaths.any, 2],
 ] as const;

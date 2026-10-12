@@ -2,7 +2,7 @@ import { Item, ItemActions, ItemContent, ItemGroup, ItemTitle } from "@repo/ui/c
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronRightIcon } from "lucide-react";
 import { useRoute, Link as WouterLink } from "wouter";
-import { settingsPaths } from "@/app/route-paths";
+import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 type SidebarItemParams = {
@@ -49,7 +49,7 @@ export default function SettingsOverview({ className }: SettingsOverviewProps) {
           <SidebarItem title="General Settings" path={settingsPaths.general} />
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />
           <SidebarItem title="Security" path={settingsPaths.security} />
-          <SidebarItem title="Pass Monitor" path={settingsPaths.passMonitor} />
+          <SidebarItem title="Pass Monitor" path={passMonitorPaths.index} />
           <SidebarItem title="Trash" path={settingsPaths.trash} />
         </ItemGroup>
       </div>

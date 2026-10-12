@@ -14,6 +14,9 @@ export type MergeResult = { data: RecordData; deleted: boolean };
 // Websites and custom fields have no stable item ids and count as one field.
 const SET_FIELDS = new Set(["tags"]);
 
+// Merged with the field it dates, never on its own: a new password with the old date would look stale.
+const PASSWORD_DATE = "passwordChangedAt";
+
 /**
  * Three-way, field-level merge of a record edited on two sides (ADR 0001 D5).
  * `local` and `remote` are each side's versions since `base`, oldest first,
@@ -28,6 +31,8 @@ const SET_FIELDS = new Set(["tags"]);
  * - Edit vs. delete: the edit wins, so the result is deleted only when both
  *   heads are tombstones. A tombstone keeps the content it deleted, so edits
  *   made before the delete still merge.
+ * - `passwordChangedAt` follows the password: the date of whichever side's
+ *   password won (the later one when both sides hold it).
  *
  * Fields are a record's payload keys rather than its `getRecordFieldSpecs`:
  * those leave out fields no view renders (favourite, tags) and format values.
@@ -55,6 +60,7 @@ export function mergeRecord(
 
   const merged: Record<string, unknown> = { type: base.type };
   for (const key of fieldKeys(localHead.data, remoteHead.data, base)) {
+    if (key === PASSWORD_DATE) continue;
     const [b, l, r] = [baseFields[key], localFields[key], remoteFields[key]];
     let value: unknown;
     if (SET_FIELDS.has(key)) value = mergeSet(b, l, r);
@@ -64,13 +70,36 @@ export function mergeRecord(
 
     if (value !== undefined) merged[key] = value;
   }
+  const passwordDate = mergedPasswordDate(merged.password, [baseFields, localFields, remoteFields]);
+  if (passwordDate !== undefined) merged[PASSWORD_DATE] = passwordDate;
   return { data: merged as RecordData, deleted };
 }
 
-/** Whether two versions hold the same record content (empty values count as absent). */
+/** The latest `passwordChangedAt` among the versions holding the merged password. */
+function mergedPasswordDate(
+  password: unknown,
+  versions: Record<string, unknown>[],
+): string | undefined {
+  if (!password) return undefined;
+  let latest: string | undefined;
+  for (const fields of versions) {
+    const date = fields[PASSWORD_DATE];
+    if (sameValue(fields.password, password) && typeof date === "string" && isLater(date, latest)) {
+      latest = date;
+    }
+  }
+  return latest;
+}
+
+/**
+ * Whether two versions hold the same record content (empty values count as absent).
+ * The password's date alone isn't content: a version just for it shows no change.
+ */
 export function sameRecordData(a: RecordData, b: RecordData): boolean {
   const [fieldsA, fieldsB] = [fieldsOf(a), fieldsOf(b)];
-  return fieldKeys(a, b).every((key) => sameValue(fieldsA[key], fieldsB[key]));
+  return fieldKeys(a, b)
+    .filter((key) => key !== PASSWORD_DATE)
+    .every((key) => sameValue(fieldsA[key], fieldsB[key]));
 }
 
 /** Per field, when the chain last changed it (walking from `base`). */

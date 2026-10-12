@@ -138,4 +138,54 @@ describe("mergeRecord", () => {
       deleted: true,
     });
   });
+
+  describe("passwordChangedAt", () => {
+    const dated = { ...base, passwordChangedAt: "2025-01-01T00:00:00.000Z" };
+
+    it("comes with the password from the side that changed it", () => {
+      const local = [at(1, { password: "new", passwordChangedAt: "2026-10-06T10:01:00.000Z" })];
+      const merged = mergeRecord(dated, local, [at(5, { ...dated, note: "B" })]);
+
+      expect(merged.data).toMatchObject({
+        password: "new",
+        note: "B",
+        passwordChangedAt: "2026-10-06T10:01:00.000Z",
+      });
+    });
+
+    it("follows the winning password when both sides changed it", () => {
+      const remoteWins = mergeRecord(
+        dated,
+        [at(0, { password: "local", passwordChangedAt: "2026-10-06T10:09:00.000Z" })],
+        [at(5, { password: "remote", passwordChangedAt: "2026-10-06T10:01:00.000Z" })],
+      );
+
+      expect(remoteWins.data).toMatchObject({
+        password: "remote",
+        passwordChangedAt: "2026-10-06T10:01:00.000Z",
+      });
+    });
+
+    it("isn't content of its own: versions differing only by it are the same", () => {
+      expect(
+        sameRecordData(dated, { ...dated, passwordChangedAt: "2026-01-01T00:00:00.000Z" }),
+      ).toBe(true);
+    });
+
+    it("drops the date with the password", () => {
+      const merged = mergeRecord(
+        dated,
+        [at(1, { password: "" })],
+        [at(5, { ...dated, note: "B" })],
+      );
+
+      expect(merged.data).not.toHaveProperty("passwordChangedAt");
+    });
+
+    it("keeps the base date when neither side changed the password", () => {
+      const merged = mergeRecord(dated, [at(1, { ...dated, note: "A" })], [at(5, dated)]);
+
+      expect(merged.data).toMatchObject({ passwordChangedAt: dated.passwordChangedAt });
+    });
+  });
 });

@@ -2,7 +2,7 @@ import { act, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Route, Router, Switch } from "wouter";
 import { navigate } from "wouter/use-browser-location";
-import { pageDepths, recordPaths, settingsPaths } from "./route-paths";
+import { pageDepths, passMonitorPaths, recordPaths, settingsPaths } from "./route-paths";
 
 type PageTransitionsModule = typeof import("./page-transitions");
 
@@ -65,7 +65,7 @@ describe("page direction", () => {
   it("derives the direction from page depth", () => {
     expect(pt.directionBetween(recordPaths.index, recordPaths.record("a"))).toBe("push");
     expect(pt.directionBetween(recordPaths.record("a"), recordPaths.index)).toBe("pop");
-    expect(pt.directionBetween(settingsPaths.passMonitor, settingsPaths.duplicates)).toBe("push");
+    expect(pt.directionBetween(passMonitorPaths.index, passMonitorPaths.duplicates)).toBe("push");
     expect(pt.directionBetween(settingsPaths.general, settingsPaths.index)).toBe("pop");
   });
 

@@ -7,6 +7,7 @@ import type {
   RecordData,
   RecordPayload,
 } from "@repo/schema";
+import { monitoredPassword } from "../records/password-health";
 import type { RecordRepository } from "../records/record-repository";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
 
@@ -61,16 +62,22 @@ export const IMPORT_BATCH_SIZE = 100;
 /** Larger files aren't read: a backup of even a big vault is a few MB. */
 export const MAX_IMPORT_FILE_BYTES = 50 * 1024 * 1024;
 
-/** The record's content, without where it lived in the file. */
+/**
+ * The record's content, without where it lived in the file. A password the file doesn't
+ * date (a backup from before `passwordChangedAt`) is as old as the record, not the import.
+ */
 export function importRecordData(record: ExportRecord): RecordData {
   const {
     id: _id,
     vaultId: _vaultId,
-    createdAt: _createdAt,
+    createdAt,
     updatedAt: _updatedAt,
     schemaVersion: _schemaVersion,
     ...data
-  } = record as ExportRecord & { schemaVersion?: unknown };
+  } = record as ExportRecord & { schemaVersion?: unknown; passwordChangedAt?: string };
+  if (monitoredPassword(data as RecordData) && !data.passwordChangedAt && createdAt) {
+    return { ...data, passwordChangedAt: createdAt } as RecordData;
+  }
   return data as RecordData;
 }
 
@@ -136,6 +143,12 @@ export function planImport(
   return { entries, skipped };
 }
 
+// Not content: an older backup without the date still matches.
+function withoutPasswordDate(data: RecordData): RecordData {
+  const { passwordChangedAt: _, ...rest } = data as RecordData & { passwordChangedAt?: string };
+  return rest as RecordData;
+}
+
 /** Same JSON value, object keys in any order. */
 function sameContent(a: unknown, b: unknown): boolean {
   if (a === b) return true;
@@ -161,7 +174,7 @@ async function holdsSameContent(
   if (!row || row.deleted_at) return false;
   try {
     const { schemaVersion: _, ...current } = await decrypt(row);
-    return sameContent(current, entry.data);
+    return sameContent(withoutPasswordDate(current), withoutPasswordDate(entry.data));
   } catch {
     return false;
   }

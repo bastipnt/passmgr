@@ -158,6 +158,7 @@ const OWN_COLUMN = new Set<string>([
   "vaultId",
   "attachments",
   "schemaVersion",
+  "passwordChangedAt",
 ]);
 
 /** RFC 4180: quoted when it holds a comma, quote or line break; quotes doubled. */

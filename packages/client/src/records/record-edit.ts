@@ -75,7 +75,8 @@ export function recordFormDefaults<T extends RecordType>(
     favorite: _favorite,
     tags: _tags,
     attachments: _attachments,
+    passwordChangedAt: _passwordChangedAt,
     ...values
-  } = record;
+  } = record as RecordOfType<T> & { passwordChangedAt?: string };
   return values as Partial<RecordFormValues<T>>;
 }
