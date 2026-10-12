@@ -22,6 +22,10 @@ export async function loadLoginBundle(_profileId: string): Promise<LoginBundle |
   return null;
 }
 
+export async function hasLoginBundle(_profileId: string): Promise<boolean> {
+  return false;
+}
+
 export async function clearLoginBundle(_profileId: string): Promise<void> {
   // no-op on web
 }

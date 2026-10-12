@@ -1,5 +1,13 @@
-import { useStore } from "@repo/client";
-import { type BottomSheetRef, BrandLockup, Button, Screen, SpectrumText } from "@repo/ui-native";
+import { useBiometricRestore, useStore } from "@repo/client";
+import {
+  BiometricUnlockButton,
+  type BottomSheetRef,
+  BrandLockup,
+  Button,
+  Screen,
+  SpectrumText,
+  toast,
+} from "@repo/ui-native";
 import { FIELD_COLORS } from "@repo/ui-shared";
 import { ShieldCheck } from "lucide-react-native";
 import { useRef, useState } from "react";
@@ -41,6 +49,17 @@ export default function LoginScreen() {
   const [recoverLocal, setRecoverLocal] = useState(false);
   const { profile, accountKeyMaterial, profiles, selectProfile } = useStore();
   const hasStoredVault = profile !== null && accountKeyMaterial !== null;
+  const biometric = useBiometricRestore();
+
+  async function biometricUnlock() {
+    try {
+      if ((await biometric.unlock()) === "unavailable")
+        toast.error("Unlock with your password this time.");
+    } catch (e) {
+      console.error("Biometric unlock failed", e);
+      toast.error("That didn't work. Unlock with your password.");
+    }
+  }
 
   async function pickProfile(profileId: string) {
     try {
@@ -101,8 +120,18 @@ export default function LoginScreen() {
         </ScrollView>
 
         <View className="gap-3">
-          <Button size="lg" onPress={() => signInRef.current?.triggerShowHide(true)}>
-            {hasStoredVault ? "Unlock" : "Sign in"}
+          {biometric.available && (
+            <BiometricUnlockButton
+              loading={biometric.unlocking}
+              onPress={() => void biometricUnlock()}
+            />
+          )}
+          <Button
+            size="lg"
+            variant={biometric.available ? "glass" : "default"}
+            onPress={() => signInRef.current?.triggerShowHide(true)}
+          >
+            {hasStoredVault ? (biometric.available ? "Unlock with password" : "Unlock") : "Sign in"}
           </Button>
           <Button
             variant="glass"

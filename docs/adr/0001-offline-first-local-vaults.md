@@ -118,7 +118,7 @@ server, apart from account operations that genuinely need it (registration, logi
 >   listed profile without data. Not a `profileId` column per table: isolation by construction,
 >   removal = deleting a file.
 > - **Per-profile state:** the mobile login bundle (Keychain/Keystore item
->   `passmgr.login-bundle.<profileId>`), biometric enrollment (web: in the profile's database
+>   `passmgr.login-bundle.<profileId>`, plus the prompt-free marker `passmgr.login-bundle-set.<profileId>`), biometric enrollment (web: in the profile's database
 >   already; mobile: the login bundle), the Argon2 rekey state (in the wrap), and the
 >   "biometric dismissed" preference (`biometric-dismissed:<profileId>`). Other preferences
 >   (auto-lock, theme, generator) stay device-wide.

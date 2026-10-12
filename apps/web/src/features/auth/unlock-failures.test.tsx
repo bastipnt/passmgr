@@ -4,7 +4,7 @@ import {
   canReleasePassword,
   useConnectServer,
 } from "@repo/client/src/hooks/use-connect-server";
-import { useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
+import { useBiometricRestore, useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
 import { useUnlock } from "@repo/client/src/hooks/use-unlock";
 import {
   LoginStartFailedError,
@@ -18,6 +18,7 @@ import {
   createUserKeyPair,
   genKey,
   getPasswordKekParams,
+  SESSION_SIGNED_OUT,
   wrapAccountKey,
   wrapVaultKey,
 } from "@repo/crypto";
@@ -25,6 +26,7 @@ import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service
 import type { MemberVault, UserKeyPair } from "@repo/schema";
 import {
   clearLoginBundle,
+  hasLoginBundle,
   type LocalProfile,
   type LoginBundle,
   loadLoginBundle,
@@ -44,6 +46,7 @@ vi.mock("@repo/store", async (importActual) => ({
   ...(await importActual<object>()),
   isPersistentLoginAvailable: () => true,
   loadLoginBundle: vi.fn(),
+  hasLoginBundle: vi.fn(),
   clearLoginBundle: vi.fn(),
   persistLoginBundle: vi.fn(),
 }));
@@ -174,11 +177,11 @@ function wrapper({ children }: { children: ReactNode }) {
   return <SessionContext.Provider value={session}>{children}</SessionContext.Provider>;
 }
 
-function unauthorized() {
+function unauthorized(message = "UNAUTHORIZED") {
   return TRPCClientError.from({
     error: {
       code: -32001,
-      message: "UNAUTHORIZED",
+      message,
       data: { code: "UNAUTHORIZED", httpStatus: 401 },
     },
   });
@@ -198,26 +201,26 @@ beforeEach(() => {
   trpcClient.user.heartbeat.query.mockResolvedValue({ ok: true });
 });
 
+/** A bundle + the local key material it opens. */
+function persisted({ server = true } = {}) {
+  const { accountKey, wraps, userKeyPair } = keyring();
+  store.vault.getVaults.mockResolvedValue(wraps);
+  store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
+  const bundle: LoginBundle = {
+    accountKeyB64: toBase64(accountKey),
+    ...(server && {
+      server: { sessionId: "sid", authKeyB64: B64_32, authSaltB64: B64_32 },
+    }),
+  };
+  vi.mocked(loadLoginBundle).mockResolvedValue(bundle);
+  return { userKeyPair, wraps };
+}
+
 describe("useSessionRestore", () => {
   async function restore() {
     const { result } = renderHook(() => useSessionRestore(), { wrapper });
     await act(() => result.current.tryRestore());
     return result.current.status;
-  }
-
-  /** A bundle + the local key material it opens. */
-  function persisted({ server = true } = {}) {
-    const { accountKey, wraps, userKeyPair } = keyring();
-    store.vault.getVaults.mockResolvedValue(wraps);
-    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
-    const bundle: LoginBundle = {
-      accountKeyB64: toBase64(accountKey),
-      ...(server && {
-        server: { sessionId: "sid", authKeyB64: B64_32, authSaltB64: B64_32 },
-      }),
-    };
-    vi.mocked(loadLoginBundle).mockResolvedValue(bundle);
-    return { userKeyPair, wraps };
   }
 
   it("falls back to the password unlock for a bundle from an older app version", async () => {
@@ -339,6 +342,75 @@ describe("useSessionRestore", () => {
     expect(await restore()).toBe("restored");
     expect(trpcClient.user.heartbeat.query).not.toHaveBeenCalled();
     expect(secretsStore.isVaultUnlocked).toBe(true);
+  });
+});
+
+describe("useBiometricRestore", () => {
+  async function render() {
+    const hook = renderHook(() => useBiometricRestore(), { wrapper });
+    await waitFor(() => expect(hasLoginBundle).toHaveBeenCalled());
+    return hook.result;
+  }
+
+  it("is unavailable without a persisted login", async () => {
+    persisted();
+    vi.mocked(hasLoginBundle).mockResolvedValue(false);
+
+    const result = await render();
+    expect(result.current.available).toBe(false);
+  });
+
+  it("unlocks the vault from the persisted login", async () => {
+    persisted();
+    vi.mocked(hasLoginBundle).mockResolvedValue(true);
+
+    const result = await render();
+    await waitFor(() => expect(result.current.available).toBe(true));
+    await act(async () => {
+      expect(await result.current.unlock()).toBe("restored");
+    });
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+  });
+
+  it("stays available when the prompt is cancelled", async () => {
+    persisted();
+    vi.mocked(loadLoginBundle).mockResolvedValue(null);
+    vi.mocked(hasLoginBundle).mockResolvedValue(true);
+
+    const result = await render();
+    await act(async () => {
+      expect(await result.current.unlock()).toBe("cancelled");
+    });
+    expect(result.current.available).toBe(true);
+    expect(clearLoginBundle).not.toHaveBeenCalled();
+  });
+
+  it("reports a session signed out from another device", async () => {
+    persisted();
+    vi.mocked(hasLoginBundle).mockResolvedValue(true);
+    trpcClient.user.heartbeat.query.mockRejectedValue(unauthorized(SESSION_SIGNED_OUT));
+
+    const result = await render();
+    await act(async () => {
+      expect(await result.current.unlock()).toBe("signed-out");
+    });
+    expect(store.signedOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the button when the persisted login no longer opens the vault", async () => {
+    persisted();
+    vi.mocked(loadLoginBundle).mockResolvedValue({ accountKeyB64: toBase64(genKey()) });
+    vi.mocked(hasLoginBundle).mockResolvedValue(true);
+
+    const result = await render();
+    vi.mocked(clearLoginBundle).mockImplementationOnce(async () => {
+      vi.mocked(hasLoginBundle).mockResolvedValue(false);
+    });
+    await act(async () => {
+      expect(await result.current.unlock()).toBe("unavailable");
+    });
+    expect(result.current.available).toBe(false);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
   });
 });
 

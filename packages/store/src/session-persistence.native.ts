@@ -9,6 +9,8 @@ declare const process: { env: Record<string, string | undefined> };
 
 /** One Keychain/Keystore item per profile (ADR 0001 D2). */
 const loginBundleKey = (profileId: string) => `passmgr.login-bundle.${profileId}`;
+// Reading the bundle prompts for biometrics; this unguarded marker says one exists without asking.
+const loginBundleMarkerKey = (profileId: string) => `passmgr.login-bundle-set.${profileId}`;
 
 // Dev-only escape hatch: skip the biometric prompt so fast-refresh reloads
 // restore instantly. Never enabled in a production build.
@@ -37,6 +39,17 @@ export function isPersistentLoginAvailable(): boolean {
 
 export async function persistLoginBundle(profileId: string, bundle: LoginBundle): Promise<void> {
   await SecureStore.setItemAsync(loginBundleKey(profileId), JSON.stringify(bundle), writeOptions());
+  await SecureStore.setItemAsync(loginBundleMarkerKey(profileId), "1", {
+    keychainAccessible: SecureStore.AFTER_FIRST_UNLOCK_THIS_DEVICE_ONLY,
+  });
+}
+
+export async function hasLoginBundle(profileId: string): Promise<boolean> {
+  try {
+    return (await SecureStore.getItemAsync(loginBundleMarkerKey(profileId))) !== null;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -46,10 +59,13 @@ export async function persistLoginBundle(profileId: string, bundle: LoginBundle)
 export async function loadLoginBundle(profileId: string): Promise<LoginBundle | null> {
   try {
     const raw = await SecureStore.getItemAsync(loginBundleKey(profileId), writeOptions());
-    if (!raw) return null;
-    const bundle = JSON.parse(raw) as Partial<LoginBundle>;
-    // A bundle from an older app version: start over with a normal unlock.
-    if (typeof bundle.accountKeyB64 !== "string") return null;
+    const bundle = raw ? (JSON.parse(raw) as Partial<LoginBundle>) : null;
+    // Gone (the OS drops it when the enrolled biometrics change) or from an older app version:
+    // start over with a normal unlock.
+    if (typeof bundle?.accountKeyB64 !== "string") {
+      await SecureStore.deleteItemAsync(loginBundleMarkerKey(profileId));
+      return null;
+    }
     return bundle as LoginBundle;
   } catch {
     // User cancelled the prompt or authentication failed — treat as no session.
@@ -59,4 +75,5 @@ export async function loadLoginBundle(profileId: string): Promise<LoginBundle | 
 
 export async function clearLoginBundle(profileId: string): Promise<void> {
   await SecureStore.deleteItemAsync(loginBundleKey(profileId));
+  await SecureStore.deleteItemAsync(loginBundleMarkerKey(profileId));
 }

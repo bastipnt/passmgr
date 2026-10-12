@@ -7,6 +7,7 @@ export * from "./src/components/Button";
 export * from "./src/components/ButtonGroup";
 // *** BLOCKS ***
 export * from "./src/components/blocks/BiometricGlyph";
+export * from "./src/components/blocks/BiometricUnlockButton";
 export * from "./src/components/blocks/BrandMark";
 export * from "./src/components/blocks/OptionList";
 export * from "./src/components/blocks/RecordDetailsItem";
