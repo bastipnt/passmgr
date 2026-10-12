@@ -1,5 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { profileLabel, useLogin, useSecondFactorRequest, useStore, useUnlock } from "@repo/client";
+import {
+  profileLabel,
+  signInErrorMessage,
+  useLogin,
+  useSecondFactorRequest,
+  useStore,
+  useUnlock,
+} from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
 import { normalizeEmail } from "@repo/crypto";
 import {
@@ -39,8 +46,7 @@ type SignInSheetProps = {
 
 export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { loginUser, clearLoginError, loginError, loginThrottled, secondFactorExpired } =
-    useLogin();
+  const { loginUser, clearLoginError, clearLoginErrors, loginError } = useLogin();
   // An account with two-factor on: the code step takes the form's place.
   const secondFactor = useSecondFactorRequest();
   const { request: secondFactorRequest } = secondFactor;
@@ -57,6 +63,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const localVault = unlocking && unlockable.mode === "local";
   const storedEmail = unlocking && unlockable.mode === "linked" ? unlockable.email : undefined;
   const activeLabel = active ? profileLabel(active.entry) : undefined;
+  const error = signInErrorMessage(loginError, unlockError, localVault);
 
   // Picking another profile on the welcome screen opens its unlock.
   const activeProfileId = active?.entry.profileId;
@@ -208,7 +215,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
             className="self-center"
             hitSlop={8}
             onPress={() => {
-              clearLoginError();
+              clearLoginErrors();
               clearUnlockError();
               setOtherAccount((other) => !other);
             }}
@@ -219,37 +226,8 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           </Pressable>
         )}
 
-        {loginThrottled ? (
-          <FieldError
-            variant="box"
-            errors={[{ message: "Too many login attempts. Please wait and try again." }]}
-          />
-        ) : secondFactorExpired ? (
-          <FieldError
-            variant="box"
-            errors={[
-              {
-                message:
-                  "Two-factor sign-in timed out: it took too long or had too many wrong codes. Sign in again.",
-              },
-            ]}
-          />
-        ) : (
-          (loginError || unlockError) && (
-            <FieldError
-              variant="box"
-              errors={[
-                {
-                  message:
-                    unlockError === "wrong_account"
-                      ? "Can't add an account offline. Only the vaults on this device unlock without a connection."
-                      : localVault
-                        ? "Wrong password, please try again"
-                        : "Login error please try again",
-                },
-              ]}
-            />
-          )
+        {error && (
+          <FieldError variant="box" errors={[{ message: `${error.title} ${error.detail}` }]} />
         )}
       </View>
     </BottomSheet>

@@ -16,8 +16,10 @@ import { TRPCClientError } from "@trpc/client";
 import { describe, expect, it, vi } from "vitest";
 import { freshLogin, WrongPasswordError } from "../src/account/change-password";
 import {
+  LoginFinishFailedError,
   LoginThrottledError,
   type LoginTRPCClient,
+  LoginUnreachableError,
   loginUser,
   SecondFactorCancelledError,
   SecondFactorExpiredError,
@@ -80,13 +82,14 @@ async function fakeServer({ twoFactor = false } = {}) {
   const record = fin.record.serialize();
 
   const attempts = new Map<string, string>();
-  const state: { verifyError?: Error } = {};
+  const state: { startError?: Error; finishError?: Error; verifyError?: Error } = {};
   const verified: string[] = [];
 
   const trpc = {
     login: {
       startLogin: {
         mutate: async ({ startLoginRequest }: { startLoginRequest: string }) => {
+          if (state.startError) throw state.startError;
           const ke1 = KE1.deserialize(cfg, b64ToBytes(startLoginRequest));
           const init = await server.authInit(
             ke1,
@@ -102,6 +105,7 @@ async function fakeServer({ twoFactor = false } = {}) {
       },
       finishLogin: {
         mutate: async ({ attemptId, finishLoginRequest }: Record<string, string>) => {
+          if (state.finishError) throw state.finishError;
           const ke3 = KE3.deserialize(cfg, b64ToBytes(finishLoginRequest!));
           const expected = ExpectedAuthResult.deserialize(
             cfg,
@@ -218,6 +222,56 @@ describe("loginUser — second factor", () => {
     await expect(
       loginUser(trpc, async () => {}, EMAIL, PASSWORD, promptWith(CODE)),
     ).rejects.toBeInstanceOf(LoginThrottledError);
+  });
+});
+
+describe("loginUser — request failures", () => {
+  const networkError = () => new TRPCClientError("Failed to fetch");
+
+  it.each([
+    ["a network failure", networkError()],
+    ["a server error", trpcError("INTERNAL_SERVER_ERROR", 500, "boom")],
+    ["an unavailable server", trpcError("SERVICE_UNAVAILABLE", 503, "busy")],
+  ])("%s at the start is unreachable, not a credentials error", async (_, err) => {
+    const { trpc, state } = await fakeServer();
+    state.startError = err;
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+      LoginUnreachableError,
+    );
+  });
+
+  it("the per-IP rate limit (no tRPC error body) is throttled, not unreachable", async () => {
+    const { trpc, state } = await fakeServer();
+    state.startError = new TRPCClientError("Too Many Requests", {
+      meta: { response: new Response(null, { status: 429 }) },
+    });
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+      LoginThrottledError,
+    );
+  });
+
+  it("a network failure at the finish is unreachable", async () => {
+    const { trpc, state } = await fakeServer();
+    state.finishError = networkError();
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+      LoginUnreachableError,
+    );
+  });
+
+  it("a refused finish is a credentials error", async () => {
+    const { trpc, state } = await fakeServer();
+    state.finishError = trpcError("UNAUTHORIZED", 401, "invalid user credentials");
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+      LoginFinishFailedError,
+    );
+  });
+
+  it("a network failure while verifying the code is unreachable", async () => {
+    const { trpc, state } = await fakeServer({ twoFactor: true });
+    state.verifyError = networkError();
+    await expect(
+      loginUser(trpc, async () => {}, EMAIL, PASSWORD, promptWith(CODE)),
+    ).rejects.toBeInstanceOf(LoginUnreachableError);
   });
 });
 

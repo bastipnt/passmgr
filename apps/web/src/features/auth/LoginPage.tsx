@@ -1,4 +1,5 @@
 import {
+  signInErrorMessage,
   unsyncedChangesWarning,
   useLogin,
   usePendingChangeCount,
@@ -37,14 +38,7 @@ import { SignedOutNote } from "./signed-out";
  * profile on the device unlocks that profile; another account adds one.
  */
 export default function LoginPage() {
-  const {
-    loginUser,
-    clearLoginError,
-    clearLoginErrors,
-    loginError,
-    loginThrottled,
-    secondFactorExpired,
-  } = useLogin();
+  const { loginUser, clearLoginError, clearLoginErrors, loginError } = useLogin();
   // An account with two-factor on: the code step takes the form's place.
   const secondFactor = useSecondFactorRequest();
   const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
@@ -217,10 +211,7 @@ export default function LoginPage() {
               )
             }
             onSubmit={onSubmit}
-            loginError={loginError}
-            loginThrottled={loginThrottled}
-            secondFactorExpired={secondFactorExpired}
-            unlockError={unlockError}
+            error={signInErrorMessage(loginError, unlockError, localVault)}
             loading={loading}
             onEdit={onEdit}
           />

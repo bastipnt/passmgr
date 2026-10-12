@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type UnlockError, useAppConfig } from "@repo/client";
+import { type SignInErrorMessage, useAppConfig } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -47,11 +47,7 @@ type LoginFormProps = {
   /** Alternative unlock (biometrics), shown under an "or" divider. */
   alternative?: ReactNode;
   footer?: ReactNode;
-  loginError: boolean;
-  loginThrottled?: boolean;
-  /** The two-factor step ran out (too slow, or too many wrong codes). */
-  secondFactorExpired?: boolean;
-  unlockError?: UnlockError;
+  error?: SignInErrorMessage;
   loading: boolean;
   /** The user edited a field — a shown error no longer applies. */
   onEdit?: () => void;
@@ -64,10 +60,7 @@ export default function LoginForm({
   alternative,
   footer,
   onSubmit,
-  loginError,
-  loginThrottled = false,
-  secondFactorExpired = false,
-  unlockError,
+  error,
   loading,
   onEdit,
 }: LoginFormProps) {
@@ -154,26 +147,14 @@ export default function LoginForm({
                 }
               />
 
-              {loginThrottled ? (
+              {error?.warning ? (
                 <FieldWarning>
-                  <strong className="font-semibold">Too many login attempts.</strong> Please wait
-                  and try again.
+                  <strong className="font-semibold">{error.title}</strong> {error.detail}
                 </FieldWarning>
-              ) : secondFactorExpired ? (
-                <FieldError variant="box">
-                  <strong className="font-semibold">Two-factor sign-in timed out.</strong> It took
-                  too long or had too many wrong codes. Sign in again.
-                </FieldError>
-              ) : unlockError === "wrong_account" ? (
-                <FieldError variant="box">
-                  <strong className="font-semibold">Can&apos;t add an account offline.</strong> Only
-                  the vaults on this device can be unlocked without a connection.
-                </FieldError>
               ) : (
-                (loginError || unlockError) && (
+                error && (
                   <FieldError variant="box">
-                    <strong className="font-semibold">That didn&apos;t work.</strong> Check your{" "}
-                    {localVault ? "password" : "email and password"} and try again.
+                    <strong className="font-semibold">{error.title}</strong> {error.detail}
                   </FieldError>
                 )
               )}

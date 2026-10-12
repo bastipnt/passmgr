@@ -4,6 +4,7 @@ import {
   LoginFinishFailedError,
   LoginStartFailedError,
   LoginThrottledError,
+  LoginUnreachableError,
   loginUser as loginUserCore,
   OpaqueLoginFailedError,
   SecondFactorCancelledError,
@@ -13,14 +14,57 @@ import {
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useTRPCClient } from "../util/trpc";
+import type { UnlockError } from "./use-unlock";
+
+/**
+ * - `credentials`: wrong password or unknown email (the server can't tell them apart)
+ * - `unreachable`: no connection to the server, or it failed on its side
+ * - `throttled`: too many login attempts, retry later
+ * - `second_factor_expired`: the two-factor step ran out (too slow, or too many wrong codes)
+ */
+export type LoginError = "credentials" | "unreachable" | "throttled" | "second_factor_expired";
+
+export type SignInErrorMessage = { title: string; detail: string; warning?: boolean };
+
+/** User-facing text for a failed sign-in or unlock (web + mobile). */
+export function signInErrorMessage(
+  loginError: LoginError | undefined,
+  unlockError: UnlockError | undefined,
+  localVault: boolean,
+): SignInErrorMessage | undefined {
+  if (loginError === "throttled")
+    return {
+      title: "Too many login attempts.",
+      detail: "Please wait and try again.",
+      warning: true,
+    };
+  if (loginError === "second_factor_expired")
+    return {
+      title: "Two-factor sign-in timed out.",
+      detail: "It took too long or had too many wrong codes. Sign in again.",
+    };
+  if (loginError === "unreachable")
+    return {
+      title: "Can't reach the server.",
+      detail: "Check your connection, or try again in a moment.",
+    };
+  if (unlockError === "wrong_account")
+    return {
+      title: "Can't add an account offline.",
+      detail: "Only the vaults on this device can be unlocked without a connection.",
+    };
+  if (loginError || unlockError)
+    return {
+      title: "That didn't work.",
+      detail: `Check your ${localVault ? "password" : "email and password"} and try again.`,
+    };
+  return undefined;
+}
 
 export function useLogin() {
   const trpc = useTRPCClient();
   const { attachServer } = useContext(SessionContext);
-  const [loginError, setLoginError] = useState(false);
-  const [loginThrottled, setLoginThrottled] = useState(false);
-  // The two-factor step ran out (too slow, or too many wrong codes).
-  const [secondFactorExpired, setSecondFactorExpired] = useState(false);
+  const [loginError, setLoginError] = useState<LoginError>();
   const contextPrompt = useSecondFactorPrompt();
 
   /**
@@ -28,7 +72,7 @@ export function useLogin() {
    * Returns the info needed to derive the vault key (slow Argon2id step)
    * so the caller can run it off the main thread. With two-factor on, the code
    * is asked with `onSecondFactor` (default: the app's `SecondFactorPromptProvider`).
-   * Resolves undefined when it failed (see the error flags) or the user
+   * Resolves undefined when it failed (see `loginError`) or the user
    * closed the code prompt.
    */
   async function loginUser(
@@ -46,49 +90,37 @@ export function useLogin() {
         onSecondFactor ?? contextPrompt,
       );
     } catch (err) {
-      if (err instanceof LoginThrottledError) {
-        setLoginThrottled(true);
-        return;
-      }
       if (err instanceof SecondFactorCancelledError) return;
-      if (err instanceof SecondFactorExpiredError) {
-        setSecondFactorExpired(true);
-        return;
-      }
-      if (
-        err instanceof LoginStartFailedError ||
-        err instanceof LoginFinishFailedError ||
-        err instanceof OpaqueLoginFailedError
-      ) {
-        setLoginError(true);
-        return;
-      }
-      throw err;
+      const error = loginFailure(err);
+      if (!error) throw err;
+      setLoginError(error);
+      return;
     }
   }
 
-  /** Hide a previous attempt's error, e.g. once the user edits the credentials. */
-  const clearLoginError = useCallback(() => {
-    setLoginError(false);
-    setSecondFactorExpired(false);
-  }, []);
-
   /**
-   * Also hides the throttle warning — only when it no longer applies (a new
-   * attempt, another account). An edit alone doesn't lift the server's lock.
+   * Hide a previous attempt's error, e.g. once the user edits the credentials.
+   * The throttle warning stays: an edit alone doesn't lift the server's lock.
    */
-  const clearLoginErrors = useCallback(() => {
-    setLoginError(false);
-    setLoginThrottled(false);
-    setSecondFactorExpired(false);
+  const clearLoginError = useCallback(() => {
+    setLoginError((error) => (error === "throttled" ? error : undefined));
   }, []);
 
-  return {
-    loginUser,
-    clearLoginError,
-    clearLoginErrors,
-    loginError,
-    loginThrottled,
-    secondFactorExpired,
-  };
+  /** Also hides the throttle warning: a new attempt, another account. */
+  const clearLoginErrors = useCallback(() => setLoginError(undefined), []);
+
+  return { loginUser, clearLoginError, clearLoginErrors, loginError };
+}
+
+function loginFailure(err: unknown): LoginError | undefined {
+  if (err instanceof LoginThrottledError) return "throttled";
+  if (err instanceof SecondFactorExpiredError) return "second_factor_expired";
+  if (err instanceof LoginUnreachableError) return "unreachable";
+  if (
+    err instanceof LoginStartFailedError ||
+    err instanceof LoginFinishFailedError ||
+    err instanceof OpaqueLoginFailedError
+  )
+    return "credentials";
+  return undefined;
 }

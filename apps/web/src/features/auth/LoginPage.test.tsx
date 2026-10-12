@@ -2,7 +2,9 @@ import { SessionContext } from "@repo/client";
 import {
   type LoginSessionFn,
   LoginThrottledError,
+  LoginUnreachableError,
   loginUser as loginUserCore,
+  OpaqueLoginFailedError,
   SecondFactorCancelledError,
   SecondFactorExpiredError,
   type SecondFactorPrompt,
@@ -353,6 +355,24 @@ describe("LoginPage online", () => {
     });
     expect(store.profiles.map((p) => p.userId)).toEqual(["user-alice", "user-bob"]);
     expect(store.removeProfile).not.toHaveBeenCalled();
+  });
+
+  it("says the server can't be reached instead of blaming the credentials", async () => {
+    vi.mocked(loginUserCore).mockRejectedValue(new LoginUnreachableError());
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "some password");
+
+    await screen.findByText(/can't reach the server/i);
+    expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
+  });
+
+  it("blames the credentials when the server refuses them", async () => {
+    vi.mocked(loginUserCore).mockRejectedValue(new OpaqueLoginFailedError());
+    renderPage({ networkOffline: false });
+    await login("bob@example.com", "wrong password");
+
+    await screen.findByText(/check your email and password/i);
+    expect(screen.queryByText(/can't reach the server/i)).not.toBeInTheDocument();
   });
 
   it("keeps the throttle warning on edits, but drops it when picking a profile", async () => {

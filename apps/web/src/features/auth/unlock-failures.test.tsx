@@ -9,6 +9,7 @@ import { useUnlock } from "@repo/client/src/hooks/use-unlock";
 import {
   LoginStartFailedError,
   LoginThrottledError,
+  LoginUnreachableError,
   loginUser as loginUserCore,
   OpaqueLoginFailedError,
   SecondFactorCancelledError,
@@ -618,6 +619,7 @@ describe("useConnectServer", () => {
   it.each([
     ["rejected", new OpaqueLoginFailedError()],
     ["throttled", new LoginThrottledError()],
+    ["unreachable", new LoginUnreachableError()],
     ["unreachable", new LoginStartFailedError()],
   ] as const)("reports %s for a failed login", async (expected, error) => {
     unlockedVault();

@@ -48,12 +48,23 @@ export function isPreconditionFailed(err: unknown): boolean {
   );
 }
 
-/** Server rejected the call with TOO_MANY_REQUESTS (per-account or per-IP limit). */
+/**
+ * Server rejected the call with TOO_MANY_REQUESTS (per-account or per-IP limit).
+ * The per-IP limit (`@fastify/rate-limit`) answers before tRPC, without a tRPC
+ * error body: only the response status tells.
+ */
 export function isThrottled(err: unknown): boolean {
   return (
     err instanceof TRPCClientError &&
-    (err.data?.code === "TOO_MANY_REQUESTS" || err.data?.httpStatus === 429)
+    (err.data?.code === "TOO_MANY_REQUESTS" ||
+      err.data?.httpStatus === 429 ||
+      responseStatus(err) === 429)
   );
+}
+
+function responseStatus(err: TRPCClientError<never>): number | undefined {
+  const response: unknown = err.meta?.response;
+  return response instanceof Response ? response.status : undefined;
 }
 
 /**

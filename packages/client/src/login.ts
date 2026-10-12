@@ -12,7 +12,7 @@ import { toBase64 } from "@repo/util";
 import { type TRPCClient, TRPCClientError } from "@trpc/client";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
 import { timed } from "./util/perf";
-import { isThrottled, isUnauthorized } from "./util/trpc-errors";
+import { isServerAnswer, isServerError, isThrottled, isUnauthorized } from "./util/trpc-errors";
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
 
@@ -37,6 +37,11 @@ export class OpaqueLoginFailedError extends Error {
 /** Too many login attempts for this account (or from this IP) — retry later. */
 export class LoginThrottledError extends Error {
   override message = "LoginThrottledError";
+}
+
+/** The request didn't get through, or the server failed on its side: retry later. */
+export class LoginUnreachableError extends Error {
+  override message = "LoginUnreachableError";
 }
 
 /** The user closed the second-factor prompt: no session. */
@@ -72,9 +77,10 @@ export const noSecondFactor: SecondFactorPrompt = async () => null;
  * never called otherwise.
  *
  * Throws `OpaqueLoginFailedError` (wrong password or unknown email),
- * `LoginThrottledError`, `SecondFactorCancelledError`,
+ * `LoginThrottledError`, `LoginUnreachableError`, `SecondFactorCancelledError`,
  * `SecondFactorExpiredError`, `LoginStartFailedError` or
- * `LoginFinishFailedError`.
+ * `LoginFinishFailedError` (the server refused a step; a request that didn't
+ * get through or hit a 5xx is `LoginUnreachableError` instead).
  */
 export async function loginUser(
   trpc: LoginTRPCClient,
@@ -98,8 +104,7 @@ export async function loginUser(
       trpc.login.startLogin.mutate({ email, startLoginRequest }),
     ));
   } catch (err) {
-    if (isThrottled(err)) throw new LoginThrottledError();
-    throw new LoginStartFailedError();
+    throw requestFailure(err, LoginStartFailedError);
   }
 
   let ke2: KE2;
@@ -129,8 +134,8 @@ export async function loginUser(
         authSalt: toBase64(authSalt),
       }),
     );
-  } catch {
-    throw new LoginFinishFailedError();
+  } catch (err) {
+    throw requestFailure(err, LoginFinishFailedError);
   }
 
   const { sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } =
@@ -168,7 +173,6 @@ async function askUntilVerified(
     try {
       return await trpc.login.verifySecondFactor.mutate({ challengeId, code });
     } catch (err) {
-      if (isThrottled(err)) throw new LoginThrottledError();
       if (isUnauthorized(err) && err instanceof TRPCClientError) {
         if (err.message === SECOND_FACTOR_INVALID) {
           invalid = true;
@@ -176,7 +180,13 @@ async function askUntilVerified(
         }
         if (err.message === SECOND_FACTOR_EXPIRED) throw new SecondFactorExpiredError();
       }
-      throw new LoginFinishFailedError();
+      throw requestFailure(err, LoginFinishFailedError);
     }
   }
+}
+
+function requestFailure(err: unknown, Rejected: new () => Error): Error {
+  if (isThrottled(err)) return new LoginThrottledError();
+  if (!isServerAnswer(err) || isServerError(err)) return new LoginUnreachableError();
+  return new Rejected();
 }
