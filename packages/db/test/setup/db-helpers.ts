@@ -21,7 +21,6 @@ export function makeUserRow(overrides: Partial<UserRow> = {}): UserRow {
     emailEncryptionKeySalt: `enc-email-salt-${uniq}`,
     emailHash: `email-hash-${uniq}`,
     registrationRecord: `reg-record-${uniq}`,
-    hasEmailVerified: true,
     ...overrides,
   };
 }
@@ -31,9 +30,14 @@ export async function insertUser(
   overrides: Partial<UserRow> = {},
 ): Promise<UserRow> {
   const row = makeUserRow(overrides);
+  await insertUserRow(client, row);
+  return row;
+}
+
+export async function insertUserRow(client: Client, row: UserRow): Promise<void> {
   await client.query(
-    `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
-     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord")
+     VALUES ($1, $2, $3, $4, $5, $6)`,
     [
       row.userId,
       row.encryptedEmail,
@@ -41,10 +45,8 @@ export async function insertUser(
       row.emailEncryptionKeySalt,
       row.emailHash,
       row.registrationRecord,
-      row.hasEmailVerified,
     ],
   );
-  return row;
 }
 
 export function makeKeyRow(userId: string, overrides: Partial<KeyRow> = {}): KeyRow {
@@ -156,8 +158,6 @@ export type UserRow = {
   emailEncryptionKeySalt: string;
   emailHash: string;
   registrationRecord: string;
-  hasTwoFactorEnabled: boolean;
-  hasEmailVerified: boolean;
 };
 
 export type KeyRow = {

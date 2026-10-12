@@ -1,5 +1,5 @@
 import type { InferSelectModel } from "drizzle-orm";
-import { boolean, pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
+import { pgTable, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
 
 export const usersTable = pgTable("users", {
@@ -14,12 +14,6 @@ export const usersTable = pgTable("users", {
   emailHash: varchar().notNull().unique(),
 
   registrationRecord: varchar().notNull().unique(),
-
-  hasEmailVerified: boolean()
-    .notNull()
-    .$defaultFn(() => true), // TODO: set to false
-
-  lastLoginAt: timestamp(),
 
   ...timestamps,
 });

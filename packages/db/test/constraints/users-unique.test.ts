@@ -1,6 +1,12 @@
 import type { Client } from "pg";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { getClient, insertUser, makeUserRow, truncateAll } from "../setup/db-helpers";
+import {
+  getClient,
+  insertUser,
+  insertUserRow,
+  makeUserRow,
+  truncateAll,
+} from "../setup/db-helpers";
 
 const UNIQUE_VIOLATION = "23505";
 
@@ -22,61 +28,19 @@ describe("users unique constraints", () => {
   it("rejects duplicate encryptedEmail", async () => {
     const first = await insertUser(client);
     const dupe = makeUserRow({ encryptedEmail: first.encryptedEmail });
-    await expect(
-      client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          dupe.userId,
-          dupe.encryptedEmail,
-          dupe.emailNonce,
-          dupe.emailEncryptionKeySalt,
-          dupe.emailHash,
-          dupe.registrationRecord,
-          dupe.hasEmailVerified,
-        ],
-      ),
-    ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+    await expect(insertUserRow(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
   });
 
   it("rejects duplicate emailHash", async () => {
     const first = await insertUser(client);
     const dupe = makeUserRow({ emailHash: first.emailHash });
-    await expect(
-      client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          dupe.userId,
-          dupe.encryptedEmail,
-          dupe.emailNonce,
-          dupe.emailEncryptionKeySalt,
-          dupe.emailHash,
-          dupe.registrationRecord,
-          dupe.hasEmailVerified,
-        ],
-      ),
-    ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+    await expect(insertUserRow(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
   });
 
   it("rejects duplicate registrationRecord", async () => {
     const first = await insertUser(client);
     const dupe = makeUserRow({ registrationRecord: first.registrationRecord });
-    await expect(
-      client.query(
-        `INSERT INTO "users" ("userId", "encryptedEmail", "emailNonce", "emailEncryptionKeySalt", "emailHash", "registrationRecord", "hasEmailVerified")
-         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-        [
-          dupe.userId,
-          dupe.encryptedEmail,
-          dupe.emailNonce,
-          dupe.emailEncryptionKeySalt,
-          dupe.emailHash,
-          dupe.registrationRecord,
-          dupe.hasEmailVerified,
-        ],
-      ),
-    ).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+    await expect(insertUserRow(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
   });
 
   it("allows two users with distinct unique fields", async () => {
