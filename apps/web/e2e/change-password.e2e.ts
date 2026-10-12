@@ -15,14 +15,13 @@ import {
   expectLogin,
   expectSynced,
   reloadAndUnlock,
-  syncStatus,
 } from "./helpers/vault";
 
 /**
  * Changing the master password (ADR 0001 D10). An account: a new OPAQUE
  * registration and password wrap replace the server's and every session is
- * revoked; the changing device logs in again by itself, another device is
- * signed out until it unlocks with the new password. A local vault: the
+ * revoked; the changing device logs in again by itself, another device locks
+ * (signed out) until it unlocks with the new password. A local vault: the
  * account key is rewrapped on the device. Either way the old password stops
  * working and the records stay.
  */
@@ -50,6 +49,8 @@ test("changing an account's password signs out other devices and keeps the recor
   secondDevice,
   thirdDevice,
 }) => {
+  // Three devices, each with Argon2 unlocks, and two OPAQUE logins for the change.
+  test.setTimeout(180_000);
   const email = randomEmail();
   const oldPassword = randomPassword();
   const newPassword = randomPassword();
@@ -65,6 +66,10 @@ test("changing an account's password signs out other devices and keeps the recor
   await expectInApp(phone);
   await expectSynced(phone);
 
+  // The phone edits offline while the password changes elsewhere.
+  await phone.context().setOffline(true);
+  const phoneId = await createLogin(phone, { title: "Phone", username: "offline" });
+
   await changePassword(page, oldPassword, newPassword);
 
   // This device is back online with the new password and still syncs.
@@ -72,10 +77,10 @@ test("changing an account's password signs out other devices and keeps the recor
   const afterId = await createLogin(page, { title: "Mail", username: "after" });
   await expectSynced(page);
 
-  // The other device's session was revoked: its next sync is turned down, it
-  // keeps working on the device but is no longer connected.
-  const phoneId = await createLogin(phone, { title: "Phone", username: "offline" });
-  await expect(syncStatus(phone)).toHaveAccessibleName("Sync status: Not connected", {
+  // The phone's session was revoked: back online, its next sync is turned down
+  // as signed out and it locks (a reload), keeping the unsent record.
+  await phone.context().setOffline(false);
+  await expect(phone.getByText(/you were signed out from another device/i)).toBeVisible({
     timeout: 30_000,
   });
 

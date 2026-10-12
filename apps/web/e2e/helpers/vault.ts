@@ -35,12 +35,21 @@ export async function createLocalVault(page: Page, name: string, password: strin
   await expectInApp(page);
 }
 
-/** Reload (drops every key), then unlock the last used profile with its password. */
-export async function reloadAndUnlock(page: Page, password: string): Promise<void> {
+/**
+ * Reload (drops every key) and submit the last used profile's password,
+ * without waiting for the vault: a dialog right after the unlock (the
+ * two-factor prompt) hides the app from the accessibility tree.
+ */
+export async function reloadAndSubmitUnlock(page: Page, password: string): Promise<void> {
   await page.goto("/login");
   await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
+}
+
+/** Reload (drops every key), then unlock the last used profile with its password. */
+export async function reloadAndUnlock(page: Page, password: string): Promise<void> {
+  await reloadAndSubmitUnlock(page, password);
   await expectInApp(page);
 }
 

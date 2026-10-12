@@ -8,11 +8,18 @@ export const SIGNED_OUT_MESSAGE =
   "You were signed out from another device. Changes that hadn't synced stay on this device and sync after you sign in again.";
 
 /**
+ * Set in the document that asked for the reload. The lock routes it to the
+ * login page before it unloads; that mount must leave the flag for the next one.
+ */
+let reloading = false;
+
+/**
  * Another device signed this one out, or the password changed elsewhere
  * (`StoreProvider`'s `onSignedOut`, after the lock). Keys live in memory only,
  * so reload like a lock; the note survives the reload in sessionStorage.
  */
 export function onSignedOutElsewhere() {
+  reloading = true;
   try {
     sessionStorage.setItem(SIGNED_OUT_KEY, "1");
   } catch {
@@ -31,8 +38,9 @@ function readFlag(): boolean {
 
 /** Shown once on the unlock after a sign-out from elsewhere. */
 export function SignedOutNote() {
-  const [signedOut] = useState(readFlag);
+  const [signedOut] = useState(() => !reloading && readFlag());
   useEffect(() => {
+    if (reloading) return;
     try {
       sessionStorage.removeItem(SIGNED_OUT_KEY);
     } catch {

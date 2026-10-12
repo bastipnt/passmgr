@@ -9,7 +9,7 @@ import {
   simulateLogout,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
-import { expectInApp, expectSynced, reloadAndUnlock } from "./helpers/vault";
+import { expectInApp, expectSynced, reloadAndSubmitUnlock } from "./helpers/vault";
 
 /**
  * Two-factor for the server login (TOTP + backup codes), opt-in. Turned on in
@@ -159,13 +159,16 @@ test("two-factor: off by default, then every server login asks for a code until 
 
   // Offline unlock, then the reconnect: the vault opens with the password
   // alone, the server session waits for the code (a dialog over the app).
-  await reloadAndUnlock(page, password);
+  // The prompt can open before the record list is checked, and while it's
+  // open the app is aria-hidden: wait for the vault only once it's answered.
+  await reloadAndSubmitUnlock(page, password);
   const prompt = page.getByRole("dialog", { name: "Two-factor authentication" });
   await expect(prompt).toBeVisible({ timeout: 30_000 });
   await enterCode(prompt, backupCodes[0]!, true);
   await expect(prompt.getByText(/that code didn.t work/i)).toBeVisible({ timeout: 30_000 });
   await enterCode(prompt, backupCodes[1]!, true);
   await expect(prompt).toHaveCount(0, { timeout: 30_000 });
+  await expectInApp(page);
   await expectSynced(page);
 
   // Turning it off: the master password, and the code its fresh login asks for.
