@@ -7,6 +7,7 @@ import {
   EmptyMedia,
   EmptyTitle,
   Screen,
+  toast,
 } from "@repo/ui-native";
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { FileQuestion } from "lucide-react-native";
@@ -42,11 +43,14 @@ export default function RecordScreen() {
   const { vaultFilter, setVaultFilter } = useSortedRecords();
   const { moveRecord, movePending } = useMoveRecord({
     // A move is a new record (new id): show that one instead.
-    onSuccess: (movedId) => {
+    onSuccess: (movedId, targetVaultId) => {
       // The list showed the vault it left: show every vault, so it's there on the way back.
       if (vaultFilter !== "all") setVaultFilter("all");
       router.replace(recordPaths.record(movedId));
+      const target = moveTargets.find((vault) => vault.vaultId === targetVaultId);
+      toast.success(target ? `Moved to ${target.name}` : "Moved");
     },
+    onError: () => toast.error("The item couldn't be moved"),
   });
 
   return (

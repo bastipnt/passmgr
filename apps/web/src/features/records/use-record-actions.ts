@@ -7,8 +7,6 @@ import {
 } from "@repo/client";
 import type { RecordFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
-import { isDefined } from "@repo/util";
-import { useEffect } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { useCopyField } from "./record-utils";
@@ -26,6 +24,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
       toast.success("Record deleted");
       if (actionCb) actionCb();
     },
+    onError: () => toast.error("The item couldn't be deleted"),
   });
 
   const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
@@ -33,11 +32,8 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
       if (actionCb) actionCb();
       toast.success("Record saved");
     },
+    onError: () => toast.error("The item couldn't be saved"),
   });
-
-  useEffect(() => {
-    if (isDefined(updateRecordError)) toast.error("Error saving");
-  }, [updateRecordError]);
 
   function handleSubmit(formValues: RecordFormValues) {
     // The form is the record's own type's (`RecordForm type={record.type}`).

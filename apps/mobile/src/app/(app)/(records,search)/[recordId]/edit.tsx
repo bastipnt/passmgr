@@ -7,7 +7,7 @@ import {
   useUpdateRecord,
 } from "@repo/client";
 import type { DecryptedRecord, RecordFormValues } from "@repo/schema";
-import { Button, RemoveDialog } from "@repo/ui-native";
+import { Button, RemoveDialog, toast } from "@repo/ui-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
 import { Text, View } from "react-native";
@@ -45,10 +45,10 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
 
   const { updateRecord, updateRecordError, updatePending } = useUpdateRecord({
     onSuccess: () => {
-      // TODO: add toast
-      // toast.success("Record saved");
+      toast.success("Record saved");
       router.back();
     },
+    onError: () => toast.error("The item couldn't be saved"),
   });
 
   const onSubmit = (data: RecordFormValues) => {
@@ -57,18 +57,13 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
 
   const { deleteRecord } = useDeleteRecord({
     onSuccess: () => {
-      // TODO: add toast
-      // toast.success("Record deleted");
+      toast.success("Record deleted");
       router.back();
     },
+    onError: () => toast.error("The item couldn't be deleted"),
   });
 
   const onDelete = () => deleteRecord(recordId);
-
-  // TODO: add toast
-  // useEffect(() => {
-  //   if (isDefined(updateRecordError)) toast.error("Error saving");
-  // }, [updateRecordError]);
 
   return (
     <RecordFormSheet

@@ -1,6 +1,6 @@
 import { profileLabel, unsyncedChangesWarning, useRemoveFromDevice, useStore } from "@repo/client";
 import type { ProfileEntry } from "@repo/store";
-import { RemoveDialog } from "@repo/ui-native";
+import { RemoveDialog, toast } from "@repo/ui-native";
 import { ChevronRight, HardDrive } from "lucide-react-native";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -85,7 +85,7 @@ export function ProfileList({ onPick }: ProfileListProps) {
         closeTitle="Cancel"
         onRemove={() => {
           setConfirming(false);
-          void removeAll();
+          removeAll().catch(() => toast.error("The vaults couldn't be removed. Try again."));
         }}
       />
     </View>

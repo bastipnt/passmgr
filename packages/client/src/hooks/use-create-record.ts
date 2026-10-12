@@ -5,9 +5,10 @@ import { useRefreshRecord } from "./use-records";
 
 type UseCreateRecordOpts = {
   onSuccess: (recordId: string) => void;
+  onError?: (error: Error) => void;
 };
 
-export function useCreateRecord({ onSuccess }: UseCreateRecordOpts) {
+export function useCreateRecord({ onSuccess, onError }: UseCreateRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();
 
@@ -24,6 +25,7 @@ export function useCreateRecord({ onSuccess }: UseCreateRecordOpts) {
       await refreshRecord(created.recordId);
       onSuccess(created.recordId);
     },
+    onError,
   });
 
   /** Encrypt and store a new record, in the personal vault unless `vaultId` is given. */

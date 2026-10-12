@@ -5,9 +5,10 @@ import { useRefreshRecord } from "./use-records";
 
 type UseUpdateRecordOpts = {
   onSuccess: () => void;
+  onError?: (error: Error) => void;
 };
 
-export function useUpdateRecord({ onSuccess }: UseUpdateRecordOpts) {
+export function useUpdateRecord({ onSuccess, onError }: UseUpdateRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();
 
@@ -24,6 +25,7 @@ export function useUpdateRecord({ onSuccess }: UseUpdateRecordOpts) {
       await refreshRecord(updated.recordId);
       onSuccess();
     },
+    onError,
   });
 
   /** Encrypt `data` as the next version of `record`, in the vault it lives in. */

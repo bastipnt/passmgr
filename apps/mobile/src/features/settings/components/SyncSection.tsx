@@ -1,5 +1,5 @@
 import { useLastSyncedLabel, useSyncSummary } from "@repo/client";
-import { Button, SettingsSection } from "@repo/ui-native";
+import { Button, SettingsSection, toast } from "@repo/ui-native";
 import { Text, View } from "react-native";
 
 /**
@@ -18,7 +18,12 @@ export function SyncSection() {
           <Text className="text-muted-foreground text-sm">{summary.detail}</Text>
         </View>
         {status.parked > 0 && (
-          <Button size="lg" onPress={() => void retryParked()}>
+          <Button
+            size="lg"
+            onPress={() =>
+              retryParked().catch(() => toast.error("The failed changes couldn't be queued again"))
+            }
+          >
             Retry failed changes
           </Button>
         )}

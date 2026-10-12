@@ -50,7 +50,9 @@ export function WifiQrCode({ record }: { record: WifiRecord }) {
         <Text className="text-muted-foreground text-sm">
           {qr
             ? "Scan with a phone's camera to join. Includes the password."
-            : "Show a QR code another phone can scan to join this network."}
+            : shown
+              ? "This network's name or password can't be put in a QR code."
+              : "Show a QR code another phone can scan to join this network."}
         </Text>
         <Button
           variant="glass"

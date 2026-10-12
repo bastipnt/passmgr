@@ -1,3 +1,4 @@
+import { toast } from "@repo/ui";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
@@ -7,14 +8,28 @@ import CreateRecordSheet from "./CreateRecordSheet";
 
 const mocks = vi.hoisted(() => ({
   createRecord: vi.fn(),
+  createOpts: undefined as undefined | { onError?: (error: Error) => void },
   vaultFilter: "all",
   writableVaults: [] as { vaultId: string; name: string; kind: string; role: string }[],
 }));
 
 vi.mock("@repo/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client")>()),
-  useCreateRecord: () => ({ createRecord: mocks.createRecord, createPending: false }),
+  useCreateRecord: (opts: { onError?: (error: Error) => void }) => {
+    mocks.createOpts = opts;
+    return { createRecord: mocks.createRecord, createPending: false };
+  },
+}));
+vi.mock("@repo/ui", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/ui")>()),
+  toast: Object.assign(vi.fn(), { success: vi.fn(), error: vi.fn() }),
+}));
+vi.mock("@repo/client/src/providers/SortedRecordsProvider", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/providers/SortedRecordsProvider")>()),
   useSortedRecords: () => ({ vaultFilter: mocks.vaultFilter }),
+}));
+vi.mock("@repo/client/src/hooks/use-vaults", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/hooks/use-vaults")>()),
   useVaults: () => ({ writableVaults: mocks.writableVaults }),
 }));
 
@@ -81,5 +96,11 @@ describe("CreateRecordSheet", () => {
 
     await vi.waitFor(() => expect(mocks.createRecord).toHaveBeenCalled());
     expect(mocks.createRecord.mock.calls[0]![1]).toBe("v-work");
+  });
+
+  it("reports a failed save", () => {
+    renderAt("/?new=&type=note");
+    mocks.createOpts?.onError?.(new Error("disk full"));
+    expect(toast.error).toHaveBeenCalledWith("The item couldn't be saved");
   });
 });

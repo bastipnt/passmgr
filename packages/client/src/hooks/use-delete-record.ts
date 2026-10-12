@@ -4,9 +4,10 @@ import { useRefreshRecord } from "./use-records";
 
 type UseDeleteRecordOpts = {
   onSuccess: () => void;
+  onError?: (error: Error) => void;
 };
 
-export function useDeleteRecord({ onSuccess }: UseDeleteRecordOpts) {
+export function useDeleteRecord({ onSuccess, onError }: UseDeleteRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();
 
@@ -18,6 +19,7 @@ export function useDeleteRecord({ onSuccess }: UseDeleteRecordOpts) {
       await refreshRecord(recordId);
       onSuccess();
     },
+    onError,
   });
 
   return { deleteRecord: mutate, deleteRecordError: mutationError };

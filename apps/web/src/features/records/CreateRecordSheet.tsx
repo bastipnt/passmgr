@@ -3,19 +3,16 @@ import {
   recordFromForm,
   ShortcutLayer,
   useCreateRecord,
-  useSortedRecords,
-  useVaults,
+  useTargetVault,
 } from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
-import { secretsStore } from "@repo/store";
 import { toast } from "@repo/ui";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { isDefined } from "@repo/util";
 import { ChevronLeftIcon, PlusIcon } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultPicker } from "@/features/vaults";
@@ -45,32 +42,6 @@ export function useOpenCreateSheet() {
   return (title?: string) => navigate(createSheetSearch(title));
 }
 
-// TODO: share with mobile
-
-/**
- * Where a new item goes: the vault in view when the user may write to it,
- * else the personal vault; the picker changes it for this sheet only.
- */
-function useTargetVault(open: boolean) {
-  const { vaultFilter } = useSortedRecords();
-  const { writableVaults } = useVaults();
-  const [picked, setPicked] = useState<string>();
-  const inView = writableVaults.find((vault) => vault.vaultId === vaultFilter)?.vaultId;
-  const fallback = inView ?? secretsStore.defaultVaultId;
-  const valid = writableVaults.some((vault) => vault.vaultId === picked);
-
-  // Every opening starts from the vault in view again.
-  useEffect(() => {
-    if (!open) setPicked(undefined);
-  }, [open]);
-
-  return {
-    vaultId: (valid ? picked : undefined) ?? fallback,
-    setVaultId: setPicked,
-    canPick: writableVaults.length > 1,
-  };
-}
-
 export default function CreateRecordSheet() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [, navigate] = useLocation();
@@ -97,11 +68,8 @@ export default function CreateRecordSheet() {
       navigate(recordPaths.record(recordId), { replace: true });
       toast.success("Record created");
     },
+    onError: () => toast.error("The item couldn't be saved"),
   });
-
-  useEffect(() => {
-    if (isDefined(createRecordError)) toast.error("Error saving");
-  }, [createRecordError]);
 
   function handleSubmit<T extends RecordType>(formType: T, formValues: RecordFormValues<T>) {
     createRecord(recordFromForm(formType, formValues), vaultId);

@@ -15,6 +15,7 @@ import {
   SettingsGroup,
   SettingsNavRow,
   SettingsSection,
+  toast,
 } from "@repo/ui-native";
 import { useRouter } from "expo-router";
 import { KeyRound, Layers, ShieldCheck, SlidersHorizontal, Trash2 } from "lucide-react-native";
@@ -137,7 +138,9 @@ export default function SettingsScreen() {
           }
           removeTitle="Remove"
           closeTitle="Cancel"
-          onRemove={() => void removeFromDevice()}
+          onRemove={() =>
+            removeFromDevice().catch(() => toast.error("The vault couldn't be removed. Try again."))
+          }
         >
           <Button
             size="lg"

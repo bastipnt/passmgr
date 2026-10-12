@@ -37,6 +37,7 @@ export * from "./src/components/SegmentedControl";
 export * from "./src/components/Skeleton";
 export * from "./src/components/Slider";
 export * from "./src/components/Spinner";
+export * from "./src/components/Toast";
 export * from "./src/components/WebsiteAvatar";
 // *** FEATURE COMPONENTS ***
 // record-list

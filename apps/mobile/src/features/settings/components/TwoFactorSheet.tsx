@@ -20,6 +20,7 @@ import {
   ControlledPasswordInput,
   FieldError,
   FormLock,
+  toast,
 } from "@repo/ui-native";
 import * as Clipboard from "expo-clipboard";
 import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -218,7 +219,13 @@ export function TwoFactorSheet({ ref }: { ref: Ref<TwoFactorSheetRef> }) {
                   <Button
                     variant="glass"
                     className="flex-1"
-                    onPress={() => void Linking.openURL(step.enrollment.uri).catch(() => {})}
+                    onPress={() =>
+                      Linking.openURL(step.enrollment.uri).catch(() =>
+                        toast.error("No authenticator app found", {
+                          description: "Enter the setup key in your app instead.",
+                        }),
+                      )
+                    }
                   >
                     Open in app
                   </Button>

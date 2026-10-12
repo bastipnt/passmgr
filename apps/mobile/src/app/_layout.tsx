@@ -13,6 +13,7 @@ import {
   StoreProvider,
   useSessionRestore,
 } from "@repo/client";
+import { Toaster } from "@repo/ui-native";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { Alert } from "react-native";
@@ -114,6 +115,7 @@ export default function RootLayout() {
             </ClientProvider>
           </SessionProvider>
         </PreferencesProvider>
+        <Toaster />
       </KeyboardProvider>
     </SafeAreaProvider>
   );

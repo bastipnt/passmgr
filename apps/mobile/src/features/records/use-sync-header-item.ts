@@ -1,4 +1,5 @@
 import { type SyncState, useLastSyncedLabel, useSyncSummary } from "@repo/client";
+import { toast } from "@repo/ui-native";
 import { type NativeStackHeaderItemMenu, useRouter } from "expo-router";
 import { useCSSVariable } from "uniwind";
 import { settingsPaths } from "@/route-paths";
@@ -40,7 +41,8 @@ export function useSyncHeaderItem(): NativeStackHeaderItemMenu {
           label: "Retry failed changes",
           icon: { type: "sfSymbol", name: "arrow.counterclockwise" },
           hidden: local || status.parked === 0,
-          onPress: () => void retryParked(),
+          onPress: () =>
+            retryParked().catch(() => toast.error("The failed changes couldn't be queued again")),
         },
         {
           type: "action",
