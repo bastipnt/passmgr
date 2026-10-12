@@ -765,6 +765,29 @@ describe("unlock: which profile?", () => {
     expect(store.saveAccount).not.toHaveBeenCalled();
   });
 
+  it.each([true, false])(
+    "holds the password once the vault is unlocked when enrollment comes next (%s)",
+    async (enroll) => {
+      store.needsBiometricEnroll = enroll;
+      let passwordAtUnlock: string | undefined;
+      const unlockVault = vi.mocked(session.unlockVault);
+      const unlockKeyring = unlockVault.getMockImplementation();
+      unlockVault.mockImplementationOnce((...args) => {
+        unlockKeyring?.(...args);
+        // The first render that sees the vault unlocked runs after this tick.
+        queueMicrotask(() => {
+          passwordAtUnlock = secretsStore.getPassword();
+        });
+      });
+
+      const { unlocked } = await unlockWith(account());
+
+      expect(unlocked).toBe(true);
+      expect(passwordAtUnlock).toBe(enroll ? "pw" : undefined);
+      secretsStore.clearPassword();
+    },
+  );
+
   it("offline: can't add an account the device has no profile for", async () => {
     const offline = { ...session, networkOffline: true };
     const { result } = renderHook(() => useUnlock(), {

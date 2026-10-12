@@ -1,4 +1,5 @@
 import { SessionContext, useAppConfig, useStore } from "@repo/client";
+import { secretsStore } from "@repo/store";
 import { Suspense, useContext } from "react";
 import { Redirect, Route, Switch, useRoute, useSearchParams } from "wouter";
 import { authPaths } from "@/app/route-paths";
@@ -22,7 +23,8 @@ export default function AuthRoutes() {
   const canRegister = registrationEnabled || searchParams.has("invite");
 
   if (vaultUnlocked) {
-    if (needsBiometricEnroll) {
+    // Enrolling wraps the password: without it the prompt could only fail.
+    if (needsBiometricEnroll && secretsStore.getPassword() !== undefined) {
       if (!isEnrollBiometricRoute) return <Redirect to={authPaths.enrollBiometric} />;
     } else return <Redirect to="/" />;
   }

@@ -18,7 +18,6 @@ import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 
-// TODO: fails if argon2id not finished
 export default function BiometricEnrollPage() {
   const [error, setError] = useState(false);
   const [enrolling, setEnrolling] = useState(false);
