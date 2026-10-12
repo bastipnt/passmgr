@@ -27,7 +27,12 @@ const fakeAuthenticatorState = {
   deferPrfToGet: false,
   shouldCancelCreate: false,
   shouldCancelGet: false,
+  lastCreate: undefined as unknown,
+  lastGet: undefined as unknown,
 };
+
+const HOST = "vault.example.com";
+const ENROLL = { rpName: "passmgr", userName: "alice@example.com" };
 
 function prfFor(credentialId: Uint8Array, prfSalt: Uint8Array): ArrayBuffer {
   // Deterministic: id||salt repeated to 32 bytes. Independent of real PRF, but stable.
@@ -48,6 +53,7 @@ function installWebAuthnMock() {
         extensions?: { prf?: { eval?: { first: ArrayBuffer } } };
       };
     }) {
+      fakeAuthenticatorState.lastCreate = options.publicKey;
       if (fakeAuthenticatorState.shouldCancelCreate) return null;
       const rawId = crypto.getRandomValues(new Uint8Array(16));
       const credId = Array.from(rawId).join(",");
@@ -73,6 +79,7 @@ function installWebAuthnMock() {
         extensions?: { prf?: { eval?: { first: ArrayBuffer } } };
       };
     }) {
+      fakeAuthenticatorState.lastGet = options.publicKey;
       if (fakeAuthenticatorState.shouldCancelGet) return null;
       const first = options.publicKey.allowCredentials?.[0];
       if (!first) throw new Error("no allowCredentials");
@@ -106,7 +113,7 @@ function installWebAuthnMock() {
 
   Object.defineProperty(globalThis, "window", {
     configurable: true,
-    value: { PublicKeyCredential: globalThis.PublicKeyCredential },
+    value: { PublicKeyCredential: globalThis.PublicKeyCredential, location: { hostname: HOST } },
   });
 
   return () => {
@@ -183,6 +190,26 @@ describe("isPrfSupported", () => {
     expect(await isPrfSupported()).toBe(false);
   });
 
+  function withCapabilities(capabilities: Record<string, boolean>) {
+    const pkc = globalThis.PublicKeyCredential as unknown as Record<string, unknown>;
+    pkc.getClientCapabilities = async () => capabilities;
+  }
+
+  it("returns false when the browser reports no PRF extension", async () => {
+    withCapabilities({ userVerifyingPlatformAuthenticator: true, "extension:prf": false });
+    expect(await isPrfSupported()).toBe(false);
+  });
+
+  it("trusts the reported platform authenticator over the legacy check", async () => {
+    withCapabilities({ userVerifyingPlatformAuthenticator: false, "extension:prf": true });
+    expect(await isPrfSupported()).toBe(false);
+  });
+
+  it("falls back to the legacy check when PRF support isn't reported", async () => {
+    withCapabilities({});
+    expect(await isPrfSupported()).toBe(true);
+  });
+
   it("returns false when isUserVerifyingPlatformAuthenticatorAvailable throws", async () => {
     Object.defineProperty(globalThis, "PublicKeyCredential", {
       configurable: true,
@@ -201,9 +228,20 @@ describe("isPrfSupported", () => {
 });
 
 describe("enrollBiometric / authenticateBiometric", () => {
+  it("names the relying party and the account, pinned to this host", async () => {
+    const material = await enrollBiometric(new Uint8Array(32).fill(1), "p", ENROLL);
+    expect(fakeAuthenticatorState.lastCreate).toMatchObject({
+      rp: { id: HOST, name: "passmgr" },
+      user: { name: "alice@example.com", displayName: "alice@example.com" },
+    });
+
+    await authenticateBiometric(material);
+    expect(fakeAuthenticatorState.lastGet).toMatchObject({ rpId: HOST });
+  });
+
   it("returns all six BIOMETRIC_KEY material fields on enrollment", async () => {
     const accountKey = new Uint8Array(32).fill(7);
-    const material = await enrollBiometric(accountKey, "hunter2");
+    const material = await enrollBiometric(accountKey, "hunter2", ENROLL);
     for (const k of BIOMETRIC_KEY) {
       expect(typeof material[k]).toBe("string");
       expect(material[k].length).toBeGreaterThan(0);
@@ -214,7 +252,7 @@ describe("enrollBiometric / authenticateBiometric", () => {
     const accountKey = new Uint8Array(32);
     crypto.getRandomValues(accountKey);
     const password = "correct horse battery staple";
-    const material = await enrollBiometric(accountKey, password);
+    const material = await enrollBiometric(accountKey, password, ENROLL);
 
     const recovered = await authenticateBiometric(material);
     expect(recovered.accountKey).toEqual(accountKey);
@@ -223,8 +261,8 @@ describe("enrollBiometric / authenticateBiometric", () => {
 
   it("produces distinct material across two enrollments of the same key+password", async () => {
     const accountKey = new Uint8Array(32).fill(9);
-    const a = await enrollBiometric(accountKey, "p");
-    const b = await enrollBiometric(accountKey, "p");
+    const a = await enrollBiometric(accountKey, "p", ENROLL);
+    const b = await enrollBiometric(accountKey, "p", ENROLL);
     expect(a.credentialId).not.toBe(b.credentialId);
     expect(a.prfSalt).not.toBe(b.prfSalt);
     expect(a.biometricNonce).not.toBe(b.biometricNonce);
@@ -233,22 +271,22 @@ describe("enrollBiometric / authenticateBiometric", () => {
 
   it("throws when WebAuthn credential creation is cancelled", async () => {
     fakeAuthenticatorState.shouldCancelCreate = true;
-    await expect(enrollBiometric(new Uint8Array(32), "p")).rejects.toThrow(/cancelled/i);
+    await expect(enrollBiometric(new Uint8Array(32), "p", ENROLL)).rejects.toThrow(/cancelled/i);
   });
 
   it("throws when the assertion during authenticate is cancelled", async () => {
-    const material = await enrollBiometric(new Uint8Array(32).fill(1), "p");
+    const material = await enrollBiometric(new Uint8Array(32).fill(1), "p", ENROLL);
     fakeAuthenticatorState.shouldCancelGet = true;
     await expect(authenticateBiometric(material)).rejects.toThrow(/cancelled/i);
   });
 
   it("throws when PRF is not supported by the authenticator on enrollment", async () => {
     fakeAuthenticatorState.prfSupported = false;
-    await expect(enrollBiometric(new Uint8Array(32), "p")).rejects.toThrow(/PRF/i);
+    await expect(enrollBiometric(new Uint8Array(32), "p", ENROLL)).rejects.toThrow(/PRF/i);
   });
 
   it("throws when PRF result is missing during authentication", async () => {
-    const material = await enrollBiometric(new Uint8Array(32).fill(1), "p");
+    const material = await enrollBiometric(new Uint8Array(32).fill(1), "p", ENROLL);
     fakeAuthenticatorState.prfSupported = false;
     await expect(authenticateBiometric(material)).rejects.toThrow(/PRF/i);
   });
@@ -256,7 +294,7 @@ describe("enrollBiometric / authenticateBiometric", () => {
   it("round-trips when PRF output is only obtained from a follow-up get() call", async () => {
     fakeAuthenticatorState.deferPrfToGet = true;
     const accountKey = new Uint8Array(32).fill(3);
-    const material = await enrollBiometric(accountKey, "p");
+    const material = await enrollBiometric(accountKey, "p", ENROLL);
     fakeAuthenticatorState.deferPrfToGet = false; // authenticate uses normal get
     const recovered = await authenticateBiometric(material);
     expect(recovered.accountKey).toEqual(accountKey);
@@ -266,13 +304,13 @@ describe("enrollBiometric / authenticateBiometric", () => {
   it("throws when the deferred PRF assertion is cancelled", async () => {
     fakeAuthenticatorState.deferPrfToGet = true;
     fakeAuthenticatorState.shouldCancelGet = true;
-    await expect(enrollBiometric(new Uint8Array(32), "p")).rejects.toThrow(/cancelled/i);
+    await expect(enrollBiometric(new Uint8Array(32), "p", ENROLL)).rejects.toThrow(/cancelled/i);
   });
 
   it("fails to authenticate against tampered material (wrong prfSalt)", async () => {
     const accountKey = new Uint8Array(32).fill(5);
     const material: BiometricKeyMaterial = {
-      ...(await enrollBiometric(accountKey, "p")),
+      ...(await enrollBiometric(accountKey, "p", ENROLL)),
     };
     const tampered: BiometricKeyMaterial = {
       ...material,

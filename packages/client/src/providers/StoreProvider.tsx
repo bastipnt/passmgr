@@ -1,4 +1,4 @@
-import type { BiometricKeyMaterial } from "@repo/crypto";
+import { type BiometricKeyMaterial, isPrfSupported } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
 import {
   clearLoginBundle,
@@ -212,6 +212,11 @@ type StoreProviderProps = {
    * (or the password changed elsewhere): tell the user, reload on web.
    */
   onSignedOut?: () => void;
+  /**
+   * Whether this device can enroll a biometric unlock (web: WebAuthn PRF). Until
+   * it resolves `true`, no enrollment is offered and no password is kept for one.
+   */
+  biometricSupport?: () => Promise<boolean>;
   children: ReactNode;
 };
 
@@ -219,6 +224,7 @@ export function StoreProvider({
   profiles,
   syncEnabled = true,
   onSignedOut,
+  biometricSupport = isPrfSupported,
   children,
 }: StoreProviderProps) {
   const { mode, networkOffline, detachServer } = useContext(SessionContext);
@@ -239,10 +245,21 @@ export function StoreProvider({
   }, []);
   const current = useCallback(() => activeRef.current, []);
 
+  const [biometricSupported, setBiometricSupported] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void biometricSupport().then((supported) => {
+      if (!cancelled) setBiometricSupported(supported);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [biometricSupport]);
+
   const isDismissed = (profile: ActiveProfile) =>
     Number(preferences.get(biometricDismissedKey(profile.entry.profileId))) === 1;
   const needsBiometricEnrollFor = (profile: ActiveProfile) =>
-    !isDismissed(profile) && profile.biometricKeyMaterial === null;
+    biometricSupported && !isDismissed(profile) && profile.biometricKeyMaterial === null;
   const biometricDismissed = active !== null && isDismissed(active);
   const needsBiometricEnroll = active !== null && needsBiometricEnrollFor(active);
 

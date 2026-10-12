@@ -12,7 +12,9 @@ const exportAccountKey = vi.fn(() => new Uint8Array(32).fill(7));
 const credentialsCreate = vi.fn();
 
 vi.mock("@repo/client", () => ({
+  profileLabel: (entry: { email: string | null }) => entry.email,
   useStore: () => ({
+    active: { entry: { email: "alice@example.com", name: null } },
     saveBiometricKeyMaterial: setBiometricKeyMaterial,
     setBiometricDismissed,
   }),
@@ -90,6 +92,9 @@ describe("BiometricEnrollPage", () => {
     expect(typeof material.biometricEncryptedAccountKey).toBe("string");
     expect(typeof material.credentialId).toBe("string");
     expect(typeof material.prfSalt).toBe("string");
+    const options = credentialsCreate.mock.calls[0]?.[0] as CredentialCreationOptions;
+    expect(options.publicKey?.rp.name).toBe("passmgr");
+    expect(options.publicKey?.user.name).toBe("alice@example.com");
   });
 
   it("enrolls the account key and wipes the exported copy afterwards", async () => {

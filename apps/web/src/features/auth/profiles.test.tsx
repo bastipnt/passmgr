@@ -93,10 +93,10 @@ const session = {
   detachServer: vi.fn(),
 } as unknown as ContextType<typeof SessionContext>;
 
-async function launch() {
+async function launch({ biometricSupported = true } = {}) {
   renderWithProviders(
     <SessionContext.Provider value={session}>
-      <StoreProvider profiles={profiles}>
+      <StoreProvider profiles={profiles} biometricSupport={async () => biometricSupported}>
         <Probe />
       </StoreProvider>
     </SessionContext.Provider>,
@@ -365,5 +365,14 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
     await act(() => store.selectProfile(BOB.profileId));
     expect(store.biometricDismissed).toBe(false);
     expect(store.needsBiometricEnroll).toBe(true);
+  });
+
+  it("offers no biometric enrollment where the device can't do it", async () => {
+    await seed(ALICE, "r-alice");
+    await launch({ biometricSupported: false });
+    await act(() => store.selectProfile(ALICE.profileId));
+
+    expect(store.biometricDismissed).toBe(false);
+    expect(store.needsBiometricEnroll).toBe(false);
   });
 });

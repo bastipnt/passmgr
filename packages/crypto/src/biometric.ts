@@ -21,32 +21,60 @@ type PRFExtensionInput = { eval: PRFValues };
 type PRFExtensionCreateResult = { enabled?: boolean; results?: { first: ArrayBuffer } };
 type PRFExtensionGetResult = { results?: { first: ArrayBuffer } };
 
-// TODO: use this check in enroll?
+type ClientCapabilities = Partial<
+  Record<"userVerifyingPlatformAuthenticator" | "extension:prf", boolean>
+>;
+type CredentialWithCapabilities = typeof PublicKeyCredential & {
+  getClientCapabilities?: () => Promise<ClientCapabilities>;
+};
+
+/**
+ * Whether this browser can enroll a biometric unlock: a user-verifying platform
+ * authenticator and, where the browser reports it, the PRF extension. Browsers
+ * without `getClientCapabilities` can't tell PRF support upfront; enrolling
+ * still fails cleanly there.
+ */
 export async function isPrfSupported(): Promise<boolean> {
-  if (typeof window === "undefined") return false;
-  if (!window.PublicKeyCredential) return false;
+  if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
+  const credential = window.PublicKeyCredential as CredentialWithCapabilities;
   try {
-    return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
+    const capabilities = await credential.getClientCapabilities?.();
+    if (capabilities?.["extension:prf"] === false) return false;
+    if (capabilities?.userVerifyingPlatformAuthenticator !== undefined)
+      return capabilities.userVerifyingPlatformAuthenticator;
+    return await credential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch {
     return false;
   }
 }
 
+function relyingPartyId() {
+  return window.location.hostname;
+}
+
+export type BiometricEnrollOptions = {
+  /** Shown by the OS next to the credential. */
+  rpName: string;
+  /** Tells the credentials of several profiles on one device apart. */
+  userName: string;
+};
+
 export async function enrollBiometric(
   accountKey: Uint8Array,
   password: string,
+  { rpName, userName }: BiometricEnrollOptions,
 ): Promise<BiometricKeyMaterial> {
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
+  const rpId = relyingPartyId();
 
   const credential = (await navigator.credentials.create({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
-      // TODO: make variable
-      rp: { name: "Pass Manager" },
+      rp: { id: rpId, name: rpName },
       user: {
         id: crypto.getRandomValues(new Uint8Array(16)),
-        name: "user",
-        displayName: "Pass Manager User",
+        name: userName,
+        displayName: userName,
       },
       pubKeyCredParams: [
         { alg: -7, type: "public-key" }, // ES256
@@ -79,6 +107,7 @@ export async function enrollBiometric(
     const assertion = (await navigator.credentials.get({
       publicKey: {
         challenge: crypto.getRandomValues(new Uint8Array(32)),
+        rpId,
         allowCredentials: [{ id: credential.rawId, type: "public-key" }],
         userVerification: "required",
         extensions: {
@@ -125,6 +154,7 @@ export async function authenticateBiometric(
   const assertion = (await navigator.credentials.get({
     publicKey: {
       challenge: crypto.getRandomValues(new Uint8Array(32)),
+      rpId: relyingPartyId(),
       allowCredentials: [{ id: credentialId.buffer as ArrayBuffer, type: "public-key" }],
       userVerification: "required",
       extensions: {
