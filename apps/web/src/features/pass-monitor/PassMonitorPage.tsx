@@ -1,4 +1,4 @@
-import { useBreachCheck, usePassMonitor } from "@repo/client";
+import { securityScore, useBreachCheck, usePassMonitor } from "@repo/client";
 import { Badge } from "@repo/ui/components/Badge";
 import {
   Item,
@@ -13,6 +13,7 @@ import { ChevronRightIcon } from "lucide-react";
 import { Link as WouterLink } from "wouter";
 import { passMonitorPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
+import { SecurityScoreCard } from "./SecurityScoreCard";
 
 type CategoryProps = {
   path: string;
@@ -54,16 +55,19 @@ const groupedCount = (groups: { records: unknown[] }[] | null) =>
   groups?.reduce((sum, group) => sum + group.records.length, 0);
 
 export default function PassMonitorPage() {
+  const monitor = usePassMonitor();
   const { weak, weakFailed, reused, duplicates, old, insecure, missingTwoFactor, twoFactorFailed } =
-    usePassMonitor();
+    monitor;
   const breach = useBreachCheck();
+  const score = securityScore({ ...monitor, breach });
 
   return (
     <>
       <PanelHeader>
         <PanelTitle>Pass Monitor</PanelTitle>
       </PanelHeader>
-      <div className="px-4 pb-4">
+      <div className="flex flex-col gap-3 px-4 pb-4">
+        <SecurityScoreCard score={score} />
         <ItemGroup>
           <Category
             title="Weak passwords"

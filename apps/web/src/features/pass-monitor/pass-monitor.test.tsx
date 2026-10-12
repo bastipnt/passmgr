@@ -39,6 +39,7 @@ function login(recordId: string, title: string) {
 }
 
 const checking: PassMonitor = {
+  monitored: null,
   weak: null,
   weakFailed: false,
   reused: null,
@@ -73,6 +74,7 @@ describe("PassMonitorPage", () => {
     const github = login("a", "GitHub");
     const figma = login("b", "Figma");
     mocks.monitor = {
+      monitored: [github, figma],
       weak: [{ record: github, strength: { level: "weak", label: "Weak" } }],
       weakFailed: false,
       reused: [{ id: "a", records: [github, figma] }],
@@ -89,6 +91,33 @@ describe("PassMonitorPage", () => {
     expect(screen.getByLabelText("0 Duplicates")).toBeInTheDocument();
     expect(screen.getByLabelText("1 Insecure websites")).toBeInTheDocument();
     expect(screen.getByLabelText("0 Missing 2FA")).toBeInTheDocument();
+  });
+
+  it("scores the findings, naming the checks left out", () => {
+    const { rerender } = renderWithProviders(<PassMonitorPage />);
+    expect(screen.getByLabelText("Calculating security score")).toBeInTheDocument();
+
+    const github = login("a", "GitHub");
+    const figma = login("b", "Figma");
+    mocks.monitor = {
+      ...checking,
+      monitored: [github, figma],
+      weak: [],
+      reused: [],
+      duplicates: [],
+      old: [],
+      insecure: [{ record: figma, hosts: ["figma.com"] }],
+      missingTwoFactor: [],
+    };
+    rerender(<PassMonitorPage />);
+
+    expect(screen.getByRole("meter", { name: "Security score" })).toHaveAttribute(
+      "aria-valuenow",
+      "85",
+    );
+    expect(screen.getByText("Good")).toBeInTheDocument();
+    expect(screen.getByText("1 of 2 passwords needs attention.")).toBeInTheDocument();
+    expect(screen.getByText("Not counted: breaches.")).toBeInTheDocument();
   });
 
   it("says when the strength check couldn't run", () => {

@@ -18,9 +18,12 @@ import {
   type WeakPassword,
   weakPasswordOf,
 } from "../records/pass-monitor";
+import { monitoredPassword } from "../records/password-health";
 import { useTwoFactorDirectory } from "./use-two-factor-directory";
 
 export type PassMonitor = {
+  /** Every record with a monitored password; `null` until the records are decrypted. */
+  monitored: DecryptedRecord[] | null;
   /** `null` until the records are decrypted and every password is rated. */
   weak: WeakPassword[] | null;
   /** The strength estimator didn't load: `weak` stays `null`. */
@@ -72,6 +75,7 @@ export function usePassMonitor(): PassMonitor {
     () =>
       ready
         ? {
+            monitored: snapshot.filter((record) => monitoredPassword(record)),
             reused: findReusedPasswords(snapshot),
             duplicates: findDuplicateLogins(snapshot),
             old: findOldPasswords(snapshot),
@@ -124,6 +128,7 @@ export function usePassMonitor(): PassMonitor {
   );
 
   return {
+    monitored: cheap?.monitored ?? null,
     weak,
     weakFailed,
     reused: cheap?.reused ?? null,

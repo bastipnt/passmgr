@@ -348,6 +348,10 @@ Logins only: insecure websites = a website on `http://` (loopback aside), missin
 host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
 refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
 setup docs (`useMissingTwoFactor`). No network request.
+Security score (`securityScore`, `records/security-score.ts`; web `SecurityScoreCard` atop the Pass Monitor): the mean
+per-password health (1 minus the summed `SCORE_PENALTY`s, capped) over `usePassMonitor().monitored`; duplicates don't
+count, a breached password keeps it below good. `undefined` while a counted check runs (the breach check too, until its
+run ends); a check that is off or failed goes to `skipped` and the card names it.
 Breach check (`useBreachCheck`, `records/breach-check.ts`): opt-in per profile + device (`Vault.setBreachCheckEnabled`,
 off deletes every result), while the Pass Monitor is open the HIBP range API is asked directly from the client
 (`pwnedPasswordHash`: only the 5-char SHA-1 prefix, `Add-Padding`; one request per prefix, 4 at a time, 429 backoff)
