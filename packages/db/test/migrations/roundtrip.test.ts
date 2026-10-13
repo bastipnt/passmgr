@@ -42,6 +42,7 @@ describe("migration round-trip", () => {
       `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
     );
     expect(tables.rows.map((r) => r.tablename)).toEqual([
+      "device_credentials",
       "keys",
       "records",
       "user_backup_codes",
