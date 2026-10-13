@@ -53,6 +53,18 @@ export type ImportPlan = { entries: ImportEntry[]; skipped: number };
 
 export type ImportResult = { created: number; updated: number; skipped: number };
 
+/** A batch failed: `written` of `total` records were written before it, and stay. */
+export class ImportStoppedError extends Error {
+  readonly written: number;
+  readonly total: number;
+
+  constructor(written: number, total: number, cause: unknown) {
+    super(`Import stopped after ${written} of ${total} records`, { cause });
+    this.written = written;
+    this.total = total;
+  }
+}
+
 /** What the device holds under a record id: its vault, and whether it's a tombstone. */
 type LocalHead = { vaultId: string; deleted: boolean };
 
@@ -183,7 +195,8 @@ async function holdsSameContent(
 /**
  * Import `data` through `records` (local versions + outbox), `IMPORT_BATCH_SIZE`
  * records per transaction. An overwrite with unchanged content is skipped. A
- * failed batch stops the import; the batches before it stay written.
+ * failed batch stops the import (`ImportStoppedError`); the batches before it
+ * stay written.
  */
 export async function importExportData(
   records: RecordRepository,
@@ -203,7 +216,11 @@ export async function importExportData(
   }
 
   for (let i = 0; i < entries.length; i += IMPORT_BATCH_SIZE) {
-    await records.writeImport(entries.slice(i, i + IMPORT_BATCH_SIZE));
+    try {
+      await records.writeImport(entries.slice(i, i + IMPORT_BATCH_SIZE));
+    } catch (error) {
+      throw new ImportStoppedError(i, entries.length, error);
+    }
   }
   const created = entries.filter((e) => e.kind === "create").length;
   return { created, updated: entries.length - created, skipped };

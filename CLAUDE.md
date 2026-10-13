@@ -208,6 +208,12 @@ Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`re
 it came from; an id already there (live or deleted) → skip / overwrite (new version, revives a deleted one; unchanged
 content writes nothing) / keep both. Restore (`useRestoreBackup`, web `/restore`): a backup into a new local vault
 under a new master password, every record into its personal vault, ids kept (`keepIds`: a re-import skips them). Mobile has no export / import UI yet.
+Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
+(Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON; 1Password 1PUX via `fflate`; KeePass XML via an injectable
+`ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
+Each parser fills a `ForeignImportBuilder` → an `ExportData` of one vault, imported with `keep-both` into the picked
+vault (every record new). Folders → tags, extra fields → custom fields, history / passkeys / attachments dropped and
+counted in the report. A failed batch throws `ImportStoppedError` (`written` / `total`).
 
 Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →
 `registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,

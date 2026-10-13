@@ -17,9 +17,11 @@ import {
   defaultVaultMap,
   IMPORT_BATCH_SIZE,
   type ImportOptions,
+  ImportStoppedError,
   importExportData,
   planImport,
 } from "../src/export/import-export";
+import { readImportFile } from "../src/import/read-import-file";
 import { RecordRepository } from "../src/records/record-repository";
 import { decryptRecord } from "../src/util/decrypt-record";
 
@@ -245,6 +247,44 @@ describe("importExportData", () => {
 
     expect(await runImport(data, options())).toMatchObject({ created: count });
     expect(writeImport).toHaveBeenCalledTimes(3);
+  });
+
+  it("stops at a failed batch and says how far it got", async () => {
+    const data = await exported();
+    const count = IMPORT_BATCH_SIZE * 2 + 1;
+    data.records = Array.from({ length: count }, (_, i) => ({
+      ...(login(`R${i}`) as Extract<RecordData, { type: "login" }>),
+      id: crypto.randomUUID(),
+      vaultId: personalId,
+      createdAt: null,
+      updatedAt: "2026-10-01T00:00:00.000Z",
+    }));
+    const original = repository.writeImport.bind(repository);
+    vi.spyOn(repository, "writeImport")
+      .mockImplementationOnce(original)
+      .mockRejectedValueOnce(new Error("disk full"));
+
+    const error = await runImport(data, options()).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ImportStoppedError);
+    expect(error).toMatchObject({ written: IMPORT_BATCH_SIZE, total: count });
+    expect(await contents(personalId)).toHaveLength(IMPORT_BATCH_SIZE);
+  });
+
+  it("imports another manager's export as new records into the chosen vault", async () => {
+    const csv = "name,url,username,password\r\nMail,https://mail.example.com,a,pw\r\n";
+    const contentsOf = readImportFile(new TextEncoder().encode(csv));
+    if (contentsOf.kind !== "foreign") throw new Error("Expected a foreign import");
+    const { data, vaultId } = contentsOf.foreign;
+
+    for (let round = 0; round < 2; round++) {
+      await runImport(data, {
+        vaultMap: { [vaultId]: workId },
+        fallbackVaultId: workId,
+        duplicates: "keep-both",
+      });
+    }
+    expect(await contents(workId)).toEqual(["Mail:pw", "Mail:pw"]);
+    expect(await contents(personalId)).toEqual([]);
   });
 });
 

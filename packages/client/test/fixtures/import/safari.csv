@@ -1,0 +1,2 @@
+Title,URL,Username,Password,Notes,OTPAuth
+Shop (eve),https://shop.example.com/,eve,eve-pw,Gift card in note,otpauth://totp/Shop:eve?secret=JBSWY3DPEHPK3PXP&issuer=Shop

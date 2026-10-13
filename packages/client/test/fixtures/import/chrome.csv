@@ -1,0 +1,5 @@
+﻿name,url,username,password,note
+Example,https://example.com/login,alice,hunter2,"line one
+line ""two"""
+,https://bank.example.org,bob@example.org,p4ss,
+Android app,android://hash@com.example.app/,carol,,

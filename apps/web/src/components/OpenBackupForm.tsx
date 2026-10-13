@@ -1,10 +1,14 @@
 import {
+  type ExportFileContents,
+  type ForeignImport,
   IMPORT_ERROR_MESSAGES,
+  IMPORT_FILE_ACCEPT,
   type ImportError,
   MAX_IMPORT_FILE_BYTES,
   openExportEnvelope,
   readExportFile,
   readFileError,
+  readImportFile,
 } from "@repo/client";
 import type { ExportData, ExportEnvelope } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
@@ -17,6 +21,8 @@ import { type ReactNode, useId, useRef, useState } from "react";
 type OpenBackupFormProps = {
   /** The file's records, decrypted. */
   onOpened: (data: ExportData) => void;
+  /** Also accept other password managers' exports, handed over here. */
+  onForeignOpened?: (foreign: ForeignImport) => void;
   /** Rendered under the fields, e.g. a warning. */
   children?: ReactNode;
   /** Wraps the submit button (a dialog footer with Cancel, …). */
@@ -25,9 +31,15 @@ type OpenBackupFormProps = {
 
 /**
  * Pick an export file (ADR 0001 D12) and open it: an encrypted backup asks for
- * its backup password, a plain JSON export opens as is.
+ * its backup password, a plain JSON export opens as is. With `onForeignOpened`,
+ * another password manager's export too.
  */
-export default function OpenBackupForm({ onOpened, children, renderActions }: OpenBackupFormProps) {
+export default function OpenBackupForm({
+  onOpened,
+  onForeignOpened,
+  children,
+  renderActions,
+}: OpenBackupFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const passwordId = useId();
   const [fileName, setFileName] = useState<string>();
@@ -47,7 +59,17 @@ export default function OpenBackupForm({ onOpened, children, renderActions }: Op
       return;
     }
     try {
-      const contents = readExportFile(await file.text());
+      let contents: ExportFileContents;
+      if (onForeignOpened) {
+        const read = readImportFile(new Uint8Array(await file.arrayBuffer()));
+        if (read.kind === "foreign") {
+          onForeignOpened(read.foreign);
+          return;
+        }
+        contents = read.contents;
+      } else {
+        contents = readExportFile(await file.text());
+      }
       if (contents.encrypted) setEnvelope(contents.envelope);
       else onOpened(contents.data);
     } catch (e) {
@@ -84,9 +106,9 @@ export default function OpenBackupForm({ onOpened, children, renderActions }: Op
         <input
           ref={inputRef}
           type="file"
-          accept=".json,application/json"
+          accept={onForeignOpened ? IMPORT_FILE_ACCEPT : ".json,application/json"}
           className="hidden"
-          aria-label="Backup file"
+          aria-label={onForeignOpened ? "Export file" : "Backup file"}
           onChange={(e) => {
             void pick(e.target.files?.[0]);
             // Picking the same file again (after a wrong password) fires again.
@@ -101,7 +123,9 @@ export default function OpenBackupForm({ onOpened, children, renderActions }: Op
           onClick={() => inputRef.current?.click()}
         >
           <FileUpIcon />
-          <span className="truncate">{fileName ?? "Choose a backup file…"}</span>
+          <span className="truncate">
+            {fileName ?? (onForeignOpened ? "Choose an export file…" : "Choose a backup file…")}
+          </span>
         </Button>
 
         {envelope && (

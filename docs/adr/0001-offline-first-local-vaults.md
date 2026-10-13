@@ -661,6 +661,23 @@ to another vault is re-encrypted anyway (D6).
 > - The encrypted export counts once saved (`useExport().markSaved`), not when it is built.
 > - Web: Settings → Security → Export; the reminder's "Back up" leads there. Mobile has no export
 >   UI yet (`useExport` is shared; saving the file needs a share sheet).
+>
+> **Amended 2026-10-12** (import from other password managers):
+>
+> - Chrome / Edge, Firefox and Safari CSV, Bitwarden JSON (unencrypted), 1Password 1PUX and
+>   KeePass XML, told apart by content (`readImportFile`). Each parser turns the file into an
+>   `ExportData` of one vault, so the write is the backup import (`importExportData`).
+> - **Every record is new** (new id, `keep-both`): nothing in a foreign file matches our ids, and
+>   matching by content is left for later.
+> - Folders, collections and (with more than one) source vaults become `tags`; everything goes
+>   into one vault the user picks. Fields with no field here become custom fields (concealed →
+>   `secret`), a website that isn't http(s) a "Website" field. Password history, passkeys and
+>   attachments are dropped and counted. A 1Password category with no type here becomes a note
+>   with its fields; Bitwarden types we don't know and 1Password documents are skipped and
+>   listed. KeePass's recycle bin is left out, like a trash; archived 1Password items are tagged.
+> - `passwordChangedAt` comes from the source (password revision / history dates), else the
+>   item's creation date, so the Pass Monitor's "old" check survives a migration.
+> - Parsed in memory only; the result asks the user to delete the plaintext file.
 
 ## Consequences
 

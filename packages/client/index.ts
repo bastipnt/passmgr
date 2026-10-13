@@ -51,6 +51,10 @@ export * from "./src/hooks/use-unlock";
 export * from "./src/hooks/use-update-record";
 export * from "./src/hooks/use-vault-sharing";
 export * from "./src/hooks/use-vaults";
+// Import from other password managers
+export * from "./src/import/foreign-import";
+export type { ParseXml, XmlElement } from "./src/import/keepass";
+export * from "./src/import/read-import-file";
 export type { SecondFactorPrompt } from "./src/login";
 export * from "./src/preferences/PreferencesStore";
 // Preferences

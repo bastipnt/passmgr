@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<KeePassFile>
+	<Meta>
+		<Generator>KeePass</Generator>
+		<RecycleBinEnabled>True</RecycleBinEnabled>
+		<RecycleBinUUID>cmVjeWNsZWJpbg==</RecycleBinUUID>
+	</Meta>
+	<Root>
+		<Group>
+			<UUID>cm9vdA==</UUID>
+			<Name>Database</Name>
+			<Entry>
+				<UUID>ZW50cnkx</UUID>
+				<Tags>finance;important</Tags>
+				<Times>
+					<CreationTime>2020-01-01T00:00:00Z</CreationTime>
+					<LastModificationTime>2023-06-01T00:00:00Z</LastModificationTime>
+				</Times>
+				<String><Key>Notes</Key><Value>bank login</Value></String>
+				<String><Key>Password</Key><Value ProtectInMemory="True">current-pw</Value></String>
+				<String><Key>Title</Key><Value>Bank</Value></String>
+				<String><Key>URL</Key><Value>https://bank.example.com</Value></String>
+				<String><Key>UserName</Key><Value>alice</Value></String>
+				<String><Key>otp</Key><Value>otpauth://totp/Bank:alice?secret=JBSWY3DPEHPK3PXP</Value></String>
+				<String><Key>Customer number</Key><Value>12345</Value></String>
+				<String><Key>Online PIN</Key><Value ProtectInMemory="True">0000</Value></String>
+				<Binary><Key>statement.pdf</Key><Value Ref="0" /></Binary>
+				<History>
+					<Entry>
+						<Times><LastModificationTime>2021-01-01T00:00:00Z</LastModificationTime></Times>
+						<String><Key>Password</Key><Value ProtectInMemory="True">first-pw</Value></String>
+						<String><Key>Title</Key><Value>Bank</Value></String>
+					</Entry>
+					<Entry>
+						<Times><LastModificationTime>2022-01-01T00:00:00Z</LastModificationTime></Times>
+						<String><Key>Password</Key><Value ProtectInMemory="True">current-pw</Value></String>
+						<String><Key>Title</Key><Value>Bank</Value></String>
+					</Entry>
+				</History>
+			</Entry>
+			<Group>
+				<UUID>aW50ZXJuZXQ=</UUID>
+				<Name>Internet</Name>
+				<Group>
+					<UUID>c29jaWFs</UUID>
+					<Name>Social</Name>
+					<Entry>
+						<UUID>ZW50cnky</UUID>
+						<Times>
+							<CreationTime>gPcj3Q4AAAA=</CreationTime>
+							<LastModificationTime>gPcj3Q4AAAA=</LastModificationTime>
+						</Times>
+						<String><Key>Title</Key><Value></Value></String>
+						<String><Key>UserName</Key><Value>bob</Value></String>
+						<String><Key>Password</Key><Value ProtectInMemory="True">bob-pw</Value></String>
+						<String><Key>URL</Key><Value>social.example.net</Value></String>
+						<String><Key>Notes</Key><Value></Value></String>
+					</Entry>
+				</Group>
+			</Group>
+			<Group>
+				<UUID>cmVjeWNsZWJpbg==</UUID>
+				<Name>Recycle Bin</Name>
+				<Entry>
+					<UUID>ZW50cnkz</UUID>
+					<String><Key>Title</Key><Value>Deleted thing</Value></String>
+					<String><Key>Password</Key><Value>gone</Value></String>
+				</Entry>
+			</Group>
+		</Group>
+		<DeletedObjects />
+	</Root>
+</KeePassFile>

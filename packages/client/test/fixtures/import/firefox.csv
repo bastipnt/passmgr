@@ -1,0 +1,3 @@
+"url","username","password","httpRealm","formActionOrigin","guid","timeCreated","timeLastUsed","timePasswordChanged"
+"https://mail.example.com","dave","d4ve-pw","","https://mail.example.com","{1a2b}","1600000000000","1700000000000","1650000000000"
+"chrome://FirefoxAccounts","sync","token","Firefox Accounts credentials","","{3c4d}","1600000000000","1600000000000","1600000000000"

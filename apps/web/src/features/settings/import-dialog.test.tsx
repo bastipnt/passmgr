@@ -13,6 +13,7 @@ const importHook = vi.hoisted(() => ({
   importData: vi.fn(),
   busy: false,
   importError: undefined as "failed" | undefined,
+  stopped: undefined as { written: number; total: number } | undefined,
   clearImportError: vi.fn(),
 }));
 vi.mock("@repo/client/src/hooks/use-import", async (importActual) => ({
@@ -63,11 +64,19 @@ beforeEach(() => {
   vi.spyOn(secretsStore, "defaultVaultId", "get").mockReturnValue(PERSONAL);
   importHook.importData.mockResolvedValue({ created: 1, updated: 0, skipped: 0 });
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  importHook.importError = undefined;
+  importHook.stopped = undefined;
+});
 
-function file(content: string) {
-  return new File([content], "backup.json", { type: "application/json" });
+function file(content: string, name = "backup.json") {
+  return new File([content], name, {
+    type: name.endsWith(".csv") ? "text/csv" : "application/json",
+  });
 }
+
+const CHROME_CSV = "name,url,username,password,note\r\nMail,https://mail.example.com,a,pw,\r\n";
 
 async function openDialog() {
   const user = userEvent.setup();
@@ -84,7 +93,7 @@ describe("ImportDialog", () => {
   it("imports a plain JSON export into the personal vault, skipping duplicates", async () => {
     const user = await openDialog();
 
-    await user.upload(screen.getByLabelText("Backup file"), file(exportToJson(data)));
+    await user.upload(screen.getByLabelText("Export file"), file(exportToJson(data)));
     await screen.findByText(/1 record\(s\)/);
     await waitFor(() => expect(screen.getByRole("button", { name: "Import" })).toBeEnabled());
     await user.click(screen.getByRole("button", { name: "Import" }));
@@ -103,7 +112,7 @@ describe("ImportDialog", () => {
     const user = await openDialog();
 
     await user.upload(
-      screen.getByLabelText("Backup file"),
+      screen.getByLabelText("Export file"),
       file(await encryptExport(data, "backup password")),
     );
     await user.type(await screen.findByLabelText("Backup password"), "not it");
@@ -125,7 +134,7 @@ describe("ImportDialog", () => {
     ]);
     const user = await openDialog();
 
-    await user.upload(screen.getByLabelText("Backup file"), file(exportToJson(data)));
+    await user.upload(screen.getByLabelText("Export file"), file(exportToJson(data)));
     await user.click(await screen.findByRole("combobox", { name: "“Old personal” goes to" }));
     // The read-only vault isn't offered.
     expect((await screen.findAllByRole("option")).map((o) => o.textContent)).toEqual([
@@ -150,19 +159,68 @@ describe("ImportDialog", () => {
     const user = await openDialog();
     const huge = file("{}");
     Object.defineProperty(huge, "size", { value: MAX_IMPORT_FILE_BYTES + 1 });
-    const text = vi.spyOn(huge, "text");
+    const read = vi.spyOn(huge, "arrayBuffer");
 
-    await user.upload(screen.getByLabelText("Backup file"), huge);
+    await user.upload(screen.getByLabelText("Export file"), huge);
 
     expect(await screen.findByText(/too large/)).toBeInTheDocument();
-    expect(text).not.toHaveBeenCalled();
+    expect(read).not.toHaveBeenCalled();
   });
 
   it("refuses a file that isn't an export", async () => {
     const user = await openDialog();
 
-    await user.upload(screen.getByLabelText("Backup file"), file('{"hello":"world"}'));
+    await user.upload(screen.getByLabelText("Export file"), file('{"hello":"world"}'));
 
-    expect(await screen.findByText(/isn't a backup or export/)).toBeInTheDocument();
+    expect(await screen.findByText(/can't import this file/)).toBeInTheDocument();
+  });
+
+  it("says how to export a file it can't read", async () => {
+    const user = await openDialog();
+
+    await user.upload(
+      screen.getByLabelText("Export file"),
+      file("folder,favorite,type,name,login_uri,login_username\n", "bitwarden.csv"),
+    );
+
+    expect(await screen.findByText(/Export your vault as “.json” instead/)).toBeInTheDocument();
+  });
+
+  it("imports another app's export as new items into the picked vault, then reports", async () => {
+    store.vault.getVaults.mockResolvedValue([
+      { vaultId: PERSONAL, kind: "personal", role: "owner" } as MemberVault,
+      { vaultId: WORK, kind: "shared", role: "write" } as MemberVault,
+    ]);
+    const user = await openDialog();
+
+    await user.upload(screen.getByLabelText("Export file"), file(CHROME_CSV, "chrome.csv"));
+    expect(await screen.findByText(/Chrome \/ Edge export: 1 login\./)).toBeInTheDocument();
+    await user.click(await screen.findByRole("combobox", { name: "Import into" }));
+    await user.click(await screen.findByRole("option", { name: "Vault" }));
+    await user.click(screen.getByRole("button", { name: "Import" }));
+
+    await waitFor(() => expect(importHook.importData).toHaveBeenCalledTimes(1));
+    const [imported, options] = importHook.importData.mock.calls[0]!;
+    expect(imported.records).toMatchObject([{ title: "Mail", username: "a", password: "pw" }]);
+    expect(options).toEqual({
+      vaultMap: { [imported.vaults[0].id]: WORK },
+      fallbackVaultId: WORK,
+      duplicates: "keep-both",
+    });
+    expect(await screen.findByText(/Imported 1 item from Chrome/)).toBeInTheDocument();
+    expect(screen.getByText(/Delete it now/)).toBeInTheDocument();
+  });
+
+  it("says how far a failed import got", async () => {
+    importHook.importData.mockResolvedValue(null);
+    importHook.importError = "failed";
+    importHook.stopped = { written: 100, total: 250 };
+    const user = await openDialog();
+
+    await user.upload(screen.getByLabelText("Export file"), file(CHROME_CSV, "chrome.csv"));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Import" })).toBeEnabled());
+    await user.click(screen.getByRole("button", { name: "Import" }));
+
+    expect(await screen.findByText(/Imported 100 of 250 items/)).toBeInTheDocument();
   });
 });

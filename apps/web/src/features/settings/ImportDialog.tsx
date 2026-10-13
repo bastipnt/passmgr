@@ -1,8 +1,17 @@
 import {
+  DELETE_EXPORT_FILE_HINT,
   type DuplicateStrategy,
   defaultVaultMap,
+  type ForeignImport,
+  type ForeignImportReport,
+  foreignImportDone,
+  foreignImportIntro,
   IMPORT_ERROR_MESSAGES,
   type ImportResult,
+  type ImportSource,
+  importStoppedMessage,
+  leftBehindNotes,
+  SKIP_REASON_LABELS,
   useImport,
   useStore,
   writableVaults,
@@ -31,8 +40,8 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { UploadIcon } from "lucide-react";
-import { type ReactElement, type ReactNode, useEffect, useState } from "react";
+import { TriangleAlertIcon, UploadIcon } from "lucide-react";
+import { type ReactElement, type ReactNode, useEffect, useRef, useState } from "react";
 import OpenBackupForm from "@/components/OpenBackupForm";
 
 const DUPLICATES: { value: DuplicateStrategy; label: string }[] = [
@@ -58,15 +67,27 @@ function summary({ created, updated, skipped }: ImportResult): string {
   return `Import done: ${parts.join(", ")}.`;
 }
 
+type Step =
+  | { kind: "backup"; data: ExportData }
+  | { kind: "foreign"; foreign: ForeignImport }
+  // The records aren't kept past the import, only what the result shows.
+  | {
+      kind: "foreignDone";
+      source: ImportSource;
+      report: ForeignImportReport;
+      result: ImportResult | null;
+    };
+
 /**
- * Import an export into the open vault (ADR 0001 D12): an encrypted backup or
- * plain JSON. Records go into the vault they came from when it's here (and
- * writable), else into the personal vault; with more than one writable vault
- * the user picks per file vault.
+ * Import into the open vault: this app's export (ADR 0001 D12, an encrypted
+ * backup or plain JSON) or another password manager's. A backup's records go
+ * into the vault they came from when it's here (and writable), else into the
+ * personal vault; with more than one writable vault the user picks per file
+ * vault. Another app's records all go into one vault the user picks.
  */
 export default function ImportDialog({ children }: { children: ReactElement }) {
   const [open, setOpen] = useState(false);
-  const [data, setData] = useState<ExportData>();
+  const [step, setStep] = useState<Step>();
   const importer = useImport();
   const { busy } = importer;
 
@@ -80,7 +101,7 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
       // The file's records are plaintext: not kept once the dialog is gone
       // (after the close animation, so the content doesn't jump while it fades).
       onOpenChangeComplete={(next) => {
-        if (!next) setData(undefined);
+        if (!next) setStep(undefined);
       }}
     >
       <DialogTrigger render={children} />
@@ -88,15 +109,40 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
         <DialogHeader>
           <DialogTitle>Import</DialogTitle>
           <DialogDescription>
-            Add the records of a backup or a JSON export of this app to this vault.
+            Add the records of a backup of this app, or of another password manager's export, to
+            this vault.
           </DialogDescription>
         </DialogHeader>
-        {data ? (
-          <ImportOptionsForm data={data} importer={importer} onDone={() => setOpen(false)} />
-        ) : (
+        {!step && (
           <OpenBackupForm
-            onOpened={setData}
+            onOpened={(data) => setStep({ kind: "backup", data })}
+            onForeignOpened={(foreign) => setStep({ kind: "foreign", foreign })}
             renderActions={(submit) => <Footer>{submit}</Footer>}
+          />
+        )}
+        {step?.kind === "backup" && (
+          <ImportOptionsForm data={step.data} importer={importer} onDone={() => setOpen(false)} />
+        )}
+        {step?.kind === "foreign" && (
+          <ForeignImportForm
+            foreign={step.foreign}
+            importer={importer}
+            onDone={(result) =>
+              setStep({
+                kind: "foreignDone",
+                source: step.foreign.source,
+                report: step.foreign.report,
+                result,
+              })
+            }
+          />
+        )}
+        {step?.kind === "foreignDone" && (
+          <ForeignImportResult
+            source={step.source}
+            report={step.report}
+            result={step.result}
+            importer={importer}
           />
         )}
       </DialogContent>
@@ -125,13 +171,13 @@ type ImportOptionsFormProps = {
   onDone: () => void;
 };
 
-function ImportOptionsForm({ data, importer, onDone }: ImportOptionsFormProps) {
+/** The vaults an import can write to, with their names; `undefined` while loading. */
+function useTargetVaults(onLoaded?: (vaults: MemberVault[], fallbackVaultId: string) => void) {
   const { current } = useStore();
-  const { importData, busy, importError } = importer;
   const [targets, setTargets] = useState<TargetVault[]>();
-  const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
-  const [duplicates, setDuplicates] = useState<DuplicateStrategy>("skip");
   const fallbackVaultId = secretsStore.defaultVaultId;
+  const onLoadedRef = useRef(onLoaded);
+  onLoadedRef.current = onLoaded;
 
   useEffect(() => {
     const active = current();
@@ -140,12 +186,23 @@ function ImportOptionsForm({ data, importer, onDone }: ImportOptionsFormProps) {
     void active.vault.getVaults().then((vaults) => {
       if (cancelled) return;
       setTargets(writableVaults(vaults).map((v) => ({ id: v.vaultId, name: vaultName(v) })));
-      setVaultMap(defaultVaultMap(data.vaults, vaults, fallbackVaultId));
+      onLoadedRef.current?.(vaults, fallbackVaultId);
     });
     return () => {
       cancelled = true;
     };
-  }, [current, data, fallbackVaultId]);
+  }, [current, fallbackVaultId]);
+
+  return { targets, fallbackVaultId };
+}
+
+function ImportOptionsForm({ data, importer, onDone }: ImportOptionsFormProps) {
+  const { importData, busy, importError } = importer;
+  const [vaultMap, setVaultMap] = useState<Record<string, string>>({});
+  const [duplicates, setDuplicates] = useState<DuplicateStrategy>("skip");
+  const { targets, fallbackVaultId } = useTargetVaults((vaults, fallback) =>
+    setVaultMap(defaultVaultMap(data.vaults, vaults, fallback)),
+  );
 
   async function run(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -198,6 +255,107 @@ function ImportOptionsForm({ data, importer, onDone }: ImportOptionsFormProps) {
         </Button>
       </Footer>
     </form>
+  );
+}
+
+type ForeignImportFormProps = {
+  foreign: ForeignImport;
+  importer: ReturnType<typeof useImport>;
+  onDone: (result: ImportResult | null) => void;
+};
+
+/** Another app's export: every record is new, all into one vault. */
+function ForeignImportForm({ foreign, importer, onDone }: ForeignImportFormProps) {
+  const { importData, busy } = importer;
+  const { targets, fallbackVaultId } = useTargetVaults();
+  const [vaultId, setVaultId] = useState<string>();
+  const target = vaultId ?? fallbackVaultId;
+  const { records } = foreign.data;
+
+  async function run(event: React.SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!target) return;
+    onDone(
+      await importData(foreign.data, {
+        vaultMap: { [foreign.vaultId]: target },
+        fallbackVaultId: target,
+        duplicates: "keep-both",
+      }),
+    );
+  }
+
+  return (
+    <form onSubmit={run}>
+      <FieldGroup className="my-4 gap-4">
+        <p className="text-sm">{foreignImportIntro(foreign)}</p>
+        {targets && targets.length > 1 && (
+          <ChoiceField
+            label="Import into"
+            items={targets.map((t) => ({ value: t.id, label: t.name }))}
+            value={target ?? ""}
+            disabled={busy}
+            onChange={setVaultId}
+          />
+        )}
+      </FieldGroup>
+      <Footer busy={busy}>
+        <Button type="submit" disabled={busy || !targets || records.length === 0}>
+          {busy ? <Spinner /> : <UploadIcon />}
+          Import
+        </Button>
+      </Footer>
+    </form>
+  );
+}
+
+type ForeignImportResultProps = {
+  source: ImportSource;
+  report: ForeignImportReport;
+  result: ImportResult | null;
+  importer: ReturnType<typeof useImport>;
+};
+
+/** What an import from another app did and didn't bring over; the file is plaintext, so: delete it. */
+function ForeignImportResult({ source, report, result, importer }: ForeignImportResultProps) {
+  const { stopped, importError } = importer;
+  const { skipped } = report;
+  const notes = leftBehindNotes(report);
+
+  return (
+    <div className="my-4 flex flex-col gap-4 text-sm">
+      {result ? (
+        <p>{foreignImportDone(source, result.created)}</p>
+      ) : (
+        <FieldError variant="box">
+          {(stopped && importStoppedMessage(stopped)) ??
+            IMPORT_ERROR_MESSAGES[importError ?? "failed"]}
+        </FieldError>
+      )}
+      {skipped.length > 0 && (
+        <div>
+          <p className="font-medium">Not imported ({skipped.length})</p>
+          <ul className="mt-1 max-h-40 list-disc overflow-y-auto pl-5 text-muted-foreground">
+            {skipped.map((item, i) => (
+              <li key={i}>
+                {item.title}: {SKIP_REASON_LABELS[item.reason]}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {notes.map((note) => (
+        <p key={note} className="text-muted-foreground">
+          {note}
+        </p>
+      ))}
+      <p className="flex gap-2 rounded-md bg-muted p-3">
+        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+        {DELETE_EXPORT_FILE_HINT}
+      </p>
+      <DialogFooter>
+        <DialogClose render={<Button>Done</Button>} />
+      </DialogFooter>
+    </div>
   );
 }
 
