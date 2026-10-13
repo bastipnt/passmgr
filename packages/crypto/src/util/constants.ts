@@ -18,6 +18,10 @@ export const hkdfInfo = {
   deviceSessionKey: fromString("passmgr/device-session/v1"),
 };
 
+// OPAQUE binds it into every registration envelope: a different value breaks
+// every existing account's login, so it is a protocol constant, not config.
+export const OPAQUE_SERVER_IDENTITY = "passmgr";
+
 export const SESSION_ID_HEADER = "x-session-id";
 export const SESSION_TIMESTAMP_HEADER = "x-timestamp";
 export const SESSION_SIGNATURE_HEADER = "x-signature";

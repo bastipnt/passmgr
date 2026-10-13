@@ -10,6 +10,7 @@ import {
   RegistrationRecord,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
+import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import { SECOND_FACTOR_EXPIRED, SECOND_FACTOR_INVALID } from "@repo/schema";
 import { TRPCClientError } from "@trpc/client";
@@ -25,7 +26,7 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "../src/login";
-import { b64ToBytes, bytesToB64, opaqueInputFor, SERVER_IDENTITY } from "../src/opaque";
+import { b64ToBytes, bytesToB64, opaqueInputFor } from "../src/opaque";
 
 const PASSWORD = "correct horse battery staple";
 const EMAIL = "alice@example.com";
@@ -66,7 +67,7 @@ async function fakeServer({ twoFactor = false } = {}) {
   const ake = await cfg.ake.generateAuthKeyPair();
   const keypair: AKEExportKeyPair = { private_key: ake.private_key, public_key: ake.public_key };
   const oprfSeed = Array.from(crypto.getRandomValues(new Uint8Array(cfg.hash.Nh)));
-  const server = new OpaqueServer(cfg, oprfSeed, keypair, SERVER_IDENTITY);
+  const server = new OpaqueServer(cfg, oprfSeed, keypair, OPAQUE_SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg, opaqueKsf);
   const req = await client.registerInit(await opaqueInputFor(PASSWORD, EMAIL));
@@ -75,7 +76,7 @@ async function fakeServer({ twoFactor = false } = {}) {
   if (resp instanceof Error) throw resp;
   const fin = await client.registerFinish(
     RegistrationResponse.deserialize(cfg, resp.serialize()),
-    SERVER_IDENTITY,
+    OPAQUE_SERVER_IDENTITY,
     EMAIL,
   );
   if (fin instanceof Error) throw fin;

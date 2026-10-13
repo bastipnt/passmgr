@@ -499,7 +499,6 @@ Server (`apps/server/.env`):
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_HOST`, `REDIS_PORT`
 - `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
-- `OPAQUE_SERVER_IDENTITY` — defaults to `passmgr`; the client hardcodes the same value
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see Vaults

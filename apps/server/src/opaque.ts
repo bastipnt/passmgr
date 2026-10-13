@@ -4,6 +4,7 @@ import {
   OpaqueID,
   OpaqueServer,
 } from "@cloudflare/opaque-ts";
+import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
 import { fromBase64, fromString } from "@repo/util";
 
 // Cloudflare opaque-ts is pure TypeScript (uses crypto.subtle, no WASM) so the
@@ -15,7 +16,6 @@ import { fromBase64, fromString } from "@repo/util";
 // serenity v1. Existing users must re-register after this migration.
 
 export const opaqueConfig = getOpaqueConfig(OpaqueID.OPAQUE_P256);
-export const serverIdentity = process.env.OPAQUE_SERVER_IDENTITY ?? "passmgr";
 
 // Server-side OPAQUE setup. Generate once with `bun apps/server/scripts/opaque-cf-bootstrap.ts`
 // and persist as env vars (base64). Losing either secret invalidates all
@@ -42,7 +42,12 @@ const oprfSeed = Array.from(fromBase64(oprfSeedRaw));
 // OpaqueServer holds no per-request state — the per-handshake `expected` blob
 // is returned from authInit and threaded through Redis to authFinish. One
 // shared instance is safe.
-export const opaqueServer = new OpaqueServer(opaqueConfig, oprfSeed, akeKeypair, serverIdentity);
+export const opaqueServer = new OpaqueServer(
+  opaqueConfig,
+  oprfSeed,
+  akeKeypair,
+  OPAQUE_SERVER_IDENTITY,
+);
 
 // `serverKey` is the HMAC/encryption key for email hashing and email-at-rest
 // encryption (see hashEmail / encryptEmail). It is independent of the OPAQUE

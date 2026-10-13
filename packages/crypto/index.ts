@@ -13,6 +13,7 @@ export * from "./src/user-keys";
 export {
   DEVICE_NAME_HEADER,
   hkdfInfo,
+  OPAQUE_SERVER_IDENTITY,
   SESSION_ID_HEADER,
   SESSION_NONCE_HEADER,
   SESSION_SIGNATURE_HEADER,

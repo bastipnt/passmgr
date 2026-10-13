@@ -20,6 +20,7 @@ import {
   generateUserKeys,
   genKey,
   hashEmail,
+  OPAQUE_SERVER_IDENTITY,
   unwrapVaultKey,
   wipe,
 } from "@repo/crypto";
@@ -48,7 +49,6 @@ import {
 
 const EMAIL = "passmgr@example.com";
 const PASSWORD = "passmgr123";
-const SERVER_IDENTITY = "passmgr";
 // `bun devSeed.ts --edge-cases` also seeds the QA edge-case records.
 const WITH_EDGE_CASES = process.argv.includes("--edge-cases");
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -80,7 +80,7 @@ async function seed() {
     public_key: Array.from(akePublic.public_key),
   };
   const oprfSeed = Array.from(fromBase64(OPAQUE_OPRF_SEED));
-  const opaqueServer = new OpaqueServer(cfg, oprfSeed, akeKeypair, SERVER_IDENTITY);
+  const opaqueServer = new OpaqueServer(cfg, oprfSeed, akeKeypair, OPAQUE_SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg);
   const opaquePassword = await deriveOpaquePassword(PASSWORD, EMAIL);
@@ -89,7 +89,7 @@ async function seed() {
   if (req instanceof Error) throw req;
   const resp = await opaqueServer.registerInit(req, EMAIL);
   if (resp instanceof Error) throw resp;
-  const finished = await client.registerFinish(resp, SERVER_IDENTITY, EMAIL);
+  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, EMAIL);
   if (finished instanceof Error) throw finished;
   const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 

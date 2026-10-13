@@ -7,6 +7,7 @@ import {
   generateDeviceLoginKeyPair,
   genSalt,
   normalizeEmail,
+  OPAQUE_SERVER_IDENTITY,
   wipe,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
@@ -19,13 +20,7 @@ import {
 import type { AppRouter } from "@repo/types";
 import { fromBase64, toBase64 } from "@repo/util";
 import { type TRPCClient, TRPCClientError } from "@trpc/client";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  opaqueInput,
-  SERVER_IDENTITY,
-} from "./opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInput } from "./opaque";
 import { timed } from "./util/perf";
 import { isServerAnswer, isServerError, isThrottled, isUnauthorized } from "./util/trpc-errors";
 
@@ -162,7 +157,7 @@ export async function loginWithOpaquePassword(
   }
 
   const finished = await timed("opaque client.authFinish (P256)", () =>
-    client.authFinish(ke2, SERVER_IDENTITY, email),
+    client.authFinish(ke2, OPAQUE_SERVER_IDENTITY, email),
   );
   if (finished instanceof Error) throw new OpaqueLoginFailedError();
 

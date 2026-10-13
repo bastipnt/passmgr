@@ -1,17 +1,11 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { normalizeEmail, wipe } from "@repo/crypto";
+import { normalizeEmail, OPAQUE_SERVER_IDENTITY, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { FinishRegistrationInput } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import { generateKeyring } from "./account/new-keyring";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  opaqueInputFor,
-  SERVER_IDENTITY,
-} from "./opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
@@ -112,9 +106,7 @@ export async function registerAccount(
     throw new RegistrationStartFailedError();
   }
 
-  // server_identity / client_identity bind the envelope MAC. Must match the
-  // server's authInit call at login time.
-  const finished = await client.registerFinish(resp, SERVER_IDENTITY, email);
+  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
   if (finished instanceof Error) throw new RegistrationFinishFailedError();
 
   const registrationRecord = bytesToB64(finished.record.serialize());

@@ -4,6 +4,7 @@ import {
   generateRecoveryKeys,
   generateUserKeys,
   normalizeEmail,
+  OPAQUE_SERVER_IDENTITY,
   unwrapAccountKeyWithRecoveryKey,
   unwrapVaultKey,
   wipe,
@@ -20,13 +21,7 @@ import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { LoginThrottledError } from "./login";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  opaqueInputFor,
-  SERVER_IDENTITY,
-} from "./opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
 import { isThrottled } from "./util/trpc-errors";
 
 export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
@@ -130,7 +125,7 @@ export async function recoverAccount(
     } catch {
       throw new RecoveryFailedError();
     }
-    const finished = await client.registerFinish(resp, SERVER_IDENTITY, email);
+    const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
     if (finished instanceof Error) throw new RecoveryFailedError();
 
     const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(

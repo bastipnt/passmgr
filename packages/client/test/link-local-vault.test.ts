@@ -12,6 +12,7 @@ import {
 import {
   createVault,
   getPasswordKekParams,
+  OPAQUE_SERVER_IDENTITY,
   rotateVaultKey,
   setPasswordKekParams,
   unwrapVaultKey,
@@ -28,7 +29,7 @@ import {
   localVaultKeyring,
   registerLocalVault,
 } from "../src/account/link-local-vault";
-import { b64ToBytes, bytesToB64, SERVER_IDENTITY } from "../src/opaque";
+import { b64ToBytes, bytesToB64 } from "../src/opaque";
 import { RegistrationFinishFailedError, type RegistrationKeyring } from "../src/register";
 
 type FinishInput = Parameters<LinkTRPCClient["register"]["finishRegistration"]["mutate"]>[0];
@@ -45,7 +46,7 @@ async function fakeServer() {
   const ake = await cfg.ake.generateAuthKeyPair();
   const keypair: AKEExportKeyPair = { private_key: ake.private_key, public_key: ake.public_key };
   const oprfSeed = Array.from(crypto.getRandomValues(new Uint8Array(cfg.hash.Nh)));
-  const server = new OpaqueServer(cfg, oprfSeed, keypair, SERVER_IDENTITY);
+  const server = new OpaqueServer(cfg, oprfSeed, keypair, OPAQUE_SERVER_IDENTITY);
   const accounts = new Map<string, FinishInput & { userId: string }>();
   const attempts = new Map<string, { email: string; expected: string }>();
   const finished: FinishInput[] = [];

@@ -1,5 +1,5 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { normalizeEmail, unwrapAccountKey, wipe } from "@repo/crypto";
+import { normalizeEmail, OPAQUE_SERVER_IDENTITY, unwrapAccountKey, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
@@ -16,13 +16,7 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "../login";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  opaqueInputFor,
-  SERVER_IDENTITY,
-} from "../opaque";
+import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "../opaque";
 import { derivePasswordKek } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
@@ -151,8 +145,7 @@ export async function changeAccountPassword(
   } catch {
     throw new PasswordChangeFailedError();
   }
-  // Same identities as at registration and login (they bind the envelope MAC).
-  const finished = await client.registerFinish(resp, SERVER_IDENTITY, email);
+  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
   if (finished instanceof Error) throw new PasswordChangeFailedError();
 
   const passwordKeys = await wrapAccountKeyForPassword(newPassword);

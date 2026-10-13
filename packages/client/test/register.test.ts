@@ -7,6 +7,7 @@ import {
 } from "@cloudflare/opaque-ts";
 import {
   getPasswordKekParams,
+  OPAQUE_SERVER_IDENTITY,
   retrievePRK,
   setPasswordKekParams,
   unwrapAccountKey,
@@ -16,7 +17,7 @@ import {
 import { fromBase64 } from "@repo/util";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateKeyring } from "../src/account/new-keyring";
-import { b64ToBytes, bytesToB64, SERVER_IDENTITY } from "../src/opaque";
+import { b64ToBytes, bytesToB64 } from "../src/opaque";
 import {
   RegistrationStartFailedError,
   type RegistrationTRPCClient,
@@ -41,7 +42,7 @@ async function fakeServer() {
   const ake = await cfg.ake.generateAuthKeyPair();
   const keypair: AKEExportKeyPair = { private_key: ake.private_key, public_key: ake.public_key };
   const oprfSeed = Array.from(crypto.getRandomValues(new Uint8Array(cfg.hash.Nh)));
-  const server = new OpaqueServer(cfg, oprfSeed, keypair, SERVER_IDENTITY);
+  const server = new OpaqueServer(cfg, oprfSeed, keypair, OPAQUE_SERVER_IDENTITY);
   const finished: FinishInput[] = [];
 
   const trpc = {

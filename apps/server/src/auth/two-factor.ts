@@ -3,6 +3,7 @@ import {
   encryptXChaCha,
   generateTotpSecret,
   hkdf,
+  OPAQUE_SERVER_IDENTITY,
   signHmac,
   totpUri,
   verifyToken,
@@ -11,7 +12,7 @@ import { db, userBackupCodesTable, userTotpTable } from "@repo/db";
 import { BACKUP_CODE_COUNT } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { and, count, eq, isNull, lt, or } from "drizzle-orm";
-import { serverIdentity, serverKey } from "../opaque";
+import { serverKey } from "../opaque";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -55,7 +56,7 @@ async function hashBackupCode(code: string): Promise<string> {
 /** A new secret for `startTotpEnrollment` and its `otpauth://` URI (labelled with the email). */
 export function newTotpEnrollment(email: string): { secret: string; uri: string } {
   const secret = generateTotpSecret();
-  return { secret, uri: totpUri(secret, serverIdentity, email) };
+  return { secret, uri: totpUri(secret, OPAQUE_SERVER_IDENTITY, email) };
 }
 
 /** Whether the user has two-factor on (a TOTP secret is stored). */

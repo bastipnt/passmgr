@@ -14,4 +14,3 @@ const privBytes = Uint8Array.from(ake.private_key);
 
 console.log(`OPAQUE_OPRF_SEED=${Buffer.from(oprfSeed).toString("base64")}`);
 console.log(`OPAQUE_AKE_PRIVATE_KEY=${Buffer.from(privBytes).toString("base64")}`);
-console.log(`# OPAQUE_SERVER_IDENTITY=passmgr   # optional, defaults to "passmgr"`);
