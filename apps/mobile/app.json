@@ -9,7 +9,8 @@
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.passmgr"
+      "bundleIdentifier": "com.bastipnt.passmgr",
+      "appleTeamId": "PFU6ZCQ336"
     },
     "android": {
       "adaptiveIcon": {
@@ -19,7 +20,7 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.passmgr"
+      "package": "com.bastipnt.passmgr"
     },
     "web": {
       "output": "static",
