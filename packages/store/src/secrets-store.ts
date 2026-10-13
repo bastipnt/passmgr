@@ -66,8 +66,9 @@ class SecretsStore {
   private verifiedPublicKey?: string;
   private userKeyPairVersion?: number;
 
-  // Temporary password for biometric enrollment
-  private password?: string;
+  // The plaintext password is never kept: this is `deriveOpaquePassword`'s
+  // output, for reconnecting and biometric enrollment.
+  private opaquePassword?: Uint8Array;
 
   // Bumped on every lock: work started before a lock (a background server
   // connect) compares it to tell that its unlock is gone.
@@ -266,27 +267,36 @@ class SecretsStore {
     this.setAccountKey(accountKey);
   }
 
-  setPassword(pw: string) {
-    this.password = pw;
+  /** Takes over the buffer. */
+  keepOpaquePassword(opaquePassword: Uint8Array) {
+    if (opaquePassword === this.opaquePassword) return;
+    this.clearOpaquePassword();
+    this.opaquePassword = opaquePassword;
   }
 
-  getPassword(): string | undefined {
-    return this.password;
+  /** A copy, the caller wipes it: a lock wipes the kept one. */
+  copyOpaquePassword(): Uint8Array | undefined {
+    return this.opaquePassword?.slice();
   }
 
-  clearPassword() {
-    this.password = undefined;
+  get hasOpaquePassword(): boolean {
+    return this.opaquePassword !== undefined;
+  }
+
+  clearOpaquePassword() {
+    if (this.opaquePassword) wipe(this.opaquePassword);
+    this.opaquePassword = undefined;
   }
 
   get isVaultUnlocked(): boolean {
     return this.accountKey !== undefined && this.personalVaultId !== undefined;
   }
 
-  /** Wipe everything: server session, account, vault and private keys, password. */
+  /** Wipe everything: server session, account, vault and private keys, OPAQUE password. */
   lock() {
     this.detachServer();
     this.lockVault();
-    this.password = undefined;
+    this.clearOpaquePassword();
   }
 
   /** Changes whenever the vault is locked; see `epoch`. */

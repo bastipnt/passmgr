@@ -14,12 +14,14 @@ import {
 import {
   createUserKeyPair,
   createVault,
+  deriveOpaquePassword,
   encryptEmail,
   encryptRecordData,
   generateUserKeys,
   genKey,
   hashEmail,
   unwrapVaultKey,
+  wipe,
 } from "@repo/crypto";
 import {
   edgeCaseLoginRecords,
@@ -81,7 +83,9 @@ async function seed() {
   const opaqueServer = new OpaqueServer(cfg, oprfSeed, akeKeypair, SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg);
-  const req = await client.registerInit(PASSWORD);
+  const opaquePassword = await deriveOpaquePassword(PASSWORD, EMAIL);
+  const req = await client.registerInit(toBase64(opaquePassword));
+  wipe(opaquePassword);
   if (req instanceof Error) throw req;
   const resp = await opaqueServer.registerInit(req, EMAIL);
   if (resp instanceof Error) throw resp;

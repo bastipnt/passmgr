@@ -1,11 +1,12 @@
-import type { VaultUnlockInfo } from "@repo/schema";
+import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
 import { rekeyIfParamsStale } from "../account/rekey-password-keys";
 import {
+  type AccountLogin,
   type LoginSessionFn,
   LoginThrottledError,
-  loginUser,
+  loginWithOpaquePassword,
   OpaqueLoginFailedError,
   SecondFactorCancelledError,
   SecondFactorExpiredError,
@@ -36,10 +37,10 @@ export type ConnectResult =
   | "second_factor";
 
 /**
- * Whether the password kept in memory for reconnecting can go: it got us
- * online, or it never will. Biometric enrollment still needs it.
+ * Whether the OPAQUE password kept in memory for reconnecting can go: it got
+ * us online, or it never will. Biometric enrollment still needs it.
  */
-export function canReleasePassword(result: ConnectResult, needsBiometricEnroll: boolean) {
+export function canReleaseOpaquePassword(result: ConnectResult, needsBiometricEnroll: boolean) {
   return (result === "online" || result === "rejected") && !needsBiometricEnroll;
 }
 
@@ -74,15 +75,20 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
   const storeRef = useRef(store);
   storeRef.current = store;
 
-  /** Never throws. */
-  function connect(password: string): Promise<ConnectResult> {
+  /**
+   * `credential`: the password as typed, or an OPAQUE password
+   * (`deriveOpaquePassword`), which `connect` takes over and wipes. Only the
+   * typed password can move the password wrap to new Argon2 params.
+   * Never throws.
+   */
+  function connect(credential: string | Uint8Array): Promise<ConnectResult> {
     const epoch = secretsStore.lockEpoch;
     if (inFlight?.epoch !== epoch) {
-      const result = attach(password, epoch).finally(() => {
+      const result = attach(credential, epoch).finally(() => {
         if (inFlight?.result === result) inFlight = null;
       });
       inFlight = { epoch, result };
-    }
+    } else if (credential instanceof Uint8Array) wipe(credential);
     return inFlight.result;
   }
 
@@ -91,7 +97,18 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     return secretsStore.lockEpoch === epoch && secretsStore.isVaultUnlocked;
   }
 
-  async function attach(password: string, epoch: number): Promise<ConnectResult> {
+  async function attach(credential: string | Uint8Array, epoch: number): Promise<ConnectResult> {
+    try {
+      return await attachWith(credential, epoch);
+    } finally {
+      if (credential instanceof Uint8Array) wipe(credential);
+    }
+  }
+
+  async function attachWith(
+    credential: string | Uint8Array,
+    epoch: number,
+  ): Promise<ConnectResult> {
     if (!stillUnlocked(epoch)) return "cancelled";
     if (secretsStore.hasServerSession) return "online";
     // The profile that is unlocked now: switching profiles locks first.
@@ -103,15 +120,19 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     // Hold the session back until it's checked. A session that is never
     // attached is never used, and dies via its TTL.
     let session: SessionParams | undefined;
-    let info: VaultUnlockInfo;
+    let info: AccountLogin;
+    const opaquePassword =
+      typeof credential === "string"
+        ? await deriveOpaquePassword(credential, profile.email)
+        : credential;
     try {
-      info = await loginUser(
+      info = await loginWithOpaquePassword(
         trpc,
         async (...params) => {
           session = params;
         },
         profile.email,
-        password,
+        opaquePassword,
         prompt,
       );
     } catch (e) {
@@ -120,6 +141,8 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
         return "second_factor";
       if (e instanceof LoginThrottledError) return "throttled";
       return "unreachable";
+    } finally {
+      wipe(opaquePassword);
     }
     if (!session) return "unreachable";
 
@@ -146,12 +169,12 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     }
 
     await persistSession(profileId);
-    void rekeyAfterConnect(profileId, password, info);
+    if (typeof credential === "string") void rekeyAfterConnect(profileId, credential, info);
     return "online";
   }
 
   /** Best-effort, see `rekeyIfParamsStale`; never turns a connect into a failure. */
-  async function rekeyAfterConnect(profileId: string, password: string, info: VaultUnlockInfo) {
+  async function rekeyAfterConnect(profileId: string, password: string, info: AccountLogin) {
     try {
       const rekeyed = await rekeyIfParamsStale(trpc, password, {
         ...info.userPasswordKeys,

@@ -16,7 +16,13 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "../login";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "../opaque";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  opaqueInputFor,
+  SERVER_IDENTITY,
+} from "../opaque";
 import { derivePasswordKek } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
@@ -129,7 +135,7 @@ export async function changeAccountPassword(
   );
 
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-  const req = await client.registerInit(newPassword);
+  const req = await client.registerInit(await opaqueInputFor(newPassword, email));
   if (req instanceof Error) throw new PasswordChangeFailedError();
 
   const { attemptId, registrationResponse } = await callServer(() =>

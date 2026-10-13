@@ -2,6 +2,7 @@ import { sha256 } from "@noble/hashes/sha2.js";
 import { fromString } from "@repo/util";
 import { afterAll, describe, expect, it } from "vitest";
 import {
+  deriveOpaquePassword,
   deriveRecoveryAuthKey,
   genPasswordKek,
   getPasswordKekParams,
@@ -121,6 +122,20 @@ describe("hashEmail", () => {
   it("returns a 32-byte digest", async () => {
     const out = await hashEmail(new Uint8Array(32).fill(80), "x@y.z");
     expect(out.length).toBe(32);
+  });
+});
+
+describe("deriveOpaquePassword", () => {
+  it("is 32 bytes, the same for the email in any case", async () => {
+    const a = await deriveOpaquePassword("hunter2", "Alice@Example.com ");
+    expect(a.length).toBe(32);
+    expect(await deriveOpaquePassword("hunter2", "alice@example.com")).toEqual(a);
+  });
+
+  it("differs per account and per password", async () => {
+    const a = await deriveOpaquePassword("hunter2", "alice@example.com");
+    expect(await deriveOpaquePassword("hunter2", "bob@example.com")).not.toEqual(a);
+    expect(await deriveOpaquePassword("hunter3", "alice@example.com")).not.toEqual(a);
   });
 });
 

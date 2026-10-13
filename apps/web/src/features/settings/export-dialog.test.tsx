@@ -36,6 +36,12 @@ beforeEach(() => {
 });
 afterEach(() => vi.clearAllMocks());
 
+// Pasted, not typed: the strength meter rates every keystroke, too slow under a parallel run.
+async function fill(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {
+  await user.click(screen.getByLabelText(label));
+  await user.paste(value);
+}
+
 function renderDialog() {
   renderWithProviders(
     <ExportDialog>
@@ -51,9 +57,9 @@ describe("ExportDialog", () => {
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.type(screen.getByLabelText("Master password"), "master");
-    await user.type(screen.getByLabelText("Backup password"), "backup password");
-    await user.type(screen.getByLabelText("Confirm backup password"), "backup password");
+    await fill(user, "Master password", "master");
+    await fill(user, "Backup password", "backup password");
+    await fill(user, "Confirm backup password", "backup password");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
 
     await waitFor(() => expect(exportHook.markSaved).toHaveBeenCalledWith(RESULT));
@@ -71,8 +77,8 @@ describe("ExportDialog", () => {
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.type(screen.getByLabelText("Backup password"), "backup password");
-    await user.type(screen.getByLabelText("Confirm backup password"), "backup password");
+    await fill(user, "Backup password", "backup password");
+    await fill(user, "Confirm backup password", "backup password");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
 
     expect(await screen.findByText("Enter your master password")).toBeTruthy();
@@ -84,9 +90,9 @@ describe("ExportDialog", () => {
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await user.type(screen.getByLabelText("Master password"), "master");
-    await user.type(screen.getByLabelText("Backup password"), "backup password");
-    await user.type(screen.getByLabelText("Confirm backup password"), "something else");
+    await fill(user, "Master password", "master");
+    await fill(user, "Backup password", "backup password");
+    await fill(user, "Confirm backup password", "something else");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
 
     expect(await screen.findByText("Passwords do not match")).toBeTruthy();
@@ -105,7 +111,7 @@ describe("ExportDialog", () => {
 
     expect(screen.getByText(/This file is not encrypted/)).toBeTruthy();
     expect(screen.getByText("That's not your master password.")).toBeTruthy();
-    await user.type(screen.getByLabelText("Master password"), "master");
+    await fill(user, "Master password", "master");
     await user.click(screen.getByRole("button", { name: "Export unencrypted" }));
 
     await waitFor(() =>

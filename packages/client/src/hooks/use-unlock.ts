@@ -1,4 +1,4 @@
-import { authenticateBiometric, normalizeEmail, wipe } from "@repo/crypto";
+import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
@@ -12,7 +12,11 @@ import { derivePasswordKek } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
-import { type ConnectResult, canReleasePassword, useConnectServer } from "./use-connect-server";
+import {
+  type ConnectResult,
+  canReleaseOpaquePassword,
+  useConnectServer,
+} from "./use-connect-server";
 import { useLogin } from "./use-login";
 
 /**
@@ -67,6 +71,10 @@ export function useUnlock() {
       return false;
     }
 
+    // Already online: kept only for the biometric enrollment that comes next.
+    const enrollPassword = store.needsBiometricEnrollFor(opened)
+      ? await deriveOpaquePassword(password, info.email)
+      : undefined;
     try {
       unlockVault(
         "linked",
@@ -79,11 +87,12 @@ export function useUnlock() {
     } catch (e) {
       // A vault key or keypair that doesn't open with the account key.
       console.error("Vault unlock failed", e);
+      if (enrollPassword) wipe(enrollPassword);
       await failUnlock("failed");
       return false;
     }
 
-    afterUnlock(opened, password);
+    afterUnlock(enrollPassword);
     await persistSession(opened.entry.profileId);
 
     // Transparently migrate to the current Argon2 params if the stored ones
@@ -118,17 +127,18 @@ export function useUnlock() {
       return false;
     }
 
+    // Kept for the reconnect: `useAutoReconnect` retries with it once online.
+    const opaquePassword =
+      profile.mode === "linked" ? await deriveOpaquePassword(password, profile.email) : undefined;
     if (await unlockWithPassword(active, password)) {
-      afterUnlock(active, password);
+      afterUnlock(opaquePassword);
       await persistSession(active.entry.profileId);
       if (profile.mode === "local") void rekeyLocal(active, password, material);
-      if (profile.mode === "linked") {
-        // Kept for the reconnect: `useAutoReconnect` retries with it once online.
-        secretsStore.setPassword(password);
-        if (!networkOffline) void connect(password).then(clearPasswordIfDone(active));
-      }
+      if (profile.mode === "linked" && !networkOffline)
+        void connect(password).then(releaseIfDone(active));
       return true;
     }
+    if (opaquePassword) wipe(opaquePassword);
 
     if (profile.mode === "linked" && !networkOffline) {
       // A closed code prompt isn't a wrong password: no error for it.
@@ -215,17 +225,16 @@ export function useUnlock() {
     }
   }
 
-  function afterUnlock(active: ActiveProfile, password: string) {
-    // Store password temporarily for biometric enrollment (only if enrollment is upcoming).
-    // Same tick as the unlock, so the enroll redirect already sees it.
-    if (store.needsBiometricEnrollFor(active)) secretsStore.setPassword(password);
+  /** Same tick as the unlock, so the biometric enroll redirect already sees the OPAQUE password. */
+  function afterUnlock(opaquePassword: Uint8Array | undefined) {
+    if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
     initDecryptWorker();
   }
 
-  function clearPasswordIfDone(active: ActiveProfile) {
+  function releaseIfDone(active: ActiveProfile) {
     return (result: ConnectResult) => {
-      if (canReleasePassword(result, store.needsBiometricEnrollFor(active)))
-        secretsStore.clearPassword();
+      if (canReleaseOpaquePassword(result, store.needsBiometricEnrollFor(active)))
+        secretsStore.clearOpaquePassword();
     };
   }
 
@@ -249,7 +258,7 @@ export function useUnlock() {
     const { profile, accountKeyMaterial: material, biometricKeyMaterial } = active;
     if (!biometricKeyMaterial || !profile || !material) return;
 
-    const { accountKey, password } = await authenticateBiometric(biometricKeyMaterial);
+    const { accountKey, opaquePassword } = await authenticateBiometric(biometricKeyMaterial);
     try {
       unlockWithAccountKey(
         profile.mode,
@@ -260,15 +269,19 @@ export function useUnlock() {
     } catch (e) {
       // A vault key or keypair that doesn't open (or no personal vault).
       console.error("Biometric vault unlock failed", e);
+      if (opaquePassword) wipe(opaquePassword);
       setUnlockError("failed");
       throw e;
     }
     initDecryptWorker();
 
-    if (profile.mode === "linked") {
-      secretsStore.setPassword(password);
-      if (!networkOffline) void connect(password).then(clearPasswordIfDone(active));
+    if (!opaquePassword) return;
+    if (profile.mode !== "linked") {
+      wipe(opaquePassword);
+      return;
     }
+    secretsStore.keepOpaquePassword(opaquePassword);
+    if (!networkOffline) void connect(opaquePassword.slice()).then(releaseIfDone(active));
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);

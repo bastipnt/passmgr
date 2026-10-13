@@ -166,7 +166,10 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
 
 ### Authentication Flow (OPAQUE protocol)
 
-OPAQUE is `@cloudflare/opaque-ts` (P-256, scrypt KSF from `@repo/crypto/services/opaque-ksf`).
+OPAQUE is `@cloudflare/opaque-ts` (P-256, scrypt KSF from `@repo/crypto/services/opaque-ksf`). It never gets the
+password: every registration, login, password change and recovery passes `deriveOpaquePassword(password, email)`
+(HKDF, `opaqueInputFor` / `loginWithOpaquePassword` in `packages/client`). That buffer, not the password, is what
+`secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect and the web biometric enrollment.
 
 Registration:
 
@@ -247,7 +250,7 @@ as a full URL (web may be configured with a path, `/trpc`).
 
 Recovery (forgotten password, `auth/recovery-router.ts`):
 
-1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit(newPassword)` → `recovery.startRecovery`
+1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit` (OPAQUE password of the new one) → `recovery.startRecovery`
 2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped account key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
 3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
 4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
@@ -317,7 +320,8 @@ vaultKey[v] ──wrap──► vaultKey[v-1]     (rotation chain, `previousKeys
 accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
 senderPrivKey + memberPublicKey ──seal──► vaultKey   (invites, rotated keys: `sealVaultKey`, authenticated
                                                     by the sender; the member rewraps it, `vault.acceptKey`)
-(biometric KEK / mobile login bundle also hold the accountKey, never a vault key;
+(biometric KEK / mobile login bundle also hold the accountKey, never a vault key; the web biometric
+ enrollment also holds a linked profile's OPAQUE password;
  mobile autofill entries hold decrypted login passwords, under a biometric-gated device key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)

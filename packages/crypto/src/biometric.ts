@@ -4,16 +4,23 @@ import { hkdf } from "./hash";
 import { unwrapAccountKey, wrapAccountKey } from "./user-keys";
 import { wipe } from "./util/secrets-utils";
 
-export const BIOMETRIC_KEY = [
+export const BIOMETRIC_REQUIRED_KEY = [
   "biometricEncryptedAccountKey",
   "biometricNonce",
-  "biometricEncryptedPassword",
-  "biometricPasswordNonce",
   "credentialId",
   "prfSalt",
 ] as const;
 
-export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_KEY)[number], string>;
+const BIOMETRIC_OPAQUE_PASSWORD_KEY = [
+  "biometricEncryptedOpaquePassword",
+  "biometricOpaquePasswordNonce",
+] as const;
+
+export const BIOMETRIC_KEY = [...BIOMETRIC_REQUIRED_KEY, ...BIOMETRIC_OPAQUE_PASSWORD_KEY] as const;
+
+/** The OPAQUE password fields only for a linked profile: a local one has none. */
+export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_REQUIRED_KEY)[number], string> &
+  Partial<Record<(typeof BIOMETRIC_OPAQUE_PASSWORD_KEY)[number], string>>;
 
 // WebAuthn PRF extension types (not yet in lib.dom.d.ts)
 type PRFValues = { first: ArrayBuffer };
@@ -59,9 +66,13 @@ export type BiometricEnrollOptions = {
   userName: string;
 };
 
+/**
+ * `opaquePassword` (`deriveOpaquePassword`, linked profiles only) lets a
+ * biometric unlock log in to the server again; the password itself is never stored.
+ */
 export async function enrollBiometric(
   accountKey: Uint8Array,
-  password: string,
+  opaquePassword: Uint8Array | undefined,
   { rpName, userName }: BiometricEnrollOptions,
 ): Promise<BiometricKeyMaterial> {
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
@@ -129,25 +140,23 @@ export async function enrollBiometric(
 
   const biometricKek = await hkdf(new Uint8Array(prfOutput), "biometricKek");
   const [biometricEncryptedAccountKey, biometricNonce] = wrapAccountKey(biometricKek, accountKey);
-  const [biometricEncryptedPassword, biometricPasswordNonce] = encryptXChaCha(
-    biometricKek,
-    password,
-  );
-  wipe(biometricKek);
-
-  return {
+  const material: BiometricKeyMaterial = {
     biometricEncryptedAccountKey,
     biometricNonce,
-    biometricEncryptedPassword,
-    biometricPasswordNonce,
     credentialId,
     prfSalt: toBase64(prfSalt),
   };
+  if (opaquePassword) {
+    [material.biometricEncryptedOpaquePassword, material.biometricOpaquePasswordNonce] =
+      encryptXChaCha(biometricKek, opaquePassword);
+  }
+  wipe(biometricKek);
+  return material;
 }
 
 export async function authenticateBiometric(
   material: BiometricKeyMaterial,
-): Promise<{ accountKey: Uint8Array; password: string }> {
+): Promise<{ accountKey: Uint8Array; opaquePassword?: Uint8Array }> {
   const credentialId = fromBase64(material.credentialId);
   const prfSalt = fromBase64(material.prfSalt);
 
@@ -178,15 +187,11 @@ export async function authenticateBiometric(
     material.biometricEncryptedAccountKey,
     material.biometricNonce,
   );
-  const passwordBytes = decryptXChaCha(
-    biometricKek,
-    material.biometricEncryptedPassword,
-    material.biometricPasswordNonce,
-  );
+  const { biometricEncryptedOpaquePassword: encrypted, biometricOpaquePasswordNonce: nonce } =
+    material;
+  const opaquePassword =
+    encrypted && nonce ? decryptXChaCha(biometricKek, encrypted, nonce) : undefined;
   wipe(biometricKek);
 
-  const password = new TextDecoder().decode(passwordBytes);
-  wipe(passwordBytes);
-
-  return { accountKey, password };
+  return { accountKey, opaquePassword };
 }

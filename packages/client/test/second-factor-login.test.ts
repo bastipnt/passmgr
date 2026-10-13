@@ -25,7 +25,7 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "../src/login";
-import { b64ToBytes, bytesToB64, SERVER_IDENTITY } from "../src/opaque";
+import { b64ToBytes, bytesToB64, opaqueInputFor, SERVER_IDENTITY } from "../src/opaque";
 
 const PASSWORD = "correct horse battery staple";
 const EMAIL = "alice@example.com";
@@ -69,7 +69,7 @@ async function fakeServer({ twoFactor = false } = {}) {
   const server = new OpaqueServer(cfg, oprfSeed, keypair, SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg, opaqueKsf);
-  const req = await client.registerInit(PASSWORD);
+  const req = await client.registerInit(await opaqueInputFor(PASSWORD, EMAIL));
   if (req instanceof Error) throw req;
   const resp = await server.registerInit(req, EMAIL);
   if (resp instanceof Error) throw resp;

@@ -8,6 +8,7 @@ import {
   type NewLocalVault,
 } from "@repo/client/src/account/create-local-vault";
 import {
+  deriveOpaquePassword,
   getPasswordKekParams,
   retrievePRK,
   setPasswordKekParams,
@@ -105,7 +106,7 @@ beforeEach(async () => {
 
 afterEach(() => {
   vi.restoreAllMocks();
-  secretsStore.clearPassword();
+  secretsStore.clearOpaquePassword();
   secretsStore.lock();
 });
 
@@ -211,10 +212,10 @@ describe("useChangePassword — linked account", () => {
     expect(store.saveAccount.mock.invocationCallOrder[0]).toBeLessThan(
       connect.mock.invocationCallOrder[0]!,
     );
-    expect(secretsStore.getPassword()).toBeUndefined();
+    expect(secretsStore.hasOpaquePassword).toBe(false);
   });
 
-  it("keeps the new password for the auto-reconnect when logging in again fails", async () => {
+  it("keeps the new OPAQUE password for the auto-reconnect when logging in again fails", async () => {
     changeAccountPassword.mockResolvedValue(local.material);
     connect.mockResolvedValueOnce("unreachable");
     const { result } = renderChange("online");
@@ -223,7 +224,9 @@ describe("useChangePassword — linked account", () => {
       expect(await result.current.changePassword(PASSWORD, NEW_PASSWORD)).toBe(true);
     });
 
-    expect(secretsStore.getPassword()).toBe(NEW_PASSWORD);
+    expect(secretsStore.copyOpaquePassword()).toEqual(
+      await deriveOpaquePassword(NEW_PASSWORD, "alice@example.com"),
+    );
   });
 
   it("reports a wrong current password", async () => {
@@ -280,7 +283,9 @@ describe("useChangePassword — linked account", () => {
       });
 
       expect(result.current.changeError).toBe("unconfirmed");
-      expect(secretsStore.getPassword()).toBe(NEW_PASSWORD);
+      expect(secretsStore.copyOpaquePassword()).toEqual(
+        await deriveOpaquePassword(NEW_PASSWORD, "alice@example.com"),
+      );
       expect(store.saveAccount).not.toHaveBeenCalled();
     });
   });

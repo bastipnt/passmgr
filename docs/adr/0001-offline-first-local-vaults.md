@@ -84,7 +84,7 @@ server, apart from account operations that genuinely need it (registration, logi
 > back to the server login when the local wrap doesn't open (password changed elsewhere). An online
 > login never replaces a `local` profile: it fails with `local_vault` until D9's merge/replace
 > exists. `UNAUTHORIZED` from sync or the mobile restore heartbeat only detaches the server
-> (`online` → `offline`); without a password in memory (restored mobile session) the user signs in
+> (`online` → `offline`); without an OPAQUE password in memory (restored mobile session) the user signs in
 > again from settings. The mobile bundle persists the server session only optionally
 > (`LoginBundle.server`). Until the local-first repository lands, record writes still need
 > `online` (`useCanWrite`). Actions: `useLock`, `useSignOut` (server logout + lock + drop the

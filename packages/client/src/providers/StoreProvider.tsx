@@ -198,6 +198,23 @@ export function requireActive(store: Pick<StoreContextValue, "current">): Active
   return active;
 }
 
+/**
+ * A linked profile's enrollment without the OPAQUE password (made while it was
+ * local) can't log in after a biometric unlock: offered again.
+ */
+function biometricComplete({ profile, biometricKeyMaterial }: ActiveProfile) {
+  if (!biometricKeyMaterial) return false;
+  return (
+    profile?.mode !== "linked" ||
+    biometricKeyMaterial.biometricEncryptedOpaquePassword !== undefined
+  );
+}
+
+/** A linked profile's enrollment wraps the OPAQUE password: without it the prompt could only fail. */
+export function canEnrollBiometric(profile: LocalProfile | null): boolean {
+  return profile?.mode === "local" || secretsStore.hasOpaquePassword;
+}
+
 function assertLocked() {
   if (secretsStore.isVaultUnlocked) throw new Error("Lock the vault before switching profiles");
 }
@@ -217,7 +234,7 @@ type StoreProviderProps = {
   onSignedOut?: () => void;
   /**
    * Whether this device can enroll a biometric unlock (web: WebAuthn PRF). Until
-   * it resolves `true`, no enrollment is offered and no password is kept for one.
+   * it resolves `true`, no enrollment is offered and no OPAQUE password is kept for one.
    */
   biometricSupport?: () => Promise<boolean>;
   children: ReactNode;
@@ -262,7 +279,7 @@ export function StoreProvider({
   const isDismissed = (profile: ActiveProfile) =>
     Number(preferences.get(biometricDismissedKey(profile.entry.profileId))) === 1;
   const needsBiometricEnrollFor = (profile: ActiveProfile) =>
-    biometricSupported && !isDismissed(profile) && profile.biometricKeyMaterial === null;
+    biometricSupported && !isDismissed(profile) && !biometricComplete(profile);
   const biometricDismissed = active !== null && isDismissed(active);
   const needsBiometricEnroll = active !== null && needsBiometricEnrollFor(active);
 

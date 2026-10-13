@@ -1,3 +1,4 @@
+import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
@@ -19,7 +20,7 @@ import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
-import { canReleasePassword, useConnectServer } from "./use-connect-server";
+import { canReleaseOpaquePassword, useConnectServer } from "./use-connect-server";
 
 /**
  * - `wrong_password`: the current password is wrong
@@ -119,8 +120,8 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
               prompt,
             );
     } catch (e) {
-      if (e instanceof PasswordChangeUnconfirmedError)
-        return await confirmChange(active, currentPassword, newPassword);
+      if (e instanceof PasswordChangeUnconfirmedError && profile.mode === "linked")
+        return await confirmChange(active, profile.email, currentPassword, newPassword);
       if (e instanceof WrongPasswordError) return "wrong_password";
       if (e instanceof LoginThrottledError) return "throttled";
       if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
@@ -139,7 +140,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     }
 
     await dropQuickUnlock(active);
-    if (profile.mode === "linked") await reconnect(active, newPassword);
+    if (profile.mode === "linked") await reconnect(active, profile.email, newPassword);
     else await persistSession(active.entry.profileId);
     return undefined;
   }
@@ -151,6 +152,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
    */
   async function confirmChange(
     active: ActiveProfile,
+    email: string,
     currentPassword: string,
     newPassword: string,
   ): Promise<ChangePasswordError | undefined> {
@@ -164,11 +166,11 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     }
     if (result === "rejected") {
       const restored = await connect(currentPassword);
-      if (restored !== "online") secretsStore.setPassword(currentPassword);
+      if (restored !== "online") await keepForReconnect(email, currentPassword);
       return "failed";
     }
     // Unknown: `useAutoReconnect` tries the new password once it can.
-    secretsStore.setPassword(newPassword);
+    await keepForReconnect(email, newPassword);
     await persistSession(active.entry.profileId);
     return "unconfirmed";
   }
@@ -183,16 +185,23 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
 
   /**
    * The change revoked every session: log in again with the new password.
-   * When that doesn't work now, `useAutoReconnect` retries with the password
-   * kept in memory. Biometric enrollment comes with the next unlock, so it
-   * doesn't keep the password around.
+   * When that doesn't work now, `useAutoReconnect` retries with the OPAQUE
+   * password kept in memory. Biometric enrollment comes with the next unlock,
+   * so it doesn't keep it around.
    */
-  async function reconnect(active: ActiveProfile, newPassword: string) {
+  async function reconnect(active: ActiveProfile, email: string, newPassword: string) {
     detachServer();
-    secretsStore.setPassword(newPassword);
+    await keepForReconnect(email, newPassword);
     const result = await connect(newPassword);
-    if (canReleasePassword(result, false)) secretsStore.clearPassword();
+    if (canReleaseOpaquePassword(result, false)) secretsStore.clearOpaquePassword();
     if (result !== "online") await persistSession(active.entry.profileId);
+  }
+
+  async function keepForReconnect(email: string, password: string) {
+    const epoch = secretsStore.lockEpoch;
+    const opaquePassword = await deriveOpaquePassword(password, email);
+    if (secretsStore.lockEpoch === epoch) secretsStore.keepOpaquePassword(opaquePassword);
+    else wipe(opaquePassword);
   }
 
   const clearChangeError = useCallback(() => setChangeError(undefined), []);

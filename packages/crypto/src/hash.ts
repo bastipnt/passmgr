@@ -2,8 +2,8 @@ import { hkdf as hkdf_, hmac, sha256 } from "@noble/hashes/webcrypto.js";
 import { fromString } from "@repo/util";
 import { type ArgonOpts, argon2idAsync } from "./util/argon2-impl";
 import { hkdfInfo } from "./util/constants";
-import { genSalt } from "./util/secrets-utils";
-import { normalize } from "./util/string-utils";
+import { genSalt, wipe } from "./util/secrets-utils";
+import { normalize, normalizeEmail } from "./util/string-utils";
 
 /**
  * -------------------------- Key Derivation Functions (KDF) ---------------------------------------
@@ -120,6 +120,21 @@ export async function deriveRecoveryAuthKey(recoveryKey: Uint8Array): Promise<Ui
  */
 export async function hashRecoveryAuthKey(recoveryAuthKey: Uint8Array): Promise<Uint8Array> {
   return new Uint8Array(await crypto.subtle.digest("SHA-256", recoveryAuthKey as BufferSource));
+}
+
+/**
+ * What OPAQUE gets instead of the password (registration, login, password
+ * change, recovery). A device keeps it to reconnect or re-run the login after
+ * a biometric unlock: unlike the password string it can be wiped, and it is
+ * worthless for any other account or site.
+ */
+export async function deriveOpaquePassword(password: string, email: string): Promise<Uint8Array> {
+  const passwordBytes = fromString(password);
+  try {
+    return await hkdf(passwordBytes, "opaquePassword", fromString(normalizeEmail(email)));
+  } finally {
+    wipe(passwordBytes);
+  }
 }
 
 /**

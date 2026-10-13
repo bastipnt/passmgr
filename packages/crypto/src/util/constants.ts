@@ -14,6 +14,7 @@ export const hkdfInfo = {
   opaqueFakeMaskingKey: fromString("opaque-fake-masking-key"),
   totpSecret: fromString("totp-secret"),
   backupCode: fromString("backup-code"),
+  opaquePassword: fromString("passmgr/opaque-password/v1"),
 };
 
 export const SESSION_ID_HEADER = "x-session-id";

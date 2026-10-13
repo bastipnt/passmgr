@@ -34,25 +34,32 @@ function renderAuthRoutes() {
 
 beforeEach(() => {
   store.needsBiometricEnroll = true;
+  store.profile = { profileId: "p1", mode: "linked", userId: "u1", email: "a@b.c" };
 });
 
-afterEach(() => secretsStore.clearPassword());
+afterEach(() => secretsStore.clearOpaquePassword());
 
 describe("biometric enrollment after an unlock", () => {
-  it("offers it once the unlock kept the password", async () => {
-    secretsStore.setPassword("hunter2hunter2");
+  it("offers it once the unlock kept the OPAQUE password", async () => {
+    secretsStore.keepOpaquePassword(new Uint8Array(32).fill(1));
     const location = renderAuthRoutes();
     await waitFor(() => expect(location.history.at(-1)).toBe(authPaths.enrollBiometric));
   });
 
-  it("skips it when there is no password to enroll with", async () => {
+  it("skips it for a linked profile with nothing to enroll with", async () => {
     const location = renderAuthRoutes();
     await waitFor(() => expect(location.history.at(-1)).toBe("/"));
   });
 
+  it("offers it to a local profile, which enrolls without one", async () => {
+    store.profile = { profileId: "p1", mode: "local", userId: null, email: null };
+    const location = renderAuthRoutes();
+    await waitFor(() => expect(location.history.at(-1)).toBe(authPaths.enrollBiometric));
+  });
+
   it("skips it when it isn't wanted", async () => {
     store.needsBiometricEnroll = false;
-    secretsStore.setPassword("hunter2hunter2");
+    secretsStore.keepOpaquePassword(new Uint8Array(32).fill(1));
     const location = renderAuthRoutes();
     await waitFor(() => expect(location.history.at(-1)).toBe("/"));
   });

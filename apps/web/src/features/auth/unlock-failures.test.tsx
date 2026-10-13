@@ -1,7 +1,7 @@
 import { SessionContext } from "@repo/client";
 import {
   type ConnectResult,
-  canReleasePassword,
+  canReleaseOpaquePassword,
   useConnectServer,
 } from "@repo/client/src/hooks/use-connect-server";
 import { useBiometricRestore, useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
@@ -55,10 +55,11 @@ vi.mock("@repo/crypto", async (importActual) => ({
   ...(await importActual<object>()),
   authenticateBiometric: vi.fn(),
 }));
-vi.mock("@repo/client/src/login", async (importActual) => ({
-  ...(await importActual<object>()),
-  loginUser: vi.fn(),
-}));
+// One mock for both entries: a typed password, or the kept OPAQUE password (connect).
+vi.mock("@repo/client/src/login", async (importActual) => {
+  const login = vi.fn();
+  return { ...(await importActual<object>()), loginUser: login, loginWithOpaquePassword: login };
+});
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
   argon2WorkerService: { derive: vi.fn() },
 }));
@@ -421,7 +422,7 @@ describe("biometricUnlock", () => {
     const { wraps, userKeyPair } = keyring();
     vi.mocked(authenticateBiometric).mockResolvedValue({
       accountKey: genKey(), // not the key the wraps were made with
-      password: "right password",
+      opaquePassword: genKey(),
     });
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     store.vault.getVaults.mockResolvedValue(wraps);
@@ -439,7 +440,7 @@ describe("biometricUnlock", () => {
   it("unlocks locally, then attaches the server session", async () => {
     const { authenticateBiometric } = await import("@repo/crypto");
     const { accountKey, wraps, userKeyPair } = keyring();
-    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, password: "pw" });
+    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, opaquePassword: genKey() });
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     store.vault.getVaults.mockResolvedValue(wraps);
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
@@ -559,8 +560,8 @@ describe("useConnectServer", () => {
     expect(outcome).toBe("second_factor");
     expect(prompt).toHaveBeenCalledOnce();
     expect(session.attachServer).not.toHaveBeenCalled();
-    // The password stays for a connect by hand.
-    expect(canReleasePassword("second_factor", false)).toBe(false);
+    // The OPAQUE password stays for a connect by hand.
+    expect(canReleaseOpaquePassword("second_factor", false)).toBe(false);
   });
 
   it("attaches nothing without a linked profile", async () => {
@@ -602,6 +603,7 @@ describe("useConnectServer", () => {
     act(() => {
       stale = result.current.connect("pw");
     });
+    await waitFor(() => expect(loginUserCore).toHaveBeenCalledOnce());
     secretsStore.lock();
     unlockedVault();
     let fresh: ConnectResult | undefined;
@@ -637,9 +639,9 @@ describe("useConnectServer", () => {
     ["unreachable", false, false],
     ["cancelled", false, false],
   ] as const)(
-    "a %s connect (enrollment pending: %s) releases the password: %s",
+    "a %s connect (enrollment pending: %s) releases the OPAQUE password: %s",
     (result, enroll, release) => {
-      expect(canReleasePassword(result, enroll)).toBe(release);
+      expect(canReleaseOpaquePassword(result, enroll)).toBe(release);
     },
   );
 });
@@ -766,25 +768,25 @@ describe("unlock: which profile?", () => {
   });
 
   it.each([true, false])(
-    "holds the password once the vault is unlocked when enrollment comes next (%s)",
+    "holds the OPAQUE password once the vault is unlocked when enrollment comes next (%s)",
     async (enroll) => {
       store.needsBiometricEnroll = enroll;
-      let passwordAtUnlock: string | undefined;
+      let keptAtUnlock: boolean | undefined;
       const unlockVault = vi.mocked(session.unlockVault);
       const unlockKeyring = unlockVault.getMockImplementation();
       unlockVault.mockImplementationOnce((...args) => {
         unlockKeyring?.(...args);
         // The first render that sees the vault unlocked runs after this tick.
         queueMicrotask(() => {
-          passwordAtUnlock = secretsStore.getPassword();
+          keptAtUnlock = secretsStore.hasOpaquePassword;
         });
       });
 
       const { unlocked } = await unlockWith(account());
 
       expect(unlocked).toBe(true);
-      expect(passwordAtUnlock).toBe(enroll ? "pw" : undefined);
-      secretsStore.clearPassword();
+      expect(keptAtUnlock).toBe(enroll);
+      secretsStore.clearOpaquePassword();
     },
   );
 

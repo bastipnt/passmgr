@@ -39,7 +39,7 @@ beforeEach(() => {
   // The fake only grows what the menu calls.
   Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });
   vi.clearAllMocks();
-  secretsStore.clearPassword();
+  secretsStore.clearOpaquePassword();
 });
 
 function renderMenu(mode: SessionMode, networkOffline = false) {
@@ -102,14 +102,14 @@ describe("SyncStatusMenu", () => {
     expect(retryParked).toHaveBeenCalledOnce();
   });
 
-  it("not connected with the unlock's password at hand: connect by hand", async () => {
+  it("not connected with the unlock's OPAQUE password at hand: connect by hand", async () => {
     // E.g. the two-factor prompt of the automatic reconnect was closed.
-    secretsStore.setPassword("hunter2hunter2");
+    secretsStore.keepOpaquePassword(new Uint8Array(32).fill(1));
     status = { ...status, phase: "offline" };
     renderMenu("offline");
     await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
-    expect(connect).toHaveBeenCalledWith("hunter2hunter2");
+    expect(connect).toHaveBeenCalledWith(new Uint8Array(32).fill(1));
   });
 
   it("no connect by hand without the password, or without network", async () => {

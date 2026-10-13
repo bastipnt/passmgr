@@ -9,7 +9,7 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "@repo/client/src/login";
-import { getPasswordKekParams } from "@repo/crypto";
+import { deriveOpaquePassword, getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
@@ -66,10 +66,11 @@ vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPCClient: () => trpcClient,
 }));
 // The OPAQUE handshake itself; `useLogin` around it stays real.
-vi.mock("@repo/client/src/login", async (importActual) => ({
-  ...(await importActual<object>()),
-  loginUser: vi.fn(),
-}));
+// One mock for both entries: a typed password, or the kept OPAQUE password (connect).
+vi.mock("@repo/client/src/login", async (importActual) => {
+  const login = vi.fn();
+  return { ...(await importActual<object>()), loginUser: login, loginWithOpaquePassword: login };
+});
 vi.mock("@repo/client/src/hooks/use-app-config", () => ({
   useAppConfig: () => ({ registrationEnabled: true, isLoading: false }),
 }));
@@ -171,7 +172,7 @@ function resetMocks() {
   store.vault.getVaults.mockResolvedValue([personalVault]);
   unlockVault.mockReset();
   vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
-  vi.spyOn(secretsStore, "setPassword");
+  vi.spyOn(secretsStore, "keepOpaquePassword");
   // `unlockVault` is a mock: let the background connect see an unlocked vault.
   vi.spyOn(secretsStore, "isVaultUnlocked", "get").mockReturnValue(true);
   vi.spyOn(secretsStore, "exportVaultKeysForWorker").mockReturnValue(new Map());
@@ -188,7 +189,7 @@ describe("LoginPage offline", () => {
     await unlockStored("wrong password");
 
     await screen.findByText(/check your email and password/i);
-    expect(secretsStore.setPassword).not.toHaveBeenCalled();
+    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
     expect(loginUserCore).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByLabelText("Password")).toBeEnabled());
   });
@@ -203,13 +204,15 @@ describe("LoginPage offline", () => {
     expect(unlockVault).not.toHaveBeenCalled();
   });
 
-  it("unlocks the linked vault without the server and keeps the password for the reconnect", async () => {
+  it("unlocks the linked vault without the server and keeps the OPAQUE password for the reconnect", async () => {
     renderPage();
     await unlockStored("right password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
     expect(unlockVault.mock.calls[0]?.[0]).toBe("linked");
-    expect(secretsStore.setPassword).toHaveBeenCalledWith("right password");
+    expect(secretsStore.keepOpaquePassword).toHaveBeenCalledWith(
+      await deriveOpaquePassword("right password", linkedProfile.email),
+    );
     // No server: no login, and the key material isn't rewritten.
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(store.saveAccount).not.toHaveBeenCalled();
@@ -605,7 +608,7 @@ describe("LoginPage local vault", () => {
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(attachServer).not.toHaveBeenCalled();
     // Nothing to reconnect with: the password isn't kept.
-    expect(secretsStore.setPassword).not.toHaveBeenCalled();
+    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
   });
 
   it("says the password is wrong without falling back to a server login", async () => {

@@ -20,7 +20,13 @@ import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { LoginThrottledError } from "./login";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  opaqueInputFor,
+  SERVER_IDENTITY,
+} from "./opaque";
 import { isThrottled } from "./util/trpc-errors";
 
 export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
@@ -89,7 +95,7 @@ export async function recoverAccount(
 
   try {
     const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-    const req = await client.registerInit(newPassword);
+    const req = await client.registerInit(await opaqueInputFor(newPassword, email));
     if (req instanceof Error) throw new RecoveryFailedError();
 
     const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);

@@ -563,19 +563,35 @@ describe("lock", () => {
   });
 });
 
-describe("password helpers (biometric enrollment)", () => {
-  it("set/get/clearPassword work", () => {
-    expect(secretsStore.getPassword()).toBeUndefined();
-    secretsStore.setPassword("pw");
-    expect(secretsStore.getPassword()).toBe("pw");
-    secretsStore.clearPassword();
-    expect(secretsStore.getPassword()).toBeUndefined();
+describe("OPAQUE password", () => {
+  it("hands out copies and wipes the kept buffer on clear", () => {
+    expect(secretsStore.hasOpaquePassword).toBe(false);
+    const kept = new Uint8Array([1, 2, 3]);
+    secretsStore.keepOpaquePassword(kept);
+    const copy = secretsStore.copyOpaquePassword();
+    expect(copy).toEqual(new Uint8Array([1, 2, 3]));
+    expect(copy).not.toBe(kept);
+    secretsStore.clearOpaquePassword();
+    expect(kept).toEqual(new Uint8Array(3));
+    expect(copy).toEqual(new Uint8Array([1, 2, 3]));
+    expect(secretsStore.copyOpaquePassword()).toBeUndefined();
   });
 
-  it("lock() clears the temporary password", () => {
-    secretsStore.setPassword("pw");
+  it("wipes the previous one when another is kept", () => {
+    const first = new Uint8Array([1]);
+    secretsStore.keepOpaquePassword(first);
+    secretsStore.keepOpaquePassword(new Uint8Array([2]));
+    expect(first).toEqual(new Uint8Array(1));
+    expect(secretsStore.copyOpaquePassword()).toEqual(new Uint8Array([2]));
+    secretsStore.clearOpaquePassword();
+  });
+
+  it("lock() wipes it", () => {
+    const kept = new Uint8Array([1, 2, 3]);
+    secretsStore.keepOpaquePassword(kept);
     secretsStore.lock();
-    expect(secretsStore.getPassword()).toBeUndefined();
+    expect(secretsStore.hasOpaquePassword).toBe(false);
+    expect(kept).toEqual(new Uint8Array(3));
   });
 });
 

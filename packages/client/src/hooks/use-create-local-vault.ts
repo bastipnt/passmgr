@@ -1,6 +1,5 @@
 import { wipe } from "@repo/crypto";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
-import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { generateLocalVault } from "../account/create-local-vault";
 import { SessionContext } from "../providers/SessionProvider";
@@ -20,8 +19,6 @@ type PendingUnlock = {
   accountKey: Uint8Array;
   vaults: MemberVault[];
   userKeyPair: UserKeyPair;
-  /** Only while biometric enrollment comes next (a string can't be wiped). */
-  password?: string;
   profileId: string;
 };
 
@@ -72,12 +69,10 @@ export function useCreateLocalVault() {
     }
 
     dropPending(pending);
-    const opened = store.current();
     pending.current = {
       accountKey,
       vaults,
       userKeyPair: material.userKeyPair,
-      password: opened && store.needsBiometricEnrollFor(opened) ? password : undefined,
       profileId: profile.profileId,
     };
     return recoveryKey;
@@ -98,8 +93,6 @@ export function useCreateLocalVault() {
       setCreateError("unlock_failed");
       return false;
     }
-    // Same tick as the unlock, so the enroll redirect already sees it.
-    if (next.password !== undefined) secretsStore.setPassword(next.password);
     initDecryptWorker();
     await persistSession(next.profileId);
     return true;

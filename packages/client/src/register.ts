@@ -5,7 +5,13 @@ import type { FinishRegistrationInput } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import { generateKeyring } from "./account/new-keyring";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  opaqueInputFor,
+  SERVER_IDENTITY,
+} from "./opaque";
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
@@ -83,7 +89,7 @@ export async function registerAccount(
   const email = normalizeEmail(rawEmail);
   const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
 
-  const req = await client.registerInit(password);
+  const req = await client.registerInit(await opaqueInputFor(password, email));
   if (req instanceof Error) throw new RegistrationStartFailedError();
 
   const registrationRequest = bytesToB64(req.serialize());

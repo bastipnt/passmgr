@@ -1,4 +1,4 @@
-import { BIOMETRIC_KEY, type BiometricKeyMaterial } from "@repo/crypto";
+import { BIOMETRIC_KEY, BIOMETRIC_REQUIRED_KEY, type BiometricKeyMaterial } from "@repo/crypto";
 import {
   ACCOUNT_KEY_MATERIAL_KEYS,
   type AccountKeyMaterial,
@@ -104,7 +104,7 @@ export async function upsertBiometricKey(
 
 export async function getBiometricKey(db: LocalDb): Promise<BiometricKeyMaterial | null> {
   const res = await getEntries(BIOMETRIC_KEY, db);
-  if (Object.keys(res).length < BIOMETRIC_KEY.length) return null;
+  if (BIOMETRIC_REQUIRED_KEY.some((key) => res[key] === undefined)) return null;
 
   return res as BiometricKeyMaterial;
 }

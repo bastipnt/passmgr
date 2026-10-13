@@ -96,9 +96,8 @@ describe("useCreateLocalVault", () => {
     });
   });
 
-  it("keeps the password for biometric enrollment only when it comes next", async () => {
+  it("keeps no password for the biometric enrollment that may follow", async () => {
     store.needsBiometricEnroll = true;
-    const setPassword = vi.spyOn(secretsStore, "setPassword");
     const { result } = renderCreate();
 
     await act(async () => {
@@ -106,19 +105,7 @@ describe("useCreateLocalVault", () => {
       await result.current.finishLocalVault();
     });
 
-    expect(setPassword).toHaveBeenCalledWith("hunter2hunter2");
-  });
-
-  it("doesn't keep the password when no biometric enrollment follows", async () => {
-    const setPassword = vi.spyOn(secretsStore, "setPassword");
-    const { result } = renderCreate();
-
-    await act(async () => {
-      await result.current.createLocalVault("hunter2hunter2");
-      await result.current.finishLocalVault();
-    });
-
-    expect(setPassword).not.toHaveBeenCalled();
+    expect(secretsStore.hasOpaquePassword).toBe(false);
   });
 
   it("reports a created vault that doesn't open as `unlock_failed`, wiping the key", async () => {

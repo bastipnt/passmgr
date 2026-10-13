@@ -85,7 +85,6 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  secretsStore.clearPassword();
   secretsStore.lock();
 });
 

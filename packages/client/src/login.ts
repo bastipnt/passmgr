@@ -1,5 +1,5 @@
 import { type AuthClient, KE2, OpaqueClient } from "@cloudflare/opaque-ts";
-import { genSalt, normalizeEmail } from "@repo/crypto";
+import { deriveOpaquePassword, genSalt, normalizeEmail, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
   type LoginSuccess,
@@ -10,7 +10,13 @@ import {
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
 import { type TRPCClient, TRPCClientError } from "@trpc/client";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, SERVER_IDENTITY } from "./opaque";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  opaqueInput,
+  SERVER_IDENTITY,
+} from "./opaque";
 import { timed } from "./util/perf";
 import { isServerAnswer, isServerError, isThrottled, isUnauthorized } from "./util/trpc-errors";
 
@@ -89,10 +95,37 @@ export async function loginUser(
   password: string,
   onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<VaultUnlockInfo> {
+  const opaquePassword = await deriveOpaquePassword(password, rawEmail);
+  try {
+    const login = await loginWithOpaquePassword(
+      trpc,
+      loginSession,
+      rawEmail,
+      opaquePassword,
+      onSecondFactor,
+    );
+    return { ...login, password };
+  } finally {
+    wipe(opaquePassword);
+  }
+}
+
+export type AccountLogin = Omit<VaultUnlockInfo, "password">;
+
+/** `loginUser` with the password already derived (`deriveOpaquePassword`). Same errors. */
+export async function loginWithOpaquePassword(
+  trpc: LoginTRPCClient,
+  loginSession: LoginSessionFn,
+  rawEmail: string,
+  opaquePassword: Uint8Array,
+  onSecondFactor: SecondFactorPrompt = noSecondFactor,
+): Promise<AccountLogin> {
   const email = normalizeEmail(rawEmail);
   const client: AuthClient = new OpaqueClient(config, opaqueKsf);
 
-  const ke1 = await timed("opaque client.authInit (P256)", () => client.authInit(password));
+  const ke1 = await timed("opaque client.authInit (P256)", () =>
+    client.authInit(opaqueInput(opaquePassword)),
+  );
   if (ke1 instanceof Error) throw new OpaqueLoginFailedError();
 
   const startLoginRequest = bytesToB64(ke1.serialize());
@@ -145,7 +178,7 @@ export async function loginUser(
 
   await loginSession(sessionId, sessionKey, authSalt);
 
-  return { email, userId, password, userPasswordKeys, vaultKeys, userKeyPair };
+  return { email, userId, userPasswordKeys, vaultKeys, userKeyPair };
 }
 
 /** Ask for codes until one is right, the user cancels or the challenge is gone. */
