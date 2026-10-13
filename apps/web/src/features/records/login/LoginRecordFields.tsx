@@ -7,6 +7,7 @@ import { useCopyField } from "../record-utils";
 import { HistorySection } from "./HistorySection";
 import LoginFieldDisplay from "./LoginFieldDisplay";
 import { PasswordHealthPanel } from "./PasswordHealthPanel";
+import { PreviousSecretsSection } from "./PreviousSecretsSection";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
@@ -55,6 +56,7 @@ export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
               <RecordTags record={record} />
               {extra}
               <PasswordHealthPanel record={record} />
+              <PreviousSecretsSection record={record} />
               <HistorySection record={record} />
             </>
           )}

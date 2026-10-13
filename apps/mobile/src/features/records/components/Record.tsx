@@ -2,8 +2,10 @@ import {
   type FieldGroup,
   getRecordFieldSpecs,
   getRecordWebsites,
+  previousSecretsTitle,
   RECORD_TYPE_LABELS,
   useGetRecord,
+  usePreviousSecrets,
   useSortedRecords,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
@@ -16,7 +18,7 @@ import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { recordPaths } from "@/route-paths";
 import { useCopyField } from "../use-copy-field";
-import LoginFieldDisplay from "./LoginFieldDisplay";
+import LoginFieldDisplay, { type OnCopy } from "./LoginFieldDisplay";
 import { RecordAvatar } from "./RecordAvatar";
 import { WifiQrCode } from "./WifiQrCode";
 
@@ -141,6 +143,19 @@ function HistorySection({ record }: { record: DecryptedRecord }) {
   );
 }
 
+function PreviousSecretsSection({ record, onCopy }: { record: DecryptedRecord; onCopy: OnCopy }) {
+  const { previous } = usePreviousSecrets(record);
+  if (previous.length === 0) return null;
+
+  return (
+    <Section title={previousSecretsTitle(record.type)}>
+      {previous.map((spec) => (
+        <LoginFieldDisplay key={spec.key} spec={spec} onCopy={onCopy} />
+      ))}
+    </Section>
+  );
+}
+
 type RecordProps = {
   record: DecryptedRecord;
 };
@@ -170,6 +185,8 @@ export default function Record({ record }: RecordProps) {
       {record.type === "wifi" && <WifiQrCode record={record} />}
 
       {record.tags && record.tags.length > 0 && <TagsSection tags={record.tags} />}
+
+      <PreviousSecretsSection record={record} onCopy={onCopy} />
 
       <HistorySection record={record} />
     </View>

@@ -1,7 +1,9 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useQuery } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
+import { previousSecrets } from "../records/previous-secrets";
 import { decryptRecordRow } from "../util/decrypt-record";
 
 /**
@@ -52,4 +54,10 @@ export function useRecordHistory(recordId: string | undefined) {
     ready: !!recordId && !isPending && !!versions,
     error,
   };
+}
+
+export function usePreviousSecrets(record: DecryptedRecord) {
+  const { versions, ready } = useRecordHistory(record.recordId);
+  const previous = useMemo(() => previousSecrets(record, versions), [record, versions]);
+  return { previous, ready };
 }
