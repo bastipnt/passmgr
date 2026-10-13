@@ -27,13 +27,14 @@ const fakeAuthenticatorState = {
   deferPrfToGet: false,
   shouldCancelCreate: false,
   shouldCancelGet: false,
+  noPublicKey: false,
   lastCreate: undefined as unknown,
   lastGet: undefined as unknown,
 };
 
 const HOST = "vault.example.com";
 const ENROLL = { rpName: "passmgr", userName: "alice@example.com" };
-const OPAQUE_PASSWORD = new Uint8Array(32).fill(4);
+const SPKI = new Uint8Array(91).fill(4);
 
 function prfFor(credentialId: Uint8Array, prfSalt: Uint8Array): ArrayBuffer {
   // Deterministic: id||salt repeated to 32 bytes. Independent of real PRF, but stable.
@@ -65,6 +66,9 @@ function installWebAuthnMock() {
 
       return {
         rawId: rawId.buffer,
+        response: fakeAuthenticatorState.noPublicKey
+          ? {}
+          : { getPublicKey: () => SPKI.buffer, getPublicKeyAlgorithm: () => -7 },
         getClientExtensionResults: () => ({
           prf: fakeAuthenticatorState.prfSupported
             ? fakeAuthenticatorState.deferPrfToGet
@@ -91,6 +95,11 @@ function installWebAuthnMock() {
 
       return {
         rawId: rawId.buffer,
+        response: {
+          authenticatorData: new Uint8Array([1, 2, 3]).buffer,
+          clientDataJSON: new Uint8Array([4, 5]).buffer,
+          signature: new Uint8Array([6]).buffer,
+        },
         getClientExtensionResults: () => ({
           prf: fakeAuthenticatorState.prfSupported
             ? { results: { first: prfFor(rawId, prfSalt) } }
@@ -146,6 +155,7 @@ beforeEach(() => {
   fakeAuthenticatorState.deferPrfToGet = false;
   fakeAuthenticatorState.shouldCancelCreate = false;
   fakeAuthenticatorState.shouldCancelGet = false;
+  fakeAuthenticatorState.noPublicKey = false;
   restore = installWebAuthnMock();
 });
 
@@ -154,14 +164,13 @@ afterEach(() => {
 });
 
 describe("BIOMETRIC_KEY", () => {
-  it("lists the six material fields in a stable order", () => {
+  it("lists the material fields in a stable order", () => {
     expect(BIOMETRIC_KEY).toEqual([
       "biometricEncryptedAccountKey",
       "biometricNonce",
       "credentialId",
       "prfSalt",
-      "biometricEncryptedOpaquePassword",
-      "biometricOpaquePasswordNonce",
+      "biometricDeviceLogin",
     ]);
   });
 });
@@ -228,9 +237,13 @@ describe("isPrfSupported", () => {
   });
 });
 
+async function enroll(accountKey: Uint8Array): Promise<BiometricKeyMaterial> {
+  return (await enrollBiometric(accountKey, ENROLL)).material;
+}
+
 describe("enrollBiometric / authenticateBiometric", () => {
   it("names the relying party and the account, pinned to this host", async () => {
-    const material = await enrollBiometric(new Uint8Array(32).fill(1), OPAQUE_PASSWORD, ENROLL);
+    const material = await enroll(new Uint8Array(32).fill(1));
     expect(fakeAuthenticatorState.lastCreate).toMatchObject({
       rp: { id: HOST, name: "passmgr" },
       user: { name: "alice@example.com", displayName: "alice@example.com" },
@@ -240,40 +253,52 @@ describe("enrollBiometric / authenticateBiometric", () => {
     expect(fakeAuthenticatorState.lastGet).toMatchObject({ rpId: HOST });
   });
 
-  it("returns all six BIOMETRIC_KEY material fields on enrollment", async () => {
-    const accountKey = new Uint8Array(32).fill(7);
-    const material = await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL);
-    for (const k of BIOMETRIC_KEY) {
-      expect(typeof material[k]).toBe("string");
-      expect(material[k]?.length).toBeGreaterThan(0);
-    }
+  it("stores only the wrapped account key, never anything that logs in", async () => {
+    const material = await enroll(new Uint8Array(32).fill(7));
+    expect(Object.keys(material).sort()).toEqual(
+      ["biometricEncryptedAccountKey", "biometricNonce", "credentialId", "prfSalt"].sort(),
+    );
   });
 
-  it("round-trips accountKey and OPAQUE password through authenticateBiometric", async () => {
+  it("hands out the credential's public key for the server", async () => {
+    const { devicePublicKey } = await enrollBiometric(new Uint8Array(32), ENROLL);
+    expect(devicePublicKey).toEqual({ publicKey: toBase64(SPKI), algorithm: -7 });
+  });
+
+  it("has no public key when the browser can't give one", async () => {
+    fakeAuthenticatorState.noPublicKey = true;
+    const { devicePublicKey } = await enrollBiometric(new Uint8Array(32), ENROLL);
+    expect(devicePublicKey).toBeUndefined();
+  });
+
+  it("round-trips the account key through authenticateBiometric", async () => {
     const accountKey = new Uint8Array(32);
     crypto.getRandomValues(accountKey);
-    const material = await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL);
+    const material = await enroll(accountKey);
 
     const recovered = await authenticateBiometric(material);
     expect(recovered.accountKey).toEqual(accountKey);
-    expect(recovered.opaquePassword).toEqual(OPAQUE_PASSWORD);
+    expect(recovered.assertion).toBeUndefined();
   });
 
-  it("stores no OPAQUE password without one (local profile)", async () => {
-    const accountKey = new Uint8Array(32).fill(2);
-    const material = await enrollBiometric(accountKey, undefined, ENROLL);
-    expect(material.biometricEncryptedOpaquePassword).toBeUndefined();
-    expect(material.biometricOpaquePasswordNonce).toBeUndefined();
+  it("signs a given challenge and returns the assertion", async () => {
+    const material = await enroll(new Uint8Array(32).fill(2));
+    const challenge = new Uint8Array(32).fill(9);
 
-    const recovered = await authenticateBiometric(material);
-    expect(recovered.accountKey).toEqual(accountKey);
-    expect(recovered.opaquePassword).toBeUndefined();
+    const { assertion } = await authenticateBiometric(material, challenge);
+    const sent = fakeAuthenticatorState.lastGet as { challenge: ArrayBuffer };
+    expect(new Uint8Array(sent.challenge)).toEqual(challenge);
+    expect(assertion).toEqual({
+      authenticatorData: toBase64(new Uint8Array([1, 2, 3])),
+      clientDataJSON: toBase64(new Uint8Array([4, 5])),
+      signature: toBase64(new Uint8Array([6])),
+    });
   });
 
-  it("produces distinct material across two enrollments of the same key+password", async () => {
+  it("produces distinct material across two enrollments of the same key", async () => {
     const accountKey = new Uint8Array(32).fill(9);
-    const a = await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL);
-    const b = await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL);
+    const a = await enroll(accountKey);
+    const b = await enroll(accountKey);
     expect(a.credentialId).not.toBe(b.credentialId);
     expect(a.prfSalt).not.toBe(b.prfSalt);
     expect(a.biometricNonce).not.toBe(b.biometricNonce);
@@ -282,26 +307,22 @@ describe("enrollBiometric / authenticateBiometric", () => {
 
   it("throws when WebAuthn credential creation is cancelled", async () => {
     fakeAuthenticatorState.shouldCancelCreate = true;
-    await expect(enrollBiometric(new Uint8Array(32), OPAQUE_PASSWORD, ENROLL)).rejects.toThrow(
-      /cancelled/i,
-    );
+    await expect(enroll(new Uint8Array(32))).rejects.toThrow(/cancelled/i);
   });
 
   it("throws when the assertion during authenticate is cancelled", async () => {
-    const material = await enrollBiometric(new Uint8Array(32).fill(1), OPAQUE_PASSWORD, ENROLL);
+    const material = await enroll(new Uint8Array(32).fill(1));
     fakeAuthenticatorState.shouldCancelGet = true;
     await expect(authenticateBiometric(material)).rejects.toThrow(/cancelled/i);
   });
 
   it("throws when PRF is not supported by the authenticator on enrollment", async () => {
     fakeAuthenticatorState.prfSupported = false;
-    await expect(enrollBiometric(new Uint8Array(32), OPAQUE_PASSWORD, ENROLL)).rejects.toThrow(
-      /PRF/i,
-    );
+    await expect(enroll(new Uint8Array(32))).rejects.toThrow(/PRF/i);
   });
 
   it("throws when PRF result is missing during authentication", async () => {
-    const material = await enrollBiometric(new Uint8Array(32).fill(1), OPAQUE_PASSWORD, ENROLL);
+    const material = await enroll(new Uint8Array(32).fill(1));
     fakeAuthenticatorState.prfSupported = false;
     await expect(authenticateBiometric(material)).rejects.toThrow(/PRF/i);
   });
@@ -309,26 +330,20 @@ describe("enrollBiometric / authenticateBiometric", () => {
   it("round-trips when PRF output is only obtained from a follow-up get() call", async () => {
     fakeAuthenticatorState.deferPrfToGet = true;
     const accountKey = new Uint8Array(32).fill(3);
-    const material = await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL);
+    const material = await enroll(accountKey);
     fakeAuthenticatorState.deferPrfToGet = false; // authenticate uses normal get
     const recovered = await authenticateBiometric(material);
     expect(recovered.accountKey).toEqual(accountKey);
-    expect(recovered.opaquePassword).toEqual(OPAQUE_PASSWORD);
   });
 
   it("throws when the deferred PRF assertion is cancelled", async () => {
     fakeAuthenticatorState.deferPrfToGet = true;
     fakeAuthenticatorState.shouldCancelGet = true;
-    await expect(enrollBiometric(new Uint8Array(32), OPAQUE_PASSWORD, ENROLL)).rejects.toThrow(
-      /cancelled/i,
-    );
+    await expect(enroll(new Uint8Array(32))).rejects.toThrow(/cancelled/i);
   });
 
   it("fails to authenticate against tampered material (wrong prfSalt)", async () => {
-    const accountKey = new Uint8Array(32).fill(5);
-    const material: BiometricKeyMaterial = {
-      ...(await enrollBiometric(accountKey, OPAQUE_PASSWORD, ENROLL)),
-    };
+    const material = await enroll(new Uint8Array(32).fill(5));
     const tampered: BiometricKeyMaterial = {
       ...material,
       prfSalt: toBase64(new Uint8Array(32).fill(0xff)),

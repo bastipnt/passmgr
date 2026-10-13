@@ -1,5 +1,4 @@
 import { fromBase64, toBase64 } from "@repo/util";
-import { decryptXChaCha, encryptXChaCha } from "./encryption";
 import { hkdf } from "./hash";
 import { unwrapAccountKey, wrapAccountKey } from "./user-keys";
 import { wipe } from "./util/secrets-utils";
@@ -11,16 +10,31 @@ export const BIOMETRIC_REQUIRED_KEY = [
   "prfSalt",
 ] as const;
 
-const BIOMETRIC_OPAQUE_PASSWORD_KEY = [
-  "biometricEncryptedOpaquePassword",
-  "biometricOpaquePasswordNonce",
-] as const;
+export const BIOMETRIC_KEY = [...BIOMETRIC_REQUIRED_KEY, "biometricDeviceLogin"] as const;
 
-export const BIOMETRIC_KEY = [...BIOMETRIC_REQUIRED_KEY, ...BIOMETRIC_OPAQUE_PASSWORD_KEY] as const;
+/**
+ * `biometricDeviceLogin` is set once the server holds the credential's public
+ * key (linked profiles): the same prompt then also logs in to the server.
+ */
+export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_REQUIRED_KEY)[number], string> & {
+  biometricDeviceLogin?: string;
+};
 
-/** The OPAQUE password fields only for a linked profile: a local one has none. */
-export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_REQUIRED_KEY)[number], string> &
-  Partial<Record<(typeof BIOMETRIC_OPAQUE_PASSWORD_KEY)[number], string>>;
+/** The credential's public key (SPKI, base64) and its COSE algorithm, for the server. */
+export type DeviceCredentialPublicKey = { publicKey: string; algorithm: number };
+
+export type EnrolledBiometric = {
+  material: BiometricKeyMaterial;
+  /** Undefined when the browser can't hand out the public key. */
+  devicePublicKey?: DeviceCredentialPublicKey;
+};
+
+/** The parts of a WebAuthn assertion the server verifies, base64. */
+export type DeviceAssertion = {
+  authenticatorData: string;
+  clientDataJSON: string;
+  signature: string;
+};
 
 // WebAuthn PRF extension types (not yet in lib.dom.d.ts)
 type PRFValues = { first: ArrayBuffer };
@@ -67,14 +81,14 @@ export type BiometricEnrollOptions = {
 };
 
 /**
- * `opaquePassword` (`deriveOpaquePassword`, linked profiles only) lets a
- * biometric unlock log in to the server again; the password itself is never stored.
+ * Only the account key is stored, wrapped with the PRF output. Logging in to
+ * the server again goes through the credential itself (`devicePublicKey`,
+ * registered with the server), never a stored password or password equivalent.
  */
 export async function enrollBiometric(
   accountKey: Uint8Array,
-  opaquePassword: Uint8Array | undefined,
   { rpName, userName }: BiometricEnrollOptions,
-): Promise<BiometricKeyMaterial> {
+): Promise<EnrolledBiometric> {
   const prfSalt = crypto.getRandomValues(new Uint8Array(32));
   const rpId = relyingPartyId();
 
@@ -89,6 +103,7 @@ export async function enrollBiometric(
       },
       pubKeyCredParams: [
         { alg: -7, type: "public-key" }, // ES256
+        { alg: -8, type: "public-key" }, // EdDSA
         { alg: -257, type: "public-key" }, // RS256
       ],
       authenticatorSelection: {
@@ -146,23 +161,36 @@ export async function enrollBiometric(
     credentialId,
     prfSalt: toBase64(prfSalt),
   };
-  if (opaquePassword) {
-    [material.biometricEncryptedOpaquePassword, material.biometricOpaquePasswordNonce] =
-      encryptXChaCha(biometricKek, opaquePassword);
-  }
   wipe(biometricKek);
-  return material;
+  return { material, devicePublicKey: credentialPublicKey(credential) };
 }
 
+function credentialPublicKey(
+  credential: PublicKeyCredential,
+): DeviceCredentialPublicKey | undefined {
+  const response = credential.response as Partial<AuthenticatorAttestationResponse>;
+  const publicKey = response.getPublicKey?.();
+  const algorithm = response.getPublicKeyAlgorithm?.();
+  if (!publicKey || algorithm === undefined) return undefined;
+  return { publicKey: toBase64(new Uint8Array(publicKey)), algorithm };
+}
+
+/**
+ * One prompt: the PRF output opens the account key, and with a `challenge`
+ * (a device login's, `deviceLoginChallenge`) the signed assertion comes back
+ * for the server.
+ */
 export async function authenticateBiometric(
   material: BiometricKeyMaterial,
-): Promise<{ accountKey: Uint8Array; opaquePassword?: Uint8Array }> {
+  challenge?: Uint8Array,
+): Promise<{ accountKey: Uint8Array; assertion?: DeviceAssertion }> {
   const credentialId = fromBase64(material.credentialId);
   const prfSalt = fromBase64(material.prfSalt);
 
   const assertion = (await navigator.credentials.get({
     publicKey: {
-      challenge: crypto.getRandomValues(new Uint8Array(32)),
+      challenge: (challenge ?? crypto.getRandomValues(new Uint8Array(32))).slice()
+        .buffer as ArrayBuffer,
       rpId: relyingPartyId(),
       allowCredentials: [{ id: credentialId.buffer as ArrayBuffer, type: "public-key" }],
       userVerification: "required",
@@ -187,11 +215,16 @@ export async function authenticateBiometric(
     material.biometricEncryptedAccountKey,
     material.biometricNonce,
   );
-  const { biometricEncryptedOpaquePassword: encrypted, biometricOpaquePasswordNonce: nonce } =
-    material;
-  const opaquePassword =
-    encrypted && nonce ? decryptXChaCha(biometricKek, encrypted, nonce) : undefined;
   wipe(biometricKek);
 
-  return { accountKey, opaquePassword };
+  if (!challenge) return { accountKey };
+  const response = assertion.response as AuthenticatorAssertionResponse;
+  return {
+    accountKey,
+    assertion: {
+      authenticatorData: toBase64(new Uint8Array(response.authenticatorData)),
+      clientDataJSON: toBase64(new Uint8Array(response.clientDataJSON)),
+      signature: toBase64(new Uint8Array(response.signature)),
+    },
+  };
 }

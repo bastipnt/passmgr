@@ -1,161 +1,41 @@
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import BiometricEnrollPage from "./BiometricEnrollPage";
 
 const navigate = vi.fn();
-const setBiometricKeyMaterial = vi.fn().mockResolvedValue(undefined);
 const setBiometricDismissed = vi.fn();
-const copyOpaquePassword = vi.fn();
-const clearOpaquePassword = vi.fn();
-let profileMode: "linked" | "local" = "linked";
-const exportAccountKey = vi.fn(() => new Uint8Array(32).fill(7));
-const credentialsCreate = vi.fn();
+const enroll = vi.fn();
+const dismiss = vi.fn();
 
 vi.mock("@repo/client", () => ({
-  canEnrollBiometric: (profile: { mode: string }) =>
-    profile.mode === "local" || copyOpaquePassword() !== undefined,
-  profileLabel: (entry: { email: string | null }) => entry.email,
-  useStore: () => ({
-    active: {
-      entry: { email: "alice@example.com", name: null },
-      profile: { mode: profileMode },
-    },
-    saveBiometricKeyMaterial: setBiometricKeyMaterial,
-    setBiometricDismissed,
-  }),
-}));
-
-vi.mock("@repo/store", () => ({
-  secretsStore: {
-    exportAccountKey: () => exportAccountKey(),
-    copyOpaquePassword: () => copyOpaquePassword(),
-    clearOpaquePassword: () => clearOpaquePassword(),
-  },
+  useEnrollBiometric: () => ({ enroll, dismiss }),
+  useStore: () => ({ setBiometricDismissed }),
 }));
 
 vi.mock("wouter", async () => {
   const actual = await vi.importActual<typeof import("wouter")>("wouter");
-  return {
-    ...actual,
-    useLocation: () => ["/", navigate],
-  };
+  return { ...actual, useLocation: () => ["/", navigate] };
 });
-
-const navWithCredentials = globalThis.navigator as unknown as { credentials?: unknown };
-const originalCredentials = navWithCredentials.credentials;
-
-function fakeCredentialWithPrf(): PublicKeyCredential {
-  const prfOutput = new Uint8Array(32);
-  crypto.getRandomValues(prfOutput);
-  return {
-    rawId: new Uint8Array([1, 2, 3, 4]).buffer,
-    getClientExtensionResults: () => ({
-      prf: { results: { first: prfOutput.buffer as ArrayBuffer } },
-    }),
-  } as unknown as PublicKeyCredential;
-}
 
 describe("BiometricEnrollPage", () => {
   beforeEach(() => {
-    navigate.mockReset();
-    setBiometricKeyMaterial.mockClear();
-    setBiometricDismissed.mockReset();
-    copyOpaquePassword.mockReset();
-    clearOpaquePassword.mockReset();
-    profileMode = "linked";
-    credentialsCreate.mockReset();
-    Object.defineProperty(globalThis.navigator, "credentials", {
-      configurable: true,
-      value: { create: credentialsCreate },
-    });
+    vi.clearAllMocks();
   });
 
-  afterEach(() => {
-    if (originalCredentials === undefined) {
-      delete navWithCredentials.credentials;
-    } else {
-      Object.defineProperty(globalThis.navigator, "credentials", {
-        configurable: true,
-        value: originalCredentials,
-      });
-    }
-  });
-
-  it("happy path: enrolls and navigates to /", async () => {
-    copyOpaquePassword.mockReturnValue(new Uint8Array(32).fill(3));
-    credentialsCreate.mockResolvedValue(fakeCredentialWithPrf());
+  it("enrolls and navigates to /", async () => {
+    enroll.mockResolvedValue(undefined);
 
     renderWithProviders(<BiometricEnrollPage />);
     await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
 
-    await waitFor(() => {
-      expect(credentialsCreate).toHaveBeenCalledTimes(1);
-      expect(setBiometricKeyMaterial).toHaveBeenCalledTimes(1);
-      expect(clearOpaquePassword).toHaveBeenCalled();
-      expect(navigate).toHaveBeenCalledWith("/");
-    });
-    const material = setBiometricKeyMaterial.mock.calls[0]?.[0] as Record<string, string>;
-    expect(typeof material.biometricEncryptedAccountKey).toBe("string");
-    expect(typeof material.credentialId).toBe("string");
-    expect(typeof material.prfSalt).toBe("string");
-    const options = credentialsCreate.mock.calls[0]?.[0] as CredentialCreationOptions;
-    expect(options.publicKey?.rp.name).toBe("passmgr");
-    expect(options.publicKey?.user.name).toBe("alice@example.com");
+    await waitFor(() => expect(navigate).toHaveBeenCalledWith("/"));
+    expect(enroll).toHaveBeenCalledTimes(1);
+    expect(setBiometricDismissed).toHaveBeenCalledWith(false);
   });
 
-  it("enrolls the account key and wipes the exported copy afterwards", async () => {
-    copyOpaquePassword.mockReturnValue(new Uint8Array(32).fill(3));
-    credentialsCreate.mockResolvedValue(fakeCredentialWithPrf());
-
-    renderWithProviders(<BiometricEnrollPage />);
-    await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
-
-    await waitFor(() => expect(setBiometricKeyMaterial).toHaveBeenCalledTimes(1));
-    const exported = exportAccountKey.mock.results[0]?.value as Uint8Array;
-    expect(exported.every((b) => b === 0)).toBe(true);
-  });
-
-  it("enrolls a local profile without an OPAQUE password", async () => {
-    profileMode = "local";
-    credentialsCreate.mockResolvedValue(fakeCredentialWithPrf());
-
-    renderWithProviders(<BiometricEnrollPage />);
-    await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
-
-    await waitFor(() => expect(setBiometricKeyMaterial).toHaveBeenCalledTimes(1));
-    const material = setBiometricKeyMaterial.mock.calls[0]?.[0] as Record<string, string>;
-    expect(material.biometricEncryptedOpaquePassword).toBeUndefined();
-  });
-
-  it("wipes the copy of the OPAQUE password it enrolled", async () => {
-    const opaquePassword = new Uint8Array(32).fill(3);
-    copyOpaquePassword.mockReturnValue(opaquePassword);
-    credentialsCreate.mockResolvedValue(fakeCredentialWithPrf());
-
-    renderWithProviders(<BiometricEnrollPage />);
-    await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
-
-    await waitFor(() => expect(setBiometricKeyMaterial).toHaveBeenCalledTimes(1));
-    const material = setBiometricKeyMaterial.mock.calls[0]?.[0] as Record<string, string>;
-    expect(typeof material.biometricEncryptedOpaquePassword).toBe("string");
-    expect(opaquePassword.every((b) => b === 0)).toBe(true);
-  });
-
-  it("renders error when a linked profile has no OPAQUE password kept", async () => {
-    copyOpaquePassword.mockReturnValue(undefined);
-
-    renderWithProviders(<BiometricEnrollPage />);
-    await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
-
-    expect(await screen.findByText(/using fingerprint to unlock failed/i)).toBeInTheDocument();
-    expect(credentialsCreate).not.toHaveBeenCalled();
-    expect(navigate).not.toHaveBeenCalled();
-  });
-
-  it("renders error when WebAuthn rejects (e.g. PRF unsupported)", async () => {
-    copyOpaquePassword.mockReturnValue(new Uint8Array(32).fill(3));
-    credentialsCreate.mockRejectedValue(new Error("PRF not supported"));
+  it("renders an error and stays when enrolling fails", async () => {
+    enroll.mockRejectedValue(new Error("PRF not supported"));
 
     renderWithProviders(<BiometricEnrollPage />);
     await userEvent.click(screen.getByRole("button", { name: /^enable$/i }));
@@ -164,12 +44,11 @@ describe("BiometricEnrollPage", () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  it("Skip clears the OPAQUE password, dismisses biometric prompt, and navigates", async () => {
+  it("Skip dismisses the prompt and navigates", async () => {
     renderWithProviders(<BiometricEnrollPage />);
     await userEvent.click(screen.getByRole("button", { name: /^skip$/i }));
 
-    expect(clearOpaquePassword).toHaveBeenCalled();
-    expect(setBiometricDismissed).toHaveBeenCalledWith(true);
+    expect(dismiss).toHaveBeenCalled();
     expect(navigate).toHaveBeenCalledWith("/");
   });
 });

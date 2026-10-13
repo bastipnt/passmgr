@@ -19,6 +19,7 @@ import {
   setRecoveryAttempt,
   takeRecoveryAttempt,
 } from "../util/redis-utils";
+import { deleteDeviceCredentials } from "./device-credentials";
 
 type RecoveryLog = { warn: (obj: object, msg: string) => void };
 
@@ -150,6 +151,7 @@ export const recoveryRouter = router({
           .update(usersTable)
           .set({ registrationRecord, updated_at: now })
           .where(and(eq(usersTable.userId, userId), isNull(usersTable.deleted_at)));
+        await deleteDeviceCredentials(userId, undefined, tx);
         return true;
       });
       if (!swapped) denyRecovery(log, "finishRecovery", "key_set_changed", emailHash);

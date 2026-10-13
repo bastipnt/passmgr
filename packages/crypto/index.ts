@@ -1,4 +1,5 @@
 export * from "./src/biometric";
+export * from "./src/device-login";
 export * from "./src/encryption";
 export * from "./src/export-envelope";
 export * from "./src/hash";

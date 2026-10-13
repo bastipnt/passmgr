@@ -199,20 +199,22 @@ export function requireActive(store: Pick<StoreContextValue, "current">): Active
 }
 
 /**
- * A linked profile's enrollment without the OPAQUE password (made while it was
- * local) can't log in after a biometric unlock: offered again.
+ * A linked profile's enrollment whose credential the server doesn't hold (made
+ * while it was local) can't log in after a biometric unlock: offered again.
  */
 function biometricComplete({ profile, biometricKeyMaterial }: ActiveProfile) {
   if (!biometricKeyMaterial) return false;
-  return (
-    profile?.mode !== "linked" ||
-    biometricKeyMaterial.biometricEncryptedOpaquePassword !== undefined
-  );
+  return profile?.mode !== "linked" || biometricKeyMaterial.biometricDeviceLogin !== undefined;
 }
 
-/** A linked profile's enrollment wraps the OPAQUE password: without it the prompt could only fail. */
+/**
+ * A linked profile's enrollment registers its credential with the server: it
+ * needs server auth, attached or reachable with the OPAQUE password in memory.
+ */
 export function canEnrollBiometric(profile: LocalProfile | null): boolean {
-  return profile?.mode === "local" || secretsStore.hasOpaquePassword;
+  return (
+    profile?.mode === "local" || secretsStore.hasServerSession || secretsStore.hasOpaquePassword
+  );
 }
 
 function assertLocked() {

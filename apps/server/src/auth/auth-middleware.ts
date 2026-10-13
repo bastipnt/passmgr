@@ -149,17 +149,22 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
       sessionId,
       authenticatedAt: session.authenticatedAt,
       secondFactor: session.secondFactor === true,
+      passwordless: session.passwordless === true,
     },
   });
 });
 
-/** For key-material changes: requires an OPAQUE login within FRESH_AUTH_WINDOW_MS. */
+/**
+ * For key-material changes: requires an OPAQUE login within
+ * FRESH_AUTH_WINDOW_MS. A device login never counts: it proves the device, not
+ * the password.
+ */
 export const freshAuthProcedure = protectedProcedure.use(async (opts) => {
   const { ctx, path } = opts;
-  const { authenticatedAt } = ctx;
+  const { authenticatedAt, passwordless } = ctx;
 
   // Sessions created before `authenticatedAt` existed have none → stale.
-  if (!authenticatedAt || Date.now() - authenticatedAt > FRESH_AUTH_WINDOW_MS) {
+  if (passwordless || !authenticatedAt || Date.now() - authenticatedAt > FRESH_AUTH_WINDOW_MS) {
     return denyAuth(ctx.req?.log, path, "stale_auth", ctx.sessionId, "FORBIDDEN");
   }
 

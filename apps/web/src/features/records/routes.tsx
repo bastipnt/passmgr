@@ -1,4 +1,4 @@
-import { SessionContext, useAutoReconnect } from "@repo/client";
+import { SessionContext, useAutoReconnect, useLinkDeviceCredential } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
@@ -18,6 +18,7 @@ const RecordPage = lazyPreload(() => import("./RecordPage"));
 export default function RecordRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
   useAutoReconnect();
+  useLinkDeviceCredential();
   const isMobile = useIsMobile();
 
   // The welcome sends a device with vaults on to their unlock.

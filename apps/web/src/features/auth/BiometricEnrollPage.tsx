@@ -1,6 +1,4 @@
-import { canEnrollBiometric, profileLabel, useStore } from "@repo/client";
-import { enrollBiometric, wipe } from "@repo/crypto";
-import { secretsStore } from "@repo/store";
+import { useEnrollBiometric, useStore } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -24,6 +22,7 @@ export default function BiometricEnrollPage() {
   const [_, navigate] = useLocation();
 
   const store = useStore();
+  const { enroll, dismiss } = useEnrollBiometric();
 
   function navigateNext() {
     navigate(recordPaths.index);
@@ -32,28 +31,10 @@ export default function BiometricEnrollPage() {
   async function onEnroll() {
     setEnrolling(true);
     try {
-      const { active } = store;
-      if (!active || !canEnrollBiometric(active.profile)) {
-        setError(true);
-        return;
-      }
-      const opaquePassword = secretsStore.copyOpaquePassword();
-      const accountKey = secretsStore.exportAccountKey();
-      let material: Awaited<ReturnType<typeof enrollBiometric>>;
-      try {
-        material = await enrollBiometric(accountKey, opaquePassword, {
-          rpName: "passmgr",
-          userName: profileLabel(active.entry),
-        });
-      } finally {
-        wipe(accountKey);
-        if (opaquePassword) wipe(opaquePassword);
-      }
-      await store.saveBiometricKeyMaterial(material);
-      secretsStore.clearOpaquePassword();
-
+      await enroll();
       navigateNext();
-    } catch {
+    } catch (e) {
+      console.error("Biometric enrollment failed", e);
       setError(true);
     } finally {
       store.setBiometricDismissed(false);
@@ -62,8 +43,7 @@ export default function BiometricEnrollPage() {
   }
 
   function onDismissEnroll() {
-    secretsStore.clearOpaquePassword();
-    store.setBiometricDismissed(true);
+    dismiss();
     navigateNext();
   }
 

@@ -1,7 +1,7 @@
 import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
 import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
@@ -17,6 +17,7 @@ import {
   canReleaseOpaquePassword,
   useConnectServer,
 } from "./use-connect-server";
+import { hasDeviceLogin, useDeviceLogin } from "./use-device-login";
 import { useLogin } from "./use-login";
 
 /**
@@ -32,7 +33,8 @@ export function useUnlock() {
   const store = useStore();
   const { loginUser } = useLogin();
   const contextPrompt = useSecondFactorPrompt();
-  const { connect } = useConnectServer();
+  const { connect, connectWithDevice } = useConnectServer();
+  const deviceLogin = useDeviceLogin();
   const trpc = useTRPCClient();
 
   /**
@@ -71,10 +73,6 @@ export function useUnlock() {
       return false;
     }
 
-    // Already online: kept only for the biometric enrollment that comes next.
-    const enrollPassword = store.needsBiometricEnrollFor(opened)
-      ? await deriveOpaquePassword(password, info.email)
-      : undefined;
     try {
       unlockVault(
         "linked",
@@ -87,12 +85,11 @@ export function useUnlock() {
     } catch (e) {
       // A vault key or keypair that doesn't open with the account key.
       console.error("Vault unlock failed", e);
-      if (enrollPassword) wipe(enrollPassword);
       await failUnlock("failed");
       return false;
     }
 
-    afterUnlock(enrollPassword);
+    afterUnlock();
     await persistSession(opened.entry.profileId);
 
     // Transparently migrate to the current Argon2 params if the stored ones
@@ -225,8 +222,12 @@ export function useUnlock() {
     }
   }
 
-  /** Same tick as the unlock, so the biometric enroll redirect already sees the OPAQUE password. */
-  function afterUnlock(opaquePassword: Uint8Array | undefined) {
+  /**
+   * Same tick as the unlock, so the biometric enroll redirect already sees the
+   * OPAQUE password (an unlock without the server). An online unlock keeps
+   * none: enrolling uses the attached session.
+   */
+  function afterUnlock(opaquePassword?: Uint8Array) {
     if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
     initDecryptWorker();
   }
@@ -251,14 +252,30 @@ export function useUnlock() {
     lock();
   }
 
-  /** Unlock the active profile with the account key behind the platform authenticator (web, WebAuthn PRF). */
+  /**
+   * Unlock the active profile with the account key behind the platform
+   * authenticator (web, WebAuthn PRF). A linked profile's prompt also signs a
+   * device login (`hasDeviceLogin`), which attaches server auth afterwards;
+   * without the server the vault opens `offline`.
+   */
   async function biometricUnlock() {
     const active = store.current();
     if (!active) return;
     const { profile, accountKeyMaterial: material, biometricKeyMaterial } = active;
     if (!biometricKeyMaterial || !profile || !material) return;
 
-    const { accountKey, opaquePassword } = await authenticateBiometric(biometricKeyMaterial);
+    const login =
+      profile.mode === "linked" && hasDeviceLogin(biometricKeyMaterial) && !networkOffline
+        ? await deviceLogin.take(biometricKeyMaterial.credentialId)
+        : undefined;
+    let unlocked: Awaited<ReturnType<typeof authenticateBiometric>>;
+    try {
+      unlocked = await authenticateBiometric(biometricKeyMaterial, login?.challenge);
+    } catch (e) {
+      login?.discard();
+      throw e;
+    }
+    const { accountKey, assertion } = unlocked;
     try {
       unlockWithAccountKey(
         profile.mode,
@@ -269,22 +286,67 @@ export function useUnlock() {
     } catch (e) {
       // A vault key or keypair that doesn't open (or no personal vault).
       console.error("Biometric vault unlock failed", e);
-      if (opaquePassword) wipe(opaquePassword);
+      login?.discard();
       setUnlockError("failed");
       throw e;
     }
     initDecryptWorker();
 
-    if (!opaquePassword) return;
-    if (profile.mode !== "linked") {
-      wipe(opaquePassword);
+    if (!login || !assertion) {
+      login?.discard();
       return;
     }
-    secretsStore.keepOpaquePassword(opaquePassword);
-    if (!networkOffline) void connect(opaquePassword.slice()).then(releaseIfDone(active));
+    void connectWithDevice((session, email, ask) =>
+      login.finish(assertion, session, email, ask),
+    ).then((result) => deviceLogin.settle(login, result));
+  }
+
+  /** Start the biometric unlock's device login ahead of the click (see `useDeviceLogin`). */
+  function prepareBiometricUnlock() {
+    const active = store.current();
+    const material = active?.biometricKeyMaterial;
+    if (active?.profile?.mode === "linked" && hasDeviceLogin(material) && !networkOffline)
+      deviceLogin.prepare(material.credentialId);
   }
 
   const clearUnlockError = useCallback(() => setUnlockError(undefined), []);
 
-  return { unlockError, clearUnlockError, unlock, unlockLocal, unlockByEmail, biometricUnlock };
+  return {
+    unlockError,
+    clearUnlockError,
+    unlock,
+    unlockLocal,
+    unlockByEmail,
+    biometricUnlock,
+    prepareBiometricUnlock,
+    dropPreparedUnlock: deviceLogin.drop,
+  };
+}
+
+/**
+ * The biometric unlock button's side: its device login is prepared while the
+ * button is shown (and again after a failed try), dropped when it goes.
+ */
+export function useBiometricUnlock() {
+  const { biometricUnlock, prepareBiometricUnlock, dropPreparedUnlock } = useUnlock();
+  const prepareRef = useRef(prepareBiometricUnlock);
+  prepareRef.current = prepareBiometricUnlock;
+  const dropRef = useRef(dropPreparedUnlock);
+  dropRef.current = dropPreparedUnlock;
+
+  useEffect(() => {
+    prepareRef.current();
+    return () => dropRef.current();
+  }, []);
+
+  async function unlock() {
+    try {
+      await biometricUnlock();
+    } catch (e) {
+      prepareBiometricUnlock();
+      throw e;
+    }
+  }
+
+  return { unlock };
 }

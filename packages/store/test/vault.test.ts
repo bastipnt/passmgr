@@ -74,8 +74,7 @@ const personal = vaultKey("v-personal", "personal");
 const biometricKey: BiometricKeyMaterial = {
   biometricEncryptedAccountKey: "bak",
   biometricNonce: "bn",
-  biometricEncryptedOpaquePassword: "bpw",
-  biometricOpaquePasswordNonce: "bpn",
+  biometricDeviceLogin: "1",
   credentialId: "cred",
   prfSalt: "prf",
 };

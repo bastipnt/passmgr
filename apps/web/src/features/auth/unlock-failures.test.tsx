@@ -4,15 +4,18 @@ import {
   canReleaseOpaquePassword,
   useConnectServer,
 } from "@repo/client/src/hooks/use-connect-server";
+import { useEnrollBiometric } from "@repo/client/src/hooks/use-enroll-biometric";
 import { useBiometricRestore, useSessionRestore } from "@repo/client/src/hooks/use-session-restore";
 import { useUnlock } from "@repo/client/src/hooks/use-unlock";
 import {
+  DeviceLoginRejectedError,
   LoginStartFailedError,
   LoginThrottledError,
   LoginUnreachableError,
   loginUser as loginUserCore,
   OpaqueLoginFailedError,
   SecondFactorCancelledError,
+  startDeviceLogin,
 } from "@repo/client/src/login";
 import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFactorPromptProvider";
 import {
@@ -54,11 +57,17 @@ vi.mock("@repo/store", async (importActual) => ({
 vi.mock("@repo/crypto", async (importActual) => ({
   ...(await importActual<object>()),
   authenticateBiometric: vi.fn(),
+  enrollBiometric: vi.fn(),
 }));
 // One mock for both entries: a typed password, or the kept OPAQUE password (connect).
 vi.mock("@repo/client/src/login", async (importActual) => {
   const login = vi.fn();
-  return { ...(await importActual<object>()), loginUser: login, loginWithOpaquePassword: login };
+  return {
+    ...(await importActual<object>()),
+    loginUser: login,
+    loginWithOpaquePassword: login,
+    startDeviceLogin: vi.fn(),
+  };
 });
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
   argon2WorkerService: { derive: vi.fn() },
@@ -69,7 +78,7 @@ vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
 
 const trpcClient = {
   login: { logout: { mutate: vi.fn() } },
-  user: { heartbeat: { query: vi.fn() } },
+  user: { heartbeat: { query: vi.fn() }, registerDeviceCredential: { mutate: vi.fn() } },
 };
 vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPC: () => ({}),
@@ -417,12 +426,19 @@ describe("useBiometricRestore", () => {
 });
 
 describe("biometricUnlock", () => {
+  const DEVICE_MATERIAL = {
+    biometricEncryptedAccountKey: "bak",
+    biometricNonce: "bn",
+    credentialId: "cred",
+    prfSalt: "prf",
+    biometricDeviceLogin: "1",
+  };
+
   it("fails without touching the server when the vault keys don't open", async () => {
     const { authenticateBiometric } = await import("@repo/crypto");
     const { wraps, userKeyPair } = keyring();
     vi.mocked(authenticateBiometric).mockResolvedValue({
       accountKey: genKey(), // not the key the wraps were made with
-      opaquePassword: genKey(),
     });
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     store.vault.getVaults.mockResolvedValue(wraps);
@@ -437,12 +453,132 @@ describe("biometricUnlock", () => {
     await waitFor(() => expect(result.current.unlockError).toBe("failed"));
   });
 
-  it("unlocks locally, then attaches the server session", async () => {
+  it("signs the device login with the same prompt, then attaches the server session", async () => {
     const { authenticateBiometric } = await import("@repo/crypto");
     const { accountKey, wraps, userKeyPair } = keyring();
-    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, opaquePassword: genKey() });
+    const challenge = new Uint8Array(32).fill(3);
+    const assertion = { authenticatorData: "ad", clientDataJSON: "cd", signature: "sig" };
+    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, assertion });
+    const finish = vi.fn(async (_assertion, attach: Parameters<typeof loginUserCore>[1]) => {
+      await attach("live-session", "session-key", new Uint8Array(32));
+      return {
+        email: "alice@example.com",
+        userId: ALICE.userId,
+        userPasswordKeys: passwordKeys,
+        vaultKeys: wraps,
+        userKeyPair,
+      };
+    });
+    const discard = vi.fn();
+    vi.mocked(startDeviceLogin).mockResolvedValue({
+      challenge,
+      startedAt: Date.now(),
+      finish,
+      discard,
+    });
+    store.biometricKeyMaterial = DEVICE_MATERIAL;
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     store.vault.getVaults.mockResolvedValue(wraps);
+
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    await act(() => result.current.biometricUnlock());
+
+    expect(authenticateBiometric).toHaveBeenCalledWith(DEVICE_MATERIAL, challenge);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    await waitFor(() => expect(secretsStore.hasServerSession).toBe(true));
+    expect(finish.mock.calls[0]?.[0]).toBe(assertion);
+    expect(store.saveAccount).toHaveBeenCalledTimes(1);
+    expect(loginUserCore).not.toHaveBeenCalled();
+    await waitFor(() => expect(discard).toHaveBeenCalled());
+    expect(store.forgetQuickUnlock).not.toHaveBeenCalled();
+  });
+
+  it("forgets the enrollment when the server refuses its credential", async () => {
+    const { authenticateBiometric } = await import("@repo/crypto");
+    const { accountKey, wraps, userKeyPair } = keyring();
+    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey });
+    vi.mocked(startDeviceLogin).mockRejectedValue(new DeviceLoginRejectedError());
+    store.biometricKeyMaterial = DEVICE_MATERIAL;
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
+    store.vault.getVaults.mockResolvedValue(wraps);
+
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    await act(() => result.current.biometricUnlock());
+
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    await waitFor(() => expect(store.forgetQuickUnlock).toHaveBeenCalled());
+  });
+
+  it("opens the vault offline when the server can't start the device login", async () => {
+    const { authenticateBiometric } = await import("@repo/crypto");
+    const { accountKey, wraps, userKeyPair } = keyring();
+    vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey });
+    vi.mocked(startDeviceLogin).mockRejectedValue(new LoginUnreachableError());
+    store.biometricKeyMaterial = DEVICE_MATERIAL;
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
+    store.vault.getVaults.mockResolvedValue(wraps);
+
+    const { result } = renderHook(() => useUnlock(), { wrapper });
+    await act(() => result.current.biometricUnlock());
+
+    expect(authenticateBiometric).toHaveBeenCalledWith(DEVICE_MATERIAL, undefined);
+    expect(secretsStore.isVaultUnlocked).toBe(true);
+    expect(secretsStore.hasServerSession).toBe(false);
+  });
+});
+
+describe("useEnrollBiometric", () => {
+  const MATERIAL = {
+    biometricEncryptedAccountKey: "bak",
+    biometricNonce: "bn",
+    credentialId: "cred",
+    prfSalt: "prf",
+  };
+  const PUBLIC_KEY = { publicKey: "spki", algorithm: -7 };
+
+  async function unlocked({ online }: { online: boolean }) {
+    const { accountKey, wraps, userKeyPair } = keyring();
+    session.unlockWithAccountKey("linked", accountKey, wraps, userKeyPair);
+    store.vault.getVaults.mockResolvedValue(wraps);
+    if (online) await session.attachServer("sid", "session-key", new Uint8Array(32));
+    return { wraps, userKeyPair };
+  }
+
+  async function enroll() {
+    const { result } = renderHook(() => useEnrollBiometric(), { wrapper });
+    await act(() => result.current.enroll());
+  }
+
+  it("registers a linked profile's credential and stores only the wrapped account key", async () => {
+    const { enrollBiometric } = await import("@repo/crypto");
+    vi.mocked(enrollBiometric).mockResolvedValue({
+      material: MATERIAL,
+      devicePublicKey: PUBLIC_KEY,
+    });
+    await unlocked({ online: true });
+
+    await enroll();
+
+    expect(trpcClient.user.registerDeviceCredential.mutate).toHaveBeenCalledWith({
+      credentialId: "cred",
+      ...PUBLIC_KEY,
+    });
+    expect(store.saveBiometricKeyMaterial).toHaveBeenCalledWith({
+      ...MATERIAL,
+      biometricDeviceLogin: "1",
+    });
+    const exported = vi.mocked(enrollBiometric).mock.calls[0]?.[0] as Uint8Array;
+    expect(exported.every((b) => b === 0)).toBe(true);
+  });
+
+  it("logs in with the kept OPAQUE password first when not online yet", async () => {
+    const { enrollBiometric } = await import("@repo/crypto");
+    vi.mocked(enrollBiometric).mockResolvedValue({
+      material: MATERIAL,
+      devicePublicKey: PUBLIC_KEY,
+    });
+    const { wraps, userKeyPair } = await unlocked({ online: false });
+    secretsStore.keepOpaquePassword(genKey());
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
       await attach("live-session", "session-key", new Uint8Array(32));
       return {
@@ -455,12 +591,37 @@ describe("biometricUnlock", () => {
       };
     });
 
-    const { result } = renderHook(() => useUnlock(), { wrapper });
-    await act(() => result.current.biometricUnlock());
+    await enroll();
 
-    expect(secretsStore.isVaultUnlocked).toBe(true);
-    await waitFor(() => expect(secretsStore.hasServerSession).toBe(true));
-    expect(store.saveAccount).toHaveBeenCalledTimes(1);
+    expect(secretsStore.hasServerSession).toBe(true);
+    expect(trpcClient.user.registerDeviceCredential.mutate).toHaveBeenCalledTimes(1);
+    expect(secretsStore.hasOpaquePassword).toBe(false);
+  });
+
+  it("stores nothing when the browser gives no public key", async () => {
+    const { enrollBiometric } = await import("@repo/crypto");
+    vi.mocked(enrollBiometric).mockResolvedValue({ material: MATERIAL });
+    await unlocked({ online: true });
+
+    const { result } = renderHook(() => useEnrollBiometric(), { wrapper });
+    await act(async () => {
+      await expect(result.current.enroll()).rejects.toThrow();
+    });
+
+    expect(trpcClient.user.registerDeviceCredential.mutate).not.toHaveBeenCalled();
+    expect(store.saveBiometricKeyMaterial).not.toHaveBeenCalled();
+  });
+
+  it("enrolls a local profile on the device only", async () => {
+    const { enrollBiometric } = await import("@repo/crypto");
+    vi.mocked(enrollBiometric).mockResolvedValue({ material: MATERIAL });
+    store.profile = { profileId: ALICE.profileId, mode: "local", email: null, userId: null };
+    await unlocked({ online: false });
+
+    await enroll();
+
+    expect(trpcClient.user.registerDeviceCredential.mutate).not.toHaveBeenCalled();
+    expect(store.saveBiometricKeyMaterial).toHaveBeenCalledWith(MATERIAL);
   });
 });
 
@@ -767,28 +928,13 @@ describe("unlock: which profile?", () => {
     expect(store.saveAccount).not.toHaveBeenCalled();
   });
 
-  it.each([true, false])(
-    "holds the OPAQUE password once the vault is unlocked when enrollment comes next (%s)",
-    async (enroll) => {
-      store.needsBiometricEnroll = enroll;
-      let keptAtUnlock: boolean | undefined;
-      const unlockVault = vi.mocked(session.unlockVault);
-      const unlockKeyring = unlockVault.getMockImplementation();
-      unlockVault.mockImplementationOnce((...args) => {
-        unlockKeyring?.(...args);
-        // The first render that sees the vault unlocked runs after this tick.
-        queueMicrotask(() => {
-          keptAtUnlock = secretsStore.hasOpaquePassword;
-        });
-      });
+  it("keeps no OPAQUE password after an online unlock, even when enrollment comes next", async () => {
+    store.needsBiometricEnroll = true;
+    const { unlocked } = await unlockWith(account());
 
-      const { unlocked } = await unlockWith(account());
-
-      expect(unlocked).toBe(true);
-      expect(keptAtUnlock).toBe(enroll);
-      secretsStore.clearOpaquePassword();
-    },
-  );
+    expect(unlocked).toBe(true);
+    expect(secretsStore.hasOpaquePassword).toBe(false);
+  });
 
   it("offline: can't add an account the device has no profile for", async () => {
     const offline = { ...session, networkOffline: true };

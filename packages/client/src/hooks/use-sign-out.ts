@@ -8,6 +8,7 @@ import { useState } from "react";
 import { useStore } from "../providers/StoreProvider";
 import { endServerSession } from "../util/end-server-session";
 import { useTRPCClient } from "../util/trpc";
+import { hasDeviceLogin } from "./use-device-login";
 import { useLock } from "./use-lock";
 
 /**
@@ -53,11 +54,14 @@ export function useRemoveFromDevice() {
   const lock = useLock();
   const [removing, setRemoving] = useState(false);
 
-  async function remove(action: () => Promise<void>) {
+  async function remove(action: () => Promise<void>, removesActive: boolean) {
     if (removing) return;
     setRemoving(true);
     try {
-      if (secretsStore.hasServerSession) await endServerSession(trpc);
+      if (secretsStore.hasServerSession) {
+        if (removesActive) await forgetDeviceCredential();
+        await endServerSession(trpc);
+      }
     } finally {
       try {
         // Lock first: it stops the sync, so nothing writes into the database
@@ -70,12 +74,30 @@ export function useRemoveFromDevice() {
     }
   }
 
+  /**
+   * The active profile's biometric login goes with its database: the server
+   * forgets it too (best-effort; only the active profile's session can ask).
+   */
+  async function forgetDeviceCredential() {
+    const material = store.current()?.biometricKeyMaterial;
+    if (!hasDeviceLogin(material)) return;
+    try {
+      await trpc.user.removeDeviceCredential.mutate({ credentialId: material.credentialId });
+    } catch (e) {
+      console.error("Removing the device credential failed", e);
+    }
+  }
+
   async function removeFromDevice(profileId = store.current()?.entry.profileId) {
-    if (profileId) await remove(() => store.removeProfile(profileId));
+    if (profileId)
+      await remove(
+        () => store.removeProfile(profileId),
+        profileId === store.current()?.entry.profileId,
+      );
   }
 
   async function removeAll() {
-    await remove(() => store.removeAllProfiles());
+    await remove(() => store.removeAllProfiles(), true);
   }
 
   return { removeFromDevice, removeAll, removing };

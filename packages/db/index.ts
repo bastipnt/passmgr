@@ -4,6 +4,7 @@ import { relations, schema } from "./src/relations";
 
 export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
+export * from "./src/schema/device-credentials";
 export * from "./src/schema/keys";
 export * from "./src/schema/records";
 export * from "./src/schema/two-factor";

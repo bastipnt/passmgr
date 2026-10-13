@@ -1,4 +1,4 @@
-import { useUnlock } from "@repo/client";
+import { useBiometricUnlock } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { FieldError, FieldSeparator } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
@@ -12,16 +12,15 @@ type BiometricUnlockButtonProps = {
 
 /** "or" divider plus the biometric unlock action, rendered inside the login card. */
 export function BiometricUnlockButton({ loading, setLoading }: BiometricUnlockButtonProps) {
-  const { biometricUnlock } = useUnlock();
+  const { unlock } = useBiometricUnlock();
   const [error, setError] = useState(false);
 
-  // TODO: move to unlock
   const onBiometricUnlock = async () => {
     setLoading(true);
     setError(false);
 
     try {
-      await biometricUnlock();
+      await unlock();
     } catch {
       setError(true);
       setLoading(false);

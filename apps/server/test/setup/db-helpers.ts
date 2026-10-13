@@ -4,6 +4,6 @@ import { sql } from "drizzle-orm";
 /** Wipe every row across users/keys/records. Call in `beforeEach` for isolation. */
 export async function truncateAll() {
   await db.execute(
-    sql`TRUNCATE "users", "keys", "records", "vaults", "vault_members", "vault_key_links", "user_key_pairs", "user_totp", "user_backup_codes" RESTART IDENTITY CASCADE`,
+    sql`TRUNCATE "users", "keys", "records", "vaults", "vault_members", "vault_key_links", "user_key_pairs", "user_totp", "user_backup_codes", "device_credentials" RESTART IDENTITY CASCADE`,
   );
 }

@@ -584,7 +584,7 @@ There is never a silent wipe.
 > with the new password. Local recovery (`recoverLocal`) unwraps the account key with the stored
 > recovery wrap and replaces both wraps in one transaction (`Vault.setLocalKeyMaterial`); an
 > account's recovery is refused offline. Both a change and a recovery drop the biometric
-> enrollment: it holds the old password.
+> enrollment; for an account the server also deletes every device credential (web device login).
 
 ### D11 — Binding ciphertext to its context (crypto v2)
 

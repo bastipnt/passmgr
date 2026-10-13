@@ -13,6 +13,7 @@ import { registerHealthRoutes } from "./health";
 import { stripQuery } from "./logger";
 import { metricsRegistry } from "./metrics";
 import { redis } from "./redis";
+import { allowedHostnames } from "./util/allowed-origins";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -83,16 +84,6 @@ if (process.env.RATE_LIMIT_DISABLED !== "true") {
   });
 }
 
-const allowedOrigins = new Set(["localhost"]);
-if (process.env.CORS_ORIGIN) {
-  try {
-    allowedOrigins.add(new URL(process.env.CORS_ORIGIN).hostname);
-  } catch {
-    // If CORS_ORIGIN is just a hostname without protocol, add it directly
-    allowedOrigins.add(process.env.CORS_ORIGIN);
-  }
-}
-
 await server.register(cors, {
   origin: (origin, cb) => {
     if (!origin) {
@@ -102,7 +93,7 @@ await server.register(cors, {
     }
 
     const hostname = new URL(origin).hostname;
-    if (allowedOrigins.has(hostname)) {
+    if (allowedHostnames.has(hostname)) {
       cb(null, true);
       return;
     }

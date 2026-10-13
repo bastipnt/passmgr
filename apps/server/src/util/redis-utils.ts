@@ -32,6 +32,12 @@ type Session = {
   // The login passed a second factor (`login.verifySecondFactor`). Changing
   // two-factor needs a session that did.
   secondFactor?: boolean;
+  // This device's credential (`device_credentials`): the one it logged in
+  // with, registered or linked (`user.linkDeviceCredential`) during the
+  // session. Revoking the session deletes it.
+  deviceCredentialId?: string;
+  // Logged in with a device credential, not the password: never fresh auth.
+  passwordless?: boolean;
 };
 
 /** A live session of a user, as the session list shows it. */
@@ -66,6 +72,20 @@ type SecondFactorChallenge = {
   deviceName?: string;
   // The login's startLogin (LoginAttempt.startedAt), see isLoginRevoked.
   startedAt: number;
+  // A device login's credential (Session.deviceCredentialId, `passwordless`).
+  deviceCredentialId?: string;
+};
+
+/** A device login (WebAuthn) waiting for its signed assertion. */
+type DeviceLoginAttempt = {
+  userId: string;
+  credentialId: string;
+  // base64: the nonce and the server's ephemeral X25519 key pair.
+  nonce: string;
+  serverPrivateKey: string;
+  serverPublicKey: string;
+  // Unix ms before the credential was read, see isLoginRevoked.
+  startedAt: number;
 };
 
 type Invite = {
@@ -92,6 +112,10 @@ function sessionKey(sessionId: string) {
 // startLogin with the victim's email can't overwrite the victim's attempt.
 function loginKey(attemptId: string) {
   return `login:${attemptId}`;
+}
+
+function deviceLoginKey(attemptId: string) {
+  return `devicelogin:${attemptId}`;
 }
 
 function recoveryKey(attemptId: string) {
@@ -348,13 +372,54 @@ export async function takeLoginAttempt(attemptId: string): Promise<LoginAttempt 
   return JSON.parse(rawLoginAttempt);
 }
 
+/** Store a device login attempt and return its id (for finishDeviceLogin). */
+export async function setDeviceLoginAttempt(attempt: DeviceLoginAttempt): Promise<string> {
+  const attemptId = crypto.randomUUID();
+  await redis.set(
+    deviceLoginKey(attemptId),
+    JSON.stringify(attempt),
+    "EX",
+    LOGIN_ATTEMPT_TTL_SECONDS,
+  );
+  return attemptId;
+}
+
+/** Atomically fetch and delete a device login attempt — each finishes at most once. */
+export async function takeDeviceLoginAttempt(
+  attemptId: string,
+): Promise<DeviceLoginAttempt | undefined> {
+  const raw = await redis.getdel(deviceLoginKey(attemptId));
+  if (raw === null) return undefined;
+  return JSON.parse(raw);
+}
+
+/** The device credential of a session (see Session.deviceCredentialId). */
+export async function sessionCredentialId(sessionId: string): Promise<string | undefined> {
+  const raw = await redis.get(sessionKey(sessionId));
+  if (raw === null) return undefined;
+  return (JSON.parse(raw) as Session).deviceCredentialId;
+}
+
+/** Note the credential this session's device registered (see Session.deviceCredentialId). */
+export async function linkSessionCredential(sessionId: string, credentialId: string) {
+  const raw = await redis.get(sessionKey(sessionId));
+  if (raw === null) return;
+  const session: Session = { ...JSON.parse(raw), deviceCredentialId: credentialId };
+  await redis.set(sessionKey(sessionId), JSON.stringify(session), "KEEPTTL", "XX");
+}
+
 /** Store a second-factor challenge and return its id (for verifySecondFactor). */
 export async function setSecondFactorChallenge(challenge: SecondFactorChallenge): Promise<string> {
   const challengeId = crypto.randomUUID();
   const key = secondFactorKey(challengeId);
   await redis
     .multi()
-    .hset(key, { ...challenge, deviceName: challenge.deviceName ?? "", attempts: 0 })
+    .hset(key, {
+      ...challenge,
+      deviceName: challenge.deviceName ?? "",
+      deviceCredentialId: challenge.deviceCredentialId ?? "",
+      attempts: 0,
+    })
     .expire(key, LOGIN_ATTEMPT_TTL_SECONDS)
     .exec();
   return challengeId;
@@ -372,6 +437,7 @@ export async function getSecondFactorChallenge(
     rawAuthKey: raw.rawAuthKey,
     deviceName: raw.deviceName || undefined,
     startedAt: Number(raw.startedAt),
+    deviceCredentialId: raw.deviceCredentialId || undefined,
   };
 }
 

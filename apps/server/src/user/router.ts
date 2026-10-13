@@ -1,12 +1,14 @@
 import { RegistrationRequest } from "@cloudflare/opaque-ts";
 import { decryptEmail, hashEmail, verifyToken } from "@repo/crypto";
-import { db, keysTable, userKeyPairsTable, usersTable } from "@repo/db";
+import { db, deviceCredentialsTable, keysTable, userKeyPairsTable, usersTable } from "@repo/db";
 import {
   backupCodesOutputSchema,
   confirmTotpInputSchema,
+  deviceCredentialInputSchema,
   finishPasswordChangeInputSchema,
   type PasswordKeySchema,
   passwordKeySchema,
+  registerDeviceCredentialInputSchema,
   startPasswordChangeInputSchema,
   startPasswordChangeOutputSchema,
   startTotpEnrollmentOutputSchema,
@@ -15,10 +17,16 @@ import {
   userPublicKeyInputSchema,
   userPublicKeySchema,
 } from "@repo/schema";
-import { toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware";
+import {
+  deleteDeviceCredential,
+  deleteDeviceCredentials,
+  ownsDeviceCredential,
+  refreshDeviceCredential,
+} from "../auth/device-credentials";
 import {
   disableTotp,
   enableTotp,
@@ -27,12 +35,14 @@ import {
   regenerateBackupCodes,
   twoFactorStatus,
 } from "../auth/two-factor";
+import { credentialKey } from "../auth/webauthn";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import {
   deleteTotpEnrollment,
   endDeletedUserSessions,
   getTotpEnrollment,
+  linkSessionCredential,
   resetLoginThrottle,
   revokeUserSessions,
   setPasswordChangeAttempt,
@@ -129,6 +139,56 @@ export const userRouter = router({
       return found;
     }),
 
+  // A device credential (web biometric unlock) that logs in without the
+  // password from now on. Needs a fresh password login: a stolen session must
+  // not turn into lasting access. Linked to this session, so revoking it
+  // removes the credential too.
+  registerDeviceCredential: freshAuthProcedure
+    .input(registerDeviceCredentialInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const { credentialId, publicKey, algorithm } = input;
+      if (!credentialKey(fromBase64(publicKey), algorithm)) {
+        throw new TRPCError({ code: "BAD_REQUEST", message: "unsupported public key" });
+      }
+      const [inserted] = await db
+        .insert(deviceCredentialsTable)
+        .values({
+          credentialId,
+          userId: ctx.userId,
+          publicKey,
+          algorithm,
+          deviceName: ctx.deviceName,
+        })
+        .onConflictDoNothing()
+        .returning({ credentialId: deviceCredentialsTable.credentialId });
+      if (!inserted) throw new TRPCError({ code: "CONFLICT", message: "credential exists" });
+      await linkSessionCredential(ctx.sessionId, credentialId);
+      ctx.req?.log.info({ algorithm }, "auth.device_credential.registered");
+      return { ok: true } as const;
+    }),
+
+  // A login on a device that has a credential: note it on this session, so
+  // revoking the session (or signing out the others from it) treats the
+  // credential as this device's. A password login also renews it.
+  linkDeviceCredential: protectedProcedure
+    .input(deviceCredentialInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      if (!(await ownsDeviceCredential(ctx.userId, input.credentialId))) {
+        throw new TRPCError({ code: "NOT_FOUND" });
+      }
+      await linkSessionCredential(ctx.sessionId, input.credentialId);
+      if (!ctx.passwordless) await refreshDeviceCredential(ctx.userId, input.credentialId);
+      return { ok: true } as const;
+    }),
+
+  removeDeviceCredential: protectedProcedure
+    .input(deviceCredentialInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      const removed = await deleteDeviceCredential(ctx.userId, input.credentialId);
+      if (removed) ctx.req?.log.info({}, "auth.device_credential.removed");
+      return { ok: true } as const;
+    }),
+
   // Re-wrap the account key under new Argon2 params. The client re-derives the
   // password KEK and re-encrypts the account key locally (zero-knowledge — the
   // server never sees the plaintext key or password).
@@ -216,6 +276,7 @@ export const userRouter = router({
           .where(and(eq(usersTable.userId, ctx.userId), isNull(usersTable.deleted_at)))
           .returning({ emailHash: usersTable.emailHash });
         if (!user) throw new TRPCError({ code: "NOT_FOUND" });
+        await deleteDeviceCredentials(ctx.userId, undefined, tx);
         return user.emailHash;
       });
 

@@ -11,9 +11,11 @@ import {
   listUserSessions,
   revokeOtherUserSessions,
   revokeUserSession,
+  sessionCredentialId,
   userSessionIds,
 } from "../util/redis-utils";
 import { protectedProcedure } from "./auth-middleware";
+import { deleteDeviceCredential, deleteDeviceCredentials } from "./device-credentials";
 
 /**
  * The handle a session is listed and revoked by. The session id is half of a
@@ -43,9 +45,12 @@ export const sessionRouter = router({
   revoke: protectedProcedure.input(revokeSessionInputSchema).mutation(async ({ ctx, input }) => {
     const ids = await userSessionIds(ctx.userId);
     const target = ids.find((id) => publicSessionId(id) === input.id);
+    const credentialId = target && (await sessionCredentialId(target));
     if (!target || !(await revokeUserSession(ctx.userId, target))) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
+    // The device's biometric unlock would log it straight back in.
+    if (credentialId) await deleteDeviceCredential(ctx.userId, credentialId);
     ctx.req?.log?.info({ sidHash: await shortHash(target) }, "auth.session.revoked");
     return { ok: true } as const;
   }),
@@ -54,6 +59,8 @@ export const sessionRouter = router({
     .input(revokeOtherSessionsInputSchema)
     .mutation(async ({ ctx }) => {
       const revoked = await revokeOtherUserSessions(ctx.userId, ctx.sessionId);
+      // Including devices whose session already expired: none may log back in.
+      await deleteDeviceCredentials(ctx.userId, await sessionCredentialId(ctx.sessionId));
       ctx.req?.log?.info({ revoked }, "auth.session.revoked_others");
       return { revoked };
     }),

@@ -67,7 +67,7 @@ class SecretsStore {
   private userKeyPairVersion?: number;
 
   // The plaintext password is never kept: this is `deriveOpaquePassword`'s
-  // output, for reconnecting and biometric enrollment.
+  // output, for reconnecting (and getting online for a biometric enrollment).
   private opaquePassword?: Uint8Array;
 
   // Bumped on every lock: work started before a lock (a background server

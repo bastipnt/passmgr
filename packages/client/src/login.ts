@@ -1,5 +1,14 @@
 import { type AuthClient, KE2, OpaqueClient } from "@cloudflare/opaque-ts";
-import { deriveOpaquePassword, genSalt, normalizeEmail, wipe } from "@repo/crypto";
+import {
+  type DeviceAssertion,
+  deriveOpaquePassword,
+  deviceLoginChallenge,
+  deviceSessionKey,
+  generateDeviceLoginKeyPair,
+  genSalt,
+  normalizeEmail,
+  wipe,
+} from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
   type LoginSuccess,
@@ -8,7 +17,7 @@ import {
   type VaultUnlockInfo,
 } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
-import { toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import { type TRPCClient, TRPCClientError } from "@trpc/client";
 import {
   b64ToBytes,
@@ -38,6 +47,11 @@ export class LoginFinishFailedError extends Error {
 
 export class OpaqueLoginFailedError extends Error {
   override message = "OpaqueLoginFailedError";
+}
+
+/** The server refused the device credential (removed, or the assertion didn't verify). */
+export class DeviceLoginRejectedError extends Error {
+  override message = "DeviceLoginRejectedError";
 }
 
 /** Too many login attempts for this account (or from this IP) — retry later. */
@@ -179,6 +193,88 @@ export async function loginWithOpaquePassword(
   await loginSession(sessionId, sessionKey, authSalt);
 
   return { email, userId, userPasswordKeys, vaultKeys, userKeyPair };
+}
+
+/**
+ * A device login waiting for its WebAuthn assertion: sign `challenge` with the
+ * device credential (`authenticateBiometric`), then `finish`. Single use, and
+ * the server drops it after five minutes.
+ */
+export type PendingDeviceLogin = {
+  challenge: Uint8Array;
+  startedAt: number;
+  finish: (
+    assertion: DeviceAssertion,
+    loginSession: LoginSessionFn,
+    email: string,
+    onSecondFactor?: SecondFactorPrompt,
+  ) => Promise<AccountLogin>;
+  /** Drop a login that won't be finished (wipes its key); a no-op after `finish`. */
+  discard: () => void;
+};
+
+/**
+ * Start a login with the device credential behind the biometric unlock
+ * (`login.startDeviceLogin`). The session key comes from an X25519 agreement
+ * whose keys the signed challenge covers. Throws like `loginWithOpaquePassword`;
+ * a credential or assertion the server refuses is `DeviceLoginRejectedError`.
+ */
+export async function startDeviceLogin(
+  trpc: LoginTRPCClient,
+  credentialId: string,
+): Promise<PendingDeviceLogin> {
+  let started: Awaited<ReturnType<LoginTRPCClient["login"]["startDeviceLogin"]["mutate"]>>;
+  try {
+    started = await trpc.login.startDeviceLogin.mutate({ credentialId });
+  } catch (err) {
+    throw requestFailure(err, DeviceLoginRejectedError);
+  }
+  const { privateKey, publicKey } = generateDeviceLoginKeyPair();
+  const serverPublicKey = fromBase64(started.serverPublicKey);
+  const challenge = deviceLoginChallenge(fromBase64(started.nonce), serverPublicKey, publicKey);
+
+  let used = false;
+  function discard() {
+    used = true;
+    wipe(privateKey);
+  }
+
+  async function finish(
+    assertion: DeviceAssertion,
+    loginSession: LoginSessionFn,
+    email: string,
+    onSecondFactor: SecondFactorPrompt = noSecondFactor,
+  ): Promise<AccountLogin> {
+    if (used) throw new DeviceLoginRejectedError();
+    let sessionKey: string;
+    try {
+      sessionKey = await deviceSessionKey(privateKey, serverPublicKey, challenge);
+    } finally {
+      discard();
+    }
+    const authSalt = genSalt();
+
+    let finished: Awaited<ReturnType<LoginTRPCClient["login"]["finishDeviceLogin"]["mutate"]>>;
+    try {
+      finished = await trpc.login.finishDeviceLogin.mutate({
+        attemptId: started.attemptId,
+        clientPublicKey: toBase64(publicKey),
+        ...assertion,
+        authSalt: toBase64(authSalt),
+      });
+    } catch (err) {
+      throw requestFailure(err, DeviceLoginRejectedError);
+    }
+
+    const { sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } =
+      "secondFactorRequired" in finished
+        ? await passSecondFactor(trpc, finished.challengeId, onSecondFactor)
+        : finished;
+    await loginSession(sessionId, sessionKey, authSalt);
+    return { email: normalizeEmail(email), userId, userPasswordKeys, vaultKeys, userKeyPair };
+  }
+
+  return { challenge, startedAt: Date.now(), finish, discard };
 }
 
 /** Ask for codes until one is right, the user cancels or the challenge is gone. */

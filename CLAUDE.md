@@ -169,7 +169,23 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
 OPAQUE is `@cloudflare/opaque-ts` (P-256, scrypt KSF from `@repo/crypto/services/opaque-ksf`). It never gets the
 password: every registration, login, password change and recovery passes `deriveOpaquePassword(password, email)`
 (HKDF, `opaqueInputFor` / `loginWithOpaquePassword` in `packages/client`). That buffer, not the password, is what
-`secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect and the web biometric enrollment.
+`secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect (and to get online for a pending web
+biometric enrollment); it is never stored.
+
+Web biometric unlock (`useEnrollBiometric`, `biometricUnlock`): the WebAuthn PRF output wraps only the account key.
+A linked profile also registers the credential's public key (`user.registerDeviceCredential`, fresh password login,
+`device_credentials`; `biometricDeviceLogin` in the material), and the same prompt then signs a device login:
+`login.startDeviceLogin` (nonce + server ephemeral X25519, `devicelogin:<attemptId>`, 5 min) → the WebAuthn challenge is
+`deviceLoginChallenge(nonce, serverPub, clientPub)` → `login.finishDeviceLogin` (assertion checked in
+`apps/server/src/auth/webauthn.ts`: origin host in `allowedHostnames`, rpId hash, UP + UV, signature, growing counter;
+session key = HKDF of the X25519 secret, `deviceSessionKey`), then two-factor as for a password login. Such a session is
+`passwordless`: never fresh auth and no reset of the password throttle. A credential stops logging in
+`SESSION_MAX_AGE_MS` after its last password login (`passwordVerifiedAt`); `useLinkDeviceCredential` (unlocked tree) links it
+to every session of the device (`user.linkDeviceCredential`, a password session also renews it). Revoking a session deletes
+its device's credential (`Session.deviceCredentialId`), revoke-others every other one, a password change / recovery all of
+them; a credential the server refuses is forgotten on the device (`useDeviceLogin`), so enrollment is offered again.
+`useBiometricUnlock` prepares the login before the click (Safari's gesture window); there is no automatic reconnect after
+a biometric unlock (it needs the prompt): `useReconnect` reconnects through it when no OPAQUE password is kept.
 
 Registration:
 
@@ -265,7 +281,7 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 `user.startPasswordChange` (new OPAQUE registration; the email must be the session user's) and `finishPasswordChange`
 (attempt `passwordchange:<attemptId>` bound to the active `keySetId`; new key set with the recovery wrap carried over,
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
-Both modes drop the biometric enrollment (it holds the old password); recovery key and vault keys stay.
+Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay.
 
 Two-factor (TOTP + backup codes, opt-in; `useTwoFactor`, web Settings → Security `TwoFactorSettings`, mobile `TwoFactorSection` /
 `TwoFactorSheet`): `user.startTotpEnrollment` (fresh login; secret in Redis `totpenroll:<userId>` 10 min, returns `otpauth://` URI +
@@ -294,7 +310,7 @@ Authenticated requests use HMAC-signed headers (no cookies):
 The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
 SSE subscriptions (no headers possible) send the same four values as tRPC `connectionParams`, signed over the fixed
 path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the session TTL. `freshAuthProcedure` additionally
-requires an OPAQUE login ≤ 5 min ago (used for key changes). Key sets are versioned (`valid_from`/`valid_to`, one active
+requires an OPAQUE login ≤ 5 min ago (used for key changes; a device login never counts). Key sets are versioned (`valid_from`/`valid_to`, one active
 per user) — never `UPDATE` key material in place.
 
 Session modes (ADR 0001 D2, `SessionProvider`): unlocking never needs the server; server auth is attached
@@ -320,11 +336,11 @@ vaultKey[v] ──wrap──► vaultKey[v-1]     (rotation chain, `previousKeys
 accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
 senderPrivKey + memberPublicKey ──seal──► vaultKey   (invites, rotated keys: `sealVaultKey`, authenticated
                                                     by the sender; the member rewraps it, `vault.acceptKey`)
-(biometric KEK / mobile login bundle also hold the accountKey, never a vault key; the web biometric
- enrollment also holds a linked profile's OPAQUE password;
+(biometric KEK / mobile login bundle also hold the accountKey, never a vault key;
  mobile autofill entries hold decrypted login passwords, under a biometric-gated device key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
+X25519(device login ephemerals) ──HKDF(challenge)──► sessionKey   (web biometric device login)
 ```
 
 Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the
@@ -457,7 +473,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
 `appRouter` (in `apps/server/src/router.ts`):
 
 - `appConfig` → `appConfigRouter` (getConfig — public)
-- `login` → `loginRouter` (startLogin, finishLogin, verifySecondFactor, logout)
+- `login` → `loginRouter` (startLogin, finishLogin, startDeviceLogin, finishDeviceLogin, verifySecondFactor, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
 - `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
@@ -467,6 +483,7 @@ Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed wit
   a revoked device locks: `signedout:<sessionId>` marker, see Session modes) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
   mobile Settings (`SessionsSection`)
 - `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
+  registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
   two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)

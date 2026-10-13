@@ -17,9 +17,28 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
 }));
 
 const connect = vi.fn(async () => "online" as const);
+const connectWithDevice = vi.fn(async () => "online" as const);
 vi.mock("@repo/client/src/hooks/use-connect-server", async (importActual) => ({
   ...(await importActual<object>()),
-  useConnectServer: () => ({ connect }),
+  useConnectServer: () => ({ connect, connectWithDevice }),
+}));
+const deviceLogin = {
+  challenge: new Uint8Array(32),
+  startedAt: 0,
+  finish: vi.fn(),
+  discard: vi.fn(),
+};
+const take = vi.fn(async () => deviceLogin);
+vi.mock("@repo/client/src/hooks/use-device-login", async (importActual) => ({
+  ...(await importActual<object>()),
+  useDeviceLogin: () => ({ take, prepare: vi.fn(), drop: vi.fn(), settle: vi.fn((_l, r) => r) }),
+}));
+vi.mock("@repo/crypto", async (importActual) => ({
+  ...(await importActual<object>()),
+  authenticateBiometric: vi.fn(async () => ({
+    accountKey: new Uint8Array(32).fill(1),
+    assertion: { authenticatorData: "a", clientDataJSON: "c", signature: "s" },
+  })),
 }));
 
 let status: SyncStatus;
@@ -40,6 +59,7 @@ beforeEach(() => {
   Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });
   vi.clearAllMocks();
   secretsStore.clearOpaquePassword();
+  store.biometricKeyMaterial = null;
 });
 
 function renderMenu(mode: SessionMode, networkOffline = false) {
@@ -110,6 +130,23 @@ describe("SyncStatusMenu", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
     expect(connect).toHaveBeenCalledWith(new Uint8Array(32).fill(1));
+  });
+
+  it("without a password at hand, connects by hand through the biometric prompt", async () => {
+    store.biometricKeyMaterial = {
+      biometricEncryptedAccountKey: "bak",
+      biometricNonce: "bn",
+      credentialId: "cred",
+      prfSalt: "prf",
+      biometricDeviceLogin: "1",
+    };
+    status = { ...status, phase: "offline" };
+    renderMenu("offline");
+    await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
+    await waitFor(() => expect(connectWithDevice).toHaveBeenCalledTimes(1));
+    expect(take).toHaveBeenCalledWith("cred");
+    expect(connect).not.toHaveBeenCalled();
   });
 
   it("no connect by hand without the password, or without network", async () => {

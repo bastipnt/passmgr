@@ -1,5 +1,5 @@
 import { retrievePRK, SESSION_SIGNED_OUT, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
-import { db, keysTable, usersTable, vaultMembersTable } from "@repo/db";
+import { db, deviceCredentialsTable, keysTable, usersTable, vaultMembersTable } from "@repo/db";
 import { fromBase64 } from "@repo/util";
 import { and, isNull } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import { secretsStore } from "../../../../packages/store/src/secrets-store";
 import { FRESH_AUTH_WINDOW_MS } from "../../src/auth/auth-middleware";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
+import { fakeAuthenticator } from "../setup/fake-authenticator";
 import { clientStartRegistration } from "../setup/opaque-client";
 import { deriveAuthKey } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
@@ -135,6 +136,21 @@ describe("password change (real Postgres + Redis)", () => {
   it("rewraps the same account key, swaps the OPAQUE record and revokes every session", async () => {
     const { accountKey, account, material } = await registerAndUnlock();
     const oldSession = await loginAndGetAuthKey(email, password);
+    const authenticator = fakeAuthenticator();
+    const credential = {
+      credentialId: authenticator.credentialId,
+      publicKey: authenticator.publicKey,
+      algorithm: authenticator.algorithm,
+    };
+    await (
+      await callSigned(
+        oldSession.sessionId,
+        oldSession.authKey,
+        "mutation",
+        "user.registerDeviceCredential",
+        credential,
+      )
+    ).user.registerDeviceCredential(credential);
     const before = await activeKeySet();
     const [personalVault] = await db.select().from(vaultMembersTable);
     if (!personalVault) throw new Error("no personal vault");
@@ -165,6 +181,9 @@ describe("password change (real Postgres + Redis)", () => {
     });
     expect(await db.select().from(vaultMembersTable)).toEqual([personalVault]);
     expect(unwrapVaultKey(accountKey, personalVault)).toHaveLength(32);
+
+    // No device logs in with a credential registered under the old password.
+    expect(await db.select().from(deviceCredentialsTable)).toEqual([]);
 
     // Old key set closed, not overwritten.
     const rows = await db.select().from(keysTable);

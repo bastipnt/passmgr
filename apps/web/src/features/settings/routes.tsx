@@ -1,4 +1,4 @@
-import { SessionContext, useAutoReconnect } from "@repo/client";
+import { SessionContext, useAutoReconnect, useLinkDeviceCredential } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
@@ -21,6 +21,7 @@ export default function SettingsRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
   const isMobile = useIsMobile();
   useAutoReconnect();
+  useLinkDeviceCredential();
 
   // The welcome sends a device with vaults on to their unlock.
   if (!vaultUnlocked) return <Redirect to={authPaths.welcome} />;
