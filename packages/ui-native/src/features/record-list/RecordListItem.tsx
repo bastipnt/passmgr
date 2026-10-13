@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react-native";
+import { ChevronRight, Star } from "lucide-react-native";
 import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
@@ -14,6 +14,8 @@ type RecordLIProps = {
   avatar?: ReactNode;
   /** First row of its group: drops the hairline above it. */
   first?: boolean;
+  /** Starred: a small star after the title. */
+  favorite?: boolean;
   onClick?: () => void;
 };
 
@@ -27,9 +29,13 @@ export function RecordListItem({
   websites,
   avatar,
   first,
+  favorite,
   onClick,
 }: RecordLIProps) {
-  const chevron = useCSSVariable("--color-muted-foreground") as string;
+  const [chevron, warning] = useCSSVariable([
+    "--color-muted-foreground",
+    "--color-warning",
+  ]) as string[];
 
   return (
     <Pressable
@@ -45,9 +51,14 @@ export function RecordListItem({
         )}
       >
         <View className="flex-1">
-          <Text numberOfLines={1} className="font-semibold text-[16px] text-foreground">
-            {title}
-          </Text>
+          <View className="flex-row items-center gap-1.5">
+            <Text numberOfLines={1} className="shrink font-semibold text-[16px] text-foreground">
+              {title}
+            </Text>
+            {favorite && (
+              <Star size={14} color={warning} fill={warning} accessibilityLabel="Favorite" />
+            )}
+          </View>
           <Text numberOfLines={1} className="text-muted-foreground text-sm">
             {username || "—"}
           </Text>

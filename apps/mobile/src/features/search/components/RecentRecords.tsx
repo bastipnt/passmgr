@@ -29,6 +29,7 @@ export function RecentRecords({ records, onOpen, onClear }: RecentRecordsProps) 
           key={record.recordId}
           first={index === 0}
           title={record.title}
+          favorite={record.favorite}
           username={getRecordSubtitle(record)}
           websites={getRecordWebsites(record)}
           onClick={() => {

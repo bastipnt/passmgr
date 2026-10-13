@@ -53,6 +53,7 @@ export function RecordsList({ recordGroups, onSelect, scrollY, showVault }: Reco
             key={record.recordId}
             first={index === 0}
             title={record.title}
+            favorite={record.favorite}
             username={subtitle(record)}
             websites={getRecordWebsites(record)}
             avatar={

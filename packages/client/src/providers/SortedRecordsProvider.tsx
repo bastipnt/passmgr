@@ -98,7 +98,25 @@ function getDateBucket(ts: string | null): (typeof BUCKET_ORDER)[number] {
   return "Older";
 }
 
+/** The label of the starred records' group, atop the list in every sort. */
+export const FAVORITES_LABEL = "Favorites";
+
+/**
+ * The list's groups: the starred records first (in the list's order), then
+ * the rest by `sort`. With favorites above it, the non-letter group of an
+ * A–Z list gets a "#" label, else its rows would read as favorites.
+ */
 function groupRecords(sortedRecords: DecryptedRecord[], sort: SortOption): RecordGroup[] {
+  const favorites = sortedRecords.filter((record) => record.favorite);
+  if (favorites.length === 0) return groupBySort(sortedRecords, sort);
+  const rest = groupBySort(
+    sortedRecords.filter((record) => !record.favorite),
+    sort,
+  ).map((group) => (group.label === null ? { ...group, label: "#" } : group));
+  return [{ label: FAVORITES_LABEL, records: favorites }, ...rest];
+}
+
+function groupBySort(sortedRecords: DecryptedRecord[], sort: SortOption): RecordGroup[] {
   if (sort === "alphabetical") {
     const letterMap = new Map<string | null, DecryptedRecord[]>();
 
@@ -215,6 +233,7 @@ type SortedRecordsContextValue = {
   /** The list's vault filter ("All vaults" or one). A search ignores it too. */
   vaultFilter: VaultFilter;
   setVaultFilter: (vault: VaultFilter) => void;
+  /** The listed records in the order shown (favorites first). */
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
   /** Whether any group carries a label (none do while searching). */
@@ -279,14 +298,17 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
         : filterByType(filterByVault(records, vaultFilter), typeFilter),
     [records, query, hasQuery, typeFilter, vaultFilter],
   );
-  const sortedRecords = useMemo(
-    () => (hasQuery ? filtered : sortRecords(filtered, sort)),
-    [filtered, sort, hasQuery],
-  );
   const recordGroups = useMemo(
     () =>
-      hasQuery ? [{ label: null, records: sortedRecords }] : groupRecords(sortedRecords, sort),
-    [sortedRecords, sort, hasQuery],
+      hasQuery
+        ? [{ label: null, records: filtered }]
+        : groupRecords(sortRecords(filtered, sort), sort),
+    [filtered, sort, hasQuery],
+  );
+  // In the order shown: favorites first, so arrow keys walk the list as it reads.
+  const sortedRecords = useMemo(
+    () => recordGroups.flatMap((recordGroup) => recordGroup.records),
+    [recordGroups],
   );
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);

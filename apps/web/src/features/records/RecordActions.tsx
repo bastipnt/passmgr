@@ -4,6 +4,7 @@ import {
   ShortcutLayer,
   useMoveRecord,
   useSortedRecords,
+  useToggleFavorite,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
@@ -25,6 +26,7 @@ import {
   ExternalLinkIcon,
   LockIcon,
   PencilLineIcon,
+  StarIcon,
   Timeline,
   TrashIcon,
 } from "lucide-react";
@@ -122,6 +124,51 @@ export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDrop
   );
 }
 
+type FavoriteButtonProps = {
+  record: DecryptedRecord;
+  variant?: "outline" | "floating";
+};
+
+/**
+ * Star / unstar the record. A `read` member can't write a version, so for them
+ * a starred record shows a plain star and an unstarred one nothing.
+ */
+export function FavoriteButton({ record, variant = "outline" }: FavoriteButtonProps) {
+  const { writable } = useRecordVault(record);
+  const { toggleFavorite, togglePending } = useToggleFavorite({
+    onError: () => toast.error("The item couldn't be saved"),
+  });
+  const favorite = Boolean(record.favorite);
+  const star = <StarIcon aria-hidden className={cn(favorite && "fill-warning text-warning")} />;
+
+  if (!writable) {
+    return favorite ? (
+      <span
+        className={cn(
+          "flex items-center justify-center [&_svg]:size-4",
+          variant === "floating" ? "size-12" : "size-10",
+        )}
+      >
+        {star}
+        <span className="sr-only">Favorite</span>
+      </span>
+    ) : null;
+  }
+
+  return (
+    <Button
+      variant={variant}
+      size={variant === "floating" ? "icon-xl" : "icon-lg"}
+      aria-label={favorite ? "Remove from favorites" : "Add to favorites"}
+      aria-pressed={favorite}
+      disabled={togglePending}
+      onClick={() => toggleFavorite(record)}
+    >
+      {star}
+    </Button>
+  );
+}
+
 type RecordActionsProps = {
   record: DecryptedRecord;
   onDelete: () => void;
@@ -161,6 +208,7 @@ export function RecordActions({ record, onDelete, className }: RecordActionsProp
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
+        <FavoriteButton record={record} />
         {writable && (
           <Link
             variant="outline"

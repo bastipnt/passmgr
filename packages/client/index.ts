@@ -44,6 +44,7 @@ export * from "./src/hooks/use-shortcut";
 export * from "./src/hooks/use-sign-out";
 export * from "./src/hooks/use-sync-status";
 export * from "./src/hooks/use-target-vault";
+export * from "./src/hooks/use-toggle-favorite";
 export * from "./src/hooks/use-totp";
 export * from "./src/hooks/use-trash";
 export * from "./src/hooks/use-two-factor";

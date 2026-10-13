@@ -1,4 +1,4 @@
-import { useMoveRecord, useSortedRecords, useVaults } from "@repo/client";
+import { useMoveRecord, useSortedRecords, useToggleFavorite, useVaults } from "@repo/client";
 import { canWriteVault } from "@repo/schema";
 import {
   Empty,
@@ -29,9 +29,10 @@ export default function RecordScreen() {
   const password =
     record?.type === "login" || record?.type === "wifi" ? record.password : undefined;
   const onCopy = useCopyField();
-  const [primary, foreground] = useCSSVariable([
+  const [primary, foreground, warning] = useCSSVariable([
     "--color-primary",
     "--color-foreground",
+    "--color-warning",
   ]) as string[];
   const { scrollProps, titleInBar, contentTopPadding, restAnchor } =
     useScrollTitle(TITLE_IN_BAR_OFFSET);
@@ -52,6 +53,10 @@ export default function RecordScreen() {
     },
     onError: () => toast.error("The item couldn't be moved"),
   });
+  const { toggleFavorite, togglePending } = useToggleFavorite({
+    onError: () => toast.error("The item couldn't be saved"),
+  });
+  const favorite = Boolean(record?.favorite);
 
   return (
     <Screen>
@@ -77,6 +82,27 @@ export default function RecordScreen() {
                           tintColor: primary,
                           onPress: () =>
                             router.navigate(recordPaths.editRecord(recordId as string)),
+                        },
+                      ]
+                    : []),
+                  // A read member sees a starred record's star, but can't change it.
+                  ...(writable || favorite
+                    ? [
+                        {
+                          type: "button" as const,
+                          label: favorite ? "Favorite" : "Add to favorites",
+                          accessibilityLabel: !writable
+                            ? "Favorite"
+                            : favorite
+                              ? "Remove from favorites"
+                              : "Add to favorites",
+                          icon: {
+                            type: "sfSymbol" as const,
+                            name: favorite ? ("star.fill" as const) : ("star" as const),
+                          },
+                          tintColor: favorite ? warning : foreground,
+                          disabled: !writable || togglePending,
+                          onPress: () => toggleFavorite(record),
                         },
                       ]
                     : []),

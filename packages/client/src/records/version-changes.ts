@@ -39,11 +39,20 @@ export function describeVersionChanges(
     getRecordFieldSpecs(version, { includeTitle: true }),
   );
 
-  return rows.flatMap((row) => {
+  const changes = rows.flatMap((row): VersionChange[] => {
     if (row.status === "unchanged") return [];
     const spec = row.latest ?? row.old;
     if (!spec) return [];
     const name = SHORT_NAME[spec.kind] ?? spec.label;
     return [{ key: row.key, status: row.status, label: `${name} ${STATUS_WORD[row.status]}` }];
   });
+  return [...changes, ...favoriteChange(version, previous)];
+}
+
+// Not a field spec (no view renders it as a field), so compared on its own.
+function favoriteChange(version: DecryptedRecord, previous: DecryptedRecord): VersionChange[] {
+  if (Boolean(version.favorite) === Boolean(previous.favorite)) return [];
+  return version.favorite
+    ? [{ key: "favorite", status: "added", label: "Added to favorites" }]
+    : [{ key: "favorite", status: "removed", label: "Removed from favorites" }];
 }

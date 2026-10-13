@@ -63,4 +63,22 @@ describe("describeVersionChanges", () => {
       "Expiry date removed",
     ]);
   });
+
+  it("reports starring and unstarring", () => {
+    expect(describeVersionChanges(makeRecord(2, { favorite: true }), makeRecord(1))).toEqual([
+      { key: "favorite", status: "added", label: "Added to favorites" },
+    ]);
+    expect(
+      describeVersionChanges(makeRecord(3), makeRecord(2, { favorite: true })).map((c) => c.label),
+    ).toEqual(["Removed from favorites"]);
+  });
+
+  it("lists a star after the field changes made with it", () => {
+    const version = makeRecord(2, { favorite: true, password: "new-password" });
+
+    expect(describeVersionChanges(version, makeRecord(1)).map((c) => c.label)).toEqual([
+      "Password changed",
+      "Added to favorites",
+    ]);
+  });
 });

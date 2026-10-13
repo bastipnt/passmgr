@@ -11,7 +11,7 @@ import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
 import ShellBackdrop from "@/components/ShellBackdrop";
 import Record from "./Record";
-import { MoreDropdown, RecordVaultLine } from "./RecordActions";
+import { FavoriteButton, MoreDropdown, RecordVaultLine } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
 import { displayHost, useCopyField } from "./record-utils";
@@ -66,6 +66,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         </Button>
         <span className="flex-1" />
         <div ref={actionsRef} className="flex items-center gap-2">
+          <FavoriteButton record={record} variant="floating" />
           {writable && (
             <Link variant="floating" size="lg" href={recordPaths.editRecord(record.recordId)}>
               <PencilLineIcon />

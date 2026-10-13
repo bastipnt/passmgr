@@ -415,6 +415,12 @@ first and only `online` (`VaultsOfflineError`); a create then syncs with `syncMa
 it. Web: `features/vaults/` (switcher in the list bar, picker in the create sheet, Settings → Vaults); mobile:
 Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
 
+Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star is a new version (synced, in the
+history as "Added to / Removed from favorites", shared with every member of a shared vault; `read` members only see it).
+`SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
+normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
+Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
+
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 
 ### tRPC Router Structure

@@ -24,7 +24,7 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
-import { ChevronRightIcon } from "lucide-react";
+import { ChevronRightIcon, StarIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
@@ -76,6 +76,12 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
         <div className="min-w-0 flex-1">
           <ItemTitle className="font-semibold text-[0.95rem] max-sm:text-base">
             {record.title}
+            {record.favorite && (
+              <>
+                <StarIcon className="size-3.5 shrink-0 fill-warning text-warning" aria-hidden />
+                <span className="sr-only">Favorite</span>
+              </>
+            )}
           </ItemTitle>
           <ItemDescription className="line-clamp-1 text-[0.8rem] max-sm:text-sm">
             {vault && (
