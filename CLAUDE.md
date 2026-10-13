@@ -231,6 +231,12 @@ extension / `AutofillAuthActivity` reads them after a biometric match. iOS exten
 (`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups from `plugins/with-autofill.js`;
 needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state and opens the OS setting.
 
+Mobile share ("save login from other apps"): the iOS share extension (`apps/mobile/targets/share`, no app group, nothing
+stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobile/modules/share`, `ACTION_SEND` text) only
+open `passmgr://share?text=…`. `src/app/+native-intent.tsx` makes it `recordPaths.createLogin(sharedWebsite(text))` (new login,
+website + host title; `@repo/client` `records/shared-login.ts`); while locked `routeSharedLogin` sends it home and holds it
+until the unlocked tree mounts (`useOpenSharedLogin`).
+
 Emergency kit (`createEmergencyKit` / `useEmergencyKit`, `packages/client/src/account/emergency-kit.ts`): a one-page
 PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a local vault), a write-in field for the
 master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and

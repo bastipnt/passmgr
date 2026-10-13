@@ -9,6 +9,7 @@ import {
   type RecordType,
   recordDataSchema,
 } from "@repo/schema";
+import { websiteUrl } from "@repo/util";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 
 /*
@@ -146,25 +147,6 @@ export function latestDate(dates: (string | undefined)[]): string | undefined {
     .filter((d): d is string => !!d)
     .sort()
     .at(-1);
-}
-
-const BARE_HOST =
-  /^(localhost|[a-z0-9-]+(\.[a-z0-9-]+)*\.[a-z]{2,}|\d{1,3}(\.\d{1,3}){3})(:\d+)?([/?#].*)?$/i;
-
-/** An http(s) URL for a website, `https://` added to a bare host; `undefined` for anything else. */
-export function websiteUrl(raw: string): string | undefined {
-  const value = raw.trim();
-  const candidate = /^https?:\/\//i.test(value)
-    ? value
-    : BARE_HOST.test(value)
-      ? `https://${value}`
-      : undefined;
-  if (!candidate) return undefined;
-  try {
-    return new URL(candidate).protocol.startsWith("http") ? candidate : undefined;
-  } catch {
-    return undefined;
-  }
 }
 
 function hostOf(url: string): string {

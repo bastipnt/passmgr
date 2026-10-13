@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ExportRecord } from "@repo/schema";
+import { websiteUrl } from "@repo/util";
 import { strToU8, zipSync } from "fflate";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
@@ -10,7 +11,6 @@ import {
   ForeignImportBuilder,
   finishRecord,
   importStoppedMessage,
-  websiteUrl,
 } from "../src/import/foreign-import";
 import { type ParseXml, type XmlElement } from "../src/import/keepass";
 import {

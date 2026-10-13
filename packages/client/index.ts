@@ -94,6 +94,7 @@ export * from "./src/records/record-repository";
 export * from "./src/records/record-summary";
 export * from "./src/records/resolve-record-conflict";
 export * from "./src/records/security-score";
+export * from "./src/records/shared-login";
 export * from "./src/records/two-factor-directory";
 export * from "./src/records/version-changes";
 export * from "./src/records/wifi";

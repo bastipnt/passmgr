@@ -6,6 +6,7 @@ import {
 } from "@repo/client";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCSSVariable } from "uniwind";
+import { useOpenSharedLogin } from "@/features/records/shared-login";
 import { useAppActive } from "@/hooks/use-app-active";
 import { useAutoLock } from "@/hooks/use-auto-lock";
 
@@ -17,6 +18,7 @@ export default function AppLayout() {
   useAutoLock();
   // Back online after an unlock without the server: attach the session.
   useAutoReconnect();
+  useOpenSharedLogin();
 
   return (
     <RecordsProvider>
