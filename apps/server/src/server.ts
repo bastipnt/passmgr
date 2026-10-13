@@ -6,6 +6,7 @@ import "./opaque";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
 import { db } from "@repo/db";
+import { MAX_REQUEST_BYTES } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
@@ -29,6 +30,7 @@ const trustProxy = trustProxyEnv || false;
 
 export const server = fastify({
   trustProxy,
+  bodyLimit: MAX_REQUEST_BYTES,
   routerOptions: {
     maxParamLength: 5000,
   },

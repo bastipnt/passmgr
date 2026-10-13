@@ -5,11 +5,15 @@ import {
   EXPORT_FORMAT_VERSION,
   type ExportData,
   type ExportRecord,
+  MAX_RECORD_PAYLOAD_BYTES,
   MAX_TAGS,
+  MAX_TITLE_LENGTH,
   normalizeTags,
   type RecordData,
   type RecordType,
   recordDataSchema,
+  recordPayloadBytes,
+  recordPayloadJson,
   sanitizeTag,
 } from "@repo/schema";
 import { websiteUrl } from "@repo/util";
@@ -36,8 +40,9 @@ export const IMPORT_SOURCE_LABELS: Record<ImportSource, string> = {
 /**
  * - `unsupported_type`: an item kind with no record type here (a 1Password document)
  * - `invalid`: no valid record even after cleanup
+ * - `too_large`: a field, or the whole item, over the limits (`record-limits.ts`)
  */
-export type SkipReason = "unsupported_type" | "invalid";
+export type SkipReason = "unsupported_type" | "invalid" | "too_large";
 
 export type ForeignImportReport = {
   skipped: { title: string; reason: SkipReason }[];
@@ -60,6 +65,7 @@ export type ForeignImport = {
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   unsupported_type: "no matching item type here",
   invalid: "not a valid item",
+  too_large: "too large",
 };
 
 const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
@@ -161,11 +167,11 @@ function unique<T>(values: T[]): T[] {
 }
 
 /**
- * The record's payload, or `undefined` when it isn't a valid one. A website
- * that isn't an http(s) URL is kept as a "Website" field, an empty title
- * becomes the host, the username or "Imported item".
+ * The record's payload, or why it can't be imported. A website that isn't an
+ * http(s) URL is kept as a "Website" field, an empty title becomes the host,
+ * the username or "Imported item"; a long one is cut.
  */
-export function finishRecord(record: ForeignRecord): RecordData | undefined {
+export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
   const customFields: CustomField[] = (record.customFields ?? [])
     .filter((field) => field.value.trim() !== "")
     .map((field) => ({
@@ -186,8 +192,12 @@ export function finishRecord(record: ForeignRecord): RecordData | undefined {
     Object.entries(record.fields ?? {}).filter(([, value]) => value !== undefined && value !== ""),
   );
   const username = typeof fields.username === "string" ? fields.username : undefined;
-  const title =
-    record.title?.trim() || (websites[0] && hostOf(websites[0])) || username || "Imported item";
+  const title = (
+    record.title?.trim() ||
+    (websites[0] && hostOf(websites[0])) ||
+    username ||
+    "Imported item"
+  ).slice(0, MAX_TITLE_LENGTH);
   const tags = normalizeTags((record.tags ?? []).map(sanitizeTag)).slice(0, MAX_TAGS);
   const hasPassword = typeof fields.password === "string";
 
@@ -207,7 +217,11 @@ export function finishRecord(record: ForeignRecord): RecordData | undefined {
     ...(customFields.length > 0 ? { customFields } : {}),
   };
   const result = recordDataSchema.safeParse(candidate);
-  return result.success ? result.data : undefined;
+  if (!result.success) {
+    return result.error.issues.some((issue) => issue.code === "too_big") ? "too_large" : "invalid";
+  }
+  const bytes = recordPayloadBytes(recordPayloadJson(result.data));
+  return bytes > MAX_RECORD_PAYLOAD_BYTES ? "too_large" : result.data;
 }
 
 export class ForeignImportBuilder {
@@ -230,8 +244,8 @@ export class ForeignImportBuilder {
 
   add(record: ForeignRecord): void {
     const data = finishRecord(record);
-    if (!data) {
-      this.skip(record.title?.trim() || "Untitled", "invalid");
+    if (typeof data === "string") {
+      this.skip(record.title?.trim() || "Untitled", data);
       return;
     }
     this.#records.push({

@@ -6,6 +6,7 @@ const idle: SyncStatus = {
   phase: "idle",
   pending: 0,
   parked: 0,
+  storageFull: false,
   error: null,
   lastSyncedAt: null,
   enabled: true,
@@ -22,6 +23,11 @@ describe("summarizeSync", () => {
     const summary = summarizeSync("offline", { ...idle, phase: "offline", parked: 1 }, true);
     expect(summary.state).toBe("error");
     expect(summary.detail).toContain("1 change couldn't");
+  });
+
+  it("names a full storage as the reason changes are parked", () => {
+    const summary = summarizeSync("online", { ...idle, parked: 2, storageFull: true }, false);
+    expect(summary).toMatchObject({ state: "error", title: "Storage full" });
   });
 
   it("a failed round is an error only while there is a server to reach", () => {

@@ -4,6 +4,7 @@ import {
   type RecordData,
   type RecordFormValues,
   type RecordOfType,
+  RecordTooLargeError,
   type RecordType,
 } from "@repo/schema";
 import { normalizeWebsiteUrl } from "@repo/util";
@@ -98,4 +99,9 @@ export function duplicateValues<T extends RecordType>(
   return { ...recordFormDefaults(record), title: `${record.title} (copy)` } as Partial<
     RecordFormValues<T>
   >;
+}
+
+/** What a failed record write tells the user: why, when that's something they can fix. */
+export function recordErrorMessage(error: unknown, fallback: string): string {
+  return error instanceof RecordTooLargeError ? error.message : fallback;
 }

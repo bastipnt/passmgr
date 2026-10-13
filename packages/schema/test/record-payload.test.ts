@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { MAX_ENCRYPTED_RECORD_LENGTH } from "../src/record-limits";
 import {
   MAX_SYNC_RECORDS,
   MIN_SYNC_RECORDS,
@@ -29,6 +30,19 @@ describe("pushInputSchema", () => {
     };
     const del = { ...change, op: "delete", baseVersion: 1, clientChangeId: crypto.randomUUID() };
     expect(pushInputSchema.parse({ changes: [put, del] }).changes).toHaveLength(2);
+  });
+
+  it("rejects a ciphertext over the largest record", () => {
+    const put = {
+      ...change,
+      op: "put",
+      baseVersion: 0,
+      encryptedData: "E".repeat(MAX_ENCRYPTED_RECORD_LENGTH + 1),
+      encryptionNonce: "N",
+      cryptoVersion: 1,
+      keyVersion: 1,
+    };
+    expect(pushInputSchema.safeParse({ changes: [put] }).success).toBe(false);
   });
 
   it("rejects the same change twice in one batch", () => {

@@ -1,6 +1,11 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { ExportRecord } from "@repo/schema";
+import {
+  type ExportRecord,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NOTE_LENGTH,
+  MAX_TITLE_LENGTH,
+} from "@repo/schema";
 import { websiteUrl } from "@repo/util";
 import { strToU8, zipSync } from "fflate";
 import { JSDOM } from "jsdom";
@@ -113,11 +118,27 @@ describe("importStoppedMessage", () => {
 
 describe("finishRecord", () => {
   it("names an untitled record after its host, then its username", () => {
-    expect(finishRecord({ type: "login", websites: ["https://a.example.com/x"] })?.title).toBe(
-      "a.example.com",
+    expect(finishRecord({ type: "login", websites: ["https://a.example.com/x"] })).toMatchObject({
+      title: "a.example.com",
+    });
+    expect(finishRecord({ type: "login", fields: { username: "u" } })).toMatchObject({
+      title: "u",
+    });
+    expect(finishRecord({ type: "note" })).toMatchObject({ title: "Imported item" });
+  });
+
+  it("cuts a long title and skips an item over the limits as too large", () => {
+    expect(finishRecord({ type: "note", title: "t".repeat(MAX_TITLE_LENGTH + 10) })).toMatchObject({
+      title: "t".repeat(MAX_TITLE_LENGTH),
+    });
+    expect(finishRecord({ type: "note", title: "t", note: "n".repeat(MAX_NOTE_LENGTH + 1) })).toBe(
+      "too_large",
     );
-    expect(finishRecord({ type: "login", fields: { username: "u" } })?.title).toBe("u");
-    expect(finishRecord({ type: "note" })?.title).toBe("Imported item");
+    const customFields = Array.from({ length: 20 }, (_, i) => ({
+      title: `f${i}`,
+      value: "v".repeat(MAX_LONG_TEXT_LENGTH),
+    }));
+    expect(finishRecord({ type: "note", title: "t", customFields })).toBe("too_large");
   });
 
   it("keeps other websites as a field and drops empty values", () => {

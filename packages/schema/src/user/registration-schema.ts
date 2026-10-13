@@ -2,13 +2,14 @@ import z from "zod";
 import { linkedVaultInputSchema } from "../vault-schema";
 import { emailSchema } from "./email-schema";
 import { userKeyPairSchema, userKeySchema } from "./key-schema";
+import { opaqueMessageSchema } from "./opaque-schema";
 
 /**
  * Start registration
  */
 export const startRegistrationInputSchema = z.object({
   email: emailSchema,
-  registrationRequest: z.string(),
+  registrationRequest: opaqueMessageSchema,
   // One-time invite code; required only while REGISTRATION_DISABLED=true.
   invite: z.string().max(128).optional(),
 });
@@ -25,7 +26,7 @@ export const MAX_REGISTRATION_VAULTS = 100;
  */
 export const finishRegistrationInputSchema = z.object({
   email: emailSchema,
-  registrationRecord: z.string(),
+  registrationRecord: opaqueMessageSchema,
   userKeys: userKeySchema,
   // The default vault: created together with the account (first key version, no
   // earlier keys), or a linked local vault's as it is (ADR 0001 D9).

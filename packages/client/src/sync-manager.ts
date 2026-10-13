@@ -1,8 +1,10 @@
 import {
+  MAX_PUSH_BYTES,
   MAX_PUSH_CHANGES,
   type MemberVault,
   type PushChange,
   type PushResult,
+  pushChangeBytes,
   type VaultKeyUpdate,
 } from "@repo/schema";
 import {
@@ -61,6 +63,11 @@ export type SyncStatus = {
   pending: number;
   /** Changes that kept failing or were rejected: not pushed again until `retryParked`. */
   parked: number;
+  /**
+   * A change was parked in this session (not counted across restarts) because
+   * the vault owner's storage is full, until `retryParked`.
+   */
+  storageFull: boolean;
   /** Why the last round failed (`error` phase). */
   error: string | null;
   /** When a round last went through (ms since epoch). */
@@ -143,6 +150,7 @@ export class SyncManager {
     phase: "offline",
     pending: 0,
     parked: 0,
+    storageFull: false,
     error: null,
     lastSyncedAt: null,
     enabled: false,
@@ -234,6 +242,7 @@ export class SyncManager {
   /** Queue the parked changes again and sync. */
   async retryParked(): Promise<void> {
     await this.store.retryParkedChanges();
+    this.setStatus({ storageFull: false });
     await this.refreshCounts();
     if (this.enabled) void this.sync();
   }
@@ -431,7 +440,8 @@ export class SyncManager {
         // once the pull brought the new one. Counted, in case it never does.
         await this.fail(change, failureMessage(result));
       } else if (result?.status === "rejected") {
-        // Not found or forbidden (e.g. access revoked): a retry can't change that.
+        // Not found, forbidden (e.g. access revoked) or over quota: retrying won't help on its own.
+        if (result.reason === "quota") this.setStatus({ storageFull: true });
         await this.store.parkPendingChange(change.changeId, failureMessage(result));
       } else if (result?.status === "stale") {
         // Another device wrote first: the pull merges it, so it never counts.
@@ -551,24 +561,42 @@ export function toPushChange({ changeId, record }: PendingChange): PushChange {
 }
 
 /**
- * Split pending changes into push batches, keeping each record's changes
- * together and in order. Only a chain longer than a batch is split.
+ * Split pending changes into push batches of at most `maxChanges` changes and
+ * `maxBytes` (`pushChangeBytes`), keeping each record's changes together and
+ * in order. Only a chain too big for one batch is split.
  */
 export function pushBatches(
   changes: readonly PendingChange[],
-  max = MAX_PUSH_CHANGES,
+  maxChanges = MAX_PUSH_CHANGES,
+  maxBytes = MAX_PUSH_BYTES,
 ): PendingChange[][] {
+  const fits = (count: number, bytes: number) => count <= maxChanges && bytes <= maxBytes;
   const batches: PendingChange[][] = [];
   let batch: PendingChange[] = [];
+  let batchBytes = 0;
   for (const chain of groupChains(changes).values()) {
-    for (let i = 0; i < chain.length; i += max) {
-      const piece = chain.slice(i, i + max);
-      if (batch.length + piece.length > max) {
+    const chainBytes = chain.map((change) => pushChangeBytes(toPushChange(change)));
+    let piece: PendingChange[] = [];
+    let pieceBytes = 0;
+    const addPiece = () => {
+      if (!fits(batch.length + piece.length, batchBytes + pieceBytes) && batch.length > 0) {
         batches.push(batch);
         batch = [];
+        batchBytes = 0;
       }
       batch.push(...piece);
+      batchBytes += pieceBytes;
+    };
+    for (const [i, change] of chain.entries()) {
+      if (piece.length > 0 && !fits(piece.length + 1, pieceBytes + chainBytes[i]!)) {
+        addPiece();
+        piece = [];
+        pieceBytes = 0;
+      }
+      piece.push(change);
+      pieceBytes += chainBytes[i]!;
     }
+    addPiece();
   }
   if (batch.length > 0) batches.push(batch);
   return batches;

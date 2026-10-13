@@ -27,7 +27,15 @@ const sync = vi.fn(async () => true);
 const retryParked = vi.fn(async () => undefined);
 
 beforeEach(() => {
-  status = { phase: "idle", pending: 0, parked: 0, error: null, lastSyncedAt: null, enabled: true };
+  status = {
+    phase: "idle",
+    pending: 0,
+    parked: 0,
+    storageFull: false,
+    error: null,
+    lastSyncedAt: null,
+    enabled: true,
+  };
   // The fake only grows what the menu calls.
   Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });
   vi.clearAllMocks();

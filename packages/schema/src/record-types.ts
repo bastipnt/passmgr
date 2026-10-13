@@ -1,5 +1,14 @@
 import { z } from "zod";
-import { tagsFormSchema } from "./tags";
+import {
+  MAX_CUSTOM_FIELDS,
+  MAX_FIELD_LENGTH,
+  MAX_LONG_TEXT_LENGTH,
+  MAX_NOTE_LENGTH,
+  MAX_TITLE_LENGTH,
+  MAX_URL_LENGTH,
+  MAX_WEBSITES,
+} from "./record-limits";
+import { MAX_TAG_LENGTH, MAX_TAGS, tagsFormSchema } from "./tags";
 
 /**
  * The decrypted record payload (ADR 0001 D4): a discriminated union on `type`.
@@ -7,82 +16,104 @@ import { tagsFormSchema } from "./tags";
  * learns what kind of record it stores.
  */
 
+function tooLong(max: number) {
+  return `At most ${max.toLocaleString("en-US")} characters`;
+}
+
+const title = z
+  .string()
+  .min(1, "Title is required")
+  .max(MAX_TITLE_LENGTH, tooLong(MAX_TITLE_LENGTH));
+const text = z.string().max(MAX_FIELD_LENGTH, tooLong(MAX_FIELD_LENGTH)).optional();
+const longText = z.string().max(MAX_LONG_TEXT_LENGTH, tooLong(MAX_LONG_TEXT_LENGTH)).optional();
+
 const customFieldSchema = z.object({
   type: z.enum(["text", "secret"]),
-  title: z.string().min(1, "Title is required"),
-  value: z.string().min(1, "Value is required"),
+  title,
+  value: z
+    .string()
+    .min(1, "Value is required")
+    .max(MAX_LONG_TEXT_LENGTH, tooLong(MAX_LONG_TEXT_LENGTH)),
 });
 
 export type CustomField = z.infer<typeof customFieldSchema>;
 
 /** Fields every record type shares. */
 const baseRecordShape = {
-  title: z.string().min(1, "Title is required"),
-  note: z.string().optional(),
+  title,
+  note: z.string().max(MAX_NOTE_LENGTH, tooLong(MAX_NOTE_LENGTH)).optional(),
   favorite: z.boolean().optional(),
-  tags: z.array(z.string().min(1)).optional(),
-  customFields: z.array(customFieldSchema).optional(),
+  tags: z.array(z.string().min(1).max(MAX_TAG_LENGTH)).max(MAX_TAGS).optional(),
+  customFields: z
+    .array(customFieldSchema)
+    .max(MAX_CUSTOM_FIELDS, `At most ${MAX_CUSTOM_FIELDS} custom fields`)
+    .optional(),
   // Placeholder for encrypted file attachments: reserves the key, holds nothing yet.
   attachments: z.array(z.never()).optional(),
 };
 
-const websitesSchema = z.array(
-  z.object({
-    value: z.union([z.literal(""), z.url("Must be a valid URL")]),
-  }),
-);
+const websitesSchema = z
+  .array(
+    z.object({
+      value: z.union([
+        z.literal(""),
+        z.url("Must be a valid URL").max(MAX_URL_LENGTH, tooLong(MAX_URL_LENGTH)),
+      ]),
+    }),
+  )
+  .max(MAX_WEBSITES, `At most ${MAX_WEBSITES} websites`);
 
 // When the password last changed (ISO), stamped by `RecordRepository`, never by a form.
 const passwordChangedAt = z.string().optional();
 
 /** Type-specific fields, without `type` and the base fields. */
 const loginFields = {
-  username: z.string().optional(),
-  password: z.string().optional(),
+  username: text,
+  password: text,
   passwordChangedAt,
   websites: websitesSchema.optional(),
-  totp: z.string().optional(),
+  totp: text,
 };
 
 const cardFields = {
-  cardholderName: z.string().optional(),
-  number: z.string().optional(),
+  cardholderName: text,
+  number: text,
   // "MM/YY", as printed on the card.
-  expiry: z.string().optional(),
-  securityCode: z.string().optional(),
-  pin: z.string().optional(),
+  expiry: text,
+  securityCode: text,
+  pin: text,
 };
 
 const identityFields = {
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  email: z.string().optional(),
-  phone: z.string().optional(),
-  birthDate: z.string().optional(),
-  street: z.string().optional(),
-  postalCode: z.string().optional(),
-  city: z.string().optional(),
-  country: z.string().optional(),
+  firstName: text,
+  lastName: text,
+  email: text,
+  phone: text,
+  birthDate: text,
+  street: text,
+  postalCode: text,
+  city: text,
+  country: text,
 };
 
 // A secure note is the base fields only: its body is `note`.
 const noteFields = {};
 
 const sshKeyFields = {
-  privateKey: z.string().optional(),
-  publicKey: z.string().optional(),
-  passphrase: z.string().optional(),
+  privateKey: longText,
+  publicKey: longText,
+  passphrase: text,
 };
 
 const apiKeyFields = {
-  keyId: z.string().optional(),
-  secret: z.string().optional(),
-  host: z.string().optional(),
+  keyId: text,
+  secret: longText,
+  host: text,
 };
 
 const wifiFields = {
-  ssid: z.string().optional(),
-  password: z.string().optional(),
+  ssid: text,
+  password: text,
   passwordChangedAt,
   security: z.enum(["none", "wep", "wpa", "wpa2", "wpa3"]).optional(),
   hidden: z.boolean().optional(),

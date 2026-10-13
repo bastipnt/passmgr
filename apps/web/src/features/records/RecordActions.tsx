@@ -1,6 +1,7 @@
 import {
   getRecordWebsites,
   RECORD_TYPE_LABELS,
+  recordErrorMessage,
   ShortcutLayer,
   useMoveRecord,
   useRecordVault,
@@ -61,7 +62,7 @@ export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDrop
       const target = moveTargets.find((vault) => vault.vaultId === targetVaultId);
       toast.success(target ? `Moved to ${target.name}` : "Moved");
     },
-    onError: () => toast.error("The item couldn't be moved"),
+    onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be moved")),
   });
 
   return (

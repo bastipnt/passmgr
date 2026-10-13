@@ -2,10 +2,11 @@ import z from "zod";
 import { memberVaultSchema } from "../vault-schema";
 import { emailSchema } from "./email-schema";
 import { passwordKeySchema, userKeyPairSchema } from "./key-schema";
+import { opaqueMessageSchema } from "./opaque-schema";
 
 export const startLoginInputSchema = z.object({
   email: emailSchema,
-  startLoginRequest: z.string(),
+  startLoginRequest: opaqueMessageSchema,
 });
 
 export const startLoginOutputSchema = z.object({
@@ -17,7 +18,7 @@ export const startLoginOutputSchema = z.object({
 export const finishLoginInputSchema = z.object({
   email: emailSchema,
   attemptId: z.uuid(),
-  finishLoginRequest: z.string(),
+  finishLoginRequest: opaqueMessageSchema,
   // 32 bytes base64-encoded with padding
   authSalt: z.base64().length(44),
 });

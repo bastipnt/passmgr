@@ -25,6 +25,7 @@ import {
   edgeCaseLoginRecords,
   exampleLoginRecords,
   exampleTypedRecords,
+  pushChangeBytes,
   type RecordData,
   type RecordPayload,
 } from "@repo/schema";
@@ -170,7 +171,10 @@ async function seed() {
   await db.insert(recordsTable).values(recordRows);
   await db
     .update(vaultsTable)
-    .set({ lastSeq: recordRows.length })
+    .set({
+      lastSeq: recordRows.length,
+      usedBytes: recordRows.reduce((sum, row) => sum + pushChangeBytes(row), 0),
+    })
     .where(eq(vaultsTable.vaultId, vaultId));
 
   console.log(`Done! Seeded user ${EMAIL} / ${PASSWORD} with ${recordRows.length} records.`);

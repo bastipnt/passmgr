@@ -33,6 +33,9 @@ export const vaultsTable = pgTable(
     // locks this row until the write commits, so a vault's records commit in
     // `seq` order and a pull cursor never skips a row that commits late.
     lastSeq: bigint({ mode: "number" }).notNull().default(0),
+    // What its record versions take up (`pushChangeBytes` each), counted against
+    // the owner's storage quota. Kept up to date by every records write.
+    usedBytes: bigint({ mode: "number" }).notNull().default(0),
     // A member left or was removed and still knows the current key: the next
     // owner or manager online rotates it (ADR 0001 D7), which clears this.
     keyRotationNeeded: boolean().notNull().default(false),

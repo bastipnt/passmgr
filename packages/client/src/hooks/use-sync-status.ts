@@ -8,6 +8,7 @@ const NO_PROFILE: SyncStatus = {
   phase: "offline",
   pending: 0,
   parked: 0,
+  storageFull: false,
   error: null,
   lastSyncedAt: null,
   enabled: false,

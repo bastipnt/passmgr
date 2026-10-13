@@ -1,6 +1,7 @@
 import z from "zod";
 import { emailSchema } from "./email-schema";
 import { passwordKeySchema } from "./key-schema";
+import { opaqueMessageSchema } from "./opaque-schema";
 
 /**
  * Start a password change (linked account, fresh OPAQUE login required): a new
@@ -9,7 +10,7 @@ import { passwordKeySchema } from "./key-schema";
  */
 export const startPasswordChangeInputSchema = z.object({
   email: emailSchema,
-  registrationRequest: z.string(),
+  registrationRequest: opaqueMessageSchema,
 });
 
 export const startPasswordChangeOutputSchema = z.object({
@@ -23,7 +24,7 @@ export const startPasswordChangeOutputSchema = z.object({
  */
 export const finishPasswordChangeInputSchema = z.object({
   attemptId: z.uuid(),
-  registrationRecord: z.string(),
+  registrationRecord: opaqueMessageSchema,
   passwordKeys: passwordKeySchema,
 });
 

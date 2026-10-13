@@ -39,6 +39,13 @@ export function summarizeSync(
         "This vault has no account, so nothing syncs. Create an online account to back it up and use it on other devices.",
     };
 
+  if (status.parked > 0 && status.storageFull)
+    return {
+      state: "error",
+      title: "Storage full",
+      detail: `${changes(status.parked)} couldn't be uploaded: the vault's owner has used up their storage. Delete items for good from the trash, then retry.`,
+    };
+
   if (status.parked > 0)
     return {
       state: "error",

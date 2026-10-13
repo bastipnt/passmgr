@@ -1,5 +1,5 @@
-import { db, type RecordType, recordsTable } from "@repo/db";
-import { type PushChange, type PushResult, VAULT_WRITE_ROLES } from "@repo/schema";
+import { db, type RecordType, recordsTable, vaultsTable } from "@repo/db";
+import { type PushChange, type PushResult, pushChangeBytes, VAULT_WRITE_ROLES } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { isLockTimeout, isUniqueViolation } from "../util/general";
@@ -10,6 +10,7 @@ import {
   takeVaultSeqs,
   vaultKeyVersions,
 } from "../vault/access";
+import { type StorageBudget, storageBudgets } from "./quota";
 import { serializeRecord } from "./serialize";
 
 /**
@@ -49,6 +50,8 @@ type VaultState = { access: Map<string, Rejection | null>; keyVersions: Map<stri
 
 type Indexed = { index: number; change: PushChange };
 
+type Appended = { index: number; version: NewVersion }[];
+
 export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
 
 /**
@@ -75,6 +78,14 @@ export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
  * rotation replaced is rejected (`key_version`), so nothing new is written that
  * a removed member's old key would open. A delete carries no ciphertext.
  *
+ * A chain with a put that would take the vault owner past their storage quota
+ * is rejected (`quota`), unless it rewrites a record still under a rotated-out
+ * key: a rotation must finish however full the vault is. A chain of deletes
+ * always applies, though a tombstone keeps its ciphertext and so takes space;
+ * only a purge frees it. A move's source tombstone (`moved`) is rejected too
+ * when the batch had a put over quota, which may be the move's target: the
+ * record must not leave its vault without arriving in the other.
+ *
  * The new versions are planned in memory and written with one seq bump per
  * vault and one insert, keeping the time the vaults stay locked short.
  *
@@ -91,6 +102,7 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       await lockVaults(tx, writable);
       // Under the lock: a rotation of these vaults waits until this push commits.
       const vaults: VaultState = { access, keyVersions: await vaultKeyVersions(tx, writable) };
+      const budgets = await storageBudgets(tx, writable);
 
       const chains = groupByRecord(changes);
       const recordIds = [...chains.keys()];
@@ -102,11 +114,19 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       );
 
       const results: PushResult[] = Array.from({ length: changes.length });
-      const planned: { index: number; version: NewVersion }[] = [];
+      const accepted: { chain: Indexed[]; appended: Appended }[] = [];
+      let overQuota = false;
+      const rejectForQuota = (appended: Appended) => {
+        for (const { index } of appended) {
+          const { clientChangeId } = changes[index]!;
+          results[index] = { clientChangeId, status: "rejected", reason: "quota" };
+        }
+      };
       for (const [recordId, chain] of chains) {
         const dbHead = heads.get(recordId) ?? null;
         const outcomes = decideChain(chain, dbHead, vaults, stored);
         let head: HeadContent = dbHead;
+        const appended: Appended = [];
         for (const [i, { index, change }] of chain.entries()) {
           const outcome = outcomes[i]!;
           const { clientChangeId } = change;
@@ -121,10 +141,24 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
             };
           } else {
             const version = nextVersion(change, head, userId);
-            planned.push({ index, version });
+            appended.push({ index, version });
             head = version;
           }
         }
+        const rewritesOldKey =
+          !!dbHead && dbHead.keyVersion < (vaults.keyVersions.get(dbHead.vaultId) ?? 0);
+        if (rewritesOldKey || withinQuota(chain, appended, budgets)) {
+          accepted.push({ chain, appended });
+        } else {
+          overQuota = true;
+          rejectForQuota(appended);
+        }
+      }
+
+      const planned: Appended = [];
+      for (const { chain, appended } of accepted) {
+        if (overQuota && chain.some(({ change }) => isMoveSource(change))) rejectForQuota(appended);
+        else planned.push(...appended);
       }
 
       const written = await insertVersions(
@@ -230,6 +264,27 @@ function decide(change: PushChange, head: SimulatedHead, dbHeadVersion: number):
   return { kind: "append" };
 }
 
+/**
+ * Whether a chain's new versions fit its vault owner's budget, which they
+ * then take from. Only a chain with a put can be over it.
+ */
+function withinQuota(
+  chain: Indexed[],
+  appended: { version: NewVersion }[],
+  budgets: Map<string, StorageBudget>,
+): boolean {
+  const budget = appended[0] && budgets.get(appended[0].version.vaultId);
+  if (!budget) return true;
+  const bytes = appended.reduce((sum, { version }) => sum + pushChangeBytes(version), 0);
+  if (bytes > budget.remaining && chain.some(({ change }) => change.op === "put")) return false;
+  budget.remaining -= bytes;
+  return true;
+}
+
+function isMoveSource(change: PushChange): boolean {
+  return change.op === "delete" && change.tombstoneKind === "moved";
+}
+
 /** A change as the version on top of `head`, without its seq yet. */
 function nextVersion(change: PushChange, head: HeadContent, userId: string): NewVersion {
   const common = {
@@ -275,25 +330,37 @@ const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
 async function dropPurgedHistory(written: RecordType[], tx: DbExecutor) {
   for (const row of written) {
     if (row.tombstoneKind !== "purged") continue;
-    await tx
+    const dropped = await tx
       .delete(recordsTable)
-      .where(and(eq(recordsTable.recordId, row.recordId), lt(recordsTable.version, row.version)));
+      .where(and(eq(recordsTable.recordId, row.recordId), lt(recordsTable.version, row.version)))
+      .returning({ encryptedData: recordsTable.encryptedData });
+    const freed = dropped.reduce((sum, version) => sum + pushChangeBytes(version), 0);
+    await tx
+      .update(vaultsTable)
+      .set({ usedBytes: sql`${vaultsTable.usedBytes} - ${freed}` })
+      .where(eq(vaultsTable.vaultId, row.vaultId));
   }
 }
 
 /**
- * Write new versions with one seq bump per vault (in id order, as locked) and
- * one insert. Each vault's seqs follow the versions' order. Resolves the rows
- * in the order given.
+ * Write new versions with one insert and one seq bump per vault (in id order,
+ * as locked) that also adds their bytes to `usedBytes`. Each vault's seqs
+ * follow the versions' order. Resolves the rows in the order given.
  */
 async function insertVersions(versions: NewVersion[], tx: DbExecutor): Promise<RecordType[]> {
   if (versions.length === 0) return [];
 
-  const counts = new Map<string, number>();
-  for (const { vaultId } of versions) counts.set(vaultId, (counts.get(vaultId) ?? 0) + 1);
+  const added = new Map<string, { count: number; bytes: number }>();
+  for (const version of versions) {
+    const vault = added.get(version.vaultId) ?? { count: 0, bytes: 0 };
+    vault.count++;
+    vault.bytes += pushChangeBytes(version);
+    added.set(version.vaultId, vault);
+  }
   const nextSeq = new Map<string, number>();
-  for (const vaultId of [...counts.keys()].sort()) {
-    nextSeq.set(vaultId, await takeVaultSeqs(tx, vaultId, counts.get(vaultId)!));
+  for (const vaultId of [...added.keys()].sort()) {
+    const { count, bytes } = added.get(vaultId)!;
+    nextSeq.set(vaultId, await takeVaultSeqs(tx, vaultId, count, bytes));
   }
 
   const rows = versions.map((version) => {

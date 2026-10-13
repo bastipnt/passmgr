@@ -1,5 +1,6 @@
 import {
   RECORD_TYPE_LABELS,
+  recordErrorMessage,
   recordFormDefaults,
   recordFromForm,
   useDeleteRecord,
@@ -48,7 +49,7 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
       toast.success("Record saved");
       router.back();
     },
-    onError: () => toast.error("The item couldn't be saved"),
+    onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be saved")),
   });
 
   const onSubmit = (data: RecordFormValues) => {

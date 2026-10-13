@@ -348,7 +348,14 @@ cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`
 vaults locked first (`lockVaults`, `lock_timeout` → `SERVICE_UNAVAILABLE`, the client retries), then
 compare-and-swap per change on `baseVersion`; each change answers `applied` / `stale` / `rejected`,
 a record's changes in a batch apply all or nothing, and `clientChangeId` (unique per record) makes a
-retry return the stored version. `SyncManager` sends each record's chain in one batch (`pushBatches`). Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusMenu`, mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+retry return the stored version. `SyncManager` sends each record's chain in one batch (`pushBatches`, bounded by `MAX_PUSH_CHANGES` and `MAX_PUSH_BYTES`).
+Limits (`@repo/schema` `record-limits.ts`): per-field max lengths and list sizes in the record schemas (forms show them; a
+foreign import skips an item over them as `too_large`), the whole payload ≤ `MAX_RECORD_PAYLOAD_BYTES` (`encryptRecord`
+throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps the ciphertext, the server body is
+`MAX_REQUEST_BYTES`. Storage quota: `vaults.usedBytes` (each version's `pushChangeBytes`, tombstones included, kept by
+`takeVaultSeqs` / `dropPurgedHistory`) summed over an owner's live vaults against `STORAGE_QUOTA_MB`; a chain with a put
+past it is `rejected` `quota` (parked, `SyncStatus.storageFull`), and so is a `moved` tombstone in that batch (the move's
+other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusMenu`, mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
@@ -474,6 +481,7 @@ Server (`apps/server/.env`):
 - `OPAQUE_SERVER_IDENTITY` — defaults to `passmgr`; the client hardcodes the same value
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
+- `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see Vaults
 - `CORS_ORIGIN`, `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
 
 DB package (`packages/db/.env`):

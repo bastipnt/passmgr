@@ -1,4 +1,10 @@
-import { useMoveRecord, useRecordVault, useSortedRecords, useToggleFavorite } from "@repo/client";
+import {
+  recordErrorMessage,
+  useMoveRecord,
+  useRecordVault,
+  useSortedRecords,
+  useToggleFavorite,
+} from "@repo/client";
 import {
   Empty,
   EmptyDescription,
@@ -47,7 +53,7 @@ export default function RecordScreen() {
       const target = moveTargets.find((vault) => vault.vaultId === targetVaultId);
       toast.success(target ? `Moved to ${target.name}` : "Moved");
     },
-    onError: () => toast.error("The item couldn't be moved"),
+    onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be moved")),
   });
   const { toggleFavorite, togglePending } = useToggleFavorite({
     onError: () => toast.error("The item couldn't be saved"),

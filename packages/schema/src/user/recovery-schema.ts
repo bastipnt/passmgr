@@ -1,6 +1,7 @@
 import z from "zod";
 import { emailSchema } from "./email-schema";
 import { recoveryWrapSchema, userKeySchema } from "./key-schema";
+import { opaqueMessageSchema } from "./opaque-schema";
 
 /**
  * Start recovery: prove possession of the recovery key and begin a new OPAQUE
@@ -9,7 +10,7 @@ import { recoveryWrapSchema, userKeySchema } from "./key-schema";
 export const startRecoveryInputSchema = z.object({
   email: emailSchema,
   recoveryAuthKey: z.base64().length(44),
-  registrationRequest: z.string(),
+  registrationRequest: opaqueMessageSchema,
 });
 
 export const startRecoveryOutputSchema = z.object({
@@ -25,7 +26,7 @@ export const startRecoveryOutputSchema = z.object({
 export const finishRecoveryInputSchema = z.object({
   email: emailSchema,
   attemptId: z.uuid(),
-  registrationRecord: z.string(),
+  registrationRecord: opaqueMessageSchema,
   userKeys: userKeySchema,
 });
 

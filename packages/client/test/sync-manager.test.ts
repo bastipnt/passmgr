@@ -4,6 +4,7 @@ import {
   type MemberVault,
   type PushChange,
   type PushResult,
+  pushChangeBytes,
 } from "@repo/schema";
 import type { PendingChange, Vault } from "@repo/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -386,6 +387,23 @@ describe("SyncManager push", () => {
     expect(store.parkPendingChange).toHaveBeenCalledWith("c1", "rejected: forbidden");
     expect(store.failPendingChange).not.toHaveBeenCalled();
     expect(store.ackPendingChange).not.toHaveBeenCalled();
+  });
+
+  it("parks a change over the storage quota and reports the storage full until a retry", async () => {
+    const store = fakeStore(false, [change("c1", "r1", 1)]);
+    const push = pusher((c) => ({
+      clientChangeId: c.clientChangeId,
+      status: "rejected",
+      reason: "quota",
+    }));
+    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+
+    await manager.sync();
+
+    expect(store.parkPendingChange).toHaveBeenCalledWith("c1", "rejected: quota");
+    expect(manager.getStatus().storageFull).toBe(true);
+    await manager.retryParked();
+    expect(manager.getStatus().storageFull).toBe(false);
   });
 
   it("counts a purge of a record the server never got as done", async () => {
@@ -822,6 +840,22 @@ describe("pushBatches", () => {
   it("splits only a chain longer than a batch", () => {
     const outbox = [change("x", "x", 1), ...[1, 2, 3].map((v) => change(`a${v}`, "a", v))];
     expect(changeIds(pushBatches(outbox, 2))).toEqual([["x"], ["a1", "a2"], ["a3"]]);
+  });
+
+  it("keeps a batch within the byte limit too", () => {
+    const twoChanges = 2 * pushChangeBytes(toPushChange(change("a1", "a", 1)));
+    const outbox = [
+      change("a1", "a", 1),
+      change("a2", "a", 2),
+      change("b1", "b", 1),
+      ...[1, 2, 3].map((v) => change(`c${v}`, "c", v)),
+    ];
+    expect(changeIds(pushBatches(outbox, MAX_PUSH_CHANGES, twoChanges))).toEqual([
+      ["a1", "a2"],
+      ["b1"],
+      ["c1", "c2"],
+      ["c3"],
+    ]);
   });
 });
 

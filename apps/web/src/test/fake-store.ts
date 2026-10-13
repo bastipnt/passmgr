@@ -52,6 +52,7 @@ export function createFakeStore() {
       phase: "idle",
       pending: 0,
       parked: 0,
+      storageFull: false,
       error: null,
       lastSyncedAt: null,
       enabled: true,

@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
+  MAX_CUSTOM_FIELDS,
+  MAX_FIELD_LENGTH,
+  MAX_NOTE_LENGTH,
+  MAX_TITLE_LENGTH,
+  MAX_WEBSITES,
+} from "../src/record-limits";
+import {
   CURRENT_SCHEMA_VERSION,
   type RecordPayload,
   UnknownRecordTypeError,
@@ -113,6 +120,21 @@ describe("recordDataSchema", () => {
     for (const type of RECORD_TYPES) {
       expect(recordDataSchema.safeParse({ type, title: "" }).success).toBe(false);
     }
+  });
+
+  it("caps field lengths and list sizes", () => {
+    const fits = (record: object) =>
+      recordDataSchema.safeParse({ ...MIN_LOGIN, ...record }).success;
+    expect(fits({ title: "t".repeat(MAX_TITLE_LENGTH) })).toBe(true);
+    expect(fits({ title: "t".repeat(MAX_TITLE_LENGTH + 1) })).toBe(false);
+    expect(fits({ username: "u".repeat(MAX_FIELD_LENGTH + 1) })).toBe(false);
+    expect(fits({ note: "n".repeat(MAX_NOTE_LENGTH + 1) })).toBe(false);
+    const website = { value: "https://example.com" };
+    expect(fits({ websites: Array.from({ length: MAX_WEBSITES + 1 }, () => website) })).toBe(false);
+    const field = { type: "text", title: "f", value: "v" };
+    expect(fits({ customFields: Array.from({ length: MAX_CUSTOM_FIELDS + 1 }, () => field) })).toBe(
+      false,
+    );
   });
 
   it("keeps attachments empty until attachments exist", () => {

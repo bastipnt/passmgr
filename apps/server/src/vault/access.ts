@@ -259,15 +259,21 @@ export async function requireVaultRole(
  * writers of one vault queue up and commit in `seq` order: a pull that sees a
  * vault's seq N sees every seq below it. A transaction writing to several
  * vaults locks them in id order first (`lockVaults`), so it can't deadlock.
+ *
+ * `addedBytes` (the records' `pushChangeBytes`) is added to `vaults.usedBytes`.
  */
 export async function takeVaultSeqs(
   tx: DbExecutor,
   vaultId: string,
   count: number,
+  addedBytes = 0,
 ): Promise<number> {
   const [vault] = await tx
     .update(vaultsTable)
-    .set({ lastSeq: sql`${vaultsTable.lastSeq} + ${count}` })
+    .set({
+      lastSeq: sql`${vaultsTable.lastSeq} + ${count}`,
+      usedBytes: sql`${vaultsTable.usedBytes} + ${addedBytes}`,
+    })
     .where(eq(vaultsTable.vaultId, vaultId))
     .returning({ lastSeq: vaultsTable.lastSeq });
   if (!vault) throw new TRPCError({ code: "NOT_FOUND" });

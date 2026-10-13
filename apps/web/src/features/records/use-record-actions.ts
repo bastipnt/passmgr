@@ -1,4 +1,5 @@
 import {
+  recordErrorMessage,
   recordFromForm,
   useDeleteRecord,
   useGetRecord,
@@ -32,7 +33,7 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
       if (actionCb) actionCb();
       toast.success("Record saved");
     },
-    onError: () => toast.error("The item couldn't be saved"),
+    onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be saved")),
   });
 
   function handleSubmit(formValues: RecordFormValues) {

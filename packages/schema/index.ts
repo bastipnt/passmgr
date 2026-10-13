@@ -1,5 +1,6 @@
 export * from "./src/app-config-schema";
 export * from "./src/export-schema";
+export * from "./src/record-limits";
 export * from "./src/record-payload";
 export * from "./src/record-types";
 // Seeds
@@ -11,6 +12,7 @@ export * from "./src/user/delete-account-schema";
 export * from "./src/user/email-schema";
 export * from "./src/user/key-schema";
 export * from "./src/user/login-schema";
+export * from "./src/user/opaque-schema";
 export * from "./src/user/password-change-schema";
 export * from "./src/user/recovery-schema";
 export * from "./src/user/registration-schema";

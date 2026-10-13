@@ -1,6 +1,7 @@
 import {
   duplicateValues,
   RECORD_TYPE_LABELS,
+  recordErrorMessage,
   recordFromForm,
   ShortcutLayer,
   useCreateRecord,
@@ -83,7 +84,7 @@ export default function CreateRecordSheet() {
       navigate(recordPaths.record(recordId), { replace: true });
       toast.success("Record created");
     },
-    onError: () => toast.error("The item couldn't be saved"),
+    onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be saved")),
   });
 
   function handleSubmit<T extends RecordType>(formType: T, formValues: RecordFormValues<T>) {

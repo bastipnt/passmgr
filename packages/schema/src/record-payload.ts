@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { MAX_ENCRYPTED_RECORD_LENGTH } from "./record-limits";
 import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
 import { vaultKeyUpdateSchema } from "./sharing-schema";
 import { memberVaultSchema } from "./vault-schema";
@@ -57,8 +58,8 @@ export const pushChangeSchema = z.discriminatedUnion("op", [
     ...pushChangeBase,
     op: z.literal("put"),
     baseVersion: z.number().int().nonnegative(),
-    encryptedData: z.string(),
-    encryptionNonce: z.string(),
+    encryptedData: z.string().max(MAX_ENCRYPTED_RECORD_LENGTH),
+    encryptionNonce: z.string().max(32),
     cryptoVersion: z.number().int().positive(),
     // Must be the vault's current key version: nothing new is written under a rotated-out key.
     keyVersion: z.number().int().positive(),
@@ -96,6 +97,7 @@ export const pushInputSchema = z.object({
  * - `rejected`: it can never apply as sent (no write access, unknown record),
  *   or not under this key: `key_version`, encrypted with a key the vault no longer
  *   uses (rotated meanwhile); re-encrypt with the current one and push again.
+ *   `quota`: the vault owner's storage is full; deletes still apply.
  */
 export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
@@ -111,7 +113,7 @@ export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
     clientChangeId: z.uuid(),
     status: z.literal("rejected"),
-    reason: z.enum(["not_found", "forbidden", "key_version"]),
+    reason: z.enum(["not_found", "forbidden", "key_version", "quota"]),
   }),
 ]);
 
@@ -125,6 +127,11 @@ export const CURRENT_SCHEMA_VERSION = 1;
 
 /** The decrypted plaintext of a record: the typed record data plus its format version. */
 export type RecordPayload = RecordData & { schemaVersion: typeof CURRENT_SCHEMA_VERSION };
+
+/** The plaintext a record is encrypted as. */
+export function recordPayloadJson(data: RecordData): string {
+  return JSON.stringify({ ...data, schemaVersion: CURRENT_SCHEMA_VERSION });
+}
 
 export class UnsupportedSchemaVersionError extends Error {
   readonly schemaVersion: unknown;

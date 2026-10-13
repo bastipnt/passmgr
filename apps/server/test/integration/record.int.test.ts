@@ -1,8 +1,9 @@
 import { db, vaultsTable } from "@repo/db";
-import type { PushChange } from "@repo/schema";
+import { type PushChange, pushChangeBytes } from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { onRecordsChanged } from "../../src/events/record-events";
+import { STORAGE_QUOTA_BYTES } from "../../src/record/quota";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, deleteChange, loginAndGetAuthKey, putChange, register } from "./_helpers";
@@ -177,6 +178,110 @@ describe("record.push", () => {
       { status: "applied", record: { version: 4, encryptedData: "", tombstoneKind: "purged" } },
       { status: "applied", record: { version: 5, encryptedData: "NEW", tombstoneKind: null } },
     ]);
+  });
+
+  it("counts what a vault stores against its owner's quota: puts past it are rejected, deletes and purges apply", async () => {
+    const alice = await signUp("alice@example.com");
+    const usedBytes = async () =>
+      (
+        await db
+          .select({ usedBytes: vaultsTable.usedBytes })
+          .from(vaultsTable)
+          .where(eq(vaultsTable.vaultId, alice.vaultId))
+      )[0]!.usedBytes;
+    const record = putChange(alice.vaultId, { data: "SECRET" });
+    await push(alice, record);
+    await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+    expect(await usedBytes()).toBe(2 * pushChangeBytes({ encryptedData: "SECRET" }));
+
+    await db
+      .update(vaultsTable)
+      .set({ usedBytes: STORAGE_QUOTA_BYTES - 100 })
+      .where(eq(vaultsTable.vaultId, alice.vaultId));
+    const blocked = putChange(alice.vaultId);
+    expect(await push(alice, blocked)).toMatchObject([{ status: "rejected", reason: "quota" }]);
+
+    const purge = {
+      ...deleteChange(alice.vaultId, record.recordId, 2),
+      tombstoneKind: "purged" as const,
+    };
+    expect(await push(alice, purge)).toMatchObject([{ status: "applied" }]);
+    expect(await usedBytes()).toBe(
+      STORAGE_QUOTA_BYTES -
+        100 -
+        2 * pushChangeBytes({ encryptedData: "SECRET" }) +
+        pushChangeBytes({ encryptedData: "" }),
+    );
+    expect(await push(alice, blocked)).toMatchObject([{ status: "applied" }]);
+  });
+
+  describe("storage quota", () => {
+    async function fillQuota(vaultId: string, free = 100) {
+      await db
+        .update(vaultsTable)
+        .set({ usedBytes: STORAGE_QUOTA_BYTES - free })
+        .where(eq(vaultsTable.vaultId, vaultId));
+    }
+
+    it("rejects a move's source tombstone with its target over quota, so the record stays", async () => {
+      const alice = await signUp("alice@example.com");
+      const source = putChange(alice.vaultId);
+      await push(alice, source);
+      await fillQuota(alice.vaultId);
+
+      const target = putChange(alice.vaultId, { data: "MOVED" });
+      const moved = {
+        ...deleteChange(alice.vaultId, source.recordId, 1),
+        tombstoneKind: "moved" as const,
+      };
+      expect(await push(alice, target, moved)).toMatchObject([
+        { status: "rejected", reason: "quota" },
+        { status: "rejected", reason: "quota" },
+      ]);
+      expect(await history(alice, source.recordId)).toHaveLength(1);
+    });
+
+    it("lets a rotation rewrite a record still under the old key, however full", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+      await fillQuota(alice.vaultId);
+      await db
+        .update(vaultsTable)
+        .set({ keyVersion: 2 })
+        .where(eq(vaultsTable.vaultId, alice.vaultId));
+
+      const rewrite = putChange(alice.vaultId, {
+        recordId: record.recordId,
+        baseVersion: 1,
+        keyVersion: 2,
+      });
+      expect(await push(alice, rewrite)).toMatchObject([{ status: "applied" }]);
+      const edit = putChange(alice.vaultId, {
+        recordId: record.recordId,
+        baseVersion: 2,
+        keyVersion: 2,
+      });
+      expect(await push(alice, edit)).toMatchObject([{ status: "rejected", reason: "quota" }]);
+    });
+
+    it("doesn't count a deleted vault", async () => {
+      const alice = await signUp("alice@example.com");
+      const [{ ownerId }] = await db
+        .select({ ownerId: vaultsTable.ownerId })
+        .from(vaultsTable)
+        .where(eq(vaultsTable.vaultId, alice.vaultId));
+      await db.insert(vaultsTable).values({
+        vaultId: crypto.randomUUID(),
+        ownerId,
+        kind: "shared",
+        encryptedMeta: "META",
+        metaEncryptionNonce: "NONCE",
+        usedBytes: STORAGE_QUOTA_BYTES,
+        deleted_at: new Date(),
+      });
+      expect(await push(alice, putChange(alice.vaultId))).toMatchObject([{ status: "applied" }]);
+    });
   });
 
   it("marks the source of a move, keeping its content", async () => {
