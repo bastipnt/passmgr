@@ -10,6 +10,7 @@ export * from "./src/export/import-export";
 // Hooks
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
+export * from "./src/hooks/use-autofill";
 export * from "./src/hooks/use-backup-reminder";
 export * from "./src/hooks/use-breach-check";
 export * from "./src/hooks/use-change-password";

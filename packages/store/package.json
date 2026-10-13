@@ -22,11 +22,15 @@
     "drizzle-orm": "catalog:"
   },
   "peerDependencies": {
+    "expo": "*",
     "expo-secure-store": "*",
     "expo-sqlite": "*",
     "sqlocal": "*"
   },
   "peerDependenciesMeta": {
+    "expo": {
+      "optional": true
+    },
     "expo-secure-store": {
       "optional": true
     },

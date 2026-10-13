@@ -1,6 +1,12 @@
-import { RecordsProvider, SortedRecordsProvider, useAutoReconnect } from "@repo/client";
+import {
+  RecordsProvider,
+  SortedRecordsProvider,
+  useAutofillSync,
+  useAutoReconnect,
+} from "@repo/client";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCSSVariable } from "uniwind";
+import { useAppActive } from "@/hooks/use-app-active";
 import { useAutoLock } from "@/hooks/use-auto-lock";
 
 export default function AppLayout() {
@@ -14,6 +20,7 @@ export default function AppLayout() {
 
   return (
     <RecordsProvider>
+      <AutofillSync />
       <SortedRecordsProvider>
         <NativeTabs
           minimizeBehavior="onScrollDown"
@@ -41,4 +48,10 @@ export default function AppLayout() {
       </SortedRecordsProvider>
     </RecordsProvider>
   );
+}
+
+/** Inside `RecordsProvider`: the entries come from the decrypted records. */
+function AutofillSync() {
+  useAutofillSync(useAppActive());
+  return null;
 }

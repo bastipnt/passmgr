@@ -11,7 +11,9 @@ describe("getStrengthFromString", () => {
     expect(getStrengthFromString("correct horse battery staple")).toBeNull();
   });
 
-  describe("loaded", () => {
+  // zxcvbn with Levenshtein matching is CPU-bound: ~0.3s per check alone, but several times that
+  // while the Argon2 tests (hash.test.ts) saturate the cores in parallel.
+  describe("loaded", { timeout: 30_000 }, () => {
     beforeAll(() => loadPasswordStrength());
 
     it("rates common passwords and their l33t or suffixed variants as weak", () => {

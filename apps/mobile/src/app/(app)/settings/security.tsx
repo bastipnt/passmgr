@@ -10,6 +10,7 @@ import {
 import { Screen } from "@repo/ui-native";
 import { useRef } from "react";
 import { ScrollView } from "react-native";
+import { AutofillSection } from "@/features/settings/components/AutofillSection";
 import { SettingsChoice } from "@/features/settings/components/SettingsChoice";
 import { TwoFactorSection } from "@/features/settings/components/TwoFactorSection";
 import {
@@ -28,6 +29,8 @@ export default function SecuritySettingsScreen() {
         contentContainerClassName="gap-8 pt-4 pb-10"
       >
         <TwoFactorSection sheetRef={twoFactorRef} />
+
+        <AutofillSection />
 
         <SettingsChoice
           title="Clear clipboard"

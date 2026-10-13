@@ -1,0 +1,59 @@
+import AuthenticationServices
+import ExpoModulesCore
+
+public class PassmgrAutofillModule: Module {
+  public func definition() -> ModuleDefinition {
+    Name("PassmgrAutofill")
+
+    AsyncFunction("isEnabled") { () async -> Bool in
+      await ASCredentialIdentityStore.shared.state().isEnabled
+    }
+
+    AsyncFunction("openSettings") { () async -> Bool in
+      guard #available(iOS 17.0, *) else { return false }
+      do {
+        try await ASSettingsHelper.openCredentialProviderAppSettings()
+        return true
+      } catch {
+        return false
+      }
+    }
+
+    AsyncFunction("setEntries") { (profileId: String, payloadJson: String) async throws in
+      let payload = Data(payloadJson.utf8)
+      let profile = try JSONDecoder().decode(AutofillProfile.self, from: payload)
+      try AutofillVault.write(profileId: profileId, payload: payload)
+      try await Self.replaceIdentities(profileId: profileId, entries: profile.entries)
+    }
+
+    AsyncFunction("clearEntries") { (profileId: String) async throws in
+      try AutofillVault.remove(profileId: profileId)
+      try await Self.replaceIdentities(profileId: profileId, entries: [])
+    }
+  }
+
+  /// The QuickType bar suggestions: username + host per login, no password. The record
+  /// identifier (`profileId/recordId`) is what the extension looks the password up by.
+  private static func replaceIdentities(profileId: String, entries: [AutofillEntry]) async throws {
+    let store = ASCredentialIdentityStore.shared
+    guard await store.state().isEnabled else { return }
+    let prefix = "\(profileId)/"
+    let identities = entries.flatMap { entry in
+      entry.hosts.map { host in
+        ASPasswordCredentialIdentity(
+          serviceIdentifier: ASCredentialServiceIdentifier(identifier: host, type: .domain),
+          user: entry.username.isEmpty ? entry.title : entry.username,
+          recordIdentifier: prefix + entry.recordId)
+      }
+    }
+    if #available(iOS 17.4, *) {
+      let stale = await store.credentialIdentities(forService: nil, credentialIdentityTypes: .password)
+        .filter { $0.recordIdentifier?.hasPrefix(prefix) == true }
+      if !stale.isEmpty { try await store.removeCredentialIdentities(stale) }
+      if !identities.isEmpty { try await store.saveCredentialIdentities(identities) }
+    } else {
+      // No way to list them before iOS 17.4: the last profile written owns the suggestions.
+      try await store.replaceCredentialIdentities(with: identities)
+    }
+  }
+}

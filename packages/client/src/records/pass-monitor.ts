@@ -1,5 +1,6 @@
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { normalize, type PasswordStrength, websiteHost } from "@repo/util";
+import { loginHosts } from "./login-hosts";
 import { monitoredPassword } from "./password-health";
 import {
   type TwoFactorDirectory,
@@ -20,11 +21,6 @@ export type MonitorGroup = { id: string; records: DecryptedRecord[] };
 export type RateStrength = (password: string, userInputs: string[]) => PasswordStrength | null;
 
 const byTitle = (a: DecryptedRecord, b: DecryptedRecord) => a.title.localeCompare(b.title);
-
-function loginHosts(record: DecryptedRecord): string[] {
-  if (!isRecordType(record, "login")) return [];
-  return (record.websites ?? []).flatMap(({ value }) => websiteHost(value) ?? []);
-}
 
 /** What zxcvbn should treat as known words for this record's password. */
 function strengthInputs(record: DecryptedRecord): string[] {

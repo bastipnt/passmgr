@@ -222,6 +222,15 @@ and logs in; the account must hold the vault's public key. Then `saveAccount` ma
 (drops the local recovery wrap) **before** `linkServer` goes online: the first sync pushes the outbox,
 which already holds every local version, so the upload resumes by itself. Repeating a half-done link is safe.
 
+Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the unlocked
+tree) writes the open profile's `autofillEntries` (logins with a password) through `@repo/store` `writeAutofillEntries`
+while the OS has the app's autofill on (`autofillState`), else drops them; sign out, `signedOut` and profile removal drop
+them too (as does `forgetQuickUnlock`), a lock keeps them. Writes and clears of one profile run in order. Native side `apps/mobile/modules/autofill` (Expo module, `PassmgrAutofill`): encrypts to a
+biometric-gated device key (iOS Secure Enclave ECIES, Android Keystore RSA + AES-GCM), so writes never prompt and only the
+extension / `AutofillAuthActivity` reads them after a biometric match. iOS extension `apps/mobile/targets/autofill`
+(`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups from `plugins/with-autofill.js`;
+needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state and opens the OS setting.
+
 Emergency kit (`createEmergencyKit` / `useEmergencyKit`, `packages/client/src/account/emergency-kit.ts`): a one-page
 PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a local vault), a write-in field for the
 master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
@@ -302,7 +311,8 @@ vaultKey[v] ──wrap──► vaultKey[v-1]     (rotation chain, `previousKeys
 accountKey ──wrap──► x25519PrivateKey   (sharing; public key published, `user.publicKey`)
 senderPrivKey + memberPublicKey ──seal──► vaultKey   (invites, rotated keys: `sealVaultKey`, authenticated
                                                     by the sender; the member rewraps it, `vault.acceptKey`)
-(biometric KEK / mobile login bundle also hold the accountKey, never a vault key)
+(biometric KEK / mobile login bundle also hold the accountKey, never a vault key;
+ mobile autofill entries hold decrypted login passwords, under a biometric-gated device key)
 
 sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey (HMAC signing)
 ```

@@ -1,3 +1,4 @@
+export * from "./src/autofill";
 export type { OpenDatabase, SqlDriver } from "./src/driver";
 export { createLock, type Lock } from "./src/lock";
 export * from "./src/profiles";

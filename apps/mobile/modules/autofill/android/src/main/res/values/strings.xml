@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+  <string name="passmgr_autofill_label">Passmgr</string>
+  <string name="passmgr_autofill_unlock">Autofill with Passmgr</string>
+  <string name="passmgr_autofill_prompt">Fill a password</string>
+  <string name="passmgr_autofill_prompt_target">Into %1$s</string>
+  <string name="passmgr_autofill_setup_again">Autofill needs setting up again: open Passmgr and unlock it.</string>
+</resources>

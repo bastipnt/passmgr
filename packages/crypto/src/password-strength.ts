@@ -1,5 +1,6 @@
 import { PASSWORD_STRENGTH_LABEL, type PasswordStrength } from "@repo/util";
 import type { ZxcvbnFactory } from "@zxcvbn-ts/core";
+import { loadZxcvbnModules } from "./zxcvbn-modules";
 
 const LEVEL_BY_SCORE = ["weak", "weak", "fair", "strong", "very-strong"] as const;
 
@@ -8,11 +9,7 @@ let loading: Promise<void> | null = null;
 
 /** Loads zxcvbn and its dictionaries on first call, so they stay out of the main bundle. */
 export function loadPasswordStrength(): Promise<void> {
-  loading ??= Promise.all([
-    import("@zxcvbn-ts/core"),
-    import("@zxcvbn-ts/language-common"),
-    import("@zxcvbn-ts/language-en"),
-  ])
+  loading ??= loadZxcvbnModules()
     .then(([core, common, en]) => {
       estimator = new core.ZxcvbnFactory({
         translations: en.translations,

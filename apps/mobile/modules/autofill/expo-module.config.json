@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android"],
+  "apple": {
+    "modules": ["PassmgrAutofillModule"]
+  },
+  "android": {
+    "modules": ["com.passmgr.autofill.PassmgrAutofillModule"]
+  }
+}

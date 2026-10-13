@@ -1,9 +1,11 @@
 import { type BiometricKeyMaterial, isPrfSupported } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
 import {
+  clearAutofillEntries,
   clearLoginBundle,
   createLock,
   type LocalProfile,
+  logAutofillClearError,
   type ProfileEntry,
   type ProfileStore,
   secretsStore,
@@ -151,12 +153,13 @@ type StoreContextValue = {
   saveBiometricKeyMaterial: (material: BiometricKeyMaterial) => Promise<void>;
   /**
    * Forget what unlocks a profile (default: the active one) without the
-   * password: its biometric enrollment and persisted login. Keeps its data.
+   * password: its biometric enrollment, persisted login and autofill entries.
+   * Keeps its data.
    */
   forgetQuickUnlock: (profileId?: string) => Promise<void>;
   /**
    * The server says this device was signed out from elsewhere: lock, drop the
-   * persisted mobile login and call `onSignedOut`. Sync handles it itself.
+   * persisted mobile login and autofill entries and call `onSignedOut`. Sync handles it itself.
    */
   signedOut: () => Promise<void>;
 };
@@ -284,11 +287,14 @@ export function StoreProvider({
   const trpcRef = useRef(trpc);
   trpcRef.current = trpc;
 
-  /** Lock (keys wiped first), forget the persisted mobile login, then tell the app. */
+  /** Lock (keys wiped first), forget the persisted mobile login and autofill entries, then tell the app. */
   const signedOut = useCallback(async () => {
     const profileId = activeRef.current?.entry.profileId;
     lockRef.current();
-    if (profileId) await clearLoginBundle(profileId).catch(() => undefined);
+    if (profileId) {
+      await clearLoginBundle(profileId).catch(() => undefined);
+      await clearAutofillEntries(profileId).catch(logAutofillClearError);
+    }
     onSignedOutRef.current?.();
   }, []);
 
@@ -668,6 +674,7 @@ export function StoreProvider({
       await profiles.withVault(profileId, (vault) => vault.clearBiometricKeyMaterial());
     }
     await clearLoginBundle(profileId);
+    await clearAutofillEntries(profileId).catch(logAutofillClearError);
   }
 
   const value: StoreContextValue = {
