@@ -22,6 +22,17 @@ function makeRecord(
 }
 
 describe("describeVersionChanges", () => {
+  it("names each tag added and removed", () => {
+    const previous = makeRecord(1, { tags: ["work", "home"] });
+    const version = makeRecord(2, { tags: ["Work", "bank"] });
+
+    expect(describeVersionChanges(version, previous).map((c) => c.label)).toEqual([
+      "Tag added: bank",
+      "Tag removed: home",
+      "Tag renamed: work → Work",
+    ]);
+  });
+
   it("has nothing to report for the first version", () => {
     expect(describeVersionChanges(makeRecord(1), undefined)).toEqual([]);
   });

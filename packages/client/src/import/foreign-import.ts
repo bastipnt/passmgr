@@ -5,9 +5,12 @@ import {
   EXPORT_FORMAT_VERSION,
   type ExportData,
   type ExportRecord,
+  MAX_TAGS,
+  normalizeTags,
   type RecordData,
   type RecordType,
   recordDataSchema,
+  sanitizeTag,
 } from "@repo/schema";
 import { websiteUrl } from "@repo/util";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
@@ -185,7 +188,7 @@ export function finishRecord(record: ForeignRecord): RecordData | undefined {
   const username = typeof fields.username === "string" ? fields.username : undefined;
   const title =
     record.title?.trim() || (websites[0] && hostOf(websites[0])) || username || "Imported item";
-  const tags = unique((record.tags ?? []).map((tag) => tag.trim()).filter(Boolean));
+  const tags = normalizeTags((record.tags ?? []).map(sanitizeTag)).slice(0, MAX_TAGS);
   const hasPassword = typeof fields.password === "string";
 
   const candidate = {

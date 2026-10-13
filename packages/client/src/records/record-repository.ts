@@ -70,10 +70,22 @@ export class RecordRepository {
 
   /** `data` as the next version of the record, in the vault it lives in. */
   async update(record: RecordRef, data: RecordData): Promise<EncryptedRecordSchema> {
-    const head = await this.vault.getByRecordId(record.recordId);
-    const stamped = stampChangedPassword(data, head && decryptHead(head), now());
-    const [updated] = await this.write([{ kind: "update", ...this.encrypt(stamped, record) }]);
+    const [updated] = await this.updateMany([{ record, data }]);
     return updated!;
+  }
+
+  /** Several records' next versions, written in one transaction. */
+  async updateMany(
+    updates: readonly { record: RecordRef; data: RecordData }[],
+  ): Promise<EncryptedRecordSchema[]> {
+    if (updates.length === 0) return [];
+    const changes: LocalRecordChange[] = [];
+    for (const { record, data } of updates) {
+      const head = await this.vault.getByRecordId(record.recordId);
+      const stamped = stampChangedPassword(data, head && decryptHead(head), now());
+      changes.push({ kind: "update", ...this.encrypt(stamped, record) });
+    }
+    return await this.write(changes);
   }
 
   /** Tombstone the record (it goes to the trash); its history stays. */

@@ -2,6 +2,12 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import LoginRecordForm from "./LoginRecordForm";
 
+// The tag field offers the tags in use, which live in the records context.
+vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/hooks/use-tags")>()),
+  useTags: () => [],
+}));
+
 describe("LoginRecordForm", () => {
   it("masks the password field via -webkit-text-security:disc", () => {
     renderWithProviders(<LoginRecordForm onSubmit={vi.fn()} />);

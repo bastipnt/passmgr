@@ -146,6 +146,15 @@ describe("form helpers", () => {
     });
   });
 
+  it("saves the form's tags, normalised, and drops an empty list", () => {
+    const current: RecordData = { type: "note", title: "x", tags: ["work"] };
+
+    expect(
+      recordFromForm("note", { title: "x", tags: [" Home  office", "home office"] }, current).tags,
+    ).toEqual(["Home office"]);
+    expect(recordFromForm("note", { title: "x", tags: [] }, current)).not.toHaveProperty("tags");
+  });
+
   it("refuses to save a record through another type's form", () => {
     const wifi: RecordData = { type: "wifi", title: "Home", ssid: "FRITZ!Box" };
 
@@ -181,7 +190,7 @@ describe("form helpers", () => {
     expect(record.publicKey).toMatch(/^ssh-ed25519 \S+ me@host$/);
   });
 
-  it("fills the form with everything but the fields it doesn't edit", () => {
+  it("fills the form with everything but the fields it doesn't edit, tags included", () => {
     const record: RecordData = {
       type: "wifi",
       title: "Home",
@@ -190,6 +199,6 @@ describe("form helpers", () => {
       tags: ["home"],
     };
 
-    expect(recordFormDefaults(record)).toEqual({ title: "Home", password: "pw" });
+    expect(recordFormDefaults(record)).toEqual({ title: "Home", password: "pw", tags: ["home"] });
   });
 });

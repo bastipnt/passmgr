@@ -1,4 +1,4 @@
-import type { RecordData } from "@repo/schema";
+import { normalizeTags, type RecordData, tagKey } from "@repo/schema";
 
 /** One version of a record on one side of a merge. */
 export type MergeVersion = {
@@ -10,9 +10,9 @@ export type MergeVersion = {
 
 export type MergeResult = { data: RecordData; deleted: boolean };
 
-// Lists of plain strings: an item is its own identity, so they merge per item.
-// Websites and custom fields have no stable item ids and count as one field.
-const SET_FIELDS = new Set(["tags"]);
+// Tags are their own identity (without case), so they merge per tag. Websites
+// and custom fields have no stable item ids and count as one field.
+const TAGS = "tags";
 
 // Merged with the field it dates, never on its own: a new password with the old date would look stale.
 const PASSWORD_DATE = "passwordChangedAt";
@@ -25,7 +25,7 @@ const PASSWORD_DATE = "passwordChangedAt";
  * - A field changed on one side only takes that side's value.
  * - A field changed on both sides to different values takes the later edit
  *   (`editedAt` of the last version on that side that changed it; a tie goes
- *   to `remote`, the server's copy). Tag lists merge per tag instead.
+ *   to `remote`, the server's copy). Tag lists merge per tag (without case) instead.
  * - A record type changed on either side makes the whole record one field:
  *   the side whose head was edited later wins.
  * - Edit vs. delete: the edit wins, so the result is deleted only when both
@@ -35,7 +35,7 @@ const PASSWORD_DATE = "passwordChangedAt";
  *   password won (the later one when both sides hold it).
  *
  * Fields are a record's payload keys rather than its `getRecordFieldSpecs`:
- * those leave out fields no view renders (favourite, tags) and format values.
+ * those leave out favourite and tags and format values.
  */
 export function mergeRecord(
   base: RecordData,
@@ -63,7 +63,7 @@ export function mergeRecord(
     if (key === PASSWORD_DATE) continue;
     const [b, l, r] = [baseFields[key], localFields[key], remoteFields[key]];
     let value: unknown;
-    if (SET_FIELDS.has(key)) value = mergeSet(b, l, r);
+    if (key === TAGS) value = mergeTags(b, l, r);
     else if (sameValue(r, b) || sameValue(l, r)) value = l;
     else if (sameValue(l, b)) value = r;
     else value = isLater(localTimes.get(key), remoteTimes.get(key)) ? l : r;
@@ -129,10 +129,17 @@ function fieldKeys(...records: RecordData[]): string[] {
 }
 
 /** Three-way merge of a string list: additions and removals of either side both apply. */
-function mergeSet(base: unknown, local: unknown, remote: unknown): string[] | undefined {
-  const [b, l, r] = [asStrings(base), asStrings(local), asStrings(remote)];
-  const removed = new Set(b.filter((item) => !l.includes(item) || !r.includes(item)));
-  const merged = [...new Set([...l, ...r])].filter((item) => !removed.has(item));
+function mergeTags(base: unknown, local: unknown, remote: unknown): string[] | undefined {
+  const l = normalizeTags(asStrings(local));
+  const r = normalizeTags(asStrings(remote));
+  const localKeys = new Set(l.map(tagKey));
+  const remoteKeys = new Set(r.map(tagKey));
+  const removed = new Set(
+    normalizeTags(asStrings(base))
+      .map(tagKey)
+      .filter((key) => !localKeys.has(key) || !remoteKeys.has(key)),
+  );
+  const merged = normalizeTags([...l, ...r]).filter((tag) => !removed.has(tagKey(tag)));
   return merged.length > 0 ? merged : undefined;
 }
 

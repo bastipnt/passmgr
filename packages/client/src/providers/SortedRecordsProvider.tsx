@@ -1,11 +1,14 @@
-import type { DecryptedRecord, RecordType } from "@repo/schema";
-import { createContext, type ReactNode, useContext, useMemo, useState } from "react";
+import { type DecryptedRecord, type RecordType, tagKey } from "@repo/schema";
+import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
+import { useTags } from "../hooks/use-tags";
 import { useVaults } from "../hooks/use-vaults";
 import { PREF_KEYS } from "../preferences/preference-keys";
+import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 import { getRecordSubtitle } from "../records/record-summary";
-import type { VaultFilter } from "../vaults/vault-info";
+import { filterByTag, type TagCount, type TagFilter } from "../records/tags";
+import type { VaultFilter, VaultInfo } from "../vaults/vault-info";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
@@ -210,16 +213,65 @@ function useVaultFilter(): [VaultFilter, (vault: VaultFilter) => void] {
   return [stored !== "all" && getVault(stored) ? stored : "all", setStored];
 }
 
-function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
+/**
+ * The tag filter, while a record of the vault in view carries the tag. Once
+ * none does (renamed, removed, another vault picked) it's dropped, so it
+ * doesn't come back by itself later.
+ */
+function useTagFilter(tags: TagCount[]): [TagFilter, (tag: TagFilter) => void] {
+  const [stored, setStored] = useState<TagFilter>(null);
+  const key = stored === null ? null : tagKey(stored);
+  const shown = key === null ? undefined : tags.find(({ tag }) => tagKey(tag) === key);
+  if (stored !== null && !shown) setStored(null);
+  return [shown?.tag ?? null, setStored];
+}
+
+/** Title matches first, then subtitle matches, then tag matches. */
+export function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
   if (!query.trim()) return records;
   const q = query.toLowerCase().trim();
   const titleMatches: DecryptedRecord[] = [];
   const subtitleMatches: DecryptedRecord[] = [];
+  const tagMatches: DecryptedRecord[] = [];
   for (const record of records) {
     if (record.title.toLowerCase().includes(q)) titleMatches.push(record);
     else if (getRecordSubtitle(record)?.toLowerCase().includes(q)) subtitleMatches.push(record);
+    else if (record.tags?.some((tag) => tag.toLowerCase().includes(q))) tagMatches.push(record);
   }
-  return [...titleMatches, ...subtitleMatches];
+  return [...titleMatches, ...subtitleMatches, ...tagMatches];
+}
+
+type ListFilters = { type?: TypeFilter; vault?: VaultFilter; tag?: TagFilter };
+
+function filterRecords(
+  records: DecryptedRecord[],
+  { type = "all", vault = "all", tag = null }: ListFilters,
+): DecryptedRecord[] {
+  return filterByTag(filterByType(filterByVault(records, vault), type), tag);
+}
+
+/**
+ * The list's title: what it shows. A search covers every type, vault and tag.
+ * Otherwise the vault in view, the type and the tag it's narrowed to.
+ */
+export function listTitle({
+  typeFilter,
+  tagFilter,
+  searching,
+  vault,
+}: {
+  typeFilter: TypeFilter;
+  tagFilter: TagFilter;
+  searching: boolean;
+  vault?: VaultInfo;
+}): string {
+  if (searching) return "Results";
+  const parts = [
+    vault?.name,
+    typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural,
+    tagFilter === null ? undefined : `#${tagFilter}`,
+  ].filter((part) => part !== undefined);
+  return parts.length > 0 ? parts.join(" · ") : "All items";
 }
 
 type SortedRecordsContextValue = {
@@ -233,6 +285,13 @@ type SortedRecordsContextValue = {
   /** The list's vault filter ("All vaults" or one). A search ignores it too. */
   vaultFilter: VaultFilter;
   setVaultFilter: (vault: VaultFilter) => void;
+  /** The list's tag filter, for this session only. A search ignores it too. */
+  tagFilter: TagFilter;
+  setTagFilter: (tag: TagFilter) => void;
+  /** The tags of the vault in view (of every vault for "All vaults"), to filter by. */
+  tags: TagCount[];
+  /** Every record carrying `tag`: the other filters and the search cleared. */
+  showTag: (tag: string) => void;
   /** The listed records in the order shown (favorites first). */
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
@@ -252,27 +311,21 @@ export function useSortedRecords(): SortedRecordsContextValue {
  * Search over all records without touching the provider's own `query`. Mobile
  * has a dedicated search tab whose input must not filter the records tab, so it
  * keeps its query in local state and groups the results through this hook.
- * An empty query falls back to the regular sorted grouping of the records of
- * `type` (the records tab passes the list's filter); a search looks through
- * every record, as the provider's does.
+ * An empty query falls back to the regular sorted grouping of the records
+ * `filters` let through (the records tab passes the list's); a search looks
+ * through every record, as the provider's does.
  */
-export function useRecordSearch(
-  query: string,
-  type: TypeFilter = "all",
-  vault: VaultFilter = "all",
-): RecordGroup[] {
+export function useRecordSearch(query: string, filters: ListFilters = {}): RecordGroup[] {
   const { records } = useGetRecords();
   const { sort } = useSortedRecords();
   const trimmed = query.trim();
+  const { type, vault, tag } = filters;
 
   return useMemo(() => {
     if (!trimmed)
-      return groupRecords(
-        sortRecords(filterByType(filterByVault(records, vault), type), sort),
-        sort,
-      );
+      return groupRecords(sortRecords(filterRecords(records, { type, vault, tag }), sort), sort);
     return [{ label: null, records: filterBySearch(records, trimmed) }];
-  }, [records, sort, trimmed, type, vault]);
+  }, [records, sort, trimmed, type, vault, tag]);
 }
 
 type SortedRecordsProviderProps = {
@@ -284,6 +337,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const [query, setQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [vaultFilter, setVaultFilter] = useVaultFilter();
+  const tags = useTags(vaultFilter);
+  const [tagFilter, setTagFilter] = useTagFilter(tags);
   const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
@@ -295,8 +350,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     () =>
       hasQuery
         ? filterBySearch(records, query)
-        : filterByType(filterByVault(records, vaultFilter), typeFilter),
-    [records, query, hasQuery, typeFilter, vaultFilter],
+        : filterRecords(records, { type: typeFilter, vault: vaultFilter, tag: tagFilter }),
+    [records, query, hasQuery, typeFilter, vaultFilter, tagFilter],
   );
   const recordGroups = useMemo(
     () =>
@@ -313,6 +368,18 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
 
+  // The vault and type filters may hide every record with the tag (its record
+  // was opened from a search), which would drop the tag filter right away.
+  const showTag = useCallback(
+    (tag: string) => {
+      setQuery("");
+      setTypeFilter("all");
+      setVaultFilter("all");
+      setTagFilter(tag);
+    },
+    [setVaultFilter, setTagFilter],
+  );
+
   function handleSortChange(value: string) {
     setStoredSort(value as SortOption);
   }
@@ -327,6 +394,10 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setTypeFilter,
       vaultFilter,
       setVaultFilter,
+      tagFilter,
+      setTagFilter,
+      tags,
+      showTag,
       sortedRecords,
       recordGroups,
       hasGroupLabels,
@@ -337,6 +408,10 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       typeFilter,
       vaultFilter,
       setVaultFilter,
+      tagFilter,
+      setTagFilter,
+      tags,
+      showTag,
       sortedRecords,
       recordGroups,
       hasGroupLabels,

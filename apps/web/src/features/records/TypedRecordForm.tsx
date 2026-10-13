@@ -33,6 +33,7 @@ import { PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
 import ExtraFormFields from "./login/ExtraFormFields";
 import type { RecordFormHandle } from "./RecordForm";
+import { RecordTagsField } from "./RecordTagsField";
 import { SshFingerprintHint, SshKeyActions } from "./ssh/SshKeyActions";
 
 export type OtherRecordType = Exclude<RecordType, "login">;
@@ -49,6 +50,7 @@ type AnyFormValues = Record<string, unknown> & {
   note?: string;
   password?: string;
   customFields?: CustomField[];
+  tags?: string[];
 };
 type FieldProps = {
   spec: FormFieldSpec;
@@ -278,6 +280,8 @@ export default function TypedRecordForm<T extends OtherRecordType>({
             <ExtraFormFields control={control} register={register} errors={formState.errors} />
             {!isNote && noteField}
           </div>
+
+          <RecordTagsField control={control} />
 
           {serverError && <FieldError variant="box">{serverError}</FieldError>}
         </FieldGroup>

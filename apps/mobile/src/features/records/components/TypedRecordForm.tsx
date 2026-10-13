@@ -54,6 +54,7 @@ import { useCSSVariable } from "uniwind";
 import ExtraFormFields from "./ExtraFormFields";
 import PasswordField from "./PasswordField";
 import type { RecordFormHandle } from "./RecordFormSheet";
+import { RecordTagsField } from "./RecordTagsField";
 
 export type OtherRecordType = Exclude<RecordType, "login">;
 
@@ -66,6 +67,7 @@ type AnyFormValues = Record<string, unknown> & {
   note?: string;
   password?: string;
   customFields?: CustomField[];
+  tags?: string[];
 };
 
 type FieldProps = {
@@ -497,6 +499,10 @@ export default function TypedRecordForm<T extends OtherRecordType>({
         <FieldSeparator />
 
         <ExtraFormFields control={control} register={register} errors={formState.errors} />
+
+        <FieldSeparator />
+
+        <RecordTagsField control={control} />
 
         {serverError && <FieldError>{serverError}</FieldError>}
       </FieldGroup>

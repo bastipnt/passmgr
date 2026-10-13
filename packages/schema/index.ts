@@ -6,6 +6,7 @@ export * from "./src/record-types";
 export * from "./src/seed/login-record-seed";
 export * from "./src/seed/typed-record-seed";
 export * from "./src/sharing-schema";
+export * from "./src/tags";
 export * from "./src/user/delete-account-schema";
 export * from "./src/user/email-schema";
 export * from "./src/user/key-schema";

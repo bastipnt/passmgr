@@ -1,5 +1,6 @@
 import {
   getRecordSubtitle,
+  listTitle,
   RECORD_TYPE_LABELS,
   useGetRecords,
   useShortcut,
@@ -31,17 +32,6 @@ import { recordPaths } from "@/app/route-paths";
 import { VaultBadge, VaultSwitcher } from "@/features/vaults";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSortMenu } from "./RecordSortMenu";
-
-/**
- * The list's title: what it shows. A search covers every type and vault. One
- * vault: its name, then the type when the list is narrowed to one.
- */
-export function listTitle(typeFilter: TypeFilter, searching: boolean, vault?: VaultInfo): string {
-  if (searching) return "Results";
-  const type = typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural;
-  if (vault) return type ? `${vault.name} · ${type}` : vault.name;
-  return type ?? "All items";
-}
 
 type RecordRowProps = {
   record: DecryptedRecord;
@@ -187,7 +177,7 @@ export default function RecordList() {
   const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, typeFilter, vaultFilter, sortedRecords, recordGroups, hasGroupLabels } =
+  const { query, typeFilter, vaultFilter, tagFilter, sortedRecords, recordGroups, hasGroupLabels } =
     useSortedRecords();
   const { getVault, hasSeveralVaults } = useVaults();
   const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
@@ -269,6 +259,7 @@ export default function RecordList() {
 
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
+  const title = listTitle({ typeFilter, tagFilter, searching: hasQuery, vault: shownVault });
 
   return (
     <div
@@ -276,10 +267,7 @@ export default function RecordList() {
       className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]"
     >
       {isMobile ? (
-        <MobileListTitle
-          title={listTitle(typeFilter, hasQuery, shownVault)}
-          count={sortedRecords.length}
-        />
+        <MobileListTitle title={title} count={sortedRecords.length} />
       ) : (
         <div
           className={cn(
@@ -289,7 +277,7 @@ export default function RecordList() {
         >
           <h2 className="min-w-0 font-semibold">
             <VaultSwitcher variant="title">
-              <span className="truncate">{listTitle(typeFilter, hasQuery, shownVault)}</span>
+              <span className="truncate">{title}</span>
               <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
                 {sortedRecords.length}
               </span>

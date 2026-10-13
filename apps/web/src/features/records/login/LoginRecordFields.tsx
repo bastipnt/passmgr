@@ -2,6 +2,7 @@ import { type FieldGroup, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "@repo/
 import type { DecryptedRecord } from "@repo/schema";
 import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
 import type { ReactNode } from "react";
+import { RecordTags } from "../RecordTags";
 import { useCopyField } from "../record-utils";
 import { HistorySection } from "./HistorySection";
 import LoginFieldDisplay from "./LoginFieldDisplay";
@@ -51,6 +52,7 @@ export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
           })}
           {i === 1 && (
             <>
+              <RecordTags record={record} />
               {extra}
               <PasswordHealthPanel record={record} />
               <HistorySection record={record} />

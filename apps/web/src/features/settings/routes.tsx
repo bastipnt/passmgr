@@ -14,6 +14,7 @@ const GeneralSettingsPage = lazyPreload(() => import("./GeneralSettingsPage"));
 const GeneratorSettingsPage = lazyPreload(() => import("./GeneratorSettingsPage"));
 const SecuritySettingsPage = lazyPreload(() => import("./SecuritySettingsPage"));
 const TrashPage = lazyPreload(() => import("./TrashPage"));
+const TagsSettingsPage = lazyPreload(() => import("./TagsSettingsPage"));
 const PassMonitorRoutes = lazyPreload(() => import("@/features/pass-monitor"));
 
 export default function SettingsRoutes() {
@@ -44,6 +45,7 @@ export default function SettingsRoutes() {
         <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
         <Route path={settingsPaths.security} component={SecuritySettingsPage} />
         <Route path={settingsPaths.trash} component={TrashPage} />
+        <Route path={settingsPaths.tags} component={TagsSettingsPage} />
         <Route path={passMonitorPaths.any} component={PassMonitorRoutes} />
 
         <Route>

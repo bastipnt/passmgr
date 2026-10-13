@@ -13,6 +13,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@repo/util": "workspace:*",
     "@vitest/coverage-v8": "catalog:",
     "oxlint": "catalog:",
     "vitest": "catalog:",

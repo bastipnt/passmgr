@@ -1,6 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { alignFieldSpecs, type DiffStatus } from "./diff-fields";
 import { type FieldSpec, getRecordFieldSpecs } from "./record-field-specs";
+import { diffTags } from "./tags";
 
 export type VersionChange = {
   key: string;
@@ -46,13 +47,40 @@ export function describeVersionChanges(
     const name = SHORT_NAME[spec.kind] ?? spec.label;
     return [{ key: row.key, status: row.status, label: `${name} ${STATUS_WORD[row.status]}` }];
   });
-  return [...changes, ...favoriteChange(version, previous)];
+  return [...changes, ...favoriteChange(version, previous), ...tagChanges(version, previous)];
 }
 
-// Not a field spec (no view renders it as a field), so compared on its own.
+// Favorite and tags aren't field specs, so they're compared on their own.
 function favoriteChange(version: DecryptedRecord, previous: DecryptedRecord): VersionChange[] {
   if (Boolean(version.favorite) === Boolean(previous.favorite)) return [];
   return version.favorite
     ? [{ key: "favorite", status: "added", label: "Added to favorites" }]
     : [{ key: "favorite", status: "removed", label: "Removed from favorites" }];
+}
+
+function tagChanges(version: DecryptedRecord, previous: DecryptedRecord): VersionChange[] {
+  const { added, removed, respelled } = diffTags(previous.tags, version.tags);
+  return [
+    ...added.map(
+      (tag): VersionChange => ({
+        key: `tag-added:${tag}`,
+        status: "added",
+        label: `Tag added: ${tag}`,
+      }),
+    ),
+    ...removed.map(
+      (tag): VersionChange => ({
+        key: `tag-removed:${tag}`,
+        status: "removed",
+        label: `Tag removed: ${tag}`,
+      }),
+    ),
+    ...respelled.map(
+      ({ from, to }): VersionChange => ({
+        key: `tag-respelled:${to}`,
+        status: "edited",
+        label: `Tag renamed: ${from} → ${to}`,
+      }),
+    ),
+  ];
 }

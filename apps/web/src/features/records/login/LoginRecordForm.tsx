@@ -9,6 +9,7 @@ import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { PasswordField } from "@/features/password-generation";
 import type { RecordFormHandle } from "../RecordForm";
+import { RecordTagsField } from "../RecordTagsField";
 import ExtraFormFields from "./ExtraFormFields";
 import WebsiteFormFields from "./WebsiteFormFields";
 
@@ -99,6 +100,8 @@ export default function LoginRecordForm({
           </div>
 
           <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
+
+          <RecordTagsField control={control} />
 
           {serverError && <FieldError variant="box">{serverError}</FieldError>}
         </FieldGroup>

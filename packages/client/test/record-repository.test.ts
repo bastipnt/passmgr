@@ -108,6 +108,23 @@ describe("RecordRepository", () => {
     expect(onWrite).toHaveBeenCalledTimes(1);
   });
 
+  it("writes several updates in one go", async () => {
+    const a = await repository.create(login("a"));
+    const b = await repository.create(login("b"), workId);
+    onWrite.mockClear();
+
+    const updated = await repository.updateMany([
+      { record: a, data: login("a2") },
+      { record: b, data: login("b2") },
+    ]);
+
+    expect(updated.map((row) => [row.vaultId, row.version, titleOf(row)])).toEqual([
+      [personalId, 2, "a2"],
+      [workId, 2, "b2"],
+    ]);
+    expect(onWrite).toHaveBeenCalledTimes(1);
+  });
+
   it("writes nothing (and doesn't schedule a sync) when a change doesn't fit", async () => {
     await expect(repository.delete(crypto.randomUUID())).rejects.toThrow();
 

@@ -46,6 +46,7 @@ export default function SettingsOverview({ className }: SettingsOverviewProps) {
         <ItemGroup className="max-sm:gap-0">
           <SidebarItem title="Account & sync" path={settingsPaths.account} />
           <SidebarItem title="Vaults" path={settingsPaths.vaults} />
+          <SidebarItem title="Tags" path={settingsPaths.tags} />
           <SidebarItem title="General Settings" path={settingsPaths.general} />
           <SidebarItem title="Password Generator" path={settingsPaths.generator} />
           <SidebarItem title="Security" path={settingsPaths.security} />

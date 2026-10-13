@@ -421,6 +421,18 @@ history as "Added to / Removed from favorites", shared with every member of a sh
 normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
 Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
 
+Tags (`useTags` / `useTagActions`, `records/tags.ts`; no folders): `tags` in the encrypted payload, the tag list is derived
+from the records (no tag entity, nothing on the server). Normalised by `@repo/schema` `tags.ts` (trim, one space, matched
+without case, a record keeps the first spelling, lists show the most used); forms refuse a comma (the CSV export joins with ", "), over `MAX_TAG_LENGTH` or
+`MAX_TAGS`; stored payloads stay lenient, imports go through `sanitizeTag`. Edited in every record form (`TagInput`:
+web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsProvider`'s `tagFilter` (one tag, session
+only, AND with vault and type, dropped once no record of the vault in view carries it; `tags` follow the vault
+filter; a detail chip's `showTag` clears the other filters first) and
+search's third tier (after title, subtitle); `listTitle` is shared. Web: "Tag" submenu in `RecordSortMenu`, mobile: in the
+records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
+version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
+per tag without case.
+
 Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 
 ### tRPC Router Structure

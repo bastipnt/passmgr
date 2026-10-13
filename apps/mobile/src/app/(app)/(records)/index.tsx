@@ -1,4 +1,5 @@
 import {
+  listTitle,
   RECORD_TYPE_LABELS,
   SORT_LABELS,
   type SortOption,
@@ -34,19 +35,26 @@ const TITLE_IN_BAR_OFFSET = 48;
 export default function RecordsScreen() {
   const router = useRouter();
   const { recordsNumber, ready } = useGetRecords();
-  const { sort, handleSortChange, typeFilter, setTypeFilter, vaultFilter, setVaultFilter } =
-    useSortedRecords();
+  const {
+    sort,
+    handleSortChange,
+    typeFilter,
+    setTypeFilter,
+    vaultFilter,
+    setVaultFilter,
+    tagFilter,
+    setTagFilter,
+    tags,
+  } = useSortedRecords();
   const { vaults, getVault, hasSeveralVaults } = useVaults();
-  const recordGroups = useRecordSearch("", typeFilter, vaultFilter);
+  const recordGroups = useRecordSearch("", {
+    type: typeFilter,
+    vault: vaultFilter,
+    tag: tagFilter,
+  });
   const shownCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
   const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
-  const typeTitle = typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural;
-  // Web's `listTitle`: the vault in view, then the type it's narrowed to.
-  const title = shownVault
-    ? typeTitle
-      ? `${shownVault.name} · ${typeTitle}`
-      : shownVault.name
-    : (typeTitle ?? "All items");
+  const title = listTitle({ typeFilter, tagFilter, searching: false, vault: shownVault });
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
   const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
@@ -59,13 +67,13 @@ export default function RecordsScreen() {
 
   // A new sort or filter reshuffles the whole list, so the old scroll offset
   // points at unrelated records — go back to the top. Skips the initial render.
-  const prevListRef = useRef(`${sort}:${typeFilter}:${vaultFilter}`);
+  const list = `${sort}:${typeFilter}:${vaultFilter}:${tagFilter}`;
+  const prevListRef = useRef(list);
   useEffect(() => {
-    const list = `${sort}:${typeFilter}:${vaultFilter}`;
     if (prevListRef.current === list) return;
     prevListRef.current = list;
     scrollToTop();
-  }, [sort, typeFilter, vaultFilter, scrollToTop]);
+  }, [list, scrollToTop]);
 
   return (
     <Screen>
@@ -91,9 +99,9 @@ export default function RecordsScreen() {
               accessibilityLabel: "Sort and filter records",
               icon: {
                 type: "sfSymbol",
-                // Filled while the list shows one type only.
+                // Filled while the list is narrowed.
                 name:
-                  typeFilter === "all" && vaultFilter === "all"
+                  typeFilter === "all" && vaultFilter === "all" && tagFilter === null
                     ? "line.3.horizontal.decrease.circle"
                     : "line.3.horizontal.decrease.circle.fill",
               },
@@ -141,6 +149,29 @@ export default function RecordsScreen() {
                       onPress: () => setTypeFilter(value),
                     })),
                   },
+                  // A submenu of its own: there can be many.
+                  ...(tags.length > 0
+                    ? [
+                        {
+                          type: "submenu" as const,
+                          label: tagFilter === null ? "Tag" : `Tag: ${tagFilter}`,
+                          items: [
+                            {
+                              type: "action" as const,
+                              label: "All tags",
+                              state: tagFilter === null ? ("on" as const) : ("off" as const),
+                              onPress: () => setTagFilter(null),
+                            },
+                            ...tags.map(({ tag, count }) => ({
+                              type: "action" as const,
+                              label: `${tag} (${count})`,
+                              state: tag === tagFilter ? ("on" as const) : ("off" as const),
+                              onPress: () => setTagFilter(tag),
+                            })),
+                          ],
+                        },
+                      ]
+                    : []),
                 ],
               },
             },

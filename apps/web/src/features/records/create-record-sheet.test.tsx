@@ -6,6 +6,12 @@ import { memoryLocation } from "wouter/memory-location";
 import { renderWithProviders, screen } from "@/test/render";
 import CreateRecordSheet from "./CreateRecordSheet";
 
+// The tag field offers the tags in use, which live in the records context.
+vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/hooks/use-tags")>()),
+  useTags: () => [],
+}));
+
 const mocks = vi.hoisted(() => ({
   createRecord: vi.fn(),
   createOpts: undefined as undefined | { onError?: (error: Error) => void },

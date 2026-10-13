@@ -5,6 +5,12 @@ import { renderWithProviders, screen, waitFor } from "@/test/render";
 import type { RecordFormHandle } from "./RecordForm";
 import TypedRecordForm from "./TypedRecordForm";
 
+// The tag field offers the tags in use, which live in the records context.
+vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/hooks/use-tags")>()),
+  useTags: () => [],
+}));
+
 describe("TypedRecordForm", () => {
   it("groups a card number while typing and names the network", async () => {
     renderWithProviders(<TypedRecordForm type="card" onSubmit={vi.fn()} />);
@@ -53,6 +59,39 @@ describe("TypedRecordForm", () => {
       expect(onSubmit).toHaveBeenCalledWith(
         expect.objectContaining({ title: "Stripe", keyId: "pk_test", secret: "sk_test" }),
       ),
+    );
+  });
+
+  it("adds typed tags as chips (a comma or Enter) and submits them", async () => {
+    const onSubmit = vi.fn();
+    const ref = createRef<RecordFormHandle>();
+    renderWithProviders(<TypedRecordForm type="note" onSubmit={onSubmit} ref={ref} />);
+
+    await userEvent.type(screen.getByLabelText("Title"), "Wi-Fi codes");
+    const tags = screen.getByLabelText("Tags");
+    await userEvent.type(tags, "home,");
+    await userEvent.type(tags, "  Family {Enter}");
+    expect(screen.getByRole("button", { name: "Remove home" })).toBeInTheDocument();
+
+    ref.current?.triggerSubmit();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Wi-Fi codes", tags: ["home", "Family"] }),
+      ),
+    );
+  });
+
+  it("keeps a typed tag when the field is left without Enter", async () => {
+    const onSubmit = vi.fn();
+    const ref = createRef<RecordFormHandle>();
+    renderWithProviders(<TypedRecordForm type="note" onSubmit={onSubmit} ref={ref} />);
+
+    await userEvent.type(screen.getByLabelText("Tags"), "work");
+    await userEvent.type(screen.getByLabelText("Title"), "Notes");
+
+    ref.current?.triggerSubmit();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ["work"] })),
     );
   });
 

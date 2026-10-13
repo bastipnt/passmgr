@@ -16,6 +16,7 @@ import { useForm } from "react-hook-form";
 import { useCSSVariable } from "uniwind";
 import ExtraFormFields from "@/features/records/components/ExtraFormFields";
 import PasswordField from "@/features/records/components/PasswordField";
+import { RecordTagsField } from "@/features/records/components/RecordTagsField";
 import WebsiteFormFields from "@/features/records/components/WebsiteFormFields";
 import type { RecordFormHandle } from "./RecordFormSheet";
 
@@ -114,6 +115,10 @@ export default function LoginRecordForm({
         <FieldSeparator />
 
         <ExtraFormFields control={control} register={register} errors={errors} />
+
+        <FieldSeparator />
+
+        <RecordTagsField control={control} />
 
         {serverError && <FieldError>{serverError}</FieldError>}
       </FieldGroup>

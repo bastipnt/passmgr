@@ -51,6 +51,8 @@ export const settingsPaths = {
   security: "/settings/security",
   /** Deleted records: restore or delete for good. */
   trash: "/settings/trash",
+  /** Rename or remove a tag on every record. */
+  tags: "/settings/tags",
 
   /** Prefix the app-level router hands to the settings feature. */
   any: "/settings/*?",

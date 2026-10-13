@@ -1,5 +1,11 @@
 import { sshPublicKeyFromPrivateKey } from "@repo/crypto";
-import type { RecordData, RecordFormValues, RecordOfType, RecordType } from "@repo/schema";
+import {
+  normalizeTags,
+  type RecordData,
+  type RecordFormValues,
+  type RecordOfType,
+  type RecordType,
+} from "@repo/schema";
 import { normalizeWebsiteUrl } from "@repo/util";
 import { normalizeCardNumber } from "./card";
 
@@ -45,9 +51,10 @@ function normalizeFormValues<T extends RecordType>(
 
 /**
  * The record data to save from a form of `type`. The forms only hold some of
- * a record's fields, so the ones they don't edit (favourite, tags,
- * attachments) are carried over from the current version. A record keeps its
- * type: saving it through another type's form would drop its fields.
+ * a record's fields, so the ones they don't edit (favourite, attachments, and
+ * tags when the values leave them out) are carried over from the current
+ * version. A record keeps its type: saving it through another type's form
+ * would drop its fields.
  */
 export function recordFromForm<T extends RecordType>(
   type: T,
@@ -57,11 +64,15 @@ export function recordFromForm<T extends RecordType>(
   if (current && current.type !== type) {
     throw new Error(`A ${current.type} record can't be saved through the ${type} form`);
   }
+  const { tags: formTags, ...fields } = normalizeFormValues(type, values) as RecordFormValues & {
+    tags?: string[];
+  };
+  const tags = formTags === undefined ? current?.tags : normalizeTags(formTags);
   return {
     favorite: current?.favorite,
-    tags: current?.tags,
     attachments: current?.attachments,
-    ...normalizeFormValues(type, values),
+    ...fields,
+    ...(tags?.length ? { tags } : {}),
     type,
   } as RecordOfType<T>;
 }
@@ -73,7 +84,6 @@ export function recordFormDefaults<T extends RecordType>(
   const {
     type: _type,
     favorite: _favorite,
-    tags: _tags,
     attachments: _attachments,
     passwordChangedAt: _passwordChangedAt,
     ...values

@@ -1,5 +1,6 @@
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
+  listTitle,
   SortedRecordsProvider,
   useRecordSearch,
   useSortedRecords,
@@ -25,9 +26,12 @@ function makeRecord(id: string, data: RecordData): DecryptedRecord {
 
 const records = vi.hoisted(() => [] as DecryptedRecord[]);
 records.push(
-  { ...makeRecord("work", { type: "login", title: "Jira", username: "me" }), vaultId: "v2" },
-  makeRecord("login", { type: "login", title: "GitHub", username: "octo" }),
-  makeRecord("card", { type: "card", title: "Visa", number: "4111111111111111" }),
+  {
+    ...makeRecord("work", { type: "login", title: "Jira", username: "me", tags: ["work"] }),
+    vaultId: "v2",
+  },
+  makeRecord("login", { type: "login", title: "GitHub", username: "octo", tags: ["Work", "code"] }),
+  makeRecord("card", { type: "card", title: "Visa", number: "4111111111111111", tags: ["bank"] }),
   makeRecord("wifi", { type: "wifi", title: "Home", ssid: "Park-Home" }),
 );
 
@@ -76,7 +80,7 @@ describe("type filter", () => {
 
   it("applies to useRecordSearch's browsing, not its search", () => {
     const { result, rerender } = renderHook(
-      ({ query }) => useRecordSearch(query, "wifi").flatMap((group) => group.records),
+      ({ query }) => useRecordSearch(query, { type: "wifi" }).flatMap((group) => group.records),
       { wrapper: Providers, initialProps: { query: "" } },
     );
     expect(ids(result.current)).toEqual(["wifi"]);
@@ -120,9 +124,95 @@ describe("vault filter", () => {
 
   it("applies to useRecordSearch's browsing", () => {
     const { result } = renderHook(
-      () => useRecordSearch("", "all", "v2").flatMap((group) => group.records),
+      () => useRecordSearch("", { vault: "v2" }).flatMap((group) => group.records),
       { wrapper: Providers },
     );
     expect(ids(result.current)).toEqual(["work"]);
+  });
+});
+
+describe("tag filter", () => {
+  it("narrows the list to the records carrying the tag, matched without case", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => result.current.setTagFilter("WORK"));
+    expect(ids(result.current.sortedRecords)).toEqual(["login", "work"]);
+  });
+
+  it("combines with the vault and type filters", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.setVaultFilter("v1");
+      result.current.setTagFilter("work");
+    });
+    expect(ids(result.current.sortedRecords)).toEqual(["login"]);
+
+    act(() => result.current.setTypeFilter("card"));
+    expect(ids(result.current.sortedRecords)).toEqual([]);
+  });
+
+  it("offers the tags of the vault in view, with counts", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    expect(result.current.tags.map(({ tag, count }) => `${tag}:${count}`)).toEqual([
+      "bank:1",
+      "code:1",
+      // One "Work" and one "work": a tie keeps the first spelling seen.
+      "work:2",
+    ]);
+
+    act(() => result.current.setVaultFilter("v2"));
+    expect(result.current.tags).toEqual([{ tag: "work", count: 1 }]);
+  });
+
+  it("reads a tag no record in view carries as every record", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.setVaultFilter("v2");
+      result.current.setTagFilter("bank");
+    });
+    expect(result.current.tagFilter).toBeNull();
+    expect(ids(result.current.sortedRecords)).toEqual(["work"]);
+  });
+
+  it("is ignored by a search", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.setTagFilter("bank");
+      result.current.setQuery("jira");
+    });
+    expect(ids(result.current.sortedRecords)).toEqual(["work"]);
+  });
+
+  it("applies to useRecordSearch's browsing", () => {
+    const { result } = renderHook(
+      () => useRecordSearch("", { tag: "code" }).flatMap((group) => group.records),
+      { wrapper: Providers },
+    );
+    expect(ids(result.current)).toEqual(["login"]);
+  });
+});
+
+describe("search", () => {
+  it("finds records by tag too", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => result.current.setQuery("ban"));
+    expect(ids(result.current.sortedRecords)).toEqual(["card"]);
+  });
+});
+
+describe("listTitle", () => {
+  const vault = { vaultId: "v1", name: "Family", kind: "shared", role: "owner" } as const;
+
+  it("names the vault, the type and the tag the list is narrowed to", () => {
+    expect(listTitle({ typeFilter: "all", tagFilter: null, searching: false })).toBe("All items");
+    expect(listTitle({ typeFilter: "login", tagFilter: "work", searching: false, vault })).toBe(
+      "Family · Logins · #work",
+    );
+    expect(listTitle({ typeFilter: "all", tagFilter: "work", searching: false })).toBe("#work");
+    expect(listTitle({ typeFilter: "all", tagFilter: "work", searching: true })).toBe("Results");
   });
 });

@@ -110,6 +110,16 @@ describe("mergeRecord", () => {
     expect(merged.data.tags).toEqual(["work", "mine", "theirs"]);
   });
 
+  it("merges tags without case: one tag added on both sides is one tag", () => {
+    const merged = mergeRecord(
+      { ...base, tags: ["work"] },
+      [at(0, { tags: ["work", "Home"] })],
+      [at(5, { tags: ["Work", "home"] })],
+    );
+
+    expect(merged.data.tags).toEqual(["work", "Home"]);
+  });
+
   it("takes the whole later record when a side changed the type", () => {
     const note = { ...base, type: "note" } as unknown as Partial<RecordData>;
     const local = [at(10, note)];

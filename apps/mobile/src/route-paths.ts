@@ -42,6 +42,10 @@ export const settingsPaths = {
   vaults: "/settings/vaults" as Href,
   /** Deleted records: restore or delete for good. */
   trash: "/settings/trash" as Href,
+  /** Every tag in use (web's Settings → Tags). */
+  tags: "/settings/tags" as Href,
+  /** The sheet for one tag: rename, remove. */
+  tag: (tag: string) => `/settings/tag?tag=${encodeURIComponent(tag)}` as Href,
   /** The vault form sheet: a new vault, or the one given to edit. */
   vault: (vaultId?: string) =>
     (vaultId ? `/settings/vault?vaultId=${vaultId}` : "/settings/vault") as Href,

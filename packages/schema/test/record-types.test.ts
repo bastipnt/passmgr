@@ -212,7 +212,15 @@ describe("recordFormSchemas", () => {
       favorite: true,
       tags: ["x"],
     });
-    expect(parsed).toEqual({ title: "Home" });
+    expect(parsed).toEqual({ title: "Home", tags: ["x"] });
+  });
+
+  it("normalises tags and refuses ones the CSV export would split", () => {
+    expect(recordFormSchemas.note.parse({ title: "x", tags: [" a  b ", "A B", "c"] }).tags).toEqual(
+      ["a b", "c"],
+    );
+    expect(recordFormSchemas.note.safeParse({ title: "x", tags: ["a,b"] }).success).toBe(false);
+    expect(recordFormSchemas.note.safeParse({ title: "x", tags: [" "] }).success).toBe(false);
   });
 
   it.each([

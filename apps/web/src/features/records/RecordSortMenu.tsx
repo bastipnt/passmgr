@@ -11,10 +11,13 @@ import {
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { cn } from "@repo/ui/lib/utils";
-import { ArrowUpDownIcon } from "lucide-react";
+import { ArrowUpDownIcon, TagIcon } from "lucide-react";
 
 const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
   { value: "all", label: "All items" },
@@ -26,12 +29,20 @@ type RecordSortMenuProps = {
   variant?: "inline" | "fab";
 };
 
-/** Sort order and the type filter, in one menu: both decide what the list shows. */
+// No tag is ever empty, so "" stands for every record in the radio group.
+const ALL_TAGS = "";
+
+/** Sort order and the type and tag filters, in one menu: they decide what the list shows. */
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
-  const { sort, handleSortChange, typeFilter, setTypeFilter } = useSortedRecords();
+  const { sort, handleSortChange, typeFilter, setTypeFilter, tagFilter, setTagFilter, tags } =
+    useSortedRecords();
   const fab = variant === "fab";
-  const filtered = typeFilter !== "all";
-  const accessibleName = `Sort: ${SORT_LABELS[sort]}${filtered ? `, showing ${RECORD_TYPE_LABELS[typeFilter].plural}` : ""}`;
+  const filtered = typeFilter !== "all" || tagFilter !== null;
+  const showing = [
+    typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural,
+    tagFilter === null ? undefined : `tagged ${tagFilter}`,
+  ].filter(Boolean);
+  const accessibleName = `Sort: ${SORT_LABELS[sort]}${showing.length > 0 ? `, showing ${showing.join(" ")}` : ""}`;
 
   return (
     <DropdownMenu>
@@ -91,6 +102,31 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
+        {tags.length > 0 && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <TagIcon />
+                <span className="flex-1 truncate">{tagFilter ?? "Tag"}</span>
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent className="max-h-80 min-w-48">
+                <DropdownMenuRadioGroup
+                  value={tagFilter ?? ALL_TAGS}
+                  onValueChange={(value) => setTagFilter(value === ALL_TAGS ? null : value)}
+                >
+                  <DropdownMenuRadioItem value={ALL_TAGS}>All tags</DropdownMenuRadioItem>
+                  {tags.map(({ tag, count }) => (
+                    <DropdownMenuRadioItem key={tag} value={tag}>
+                      <span className="min-w-0 flex-1 truncate">{tag}</span>
+                      <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
+                    </DropdownMenuRadioItem>
+                  ))}
+                </DropdownMenuRadioGroup>
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

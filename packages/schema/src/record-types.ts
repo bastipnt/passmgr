@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { tagsFormSchema } from "./tags";
 
 /**
  * The decrypted record payload (ADR 0001 D4): a discriminated union on `type`.
@@ -134,10 +135,12 @@ export function isRecordType<R extends { type: RecordType }, T extends RecordTyp
   return record.type === type;
 }
 
-/** Base fields no form edits yet; `recordFromForm` carries them over from the current version. */
-const FORM_OMIT = { type: true, favorite: true, tags: true, attachments: true } as const;
+/** Base fields no form edits; `recordFromForm` carries them over from the current version. */
+const FORM_OMIT = { type: true, favorite: true, attachments: true } as const;
 /** Not carried over by `recordFromForm`: `RecordRepository.update` takes it from the stored version. */
 const PASSWORD_FORM_OMIT = { ...FORM_OMIT, passwordChangedAt: true } as const;
+
+const formTags = { tags: tagsFormSchema.optional() };
 
 /** "YYYY-MM-DD": what web's date input writes, so both apps store one format. */
 const DATE_PATTERN = /^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$/;
@@ -153,19 +156,21 @@ const EXPIRY_PATTERN = /^(0[1-9]|1[0-2])\/\d{2}$/;
  * loose, any client may have written them.
  */
 export const recordFormSchemas = {
-  login: loginRecordSchema.omit(PASSWORD_FORM_OMIT),
+  login: loginRecordSchema.omit(PASSWORD_FORM_OMIT).extend(formTags),
   card: cardRecordSchema.omit(FORM_OMIT).extend({
+    ...formTags,
     expiry: z.union([z.literal(""), z.string().regex(EXPIRY_PATTERN, "Use MM/YY")]).optional(),
   }),
   identity: identityRecordSchema.omit(FORM_OMIT).extend({
+    ...formTags,
     birthDate: z
       .union([z.literal(""), z.string().regex(DATE_PATTERN, "Use YYYY-MM-DD")])
       .optional(),
   }),
-  note: noteRecordSchema.omit(FORM_OMIT),
-  ssh_key: sshKeyRecordSchema.omit(FORM_OMIT),
-  api_key: apiKeyRecordSchema.omit(FORM_OMIT),
-  wifi: wifiRecordSchema.omit(PASSWORD_FORM_OMIT),
+  note: noteRecordSchema.omit(FORM_OMIT).extend(formTags),
+  ssh_key: sshKeyRecordSchema.omit(FORM_OMIT).extend(formTags),
+  api_key: apiKeyRecordSchema.omit(FORM_OMIT).extend(formTags),
+  wifi: wifiRecordSchema.omit(PASSWORD_FORM_OMIT).extend(formTags),
 } satisfies { [T in RecordType]: z.ZodType };
 
 export type RecordFormValues<T extends RecordType = RecordType> = z.infer<

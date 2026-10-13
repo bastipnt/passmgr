@@ -4,13 +4,14 @@ import {
   getRecordWebsites,
   RECORD_TYPE_LABELS,
   useGetRecord,
+  useSortedRecords,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Section, SectionHeading } from "@repo/ui-native";
 import { toLocalDateStr } from "@repo/util";
 import { router } from "expo-router";
 import * as WebBrowser from "expo-web-browser";
-import { ChevronRight, ExternalLink, History } from "lucide-react-native";
+import { ChevronRight, ExternalLink, History, Tag } from "lucide-react-native";
 import { Pressable, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { recordPaths } from "@/route-paths";
@@ -81,6 +82,35 @@ function Hero({ record }: { record: DecryptedRecord }) {
   );
 }
 
+/** Web's `RecordTags`. */
+function TagsSection({ tags }: { tags: string[] }) {
+  const muted = useCSSVariable("--color-muted-foreground") as string;
+  const { showTag } = useSortedRecords();
+
+  return (
+    <View className="gap-2">
+      <SectionHeading>Tags</SectionHeading>
+      <View className="flex-row flex-wrap gap-2 px-5">
+        {tags.map((tag) => (
+          <Pressable
+            key={tag}
+            accessibilityRole="button"
+            accessibilityLabel={`Show items tagged ${tag}`}
+            onPress={() => {
+              showTag(tag);
+              router.navigate(recordPaths.index);
+            }}
+            className="h-8 flex-row items-center gap-1.5 rounded-full bg-foreground/8 px-3 active:bg-foreground/15 dark:bg-white/10"
+          >
+            <Tag size={14} color={muted} />
+            <Text className="font-medium text-foreground text-sm">{tag}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
+  );
+}
+
 function HistorySection({ record }: { record: DecryptedRecord }) {
   const muted = useCSSVariable("--color-muted-foreground") as string;
   // Versions are numbered from 1, so the latest number is the count.
@@ -138,6 +168,8 @@ export default function Record({ record }: RecordProps) {
       })}
 
       {record.type === "wifi" && <WifiQrCode record={record} />}
+
+      {record.tags && record.tags.length > 0 && <TagsSection tags={record.tags} />}
 
       <HistorySection record={record} />
     </View>

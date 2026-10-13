@@ -107,8 +107,10 @@ export default function RecordFormSheet<T extends RecordType>({
         }}
       />
 
+      {/* "handled": a tap on a tag suggestion picks it instead of only closing the keyboard. */}
       <KeyboardAwareScrollView
         mode="layout"
+        keyboardShouldPersistTaps="handled"
         contentContainerClassName="grow gap-6 px-5 py-6"
         bottomOffset={24}
       >
