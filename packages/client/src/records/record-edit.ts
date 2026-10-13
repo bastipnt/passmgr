@@ -90,3 +90,12 @@ export function recordFormDefaults<T extends RecordType>(
   } = record as RecordOfType<T> & { passwordChangedAt?: string };
   return values as Partial<RecordFormValues<T>>;
 }
+
+/** The create form's initial values for a copy of `record`. */
+export function duplicateValues<T extends RecordType>(
+  record: RecordOfType<T>,
+): Partial<RecordFormValues<T>> {
+  return { ...recordFormDefaults(record), title: `${record.title} (copy)` } as Partial<
+    RecordFormValues<T>
+  >;
+}

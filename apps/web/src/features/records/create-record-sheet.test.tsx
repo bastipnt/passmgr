@@ -1,3 +1,4 @@
+import type { DecryptedRecord } from "@repo/schema";
 import { toast } from "@repo/ui";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -17,6 +18,7 @@ const mocks = vi.hoisted(() => ({
   createOpts: undefined as undefined | { onError?: (error: Error) => void },
   vaultFilter: "all",
   writableVaults: [] as { vaultId: string; name: string; kind: string; role: string }[],
+  records: [] as DecryptedRecord[],
 }));
 
 vi.mock("@repo/client", async (importOriginal) => ({
@@ -39,8 +41,18 @@ vi.mock("@repo/client/src/hooks/use-vaults", async (importOriginal) => ({
   useVaults: () => ({ writableVaults: mocks.writableVaults }),
 }));
 
+vi.mock("@repo/client/src/hooks/use-records", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/client/src/hooks/use-records")>()),
+  useGetRecord: (recordId: string) => ({
+    record: mocks.records.find((record) => record.recordId === recordId),
+    ready: true,
+  }),
+}));
+
 beforeEach(() => {
   mocks.createRecord.mockClear();
+  vi.mocked(toast.error).mockClear();
+  mocks.records = [];
   mocks.vaultFilter = "all";
   mocks.writableVaults = [];
 });
@@ -108,5 +120,44 @@ describe("CreateRecordSheet", () => {
     renderAt("/?new=&type=note");
     mocks.createOpts?.onError?.(new Error("disk full"));
     expect(toast.error).toHaveBeenCalledWith("The item couldn't be saved");
+  });
+
+  describe("as a duplicate", () => {
+    const source = {
+      recordId: "r-1",
+      vaultId: "v-work",
+      type: "note",
+      title: "Wiki",
+      note: "body",
+      favorite: true,
+    } as DecryptedRecord;
+
+    it("starts from a copy of the record, in its vault", async () => {
+      mocks.records = [source];
+      mocks.writableVaults = [
+        { vaultId: "v-personal", name: "Personal", kind: "personal", role: "owner" },
+        { vaultId: "v-work", name: "Work", kind: "shared", role: "owner" },
+      ];
+      renderAt("/record/r-1?new=&duplicate=r-1");
+
+      expect(screen.getByRole("heading", { name: "Duplicate secure note" })).toBeInTheDocument();
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Wiki (copy)");
+      expect(screen.queryByRole("button", { name: "Type" })).not.toBeInTheDocument();
+      expect(screen.getByRole("combobox", { name: "Vault" })).toHaveTextContent("Work");
+
+      await userEvent.click(screen.getByRole("button", { name: "Create secure note" }));
+      await vi.waitFor(() => expect(mocks.createRecord).toHaveBeenCalled());
+      const [record, vaultId] = mocks.createRecord.mock.calls[0]!;
+      expect(record).toMatchObject({ type: "note", title: "Wiki (copy)", note: "body" });
+      expect(record.favorite).toBeUndefined();
+      expect(vaultId).toBe("v-work");
+    });
+
+    it("closes when the record is gone", async () => {
+      const location = renderAt("/record/r-1?new=&duplicate=r-1");
+
+      expect(toast.error).toHaveBeenCalledWith("This item is no longer available");
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
+    });
   });
 });

@@ -1,4 +1,9 @@
-import { RECORD_TYPE_LABELS, recordFormDefaults, ShortcutLayer } from "@repo/client";
+import {
+  RECORD_TYPE_LABELS,
+  recordFormDefaults,
+  ShortcutLayer,
+  useRecordVault,
+} from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
@@ -12,7 +17,6 @@ import { recordPaths } from "@/app/route-paths";
 import { RecordAvatar } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import { useRecordActions } from "./use-record-actions";
-import { useRecordVault } from "./use-record-vault";
 import { useRouteSheet } from "./use-route-sheet";
 
 export default function EditRecordSheet({ record }: { record: DecryptedRecord }) {

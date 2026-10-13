@@ -421,6 +421,12 @@ history as "Added to / Removed from favorites", shared with every member of a sh
 normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
 Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
 
+Duplicate (web `MoreDropdown`, mobile record "More" menu): opens the create form as a copy, nothing saved until Save.
+The URL carries only the source id (web `?new&duplicate=<id>`, mobile `recordPaths.duplicate`); `duplicateValues`
+(`records/record-edit.ts`) titles it "(copy)" and drops `favorite` / `passwordChangedAt`; the source's vault is the default
+target when writable (`useTargetVault`'s `preferredVaultId`). `read` members may duplicate into a vault of their own
+(`useRecordVault().canDuplicate`). A source gone meanwhile closes the form (`useDuplicateSource`).
+
 Tags (`useTags` / `useTagActions`, `records/tags.ts`; no folders): `tags` in the encrypted payload, the tag list is derived
 from the records (no tag entity, nothing on the server). Normalised by `@repo/schema` `tags.ts` (trim, one space, matched
 without case, a record keeps the first spelling, lists show the most used); forms refuse a comma (the CSV export joins with ", "), over `MAX_TAG_LENGTH` or

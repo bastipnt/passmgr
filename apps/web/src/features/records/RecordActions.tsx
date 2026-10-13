@@ -3,6 +3,7 @@ import {
   RECORD_TYPE_LABELS,
   ShortcutLayer,
   useMoveRecord,
+  useRecordVault,
   useSortedRecords,
   useToggleFavorite,
 } from "@repo/client";
@@ -22,6 +23,7 @@ import {
 import Link from "@repo/ui/components/Link";
 import { cn } from "@repo/ui/lib/utils";
 import {
+  CopyPlusIcon,
   EllipsisIcon,
   ExternalLinkIcon,
   LockIcon,
@@ -34,9 +36,9 @@ import { useState } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultBadge, VaultTile } from "@/features/vaults";
+import { duplicateSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
 import { displayHost } from "./record-utils";
-import { useRecordVault } from "./use-record-vault";
 
 type MoreDropdownProps = {
   record: DecryptedRecord;
@@ -47,7 +49,7 @@ type MoreDropdownProps = {
 export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDropdownProps) {
   const { recordId } = record;
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const { writable, moveTargets } = useRecordVault(record);
+  const { writable, moveTargets, canDuplicate } = useRecordVault(record);
   const [, navigate] = useLocation();
   const { vaultFilter, setVaultFilter } = useSortedRecords();
   const { moveRecord, movePending } = useMoveRecord({
@@ -80,6 +82,11 @@ export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDrop
           <DropdownMenuItem render={<Link href={recordPaths.recordVersions(recordId)} />}>
             <Timeline /> Versions
           </DropdownMenuItem>
+          {canDuplicate && (
+            <DropdownMenuItem render={<Link href={duplicateSheetSearch(recordId)} />}>
+              <CopyPlusIcon /> Duplicate
+            </DropdownMenuItem>
+          )}
 
           {/* Inline rather than a submenu: one that opens sideways runs off a phone. */}
           {writable && moveTargets.length > 0 && (

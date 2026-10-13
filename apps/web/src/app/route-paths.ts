@@ -37,8 +37,10 @@ export const recordPaths = {
    * behind it. Value is the optional prefilled title.
    */
   createParam: "new",
-  /** With `createParam`: the record type to create. Absent → the type picker. */
+  /** With `createParam`: the record type to create. Absent (and no duplicate) → the type picker. */
   createTypeParam: "type",
+  /** With `createParam`: the record to copy; its type replaces `createTypeParam`. */
+  createDuplicateParam: "duplicate",
 } as const;
 
 export const settingsPaths = {

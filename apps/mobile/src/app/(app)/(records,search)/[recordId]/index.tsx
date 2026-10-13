@@ -1,5 +1,4 @@
-import { useMoveRecord, useSortedRecords, useToggleFavorite, useVaults } from "@repo/client";
-import { canWriteVault } from "@repo/schema";
+import { useMoveRecord, useRecordVault, useSortedRecords, useToggleFavorite } from "@repo/client";
 import {
   Empty,
   EmptyDescription,
@@ -36,11 +35,8 @@ export default function RecordScreen() {
   ]) as string[];
   const { scrollProps, titleInBar, contentTopPadding, restAnchor } =
     useScrollTitle(TITLE_IN_BAR_OFFSET);
-  const { getVault, writableVaults } = useVaults();
-  const vault = record ? getVault(record.vaultId) : undefined;
-  // Not listed (yet): leave it to the server, as web's `useRecordVault`.
-  const writable = vault ? canWriteVault(vault.role) : true;
-  const moveTargets = writableVaults.filter((target) => target.vaultId !== record?.vaultId);
+  const { vault, writable, moveTargets, canDuplicate } = useRecordVault(record);
+  const canMove = writable && moveTargets.length > 0;
   const { vaultFilter, setVaultFilter } = useSortedRecords();
   const { moveRecord, movePending } = useMoveRecord({
     // A move is a new record (new id): show that one instead.
@@ -106,22 +102,46 @@ export default function RecordScreen() {
                         },
                       ]
                     : []),
-                  ...(writable && moveTargets.length > 0
+                  ...(canDuplicate || canMove
                     ? [
                         {
                           type: "menu" as const,
-                          label: "Move",
-                          accessibilityLabel: "Move to another vault",
-                          icon: { type: "sfSymbol" as const, name: "folder" as const },
+                          label: "More",
+                          accessibilityLabel: "More actions",
+                          icon: { type: "sfSymbol" as const, name: "ellipsis" as const },
                           tintColor: foreground,
                           menu: {
-                            title: vault ? `In ${vault.name}` : undefined,
-                            items: moveTargets.map((target) => ({
-                              type: "action" as const,
-                              label: `Move to ${target.name}`,
-                              disabled: movePending,
-                              onPress: () => moveRecord(record, target.vaultId),
-                            })),
+                            items: [
+                              ...(canDuplicate
+                                ? [
+                                    {
+                                      type: "action" as const,
+                                      label: "Duplicate",
+                                      icon: {
+                                        type: "sfSymbol" as const,
+                                        name: "plus.square.on.square" as const,
+                                      },
+                                      onPress: () =>
+                                        router.navigate(recordPaths.duplicate(record.recordId)),
+                                    },
+                                  ]
+                                : []),
+                              ...(canMove
+                                ? [
+                                    {
+                                      type: "submenu" as const,
+                                      label: vault ? `In ${vault.name}` : "Move",
+                                      inline: true,
+                                      items: moveTargets.map((target) => ({
+                                        type: "action" as const,
+                                        label: `Move to ${target.name}`,
+                                        disabled: movePending,
+                                        onPress: () => moveRecord(record, target.vaultId),
+                                      })),
+                                    },
+                                  ]
+                                : []),
+                            ],
                           },
                         },
                       ]

@@ -1,12 +1,19 @@
 import {
+  duplicateValues,
   newLoginValues,
   RECORD_TYPE_LABELS,
   recordFromForm,
   sharedWebsite,
   useCreateRecord,
+  useDuplicateSource,
   useTargetVault,
 } from "@repo/client";
-import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
+import {
+  type DecryptedRecord,
+  RECORD_TYPES,
+  type RecordFormValues,
+  type RecordType,
+} from "@repo/schema";
 import { OptionList, SettingsSection, toast } from "@repo/ui-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
@@ -17,11 +24,13 @@ import { recordPaths } from "@/route-paths";
 
 /**
  * "New item": the type picker, then that type's form (`?type=`), as on web.
- * `?website=` fills in a new login's website (`recordPaths.createLogin`).
+ * `?website=` fills in a new login's website (`recordPaths.createLogin`),
+ * `?duplicate=` starts from a copy of that record (`recordPaths.duplicate`).
  */
 export default function NewRecordScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ type?: string; website?: string }>();
+  const params = useLocalSearchParams<{ type?: string; website?: string; duplicate?: string }>();
+  if (params.duplicate) return <DuplicateRecordForm recordId={params.duplicate} />;
   const type = RECORD_TYPES.find((option) => option === params.type);
   const website = params.website ? sharedWebsite(params.website) : undefined;
 
@@ -34,6 +43,20 @@ export default function NewRecordScreen() {
       type={type}
       defaultValues={type === "login" && website ? newLoginValues(website) : undefined}
     />
+  );
+}
+
+function DuplicateRecordForm({ recordId }: { recordId: string }) {
+  const router = useRouter();
+  const record = useDuplicateSource(recordId, () => {
+    toast.error("This item is no longer available");
+    if (router.canGoBack()) router.back();
+    else router.replace(recordPaths.index);
+  });
+
+  if (!record) return null;
+  return (
+    <NewRecordForm type={record.type} defaultValues={duplicateValues(record)} source={record} />
   );
 }
 
@@ -73,12 +96,14 @@ function TypePickerSheet({ onPick }: { onPick: (type: RecordType) => void }) {
 function NewRecordForm<T extends RecordType>({
   type,
   defaultValues,
+  source,
 }: {
   type: T;
   defaultValues?: Partial<RecordFormValues<T>>;
+  source?: DecryptedRecord;
 }) {
   const router = useRouter();
-  const { vaultId, setVaultId, writableVaults, canPick } = useTargetVault();
+  const { vaultId, setVaultId, writableVaults, canPick } = useTargetVault(true, source?.vaultId);
 
   const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: () => {
@@ -99,7 +124,7 @@ function NewRecordForm<T extends RecordType>({
       serverError={createRecordError?.message}
       pending={createPending}
       action="Create"
-      title={`New ${RECORD_TYPE_LABELS[type].noun}`}
+      title={`${source ? "Duplicate" : "New"} ${RECORD_TYPE_LABELS[type].noun}`}
       generatorPath={recordPaths.createGeneratePassword}
       defaultValues={defaultValues}
     >

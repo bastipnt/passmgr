@@ -1,4 +1,4 @@
-import { getRecordWebsites, RECORD_TYPE_LABELS } from "@repo/client";
+import { getRecordWebsites, RECORD_TYPE_LABELS, useRecordVault } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
@@ -16,7 +16,6 @@ import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
 import { displayHost, useCopyField } from "./record-utils";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
-import { useRecordVault } from "./use-record-vault";
 
 type MobileRecordScreenProps = {
   record: DecryptedRecord;

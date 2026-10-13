@@ -1,8 +1,10 @@
 import {
+  duplicateValues,
   RECORD_TYPE_LABELS,
   recordFromForm,
   ShortcutLayer,
   useCreateRecord,
+  useDuplicateSource,
   useTargetVault,
 } from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
@@ -32,6 +34,11 @@ export function createSheetSearch(title?: string, type?: RecordType) {
   return `?${params}`;
 }
 
+/** Href that opens the create sheet as a copy of `recordId`. */
+export function duplicateSheetSearch(recordId: string) {
+  return `?${new URLSearchParams({ [recordPaths.createParam]: "", [recordPaths.createDuplicateParam]: recordId })}`;
+}
+
 function parseType(value: string | null): RecordType | undefined {
   return RECORD_TYPES.find((type) => type === value);
 }
@@ -51,14 +58,22 @@ export default function CreateRecordSheet() {
   // Presence opens the sheet; the value, if any, is the prefilled title.
   const initialTitle = searchParams.get(recordPaths.createParam) || undefined;
   const open = searchParams.has(recordPaths.createParam);
-  const type = parseType(searchParams.get(recordPaths.createTypeParam));
+  const duplicateId = open ? searchParams.get(recordPaths.createDuplicateParam) : null;
+  const source = useDuplicateSource(duplicateId, () => {
+    toast.error("This item is no longer available");
+    close();
+  });
+  const type = duplicateId
+    ? source?.type
+    : parseType(searchParams.get(recordPaths.createTypeParam));
   const typeLabel = type ? RECORD_TYPE_LABELS[type].noun : undefined;
-  const { vaultId, setVaultId, canPick } = useTargetVault(open);
+  const { vaultId, setVaultId, canPick } = useTargetVault(open, source?.vaultId);
 
   function close() {
     const next = new URLSearchParams(searchParams);
     next.delete(recordPaths.createParam);
     next.delete(recordPaths.createTypeParam);
+    next.delete(recordPaths.createDuplicateParam);
     setSearchParams(next, { replace: true });
   }
 
@@ -80,7 +95,7 @@ export default function CreateRecordSheet() {
       <SheetCloseAction />
 
       <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-end">
-        {type && (
+        {type && !duplicateId && (
           // Back to the picker; what was typed so far is dropped with the form.
           <Button
             variant="ghost"
@@ -119,7 +134,7 @@ export default function CreateRecordSheet() {
         onOpenChange={(nextOpen) => {
           if (!nextOpen) close();
         }}
-        title={typeLabel ? `New ${typeLabel}` : "New item"}
+        title={typeLabel ? `${duplicateId ? "Duplicate" : "New"} ${typeLabel}` : "New item"}
         description={
           type ? "Encrypted on this device before it's saved" : "What would you like to save?"
         }
@@ -144,15 +159,17 @@ export default function CreateRecordSheet() {
         {type ? (
           <RecordForm
             // Remount on a new type or prefill so the form starts over.
-            key={`${type}:${initialTitle ?? ""}`}
+            key={`${type}:${initialTitle ?? ""}:${duplicateId ?? ""}`}
             type={type}
             onSubmit={(values) => handleSubmit(type, values)}
             serverError={createRecordError?.message}
             disabled={createPending}
-            defaultValues={initialTitle ? { title: initialTitle } : undefined}
+            defaultValues={
+              source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
+            }
             ref={formRef}
           />
-        ) : (
+        ) : duplicateId ? null : (
           <RecordTypePicker hrefFor={(pick) => createSheetSearch(initialTitle, pick)} />
         )}
       </ResponsiveSheet>

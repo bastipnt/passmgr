@@ -25,6 +25,8 @@ export const recordPaths = {
     (website
       ? `/new?type=login&website=${encodeURIComponent(website)}`
       : "/new?type=login") as Href,
+  /** "New item" as a copy of `recordId`. */
+  duplicate: (recordId: string) => `/new?duplicate=${recordId}` as Href,
   record: (recordId: string) => `/${recordId}` as Href,
   editRecord: (recordId: string) => `/${recordId}/edit` as Href,
   /** The generator opened from a record's edit sheet. */
