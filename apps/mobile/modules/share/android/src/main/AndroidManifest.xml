@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
   <application>
+    <!-- Share target: must be exported to receive ACTION_SEND. It only forwards the text to our own
+         passmgr://share deep link (already public via the app's URL scheme), nothing privileged. -->
+    <!-- nosemgrep: java.android.security.exported_activity.exported_activity -->
     <activity
       android:name="com.passmgr.share.ShareActivity"
       android:exported="true"
