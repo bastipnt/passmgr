@@ -325,6 +325,14 @@ on purpose (signed out from another device, password changed or recovered elsewh
 / `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
 database + outbox in every mode; the `online` event (or attaching server auth) syncs.
 
+### Web served-code trust
+
+Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bundle is written): SRI on the asset tags
+of `index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs with
+`integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
+(`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS>` checks a deployment against it. What it does and doesn't
+protect against: `docs/security/web-served-code-trust.md`.
+
 ### Key Hierarchy
 
 ```

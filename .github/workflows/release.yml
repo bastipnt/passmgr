@@ -66,6 +66,43 @@ jobs:
           build-args: |
             VITE_SITE_URL=${{ vars.SITE_URL }}
 
+  # The web build's checksums, published outside the web host so anyone can check what it
+  # serves (`pnpm --filter web verify:deployment`).
+  web-checksums:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: read
+    steps:
+      - uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract SHA256SUMS from the web image
+        run: |
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/passmgr-web:${GITHUB_REF_NAME#v}"
+          docker pull "$image"
+          container=$(docker create "$image")
+          docker cp "$container:/srv/SHA256SUMS" passmgr-web.SHA256SUMS
+          docker rm "$container"
+          {
+            echo '### Web build checksums'
+            echo '```'
+            cat passmgr-web.SHA256SUMS
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Attach to the release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 \
+            || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
+          gh release upload "$GITHUB_REF_NAME" passmgr-web.SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
+
   deploy:
     needs: build
     runs-on: ubuntu-latest

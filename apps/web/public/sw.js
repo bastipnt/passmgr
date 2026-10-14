@@ -1,24 +1,32 @@
 // fallow-ignore-file unused-file
 // Offline-first app shell: every file of the build (all lazy route chunks, workers, the sqlite
 // wasm) is downloaded on install, so a page never opened online still loads offline.
-// `vite-plugin-precache.ts` replaces the marker below with the build's file list and version;
-// in dev it stays empty (the SW is only registered in production).
-const MANIFEST = self.__PRECACHE_MANIFEST__ ?? { version: "dev", files: [] };
+// `vite-plugin-build-integrity.ts` replaces the marker below with the build's files (each with its
+// SRI hash) and version; in dev it stays empty (the SW is only registered in production).
+const MANIFEST = self.__PRECACHE_MANIFEST__ ?? { version: "dev", files: {} };
 
 const CACHE_PREFIX = "pass-mgr-";
 const CACHE_NAME = `${CACHE_PREFIX}${MANIFEST.version}`;
 const INDEX_URL = new URL("index.html", self.registration.scope).href;
-const PRECACHED = new Set(
-  MANIFEST.files.map((file) => new URL(file, self.registration.scope).href),
+const PRECACHED = new Map(
+  Object.entries(MANIFEST.files).map(([file, integrity]) => [
+    new URL(file, self.registration.scope).href,
+    integrity,
+  ]),
 );
 
 self.addEventListener("install", (event) => {
-  // All or nothing: a missing file fails the install and the old version stays active.
+  // All or nothing: a missing file, or one that doesn't match its hash, fails the install and the
+  // old version stays active.
   event.waitUntil(
     caches
       .open(CACHE_NAME)
       .then((cache) =>
-        cache.addAll([...PRECACHED].map((url) => new Request(url, { cache: "reload" }))),
+        cache.addAll(
+          [...PRECACHED].map(
+            ([url, integrity]) => new Request(url, { cache: "reload", integrity }),
+          ),
+        ),
       ),
   );
 });

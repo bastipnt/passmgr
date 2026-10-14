@@ -12,6 +12,7 @@
     "typecheck": "tsc -b --force --noEmit",
     "typegen:css": "tcm src",
     "brand:render": "bun scripts/render-brand.ts",
+    "verify:deployment": "bun scripts/verify-deployment.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
