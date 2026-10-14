@@ -36,12 +36,12 @@ const privateKeyAad = (keyVersion: number) =>
 async function registerCapturingKeys(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));
 
-  const started = await clientStartRegistration(password);
+  const started = await clientStartRegistration(password, email);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
     registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = await started.finish(registrationResponse, email);
+  const { registrationRecord } = await started.finish(registrationResponse);
 
   const recoveryKey = genKey();
   const recoveryKekSaltData = genSalt();

@@ -61,12 +61,12 @@ async function enable(session: Session) {
 /** startLogin + finishLogin with the right password; the raw finishLogin answer. */
 async function finishLogin(deviceName?: string) {
   const caller = createCaller(buildTestContext(undefined, deviceName));
-  const started = await clientStartLogin(password);
+  const started = await clientStartLogin(password, email);
   const { loginResponse, attemptId } = await caller.login.startLogin({
     email,
     startLoginRequest: started.startLoginRequest,
   });
-  const result = await started.finish(loginResponse, email);
+  const result = await started.finish(loginResponse);
   if (!result) throw new Error("OPAQUE authFinish failed");
   return await caller.login.finishLogin({
     email,
@@ -251,12 +251,12 @@ describe("two-factor login", () => {
 
   it("an unknown email still fails like a wrong password, without a challenge", async () => {
     const caller = createCaller(buildTestContext(undefined));
-    const started = await clientStartLogin(password);
+    const started = await clientStartLogin(password, "nobody@example.com");
     const { loginResponse } = await caller.login.startLogin({
       email: "nobody@example.com",
       startLoginRequest: started.startLoginRequest,
     });
-    expect(await started.finish(loginResponse, "nobody@example.com")).toBeNull();
+    expect(await started.finish(loginResponse)).toBeNull();
   });
 });
 

@@ -16,12 +16,12 @@ const createCaller = createCallerFactory(appRouter);
 
 async function register(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartRegistration(password);
+  const started = await clientStartRegistration(password, email);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
     registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = await started.finish(registrationResponse, email);
+  const { registrationRecord } = await started.finish(registrationResponse);
   const { userKeys, personalVault, userKeyPair } = await buildRegistrationKeys(password);
   await caller.register.finishRegistration({
     email,
@@ -42,12 +42,12 @@ const AUTH_SALT = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 /** Full client-side login; returns the finishLogin result or null if OPAQUE failed client-side. */
 async function login(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartLogin(password);
+  const started = await clientStartLogin(password, email);
   const { loginResponse, attemptId } = await caller.login.startLogin({
     email,
     startLoginRequest: started.startLoginRequest,
   });
-  const result = await started.finish(loginResponse, email);
+  const result = await started.finish(loginResponse);
   if (!result) return null;
   return caller.login.finishLogin({
     email,
@@ -64,12 +64,12 @@ describe("loginRouter — edge cases", () => {
   it("finishLogin → UNAUTHORIZED when sessions were revoked after startLogin", async () => {
     await register(email, password);
     const caller = createCaller(buildTestContext(undefined));
-    const started = await clientStartLogin(password);
+    const started = await clientStartLogin(password, email);
     const { loginResponse, attemptId } = await caller.login.startLogin({
       email,
       startLoginRequest: started.startLoginRequest,
     });
-    const result = await started.finish(loginResponse, email);
+    const result = await started.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
     // Password changed or recovered in between: the old password's login is dead.
     const [user] = await db.select({ userId: usersTable.userId }).from(usersTable);
@@ -89,12 +89,12 @@ describe("loginRouter — edge cases", () => {
   it("finishLogin → UNAUTHORIZED with the wrong password", async () => {
     await register(email, password);
     const caller = createCaller(buildTestContext(undefined));
-    const started = await clientStartLogin("WRONG-PASSWORD");
+    const started = await clientStartLogin("WRONG-PASSWORD", email);
     const { loginResponse, attemptId } = await caller.login.startLogin({
       email,
       startLoginRequest: started.startLoginRequest,
     });
-    const result = await started.finish(loginResponse, email);
+    const result = await started.finish(loginResponse);
     // OPAQUE may reject client-side (null return) or server-side — both are correct.
     if (!result) return;
     await expect(
@@ -125,11 +125,11 @@ describe("loginRouter — user enumeration", () => {
 
     const known = await caller.login.startLogin({
       email: "alice@example.com",
-      startLoginRequest: (await clientStartLogin(password)).startLoginRequest,
+      startLoginRequest: (await clientStartLogin(password, "alice@example.com")).startLoginRequest,
     });
     const unknown = await caller.login.startLogin({
       email: "nobody@example.com",
-      startLoginRequest: (await clientStartLogin(password)).startLoginRequest,
+      startLoginRequest: (await clientStartLogin(password, "nobody@example.com")).startLoginRequest,
     });
 
     expect(unknown.attemptId).toMatch(UUIDV4_RE);
@@ -144,16 +144,16 @@ describe("loginRouter — user enumeration", () => {
     const caller = createCaller(buildTestContext(undefined));
     const { attemptId } = await caller.login.startLogin({
       email: "nobody@example.com",
-      startLoginRequest: (await clientStartLogin(password)).startLoginRequest,
+      startLoginRequest: (await clientStartLogin(password, "nobody@example.com")).startLoginRequest,
     });
     // Replay a real user's KE3 against the fake attempt.
     await register("alice@example.com", password);
-    const started = await clientStartLogin(password);
+    const started = await clientStartLogin(password, "alice@example.com");
     const { loginResponse } = await caller.login.startLogin({
       email: "alice@example.com",
       startLoginRequest: started.startLoginRequest,
     });
-    const result = await started.finish(loginResponse, "alice@example.com");
+    const result = await started.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
     await expect(
       caller.login.finishLogin({
@@ -174,7 +174,7 @@ describe("loginRouter — login attempts", () => {
     await register(email, password);
     const caller = createCaller(buildTestContext(undefined));
 
-    const victim = await clientStartLogin(password);
+    const victim = await clientStartLogin(password, email);
     const { loginResponse, attemptId } = await caller.login.startLogin({
       email,
       startLoginRequest: victim.startLoginRequest,
@@ -183,10 +183,10 @@ describe("loginRouter — login attempts", () => {
     // Attacker spams startLogin for the same email in between.
     await caller.login.startLogin({
       email,
-      startLoginRequest: (await clientStartLogin("guess")).startLoginRequest,
+      startLoginRequest: (await clientStartLogin("guess", email)).startLoginRequest,
     });
 
-    const result = await victim.finish(loginResponse, email);
+    const result = await victim.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
     const finished = await caller.login.finishLogin({
       email,
@@ -200,12 +200,12 @@ describe("loginRouter — login attempts", () => {
   it("an attempt id can only be finished once", async () => {
     await register(email, password);
     const caller = createCaller(buildTestContext(undefined));
-    const started = await clientStartLogin(password);
+    const started = await clientStartLogin(password, email);
     const { loginResponse, attemptId } = await caller.login.startLogin({
       email,
       startLoginRequest: started.startLoginRequest,
     });
-    const result = await started.finish(loginResponse, email);
+    const result = await started.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
     const input = {
       email,
@@ -222,12 +222,12 @@ describe("loginRouter — login attempts", () => {
     await register(email, password);
     await register("bob@example.com", password);
     const caller = createCaller(buildTestContext(undefined));
-    const started = await clientStartLogin(password);
+    const started = await clientStartLogin(password, email);
     const { loginResponse, attemptId } = await caller.login.startLogin({
       email,
       startLoginRequest: started.startLoginRequest,
     });
-    const result = await started.finish(loginResponse, email);
+    const result = await started.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
     await expect(
       caller.login.finishLogin({
@@ -246,7 +246,7 @@ describe("loginRouter — per-account throttling", () => {
 
   async function startLogins(target: string, n: number) {
     const caller = createCaller(buildTestContext(undefined));
-    const { startLoginRequest } = await clientStartLogin(password);
+    const { startLoginRequest } = await clientStartLogin(password, target);
     for (let i = 0; i < n; i++) {
       await caller.login.startLogin({ email: target, startLoginRequest });
     }

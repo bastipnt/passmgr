@@ -22,13 +22,13 @@ async function runRegistration(
   extraVaults?: (accountKey: Uint8Array) => ReturnType<typeof createVault>[],
 ) {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartRegistration(password);
+  const started = await clientStartRegistration(password, email);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
     registrationRequest: started.registrationRequest,
     invite,
   });
-  const { registrationRecord } = await started.finish(registrationResponse, email);
+  const { registrationRecord } = await started.finish(registrationResponse);
   const keys = await buildRegistrationKeys(password);
   const { userKeys } = keys;
   const userKeyPair = { ...keys.userKeyPair, publicKey: publicKey ?? keys.userKeyPair.publicKey };
@@ -54,7 +54,7 @@ describe("registrationRouter — edge cases", () => {
     process.env.REGISTRATION_DISABLED = "true";
     try {
       const caller = createCaller(buildTestContext(undefined));
-      const started = await clientStartRegistration("x");
+      const started = await clientStartRegistration("x", "x@y.zz");
       await expect(
         caller.register.startRegistration({
           email: "x@y.zz",

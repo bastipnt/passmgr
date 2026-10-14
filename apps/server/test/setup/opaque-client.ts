@@ -5,7 +5,7 @@ import {
   OpaqueID,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
-import { normalizeEmail, OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
+import { deriveOpaquePassword, normalizeEmail, OPAQUE_SERVER_IDENTITY, wipe } from "@repo/crypto";
 import { fromBase64, toBase64 } from "@repo/util";
 
 const config = getOpaqueConfig(OpaqueID.OPAQUE_P256);
@@ -18,19 +18,32 @@ function b64ToBytes(s: string): number[] {
   return Array.from(fromBase64(s));
 }
 
+/** What the client hands opaque-ts: `deriveOpaquePassword`, never the password itself. */
+async function opaqueInputFor(password: string, email: string): Promise<string> {
+  const opaquePassword = await deriveOpaquePassword(password, email);
+  try {
+    return toBase64(opaquePassword);
+  } finally {
+    wipe(opaquePassword);
+  }
+}
+
 export type StartedRegistration = {
   registrationRequest: string;
-  finish: (registrationResponse: string, email: string) => Promise<{ registrationRecord: string }>;
+  finish: (registrationResponse: string) => Promise<{ registrationRecord: string }>;
 };
 
-export async function clientStartRegistration(password: string): Promise<StartedRegistration> {
+export async function clientStartRegistration(
+  password: string,
+  email: string,
+): Promise<StartedRegistration> {
   const client = new OpaqueClient(config);
-  const req = await client.registerInit(password);
+  const req = await client.registerInit(await opaqueInputFor(password, email));
   if (req instanceof Error) throw req;
 
   return {
     registrationRequest: bytesToB64(req.serialize()),
-    finish: async (registrationResponse, email) => {
+    finish: async (registrationResponse) => {
       const resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
       const finished = await client.registerFinish(
         resp,
@@ -47,18 +60,17 @@ export type StartedLogin = {
   startLoginRequest: string;
   finish: (
     loginResponse: string,
-    email: string,
   ) => Promise<{ finishLoginRequest: string; sessionKey: string } | null>;
 };
 
-export async function clientStartLogin(password: string): Promise<StartedLogin> {
+export async function clientStartLogin(password: string, email: string): Promise<StartedLogin> {
   const client = new OpaqueClient(config);
-  const ke1 = await client.authInit(password);
+  const ke1 = await client.authInit(await opaqueInputFor(password, email));
   if (ke1 instanceof Error) throw ke1;
 
   return {
     startLoginRequest: bytesToB64(ke1.serialize()),
-    finish: async (loginResponse, email) => {
+    finish: async (loginResponse) => {
       const ke2 = KE2.deserialize(config, b64ToBytes(loginResponse));
       const finished = await client.authFinish(ke2, OPAQUE_SERVER_IDENTITY, normalizeEmail(email));
       // Wrong-password failures may be client-detected here — surface as null so

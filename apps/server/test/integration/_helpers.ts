@@ -15,12 +15,12 @@ export async function register(
   password: string,
 ): Promise<{ recoveryKey: Uint8Array; accountKey: Uint8Array }> {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartRegistration(password);
+  const started = await clientStartRegistration(password, email);
   const { registrationResponse } = await caller.register.startRegistration({
     email,
     registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = await started.finish(registrationResponse, email);
+  const { registrationRecord } = await started.finish(registrationResponse);
   const { recoveryKey, accountKey, userKeys, personalVault, userKeyPair } =
     await buildRegistrationKeys(password);
   await caller.register.finishRegistration({
@@ -49,12 +49,12 @@ export async function loginAndGetAuthKey(
   userKeyPair: UserKeyPair;
 }> {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartLogin(password);
+  const started = await clientStartLogin(password, email);
   const { loginResponse, attemptId } = await caller.login.startLogin({
     email,
     startLoginRequest: started.startLoginRequest,
   });
-  const result = await started.finish(loginResponse, email);
+  const result = await started.finish(loginResponse);
   if (!result) throw new Error("OPAQUE authFinish failed");
   const authSalt = genKey();
   const finishCaller = createCaller(buildTestContext(undefined, deviceName));

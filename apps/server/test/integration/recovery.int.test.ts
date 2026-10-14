@@ -72,13 +72,13 @@ async function accountKeyViaPassword(pw: string): Promise<Uint8Array> {
 /** Drive startRecovery by hand (for tests that need to interleave other calls). */
 async function startRecoveryManually(recoveryKey: Uint8Array) {
   const caller = createCaller(buildTestContext(undefined));
-  const started = await clientStartRegistration(newPassword);
+  const started = await clientStartRegistration(newPassword, email);
   const { attemptId, registrationResponse } = await caller.recovery.startRecovery({
     email,
     recoveryAuthKey: toBase64(await deriveRecoveryAuthKey(recoveryKey)),
     registrationRequest: started.registrationRequest,
   });
-  const { registrationRecord } = await started.finish(registrationResponse, email);
+  const { registrationRecord } = await started.finish(registrationResponse);
   const { recoveryKey: _new, ...userKeys } = await buildUserKeys(newPassword);
   return { caller, finishInput: { email, attemptId, registrationRecord, userKeys } };
 }
@@ -178,7 +178,7 @@ describe("account recovery (real Postgres + Redis)", () => {
   it("gives the same error for a wrong key, an unknown email and a missing verifier", async () => {
     await register(email, password);
     const caller = createCaller(buildTestContext(undefined));
-    const { registrationRequest } = await clientStartRegistration(newPassword);
+    const { registrationRequest } = await clientStartRegistration(newPassword, email);
     const probe = (probeEmail: string) =>
       caller.recovery.startRecovery({
         email: probeEmail,

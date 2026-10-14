@@ -279,7 +279,7 @@ describe("password change (real Postgres + Redis)", () => {
     stored.authenticatedAt = Date.now() - FRESH_AUTH_WINDOW_MS - 1_000;
     await redis.set(key, JSON.stringify(stored), "KEEPTTL");
 
-    const { registrationRequest } = await clientStartRegistration(newPassword);
+    const { registrationRequest } = await clientStartRegistration(newPassword, email);
     const input = { email, registrationRequest };
     const cc = await callSigned(sessionId, authKey, "mutation", "user.startPasswordChange", input);
     await expect(cc.user.startPasswordChange(input)).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -290,7 +290,7 @@ describe("password change (real Postgres + Redis)", () => {
     await register("bob@example.com", password);
     const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
 
-    const { registrationRequest } = await clientStartRegistration(newPassword);
+    const { registrationRequest } = await clientStartRegistration(newPassword, "bob@example.com");
     const input = { email: "bob@example.com", registrationRequest };
     const cc = await callSigned(sessionId, authKey, "mutation", "user.startPasswordChange", input);
     await expect(cc.user.startPasswordChange(input)).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -299,7 +299,7 @@ describe("password change (real Postgres + Redis)", () => {
   it("refuses to finish when the key set changed since the start", async () => {
     await register(email, password);
     const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
-    const started = await clientStartRegistration(newPassword);
+    const started = await clientStartRegistration(newPassword, email);
     const startInput = { email, registrationRequest: started.registrationRequest };
     const startCaller = await callSigned(
       sessionId,
@@ -310,7 +310,7 @@ describe("password change (real Postgres + Redis)", () => {
     );
     const { attemptId, registrationResponse } =
       await startCaller.user.startPasswordChange(startInput);
-    const { registrationRecord } = await started.finish(registrationResponse, email);
+    const { registrationRecord } = await started.finish(registrationResponse);
 
     // A concurrent rekey closes the key set the attempt was bound to.
     const { passwordKekParams, passwordKekSalt, encryptedAccountKey, accountKeyEncryptionNonce } =
