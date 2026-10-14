@@ -152,6 +152,10 @@ overrides:
   shell-quote: "^1.8.5"
   source-map-js: "^1.2.2"
   "undici@7": "^7.29.1"
+  # @xmldom/xmldom <0.8.15 (GHSA-27p8-2357-5qqv, -x4fp-j954-r2f4 and others),
+  # via @bacons/apple-targets > @bacons/xcode > @expo/plist@0.0.18 (pins ~0.7).
+  # 0.8 keeps the DOMParser API that build-time plist parsing uses.
+  "@xmldom/xmldom@<0.8.15": "^0.8.15"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
