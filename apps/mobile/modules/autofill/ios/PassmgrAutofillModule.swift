@@ -47,7 +47,10 @@ public class PassmgrAutofillModule: Module {
       }
     }
     if #available(iOS 17.4, *) {
-      let stale = await store.credentialIdentities(forService: nil, credentialIdentityTypes: .password)
+      // Read through NSArray: iOS 27 returns elements the Swift `[ASCredentialIdentity]` bridge
+      // can't cast, and touching one through the typed array traps.
+      let listed = await store.credentialIdentities(forService: nil, credentialIdentityTypes: .password) as NSArray
+      let stale = listed.compactMap { $0 as? ASPasswordCredentialIdentity }
         .filter { $0.recordIdentifier?.hasPrefix(prefix) == true }
       if !stale.isEmpty { try await store.removeCredentialIdentities(stale) }
       if !identities.isEmpty { try await store.saveCredentialIdentities(identities) }

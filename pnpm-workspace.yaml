@@ -32,25 +32,25 @@ catalog:
   drizzle-kit: 1.0.0-beta.15-859cf75
   drizzle-orm: 1.0.0-beta.15-859cf75
   drizzle-seed: 1.0.0-beta.15-859cf75
-  # Expo SDK 55 line — keep all on 55.0.x. The `overrides` below additionally
+  # Expo SDK 57 line — keep all on 57.0.x. The `overrides` below additionally
   # pin the transitive copies these drag in (catalog only governs direct deps).
-  expo: ~56.0.15
-  expo-blur: ~56.0.3
-  expo-clipboard: ~56.0.4
-  expo-constants: ~56.0.20
-  expo-dev-client: ~56.0.22
-  expo-font: ~56.0.7
-  expo-haptics: ~56.0.3
-  expo-image: ~56.0.11
-  expo-linking: ~56.0.15
-  expo-print: ~56.0.4
-  expo-router: ~56.2.14
-  expo-secure-store: ~56.0.4
-  expo-splash-screen: ^56.0.12
-  expo-sqlite: ~56.0.5
-  expo-status-bar: ~56.0.4
-  expo-symbols: ~56.0.6
-  expo-web-browser: ~56.0.5
+  expo: ~57.0.27
+  expo-blur: ~57.0.3
+  expo-clipboard: ~57.0.2
+  expo-constants: ~57.0.21
+  expo-dev-client: ~57.0.19
+  expo-font: ~57.0.4
+  expo-haptics: ~57.0.3
+  expo-image: ~57.0.5
+  expo-linking: ~57.0.12
+  expo-print: ~57.0.2
+  expo-router: ~57.0.25
+  expo-secure-store: ~57.0.4
+  expo-splash-screen: ~57.0.9
+  expo-sqlite: ~57.0.4
+  expo-status-bar: ~57.0.1
+  expo-symbols: ~57.0.3
+  expo-web-browser: ~57.0.3
   fast-check: ^4.9.0
   lucide-react: ^1.23.0
   lucide-react-native: ^1.24.0
@@ -61,12 +61,12 @@ catalog:
   react-dom: 19.2.3
   react-hook-form: ^7.81.0
   react-icons: ^5.7.0
-  react-native: 0.85.3
-  react-native-keyboard-controller: ^1.22.1
-  react-native-reanimated: 4.3.1
+  react-native: 0.86.3
+  react-native-keyboard-controller: 1.21.9
+  react-native-reanimated: 4.5.1
   react-native-safe-area-context: ~5.7.0
   react-native-svg: 15.15.4
-  react-native-worklets: ^0.8.3
+  react-native-worklets: 0.10.1
   tailwind-merge: ^3.6.0
   tailwindcss: ^4.3.2
   testcontainers: ^12.0.4
@@ -81,28 +81,33 @@ blockExoticSubdeps: true
 trustPolicy: no-downgrade
 # Known false positives: published without provenance after earlier versions had it.
 trustPolicyExclude:
+  - expo-dev-menu@57.0.19
+  - "@expo/ui@57.0.22"
+  - expo-router@57.0.25
+  - expo-linking@57.0.12
+  - "@expo/prebuild-config@57.0.17"
+  - "@expo/metro-file-map@57.0.4"
+  - "@expo/router-server@57.0.12"
+  - "@expo/require-utils@57.0.6"
+  - "@expo/cli@57.0.28"
+  - "@expo/config-plugins@57.0.10"
+  - babel-preset-expo@57.0.14
+  - "@expo/metro-config@57.0.13"
+  - "@expo/config@57.0.10"
+  - "@expo/image-utils@0.11.6"
+  - expo-modules-autolinking@57.0.14
+  - expo-modules-core@57.0.21
+  - expo-asset@57.0.19
+  - expo-constants@57.0.21
+  - expo@57.0.27
+  - expo-sqlite@57.0.4
   - semver@6.3.1
   - ua-parser-js@1.0.41
 
 minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
-  - "@expo/cli@56.1.16"
-  - "@expo/config-plugins@56.0.9"
-  - "@expo/config-types@56.0.6"
-  - "@expo/inline-modules@0.0.12"
-  - "@expo/prebuild-config@56.0.16"
   - expo-font@56.0.7
-  - expo-modules-autolinking@56.0.16
-  - expo-modules-core@56.0.17
-  - expo-modules-jsi@56.0.10
-  - expo@56.0.12
-  - "@expo/ui@56.0.18"
-  - expo-router@56.2.11
-  - find-my-way@9.6.1
   - source-map-js@1.2.2
-  - decode-uri-component@0.4.3
-  - qs@6.15.4
-  - sprintf-js@1.1.4
 
 nodeLinker: hoisted
 
@@ -129,9 +134,9 @@ overrides:
   # expo-symbols: "~56.0.6"
   # expo-glass-effect: "~55.0.11"
   # "@expo/ui": "~55.0.17"
-  "@expo/metro-runtime": "56.0.16"
-  "@expo/dom-webview": "56.0.5"
-  "@react-native/metro-config": "0.85.3"
+  "@expo/metro-runtime": "57.0.16"
+  "@expo/dom-webview": "57.0.1"
+  "@react-native/metro-config": "0.86.3"
   # Single metro copy matching Expo's exact pin (@expo/metro ~56.0.2 -> 0.84.5).
   # metro >=0.84.5 drops image-size (GHSA-w3rx-r6r6-pgpr, GHSA-5p2g-fcmc-qvqq).
   # Bump together with @expo/metro when upgrading Expo.

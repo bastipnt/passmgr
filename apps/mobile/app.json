@@ -60,7 +60,9 @@
       ],
       "./plugins/with-android-backup",
       "@bacons/apple-targets",
-      "./plugins/with-autofill"
+      "./plugins/with-autofill",
+      "./plugins/with-pods-deployment-target",
+      "./plugins/with-scene-delegate"
     ],
     "experiments": {
       "typedRoutes": true,
