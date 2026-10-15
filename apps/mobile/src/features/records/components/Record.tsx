@@ -1,7 +1,7 @@
 import {
   type FieldGroup,
+  getPrimaryWebsite,
   getRecordFieldSpecs,
-  getRecordWebsites,
   previousSecretsTitle,
   RECORD_TYPE_LABELS,
   useGetRecord,
@@ -31,25 +31,9 @@ const SECTIONS: { group: FieldGroup; label?: string }[] = [
   { group: "note", label: "Note" },
 ];
 
-/**
- * The record's first website as `{ url, host }`, or `undefined`. Only http(s):
- * the in-app browser opens nothing else, and a record can hold any string.
- */
-export function firstWebsite(record: DecryptedRecord) {
-  const url = getRecordWebsites(record)?.find((w) => w.value !== "")?.value;
-  if (!url) return undefined;
-  try {
-    const { protocol, hostname } = new URL(url);
-    if (protocol !== "http:" && protocol !== "https:") return undefined;
-    return { url, host: hostname };
-  } catch {
-    return undefined;
-  }
-}
-
 function Hero({ record }: { record: DecryptedRecord }) {
   const muted = useCSSVariable("--color-muted-foreground") as string;
-  const website = firstWebsite(record);
+  const website = getPrimaryWebsite(record);
 
   return (
     <View className="flex-row items-center gap-4 px-5 pt-2 pb-2">

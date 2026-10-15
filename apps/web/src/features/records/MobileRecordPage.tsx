@@ -1,4 +1,4 @@
-import { getRecordWebsites, RECORD_TYPE_LABELS, useRecordVault } from "@repo/client";
+import { getPrimaryWebsite, RECORD_TYPE_LABELS, useRecordVault } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
@@ -14,7 +14,7 @@ import Record from "./Record";
 import { FavoriteButton, MoreDropdown, RecordVaultLine } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
-import { displayHost, useCopyField } from "./record-utils";
+import { useCopyField } from "./record-utils";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 
 type MobileRecordScreenProps = {
@@ -32,9 +32,8 @@ type MobileRecordScreenProps = {
  */
 function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProps) {
   const copyField = useCopyField();
-  const websites = getRecordWebsites(record);
   const password = record.type === "login" || record.type === "wifi" ? record.password : undefined;
-  const primaryWebsite = websites?.find((website) => website.value)?.value;
+  const primaryWebsite = getPrimaryWebsite(record);
   const hasDock = Boolean(password || primaryWebsite);
   const { vault, writable, showVault } = useRecordVault(record);
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -106,12 +105,12 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         <div className="flex min-w-0 flex-col pt-9">
           {primaryWebsite ? (
             <a
-              href={primaryWebsite}
+              href={primaryWebsite.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-fit items-center gap-1.5 text-muted-foreground text-sm"
             >
-              {displayHost(primaryWebsite)}
+              {primaryWebsite.host}
               <ExternalLinkIcon className="size-3.5" aria-hidden />
             </a>
           ) : (
@@ -150,7 +149,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
               nativeButton={false}
               render={
                 <a
-                  href={primaryWebsite}
+                  href={primaryWebsite.url}
                   target="_blank"
                   rel="noopener noreferrer"
                   aria-label="Open website"

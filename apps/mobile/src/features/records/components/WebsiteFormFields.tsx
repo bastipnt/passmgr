@@ -8,7 +8,7 @@ import {
   FieldSet,
   RemoveDialog,
 } from "@repo/ui-native";
-import { normalizeWebsiteUrl } from "@repo/util";
+import { normalizeWebsite } from "@repo/util";
 import { EarthIcon, PlusIcon, TrashIcon } from "lucide-react-native";
 import { useEffect } from "react";
 import {
@@ -42,9 +42,8 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
     replace({ value: "" });
   }, [fields.length, replace]);
 
-  function normalizeWebsite(index: number, value: string) {
-    const trimmed = value.trim();
-    if (trimmed) setValue(`websites.${index}.value`, normalizeWebsiteUrl(trimmed));
+  function normalizeRow(index: number, value: string) {
+    setValue(`websites.${index}.value`, normalizeWebsite(value));
   }
 
   return (
@@ -59,13 +58,13 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
                 name={`websites.${index}.value`}
                 label={`Website ${index}`}
                 autoComplete="off"
-                placeholder="https://"
+                placeholder="example.com"
                 hideLabel
                 addon={<EarthIcon size={20} color={iconColor} />}
                 // TODO: adjust to mobile
-                // onBlur={(e) => normalizeWebsite(index, e.target.value)}
+                // onBlur={(e) => normalizeRow(index, e.target.value)}
                 // onKeyDown={(e) => {
-                //   if (e.key === "Enter") normalizeWebsite(index, e.currentTarget.value);
+                //   if (e.key === "Enter") normalizeRow(index, e.currentTarget.value);
                 // }}
               />
             </ButtonGroup>

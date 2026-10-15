@@ -1,3 +1,4 @@
+import { websiteHost } from "@repo/util";
 import { useEffect, useState } from "react";
 import { loadImage } from "../utils/load-image";
 
@@ -6,14 +7,8 @@ type Website = { value: string };
 type Status = "loading" | "ok" | "fail";
 
 function faviconUrl(websites: Website[] | undefined): string | null {
-  const first = websites?.find((w) => w.value !== "");
-  if (!first) return null;
-  try {
-    const { hostname } = new URL(first.value);
-    return `https://icons.duckduckgo.com/ip3/${hostname}.ico`;
-  } catch {
-    return null;
-  }
+  const host = websites?.map(({ value }) => websiteHost(value)).find(Boolean);
+  return host ? `https://icons.duckduckgo.com/ip3/${host}.ico` : null;
 }
 
 function hashHue(s: string) {

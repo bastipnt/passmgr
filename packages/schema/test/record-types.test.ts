@@ -177,23 +177,24 @@ describe("upgradeRecordPayload", () => {
   });
 });
 
-describe("loginRecordSchema websites (empty string OR valid URL)", () => {
-  it("accepts entries with empty-string value", () => {
-    expect(() =>
-      loginRecordSchema.parse({ ...MIN_LOGIN, websites: [{ value: "" }] }),
-    ).not.toThrow();
+describe("loginRecordSchema websites", () => {
+  it.each([
+    "",
+    "https://example.com",
+    "example.com",
+    "192.168.1.1:8080",
+    "androidapp://com.example.app",
+    "android://hash@com.example.app/",
+    "iosapp://com.example.app",
+    "ssh://git@example.com:22",
+    "ftp://files.example.com",
+    "mailto:a@example.com",
+  ])("accepts %j", (value) => {
+    expect(() => loginRecordSchema.parse({ ...MIN_LOGIN, websites: [{ value }] })).not.toThrow();
   });
 
-  it("accepts entries with a valid URL", () => {
-    expect(() =>
-      loginRecordSchema.parse({ ...MIN_LOGIN, websites: [{ value: "https://example.com" }] }),
-    ).not.toThrow();
-  });
-
-  it("rejects entries with a non-empty, non-URL string", () => {
-    expect(() =>
-      loginRecordSchema.parse({ ...MIN_LOGIN, websites: [{ value: "not a url" }] }),
-    ).toThrow();
+  it.each(["not a url", "example", "https://", "http://exa mple.com"])("rejects %j", (value) => {
+    expect(() => loginRecordSchema.parse({ ...MIN_LOGIN, websites: [{ value }] })).toThrow();
   });
 });
 

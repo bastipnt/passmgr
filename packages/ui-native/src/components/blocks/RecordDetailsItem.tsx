@@ -40,8 +40,11 @@ function StrengthBadge({ strength }: { strength: PasswordStrength }) {
   );
 }
 
+/** One of several values; only one with `href` is a link. */
+export type RecordDetailsLink = { text: string; href?: string };
+
 type ValueProps = {
-  value?: string | string[];
+  value?: string | RecordDetailsLink[];
   hidden?: boolean;
   variant: (typeof variants)[number];
   mono?: boolean;
@@ -63,14 +66,14 @@ function Value({ value, hidden, variant, mono }: ValueProps) {
 
   return (
     <View className="gap-1.5 pt-0.5">
-      {valueToDisplay.map((v, i) =>
-        variant === "websites" ? (
-          <Link key={`item-${v}-${i}`} target="_blank" href={v}>
-            {v}
+      {valueToDisplay.map(({ text, href }, i) =>
+        href ? (
+          <Link key={`item-${text}-${i}`} target="_blank" href={href}>
+            {text}
           </Link>
         ) : (
-          <Text key={`item-${v}-${i}`} className="text-[15px] text-foreground">
-            {v}
+          <Text key={`item-${text}-${i}`} className="text-[15px] text-foreground">
+            {text}
           </Text>
         ),
       )}
@@ -98,7 +101,7 @@ type SingleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
 };
 
 type MultipleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
-  value?: string[];
+  value?: RecordDetailsLink[];
   onCopy?: undefined;
   variant?: (typeof multipleValuesVariants)[number];
 };

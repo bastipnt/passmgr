@@ -7,12 +7,12 @@ import {
   RecordTooLargeError,
   type RecordType,
 } from "@repo/schema";
-import { normalizeWebsiteUrl } from "@repo/util";
+import { normalizeWebsite } from "@repo/util";
 import { normalizeCardNumber } from "./card";
 
 /**
  * Cleans up what a form hands back before it is saved: blank website rows go,
- * URLs are normalised, a card number keeps its digits only (the view groups
+ * a bare host gets `https://`, a card number keeps its digits only (the view groups
  * them again; text that isn't a card number is kept as written), and an SSH key with a private key but no public key gets the
  * public key from the key file.
  */
@@ -28,9 +28,8 @@ function normalizeFormValues<T extends RecordType>(
       return {
         ...login,
         websites: login.websites
-          ?.map(({ value, ...rest }) => ({ ...rest, value: value.trim() }))
-          .filter(({ value }) => value !== "")
-          .map(({ value, ...rest }) => ({ ...rest, value: normalizeWebsiteUrl(value) })),
+          ?.map(({ value, ...rest }) => ({ ...rest, value: normalizeWebsite(value) }))
+          .filter(({ value }) => value !== ""),
       } as RecordFormValues<T>;
     }
     case "card": {

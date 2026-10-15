@@ -1,4 +1,5 @@
 import type { RecordData } from "@repo/schema";
+import { parseWebsite } from "@repo/util";
 
 /**
  * The one-line secondary text of a record in lists and search: what tells two
@@ -32,6 +33,17 @@ export function getRecordSubtitle(record: RecordData): string | undefined {
 /** A record's websites (only logins have any), for icons and "open website". */
 export function getRecordWebsites(record: RecordData): { value: string }[] | undefined {
   return record.type === "login" ? record.websites : undefined;
+}
+
+/** The first website that opens in a browser (http(s)), for "open website"; `host` keeps the port. */
+export function getPrimaryWebsite(record: RecordData): { url: string; host: string } | undefined {
+  for (const { value } of getRecordWebsites(record) ?? []) {
+    const website = parseWebsite(value);
+    if (website?.kind === "web") {
+      return { url: website.url, host: new URL(website.url).host.replace(/^www\./, "") };
+    }
+  }
+  return undefined;
 }
 
 /** "1 item" / "3 items": a count of records, for labels. */

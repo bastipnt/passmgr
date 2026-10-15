@@ -6,7 +6,7 @@ import {
   MAX_NOTE_LENGTH,
   MAX_TITLE_LENGTH,
 } from "@repo/schema";
-import { websiteUrl } from "@repo/util";
+import { normalizeWebsite, parseWebsite, websiteLink, websiteUrl } from "@repo/util";
 import { strToU8, zipSync } from "fflate";
 import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
@@ -90,6 +90,53 @@ describe("websiteUrl", () => {
   });
 });
 
+describe("parseWebsite", () => {
+  it.each([
+    [
+      "https://www.Example.com/a",
+      { kind: "web", url: "https://www.Example.com/a", host: "example.com" },
+    ],
+    ["example.com:8443", { kind: "web", url: "https://example.com:8443", host: "example.com" }],
+    [
+      "androidapp://com.example.app",
+      { kind: "app", platform: "android", appId: "com.example.app" },
+    ],
+    [
+      "android://hash@com.example.app/",
+      { kind: "app", platform: "android", appId: "com.example.app" },
+    ],
+    ["iosapp://com.example.app", { kind: "app", platform: "ios", appId: "com.example.app" }],
+    ["ssh://git@example.com:22", { kind: "uri", scheme: "ssh", value: "ssh://git@example.com:22" }],
+    ["javascript:alert(1)", { kind: "uri", scheme: "javascript", value: "javascript:alert(1)" }],
+    ["https://", undefined],
+    ["not a url", undefined],
+    ["androidapp://", undefined],
+  ])("%s", (raw, expected) => {
+    expect(parseWebsite(raw)).toEqual(expected);
+  });
+
+  it.each([
+    ["intranet", "https://intranet"],
+    ["nas:8080/admin", "https://nas:8080/admin"],
+    [" example.com ", "https://example.com"],
+    ["mailto:a@example.com", "mailto:a@example.com"],
+    ["androidapp://com.example", "androidapp://com.example"],
+    ["my bank", "my bank"],
+  ])("normalizeWebsite(%j) → %j", (raw, expected) => {
+    expect(normalizeWebsite(raw)).toBe(expected);
+  });
+
+  it("links only http(s) websites", () => {
+    expect(websiteLink("example.com")).toEqual({
+      text: "example.com",
+      href: "https://example.com",
+    });
+    expect(websiteLink("androidapp://com.example")).toEqual({ text: "Android app: com.example" });
+    expect(websiteLink("ftp://files.example.com")).toEqual({ text: "ftp://files.example.com" });
+    expect(websiteLink("javascript:alert(1)")).toEqual({ text: "javascript:alert(1)" });
+  });
+});
+
 describe("ForeignImportBuilder", () => {
   it("counts what a record leaves behind only when the record is imported", () => {
     const builder = new ForeignImportBuilder("bitwarden");
@@ -141,13 +188,13 @@ describe("finishRecord", () => {
     expect(finishRecord({ type: "note", title: "t", customFields })).toBe("too_large");
   });
 
-  it("keeps other websites as a field and drops empty values", () => {
+  it("keeps app ids and domains as websites, other text as a field, and drops empty values", () => {
     expect(
       finishRecord({
         type: "login",
         title: "App",
         fields: { username: "", password: "pw" },
-        websites: ["androidapp://com.example", "", "example.com", "https://example.com"],
+        websites: ["androidapp://com.example", "", "example.com", "https://example.com", "my bank"],
         customFields: [
           { title: "", value: "x" },
           { title: "Empty", value: "  " },
@@ -159,11 +206,11 @@ describe("finishRecord", () => {
       type: "login",
       title: "App",
       password: "pw",
-      websites: [{ value: "https://example.com" }],
+      websites: [{ value: "androidapp://com.example" }, { value: "https://example.com" }],
       tags: ["a"],
       customFields: [
         { type: "text", title: "Field", value: "x" },
-        { type: "text", title: "Website", value: "androidapp://com.example" },
+        { type: "text", title: "Website", value: "my bank" },
       ],
     });
   });
@@ -205,9 +252,7 @@ describe("browser CSV", () => {
         type: "login",
         title: "Android app",
         username: "carol",
-        customFields: [
-          { type: "text", title: "Website", value: "android://hash@com.example.app/" },
-        ],
+        websites: [{ value: "android://hash@com.example.app/" }],
         createdAt: null,
       },
     ]);
@@ -259,7 +304,11 @@ describe("Bitwarden JSON", () => {
       password: "new-pw",
       totp: "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP",
       passwordChangedAt: "2024-03-01T10:00:00.000Z",
-      websites: [{ value: "https://github.com/login" }, { value: "https://github.com" }],
+      websites: [
+        { value: "https://github.com/login" },
+        { value: "https://github.com" },
+        { value: "androidapp://com.github.android" },
+      ],
       note: "work account",
       favorite: true,
       tags: ["Work"],
@@ -267,7 +316,6 @@ describe("Bitwarden JSON", () => {
         { type: "text", title: "Recovery email", value: "ops@example.com" },
         { type: "secret", title: "PIN", value: "1234" },
         { type: "text", title: "Remember me", value: "true" },
-        { type: "text", title: "Website", value: "androidapp://com.github.android" },
       ],
       createdAt: "2020-05-01T08:00:00.000Z",
     });

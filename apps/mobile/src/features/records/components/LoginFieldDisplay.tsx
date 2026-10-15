@@ -6,6 +6,7 @@ import {
   usePreference,
 } from "@repo/client";
 import { RecordDetailsItem } from "@repo/ui-native";
+import { websiteLink } from "@repo/util";
 import { Earth, Key, Lock, Mail, NotebookPen, NotebookText, Tag } from "lucide-react-native";
 import { useCSSVariable } from "uniwind";
 import TotpField from "./TotpField";
@@ -76,7 +77,7 @@ export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayPro
         <RecordDetailsItem
           icon={<Earth size={18} color={iconColor} />}
           title={spec.label}
-          value={spec.values}
+          value={spec.values?.map((value) => websiteLink(value))}
           variant="websites"
         />
       );

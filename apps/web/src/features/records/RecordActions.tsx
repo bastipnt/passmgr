@@ -1,5 +1,5 @@
 import {
-  getRecordWebsites,
+  getPrimaryWebsite,
   RECORD_TYPE_LABELS,
   recordErrorMessage,
   ShortcutLayer,
@@ -39,7 +39,6 @@ import { recordPaths } from "@/app/route-paths";
 import { VaultBadge, VaultTile } from "@/features/vaults";
 import { duplicateSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
-import { displayHost } from "./record-utils";
 
 type MoreDropdownProps = {
   record: DecryptedRecord;
@@ -185,7 +184,7 @@ type RecordActionsProps = {
 
 export function RecordActions({ record, onDelete, className }: RecordActionsProps) {
   const { recordId, title } = record;
-  const primaryWebsite = getRecordWebsites(record)?.find((website) => website.value)?.value;
+  const primaryWebsite = getPrimaryWebsite(record);
   const { vault, writable, showVault } = useRecordVault(record);
 
   return (
@@ -196,12 +195,12 @@ export function RecordActions({ record, onDelete, className }: RecordActionsProp
           <h1 className="truncate font-bold font-display text-3xl tracking-[-0.02em]">{title}</h1>
           {primaryWebsite ? (
             <a
-              href={primaryWebsite}
+              href={primaryWebsite.url}
               target="_blank"
               rel="noopener noreferrer"
               className="flex w-fit items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
             >
-              {displayHost(primaryWebsite)}
+              {primaryWebsite.host}
               <ExternalLinkIcon className="size-3.5" aria-hidden />
             </a>
           ) : (

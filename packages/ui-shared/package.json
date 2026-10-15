@@ -11,6 +11,9 @@
     "lint": "oxlint --type-aware",
     "typecheck": "tsc --noEmit"
   },
+  "dependencies": {
+    "@repo/util": "workspace:*"
+  },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "oxlint": "catalog:",

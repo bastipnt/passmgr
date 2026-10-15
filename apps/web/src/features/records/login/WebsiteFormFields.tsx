@@ -3,7 +3,7 @@ import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { normalizeWebsiteUrl } from "@repo/util";
+import { normalizeWebsite } from "@repo/util";
 import { EarthIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
 import {
@@ -33,9 +33,8 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
     replace({ value: "" });
   }, [fields.length, replace]);
 
-  function normalizeWebsite(index: number, value: string) {
-    const trimmed = value.trim();
-    if (trimmed) setValue(`websites.${index}.value`, normalizeWebsiteUrl(trimmed));
+  function normalizeRow(index: number, value: string) {
+    setValue(`websites.${index}.value`, normalizeWebsite(value));
   }
 
   return (
@@ -52,12 +51,12 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
                 name={`websites.${index}.value`}
                 label={`Website ${index}`}
                 autoComplete="off"
-                placeholder="https://"
+                placeholder="example.com"
                 hideLabel
                 leadingIcon={<EarthIcon />}
-                onBlur={(e) => normalizeWebsite(index, e.target.value)}
+                onBlur={(e) => normalizeRow(index, e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") normalizeWebsite(index, e.currentTarget.value);
+                  if (e.key === "Enter") normalizeRow(index, e.currentTarget.value);
                 }}
               />
             </div>

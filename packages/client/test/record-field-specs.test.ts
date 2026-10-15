@@ -3,7 +3,11 @@ import type { RecordData } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import { recordFormDefaults, recordFromForm } from "../src/records/record-edit";
 import { getRecordFieldSpecs } from "../src/records/record-field-specs";
-import { getRecordSubtitle, getRecordWebsites } from "../src/records/record-summary";
+import {
+  getPrimaryWebsite,
+  getRecordSubtitle,
+  getRecordWebsites,
+} from "../src/records/record-summary";
 
 function summary(record: RecordData, options?: { includeTitle?: boolean }) {
   return getRecordFieldSpecs(record, options).map(({ key, group, kind, value, values }) => ({
@@ -92,6 +96,22 @@ describe("getRecordWebsites", () => {
     const websites = [{ value: "https://a.example" }];
     expect(getRecordWebsites({ type: "login", title: "x", websites })).toBe(websites);
     expect(getRecordWebsites({ type: "api_key", title: "x", host: "a.example" })).toBeUndefined();
+  });
+});
+
+describe("getPrimaryWebsite", () => {
+  it("is the first http(s) website, its host with the port", () => {
+    const websites = [
+      { value: "androidapp://com.example" },
+      { value: "http://www.nas.lan:5001/x" },
+    ];
+    expect(getPrimaryWebsite({ type: "login", title: "x", websites })).toEqual({
+      url: "http://www.nas.lan:5001/x",
+      host: "nas.lan:5001",
+    });
+    expect(
+      getPrimaryWebsite({ type: "login", title: "x", websites: [{ value: "ssh://nas" }] }),
+    ).toBeUndefined();
   });
 });
 

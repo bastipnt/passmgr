@@ -1,3 +1,4 @@
+import { parseWebsite } from "@repo/util";
 import { z } from "zod";
 import {
   MAX_CUSTOM_FIELDS,
@@ -57,7 +58,10 @@ const websitesSchema = z
     z.object({
       value: z.union([
         z.literal(""),
-        z.url("Must be a valid URL").max(MAX_URL_LENGTH, tooLong(MAX_URL_LENGTH)),
+        z
+          .string()
+          .max(MAX_URL_LENGTH, tooLong(MAX_URL_LENGTH))
+          .refine((value) => parseWebsite(value) !== undefined, "Must be a URL, domain or app id"),
       ]),
     }),
   )

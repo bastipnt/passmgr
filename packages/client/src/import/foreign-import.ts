@@ -16,7 +16,7 @@ import {
   recordPayloadJson,
   sanitizeTag,
 } from "@repo/schema";
-import { websiteUrl } from "@repo/util";
+import { normalizeWebsite, parseWebsite, websiteHost } from "@repo/util";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 
 /*
@@ -158,17 +158,13 @@ export function latestDate(dates: (string | undefined)[]): string | undefined {
     .at(-1);
 }
 
-function hostOf(url: string): string {
-  return new URL(url).hostname;
-}
-
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
 /**
- * The record's payload, or why it can't be imported. A website that isn't an
- * http(s) URL is kept as a "Website" field, an empty title becomes the host,
+ * The record's payload, or why it can't be imported. A website that is no URL,
+ * domain or app id is kept as a "Website" field, an empty title becomes the host,
  * the username or "Imported item"; a long one is cut.
  */
 export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
@@ -183,8 +179,7 @@ export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
   const websites: string[] = [];
   for (const raw of record.websites ?? []) {
     if (raw.trim() === "") continue;
-    const url = websiteUrl(raw);
-    if (url) websites.push(url);
+    if (parseWebsite(raw)) websites.push(normalizeWebsite(raw));
     else customFields.push({ type: "text", title: "Website", value: raw.trim() });
   }
 
@@ -194,7 +189,7 @@ export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
   const username = typeof fields.username === "string" ? fields.username : undefined;
   const title = (
     record.title?.trim() ||
-    (websites[0] && hostOf(websites[0])) ||
+    websites.map((value) => websiteHost(value)).find(Boolean) ||
     username ||
     "Imported item"
   ).slice(0, MAX_TITLE_LENGTH);

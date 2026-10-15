@@ -671,7 +671,8 @@ to another vault is re-encrypted anyway (D6).
 >   matching by content is left for later.
 > - Folders, collections and (with more than one) source vaults become `tags`; everything goes
 >   into one vault the user picks. Fields with no field here become custom fields (concealed →
->   `secret`), a website that isn't http(s) a "Website" field. Password history, passkeys and
+>   `secret`), a website that is no URL, domain or app id a "Website" field (amended 2026-10-15: app
+>   ids and other `scheme://` addresses stay websites). Password history, passkeys and
 >   attachments are dropped and counted. A 1Password category with no type here becomes a note
 >   with its fields; Bitwarden types we don't know and 1Password documents are skipped and
 >   listed. KeePass's recycle bin is left out, like a trash; archived 1Password items are tagged.

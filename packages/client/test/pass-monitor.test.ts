@@ -98,6 +98,17 @@ describe("findDuplicateLogins", () => {
 
     expect(groups).toEqual([]);
   });
+
+  it("matches no host for app ids and other schemes", () => {
+    const groups = findDuplicateLogins([
+      record("a", { username: "jana", ...site("androidapp://com.github.android") }),
+      record("b", { username: "jana", ...site("androidapp://com.github.android") }),
+      record("c", { username: "jana", ...site("ssh://github.com") }),
+      record("d", { username: "jana", ...site("ssh://github.com") }),
+    ]);
+
+    expect(groups).toEqual([]);
+  });
 });
 
 describe("findOldPasswords", () => {

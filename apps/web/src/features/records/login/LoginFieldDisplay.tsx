@@ -7,6 +7,7 @@ import {
 } from "@repo/client";
 import { ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
 import Link from "@repo/ui/components/Link";
+import { websiteLink } from "@repo/util";
 import {
   EarthIcon,
   KeyIcon,
@@ -80,13 +81,19 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
           title={spec.label}
           value={
             <ul>
-              {spec.values?.map((value, i) => (
-                <li key={i}>
-                  <Link target="_blank" href={value} className="p-0">
-                    {value}
-                  </Link>
-                </li>
-              ))}
+              {spec.values
+                ?.map((value) => websiteLink(value))
+                .map(({ text, href }, i) => (
+                  <li key={i}>
+                    {href ? (
+                      <Link target="_blank" href={href} className="p-0">
+                        {text}
+                      </Link>
+                    ) : (
+                      <span className="break-all">{text}</span>
+                    )}
+                  </li>
+                ))}
             </ul>
           }
           onClick={() => {}}
