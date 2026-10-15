@@ -622,10 +622,13 @@ describe("LoginPage local vault", () => {
     expect(loginUserCore).not.toHaveBeenCalled();
   });
 
-  it("rekeys stale Argon2 params on the device, without the server", async () => {
-    // Stored with params other than the current ones (the derivation itself is mocked).
+  it("rekeys Argon2 params below the floor on the device, without the server", async () => {
+    // The derivation itself is mocked: calibration measures it as instant.
     const current = getPasswordKekParams();
-    const stale = { ...accountKeyMaterial, passwordKekParams: { ...current, t: current.t + 1 } };
+    const stale = {
+      ...accountKeyMaterial,
+      passwordKekParams: { t: 3, m: 32 * 1024, p: 4 },
+    };
     store.accountKeyMaterial = stale;
     vi.spyOn(secretsStore, "rewrapAccountKey").mockReturnValue(["rewrapped", "nonce"]);
     renderPage({ networkOffline: false });
@@ -641,9 +644,22 @@ describe("LoginPage local vault", () => {
     });
     expect(vaults).toEqual([personalVault]);
     expect(profile).toBeUndefined();
-    // Unlock + rekey, both in the worker; no server involved.
-    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(2);
+    // Unlock, two calibration runs and the rekey, all in the worker; no server involved.
+    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(4);
     expect(loginUserCore).not.toHaveBeenCalled();
+  });
+
+  it("keeps a wrap at or above the floor made by another device", async () => {
+    store.accountKeyMaterial = {
+      ...accountKeyMaterial,
+      passwordKekParams: { t: 3, m: 64 * 1024, p: 4 },
+    };
+    renderPage({ networkOffline: false });
+    await unlockLocalVault("right password");
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the typed password when the profile loads after the form", async () => {

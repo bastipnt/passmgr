@@ -19,6 +19,7 @@ import type {
 import type { AppRouter } from "@repo/types";
 import { fromBase64, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
+import { devicePasswordKekParams } from "./account/password-kek-params";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { LoginThrottledError } from "./login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
@@ -131,6 +132,7 @@ export async function recoverAccount(
     const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(
       newPassword,
       accountKey,
+      await devicePasswordKekParams(),
     );
 
     try {

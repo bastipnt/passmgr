@@ -1,7 +1,7 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
-import { rekeyIfParamsStale } from "../account/rekey-password-keys";
+import { rekeyIfBelowFloor } from "../account/rekey-password-keys";
 import {
   type AccountLogin,
   DeviceLoginRejectedError,
@@ -86,7 +86,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
   /**
    * `credential`: the password as typed, or an OPAQUE password
    * (`deriveOpaquePassword`), which `connect` takes over and wipes. Only the
-   * typed password can move the password wrap to new Argon2 params.
+   * typed password can raise a password wrap below the Argon2 floor.
    * Never throws.
    */
   function connect(credential: string | Uint8Array): Promise<ConnectResult> {
@@ -198,10 +198,10 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     return { result: "online", profileId, info };
   }
 
-  /** Best-effort, see `rekeyIfParamsStale`; never turns a connect into a failure. */
+  /** Best-effort, see `rekeyIfBelowFloor`; never turns a connect into a failure. */
   async function rekeyAfterConnect(profileId: string, password: string, info: AccountLogin) {
     try {
-      const rekeyed = await rekeyIfParamsStale(trpc, password, {
+      const rekeyed = await rekeyIfBelowFloor(trpc, password, {
         ...info.userPasswordKeys,
         userKeyPair: info.userKeyPair,
       });

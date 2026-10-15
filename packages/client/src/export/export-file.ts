@@ -1,11 +1,4 @@
-import {
-  exportKdf,
-  genSalt,
-  getPasswordKekParams,
-  openExport,
-  sealExport,
-  wipe,
-} from "@repo/crypto";
+import { exportKdf, genSalt, openExport, sealExport, wipe } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import {
   CURRENT_SCHEMA_VERSION,
@@ -20,6 +13,7 @@ import {
   exportEnvelopeSchema,
 } from "@repo/schema";
 import { fromBase64, localDateStamp } from "@repo/util";
+import { devicePasswordKekParams } from "../account/password-kek-params";
 import { timed } from "../util/perf";
 
 /*
@@ -56,9 +50,9 @@ function deriveExportKey(password: string, kdf: ExportKdf): Promise<Uint8Array> 
   );
 }
 
-/** An encrypted backup, with the same Argon2 cost as the master password. */
+/** An encrypted backup, with this device's Argon2 cost for a master password. */
 export async function encryptExport(data: ExportData, password: string): Promise<string> {
-  const kdf = exportKdf(genSalt(), getPasswordKekParams());
+  const kdf = exportKdf(genSalt(), await devicePasswordKekParams());
   const key = await deriveExportKey(password, kdf);
   try {
     return JSON.stringify(sealExport(key, kdf, JSON.stringify(data)), null, 2);

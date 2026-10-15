@@ -2,7 +2,7 @@ import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } fro
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { rekeyIfParamsStale, rekeyLocalIfParamsStale } from "../account/rekey-password-keys";
+import { rekeyIfBelowFloor, rekeyLocalIfBelowFloor } from "../account/rekey-password-keys";
 import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
@@ -92,9 +92,8 @@ export function useUnlock() {
     afterUnlock();
     await persistSession(opened.entry.profileId);
 
-    // Transparently migrate to the current Argon2 params if the stored ones
-    // are stale. Best-effort; failures don't block login.
-    void rekeyIfParamsStale(trpc, password, material).then(async (rekeyed) => {
+    // Raise a wrap below the Argon2 floor. Best-effort; failures don't block login.
+    void rekeyIfBelowFloor(trpc, password, material).then(async (rekeyed) => {
       if (rekeyed) await store.saveAccount(opened.entry.profileId, rekeyed, vaultKeys);
     });
     return true;
@@ -211,10 +210,10 @@ export function useUnlock() {
     }
   }
 
-  /** Local profile: move the password wrap to the current Argon2 params, on the device only. */
+  /** Local profile: raise a password wrap below the Argon2 floor, on the device only. */
   async function rekeyLocal(active: ActiveProfile, password: string, material: AccountKeyMaterial) {
     try {
-      const rekeyed = await rekeyLocalIfParamsStale(password, material);
+      const rekeyed = await rekeyLocalIfBelowFloor(password, material);
       if (rekeyed)
         await store.saveAccount(active.entry.profileId, rekeyed, await active.vault.getVaults());
     } catch (e) {

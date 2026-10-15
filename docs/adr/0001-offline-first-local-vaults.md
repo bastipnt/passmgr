@@ -98,8 +98,8 @@ server, apart from account operations that genuinely need it (registration, logi
 > refuses (`VaultExistsError`) when the device holds any trace of a vault (raw profile, account key,
 > vault or record rows). The vault unlocks only after the
 > recovery key is confirmed, with the account key kept from creation (no second Argon2). A `local`
-> profile's unlock is password-only (no email field, no server fallback) and rekeys stale Argon2
-> params on the device (`rekeyLocalIfParamsStale`; every rekey derives in the Argon2 worker). `useAppConfig` retries once, then reads as "no
+> profile's unlock is password-only (no email field, no server fallback) and raises a wrap below the Argon2
+> floor on the device (`rekeyLocalIfBelowFloor`; every rekey derives in the Argon2 worker). `useAppConfig` retries once, then reads as "no
 > registration"; the local vault route (`/local-vault` on web, "Start without an account" on mobile)
 > never depends on it. No display name on the profile yet.
 >

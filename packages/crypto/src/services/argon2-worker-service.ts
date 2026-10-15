@@ -5,6 +5,7 @@ type ArgonParams = { t: number; m: number; p: number };
 
 class Argon2WorkerService {
   private worker: Worker | null = null;
+  private queue: Promise<unknown> = Promise.resolve();
 
   private getWorker(): Worker {
     if (!this.worker) {
@@ -13,7 +14,16 @@ class Argon2WorkerService {
     return this.worker;
   }
 
+  // One worker with one onmessage handler: an overlapping call would steal the
+  // earlier one's result, so calls wait their turn.
   derive(password: string, salt: Uint8Array, params: ArgonParams): Promise<Uint8Array> {
+    const saltCopy = salt.slice();
+    const result = this.queue.then(() => this.run(password, saltCopy, params));
+    this.queue = result.catch(() => {});
+    return result;
+  }
+
+  private run(password: string, saltCopy: Uint8Array, params: ArgonParams): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const worker = this.getWorker();
 
@@ -37,7 +47,6 @@ class Argon2WorkerService {
         reject(new Error(`Argon2 worker failed: ${event.message || "could not load"}`));
       };
 
-      const saltCopy = salt.slice();
       worker.postMessage({ type: "derive", password, salt: saltCopy.buffer, params }, [
         saltCopy.buffer,
       ]);

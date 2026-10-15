@@ -1,6 +1,6 @@
 import { sha256 } from "@noble/hashes/sha2.js";
 import { fromString } from "@repo/util";
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   deriveOpaquePassword,
   deriveRecoveryAuthKey,
@@ -9,7 +9,10 @@ import {
   hashEmail,
   hashRecoveryAuthKey,
   hkdf,
+  needsPasswordKekRekey,
+  PASSWORD_KEK_PARAM_SETS,
   retrievePRK,
+  selectPasswordKekParams,
   setPasswordKekParams,
   signHmac,
   verifyHmac,
@@ -167,7 +170,7 @@ describe("recovery auth key", () => {
 describe("genPasswordKek / retrievePRK", () => {
   // Fast params for tests — real prod params validated by the smoke test below.
   const FAST_PARAMS = { t: 1, m: 8, p: 1 } as const;
-  // Argon2id with prod params (t:3, m:128MiB, p:1) takes a few seconds.
+  // Argon2id with prod params (t:3, m:128MiB, p:4) takes a few seconds.
   const ARGON_TIMEOUT_MS = 60_000;
 
   it(
@@ -237,7 +240,7 @@ describe("wipe", () => {
 });
 
 describe("setPasswordKekParams / getPasswordKekParams", () => {
-  const PROD = { t: 3, m: 128 * 1024, p: 1 };
+  const PROD = { t: 3, m: 128 * 1024, p: 4 };
   afterAll(() => setPasswordKekParams(PROD));
 
   it("getPasswordKekParams returns the prod default until the setter is called", () => {
@@ -251,5 +254,78 @@ describe("setPasswordKekParams / getPasswordKekParams", () => {
     expect(getPasswordKekParams()).toEqual(fast);
     const { passwordKekParams } = await genPasswordKek("p");
     expect(passwordKekParams).toEqual(fast);
+  });
+});
+
+describe("Argon2 param sets", () => {
+  const [strong, floor] = PASSWORD_KEK_PARAM_SETS;
+
+  it("picks the strongest set that fits the budget", () => {
+    const perUnit = (ms: number, set = strong!) => ms / (set.m * set.t);
+    expect(selectPasswordKekParams(perUnit(900))).toEqual(strong);
+    expect(selectPasswordKekParams(perUnit(1100))).toEqual(floor);
+  });
+
+  it("never goes below the floor on a slow device", () => {
+    expect(selectPasswordKekParams(1)).toEqual(floor);
+  });
+
+  it("rekeys only stored params below the floor", () => {
+    setPasswordKekParams(strong!);
+    expect(needsPasswordKekRekey(strong!)).toBe(false);
+    expect(needsPasswordKekRekey(floor!)).toBe(false);
+    expect(needsPasswordKekRekey({ ...floor!, m: floor!.m / 2 })).toBe(true);
+    expect(needsPasswordKekRekey({ ...floor!, t: floor!.t - 1 })).toBe(true);
+  });
+
+  it("never rekeys to weaker params than the stored ones", () => {
+    const fast = { t: 1, m: 8, p: 1 };
+    setPasswordKekParams(fast);
+    expect(needsPasswordKekRekey(fast)).toBe(false);
+    setPasswordKekParams(strong!);
+  });
+});
+
+describe("calibratePasswordKekParams", () => {
+  async function freshHash() {
+    vi.resetModules();
+    return await import("../src/hash");
+  }
+
+  function deriveTaking(ms: number[]) {
+    let call = 0;
+    return vi.fn(async () => {
+      vi.advanceTimersByTime(ms[call++] ?? 0);
+    });
+  }
+
+  it("sets the fitting set, counting the faster of two runs", async () => {
+    vi.useFakeTimers();
+    try {
+      const hash = await freshHash();
+      // 16 MiB × 1 in 30 ms → 128 MiB × 3 in ~720 ms; the slow first run is a worker start.
+      const derive = deriveTaking([400, 30]);
+      const chosen = await hash.calibratePasswordKekParams(derive);
+      expect(derive).toHaveBeenCalledTimes(2);
+      expect(chosen).toEqual(hash.PASSWORD_KEK_PARAM_SETS[0]);
+      expect(hash.getPasswordKekParams()).toEqual(chosen);
+
+      const slow = await freshHash();
+      // 60 ms → 128 MiB × 3 in ~1.4 s: too slow, the floor.
+      expect(await slow.calibratePasswordKekParams(deriveTaking([60, 60]))).toEqual(
+        slow.PASSWORD_KEK_PARAM_SETS.at(-1),
+      );
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("leaves pinned params alone", async () => {
+    const hash = await freshHash();
+    const fast = { t: 1, m: 8, p: 1 };
+    hash.setPasswordKekParams(fast);
+    const derive = vi.fn(async () => {});
+    expect(await hash.calibratePasswordKekParams(derive)).toEqual(fast);
+    expect(derive).not.toHaveBeenCalled();
   });
 });

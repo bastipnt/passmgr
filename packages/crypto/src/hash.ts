@@ -138,35 +138,93 @@ export async function deriveOpaquePassword(password: string, email: string): Pro
 }
 
 /**
- * Generate Password Root Key (PRK)
- *
- * @param password
- *
- * @returns PRK, params and salt
+ * Argon2id sets for the password KEK, strongest first. A stored wrap carries its
+ * own params, so a set can be added or dropped without breaking an unlock. The
+ * last one is the floor (Bitwarden's default): a device too slow for a stronger
+ * set gets that one, never anything weaker.
  */
-/**
- * | Parameter       | Value     |
- * | --------------- | --------- |
- * | Memory (m)      | 64–256 MB |
- * | Iterations (t)  | 3         |
- * | Parallelism (p) | 1–4       |
- * | Output length   | 32 bytes  |
- * | Variant         | Argon2id  |
- *
- * TODO: version parameters and adjust to client
- */
-const PROD_PASSWORD_KEK_PARAMS: ArgonOpts = { t: 3, m: 128 * 1024, p: 4 };
+export const PASSWORD_KEK_PARAM_SETS: readonly ArgonOpts[] = [
+  { t: 3, m: 128 * 1024, p: 4 },
+  { t: 3, m: 64 * 1024, p: 4 },
+];
 
-let activePasswordKekParams: ArgonOpts = PROD_PASSWORD_KEK_PARAMS;
+const PASSWORD_KEK_FLOOR = PASSWORD_KEK_PARAM_SETS.at(-1) as ArgonOpts;
 
+/** Time the KEK derivation may take on this device (the unlock target is < 2 s). */
+export const PASSWORD_KEK_BUDGET_MS = 1000;
+
+const CALIBRATION_PARAMS: ArgonOpts = { t: 1, m: 16 * 1024, p: 4 };
+
+let activePasswordKekParams: ArgonOpts = PASSWORD_KEK_PARAM_SETS[0] as ArgonOpts;
+let pinned = false;
+
+/** Fixes the params for new wraps; `calibratePasswordKekParams` then leaves them alone. */
 export function setPasswordKekParams(params: ArgonOpts): void {
   activePasswordKekParams = params;
+  pinned = true;
 }
 
 export function getPasswordKekParams(): ArgonOpts {
   return activePasswordKekParams;
 }
 
+// `p` only splits the same memory and passes into lanes: it speeds up the
+// defender, not the attacker's cost, so it doesn't count.
+function isWeaker(a: ArgonOpts, b: ArgonOpts): boolean {
+  return a.m < b.m || a.m * a.t < b.m * b.t;
+}
+
+/**
+ * Whether a stored wrap should be redone with this device's params. Only below
+ * the floor, and only as an upgrade: the wrap is shared by every device of an
+ * account, so rekeying to each device's own choice would make them take turns.
+ */
+export function needsPasswordKekRekey(stored: ArgonOpts): boolean {
+  return isWeaker(stored, PASSWORD_KEK_FLOOR) && isWeaker(stored, activePasswordKekParams);
+}
+
+/** The strongest set that `msPerKibIteration` (time per KiB × iteration) fits into the budget. */
+export function selectPasswordKekParams(
+  msPerKibIteration: number,
+  budgetMs = PASSWORD_KEK_BUDGET_MS,
+): ArgonOpts {
+  return (
+    PASSWORD_KEK_PARAM_SETS.find((set) => msPerKibIteration * set.m * set.t <= budgetMs) ??
+    PASSWORD_KEK_FLOOR
+  );
+}
+
+/**
+ * Times a small derivation with `derive` (the one unlock uses on this
+ * platform) and makes the fitting set the params for new wraps. Argon2's cost
+ * grows linearly with memory × iterations, so a 16 MiB pass predicts the rest.
+ * Measured twice, the faster run counts: the first one may pay a worker start.
+ */
+export async function calibratePasswordKekParams(
+  derive: (salt: Uint8Array, params: ArgonOpts) => Promise<unknown>,
+): Promise<ArgonOpts> {
+  if (pinned) return activePasswordKekParams;
+  const salt = genSalt();
+  let fastest = Number.POSITIVE_INFINITY;
+  for (let run = 0; run < 2; run++) {
+    const started = performance.now();
+    await derive(salt, CALIBRATION_PARAMS);
+    fastest = Math.min(fastest, performance.now() - started);
+  }
+  if (pinned) return activePasswordKekParams;
+  activePasswordKekParams = selectPasswordKekParams(
+    fastest / (CALIBRATION_PARAMS.m * CALIBRATION_PARAMS.t),
+  );
+  return activePasswordKekParams;
+}
+
+/**
+ * Generate Password Root Key (PRK)
+ *
+ * @param password
+ *
+ * @returns PRK, params and salt
+ */
 export async function genPasswordKek(
   password: string,
   passwordKekParams: ArgonOpts = activePasswordKekParams,

@@ -1,4 +1,5 @@
 import { createUserKeyPair, createVault, generateUserKeys, genKey, wipe } from "@repo/crypto";
+import { devicePasswordKekParams } from "./password-kek-params";
 
 /** The default vault's metadata; the user can rename it later. */
 const PERSONAL_VAULT_META = { name: "Personal" };
@@ -13,12 +14,14 @@ const PERSONAL_VAULT_META = { name: "Personal" };
  * is shown to the user once and never sent anywhere.
  */
 export async function generateKeyring(password: string) {
+  const passwordKekParams = await devicePasswordKekParams();
   const accountKey = genKey();
   let recoveryKey: Uint8Array | undefined;
   try {
     const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(
       password,
       accountKey,
+      passwordKekParams,
     );
     recoveryKey = newRecoveryKey;
     return {

@@ -592,8 +592,8 @@ class SecretsStore {
   }
 
   /**
-   * Re-encrypt the in-memory account key under a new password KEK (e.g. after
-   * Argon2 params change). The plaintext key never leaves memory; only the
+   * Re-encrypt the in-memory account key under a new password KEK (password
+   * change, a wrap raised to the Argon2 floor). The plaintext key never leaves memory; only the
    * returned ciphertext is persisted. Vault keys are unaffected. Caller is
    * responsible for wiping `passwordKek` afterwards.
    */

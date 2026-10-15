@@ -1,21 +1,18 @@
-import { genSalt, getPasswordKekParams, wipe, wrapAccountKey } from "@repo/crypto";
+import { genSalt, needsPasswordKekRekey, wipe, wrapAccountKey } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type { AccountKeyMaterial, ArgonParams } from "@repo/schema";
+import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { timed } from "../util/perf";
-
-export function paramsEqual(a: ArgonParams, b: ArgonParams): boolean {
-  return a.t === b.t && a.m === b.m && a.p === b.p;
-}
+import { devicePasswordKekParams } from "./password-kek-params";
 
 export type PasswordWrap = Omit<AccountKeyMaterial, "userKeyPair">;
 
 /**
  * The unlocked account key wrapped under `password`, with a fresh salt and the
- * current Argon2 params (rekey, password change).
+ * device's Argon2 params (rekey, password change).
  */
 export function wrapAccountKeyForPassword(password: string): Promise<PasswordWrap> {
   return derivePasswordWrap(password, (kek) => secretsStore.rewrapAccountKey(kek));
@@ -33,7 +30,7 @@ async function derivePasswordWrap(
   password: string,
   wrap: (passwordKek: Uint8Array) => [encryptedAccountKey: string, nonce: string],
 ): Promise<PasswordWrap> {
-  const passwordKekParams = getPasswordKekParams();
+  const passwordKekParams = await devicePasswordKekParams();
   const passwordKekSaltData = genSalt();
   // In the worker (native: off the JS thread): the unlock this follows stays responsive.
   const passwordKek = await timed(
@@ -55,9 +52,9 @@ async function derivePasswordWrap(
 }
 
 /**
- * Re-derive the password KEK with the current Argon2 params and re-wrap the
- * account key (vault keys are unaffected), when the stored params are stale
- * (e.g. after a params bump). Runs client-side only — the server never sees
+ * Re-derive the password KEK with this device's Argon2 params and re-wrap the
+ * account key (vault keys are unaffected), when the stored params are below the
+ * floor (`needsPasswordKekRekey`). Runs client-side only — the server never sees
  * the key or password. Needs the unlocked account key and a server session
  * (ADR 0001 D10: a linked profile never rekeys offline, or the local and server
  * key sets would diverge).
@@ -65,12 +62,12 @@ async function derivePasswordWrap(
  * @returns the rewrapped material to cache locally, or undefined when nothing
  * changed. Best-effort: failures are logged and retried at the next login.
  */
-export async function rekeyIfParamsStale(
+export async function rekeyIfBelowFloor(
   trpc: Pick<TRPCClient<AppRouter>, "user">,
   password: string,
   material: AccountKeyMaterial,
 ): Promise<AccountKeyMaterial | undefined> {
-  if (paramsEqual(material.passwordKekParams, getPasswordKekParams())) return;
+  if (!needsPasswordKekRekey(material.passwordKekParams)) return;
   if (!secretsStore.hasServerSession) return;
 
   try {
@@ -78,7 +75,7 @@ export async function rekeyIfParamsStale(
     await trpc.user.rekeyPasswordKeys.mutate(updated);
     return { ...updated, userKeyPair: material.userKeyPair };
   } catch (e) {
-    console.error("Argon2 param rekey failed (will retry next login)", e);
+    console.error("Argon2 floor rekey failed (will retry next login)", e);
   }
 }
 
@@ -87,16 +84,16 @@ export async function rekeyIfParamsStale(
  * only copy of the key set, so no server is involved. Only the password wrap
  * changes; the recovery wrap stays.
  */
-export async function rekeyLocalIfParamsStale(
+export async function rekeyLocalIfBelowFloor(
   password: string,
   material: AccountKeyMaterial,
 ): Promise<AccountKeyMaterial | undefined> {
-  if (paramsEqual(material.passwordKekParams, getPasswordKekParams())) return;
+  if (!needsPasswordKekRekey(material.passwordKekParams)) return;
 
   try {
     const updated = await wrapAccountKeyForPassword(password);
     return { ...updated, userKeyPair: material.userKeyPair };
   } catch (e) {
-    console.error("Argon2 param rekey failed (will retry next unlock)", e);
+    console.error("Argon2 floor rekey failed (will retry next unlock)", e);
   }
 }
