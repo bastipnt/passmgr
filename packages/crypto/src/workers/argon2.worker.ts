@@ -1,4 +1,4 @@
-import { argon2idAsync } from "@noble/hashes/argon2.js";
+import { argon2idAsync } from "../util/argon2-impl";
 
 type ArgonRequest = {
   type: "derive";

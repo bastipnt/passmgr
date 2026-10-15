@@ -1,3 +1,4 @@
+import { argon2idAsync } from "../util/argon2-impl";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import Argon2Worker from "../workers/argon2.worker.ts?worker";
 
@@ -17,6 +18,8 @@ class Argon2WorkerService {
   // One worker with one onmessage handler: an overlapping call would steal the
   // earlier one's result, so calls wait their turn.
   derive(password: string, salt: Uint8Array, params: ArgonParams): Promise<Uint8Array> {
+    // Node (tests, scripts) has no Worker.
+    if (typeof Worker === "undefined") return argon2idAsync(password, salt, params);
     const saltCopy = salt.slice();
     const result = this.queue.then(() => this.run(password, saltCopy, params));
     this.queue = result.catch(() => {});

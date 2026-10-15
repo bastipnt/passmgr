@@ -15,12 +15,14 @@ test.describe("security headers", () => {
     expect(csp).toContain("frame-ancestors 'none'");
     expect(csp).toContain("object-src 'none'");
     expect(csp).not.toMatch(/script-src[^;]*'unsafe-inline'/);
+    // Without it Argon2 silently falls back to pure JS (several times slower).
+    expect(csp).toMatch(/script-src[^;]*'wasm-unsafe-eval'/);
     // The breach check's only third-party call (HIBP range API).
     expect(csp).toMatch(/connect-src[^;]* https:\/\/api\.pwnedpasswords\.com[ ;]/);
   });
 
-  // The SPA must actually boot under the CSP (sqlite-wasm needs
-  // 'wasm-unsafe-eval' and blob: workers).
+  // The SPA must actually boot under the CSP (sqlite-wasm and Argon2 need
+  // 'wasm-unsafe-eval', sqlite-wasm blob: workers).
   test("the app runs without CSP violations", async ({ page }) => {
     const violations: string[] = [];
     page.on("console", (msg) => {

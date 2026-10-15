@@ -218,6 +218,13 @@ export async function calibratePasswordKekParams(
   return activePasswordKekParams;
 }
 
+/** Argon2id; the client passes its worker so the derivation leaves the main thread. */
+export type DeriveArgon2 = (
+  password: string,
+  salt: Uint8Array,
+  params: ArgonOpts,
+) => Promise<Uint8Array>;
+
 /**
  * Generate Password Root Key (PRK)
  *
@@ -228,6 +235,7 @@ export async function calibratePasswordKekParams(
 export async function genPasswordKek(
   password: string,
   passwordKekParams: ArgonOpts = activePasswordKekParams,
+  derive: DeriveArgon2 = argon2idAsync,
 ): Promise<{
   passwordKek: Uint8Array;
   passwordKekParams: ArgonOpts;
@@ -235,7 +243,7 @@ export async function genPasswordKek(
 }> {
   const passwordKekSaltData = genSalt();
 
-  const passwordKek = await argon2idAsync(password, passwordKekSaltData, {
+  const passwordKek = await derive(password, passwordKekSaltData, {
     ...passwordKekParams,
     maxmem: 2 ** 32 - 1,
   });

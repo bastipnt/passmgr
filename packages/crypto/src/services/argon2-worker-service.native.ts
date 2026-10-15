@@ -1,5 +1,5 @@
 // Main-thread Argon2id for React Native. `argon2idAsync` resolves to the native
-// libsodium implementation (argon2-impl.native.ts), which runs off the JS thread,
+// react-native-argon2 implementation (argon2-impl.native.ts), which runs off the JS thread,
 // so no web worker is needed here.
 import { argon2idAsync } from "../util/argon2-impl";
 

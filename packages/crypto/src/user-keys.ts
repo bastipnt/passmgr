@@ -9,7 +9,13 @@ import type {
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { decryptXChaChaWithAAD, encryptXChaChaWithAAD } from "./encryption";
-import { deriveRecoveryAuthKey, genPasswordKek, hashRecoveryAuthKey, hkdf } from "./hash";
+import {
+  type DeriveArgon2,
+  deriveRecoveryAuthKey,
+  genPasswordKek,
+  hashRecoveryAuthKey,
+  hkdf,
+} from "./hash";
 import type { ArgonOpts } from "./util/argon2-impl";
 import { genKey, genSalt, wipe } from "./util/secrets-utils";
 import { encryptVaultMeta } from "./vault-data";
@@ -205,6 +211,7 @@ export async function generateRecoveryKeys(
  * @param accountKey the account key to wrap. Registration passes a new one
  *   (`genKey()`), recovery the unwrapped existing one. It is not wiped.
  * @param params the device's Argon2 set (default: the active one)
+ * @param derive the Argon2id to run (default: in this thread)
  *
  * @returns the key set for the server and the new recoveryKey (show to the
  *   user once, never send to the server; the caller wipes it)
@@ -213,10 +220,12 @@ export async function generateUserKeys(
   password: string,
   accountKey: Uint8Array,
   params?: ArgonOpts,
+  derive?: DeriveArgon2,
 ): Promise<UserKeySchema & { recoveryKey: Uint8Array }> {
   const { passwordKek, passwordKekParams, passwordKekSaltData } = await genPasswordKek(
     password,
     params,
+    derive,
   );
   const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(passwordKek, accountKey);
   const passwordKekSalt = toBase64(passwordKekSaltData);

@@ -357,6 +357,9 @@ password change, recovery, export) takes this device's set from `PASSWORD_KEK_PA
 `PASSWORD_KEK_BUDGET_MS`, measured once per run by `devicePasswordKekParams`, never below the 64 MiB floor). Unlock rekeys
 only a wrap below the floor (`needsPasswordKekRekey`): the wrap is shared by every device, equal-params rekeying would ping-pong.
 Tests pin params with `setPasswordKekParams` (skips calibration).
+Argon2id itself (`util/argon2-impl.ts`): web / Node run hash-wasm (WASM inlined in the bundle, needs
+`'wasm-unsafe-eval'`), falling back to @noble per thread once the WASM fails; mobile `react-native-argon2`. Web derives in the
+worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thread where there's no `Worker` (Node).
 
 Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the
 account key's is purpose-only (`passmgr/account-key/v1`, same wrap on every device), a vault key's binds

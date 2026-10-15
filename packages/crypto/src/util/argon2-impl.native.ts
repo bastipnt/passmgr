@@ -1,8 +1,8 @@
 // Native Argon2id implementation for React Native via react-native-argon2.
 // Backed by the reference Argon2 (argon2kt on Android, Argon2Swift on iOS) —
-// RFC 9106 compliant, so output is byte-identical to @noble/hashes/argon2 used
-// on web, including parallelism p>1. Replaces the pure-JS impl on mobile
-// (~50× faster), so vault-unlock at login doesn't lock the UI thread.
+// RFC 9106 compliant, so output is byte-identical to the WASM / @noble one in
+// `argon2-impl.ts`, including parallelism p>1. Replaces it on mobile, so
+// vault-unlock at login doesn't lock the UI thread.
 // Metro auto-picks this file over `argon2-impl.ts` for ios/android bundles.
 
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";

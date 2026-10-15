@@ -1,3 +1,4 @@
+import type { DeriveArgon2 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { PasswordKeySchema } from "@repo/schema";
 import { fromBase64 } from "@repo/util";
@@ -14,3 +15,6 @@ export async function derivePasswordKek(
     () => argon2WorkerService.derive(password, fromBase64(keys.passwordKekSalt), passwordKekParams),
   );
 }
+
+export const deriveArgon2InWorker: DeriveArgon2 = (password, salt, params) =>
+  argon2WorkerService.derive(password, salt, params);

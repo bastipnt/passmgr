@@ -1,4 +1,5 @@
 import { createUserKeyPair, createVault, generateUserKeys, genKey, wipe } from "@repo/crypto";
+import { deriveArgon2InWorker } from "../util/derive-password-kek";
 import { devicePasswordKekParams } from "./password-kek-params";
 
 /** The default vault's metadata; the user can rename it later. */
@@ -22,6 +23,7 @@ export async function generateKeyring(password: string) {
       password,
       accountKey,
       passwordKekParams,
+      deriveArgon2InWorker,
     );
     recoveryKey = newRecoveryKey;
     return {

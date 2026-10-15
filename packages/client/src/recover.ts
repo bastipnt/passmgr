@@ -23,6 +23,7 @@ import { devicePasswordKekParams } from "./account/password-kek-params";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { LoginThrottledError } from "./login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
+import { deriveArgon2InWorker } from "./util/derive-password-kek";
 import { isThrottled } from "./util/trpc-errors";
 
 export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
@@ -133,6 +134,7 @@ export async function recoverAccount(
       newPassword,
       accountKey,
       await devicePasswordKekParams(),
+      deriveArgon2InWorker,
     );
 
     try {
