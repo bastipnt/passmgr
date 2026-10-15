@@ -199,6 +199,37 @@ describe("loginUser — second factor", () => {
     expect(session).not.toHaveBeenCalled();
   });
 
+  it("a cancel while the code is verified ends the login without a session", async () => {
+    const { trpc } = await fakeServer({ twoFactor: true });
+    const session = vi.fn(async () => {});
+    const prompt = Object.assign(promptWith(CODE), { cancelled: () => true });
+
+    await expect(loginUser(trpc, session, EMAIL, PASSWORD, prompt)).rejects.toBeInstanceOf(
+      SecondFactorCancelledError,
+    );
+    expect(session).not.toHaveBeenCalled();
+  });
+
+  it("a cancel while a wrong code is verified does not ask again", async () => {
+    const { trpc } = await fakeServer({ twoFactor: true });
+    const prompt = Object.assign(promptWith("000000", CODE), { cancelled: () => true });
+
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD, prompt)).rejects.toBeInstanceOf(
+      SecondFactorCancelledError,
+    );
+    expect(prompt).toHaveBeenCalledOnce();
+  });
+
+  it("a cancel while the code is verified wins over a failed request", async () => {
+    const { trpc, state } = await fakeServer({ twoFactor: true });
+    state.verifyError = new TRPCClientError("Failed to fetch");
+    const prompt = Object.assign(promptWith(CODE), { cancelled: () => true });
+
+    await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD, prompt)).rejects.toBeInstanceOf(
+      SecondFactorCancelledError,
+    );
+  });
+
   it("without a prompt, a challenged login is cancelled", async () => {
     const { trpc } = await fakeServer({ twoFactor: true });
     await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(

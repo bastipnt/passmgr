@@ -146,11 +146,11 @@ export function useUnlock() {
           if (code === null) cancelled = true;
           return code;
         },
-        { done: ask.done },
+        { cancelled: ask.cancelled, done: ask.done },
       );
       const info = await loginUser(profile.email, password, tracked);
       if (info) return await unlock(info);
-      if (cancelled) return false;
+      if (cancelled || ask.cancelled?.()) return false;
     }
     setUnlockError("failed");
     return false;

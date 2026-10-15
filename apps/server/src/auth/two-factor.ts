@@ -141,8 +141,8 @@ async function writeBackupCodes(tx: Tx, userId: string): Promise<string[]> {
 
 /**
  * Turn two-factor on: store `secret` (its code for `step` was just checked,
- * so that step counts as used) and new backup codes. False when it's on
- * already.
+ * so that step counts as used) and new backup codes, returned. Undefined
+ * when it's on already.
  */
 export async function enableTotp(
   userId: string,

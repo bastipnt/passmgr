@@ -12,11 +12,13 @@ export type SecondFactorRequest = { invalid: boolean; verifying: boolean };
  * `SecondFactorPromptProvider`) sets `request` until the UI calls `cancel`, or
  * `submit`s a code and the login is past the code step (a wrong code asks
  * again, with the same `request` still showing meanwhile). A new prompt, or
- * unmounting, cancels the one before.
+ * unmounting, cancels the one before. A `cancel` while the code is being
+ * verified still stops the login (`SecondFactorPrompt.cancelled`).
  */
 export function useSecondFactorRequest() {
   const [request, setRequest] = useState<SecondFactorRequest | null>(null);
   const resolveRef = useRef<((code: string | null) => void) | null>(null);
+  const cancelledRef = useRef(false);
 
   const answer = useCallback((code: string | null) => {
     const resolve = resolveRef.current;
@@ -29,16 +31,23 @@ export function useSecondFactorRequest() {
       Object.assign(
         (state: { invalid: boolean }) =>
           new Promise<string | null>((resolve) => {
+            cancelledRef.current = false;
             resolveRef.current?.(null);
             resolveRef.current = resolve;
             setRequest({ invalid: state.invalid, verifying: false });
           }),
-        { done: () => setRequest(null) },
+        { cancelled: () => cancelledRef.current, done: () => setRequest(null) },
       ),
     [],
   );
 
-  useEffect(() => () => resolveRef.current?.(null), []);
+  useEffect(
+    () => () => {
+      cancelledRef.current = true;
+      resolveRef.current?.(null);
+    },
+    [],
+  );
 
   const submit = useCallback(
     (code: string) => {
@@ -49,6 +58,7 @@ export function useSecondFactorRequest() {
   );
 
   const cancel = useCallback(() => {
+    cancelledRef.current = true;
     setRequest(null);
     answer(null);
   }, [answer]);

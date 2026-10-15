@@ -75,11 +75,14 @@ export class SecondFactorExpiredError extends Error {
 /**
  * Asks the user for a second-factor code (TOTP or backup code) when the
  * account has two-factor on. `invalid`: the last code was wrong. Resolves the
- * code, or null when the user cancels. `done` is called once the login is
- * past the code step (it passed, or failed for good): the prompt can close.
+ * code, or null when the user cancels. `cancelled`: the user cancelled after
+ * handing over the code being checked, so the login stops without a session
+ * whatever the server answers. `done` is called once the login is past the
+ * code step (it passed, or failed for good): the prompt can close.
  */
 export type SecondFactorPrompt = {
   (state: { invalid: boolean }): Promise<string | null>;
+  cancelled?: () => boolean;
   done?: () => void;
 };
 
@@ -294,18 +297,33 @@ async function askUntilVerified(
   for (;;) {
     const code = await onSecondFactor({ invalid });
     if (code === null) throw new SecondFactorCancelledError();
+    let verified: LoginSuccess | undefined;
     try {
-      return await trpc.login.verifySecondFactor.mutate({ challengeId, code });
+      verified = await verifyCode(trpc, challengeId, code);
     } catch (err) {
-      if (isUnauthorized(err) && err instanceof TRPCClientError) {
-        if (err.message === SECOND_FACTOR_INVALID) {
-          invalid = true;
-          continue;
-        }
-        if (err.message === SECOND_FACTOR_EXPIRED) throw new SecondFactorExpiredError();
-      }
-      throw requestFailure(err, LoginFinishFailedError);
+      throw onSecondFactor.cancelled?.() ? new SecondFactorCancelledError() : err;
     }
+    // The server session of a code verified after the cancel stays unused and dies via its TTL.
+    if (onSecondFactor.cancelled?.()) throw new SecondFactorCancelledError();
+    if (verified) return verified;
+    invalid = true;
+  }
+}
+
+/** The login, or undefined when the code was wrong. */
+async function verifyCode(
+  trpc: LoginTRPCClient,
+  challengeId: string,
+  code: string,
+): Promise<LoginSuccess | undefined> {
+  try {
+    return await trpc.login.verifySecondFactor.mutate({ challengeId, code });
+  } catch (err) {
+    if (isUnauthorized(err) && err instanceof TRPCClientError) {
+      if (err.message === SECOND_FACTOR_INVALID) return undefined;
+      if (err.message === SECOND_FACTOR_EXPIRED) throw new SecondFactorExpiredError();
+    }
+    throw requestFailure(err, LoginFinishFailedError);
   }
 }
 
