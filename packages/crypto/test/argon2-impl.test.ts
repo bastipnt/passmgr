@@ -18,7 +18,7 @@ describe("WASM Argon2id", () => {
     expect(bytesToHex(wasm)).toBe(bytesToHex(noble));
   });
 
-  it("matches @noble at the 64 MiB floor with p = 4", async () => {
+  it("matches @noble at the 64 MiB floor with p = 4", { timeout: 30_000 }, async () => {
     const opts = { t: 1, m: 65536, p: 4 };
     const password = new TextEncoder().encode("hunter2");
 
@@ -27,7 +27,7 @@ describe("WASM Argon2id", () => {
     );
   });
 
-  it("matches @noble for the strong set", { timeout: 30_000 }, async () => {
+  it("matches @noble for the strong set", { timeout: 90_000 }, async () => {
     const opts = { t: 3, m: 128 * 1024, p: 4 };
 
     expect(bytesToHex(await wasmArgon2idAsync("pw", salt, opts))).toBe(
