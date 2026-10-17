@@ -49,6 +49,7 @@ Create `.env` in this directory:
 | `REDIS_HOST`          | Redis hostname                                                                                                              |
 | `REDIS_PORT`          | Redis port                                                                                                                  |
 | `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production: Redis holds live session `authKey`s.                          |
+| `CORS_ORIGIN`         | Exact web origin(s), comma-separated: CORS and the WebAuthn origin check. Required in production; unset in dev = localhost 5173 / 4173 / 8080. |
 | `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Effectively the master key — rotating breaks all registrations.** Generate once, keep stable. |
 
 ## Dev
@@ -70,7 +71,7 @@ docker compose -f docker-compose.prod.yml exec server \
 # Single use, expires <ISO date>, only for alice@example.com
 ```
 
-Flags: `--email` (optional, binds invite to that address), `--ttl <hours>` (default 24), `--url <base>` (default `$CORS_ORIGIN`). Locally: `pnpm --filter server invite -- --url http://localhost:5173`.
+Flags: `--email` (optional, binds invite to that address), `--ttl <hours>` (default 24), `--url <base>` (default: the first `$CORS_ORIGIN`). Locally: `pnpm --filter server invite -- --url http://localhost:5173`.
 
 The invitee registers in the web app as usual — OPAQUE and key derivation run on their device, so the server never sees the password or recovery key. Redis stores only a SHA-256 of the code.
 

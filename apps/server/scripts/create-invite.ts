@@ -24,7 +24,7 @@ if (values.help) {
 
   --email  Only allow this email to register with the invite
   --ttl    Hours until the invite expires (default 24)
-  --url    Web app base URL for the printed link (default: $CORS_ORIGIN)`);
+  --url    Web app base URL for the printed link (default: first $CORS_ORIGIN)`);
   process.exit(0);
 }
 
@@ -34,7 +34,7 @@ if (!Number.isFinite(ttlHours) || ttlHours <= 0) {
   process.exit(1);
 }
 
-const baseUrl = (values.url ?? process.env.CORS_ORIGIN)?.replace(/\/+$/, "");
+const baseUrl = (values.url ?? process.env.CORS_ORIGIN?.split(",")[0])?.trim().replace(/\/+$/, "");
 const ttlSeconds = Math.round(ttlHours * 60 * 60);
 
 try {

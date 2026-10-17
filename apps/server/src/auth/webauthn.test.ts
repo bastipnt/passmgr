@@ -5,7 +5,7 @@ import { fakeAuthenticator } from "../../test/setup/fake-authenticator";
 import { credentialKey, verifyAssertion } from "./webauthn";
 
 const challenge = new Uint8Array(32).fill(7);
-const allowedHostnames = new Set(["localhost", "vault.example.com"]);
+const allowedOrigins = new Set(["http://localhost:8080", "https://vault.example.com"]);
 
 function check(
   authenticator: ReturnType<typeof fakeAuthenticator>,
@@ -23,7 +23,7 @@ function check(
       algorithm: authenticator.algorithm,
       signCount,
     },
-    { challenge: expected, allowedHostnames },
+    { challenge: expected, allowedOrigins },
   );
 }
 
@@ -47,6 +47,15 @@ describe("verifyAssertion", () => {
     const assertion = authenticator.assert(challenge, { origin: "https://evil.example" });
     expect(check(authenticator, assertion)).toEqual({ ok: false, reason: "origin" });
   });
+
+  it.each(["http://localhost:3000", "https://localhost:8080", "http://vault.example.com"])(
+    "refuses %s: an allowed host on another scheme or port",
+    (origin) => {
+      const authenticator = fakeAuthenticator();
+      const assertion = authenticator.assert(challenge, { origin });
+      expect(check(authenticator, assertion)).toEqual({ ok: false, reason: "origin" });
+    },
+  );
 
   it("refuses authenticator data for another relying party", () => {
     const authenticator = fakeAuthenticator();

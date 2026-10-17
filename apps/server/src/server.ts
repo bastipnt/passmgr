@@ -13,7 +13,7 @@ import { registerHealthRoutes } from "./health";
 import { stripQuery } from "./logger";
 import { metricsRegistry } from "./metrics";
 import { redis } from "./redis";
-import { allowedHostnames } from "./util/allowed-origins";
+import { allowedOrigins } from "./util/allowed-origins";
 
 const isDev = process.env.NODE_ENV !== "production";
 
@@ -92,8 +92,7 @@ await server.register(cors, {
       return;
     }
 
-    const hostname = new URL(origin).hostname;
-    if (allowedHostnames.has(hostname)) {
+    if (allowedOrigins.has(origin)) {
       cb(null, true);
       return;
     }

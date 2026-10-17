@@ -50,7 +50,7 @@ export function credentialKey(publicKey: Uint8Array, algorithm: number): KeyObje
 export function verifyAssertion(
   assertion: Assertion,
   credential: StoredCredential,
-  expected: { challenge: Uint8Array; allowedHostnames: ReadonlySet<string> },
+  expected: { challenge: Uint8Array; allowedOrigins: ReadonlySet<string> },
 ): AssertionResult {
   const { authenticatorData, clientDataJSON, signature } = assertion;
 
@@ -65,13 +65,9 @@ export function verifyAssertion(
     return { ok: false, reason: "challenge" };
   if (clientData.crossOrigin === true) return { ok: false, reason: "cross_origin" };
 
-  let rpId: string;
-  try {
-    rpId = new URL(String(clientData.origin)).hostname;
-  } catch {
+  if (typeof clientData.origin !== "string" || !expected.allowedOrigins.has(clientData.origin))
     return { ok: false, reason: "origin" };
-  }
-  if (!expected.allowedHostnames.has(rpId)) return { ok: false, reason: "origin" };
+  const rpId = new URL(clientData.origin).hostname;
 
   if (authenticatorData.length < AUTH_DATA_MIN_LENGTH) return { ok: false, reason: "auth_data" };
   const authData = Buffer.from(authenticatorData);

@@ -30,7 +30,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
-import { allowedHostnames } from "../util/allowed-origins";
+import { allowedOrigins } from "../util/allowed-origins";
 import {
   countSecondFactorAttempt,
   deleteSession,
@@ -367,7 +367,7 @@ export const loginRouter = router({
           algorithm: credential.algorithm,
           signCount: credential.signCount,
         },
-        { challenge, allowedHostnames },
+        { challenge, allowedOrigins },
       );
       if (!verified.ok) denyDeviceLogin(log, "finishDeviceLogin", verified.reason);
       if (await isLoginRevoked(userId, attempt.startedAt))

@@ -177,7 +177,7 @@ A linked profile also registers the credential's public key (`user.registerDevic
 `device_credentials`; `biometricDeviceLogin` in the material), and the same prompt then signs a device login:
 `login.startDeviceLogin` (nonce + server ephemeral X25519, `devicelogin:<attemptId>`, 5 min) → the WebAuthn challenge is
 `deviceLoginChallenge(nonce, serverPub, clientPub)` → `login.finishDeviceLogin` (assertion checked in
-`apps/server/src/auth/webauthn.ts`: origin host in `allowedHostnames`, rpId hash, UP + UV, signature, growing counter;
+`apps/server/src/auth/webauthn.ts`: origin in `allowedOrigins`, rpId hash, UP + UV, signature, growing counter;
 session key = HKDF of the X25519 secret, `deviceSessionKey`), then two-factor as for a password login. Such a session is
 `passwordless`: never fresh auth and no reset of the password throttle. A credential stops logging in
 `SESSION_MAX_AGE_MS` after its last password login (`passwordVerifiedAt`); `useLinkDeviceCredential` (unlocked tree) links it
@@ -520,7 +520,8 @@ Server (`apps/server/.env`):
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see Vaults
-- `CORS_ORIGIN`, `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
+- `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
+- `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
 
 DB package (`packages/db/.env`):
 
