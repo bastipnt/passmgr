@@ -515,7 +515,7 @@ Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the 
 Server (`apps/server/.env`):
 
 - `DATABASE_URL` — PostgreSQL connection string
-- `REDIS_HOST`, `REDIS_PORT`
+- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
 - `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)

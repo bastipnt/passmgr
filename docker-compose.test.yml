@@ -22,6 +22,7 @@ services:
       DATABASE_URL: postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
       REDIS_HOST: redis
       REDIS_PORT: 6379
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
       OPAQUE_OPRF_SEED: ${OPAQUE_OPRF_SEED}
       OPAQUE_AKE_PRIVATE_KEY: ${OPAQUE_AKE_PRIVATE_KEY}
       OPAQUE_SERVER_SETUP: ${OPAQUE_SERVER_SETUP}
@@ -54,3 +55,6 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      REDIS_PASSWORD: ${REDIS_PASSWORD}

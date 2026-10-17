@@ -48,6 +48,7 @@ Create `.env` in this directory:
 | `DATABASE_URL`        | PostgreSQL connection string                                                                                                |
 | `REDIS_HOST`          | Redis hostname                                                                                                              |
 | `REDIS_PORT`          | Redis port                                                                                                                  |
+| `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production: Redis holds live session `authKey`s.                          |
 | `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Effectively the master key — rotating breaks all registrations.** Generate once, keep stable. |
 
 ## Dev

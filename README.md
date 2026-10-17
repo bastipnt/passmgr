@@ -96,6 +96,7 @@ Server (`apps/server/.env`):
 | `DATABASE_URL`        | PostgreSQL connection string                                                       |
 | `REDIS_HOST`          | e.g. `localhost`                                                                   |
 | `REDIS_PORT`          | e.g. `6379`                                                                        |
+| `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production.                      |
 | `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Must stay stable** — rotating invalidates all users. |
 
 DB package (`packages/db/.env`):

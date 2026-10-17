@@ -21,6 +21,7 @@ services:
       - DATABASE_URL=postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
       - OPAQUE_OPRF_SEED=${OPAQUE_OPRF_SEED:?OPAQUE_OPRF_SEED is required}
       - OPAQUE_AKE_PRIVATE_KEY=${OPAQUE_AKE_PRIVATE_KEY:?OPAQUE_AKE_PRIVATE_KEY is required}
       - OPAQUE_SERVER_SETUP=${OPAQUE_SERVER_SETUP:?OPAQUE_SERVER_SETUP is required}
@@ -66,10 +67,15 @@ services:
 
   redis:
     image: redis:7-alpine
+    # Redis holds live session authKeys: without a password anything on the
+    # network could read them and sign requests as any user.
+    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    environment:
+      - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:
       - redis_data:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD-SHELL", "REDISCLI_AUTH=\"$$REDIS_PASSWORD\" redis-cli ping | grep -q PONG"]
       interval: 5s
       timeout: 3s
       retries: 5
