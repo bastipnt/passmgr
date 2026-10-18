@@ -1,14 +1,13 @@
 {
-  "name": "passmgr-docs-2",
+  "name": "docs-2",
   "private": true,
   "type": "module",
   "sideEffects": false,
   "scripts": {
-    "dev": "vite dev",
-    "build": "vite build",
-    "start": "serve .output/public --config ../../serve.json",
-    "preview": "vite preview",
-    "types:check": "tsc --noEmit",
+    "docs2:dev": "vite dev",
+    "docs2:build": "vite build",
+    "docs2:start": "serve .output/public --config ../../serve.json",
+    "docs2:preview": "vite preview",
     "lint": "biome check",
     "format": "biome format --write"
   },
