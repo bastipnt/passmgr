@@ -6,6 +6,7 @@ import {
   type ImportError,
   MAX_IMPORT_FILE_BYTES,
   openExportEnvelope,
+  openKeePassDatabase,
   readExportFile,
   readFileError,
   readImportFile,
@@ -15,7 +16,7 @@ import { Button } from "@repo/ui/components/Button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/Field";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { ArrowRightIcon, FileUpIcon, KeyRoundIcon } from "lucide-react";
+import { ArrowRightIcon, FileKeyIcon, FileUpIcon, KeyRoundIcon } from "lucide-react";
 import { type ReactNode, useId, useRef, useState } from "react";
 
 type OpenBackupFormProps = {
@@ -32,7 +33,8 @@ type OpenBackupFormProps = {
 /**
  * Pick an export file (ADR 0001 D12) and open it: an encrypted backup asks for
  * its backup password, a plain JSON export opens as is. With `onForeignOpened`,
- * another password manager's export too.
+ * another password manager's export too, and a KeePass database (password and
+ * an optional key file).
  */
 export default function OpenBackupForm({
   onOpened,
@@ -41,9 +43,12 @@ export default function OpenBackupForm({
   renderActions,
 }: OpenBackupFormProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const keyFileRef = useRef<HTMLInputElement>(null);
   const passwordId = useId();
   const [fileName, setFileName] = useState<string>();
   const [envelope, setEnvelope] = useState<ExportEnvelope>();
+  const [kdbx, setKdbx] = useState<Uint8Array>();
+  const [keyFile, setKeyFile] = useState<{ name: string; bytes: Uint8Array }>();
   const [password, setPassword] = useState("");
   const [opening, setOpening] = useState(false);
   const [error, setError] = useState<ImportError>();
@@ -52,6 +57,8 @@ export default function OpenBackupForm({
     if (!file) return;
     setError(undefined);
     setEnvelope(undefined);
+    setKdbx(undefined);
+    setKeyFile(undefined);
     setPassword("");
     setFileName(file.name);
     if (file.size > MAX_IMPORT_FILE_BYTES) {
@@ -64,6 +71,10 @@ export default function OpenBackupForm({
         const read = readImportFile(new Uint8Array(await file.arrayBuffer()));
         if (read.kind === "foreign") {
           onForeignOpened(read.foreign);
+          return;
+        }
+        if (read.kind === "kdbx") {
+          setKdbx(read.file);
           return;
         }
         contents = read.contents;
@@ -79,11 +90,15 @@ export default function OpenBackupForm({
 
   async function open(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!envelope || !password) return;
+    if (!canOpen) return;
     setError(undefined);
     setOpening(true);
     try {
-      onOpened(await openExportEnvelope(envelope, password));
+      if (kdbx) {
+        onForeignOpened?.(await openKeePassDatabase(kdbx, { password, keyFile: keyFile?.bytes }));
+      } else if (envelope) {
+        onOpened(await openExportEnvelope(envelope, password));
+      }
     } catch (e) {
       const reason = readFileError(e);
       if (reason === "failed") console.error("Opening the backup failed", e);
@@ -93,8 +108,10 @@ export default function OpenBackupForm({
     }
   }
 
+  // A KeePass database may have an empty password.
+  const canOpen = !!kdbx || (!!envelope && !!password);
   const submit = (
-    <Button type="submit" disabled={!envelope || !password || opening}>
+    <Button type="submit" disabled={!canOpen || opening}>
       Continue
       {opening ? <Spinner data-icon="inline-end" /> : <ArrowRightIcon data-icon="inline-end" />}
     </Button>
@@ -128,9 +145,11 @@ export default function OpenBackupForm({
           </span>
         </Button>
 
-        {envelope && (
+        {(envelope || kdbx) && (
           <Field>
-            <FieldLabel htmlFor={passwordId}>Backup password</FieldLabel>
+            <FieldLabel htmlFor={passwordId}>
+              {kdbx ? "Database password" : "Backup password"}
+            </FieldLabel>
             <InputGroup>
               <InputGroupAddon>
                 <KeyRoundIcon />
@@ -144,6 +163,35 @@ export default function OpenBackupForm({
                 onChange={(e) => setPassword(e.target.value)}
               />
             </InputGroup>
+          </Field>
+        )}
+
+        {kdbx && (
+          <Field>
+            <input
+              ref={keyFileRef}
+              type="file"
+              className="hidden"
+              aria-label="Key file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                e.target.value = "";
+                if (!file) return;
+                void file
+                  .arrayBuffer()
+                  .then((buffer) => setKeyFile({ name: file.name, bytes: new Uint8Array(buffer) }));
+              }}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-start"
+              disabled={opening}
+              onClick={() => keyFileRef.current?.click()}
+            >
+              <FileKeyIcon />
+              <span className="truncate">{keyFile?.name ?? "Key file (optional)…"}</span>
+            </Button>
           </Field>
         )}
 

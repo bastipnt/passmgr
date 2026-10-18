@@ -76,6 +76,7 @@ type Step =
       source: ImportSource;
       report: ForeignImportReport;
       result: ImportResult | null;
+      fileEncrypted?: boolean;
     };
 
 /**
@@ -133,6 +134,7 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
                 source: step.foreign.source,
                 report: step.foreign.report,
                 result,
+                fileEncrypted: step.foreign.fileEncrypted,
               })
             }
           />
@@ -142,6 +144,7 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
             source={step.source}
             report={step.report}
             result={step.result}
+            fileEncrypted={step.fileEncrypted}
             importer={importer}
           />
         )}
@@ -312,11 +315,18 @@ type ForeignImportResultProps = {
   source: ImportSource;
   report: ForeignImportReport;
   result: ImportResult | null;
+  fileEncrypted?: boolean;
   importer: ReturnType<typeof useImport>;
 };
 
-/** What an import from another app did and didn't bring over; the file is plaintext, so: delete it. */
-function ForeignImportResult({ source, report, result, importer }: ForeignImportResultProps) {
+/** What an import from another app did and didn't bring over; a plaintext file: delete it. */
+function ForeignImportResult({
+  source,
+  report,
+  result,
+  fileEncrypted,
+  importer,
+}: ForeignImportResultProps) {
   const { stopped, importError } = importer;
   const { skipped } = report;
   const notes = leftBehindNotes(report);
@@ -348,10 +358,12 @@ function ForeignImportResult({ source, report, result, importer }: ForeignImport
           {note}
         </p>
       ))}
-      <p className="flex gap-2 rounded-md bg-muted p-3">
-        <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
-        {DELETE_EXPORT_FILE_HINT}
-      </p>
+      {!fileEncrypted && (
+        <p className="flex gap-2 rounded-md bg-muted p-3">
+          <TriangleAlertIcon className="mt-0.5 size-4 shrink-0" aria-hidden />
+          {DELETE_EXPORT_FILE_HINT}
+        </p>
+      )}
       <DialogFooter>
         <DialogClose render={<Button>Done</Button>} />
       </DialogFooter>

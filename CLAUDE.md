@@ -230,6 +230,9 @@ under a new master password, every record into its personal vault, ids kept (`ke
 Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
 (Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON; 1Password 1PUX via `fflate`; KeePass XML via an injectable
 `ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
+A KeePass database (KDBX 3.1 / 4) comes back as `kind: "kdbx"`: `openKeePassDatabase` (password + optional key file)
+decrypts it on the device (`@repo/crypto` `openKdbx`, own reader on @noble: AES-KDF via WebCrypto, Argon2d / id through
+`argon2WorkerService`; no Twofish) to its inner XML, then `importKeePassXml`. Fixtures: `packages/crypto/test/fixtures/kdbx`.
 Each parser fills a `ForeignImportBuilder` → an `ExportData` of one vault, imported with `keep-both` into the picked
 vault (every record new). Folders → tags, extra fields → custom fields, history / passkeys / attachments dropped and
 counted in the report. App ids and other `scheme://` addresses stay websites (`parseWebsite` in `@repo/util`:
@@ -369,6 +372,7 @@ Tests pin params with `setPasswordKekParams` (skips calibration).
 Argon2id itself (`util/argon2-impl.ts`): web / Node run hash-wasm (WASM inlined in the bundle, needs
 `'wasm-unsafe-eval'`), falling back to @noble per thread once the WASM fails; mobile `react-native-argon2`. Web derives in the
 worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thread where there's no `Worker` (Node).
+`argon2Async(variant, …)` also does Argon2d (KeePass import only); on mobile Argon2d and binary passwords run on @noble (JS thread).
 
 Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the
 account key's is purpose-only (`passmgr/account-key/v1`, same wrap on every device), a vault key's binds

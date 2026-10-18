@@ -20,9 +20,11 @@ import {
 import { type ParseXml, type XmlElement } from "../src/import/keepass";
 import {
   type ImportFileContents,
+  openKeePassDatabase,
   readImportFile,
   type UnsupportedFileReason,
   UnsupportedImportFileError,
+  WrongKdbxKeyError,
 } from "../src/import/read-import-file";
 
 const fixture = (name: string) =>
@@ -460,6 +462,60 @@ describe("KeePass XML", () => {
   });
 });
 
+describe("KeePass database", () => {
+  const kdbx = (name: string) =>
+    new Uint8Array(
+      readFileSync(join(import.meta.dirname, "../../crypto/test/fixtures/kdbx", name)),
+    );
+
+  it("is handed over to be opened with its password", () => {
+    const file = kdbx("keepassxc.kdbx");
+    expect(readImportFile(file)).toEqual({ kind: "kdbx", file });
+  });
+
+  it("reads the decrypted database like a KeePass XML export", async () => {
+    const imported = await openKeePassDatabase(
+      kdbx("keepassxc.kdbx"),
+      { password: "correct horse" },
+      parseXml,
+    );
+
+    expect(imported.source).toBe("keepass");
+    expect(contents(imported)).toEqual([
+      expect.objectContaining({ title: "Bank", username: "bob", password: "second-pass" }),
+      expect.objectContaining({
+        title: "Example",
+        username: "alice@example.com",
+        password: "hunter2 & <ok>",
+        websites: [{ value: "https://example.com" }],
+        note: "first line",
+        tags: ["Work"],
+      }),
+    ]);
+  });
+
+  it("opens with a key file and no password", async () => {
+    const imported = await openKeePassDatabase(
+      kdbx("keyfile-v2.kdbx"),
+      { password: "", keyFile: kdbx("keyfile-v2.keyx") },
+      parseXml,
+    );
+    expect(contents(imported)).toEqual([expect.objectContaining({ title: "Keyed" })]);
+  });
+
+  it("refuses a wrong password, and Twofish as unsupported", async () => {
+    await expect(
+      openKeePassDatabase(kdbx("keepassxc.kdbx"), { password: "nope" }, parseXml),
+    ).rejects.toBeInstanceOf(WrongKdbxKeyError);
+
+    const twofish = kdbx("keepassxc.kdbx");
+    twofish.set([0xad, 0x68, 0xf2, 0x9f], 15);
+    await expect(
+      openKeePassDatabase(twofish, { password: "correct horse" }, parseXml),
+    ).rejects.toMatchObject({ reason: "kdbx_unsupported" });
+  });
+});
+
 describe("readImportFile", () => {
   it("passes this app's exports on as backups", () => {
     const file = bytes(
@@ -494,7 +550,11 @@ describe("readImportFile", () => {
       "onepassword_csv",
     ],
     ["own CSV", bytes("vault,type,title,username,password\n"), "own_csv"],
-    ["KDBX", new Uint8Array([0x03, 0xd9, 0xa2, 0x9a, 0x67, 0xfb, 0x4b, 0xb5]), "kdbx"],
+    [
+      "KeePass 1.x",
+      new Uint8Array([0x03, 0xd9, 0xa2, 0x9a, 0x65, 0xfb, 0x4b, 0xb5]),
+      "kdbx_unsupported",
+    ],
     ["unknown CSV", bytes("a,b,c\n1,2,3\n"), "unsupported_format"],
     ["other JSON", bytes('{"hello":"world"}'), "unsupported_format"],
     ["other XML", bytes("<html></html>"), "unsupported_format"],

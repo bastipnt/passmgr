@@ -60,6 +60,8 @@ export type ForeignImport = {
   /** The one vault `data` holds: map it to the target vault (`ImportOptions.vaultMap`). */
   vaultId: string;
   report: ForeignImportReport;
+  /** Read from an encrypted file (a KeePass database): no plaintext copy to delete. */
+  fileEncrypted?: boolean;
 };
 
 export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
@@ -102,9 +104,10 @@ export function leftBehindNotes(report: ForeignImportReport): string[] {
 export function foreignImportIntro(foreign: ForeignImport): string {
   const source = IMPORT_SOURCE_LABELS[foreign.source];
   const { records } = foreign.data;
+  const file = foreign.fileEncrypted ? "database" : "export";
   return records.length > 0
-    ? `${source} export: ${describeRecordCounts(records)}. All of them are added as new items.`
-    : `This ${source} export holds nothing to import.`;
+    ? `${source} ${file}: ${describeRecordCounts(records)}. All of them are added as new items.`
+    : `This ${source} ${file} holds nothing to import.`;
 }
 
 export function foreignImportDone(source: ImportSource, created: number): string {

@@ -1,8 +1,6 @@
-import { argon2idAsync } from "../util/argon2-impl";
+import { type Argon2Params, argon2Async } from "../util/argon2-impl";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import Argon2Worker from "../workers/argon2.worker.ts?worker";
-
-type ArgonParams = { t: number; m: number; p: number };
 
 class Argon2WorkerService {
   private worker: Worker | null = null;
@@ -17,16 +15,27 @@ class Argon2WorkerService {
 
   // One worker with one onmessage handler: an overlapping call would steal the
   // earlier one's result, so calls wait their turn.
-  derive(password: string, salt: Uint8Array, params: ArgonParams): Promise<Uint8Array> {
+  derive(
+    password: string | Uint8Array,
+    salt: Uint8Array,
+    params: Argon2Params,
+  ): Promise<Uint8Array> {
     // Node (tests, scripts) has no Worker.
-    if (typeof Worker === "undefined") return argon2idAsync(password, salt, params);
+    if (typeof Worker === "undefined") {
+      const { variant = "argon2id", ...opts } = params;
+      return argon2Async(variant, password, salt, opts);
+    }
     const saltCopy = salt.slice();
     const result = this.queue.then(() => this.run(password, saltCopy, params));
     this.queue = result.catch(() => {});
     return result;
   }
 
-  private run(password: string, saltCopy: Uint8Array, params: ArgonParams): Promise<Uint8Array> {
+  private run(
+    password: string | Uint8Array,
+    saltCopy: Uint8Array,
+    params: Argon2Params,
+  ): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const worker = this.getWorker();
 

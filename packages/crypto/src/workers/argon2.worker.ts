@@ -1,10 +1,10 @@
-import { argon2idAsync } from "../util/argon2-impl";
+import { type Argon2Params, argon2Async } from "../util/argon2-impl";
 
 type ArgonRequest = {
   type: "derive";
-  password: string;
+  password: string | Uint8Array;
   salt: ArrayBuffer;
-  params: { t: number; m: number; p: number };
+  params: Argon2Params;
 };
 
 self.onmessage = async (event: MessageEvent<ArgonRequest>) => {
@@ -13,7 +13,8 @@ self.onmessage = async (event: MessageEvent<ArgonRequest>) => {
   if (msg.type === "derive") {
     try {
       const salt = new Uint8Array(msg.salt);
-      const result = await argon2idAsync(msg.password, salt, msg.params);
+      const { variant = "argon2id", ...opts } = msg.params;
+      const result = await argon2Async(variant, msg.password, salt, opts);
       // @ts-expect-error result buffer
       self.postMessage({ type: "result", key: result.buffer }, [result.buffer]);
     } catch (e) {

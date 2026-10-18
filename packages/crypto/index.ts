@@ -3,6 +3,7 @@ export * from "./src/device-login";
 export * from "./src/encryption";
 export * from "./src/export-envelope";
 export * from "./src/hash";
+export * from "./src/kdbx";
 export * from "./src/password-generator";
 export * from "./src/password-strength";
 export * from "./src/pwned-password";

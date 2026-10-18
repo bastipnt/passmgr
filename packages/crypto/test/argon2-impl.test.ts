@@ -61,7 +61,7 @@ describe("argon2idAsync", () => {
   it("falls back to @noble when the WASM can't run, and stays there", async () => {
     const wasm = vi.fn().mockRejectedValue(new WebAssembly.CompileError("blocked by CSP"));
     vi.resetModules();
-    vi.doMock("hash-wasm", () => ({ argon2id: wasm }));
+    vi.doMock("hash-wasm", () => ({ argon2id: wasm, argon2d: wasm }));
     const { argon2idAsync: withFallback } = await import("../src/util/argon2-impl");
     const opts = { t: 1, m: 256, p: 2 };
 
@@ -77,7 +77,7 @@ describe("argon2idAsync", () => {
       .fn()
       .mockRejectedValue(new Error("Memory size should be at least 8 * parallelism."));
     vi.resetModules();
-    vi.doMock("hash-wasm", () => ({ argon2id: wasm }));
+    vi.doMock("hash-wasm", () => ({ argon2id: wasm, argon2d: wasm }));
     const { argon2idAsync: withFallback } = await import("../src/util/argon2-impl");
     const opts = { t: 1, m: 8, p: 4 };
 
