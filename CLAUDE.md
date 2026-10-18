@@ -247,9 +247,18 @@ tree) writes the open profile's `autofillEntries` (logins with a password) throu
 while the OS has the app's autofill on (`autofillState`), else drops them; sign out, `signedOut` and profile removal drop
 them too (as does `forgetQuickUnlock`), a lock keeps them. Writes and clears of one profile run in order. Native side `apps/mobile/modules/autofill` (Expo module, `PassmgrAutofill`): encrypts to a
 biometric-gated device key (iOS Secure Enclave ECIES, Android Keystore RSA + AES-GCM), so writes never prompt and only the
-extension / `AutofillAuthActivity` reads them after a biometric match. iOS extension `apps/mobile/targets/autofill`
+extension / `AutofillAuthActivity` reads them after a biometric match (the app reads only pending logins, see below). iOS extension `apps/mobile/targets/autofill`
 (`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups from `plugins/with-autofill.js`;
 needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state and opens the OS setting.
+"Create login" (Proton-style, both platforms native, no RN in the extension: `doc/mobile-extension.md` option A): the iOS
+extension's list always ends with "Create login for <host>" (SwiftUI form, generated password from the profile's generator
+defaults sent along in the entries payload, "Create & AutoFill"); Android's fill list ends with the same row
+(`AutofillCreateActivity`), and `SaveInfo` (login + sign-up forms, `FLAG_DELAY_SAVE` for multi-step) offers "Save to
+Passmgr?" into the same form. The login fills at once and is written encrypted to the autofill device key as a pending
+login; `useAutofillSync` imports them on the next foreground unlock (`importPendingAutofillLogins`, biometric prompt,
+personal vault, id kept so a repeat skips it) and deletes them. iOS also declares `ProvidesTextToInsert` (AutoFill context
+menu: inserts a username or password; "Create login" there asks for the website, the menu doesn't say, and inserts the
+password).
 
 Mobile share ("save login from other apps"): the iOS share extension (`apps/mobile/targets/share`, no app group, nothing
 stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobile/modules/share`, `ACTION_SEND` text) only

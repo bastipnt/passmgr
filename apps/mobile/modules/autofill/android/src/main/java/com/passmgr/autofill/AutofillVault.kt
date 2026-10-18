@@ -35,7 +35,41 @@ data class AutofillEntry(
   val hosts: List<String>,
 )
 
-data class AutofillProfile(val profileId: String, val profileLabel: String, val entries: List<AutofillEntry>)
+data class AutofillProfile(
+  val profileId: String,
+  val profileLabel: String,
+  val entries: List<AutofillEntry>,
+  val generator: GeneratorOptions,
+)
+
+/** A login created in autofill, saved into the vault by the app on its next unlock (`PendingAutofillLogin`). */
+data class PendingLogin(
+  val id: String,
+  val title: String,
+  val website: String,
+  val username: String,
+  val password: String,
+  val createdAt: String,
+) {
+  fun toJson(): JSONObject = JSONObject()
+    .put("id", id)
+    .put("title", title)
+    .put("website", website)
+    .put("username", username)
+    .put("password", password)
+    .put("createdAt", createdAt)
+
+  companion object {
+    fun fromJson(json: JSONObject) = PendingLogin(
+      id = json.getString("id"),
+      title = json.getString("title"),
+      website = json.getString("website"),
+      username = json.getString("username"),
+      password = json.getString("password"),
+      createdAt = json.getString("createdAt"),
+    )
+  }
+}
 
 class AutofillKeyInvalidatedException : Exception()
 
@@ -57,14 +91,28 @@ object AutofillVault {
 
   private fun directory(context: Context) = File(context.noBackupFilesDir, "passmgr-autofill").apply { mkdirs() }
 
-  private fun file(context: Context, profileId: String): File {
-    // Profile ids are UUIDs; anything else must not become a path.
-    val id = UUID.fromString(profileId).toString()
-    return File(directory(context), "$id.autofill")
-  }
+  // Profile and login ids are UUIDs; anything else must not become a path.
+  private fun validId(id: String) = UUID.fromString(id).toString().also { require(it == id.lowercase()) }
+
+  private fun file(context: Context, profileId: String) = File(directory(context), "${validId(profileId)}.autofill")
 
   private fun files(context: Context) =
     directory(context).listFiles { file -> file.name.endsWith(".autofill") }.orEmpty().toList()
+
+  /** `<profileId>.<loginId>.pending`: the profile is readable without the key. */
+  private fun pendingFile(context: Context, profileId: String, loginId: String) =
+    File(directory(context), "${validId(profileId)}.${validId(loginId)}.pending")
+
+  private fun pendingFiles(context: Context, profileId: String): List<File> {
+    val prefix = "${validId(profileId)}."
+    return directory(context)
+      .listFiles { file -> file.name.startsWith(prefix) && file.name.endsWith(".pending") }
+      .orEmpty()
+      .toList()
+  }
+
+  /** Profiles with a file, by id: known without the key. */
+  fun profileIds(context: Context) = files(context).map { it.nameWithoutExtension }
 
   private fun keyStore() = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
 
@@ -73,9 +121,13 @@ object AutofillVault {
   // App
 
   fun write(context: Context, profileId: String, payload: String) {
+    seal(publicKey(context), payload, file(context, profileId))
+  }
+
+  private fun seal(publicKey: PublicKey, payload: String, target: File) {
     val dataKey = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
     val wrapped = Cipher.getInstance(RSA_TRANSFORMATION).run {
-      init(Cipher.ENCRYPT_MODE, publicKey(context), oaep)
+      init(Cipher.ENCRYPT_MODE, publicKey, oaep)
       doFinal(dataKey.encoded)
     }
     val iv = ByteArray(12).also { SecureRandom().nextBytes(it) }
@@ -92,7 +144,6 @@ object AutofillVault {
         it.write(sealed)
       }
     }.toByteArray()
-    val target = file(context, profileId)
     val temp = File.createTempFile(target.name, ".tmp", target.parentFile)
     temp.writeBytes(bytes)
     if (!temp.renameTo(target)) {
@@ -105,10 +156,53 @@ object AutofillVault {
     file(context, profileId).delete()
   }
 
-  /** Drops the key and every profile's file: written again by the app on its next unlock. */
+  fun hasPending(context: Context, profileId: String) = pendingFiles(context, profileId).isNotEmpty()
+
+  /**
+   * Right after the biometric prompt. A file that doesn't open never will (half written, another
+   * format): it's deleted, or it would ask again on every unlock.
+   */
+  fun readPending(context: Context, profileId: String): List<PendingLogin> {
+    val privateKey = keyStore().getKey(KEY_ALIAS, null) as? PrivateKey ?: throw AutofillKeyInvalidatedException()
+    return pendingFiles(context, profileId).mapNotNull { file ->
+      try {
+        PendingLogin.fromJson(JSONObject(open(file, privateKey)))
+      } catch (e: AutofillKeyInvalidatedException) {
+        throw e
+      } catch (e: UserNotAuthenticatedException) {
+        throw e
+      } catch (e: Exception) {
+        file.delete()
+        null
+      }
+    }
+  }
+
+  /** `loginIds` null: every one of the profile. */
+  fun removePending(context: Context, profileId: String, loginIds: List<String>?) {
+    val targets = loginIds?.map { pendingFile(context, profileId, it) } ?: pendingFiles(context, profileId)
+    targets.forEach { it.delete() }
+  }
+
+  /**
+   * Drops the key and every profile's file: written again by the app on its next unlock. Logins
+   * created in autofill and not saved yet go too: nothing could open them any more.
+   */
   fun removeAll(context: Context) {
     keyStore().deleteEntry(KEY_ALIAS)
-    files(context).forEach { it.delete() }
+    directory(context).listFiles().orEmpty().forEach { it.delete() }
+  }
+
+  /**
+   * Encrypting needs only the public half: no prompt. The existing key only, unlike `write`:
+   * a new one would make every profile's file unreadable. Refused once a new biometric
+   * enrollment killed it: the app would drop the login unread.
+   */
+  fun writePending(context: Context, profileId: String, login: PendingLogin) {
+    val store = keyStore()
+    val existing = store.getCertificate(KEY_ALIAS)?.publicKey?.takeIf { isUsable(store) }
+      ?: throw AutofillKeyInvalidatedException()
+    seal(softwareKey(existing), login.toJson().toString(), pendingFile(context, profileId, login.id))
   }
 
   /**
@@ -123,8 +217,11 @@ object AutofillVault {
       removeAll(context)
       createKey()
     }
-    return KeyFactory.getInstance(publicKey.algorithm).generatePublic(X509EncodedKeySpec(publicKey.encoded))
+    return softwareKey(publicKey)
   }
+
+  private fun softwareKey(publicKey: PublicKey): PublicKey =
+    KeyFactory.getInstance(publicKey.algorithm).generatePublic(X509EncodedKeySpec(publicKey.encoded))
 
   private fun isUsable(store: KeyStore): Boolean {
     val privateKey = store.getKey(KEY_ALIAS, null) as? PrivateKey ?: return false
@@ -179,6 +276,9 @@ object AutofillVault {
   }
 
   private fun read(file: File, privateKey: PrivateKey): AutofillProfile =
+    parseProfile(file.nameWithoutExtension, open(file, privateKey))
+
+  private fun open(file: File, privateKey: PrivateKey): String =
     DataInputStream(file.inputStream()).use { input ->
       require(input.readUnsignedByte() == FORMAT_VERSION) { "Unknown autofill file format" }
       val wrapped = ByteArray(input.readUnsignedShort()).also { input.readFully(it) }
@@ -196,7 +296,7 @@ object AutofillVault {
         init(Cipher.DECRYPT_MODE, SecretKeySpec(dataKey, "AES"), GCMParameterSpec(128, iv))
         doFinal(sealed)
       }
-      parseProfile(file.nameWithoutExtension, String(payload, Charsets.UTF_8))
+      String(payload, Charsets.UTF_8)
     }
 
   private fun parseProfile(profileId: String, json: String): AutofillProfile {
@@ -205,6 +305,7 @@ object AutofillVault {
     return AutofillProfile(
       profileId = profileId,
       profileLabel = root.getString("profileLabel"),
+      generator = root.optJSONObject("generator")?.let(GeneratorOptions::fromJson) ?: GeneratorOptions(),
       entries = (0 until entries.length()).map { i ->
         val entry = entries.getJSONObject(i)
         val hosts = entry.getJSONArray("hosts")

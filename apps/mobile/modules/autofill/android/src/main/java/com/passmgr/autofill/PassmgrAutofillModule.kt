@@ -5,9 +5,13 @@ import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.view.autofill.AutofillManager
+import androidx.fragment.app.FragmentActivity
+import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
+import expo.modules.kotlin.functions.Queues
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import org.json.JSONArray
 
 class PassmgrAutofillModule : Module() {
   private val context get() = appContext.reactContext ?: throw Exceptions.ReactContextLost()
@@ -36,6 +40,36 @@ class PassmgrAutofillModule : Module() {
 
     AsyncFunction("clearEntries") { profileId: String ->
       AutofillVault.remove(context, profileId)
+    }
+
+    AsyncFunction("hasPending") { profileId: String ->
+      AutofillVault.hasPending(context, profileId)
+    }
+
+    AsyncFunction("readPending") { profileId: String, promise: Promise ->
+      val activity = appContext.currentActivity as? FragmentActivity
+      if (activity == null) {
+        promise.reject("ERR_NO_ACTIVITY", "No activity to ask for biometrics from", null)
+        return@AsyncFunction
+      }
+      promptAutofillBiometric(
+        activity,
+        context.getString(R.string.passmgr_autofill_import_prompt),
+        null,
+        onSuccess = {
+          try {
+            val logins = AutofillVault.readPending(context, profileId).map { it.toJson() }
+            promise.resolve(JSONArray(logins).toString())
+          } catch (e: Exception) {
+            promise.reject("ERR_READ_PENDING", e.message, e)
+          }
+        },
+        onCancel = { promise.reject("ERR_CANCELLED", "Biometric prompt cancelled", null) },
+      )
+    }.runOnQueue(Queues.MAIN)
+
+    AsyncFunction("removePending") { profileId: String, loginIds: List<String>? ->
+      AutofillVault.removePending(context, profileId, loginIds)
     }
   }
 }

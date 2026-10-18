@@ -5,4 +5,16 @@
   <string name="passmgr_autofill_prompt">Fill a password</string>
   <string name="passmgr_autofill_prompt_target">Into %1$s</string>
   <string name="passmgr_autofill_setup_again">Autofill needs setting up again: open Passmgr and unlock it.</string>
+  <string name="passmgr_autofill_create_for">Create login for %1$s</string>
+  <string name="passmgr_autofill_create_title">New login</string>
+  <string name="passmgr_autofill_save_title">Save to Passmgr</string>
+  <string name="passmgr_autofill_create_note">Passmgr saves it to your vault the next time you open it.</string>
+  <string name="passmgr_autofill_create">Create &amp; autofill</string>
+  <string name="passmgr_autofill_save">Save</string>
+  <string name="passmgr_autofill_save_prompt">Save a login</string>
+  <string name="passmgr_autofill_import_prompt">Save the logins you created in autofill</string>
+  <string name="passmgr_autofill_field_title">Title</string>
+  <string name="passmgr_autofill_field_username">Username or email</string>
+  <string name="passmgr_autofill_field_password">Password</string>
+  <string name="passmgr_autofill_new_password">New password</string>
 </resources>

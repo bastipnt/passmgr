@@ -1,5 +1,6 @@
 import AuthenticationServices
 import ExpoModulesCore
+import LocalAuthentication
 
 public class PassmgrAutofillModule: Module {
   public func definition() -> ModuleDefinition {
@@ -29,6 +30,22 @@ public class PassmgrAutofillModule: Module {
     AsyncFunction("clearEntries") { (profileId: String) async throws in
       try AutofillVault.remove(profileId: profileId)
       try await Self.replaceIdentities(profileId: profileId, entries: [])
+    }
+
+    AsyncFunction("hasPending") { (profileId: String) throws -> Bool in
+      try AutofillVault.hasPending(profileId: profileId)
+    }
+
+    AsyncFunction("readPending") { (profileId: String) async throws -> String in
+      let context = LAContext()
+      try await context.evaluatePolicy(
+        .deviceOwnerAuthenticationWithBiometrics, localizedReason: "Save the logins you created in AutoFill")
+      let logins = try AutofillVault.readPending(profileId: profileId, context: context)
+      return String(decoding: try JSONEncoder().encode(logins), as: UTF8.self)
+    }
+
+    AsyncFunction("removePending") { (profileId: String, loginIds: [String]?) throws in
+      try AutofillVault.removePending(profileId: profileId, loginIds: loginIds)
     }
   }
 

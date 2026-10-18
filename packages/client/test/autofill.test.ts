@@ -1,6 +1,27 @@
 import type { DecryptedRecord } from "@repo/schema";
-import { describe, expect, it } from "vitest";
-import { autofillEntries } from "../src/records/autofill";
+import type { PendingAutofillLogin } from "@repo/store";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { ImportEntry } from "../src/export/import-export";
+import {
+  autofillEntries,
+  importPendingAutofillLogins,
+  pendingLoginData,
+} from "../src/records/autofill";
+import type { RecordRepository } from "../src/records/record-repository";
+
+const native = vi.hoisted(() => ({
+  pending: [] as PendingAutofillLogin[],
+  removed: [] as (readonly string[] | undefined)[],
+}));
+
+vi.mock("@repo/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/store")>()),
+  hasPendingAutofillLogins: async () => native.pending.length > 0,
+  readPendingAutofillLogins: async () => native.pending,
+  removePendingAutofillLogins: async (_profileId: string, ids?: readonly string[]) => {
+    native.removed.push(ids);
+  },
+}));
 
 function makeRecord(recordId: string, fields: Record<string, unknown> = {}): DecryptedRecord {
   return {
@@ -52,5 +73,96 @@ describe("autofillEntries", () => {
     ]);
 
     expect(entries).toEqual([]);
+  });
+});
+
+function pendingLogin(fields: Partial<PendingAutofillLogin> = {}): PendingAutofillLogin {
+  return {
+    id: "6f1c2a3b-0d4e-4f5a-8b6c-7d8e9f0a1b2c",
+    title: "github.com",
+    website: "https://github.com",
+    username: "octo",
+    password: "pw-1",
+    createdAt: "2026-10-18T10:00:00.000Z",
+    ...fields,
+  };
+}
+
+describe("pendingLoginData", () => {
+  it("makes a login with the website, the password dated when it was created", () => {
+    expect(pendingLoginData(pendingLogin())).toEqual({
+      type: "login",
+      title: "github.com",
+      username: "octo",
+      password: "pw-1",
+      passwordChangedAt: "2026-10-18T10:00:00.000Z",
+      websites: [{ value: "https://github.com" }],
+    });
+  });
+
+  it("titles a login without a title by its host, keeps an app id, drops no username", () => {
+    expect(pendingLoginData(pendingLogin({ title: " ", username: "" }))).toMatchObject({
+      title: "github.com",
+      username: undefined,
+    });
+    expect(
+      pendingLoginData(pendingLogin({ title: "Bank", website: "androidapp://com.bank.app" })),
+    ).toMatchObject({ title: "Bank", websites: [{ value: "androidapp://com.bank.app" }] });
+  });
+
+  it("leaves out a website that isn't one, cuts an over-long title, refuses an over-long password", () => {
+    expect(pendingLoginData(pendingLogin({ website: "not a site" }))?.websites).toBeUndefined();
+    expect(pendingLoginData(pendingLogin({ title: "", website: "" }))?.title).toBe("Login");
+    expect(pendingLoginData(pendingLogin({ title: "t".repeat(1000) }))?.title).toHaveLength(256);
+    expect(pendingLoginData(pendingLogin({ password: "x".repeat(100_000) }))).toBeUndefined();
+  });
+});
+
+describe("importPendingAutofillLogins", () => {
+  let written: ImportEntry[];
+  let heads: string[];
+  const records = {
+    heads: async () => heads.map((recordId) => ({ recordId, vaultId: "v", deleted: false })),
+    writeImport: async (entries: readonly ImportEntry[]) => {
+      written.push(...entries);
+      return [];
+    },
+  } as unknown as RecordRepository;
+
+  beforeEach(() => {
+    native.pending = [];
+    native.removed = [];
+    written = [];
+    heads = [];
+  });
+
+  it("does nothing, and asks for nothing, without pending logins", async () => {
+    expect(await importPendingAutofillLogins(records, "profile", "vault")).toBe(0);
+    expect(native.removed).toEqual([]);
+  });
+
+  it("creates each in the vault under its own id, then removes them all", async () => {
+    const other = "0a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d";
+    native.pending = [pendingLogin(), pendingLogin({ id: other.toUpperCase(), title: "Two" })];
+
+    expect(await importPendingAutofillLogins(records, "profile", "vault")).toBe(2);
+    expect(written.map(({ kind, recordId, vaultId }) => [kind, recordId, vaultId])).toEqual([
+      ["create", pendingLogin().id, "vault"],
+      ["create", other, "vault"],
+    ]);
+    expect(native.removed).toEqual([[pendingLogin().id, other.toUpperCase()]]);
+  });
+
+  it("skips one already saved (a run that stopped before removing it) and an invalid one", async () => {
+    heads = [pendingLogin().id];
+    native.pending = [
+      pendingLogin(),
+      pendingLogin({ id: "1a1b2c3d-4e5f-4a6b-8c7d-9e0f1a2b3c4d", password: "x".repeat(100_000) }),
+    ];
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    expect(await importPendingAutofillLogins(records, "profile", "vault")).toBe(0);
+    expect(written).toEqual([]);
+    expect(native.removed).toHaveLength(1);
   });
 });

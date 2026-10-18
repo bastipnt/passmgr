@@ -1,5 +1,9 @@
 import { desc, eq } from "drizzle-orm";
-import { clearAutofillEntries, logAutofillClearError } from "./autofill";
+import {
+  clearAutofillEntries,
+  logAutofillClearError,
+  removePendingAutofillLogins,
+} from "./autofill";
 import type { OpenDatabase, SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate, REGISTRY_MIGRATIONS } from "./migrations";
@@ -244,9 +248,9 @@ export class ProfileStore {
   }
 
   /**
-   * Remove a profile from this device: its database file, its persisted login
-   * and autofill entries (mobile) and its registry row. For a `local` profile that is the only copy
-   * of its data: the caller confirms first.
+   * Remove a profile from this device: its database file, its persisted login, autofill
+   * entries and logins created in autofill not saved yet (mobile) and its registry row. For a
+   * `local` profile that is the only copy of its data: the caller confirms first.
    */
   async remove(profileId: string): Promise<void> {
     const entry = await this.get(profileId);
@@ -258,6 +262,7 @@ export class ProfileStore {
     await (open ? open.deleteDatabase() : this.openDatabase(entry.databaseName).deleteDatabase());
     await clearLoginBundle(profileId);
     await clearAutofillEntries(profileId).catch(logAutofillClearError);
+    await removePendingAutofillLogins(profileId).catch(logAutofillClearError);
     await this.registry.delete(profiles).where(eq(profiles.profileId, profileId));
   }
 

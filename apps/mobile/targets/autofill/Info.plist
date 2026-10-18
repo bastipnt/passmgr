@@ -10,6 +10,8 @@
 			<dict>
 				<key>ProvidesPasswords</key>
 				<true/>
+				<key>ProvidesTextToInsert</key>
+				<true/>
 			</dict>
 			<key>ASCredentialProviderExtensionShowsConfigurationUI</key>
 			<false/>
