@@ -9,7 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
-import { FieldError, FieldGroup, FieldWarning } from "@repo/ui/components/Field";
+import { FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
@@ -19,15 +19,10 @@ import { type ReactNode, useEffect } from "react";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
 import AuthTextLink from "./AuthTextLink";
+import SignInError from "./SignInError";
 
 const userCredentialsSchema = z.object({
   email: z.email(),
-  password: z.string().min(8),
-});
-
-// A local vault opens with the password alone: the (hidden) email isn't checked.
-const localUnlockSchema = z.object({
-  email: z.string(),
   password: z.string().min(8),
 });
 
@@ -35,17 +30,6 @@ export type LoginFormValues = z.infer<typeof userCredentialsSchema>;
 
 type LoginFormProps = {
   onSubmit: (formValues: LoginFormValues) => Promise<void>;
-  /** Unlock mode: the email is fixed and `account` replaces the email field. */
-  storedEmail?: string;
-  /**
-   * Unlock mode for a vault without an account: password only, recovery on
-   * the device. Can change while mounted (the profile loads late): the resolver is
-   * read on every render, so typed input survives the switch.
-   */
-  localVault?: boolean;
-  account?: ReactNode;
-  /** Alternative unlock (biometrics), shown under an "or" divider. */
-  alternative?: ReactNode;
   footer?: ReactNode;
   error?: SignInErrorMessage;
   loading: boolean;
@@ -53,32 +37,13 @@ type LoginFormProps = {
   onEdit?: () => void;
 };
 
-export default function LoginForm({
-  storedEmail = "",
-  localVault = false,
-  account,
-  alternative,
-  footer,
-  onSubmit,
-  error,
-  loading,
-  onEdit,
-}: LoginFormProps) {
+export default function LoginForm({ footer, onSubmit, error, loading, onEdit }: LoginFormProps) {
   const { registrationEnabled } = useAppConfig();
-  const { handleSubmit, control, setValue, watch } = useForm<LoginFormValues>({
-    resolver: zodResolver(localVault ? localUnlockSchema : userCredentialsSchema),
-    defaultValues: {
-      email: storedEmail,
-      password: "",
-    },
+  const { handleSubmit, control, watch } = useForm<LoginFormValues>({
+    resolver: zodResolver(userCredentialsSchema),
+    defaultValues: { email: "", password: "" },
   });
 
-  useEffect(() => {
-    setValue("email", storedEmail ?? "");
-  }, [storedEmail, setValue]);
-
-  // User input only (`type === "change"`): the `setValue` above also fires when
-  // the stored account changes, e.g. right as a failed login reports its error.
   useEffect(() => {
     if (!onEdit) return;
     const subscription = watch((_, { type }) => {
@@ -87,49 +52,38 @@ export default function LoginForm({
     return () => subscription.unsubscribe();
   }, [watch, onEdit]);
 
-  const unlocking = !!storedEmail || localVault;
-
   return (
     <form onSubmit={handleSubmit(onSubmit)}>
       <FormLock locked={loading}>
         <Card variant="glass">
-          {account && <CardContent>{account}</CardContent>}
-
           <CardHeader>
-            <CardTitle>{unlocking ? "Unlock your vault" : "Welcome back"}</CardTitle>
-            {!unlocking && (
-              <CardDescription>
-                New here?{" "}
-                {registrationEnabled ? (
-                  <>
-                    <AuthTextLink href={authPaths.register}>Create an account</AuthTextLink> or keep
-                    a <AuthTextLink href={authPaths.createLocal}>vault on this device</AuthTextLink>
-                    ,
-                  </>
-                ) : (
-                  <AuthTextLink href={authPaths.createLocal}>
-                    Create a vault on this device
-                  </AuthTextLink>
-                )}{" "}
-                or <AuthTextLink href={authPaths.restore}>restore a backup</AuthTextLink>
-              </CardDescription>
-            )}
+            <CardTitle>Welcome back</CardTitle>
+            <CardDescription>
+              New here?{" "}
+              {registrationEnabled ? (
+                <>
+                  <AuthTextLink href={authPaths.register}>Create an account</AuthTextLink> or keep a{" "}
+                  <AuthTextLink href={authPaths.createLocal}>vault on this device</AuthTextLink>,
+                </>
+              ) : (
+                <AuthTextLink href={authPaths.createLocal}>
+                  Create a vault on this device
+                </AuthTextLink>
+              )}{" "}
+              or <AuthTextLink href={authPaths.restore}>restore a backup</AuthTextLink>
+            </CardDescription>
           </CardHeader>
 
           <CardContent>
             <FieldGroup className="gap-5">
-              {/* Unlock mode keeps the (fixed) email in the form, out of sight. */}
-              <div hidden={unlocking}>
-                <ControlledInput
-                  control={control}
-                  name="email"
-                  label="Email"
-                  type="email"
-                  autoComplete="username"
-                  disabled={unlocking}
-                  leadingIcon={<MailIcon />}
-                />
-              </div>
+              <ControlledInput
+                control={control}
+                name="email"
+                label="Email"
+                type="email"
+                autoComplete="username"
+                leadingIcon={<MailIcon />}
+              />
 
               <ControlledPasswordInput
                 control={control}
@@ -138,26 +92,13 @@ export default function LoginForm({
                 autoComplete="current-password"
                 leadingIcon={<LockIcon />}
                 labelAction={
-                  <AuthTextLink
-                    href={localVault ? authPaths.recoverLocal : authPaths.recover}
-                    tone="muted"
-                  >
+                  <AuthTextLink href={authPaths.recover} tone="muted">
                     Forgot password?
                   </AuthTextLink>
                 }
               />
 
-              {error?.warning ? (
-                <FieldWarning>
-                  <strong className="font-semibold">{error.title}</strong> {error.detail}
-                </FieldWarning>
-              ) : (
-                error && (
-                  <FieldError variant="box">
-                    <strong className="font-semibold">{error.title}</strong> {error.detail}
-                  </FieldError>
-                )
-              )}
+              <SignInError error={error} />
 
               <Button type="submit" size="lg" className="w-full" disabled={loading}>
                 Unlock vault
@@ -167,8 +108,6 @@ export default function LoginForm({
                   <ArrowRightIcon data-icon="inline-end" />
                 )}
               </Button>
-
-              {alternative}
             </FieldGroup>
           </CardContent>
 

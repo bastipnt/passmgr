@@ -1,6 +1,6 @@
 import {
+  removeVaultDescription,
   signInErrorMessage,
-  unsyncedChangesWarning,
   useLogin,
   usePendingChangeCount,
   useSecondFactorRequest,
@@ -8,7 +8,6 @@ import {
   useUnlock,
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
-import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import {
   Card,
   CardContent,
@@ -17,24 +16,23 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
-import { EyeOffIcon, TrashIcon } from "lucide-react";
+import { EyeOffIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
-import { BiometricUnlockButton } from "./BiometricUnlockButton";
 import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
 import PasswordNote from "./PasswordNote";
 import ProfileList from "./ProfileList";
 import SecondFactorForm from "./SecondFactorForm";
-import StoredAccountRow from "./StoredAccountRow";
 import { SignedOutNote } from "./signed-out";
+import UnlockCard from "./UnlockCard";
 
 /**
  * Unlock a profile on this device, or sign in (ADR 0001 D2). The last used
- * profile opens as an unlock card; "Switch" shows the email login with every
+ * profile opens as "Unlock passmgr"; "Switch" shows the email login with every
  * profile on the device listed below it. Signing in with the email of a
  * profile on the device unlocks that profile; another account adds one.
  */
@@ -57,17 +55,19 @@ export default function LoginPage() {
   const unlocking = unlockable !== null && !switching;
   // A vault without an account: it unlocks with the password alone.
   const localVault = unlocking && unlockable.mode === "local";
-  const storedEmail = unlocking && unlockable.mode === "linked" ? unlockable.email : undefined;
 
-  const onSubmit = async ({ password, email }: LoginFormValues) => {
+  const onUnlock = async (password: string) => {
     setLoading(true);
     try {
-      // The active profile: unlock it locally, the server session follows.
-      if (unlocking) {
-        await timed("total unlock time", () => unlockLocal(password, secondFactor.prompt));
-        return;
-      }
+      await timed("total unlock time", () => unlockLocal(password, secondFactor.prompt));
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  const onLogin = async ({ password, email }: LoginFormValues) => {
+    setLoading(true);
+    try {
       // A profile on this device: unlocked as if picked.
       const unlocked = await timed("total unlock time", () =>
         unlockByEmail(email, password, secondFactor.prompt),
@@ -85,7 +85,7 @@ export default function LoginPage() {
     }
   };
 
-  // Stable: `LoginForm` subscribes to edits with it.
+  // Stable: the forms subscribe to edits with it.
   const onEdit = useCallback(() => {
     clearLoginError();
     clearUnlockError();
@@ -112,6 +112,54 @@ export default function LoginPage() {
   // Until the profiles are read, nothing tells the unlock from the login apart.
   if (!store.loaded) return null;
 
+  const privateWindowNote = persistent === false && (
+    <p
+      role="note"
+      className="flex items-start justify-center gap-1.5 text-center text-muted-foreground text-xs"
+    >
+      <EyeOffIcon className="mt-px size-3.5 shrink-0" aria-hidden />
+      This browser doesn&apos;t let passmgr store vaults (private window?). A vault created here is
+      gone once you lock, reload or close the tab.
+    </p>
+  );
+
+  if (unlocking) {
+    return (
+      <>
+        <PageMeta
+          title="Unlock"
+          description="Unlock your passmgr vault. Your password never leaves this device."
+          canonicalPath={authPaths.login}
+        />
+        <div className="flex w-full flex-col gap-4 lg:col-span-full lg:mx-auto lg:max-w-md">
+          <UnlockCard
+            // A picked profile starts over: password closed again if it has biometrics.
+            key={active?.entry.profileId}
+            email={unlockable.mode === "linked" ? unlockable.email : undefined}
+            name={active?.entry.name}
+            biometrics={!!store.biometricKeyMaterial}
+            onSubmit={onUnlock}
+            onSwitch={() => {
+              clearErrors();
+              setSwitching(true);
+            }}
+            error={signInErrorMessage(loginError, unlockError, localVault)}
+            loading={loading}
+            setLoading={setLoading}
+            onEdit={onEdit}
+            secondFactor={secondFactor}
+            removeDescription={removeVaultDescription(!localVault, pendingChanges)}
+            onRemove={() => {
+              // Locked here: nothing to lock or sign out first.
+              if (active) void store.removeProfile(active.entry.profileId);
+            }}
+          />
+          {privateWindowNote}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <PageMeta
@@ -119,27 +167,16 @@ export default function LoginPage() {
         description="Sign in to your passmgr vault. Zero-knowledge OPAQUE login — your password never leaves this device."
         canonicalPath={authPaths.login}
       />
-      {unlocking ? (
-        <AuthHero
-          title={
-            <>
-              Your vault is locked. <HeroAccent>Only you hold the key.</HeroAccent>
-            </>
-          }
-          lead="Your encrypted vault is stored on this device. Unlock it with your password or biometrics — nothing is decrypted on the server."
-        />
-      ) : (
-        <AuthHero
-          title={
-            <>
-              Your secrets, <HeroAccent>seen by no one</HeroAccent> but you.
-            </>
-          }
-          lead="passmgr encrypts your vault on this device before anything leaves it. The server never learns your password — not even once."
-        >
-          <HeroChips items={["Zero-knowledge", "OPAQUE login", "End-to-end encrypted"]} />
-        </AuthHero>
-      )}
+      <AuthHero
+        title={
+          <>
+            Your secrets, <HeroAccent>seen by no one</HeroAccent> but you.
+          </>
+        }
+        lead="passmgr encrypts your vault on this device before anything leaves it. The server never learns your password — not even once."
+      >
+        <HeroChips items={["Zero-knowledge", "OPAQUE login", "End-to-end encrypted"]} />
+      </AuthHero>
 
       <div className="flex w-full flex-col gap-4">
         <SignedOutNote />
@@ -161,83 +198,26 @@ export default function LoginPage() {
         {/* Hidden, not unmounted: the typed credentials stay for the unlock that follows. */}
         <div hidden={secondFactor.request !== null}>
           <LoginForm
-            localVault={localVault}
-            storedEmail={unlocking ? storedEmail : undefined}
-            account={
-              unlocking && (
-                <StoredAccountRow
-                  email={storedEmail}
-                  name={active?.entry.name}
-                  onSwitch={() => {
-                    clearErrors();
-                    setSwitching(true);
-                  }}
-                />
-              )
-            }
-            alternative={
-              unlocking &&
-              store.biometricKeyMaterial && (
-                <BiometricUnlockButton loading={loading} setLoading={setLoading} />
-              )
-            }
-            footer={
-              unlocking ? (
-                <RemoveDialog
-                  title="Remove vault"
-                  description={
-                    localVault
-                      ? "This deletes the vault from this device. It has no account, so this is its only copy: everything in it is lost for good."
-                      : `This will remove the local vault data from this device. Your account and server data are not affected. You can log in again with your credentials.${unsyncedChangesWarning(pendingChanges)}`
-                  }
-                  removeTitle="Remove vault"
-                  onRemove={() => {
-                    // Locked here: nothing to lock or sign out first.
-                    if (active) void store.removeProfile(active.entry.profileId);
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="mx-auto flex cursor-pointer items-center gap-1.5 text-muted-foreground text-xs hover:text-foreground"
-                  >
-                    <TrashIcon className="size-3.5" aria-hidden />
-                    Remove vault from this device
-                  </button>
-                </RemoveDialog>
-              ) : (
-                <PasswordNote />
-              )
-            }
-            onSubmit={onSubmit}
-            error={signInErrorMessage(loginError, unlockError, localVault)}
+            footer={<PasswordNote />}
+            onSubmit={onLogin}
+            error={signInErrorMessage(loginError, unlockError, false)}
             loading={loading}
             onEdit={onEdit}
           />
         </div>
 
-        {persistent === false && (
-          <p
-            role="note"
-            className="flex items-start justify-center gap-1.5 text-center text-muted-foreground text-xs"
-          >
-            <EyeOffIcon className="mt-px size-3.5 shrink-0" aria-hidden />
-            This browser doesn&apos;t let passmgr store vaults (private window?). A vault created
-            here is gone once you lock, reload or close the tab.
-          </p>
-        )}
-        {!unlocking && pickFailed && (
+        {privateWindowNote}
+        {pickFailed && (
           <FieldError variant="box">
             <strong className="font-semibold">That vault couldn&apos;t be opened.</strong> Please
             try again.
           </FieldError>
         )}
-        {!unlocking && (
-          <ProfileList
-            profiles={store.profiles}
-            onPick={(profileId) => void pickProfile(profileId)}
-            onRemoveAll={() => void store.removeAllProfiles()}
-          />
-        )}
+        <ProfileList
+          profiles={store.profiles}
+          onPick={(profileId) => void pickProfile(profileId)}
+          onRemoveAll={() => void store.removeAllProfiles()}
+        />
       </div>
     </>
   );

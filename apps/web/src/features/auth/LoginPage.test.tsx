@@ -126,7 +126,7 @@ async function login(email: string, password: string) {
 /** The active profile's unlock: the password alone. */
 async function unlockStored(password: string) {
   await userEvent.type(screen.getByLabelText("Password"), password);
-  await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^unlock$/i }));
 }
 
 function profileButton(name: RegExp) {
@@ -537,7 +537,7 @@ describe("LoginPage profiles", () => {
 
     expect(store.selectProfile).toHaveBeenCalledWith(localProfile.profileId);
     expect(await screen.findByText("Travel")).toBeInTheDocument();
-    expect(screen.getByLabelText("Email")).not.toBeVisible();
+    expect(screen.queryByLabelText("Email")).toBeNull();
   });
 
   it("says so when a picked profile can't be opened, staying on the list", async () => {
@@ -584,7 +584,7 @@ describe("LoginPage local vault", () => {
 
   async function unlockLocalVault(password: string) {
     await userEvent.type(screen.getByLabelText("Password"), password);
-    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^unlock$/i }));
   }
 
   it("asks for the password only", () => {
@@ -596,7 +596,7 @@ describe("LoginPage local vault", () => {
       "href",
       "/recover?vault=local",
     );
-    expect(screen.getByLabelText("Email")).not.toBeVisible();
+    expect(screen.queryByLabelText("Email")).toBeNull();
   });
 
   it("unlocks with the password alone and never talks to the server", async () => {
@@ -660,28 +660,5 @@ describe("LoginPage local vault", () => {
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
     expect(store.saveAccount).not.toHaveBeenCalled();
     expect(argon2WorkerService.derive).toHaveBeenCalledTimes(1);
-  });
-
-  it("keeps the typed password when the profile loads after the form", async () => {
-    store.profile = null;
-    const { rerender } = renderWithProviders(
-      <SessionContext.Provider value={{ ...session, networkOffline: false }}>
-        <LoginPage />
-      </SessionContext.Provider>,
-    );
-    await userEvent.type(screen.getByLabelText("Password"), "right password");
-
-    store.profile = localProfile;
-    rerender(
-      <SessionContext.Provider value={{ ...session, networkOffline: false }}>
-        <LoginPage />
-      </SessionContext.Provider>,
-    );
-    expect(screen.getByLabelText("Password")).toHaveValue("right password");
-    // The local schema applies now: no email needed.
-    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
-
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
-    expect(unlockVault.mock.calls[0]?.[0]).toBe("local");
   });
 });

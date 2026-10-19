@@ -65,16 +65,6 @@ describe("LoginForm", () => {
     expect(email.autocomplete).toBe("username");
   });
 
-  it("email field is disabled when storedEmail prop is provided", () => {
-    renderWithProviders(
-      <LoginForm onSubmit={vi.fn()} storedEmail="stored@example.com" loading={false} />,
-    );
-
-    const email = screen.getByLabelText("Email") as HTMLInputElement;
-    expect(email).toBeDisabled();
-    expect(email.value).toBe("stored@example.com");
-  });
-
   it("disables submit button while loading", () => {
     renderWithProviders(<LoginForm onSubmit={vi.fn()} loading={true} />);
     expect(screen.getByRole("button", { name: /unlock vault/i })).toBeDisabled();
@@ -97,12 +87,11 @@ describe("LoginForm", () => {
     expect(pw).toHaveFocus();
   });
 
-  it("reports user edits, but not the stored account being swapped in", async () => {
+  it("reports user edits", async () => {
     const onEdit = vi.fn();
-    const props = { onSubmit: vi.fn(), error: credentialsError, loading: false, onEdit };
-    const { rerender } = renderWithProviders(<LoginForm {...props} />);
-
-    rerender(<LoginForm {...props} storedEmail="alice@example.com" />);
+    renderWithProviders(
+      <LoginForm onSubmit={vi.fn()} error={credentialsError} loading={false} onEdit={onEdit} />,
+    );
     expect(onEdit).not.toHaveBeenCalled();
 
     await userEvent.type(screen.getByLabelText("Password"), "x");

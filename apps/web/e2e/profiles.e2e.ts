@@ -26,7 +26,7 @@ async function lockByReload(page: Page) {
 
 /** The profile whose unlock card is open. */
 function unlockCard(page: Page, label: string) {
-  return page.locator("form").getByText(label, { exact: true });
+  return page.locator('[data-slot="card"]').getByText(label, { exact: true });
 }
 
 function profileList(page: Page) {

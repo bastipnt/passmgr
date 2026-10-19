@@ -1,6 +1,6 @@
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { isDefined } from "@repo/util";
-import { type ReactNode, useId } from "react";
+import { type ReactNode, type Ref, useId } from "react";
 import {
   Controller,
   type ControllerProps,
@@ -39,6 +39,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
   labelAction,
   hint,
   hideLabel = false,
+  ref,
   ...props
 }: ControlledInputParams<TFieldValues>) {
   const id = useId();
@@ -48,6 +49,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
       name={name}
       control={control}
       render={({ field, fieldState }) => {
+        const inputRef = mergeRefs(field.ref, ref);
         // An optional field starts `undefined`: render it as empty, so the
         // input stays controlled from the start (no React warning on typing).
         const fieldContent = (
@@ -68,6 +70,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
                 )}
                 <InputGroupInput
                   {...field}
+                  ref={inputRef}
                   value={field.value ?? ""}
                   id={id}
                   aria-invalid={fieldState.invalid}
@@ -78,6 +81,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
             ) : (
               <Input
                 {...field}
+                ref={inputRef}
                 value={field.value ?? ""}
                 id={id}
                 aria-invalid={fieldState.invalid}
@@ -103,4 +107,14 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
       }}
     />
   );
+}
+
+/** Both react-hook-form (`setFocus`) and the caller get the input element. */
+function mergeRefs<T>(...refs: (Ref<T> | undefined)[]) {
+  return (element: T | null) => {
+    for (const ref of refs) {
+      if (typeof ref === "function") ref(element);
+      else if (ref) ref.current = element;
+    }
+  };
 }

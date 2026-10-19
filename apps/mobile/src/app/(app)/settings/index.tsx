@@ -1,7 +1,7 @@
 import {
+  removeVaultDescription,
   SessionContext,
   type SessionMode,
-  unsyncedChangesWarning,
   usePendingChangeCount,
   useRemoveFromDevice,
   useSignOut,
@@ -136,11 +136,7 @@ export default function SettingsScreen() {
 
         <RemoveDialog
           title="Remove vault from this device?"
-          description={
-            linked
-              ? `This deletes the vault from this device. Your account and the data on the server are not affected.${unsyncedChangesWarning(pendingChanges)}`
-              : "This deletes the only copy of your vault. Without an export, everything in it is lost."
-          }
+          description={removeVaultDescription(linked, pendingChanges)}
           removeTitle="Remove"
           closeTitle="Cancel"
           onRemove={() =>
