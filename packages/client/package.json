@@ -23,7 +23,7 @@
     "@trpc/tanstack-react-query": "catalog:",
     "fflate": "^0.8.3",
     "pdf-lib": "catalog:",
-    "tinykeys": "^4.0.0",
+    "tinykeys": "^4.0.1",
     "uqr": "^0.1.3"
   },
   "peerDependencies": {
