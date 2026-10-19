@@ -9,6 +9,7 @@ type AuthLayoutProps = {
 /**
  * Light-field backdrop with a brand bar. Pages render an `AuthHero` and a
  * glass card as their two children, which sit side by side from `lg` up.
+ * Below `sm` it is a top-aligned column: a page can pin a footer with `mt-auto`.
  */
 export default function AuthLayout({ children }: AuthLayoutProps) {
   return (
@@ -18,7 +19,7 @@ export default function AuthLayout({ children }: AuthLayoutProps) {
         <BrandLockup />
         <ThemeToggle />
       </header>
-      <main className="mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-8 px-5 pt-8 pb-[max(env(safe-area-inset-bottom),2rem)] sm:px-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16 lg:py-12">
+      <main className="mx-auto grid w-full max-w-6xl flex-1 content-center items-center gap-8 px-5 pt-8 pb-[max(env(safe-area-inset-bottom),2rem)] max-sm:flex max-sm:flex-col max-sm:items-stretch max-sm:gap-10 sm:px-10 lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16 lg:py-12">
         {children}
       </main>
     </div>

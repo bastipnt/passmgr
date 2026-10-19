@@ -1,4 +1,5 @@
-import { useAppConfig, useStore } from "@repo/client";
+import { useStore } from "@repo/client";
+import { buttonVariants } from "@repo/ui/components/Button";
 import {
   Card,
   CardContent,
@@ -6,129 +7,117 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
+import { cn } from "@repo/ui/lib/utils";
 import {
+  ArrowRightIcon,
   ChevronRightIcon,
-  CloudIcon,
-  HardDriveIcon,
   LogInIcon,
   type LucideIcon,
-  ShieldCheckIcon,
+  ShieldPlusIcon,
 } from "lucide-react";
 import { Link, Redirect, useSearchParams } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
-import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
+import { AuthHero, HeroChips } from "./AuthHero";
 import AuthTextLink from "./AuthTextLink";
+import PasswordNote from "./PasswordNote";
+
+const CHIPS = ["Works offline", "Zero-knowledge", "End-to-end encrypted"];
+const PHONE_CHIPS = ["Works offline", "Zero-knowledge", "E2E encrypted"];
 
 type ChoiceProps = {
   href: string;
   icon: LucideIcon;
   title: string;
-  description: string;
+  primary?: boolean;
 };
 
-function Choice({ href, icon: Icon, title, description }: ChoiceProps) {
+function Choice({ href, icon: Icon, title, primary = false }: ChoiceProps) {
+  const Chevron = primary ? ArrowRightIcon : ChevronRightIcon;
   return (
     <Link
       href={href}
-      className="flex w-full items-center gap-3 rounded-2xl border border-foreground/10 bg-white/40 p-3 text-left outline-none transition-colors hover:bg-white/70 focus-visible:ring-4 focus-visible:ring-ring/25 dark:border-white/10 dark:bg-white/[0.04] dark:hover:bg-white/10"
+      className={cn(
+        buttonVariants({ variant: primary ? "default" : "outline" }),
+        "h-auto min-h-15 w-full justify-start gap-3 rounded-2xl p-3 text-left font-semibold text-[0.95rem] sm:min-h-19 sm:p-4 sm:text-base",
+      )}
     >
       <span
         aria-hidden
-        className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"
+        className={cn(
+          "grid size-9 shrink-0 place-items-center rounded-[10px] sm:size-11 sm:rounded-xl",
+          primary ? "bg-white/16 ring-1 ring-white/22" : "bg-primary/10 text-primary",
+        )}
       >
         <Icon className="size-5" />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col">
-        <span className="font-semibold text-sm">{title}</span>
-        <span className="text-muted-foreground text-xs">{description}</span>
-      </span>
-      <ChevronRightIcon className="size-4 text-muted-foreground" aria-hidden />
+      <span className="min-w-0 flex-1 whitespace-normal">{title}</span>
+      <Chevron className={cn("size-4.5", !primary && "text-muted-foreground")} aria-hidden />
     </Link>
   );
 }
 
 /**
- * First visit (ADR 0001 D2): no vault on this device yet, so choose how to
- * start — a vault on this device only (an account can follow later), a new
- * account, or signing in. A device that already holds a vault goes to its
- * unlock instead.
+ * First visit (ADR 0001 D2): no vault on this device yet, so create one or
+ * log in to an account. A device that already holds a vault goes to its unlock.
  */
 export default function WelcomePage() {
   const { loaded, profiles } = useStore();
-  const { registrationEnabled } = useAppConfig();
   const [searchParams] = useSearchParams();
-  // Like `AuthRoutes`: an invite opens registration even when it is closed.
   const invite = searchParams.get("invite");
-  const canRegister = registrationEnabled || invite !== null;
 
   if (!loaded) return null;
   if (profiles.length > 0) return <Redirect to={authPaths.login} replace />;
+
+  // An invite leads straight to the account form until the create flow asks about sync.
+  const createHref =
+    invite === null
+      ? authPaths.createLocal
+      : `${authPaths.register}?${new URLSearchParams({ invite })}`;
 
   return (
     <>
       <PageMeta
         title="Welcome"
-        description="Start a passmgr vault on this device, or sign in to your account. Zero-knowledge, end-to-end encrypted."
+        description="Start a passmgr vault on this device, or log in to your account. Zero-knowledge, end-to-end encrypted."
         canonicalPath={authPaths.welcome}
       />
       <AuthHero
         title={
           <>
-            Your secrets, <HeroAccent>seen by no one</HeroAccent> but you.
+            <span className="block">One password</span>
+            <span className="block">unlocks</span>
+            <span className="block">all the rest.</span>
           </>
         }
-        lead="passmgr encrypts your vault on this device before anything leaves it. Start without an account and add one whenever you want to sync."
+        lead="passmgr encrypts your vault on this device before anything leaves it. Start without an account and turn on sync whenever you want."
       >
-        <HeroChips items={["Works offline", "Zero-knowledge", "End-to-end encrypted"]} />
+        <div className="max-sm:hidden">
+          <HeroChips items={CHIPS} />
+        </div>
       </AuthHero>
 
-      <Card variant="glass">
+      <Card variant="glass" flatOnPhone>
         <CardHeader>
-          <CardTitle>Get started</CardTitle>
-          <CardDescription>How do you want to use passmgr?</CardDescription>
+          <CardTitle className="max-sm:sr-only">Welcome to passmgr</CardTitle>
+          <CardDescription>New here, or bringing an existing account?</CardDescription>
         </CardHeader>
-        <CardContent>
-          <nav aria-label="Get started" className="flex flex-col gap-2">
-            <Choice
-              href={authPaths.createLocal}
-              icon={HardDriveIcon}
-              title="Use on this device"
-              description="No account, no server. Create one later to sync."
-            />
-            {canRegister && (
-              <Choice
-                href={
-                  invite === null
-                    ? authPaths.register
-                    : `${authPaths.register}?${new URLSearchParams({ invite })}`
-                }
-                icon={CloudIcon}
-                title="Create an account"
-                description="Sync and back up your vault across devices."
-              />
-            )}
-            <Choice
-              href={authPaths.login}
-              icon={LogInIcon}
-              title="Sign in"
-              description="You already have an account."
-            />
+        <CardContent className="flex flex-col gap-6">
+          <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
+            <Choice href={createHref} icon={ShieldPlusIcon} title="Create a new vault" primary />
+            <Choice href={authPaths.login} icon={LogInIcon} title="Log in to an existing account" />
           </nav>
-        </CardContent>
-        <CardContent className="flex flex-col items-center gap-3">
-          <p className="text-muted-foreground text-xs">
-            Have a backup file?{" "}
-            <AuthTextLink href={authPaths.restore} tone="muted">
-              Restore it
-            </AuthTextLink>
+          <p className="text-center text-muted-foreground text-sm">
+            Have a backup file? <AuthTextLink href={authPaths.restore}>Restore it</AuthTextLink>
           </p>
-          <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
-            <ShieldCheckIcon className="size-3.5" aria-hidden />
-            Your password never leaves this device
-          </p>
+          <PasswordNote className="max-sm:hidden" />
         </CardContent>
       </Card>
+
+      <div className="mt-auto flex flex-col items-center gap-3 sm:hidden">
+        <HeroChips items={PHONE_CHIPS} compact />
+        <PasswordNote className="order-last" />
+      </div>
     </>
   );
 }

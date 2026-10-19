@@ -17,7 +17,7 @@ import {
   CardTitle,
 } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
-import { EyeOffIcon, ShieldCheckIcon, TrashIcon } from "lucide-react";
+import { EyeOffIcon, TrashIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
@@ -26,6 +26,7 @@ import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
 import { BiometricUnlockButton } from "./BiometricUnlockButton";
 import type { LoginFormValues } from "./LoginForm";
 import LoginForm from "./LoginForm";
+import PasswordNote from "./PasswordNote";
 import ProfileList from "./ProfileList";
 import SecondFactorForm from "./SecondFactorForm";
 import StoredAccountRow from "./StoredAccountRow";
@@ -204,10 +205,7 @@ export default function LoginPage() {
                   </button>
                 </RemoveDialog>
               ) : (
-                <p className="flex items-center justify-center gap-1.5 text-muted-foreground text-xs">
-                  <ShieldCheckIcon className="size-3.5" aria-hidden />
-                  Your password never leaves this device
-                </p>
+                <PasswordNote />
               )
             }
             onSubmit={onSubmit}

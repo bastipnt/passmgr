@@ -12,8 +12,6 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
 }));
-const appConfig = vi.hoisted(() => ({ registrationEnabled: true, isLoading: false }));
-vi.mock("@repo/client/src/hooks/use-app-config", () => ({ useAppConfig: () => appConfig }));
 
 const LOCAL: LocalProfile = { profileId: "p-local", mode: "local", email: null, userId: null };
 
@@ -30,31 +28,18 @@ function renderWelcome(path: string = authPaths.welcome) {
 beforeEach(() => {
   store.loaded = true;
   store.profiles = [];
-  appConfig.registrationEnabled = true;
 });
 
 describe("WelcomePage", () => {
-  it("offers a vault on this device, a new account or signing in", () => {
+  it("offers a new vault, logging in or restoring a backup", () => {
     renderWelcome();
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(links).toEqual([
-      authPaths.createLocal,
-      authPaths.register,
-      authPaths.login,
-      authPaths.restore,
-    ]);
+    expect(links).toEqual([authPaths.createLocal, authPaths.login, authPaths.restore]);
   });
 
-  it("hides the account creation when registration is closed", () => {
-    appConfig.registrationEnabled = false;
-    renderWelcome();
-    expect(screen.queryByRole("link", { name: /Create an account/ })).toBeNull();
-  });
-
-  it("an invite opens the account creation even when registration is closed", () => {
-    appConfig.registrationEnabled = false;
+  it("an invite leads the new vault to the account form", () => {
     renderWelcome(`${authPaths.welcome}?invite=abc`);
-    expect(screen.getByRole("link", { name: /Create an account/ }).getAttribute("href")).toBe(
+    expect(screen.getByRole("link", { name: /Create a new vault/ }).getAttribute("href")).toBe(
       `${authPaths.register}?invite=abc`,
     );
   });

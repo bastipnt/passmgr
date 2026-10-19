@@ -28,13 +28,21 @@ export function HeroAccent({ children }: { children: ReactNode }) {
 
 const CHIP_DOT = ["bg-[#ff3d8b]", "bg-[#ffb23f]", "bg-[#2ec5ff]", "bg-[#7a5cff]"];
 
-export function HeroChips({ items }: { items: string[] }) {
+export function HeroChips({ items, compact = false }: { items: string[]; compact?: boolean }) {
   return (
-    <ul className="flex flex-wrap gap-2 max-lg:order-last">
+    <ul
+      className={cn(
+        "flex flex-wrap gap-2 max-lg:order-last",
+        compact && "flex-nowrap justify-center gap-1.5",
+      )}
+    >
       {items.map((item, i) => (
         <li
           key={item}
-          className="flex items-center gap-2 rounded-full border border-foreground/12 bg-white/50 px-3.5 py-1.5 text-sm backdrop-blur-sm dark:border-white/12 dark:bg-white/5"
+          className={cn(
+            "flex items-center gap-2 rounded-full border border-foreground/12 bg-white/50 px-3.5 py-1.5 text-sm backdrop-blur-sm dark:border-white/12 dark:bg-white/5",
+            compact && "gap-1.5 whitespace-nowrap px-2.5 py-1 text-xs",
+          )}
         >
           <span className={cn("size-1.5 rounded-full", CHIP_DOT[i % CHIP_DOT.length])} />
           {item}
