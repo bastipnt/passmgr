@@ -41,7 +41,7 @@ try {
   const code = await createInvite({ email: values.email }, ttlSeconds);
   const expiresAt = new Date(Date.now() + ttlSeconds * 1000).toISOString();
 
-  console.log(baseUrl ? `${baseUrl}/register?invite=${code}` : `Invite code: ${code}`);
+  console.log(baseUrl ? `${baseUrl}/create?invite=${code}` : `Invite code: ${code}`);
   console.log(
     `Single use, expires ${expiresAt}${values.email ? `, only for ${values.email}` : ""}`,
   );

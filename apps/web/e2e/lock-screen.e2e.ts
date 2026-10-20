@@ -17,8 +17,8 @@ test("idle timeout locks the vault and ends its server session", async ({ page, 
   await page.clock.install();
   await page.addInitScript(() => localStorage.setItem("pass-mgr-auto-lock", "1"));
 
+  // Leaves the vault unlocked and signed in: the session the idle lock ends.
   await registerUser(page, email, password);
-  await loginUser(page, email, password);
   await expectInApp(page);
 
   // Activity restarts the countdown.

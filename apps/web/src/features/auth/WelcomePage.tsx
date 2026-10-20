@@ -69,11 +69,8 @@ export default function WelcomePage() {
   if (!loaded) return null;
   if (profiles.length > 0) return <Redirect to={authPaths.login} replace />;
 
-  // An invite leads straight to the account form until the create flow asks about sync.
   const createHref =
-    invite === null
-      ? authPaths.createLocal
-      : `${authPaths.register}?${new URLSearchParams({ invite })}`;
+    invite === null ? authPaths.create : `${authPaths.create}?${new URLSearchParams({ invite })}`;
 
   return (
     <>

@@ -34,13 +34,13 @@ describe("WelcomePage", () => {
   it("offers a new vault, logging in or restoring a backup", () => {
     renderWelcome();
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(links).toEqual([authPaths.createLocal, authPaths.login, authPaths.restore]);
+    expect(links).toEqual([authPaths.create, authPaths.login, authPaths.restore]);
   });
 
-  it("an invite leads the new vault to the account form", () => {
+  it("an invite goes along to the create flow", () => {
     renderWelcome(`${authPaths.welcome}?invite=abc`);
     expect(screen.getByRole("link", { name: /Create a new vault/ }).getAttribute("href")).toBe(
-      `${authPaths.register}?invite=abc`,
+      `${authPaths.create}?invite=abc`,
     );
   });
 

@@ -3,9 +3,8 @@ export const authPaths = {
   welcome: "/welcome",
   login: "/login",
   enrollBiometric: "/enroll-biometric",
-  register: "/register",
-  /** A vault on this device only, no account (ADR 0001 D2). */
-  createLocal: "/local-vault",
+  /** A new vault, on this device first; an account to sync it is optional (ADR 0001 D2, D9). */
+  create: "/create",
   /** A backup restored into a new local vault (ADR 0001 D12). */
   restore: "/restore",
   recover: "/recover",

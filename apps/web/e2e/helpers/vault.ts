@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { skipBiometricIfShown } from "./auth";
+import { saveRecoveryKey, skipBiometricIfShown, startCreateVault } from "./auth";
 
 /**
  * Helpers for the vault UI. Web keys live in memory only, so everything after
@@ -26,14 +26,9 @@ export async function expectInApp(page: Page): Promise<void> {
 
 /** A vault on this device only (ADR 0001 D2), from a browser without one open. */
 export async function createLocalVault(page: Page, name: string, password: string): Promise<void> {
-  await page.goto("/local-vault");
-  await page.locator('input[name="name"]').fill(name);
-  await page.locator('input[name="password"]').fill(password);
-  await page.locator('input[name="confirmPassword"]').fill(password);
-  await page.locator('form button[type="submit"]').click();
-  await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: /copy to clipboard/i }).click();
-  await page.getByRole("button", { name: /i saved it/i }).click();
+  await startCreateVault(page, password, { name });
+  await page.getByRole("button", { name: /not now/i }).click();
+  await saveRecoveryKey(page);
   await expectInApp(page);
 }
 

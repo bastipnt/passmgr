@@ -18,7 +18,6 @@ test.describe("forgotten password → recover with recovery key", () => {
     const newPassword = randomPassword();
 
     const recoveryKey = await registerUser(page, email, oldPassword);
-    await page.waitForURL(/\/login/, { timeout: 15_000 });
     await simulateLogout(page);
 
     await page.locator('a[href="/recover"]').click();

@@ -14,7 +14,6 @@ test.describe("register → simulated logout → login", () => {
     const password = randomPassword();
 
     await registerUser(page, email, password);
-    await page.waitForURL(/\/login/, { timeout: 15_000 });
 
     await loginUser(page, email, password);
     await skipBiometricIfShown(page);

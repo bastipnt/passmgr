@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { type SignInErrorMessage, useAppConfig } from "@repo/client";
+import type { SignInErrorMessage } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -38,7 +38,6 @@ type LoginFormProps = {
 };
 
 export default function LoginForm({ footer, onSubmit, error, loading, onEdit }: LoginFormProps) {
-  const { registrationEnabled } = useAppConfig();
   const { handleSubmit, control, watch } = useForm<LoginFormValues>({
     resolver: zodResolver(userCredentialsSchema),
     defaultValues: { email: "", password: "" },
@@ -59,18 +58,8 @@ export default function LoginForm({ footer, onSubmit, error, loading, onEdit }: 
           <CardHeader>
             <CardTitle>Welcome back</CardTitle>
             <CardDescription>
-              New here?{" "}
-              {registrationEnabled ? (
-                <>
-                  <AuthTextLink href={authPaths.register}>Create an account</AuthTextLink> or keep a{" "}
-                  <AuthTextLink href={authPaths.createLocal}>vault on this device</AuthTextLink>,
-                </>
-              ) : (
-                <AuthTextLink href={authPaths.createLocal}>
-                  Create a vault on this device
-                </AuthTextLink>
-              )}{" "}
-              or <AuthTextLink href={authPaths.restore}>restore a backup</AuthTextLink>
+              New here? <AuthTextLink href={authPaths.create}>Create a new vault</AuthTextLink> or{" "}
+              <AuthTextLink href={authPaths.restore}>restore a backup</AuthTextLink>
             </CardDescription>
           </CardHeader>
 

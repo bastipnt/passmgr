@@ -2,9 +2,9 @@ import type { HtmlTagDescriptor, Plugin } from "vite";
 
 /**
  * Only the public entry pages are indexable; everything else is behind login.
- * Mirrors `authPaths.login` / `authPaths.register` in src/app/route-paths.ts.
+ * Mirrors `authPaths.login` / `authPaths.create` in src/app/route-paths.ts.
  */
-const PUBLIC_PATHS = ["/login", "/register"];
+const PUBLIC_PATHS = ["/login", "/create"];
 
 const OG_IMAGE = "/og-image.png";
 

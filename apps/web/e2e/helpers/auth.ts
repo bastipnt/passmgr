@@ -10,38 +10,45 @@ export function randomPassword(): string {
 }
 
 /**
- * Drive the register UI end-to-end, including the recovery-key dialog.
- * Returns the base64 recovery key as displayed (useful for leakage assertions
- * and the recovery flow).
+ * Open the create flow and fill step 1. Resolves once the app config is in:
+ * only then does the flow know whether the sync step follows ("Step 1 of 2").
  */
-export async function registerUser(page: Page, email: string, password: string): Promise<string> {
-  // The /register route is conditionally rendered in AuthRoutes only after
-  // useAppConfig().registrationEnabled resolves to true (defaults to false
-  // while the tRPC query is pending). Each page.goto() creates a fresh
-  // QueryClient, so a direct goto("/register") races the query and gets
-  // redirected to /login. Land on /login, wait for the "Sign Up" link to
-  // appear in the login card (it only renders once registrationEnabled is
-  // true), then SPA-navigate by clicking it — no full reload.
-  await page.goto("/login");
-  await showEmailLogin(page);
-  const signUpLink = page.locator('a[href="/register"]');
-  await expect(signUpLink).toBeVisible({ timeout: 15_000 });
-  await signUpLink.click();
-  await expect(page).toHaveURL(/\/register$/);
-
-  await page.locator('input[name="email"]').fill(email);
+export async function startCreateVault(
+  page: Page,
+  password: string,
+  { name, withSync = true }: { name?: string; withSync?: boolean } = {},
+): Promise<void> {
+  await page.goto("/create");
+  if (withSync) await expect(page.getByText("Step 1 of 2")).toBeVisible({ timeout: 15_000 });
+  if (name) await page.locator('input[name="name"]').fill(name);
   await page.locator('input[name="password"]').fill(password);
+  await page.locator('input[name="confirmPassword"]').fill(password);
   await page.locator('form button[type="submit"]').click();
+}
 
-  // Recovery dialog opens with the key. Argon2id at prod params (~250ms)
-  // dominates registration timing; total round-trip is comfortably under 30s.
+/** Confirm the recovery-key dialog; resolves the key as displayed. */
+export async function saveRecoveryKey(page: Page): Promise<string> {
+  // Argon2id at prod params dominates; the round-trip is comfortably under 30s.
   await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 30_000 });
   const recoveryKey = (await page.locator("code").first().textContent())?.trim() ?? "";
   expect(recoveryKey).not.toBe("");
-
   await page.getByRole("button", { name: /copy to clipboard/i }).click();
   await page.getByRole("button", { name: /i saved it/i }).click();
+  return recoveryKey;
+}
 
+/**
+ * Create a vault with sync on: a local vault linked to a new account, left
+ * unlocked. Returns the base64 recovery key as displayed (useful for leakage
+ * assertions and the recovery flow).
+ */
+export async function registerUser(page: Page, email: string, password: string): Promise<string> {
+  await startCreateVault(page, password);
+  await page.getByRole("button", { name: /yes, sync this vault/i }).click();
+  await page.locator('input[name="email"]').fill(email);
+  await page.getByRole("button", { name: /create account/i }).click();
+  const recoveryKey = await saveRecoveryKey(page);
+  await page.waitForURL((url) => !url.pathname.startsWith("/create"), { timeout: 15_000 });
   return recoveryKey;
 }
 

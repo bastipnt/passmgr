@@ -1,5 +1,11 @@
 import { expect, test } from "@playwright/test";
-import { loginUser, randomEmail, randomPassword, registerUser } from "./helpers/auth";
+import {
+  loginUser,
+  randomEmail,
+  randomPassword,
+  registerUser,
+  simulateLogout,
+} from "./helpers/auth";
 
 /**
  * Capture every outbound request during a full register + login flow and
@@ -21,7 +27,8 @@ test("no plaintext password or recoveryKey ever leaves the browser", async ({ pa
   });
 
   const recoveryKey = await registerUser(page, email, password);
-  await page.waitForURL(/\/login/);
+  // A fresh device: the login below goes through OPAQUE, not the cached profile.
+  await simulateLogout(page);
   await loginUser(page, email, password);
 
   expect(captured.length).toBeGreaterThan(0);

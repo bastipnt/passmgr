@@ -4,6 +4,7 @@ import {
   randomEmail,
   randomPassword,
   registerUser,
+  saveRecoveryKey,
   showEmailLogin,
   skipBiometricIfShown,
 } from "./helpers/auth";
@@ -45,7 +46,7 @@ test.describe("multiple profiles per device", () => {
     const bob = { email: randomEmail(), password: randomPassword() };
     const localPassword = randomPassword();
 
-    // Two accounts: each login adds a profile, the other one stays.
+    // Two accounts: each sign-up adds a profile, the other one stays.
     await registerUser(page, alice.email, alice.password);
     await loginUser(page, alice.email, alice.password);
     await inApp(page);
@@ -60,14 +61,13 @@ test.describe("multiple profiles per device", () => {
 
     // A vault without an account, next to the two.
     await showEmailLogin(page);
-    await page.locator('a[href="/local-vault"]').first().click();
+    await page.locator('a[href="/create"]').first().click();
     await page.locator('input[name="name"]').fill("Travel");
     await page.locator('input[name="password"]').fill(localPassword);
     await page.locator('input[name="confirmPassword"]').fill(localPassword);
     await page.locator('form button[type="submit"]').click();
-    await expect(page.getByText(/save your recovery key/i)).toBeVisible({ timeout: 30_000 });
-    await page.getByRole("button", { name: /copy to clipboard/i }).click();
-    await page.getByRole("button", { name: /i saved it/i }).click();
+    await page.getByRole("button", { name: /not now/i }).click();
+    await saveRecoveryKey(page);
     await inApp(page);
 
     await lockByReload(page);

@@ -93,7 +93,7 @@ export default function RestoreBackupPage() {
               </>
             ) : (
               <>
-                No backup? <AuthTextLink href={authPaths.createLocal}>Start fresh</AuthTextLink>
+                No backup? <AuthTextLink href={authPaths.create}>Start fresh</AuthTextLink>
               </>
             )}
           </CardDescription>

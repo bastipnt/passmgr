@@ -67,7 +67,7 @@ With `REGISTRATION_DISABLED=true` (the prod default) sign-up needs a single-use 
 ```bash
 docker compose -f docker-compose.prod.yml exec server \
   bun apps/server/scripts/create-invite.ts --email alice@example.com
-# https://<host>/register?invite=...
+# https://<host>/create?invite=...
 # Single use, expires <ISO date>, only for alice@example.com
 ```
 

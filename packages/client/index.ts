@@ -18,6 +18,7 @@ export * from "./src/hooks/use-clipboard-clear";
 export * from "./src/hooks/use-connect-server";
 export * from "./src/hooks/use-create-local-vault";
 export * from "./src/hooks/use-create-record";
+export * from "./src/hooks/use-create-vault";
 export * from "./src/hooks/use-delete-account";
 export * from "./src/hooks/use-delete-record";
 export * from "./src/hooks/use-device-login";

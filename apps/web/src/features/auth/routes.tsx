@@ -1,50 +1,49 @@
-import { canEnrollBiometric, SessionContext, useAppConfig, useStore } from "@repo/client";
-import { Suspense, useContext } from "react";
-import { Redirect, Route, Switch, useRoute, useSearchParams } from "wouter";
+import { canEnrollBiometric, SessionContext, useStore } from "@repo/client";
+import { Suspense, useContext, useState } from "react";
+import { Redirect, Route, Switch, useRoute } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { lazyPreload } from "@/lib/lazy-preload";
 import AuthLayout from "./AuthLayout";
+import { HoldUnlockRedirectContext } from "./unlock-redirect";
 
 const BiometricEnrollPage = lazyPreload(() => import("./BiometricEnrollPage"));
-const CreateLocalVaultPage = lazyPreload(() => import("./CreateLocalVaultPage"));
+const CreateVaultPage = lazyPreload(() => import("./CreateVaultPage"));
 const LoginPage = lazyPreload(() => import("./LoginPage"));
 const RecoverPage = lazyPreload(() => import("./RecoverPage"));
-const RegisterPage = lazyPreload(() => import("./RegisterPage"));
 const RestoreBackupPage = lazyPreload(() => import("./RestoreBackupPage"));
 const WelcomePage = lazyPreload(() => import("./WelcomePage"));
 
 export default function AuthRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
   const { needsBiometricEnroll, profile } = useStore();
-  const { registrationEnabled } = useAppConfig();
   const [isEnrollBiometricRoute] = useRoute(authPaths.enrollBiometric);
-  const [searchParams] = useSearchParams();
-  const canRegister = registrationEnabled || searchParams.has("invite");
+  const [isCreateRoute] = useRoute(authPaths.create);
+  const [redirectHeld, setRedirectHeld] = useState(false);
 
-  if (vaultUnlocked) {
+  if (vaultUnlocked && !redirectHeld) {
     if (needsBiometricEnroll && canEnrollBiometric(profile)) {
       if (!isEnrollBiometricRoute) return <Redirect to={authPaths.enrollBiometric} />;
     } else return <Redirect to="/" />;
   }
 
   return (
-    <AuthLayout>
-      <Suspense fallback={null}>
-        <Switch>
-          <Route path={authPaths.welcome} component={WelcomePage} />
-          <Route path={authPaths.login} component={LoginPage} />
-          <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
-          <Route path={authPaths.recover} component={RecoverPage} />
-          {canRegister && <Route path={authPaths.register} component={RegisterPage} />}
-          {/* Needs no server: always there, whatever the app config says. */}
-          <Route path={authPaths.createLocal} component={CreateLocalVaultPage} />
-          <Route path={authPaths.restore} component={RestoreBackupPage} />
+    <AuthLayout phoneHeader={!isCreateRoute}>
+      <HoldUnlockRedirectContext value={setRedirectHeld}>
+        <Suspense fallback={null}>
+          <Switch>
+            <Route path={authPaths.welcome} component={WelcomePage} />
+            <Route path={authPaths.login} component={LoginPage} />
+            <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
+            <Route path={authPaths.recover} component={RecoverPage} />
+            <Route path={authPaths.create} component={CreateVaultPage} />
+            <Route path={authPaths.restore} component={RestoreBackupPage} />
 
-          <Route>
-            <Redirect to={authPaths.login} />
-          </Route>
-        </Switch>
-      </Suspense>
+            <Route>
+              <Redirect to={authPaths.login} />
+            </Route>
+          </Switch>
+        </Suspense>
+      </HoldUnlockRedirectContext>
     </AuthLayout>
   );
 }

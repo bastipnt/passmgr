@@ -100,7 +100,7 @@ server, apart from account operations that genuinely need it (registration, logi
 > recovery key is confirmed, with the account key kept from creation (no second Argon2). A `local`
 > profile's unlock is password-only (no email field, no server fallback) and raises a wrap below the Argon2
 > floor on the device (`rekeyLocalIfBelowFloor`; every rekey derives in the Argon2 worker). `useAppConfig` retries once, then reads as "no
-> registration"; the local vault route (`/local-vault` on web, "Start without an account" on mobile)
+> registration"; the local vault route (`/create` on web, "Not now" at its sync step; "Start without an account" on mobile)
 > never depends on it. No display name on the profile yet.
 >
 > **Amended 2026-10-07** (multiple profiles per device): a device holds any number of profiles side
@@ -618,7 +618,7 @@ to another vault is re-encrypted anyway (D6).
 
 > **Amended 2026-10-08** (durability implementation):
 >
-> - Web: `CreateLocalVaultPage` calls `persist()` on submit, before the key derivation, while
+> - Web: `CreateVaultPage` calls `persist()` on create, before the key derivation, while
 >   the submit is still a user gesture (Firefox asks; Chrome decides by engagement). Settings →
 >   Security shows persistence and the estimate (`StorageSettings`), warns a `local` profile when
 >   persistence is denied and can ask again.
