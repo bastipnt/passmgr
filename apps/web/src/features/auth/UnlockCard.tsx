@@ -195,7 +195,7 @@ function PasswordForm({
             autoComplete="current-password"
             leadingIcon={<LockIcon />}
             labelAction={
-              <AuthTextLink href={email ? authPaths.recover : authPaths.recoverLocal} tone="muted">
+              <AuthTextLink href={authPaths.recoverActive} tone="muted">
                 Forgot password?
               </AuthTextLink>
             }

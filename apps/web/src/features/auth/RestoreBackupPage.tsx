@@ -35,6 +35,7 @@ import { PageMeta } from "@/components/PageMeta";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import AuthCardHeader from "./AuthCardHeader";
+import AuthChip from "./AuthChip";
 import AuthNote from "./AuthNote";
 import AuthTextLink from "./AuthTextLink";
 import { useAuthHome } from "./auth-home";
@@ -156,7 +157,7 @@ export default function RestoreBackupPage() {
                 className={cn(file && "hidden")}
               />
               {file && (
-                <FileChip
+                <AuthChip
                   icon={unopenable ? <FileXIcon /> : <FileLockIcon />}
                   tone={unopenable ? "error" : "neutral"}
                   title={file.name}
@@ -344,7 +345,7 @@ function VaultStep({
         <form onSubmit={handleSubmit(onSubmit)}>
           <FormLock locked={loading}>
             <FieldGroup className="gap-5">
-              <FileChip
+              <AuthChip
                 icon={<CheckIcon />}
                 tone="success"
                 title={`${backup.data.records.length} record(s) ready to restore`}
@@ -374,56 +375,6 @@ function VaultStep({
           </FormLock>
         </form>
       </CardContent>
-    </div>
-  );
-}
-
-const CHIP_ICON = {
-  neutral: "bg-primary/10 text-primary",
-  success: "bg-success/12 text-success",
-  error: "bg-destructive/10 text-destructive",
-};
-
-function FileChip({
-  icon,
-  tone,
-  title,
-  detail,
-  onChange,
-  disabled,
-}: {
-  icon: ReactNode;
-  tone: keyof typeof CHIP_ICON;
-  title: string;
-  detail: string;
-  onChange: () => void;
-  disabled: boolean;
-}) {
-  return (
-    <div className="flex items-center gap-3 rounded-2xl border border-foreground/10 bg-white/50 p-3 dark:border-white/10 dark:bg-white/[0.04]">
-      <span
-        aria-hidden
-        className={cn(
-          "grid size-10 shrink-0 place-items-center rounded-xl [&>svg]:size-5",
-          CHIP_ICON[tone],
-        )}
-      >
-        {icon}
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate font-semibold text-sm">{title}</span>
-        <span className="truncate text-muted-foreground text-xs">{detail}</span>
-      </span>
-      <Button
-        type="button"
-        variant="ghost"
-        size="sm"
-        className="text-primary max-sm:h-12"
-        onClick={onChange}
-        disabled={disabled}
-      >
-        Change
-      </Button>
     </div>
   );
 }

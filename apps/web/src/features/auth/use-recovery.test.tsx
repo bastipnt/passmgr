@@ -90,6 +90,29 @@ describe("useRecovery", () => {
   });
 });
 
+describe("useRecovery — checking the key first", () => {
+  async function check(recoveryKey: string) {
+    const { result } = renderHook(() => useRecovery());
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.checkRecoveryKey(recoveryKey, false);
+    });
+    return { ok, error: result.current.recoveryError };
+  }
+
+  it("accepts a well-formed account key without asking the server", async () => {
+    expect(await check(toBase64(new Uint8Array(32).fill(7)))).toEqual({
+      ok: true,
+      error: undefined,
+    });
+    expect(recoverAccount).not.toHaveBeenCalled();
+  });
+
+  it("refuses a malformed one", async () => {
+    expect(await check("not a key")).toEqual({ ok: false, error: "invalid_key" });
+  });
+});
+
 describe("useRecovery — offline", () => {
   it("refuses an account's recovery while the device is offline", async () => {
     const session = { networkOffline: true } as ContextType<typeof SessionContext>;
@@ -214,6 +237,27 @@ describe("useRecovery — local vault", () => {
     const { error } = await recoverLocal("not a key");
 
     expect(error).toBe("invalid_key");
+    expect(store.saveLocalKeyMaterial).not.toHaveBeenCalled();
+  });
+
+  async function checkLocal(recoveryKey: string) {
+    const { result } = renderHook(() => useRecovery());
+    let ok = false;
+    await act(async () => {
+      ok = await result.current.checkRecoveryKey(recoveryKey, true);
+    });
+    return { ok, error: result.current.recoveryError };
+  }
+
+  it("checks the recovery key against the vault before the new password", async () => {
+    expect(await checkLocal(toBase64(local.recoveryKey))).toEqual({ ok: true, error: undefined });
+
+    const other = await generateLocalVault(PASSWORD);
+    expect(await checkLocal(toBase64(other.recoveryKey))).toEqual({
+      ok: false,
+      error: "wrong_key",
+    });
+    expect(await checkLocal("not a key")).toEqual({ ok: false, error: "invalid_key" });
     expect(store.saveLocalKeyMaterial).not.toHaveBeenCalled();
   });
 

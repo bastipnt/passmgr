@@ -7,7 +7,10 @@ import { vi } from "vitest";
  * `renderWithProviders`.
  */
 export async function emergencyKitMocks() {
-  const [{ recoveryKeyChunks }, { useEmergencyKit }] = await Promise.all([
+  const [
+    { recoveryKeyChunks, RECOVERY_KEY_GROUPS, RECOVERY_KEY_GROUP_LENGTH },
+    { useEmergencyKit },
+  ] = await Promise.all([
     vi.importActual<typeof import("@repo/client/src/account/emergency-kit")>(
       "@repo/client/src/account/emergency-kit",
     ),
@@ -15,5 +18,5 @@ export async function emergencyKitMocks() {
       "@repo/client/src/hooks/use-emergency-kit",
     ),
   ]);
-  return { recoveryKeyChunks, useEmergencyKit };
+  return { recoveryKeyChunks, RECOVERY_KEY_GROUPS, RECOVERY_KEY_GROUP_LENGTH, useEmergencyKit };
 }

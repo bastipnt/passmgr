@@ -24,7 +24,10 @@ test.describe("forgotten password → recover with recovery key", () => {
     await expect(page).toHaveURL(/\/recover$/);
 
     await page.locator('input[name="email"]').fill(email);
-    await page.locator('input[name="recoveryKey"]').fill(recoveryKey);
+    // A paste into the first group spreads over all four.
+    await page.locator('input[name="recoveryKey-1"]').fill(recoveryKey);
+    await page.locator('form button[type="submit"]').click();
+
     await page.locator('input[name="password"]').fill(newPassword);
     await page.locator('input[name="confirmPassword"]').fill(newPassword);
     await page.locator('form button[type="submit"]').click();
@@ -38,8 +41,13 @@ test.describe("forgotten password → recover with recovery key", () => {
     expect(newRecoveryKey).not.toBe(recoveryKey);
     await page.getByRole("button", { name: /copy to clipboard/i }).click();
     await page.getByRole("button", { name: /i saved it/i }).click();
-    await page.waitForURL(/\/login/, { timeout: 15_000 });
 
+    // The vault opens with the new password, no second entry.
+    await page.waitForURL((url) => !url.pathname.startsWith("/recover"), { timeout: 30_000 });
+    await skipBiometricIfShown(page);
+    await expect(page).toHaveURL(/\/(\?.*)?$/);
+
+    await simulateLogout(page);
     // Old password is gone.
     await expectLoginRejected(page, oldPassword, email);
 

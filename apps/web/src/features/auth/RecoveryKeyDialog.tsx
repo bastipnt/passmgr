@@ -15,14 +15,7 @@ import { toBase64 } from "@repo/util";
 import { ArrowRightIcon, CheckIcon, CopyIcon, FileDownIcon, KeyRoundIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { downloadFile } from "@/lib/download";
-
-// Color-coded chunks make the key easier to transcribe and compare.
-const CHUNK_COLOR = [
-  "text-[#b45f00] dark:text-[#ffd08a]",
-  "text-[#c8175e] dark:text-[#ff8db8]",
-  "text-[#0677ab] dark:text-[#9adfff]",
-  "text-[#5b3df0] dark:text-[#c3b4ff]",
-];
+import { RECOVERY_KEY_GROUP_COLORS } from "./recovery-key-colors";
 
 type RecoveryKeyDialogProps = {
   /** Open while set. Wiped once the user confirms. */
@@ -104,7 +97,10 @@ export default function RecoveryKeyDialog({
           {chunks.map((part, i) => (
             <span
               key={i}
-              className={cn("inline-block w-1/2 py-0.5", CHUNK_COLOR[i % CHUNK_COLOR.length])}
+              className={cn(
+                "inline-block w-1/2 py-0.5",
+                RECOVERY_KEY_GROUP_COLORS[i % RECOVERY_KEY_GROUP_COLORS.length],
+              )}
             >
               {part}
             </span>

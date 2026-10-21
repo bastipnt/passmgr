@@ -287,6 +287,9 @@ Recovery (forgotten password, `auth/recovery-router.ts`):
 Local recovery (`local` profile, ADR 0001 D10): `useRecovery().recoverLocal` → `recoverLocalVault` unwraps the account key
 with the recovery wrap kept on the device, `generateUserKeys` → `Vault.setLocalKeyMaterial` replaces both wraps
 atomically; no server. An account's recovery is refused offline (`offline`).
+Web `RecoverPage` (`authPaths.recover` from the account login, `recoverActive` from the unlock card): key step
+(`checkRecoveryKey`: format only for an account, the server checks it with the new password; a local vault's is
+unwrapped), then the new password, the new key (`RecoveryKeyDialog`), then the vault opens with the new password.
 
 Password change (ADR 0001 D10, `useChangePassword`, one hook for both modes): `local` → `changeLocalPassword`
 (current password checked against the stored wrap, account key rewrapped on the device). `linked` → only `online`,

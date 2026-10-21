@@ -20,7 +20,7 @@ describe("signInToAccount", () => {
   it("opens a profile on the device without the server login", async () => {
     const s = steps({ unlockByEmail: vi.fn().mockResolvedValue(true) });
     const onOpening = vi.fn();
-    await signInToAccount(s, "Alice@Example.com", "pw", undefined, onOpening);
+    expect(await signInToAccount(s, "Alice@Example.com", "pw", undefined, onOpening)).toBe(true);
 
     expect(s.loginUser).not.toHaveBeenCalled();
     expect(onOpening.mock.calls).toEqual([[true]]);
@@ -29,7 +29,9 @@ describe("signInToAccount", () => {
   it("says the device's copy didn't open", async () => {
     const s = steps({ unlockByEmail: vi.fn().mockResolvedValue(false) });
     const onOpening = vi.fn();
-    await signInToAccount(s, "alice@example.com", "wrong", undefined, onOpening);
+    expect(await signInToAccount(s, "alice@example.com", "wrong", undefined, onOpening)).toBe(
+      false,
+    );
 
     expect(s.loginUser).not.toHaveBeenCalled();
     expect(onOpening.mock.calls).toEqual([[true], [false]]);
@@ -38,7 +40,7 @@ describe("signInToAccount", () => {
   it("logs in an account new to the device, opening only once the server answered", async () => {
     const s = steps();
     const onOpening = vi.fn();
-    await signInToAccount(s, "bob@example.com", "pw", undefined, onOpening);
+    expect(await signInToAccount(s, "bob@example.com", "pw", undefined, onOpening)).toBe(true);
 
     expect(s.loginUser).toHaveBeenCalledWith("bob@example.com", "pw", undefined);
     expect(onOpening.mock.invocationCallOrder[0]).toBeGreaterThan(
@@ -50,7 +52,7 @@ describe("signInToAccount", () => {
   it("opens nothing when the server login failed", async () => {
     const s = steps({ loginUser: vi.fn().mockResolvedValue(undefined) });
     const onOpening = vi.fn();
-    await signInToAccount(s, "bob@example.com", "pw", undefined, onOpening);
+    expect(await signInToAccount(s, "bob@example.com", "pw", undefined, onOpening)).toBe(false);
 
     expect(s.unlock).not.toHaveBeenCalled();
     expect(onOpening).not.toHaveBeenCalled();

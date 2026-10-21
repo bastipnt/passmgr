@@ -1,3 +1,6 @@
+/** `authPaths.recoverActive`'s query. */
+export const recoverActiveSearch = "vault=active";
+
 export const authPaths = {
   /** First visit, no vault on the device: how to start (ADR 0001 D2). Else → login. */
   welcome: "/welcome",
@@ -10,9 +13,13 @@ export const authPaths = {
   create: "/create",
   /** A backup restored into a new local vault (ADR 0001 D12). */
   restore: "/restore",
+  /** Recovery of an account by its email, from the account login. */
   recover: "/recover",
-  /** Recovery of the active local vault, on the device (ADR 0001 D10). */
-  recoverLocal: "/recover?vault=local",
+  /**
+   * Recovery of the vault on the unlock card: an account's with its email, a
+   * local vault's on the device (ADR 0001 D10).
+   */
+  recoverActive: `/recover?${recoverActiveSearch}`,
 } as const;
 
 export const recordPaths = {

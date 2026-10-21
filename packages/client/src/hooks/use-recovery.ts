@@ -1,9 +1,11 @@
 import { normalizeEmail, wipe } from "@repo/crypto";
-import { useContext, useState } from "react";
+import { useCallback, useContext, useState } from "react";
 import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import {
+  checkLocalRecoveryKey,
+  parseRecoveryKey,
   RecoveryFailedError,
   RecoveryKeyInvalidError,
   recoverAccount,
@@ -35,6 +37,35 @@ export function useRecovery() {
   const store = useStore();
   const { networkOffline } = useContext(SessionContext);
   const [recoveryError, setRecoveryError] = useState<RecoveryError | undefined>();
+
+  /**
+   * The recovery key on its own, before the new password: its format, and for
+   * the active `local` profile whether it opens the vault. An account's key is
+   * only checked by the server, together with the new password (`recover`).
+   */
+  async function checkRecoveryKey(recoveryKey: string, local: boolean): Promise<boolean> {
+    setRecoveryError(undefined);
+    try {
+      if (!local) {
+        wipe(parseRecoveryKey(recoveryKey));
+        return true;
+      }
+      const recovery = await store.current()?.vault.getRecoveryKeyMaterial();
+      if (!recovery) throw new Error("The local vault has no recovery wrap");
+      await checkLocalRecoveryKey(recovery, recoveryKey);
+      return true;
+    } catch (err) {
+      if (err instanceof RecoveryKeyInvalidError) setRecoveryError("invalid_key");
+      else if (err instanceof RecoveryFailedError) setRecoveryError("wrong_key");
+      else {
+        console.error("Checking the recovery key failed", err);
+        setRecoveryError("failed");
+      }
+      return false;
+    }
+  }
+
+  const clearRecoveryError = useCallback(() => setRecoveryError(undefined), []);
 
   /**
    * Reset the master password with the recovery key.
@@ -141,5 +172,5 @@ export function useRecovery() {
     return recovered.recoveryKey;
   }
 
-  return { recover, recoverLocal, recoveryError };
+  return { checkRecoveryKey, recover, recoverLocal, recoveryError, clearRecoveryError };
 }

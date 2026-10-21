@@ -157,6 +157,25 @@ export async function recoverAccount(
   }
 }
 
+/**
+ * Check a `local` profile's recovery key against its recovery wrap, before a
+ * new password is asked for. Throws `RecoveryKeyInvalidError` (malformed key)
+ * or `RecoveryFailedError` (the key doesn't open the wrap).
+ */
+export async function checkLocalRecoveryKey(
+  recovery: RecoveryKeySchema,
+  rawRecoveryKey: string,
+): Promise<void> {
+  const recoveryKey = parseRecoveryKey(rawRecoveryKey);
+  try {
+    wipe(await unwrapAccountKeyWithRecoveryKey(recoveryKey, recovery));
+  } catch {
+    throw new RecoveryFailedError();
+  } finally {
+    wipe(recoveryKey);
+  }
+}
+
 /** What a local recovery stores in place of the old key wraps, and the key to show once. */
 export type LocalRecovery = {
   material: AccountKeyMaterial;

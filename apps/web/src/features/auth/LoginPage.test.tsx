@@ -689,7 +689,7 @@ describe("LoginPage local vault", () => {
     // Recovery stays on the device: no email, no server.
     expect(screen.getByRole("link", { name: /forgot password/i })).toHaveAttribute(
       "href",
-      "/recover?vault=local",
+      "/recover?vault=active",
     );
     expect(screen.queryByLabelText("Email")).toBeNull();
   });

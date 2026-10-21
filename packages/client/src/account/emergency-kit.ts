@@ -1,11 +1,15 @@
 import { localDateStamp, toBase64 } from "@repo/util";
 import type { PDFFont, PDFPage } from "pdf-lib";
 
+export const RECOVERY_KEY_GROUPS = 4;
+/** Characters per group of a recovery key (44 base64 characters). */
+export const RECOVERY_KEY_GROUP_LENGTH = 11;
+
 /**
  * The recovery key as shown and printed: base64 in four groups, easier to
  * transcribe and compare. `parseRecoveryKey` ignores the spaces between them.
  */
-export function recoveryKeyChunks(recoveryKey: Uint8Array, parts = 4): string[] {
+export function recoveryKeyChunks(recoveryKey: Uint8Array, parts = RECOVERY_KEY_GROUPS): string[] {
   const value = toBase64(recoveryKey);
   const size = Math.ceil(value.length / parts);
   return Array.from({ length: parts }, (_, i) => value.slice(i * size, (i + 1) * size)).filter(

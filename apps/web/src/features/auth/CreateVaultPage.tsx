@@ -30,6 +30,7 @@ import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
+import { useWarnBeforeUnload } from "@/hooks/use-warn-before-unload";
 import AuthCardHeader from "./AuthCardHeader";
 import { useAuthHome } from "./auth-home";
 import CreateErrorBox from "./CreateErrorBox";
@@ -83,12 +84,7 @@ export default function CreateVaultPage() {
   const [shown, setShown] = useState<NewRecoveryKey>();
 
   // Closing the tab now would lose a created vault's only recovery key.
-  useEffect(() => {
-    if (!keyPending) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [keyPending]);
+  useWarnBeforeUnload(keyPending);
 
   async function run(action: () => Promise<NewRecoveryKey | undefined>) {
     // This vault's only copy may live in OPFS (ADR 0001 D12). Asked before the
