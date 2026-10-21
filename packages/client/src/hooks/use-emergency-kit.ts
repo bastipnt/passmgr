@@ -2,6 +2,7 @@ import { normalizeEmail, wipe } from "@repo/crypto";
 import { useCallback, useState } from "react";
 import { createEmergencyKit, type EmergencyKitFile } from "../account/emergency-kit";
 import { useServerUrl } from "../providers/ClientProvider";
+import { absoluteServerUrl } from "../util/server-url";
 
 export type EmergencyKitOptions = {
   /** The account's email; absent for a local vault (the kit then names no server). */
@@ -9,18 +10,6 @@ export type EmergencyKitOptions = {
   name?: string;
   appUrl?: string;
 };
-
-/**
- * The server as a full address: web may be configured with a path on its own
- * origin (`/trpc`), useless on a printed page.
- */
-function absoluteUrl(url: string): string {
-  try {
-    return new URL(url, globalThis.location?.href).href;
-  } catch {
-    return url;
-  }
-}
 
 /**
  * - `saved`: handed over (downloaded, printed or shared)
@@ -57,7 +46,7 @@ export function useEmergencyKit(recoveryKey: Uint8Array | null, options: Emergen
             recoveryKey,
             // As the server stores it: what signing in or recovering matches.
             account: email
-              ? { email: normalizeEmail(email), serverUrl: absoluteUrl(serverUrl) }
+              ? { email: normalizeEmail(email), serverUrl: absoluteServerUrl(serverUrl) }
               : undefined,
             name: name || undefined,
             appUrl,

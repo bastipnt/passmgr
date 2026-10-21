@@ -52,21 +52,21 @@ export async function registerUser(page: Page, email: string, password: string):
   return recoveryKey;
 }
 
-/**
- * The login page opens the last used profile's unlock card when the browser
- * holds one: "Switch" to the email login (and the list of profiles).
- */
-export async function showEmailLogin(page: Page): Promise<void> {
-  await expect(page.locator("form")).toBeVisible({ timeout: 15_000 });
-  const switchButton = page.getByRole("button", { name: /^switch$/i });
-  if (await switchButton.isVisible()) await switchButton.click();
-  await expect(page.locator('input[name="email"]')).toBeVisible();
+/** The account login (email + password); a fresh page load, so nothing is unlocked. */
+export async function openAccountLogin(page: Page): Promise<void> {
+  await page.goto("/login/account");
+  await expect(page.locator('input[name="email"]')).toBeVisible({ timeout: 15_000 });
 }
 
-/** OPAQUE login through the LoginForm; resolves when redirected away from /login. */
+/** From the last used profile's unlock card, "Switch" to the list of every profile. */
+export async function showProfiles(page: Page): Promise<void> {
+  await page.getByRole("button", { name: /^switch$/i }).click();
+  await expect(page.getByRole("list", { name: /vaults on this device/i })).toBeVisible();
+}
+
+/** OPAQUE login on the account login; resolves when redirected away from it. */
 export async function loginUser(page: Page, email: string, password: string): Promise<void> {
-  await page.goto("/login");
-  await showEmailLogin(page);
+  await openAccountLogin(page);
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
@@ -98,8 +98,8 @@ export async function skipBiometricIfShown(page: Page): Promise<void> {
 
 /**
  * There is no logout UI yet. Drop the in-memory session by clearing local
- * storage + cookies + OPFS, then reload — equivalent to a fresh tab on a
- * different device.
+ * storage + cookies + OPFS, then open the account login — equivalent to a
+ * fresh tab on a different device.
  */
 export async function simulateLogout(page: Page): Promise<void> {
   await page.context().clearCookies();
@@ -117,5 +117,5 @@ export async function simulateLogout(page: Page): Promise<void> {
       }
     }
   });
-  await page.goto("/login");
+  await openAccountLogin(page);
 }

@@ -7,11 +7,13 @@ type StoredAccountRowProps = {
   email?: string;
   /** A local vault's name, if it has one. */
   name?: string | null;
+  /** In place of "Synced account" / "On this device only". */
+  detail?: string;
   /** Omitted when there is nothing to switch to. */
   onSwitch?: () => void;
 };
 
-export default function StoredAccountRow({ email, name, onSwitch }: StoredAccountRowProps) {
+export default function StoredAccountRow({ email, name, detail, onSwitch }: StoredAccountRowProps) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-foreground/8 bg-white/50 p-3 dark:border-white/10 dark:bg-white/[0.04]">
       {email ? <AccountAvatar email={email} /> : <LocalVaultAvatar />}
@@ -20,7 +22,7 @@ export default function StoredAccountRow({ email, name, onSwitch }: StoredAccoun
           {email ?? name ?? "Vault on this device"}
         </span>
         <span className="text-muted-foreground text-xs">
-          {email ? "Synced account" : "On this device only"}
+          {detail ?? (email ? "Synced account" : "On this device only")}
         </span>
       </div>
       {onSwitch && (

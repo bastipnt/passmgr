@@ -2,13 +2,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   profileLabel,
   signInErrorMessage,
+  signInToAccount,
   useLogin,
   useSecondFactorRequest,
   useStore,
   useUnlock,
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
-import { normalizeEmail } from "@repo/crypto";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -115,26 +115,16 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
         return;
       }
 
-      // A profile on this device: unlocked as if picked (same sheet-first dismissal).
-      const known = profiles.some((p) => p.mode === "linked" && p.email === normalizeEmail(email));
-      if (known) sheetRef.current?.triggerShowHide(false);
-      const unlocked = await timed("total unlock time", () =>
-        unlockByEmail(email, password, secondFactor.prompt),
-      );
-      if (unlocked !== undefined) {
-        if (!unlocked && known) sheetRef.current?.triggerShowHide(true);
-        return;
-      }
-
-      const unlockInfo = await timed("total login time", () =>
-        loginUser(email, password, secondFactor.prompt),
-      );
-      if (!unlockInfo) return;
-      // Close the sheet before unlocking. `unlock()` flips `loggedIn`, which makes the
+      // Close the sheet before a vault opens: `unlock()` flips `loggedIn`, which makes the
       // root `!loggedIn` guard swap to `(app)`; dismissing the native sheet first keeps
       // its window-level gesture recogniser from lingering over the new screen.
-      sheetRef.current?.triggerShowHide(false);
-      await timed("total unlock time", () => unlock(unlockInfo));
+      await signInToAccount(
+        { profiles, unlockByEmail, loginUser, unlock },
+        email,
+        password,
+        secondFactor.prompt,
+        (opening) => sheetRef.current?.triggerShowHide(!opening),
+      );
     } finally {
       setLoading(false);
     }

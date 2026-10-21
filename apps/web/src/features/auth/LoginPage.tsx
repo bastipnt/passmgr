@@ -8,41 +8,34 @@ import {
   useUnlock,
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/Card";
+import { buttonVariants } from "@repo/ui/components/Button";
+import { Card, CardContent } from "@repo/ui/components/Card";
 import { FieldError } from "@repo/ui/components/Field";
-import { EyeOffIcon } from "lucide-react";
+import { LogInIcon, ShieldPlusIcon } from "lucide-react";
 import { useCallback, useState } from "react";
+import { Link, Redirect } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
-import { AuthHero, HeroAccent, HeroChips } from "./AuthHero";
-import type { LoginFormValues } from "./LoginForm";
-import LoginForm from "./LoginForm";
-import PasswordNote from "./PasswordNote";
+import AuthCardHeader from "./AuthCardHeader";
+import PrivateWindowNote from "./PrivateWindowNote";
 import ProfileList from "./ProfileList";
-import SecondFactorForm from "./SecondFactorForm";
+import StepBar from "./StepBar";
 import { SignedOutNote } from "./signed-out";
 import UnlockCard from "./UnlockCard";
 
 /**
- * Unlock a profile on this device, or sign in (ADR 0001 D2). The last used
- * profile opens as "Unlock passmgr"; "Switch" shows the email login with every
- * profile on the device listed below it. Signing in with the email of a
- * profile on the device unlocks that profile; another account adds one.
+ * Unlock a profile on this device (ADR 0001 D2): the last used one opens as
+ * "Unlock passmgr"; "Switch" lists every profile on the device, with the way
+ * to log in to another account or create a vault.
  */
 export default function LoginPage() {
-  const { loginUser, clearLoginError, clearLoginErrors, loginError } = useLogin();
-  // An account with two-factor on: the code step takes the form's place.
+  const { clearLoginError, clearLoginErrors, loginError } = useLogin();
+  // An account with two-factor on: the unlock card asks for the code.
   const secondFactor = useSecondFactorRequest();
-  const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
+  const { unlockLocal, unlockError, clearUnlockError } = useUnlock();
 
-  // "Switch": the login with the device's profiles, instead of the active profile's unlock.
+  // "Switch": every profile on the device, instead of the active profile's unlock.
   const [switching, setSwitching] = useState(false);
   const [loading, setLoading] = useState(false);
   const [pickFailed, setPickFailed] = useState(false);
@@ -65,27 +58,7 @@ export default function LoginPage() {
     }
   };
 
-  const onLogin = async ({ password, email }: LoginFormValues) => {
-    setLoading(true);
-    try {
-      // A profile on this device: unlocked as if picked.
-      const unlocked = await timed("total unlock time", () =>
-        unlockByEmail(email, password, secondFactor.prompt),
-      );
-      if (unlocked !== undefined) return;
-
-      // An account new to this device: the server login adds its profile.
-      const unlockVaultInfo = await timed("total login time", () =>
-        loginUser(email, password, secondFactor.prompt),
-      );
-      if (!unlockVaultInfo) return;
-      await timed("total unlock time", () => unlock(unlockVaultInfo));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Stable: the forms subscribe to edits with it.
+  // Stable: the form subscribes to edits with it.
   const onEdit = useCallback(() => {
     clearLoginError();
     clearUnlockError();
@@ -109,18 +82,14 @@ export default function LoginPage() {
     }
   }
 
-  // Until the profiles are read, nothing tells the unlock from the login apart.
   if (!store.loaded) return null;
+  if (store.profiles.length === 0) return <Redirect to={authPaths.welcome} replace />;
 
   const privateWindowNote = persistent === false && (
-    <p
-      role="note"
-      className="flex items-start justify-center gap-1.5 text-center text-muted-foreground text-xs"
-    >
-      <EyeOffIcon className="mt-px size-3.5 shrink-0" aria-hidden />
+    <PrivateWindowNote>
       This browser doesn&apos;t let passmgr store vaults (private window?). A vault created here is
       gone once you lock, reload or close the tab.
-    </p>
+    </PrivateWindowNote>
   );
 
   if (unlocking) {
@@ -163,61 +132,46 @@ export default function LoginPage() {
   return (
     <>
       <PageMeta
-        title="Sign in"
-        description="Sign in to your passmgr vault. Zero-knowledge OPAQUE login — your password never leaves this device."
+        title="Switch vault"
+        description="Pick a passmgr vault on this device, or log in to another account."
         canonicalPath={authPaths.login}
       />
-      <AuthHero
-        title={
-          <>
-            Your secrets, <HeroAccent>seen by no one</HeroAccent> but you.
-          </>
-        }
-        lead="passmgr encrypts your vault on this device before anything leaves it. The server never learns your password — not even once."
-      >
-        <HeroChips items={["Zero-knowledge", "OPAQUE login", "End-to-end encrypted"]} />
-      </AuthHero>
-
-      <div className="flex w-full flex-col gap-4">
-        <SignedOutNote />
-        {secondFactor.request && (
-          <Card variant="glass">
-            <CardHeader>
-              <CardTitle>Two-factor authentication</CardTitle>
-              <CardDescription>Enter the code from your authenticator app.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <SecondFactorForm
-                request={secondFactor.request}
-                onSubmit={secondFactor.submit}
-                onCancel={secondFactor.cancel}
-              />
-            </CardContent>
-          </Card>
-        )}
-        {/* Hidden, not unmounted: the typed credentials stay for the unlock that follows. */}
-        <div hidden={secondFactor.request !== null}>
-          <LoginForm
-            footer={<PasswordNote />}
-            onSubmit={onLogin}
-            error={signInErrorMessage(loginError, unlockError, false)}
-            loading={loading}
-            onEdit={onEdit}
-          />
-        </div>
-
+      <div className="flex w-full flex-col gap-4 lg:col-span-full lg:mx-auto lg:max-w-md">
+        <Card variant="glass" flatOnPhone>
+          <StepBar onBack={unlockable ? () => setSwitching(false) : undefined} disabled={false} />
+          <AuthCardHeader title="Switch vault" />
+          <CardContent className="flex flex-col gap-5">
+            <SignedOutNote />
+            {pickFailed && (
+              <FieldError variant="box">
+                <strong className="font-semibold">That vault couldn&apos;t be opened.</strong>{" "}
+                Please try again.
+              </FieldError>
+            )}
+            <ProfileList
+              profiles={store.profiles}
+              onPick={(profileId) => void pickProfile(profileId)}
+              onRemoveAll={() => void store.removeAllProfiles()}
+            />
+            <div className="flex flex-col gap-3">
+              <Link
+                href={authPaths.accountLogin}
+                className={buttonVariants({ variant: "outline", size: "lg" })}
+              >
+                <LogInIcon data-icon="inline-start" />
+                Log in to another account
+              </Link>
+              <Link
+                href={authPaths.create}
+                className={buttonVariants({ variant: "outline", size: "lg" })}
+              >
+                <ShieldPlusIcon data-icon="inline-start" />
+                Create new vault
+              </Link>
+            </div>
+          </CardContent>
+        </Card>
         {privateWindowNote}
-        {pickFailed && (
-          <FieldError variant="box">
-            <strong className="font-semibold">That vault couldn&apos;t be opened.</strong> Please
-            try again.
-          </FieldError>
-        )}
-        <ProfileList
-          profiles={store.profiles}
-          onPick={(profileId) => void pickProfile(profileId)}
-          onRemoveAll={() => void store.removeAllProfiles()}
-        />
       </div>
     </>
   );

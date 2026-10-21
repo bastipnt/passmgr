@@ -34,7 +34,7 @@ describe("WelcomePage", () => {
   it("offers a new vault, logging in or restoring a backup", () => {
     renderWelcome();
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
-    expect(links).toEqual([authPaths.create, authPaths.login, authPaths.restore]);
+    expect(links).toEqual([authPaths.create, authPaths.accountLogin, authPaths.restore]);
   });
 
   it("an invite goes along to the create flow", () => {

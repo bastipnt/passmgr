@@ -1,9 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { SecondFactorRequest, SignInErrorMessage } from "@repo/client";
+import type { SignInErrorMessage } from "@repo/client";
 import { useForm } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
-import { Card, CardContent, CardHeader, CardTitle } from "@repo/ui/components/Card";
+import { Card, CardContent } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
@@ -12,9 +12,10 @@ import { ArrowRightIcon, LockIcon, TrashIcon } from "lucide-react";
 import { useEffect, useState } from "react";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
+import AuthCardHeader from "./AuthCardHeader";
 import AuthTextLink from "./AuthTextLink";
 import { BiometricUnlockButton } from "./BiometricUnlockButton";
-import SecondFactorForm from "./SecondFactorForm";
+import SecondFactorStep, { type SecondFactor } from "./SecondFactorStep";
 import SignInError from "./SignInError";
 import StoredAccountRow from "./StoredAccountRow";
 import { SignedOutNote } from "./signed-out";
@@ -34,11 +35,7 @@ type UnlockCardProps = {
   setLoading: (loading: boolean) => void;
   /** The user edited the password — a shown error no longer applies. */
   onEdit: () => void;
-  secondFactor: {
-    request: SecondFactorRequest | null;
-    submit: (code: string) => void;
-    cancel: () => void;
-  };
+  secondFactor: SecondFactor;
   removeDescription: string;
   onRemove: () => void;
 };
@@ -64,11 +61,7 @@ export default function UnlockCard({
 
   return (
     <Card variant="glass" flatOnPhone>
-      <CardHeader>
-        <CardTitle className="max-sm:font-extrabold max-sm:text-4xl max-sm:tracking-[-0.035em]">
-          Unlock passmgr
-        </CardTitle>
-      </CardHeader>
+      <AuthCardHeader title="Unlock passmgr" />
 
       <CardContent className="flex flex-col gap-6">
         {/* On a phone the vault sits at the same height with or without the note. */}
@@ -78,20 +71,8 @@ export default function UnlockCard({
 
         <StoredAccountRow email={email} name={name} onSwitch={challenged ? undefined : onSwitch} />
 
-        {challenged && secondFactor.request && (
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-1">
-              <p className="font-semibold text-base">Two-factor authentication</p>
-              <p className="text-muted-foreground text-sm">
-                Enter the code from your authenticator app.
-              </p>
-            </div>
-            <SecondFactorForm
-              request={secondFactor.request}
-              onSubmit={secondFactor.submit}
-              onCancel={secondFactor.cancel}
-            />
-          </div>
+        {secondFactor.request && (
+          <SecondFactorStep {...secondFactor} request={secondFactor.request} />
         )}
 
         {/* Hidden, not unmounted: the typed password stays for the unlock that follows. */}

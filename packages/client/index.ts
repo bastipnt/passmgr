@@ -1,6 +1,7 @@
 // Utils
 
 // Account
+export * from "./src/account/account-sign-in";
 export * from "./src/account/emergency-kit";
 
 // Export
@@ -68,7 +69,11 @@ export * from "./src/preferences/PreferencesStore";
 // Preferences
 export * from "./src/preferences/preference-keys";
 export * from "./src/preferences/security-choices";
-export { default as ClientProvider, useServerUrl } from "./src/providers/ClientProvider";
+export {
+  default as ClientProvider,
+  useServerHost,
+  useServerUrl,
+} from "./src/providers/ClientProvider";
 export * from "./src/providers/PreferencesProvider";
 export * from "./src/providers/RecordsProvider";
 export * from "./src/providers/SecondFactorPromptProvider";
@@ -114,6 +119,7 @@ export * from "./src/util/encrypt-record";
 export { endServerSession } from "./src/util/end-server-session";
 export { generateAuthHeaders } from "./src/util/headers";
 export * from "./src/util/profile-label";
+export * from "./src/util/server-url";
 export * from "./src/util/session-label";
 export { useTRPC, useTRPCClient } from "./src/util/trpc";
 export * from "./src/vaults/revoked";

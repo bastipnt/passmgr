@@ -2,10 +2,10 @@ import { createHmac } from "node:crypto";
 import { expect, type Page } from "@playwright/test";
 import {
   loginUser,
+  openAccountLogin,
   randomEmail,
   randomPassword,
   registerUser,
-  showEmailLogin,
   simulateLogout,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
@@ -94,7 +94,7 @@ async function enableTwoFactor(page: Page, password: string, used: Set<number>) 
   return { secret, backupCodes };
 }
 
-/** Submit a code in the code step (on the login page or in the prompt dialog). */
+/** Submit a code in the code step (on the account login or in the prompt dialog). */
 async function enterCode(
   scope: Page | ReturnType<Page["getByRole"]>,
   code: string,
@@ -107,17 +107,16 @@ async function enterCode(
   await scope.getByRole("button", { name: "Verify" }).click();
 }
 
-/** The email login up to the code step. */
+/** The account login up to the code step. */
 async function startLogin(page: Page, email: string, password: string): Promise<void> {
-  await page.goto("/login");
-  await showEmailLogin(page);
+  await openAccountLogin(page);
   await page.locator('input[name="email"]').fill(email);
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
   await expect(page.getByLabel("Authentication code")).toBeVisible({ timeout: 30_000 });
 }
 
-/** After the code step of the login page: resolves once the vault is open. */
+/** After the account login's code step: resolves once the vault is open. */
 async function expectLoggedIn(page: Page): Promise<void> {
   await page.waitForURL((url) => !url.pathname.startsWith("/login"), { timeout: 30_000 });
   await expectInApp(page);

@@ -102,7 +102,11 @@ export default function WelcomePage() {
         <CardContent className="flex flex-col gap-6">
           <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
             <Choice href={createHref} icon={ShieldPlusIcon} title="Create a new vault" primary />
-            <Choice href={authPaths.login} icon={LogInIcon} title="Log in to an existing account" />
+            <Choice
+              href={authPaths.accountLogin}
+              icon={LogInIcon}
+              title="Log in to an existing account"
+            />
           </nav>
           <p className="text-center text-muted-foreground text-sm">
             Have a backup file? <AuthTextLink href={authPaths.restore}>Restore it</AuthTextLink>

@@ -1,7 +1,10 @@
 export const authPaths = {
   /** First visit, no vault on the device: how to start (ADR 0001 D2). Else → login. */
   welcome: "/welcome",
+  /** The last used vault's unlock. */
   login: "/login",
+  /** Email + password of an account: unlocks its vault on the device, or brings it here. */
+  accountLogin: "/login/account",
   enrollBiometric: "/enroll-biometric",
   /** A new vault, on this device first; an account to sync it is optional (ADR 0001 D2, D9). */
   create: "/create",

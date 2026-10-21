@@ -2,10 +2,10 @@ import { expect, type Page } from "@playwright/test";
 import {
   expectLoginRejected,
   loginUser,
+  openAccountLogin,
   randomEmail,
   randomPassword,
   registerUser,
-  showEmailLogin,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
 import {
@@ -93,8 +93,7 @@ test("changing an account's password signs out other devices and keeps the recor
 
   // A device that never held the vault: the old password fails, the new one opens every record.
   const fresh = thirdDevice;
-  await fresh.goto("/login");
-  await showEmailLogin(fresh);
+  await openAccountLogin(fresh);
   await expectLoginRejected(fresh, oldPassword, email);
   await loginUser(fresh, email, newPassword);
   await expectInApp(fresh);

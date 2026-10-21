@@ -5,7 +5,7 @@ import {
   randomPassword,
   registerUser,
   saveRecoveryKey,
-  showEmailLogin,
+  showProfiles,
   skipBiometricIfShown,
 } from "./helpers/auth";
 
@@ -60,7 +60,7 @@ test.describe("multiple profiles per device", () => {
     await expect(unlockCard(page, bob.email)).toBeVisible();
 
     // A vault without an account, next to the two.
-    await showEmailLogin(page);
+    await showProfiles(page);
     await page.locator('a[href="/create"]').first().click();
     await page.locator('input[name="name"]').fill("Travel");
     await page.locator('input[name="password"]').fill(localPassword);
@@ -72,7 +72,7 @@ test.describe("multiple profiles per device", () => {
 
     await lockByReload(page);
     await expect(unlockCard(page, "Travel")).toBeVisible();
-    await showEmailLogin(page);
+    await showProfiles(page);
     await expect(profileList(page).getByRole("button")).toHaveCount(3);
 
     // Picking a profile unlocks it with the password alone.
@@ -89,7 +89,7 @@ test.describe("multiple profiles per device", () => {
     await inApp(page);
     await lockByReload(page);
     await expect(unlockCard(page, bob.email)).toBeVisible();
-    await showEmailLogin(page);
+    await showProfiles(page);
     await expect(profileList(page).getByRole("button")).toHaveCount(3);
 
     // Remove all: back to a device without profiles.
@@ -99,8 +99,7 @@ test.describe("multiple profiles per device", () => {
     await dialog.getByRole("button", { name: /^remove all$/i }).click();
     await expect(profileList(page)).toHaveCount(0);
 
-    await lockByReload(page);
-    await expect(page.getByRole("button", { name: /^switch$/i })).toHaveCount(0);
-    await expect(page.locator('input[name="email"]')).toBeVisible();
+    await page.goto("/login");
+    await expect(page).toHaveURL(/\/welcome$/);
   });
 });

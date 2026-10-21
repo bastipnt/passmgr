@@ -10,8 +10,9 @@ type AuthLayoutProps = {
 };
 
 /**
- * Light-field backdrop with a brand bar. Pages render an `AuthHero` and a
- * glass card as their two children, which sit side by side from `lg` up.
+ * Light-field backdrop with a brand bar. A page renders an `AuthHero` and a
+ * glass card, side by side from `lg` up, or one column spanning the row
+ * (`lg:col-span-full`).
  * Below `sm` it is a top-aligned column: a page can pin a footer with `mt-auto`.
  */
 export default function AuthLayout({ children, phoneHeader = true }: AuthLayoutProps) {

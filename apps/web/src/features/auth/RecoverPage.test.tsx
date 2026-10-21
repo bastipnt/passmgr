@@ -3,6 +3,7 @@ import type { LocalProfile } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { authPaths } from "@/app/route-paths";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import RecoverPage from "./RecoverPage";
 
@@ -110,7 +111,7 @@ describe("RecoverPage", () => {
 
     await waitFor(() => {
       expect(key.every((b) => b === 0)).toBe(true);
-      expect(navigate).toHaveBeenCalledWith("/login");
+      expect(navigate).toHaveBeenCalledWith(authPaths.accountLogin);
     });
   });
 

@@ -5,28 +5,18 @@ import {
   type NewRecoveryKey,
   useAppConfig,
   useCreateVault,
-  useStore,
 } from "@repo/client";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/Card";
+import { Card, CardContent } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { cn } from "@repo/ui/lib/utils";
 import {
   ArrowRightIcon,
-  ChevronLeftIcon,
   CloudIcon,
-  EyeOffIcon,
   HardDriveIcon,
   LockIcon,
   type LucideIcon,
@@ -44,10 +34,13 @@ import { PageMeta } from "@/components/PageMeta";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
-import AuthNote from "./AuthNote";
+import AuthCardHeader from "./AuthCardHeader";
 import AuthTextLink from "./AuthTextLink";
+import { useAuthHome } from "./auth-home";
 import PasswordNote from "./PasswordNote";
+import PrivateWindowNote from "./PrivateWindowNote";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
+import StepBar from "./StepBar";
 import { useHoldUnlockRedirect } from "./unlock-redirect";
 
 const vaultSchema = z
@@ -80,7 +73,6 @@ export default function CreateVaultPage() {
   const invite = searchParams.get("invite") ?? undefined;
   const { registrationEnabled } = useAppConfig();
   const canSync = registrationEnabled || invite !== undefined;
-  const store = useStore();
   const persistent = useStoragePersistent();
 
   const holdRedirect = useHoldUnlockRedirect();
@@ -132,9 +124,9 @@ export default function CreateVaultPage() {
     else void keepLocal(values);
   };
 
-  const leave = () => navigate(store.profiles.length > 0 ? authPaths.login : authPaths.welcome);
+  const home = useAuthHome();
   const back = {
-    vault: leave,
+    vault: () => navigate(home),
     sync: created ? undefined : () => setStep("vault"),
     email: () => {
       clearLinkError();
@@ -194,7 +186,7 @@ export default function CreateVaultPage() {
 
           {step === "sync" && (
             <>
-              <StepHeader
+              <AuthCardHeader
                 title="Sync across devices?"
                 description="Create an account to keep this vault on your other devices too. Still end-to-end encrypted."
               />
@@ -271,64 +263,6 @@ export default function CreateVaultPage() {
   );
 }
 
-function StepBar({
-  onBack,
-  step,
-  disabled,
-}: {
-  onBack?: () => void;
-  /** Absent when there is only one step. */
-  step?: 1 | 2;
-  disabled: boolean;
-}) {
-  return (
-    <CardContent className="flex min-h-8 items-center justify-between">
-      {onBack ? (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          className="-ml-2.5 text-muted-foreground max-sm:h-12 max-sm:text-sm"
-          onClick={onBack}
-          disabled={disabled}
-        >
-          <ChevronLeftIcon data-icon="inline-start" />
-          Back
-        </Button>
-      ) : (
-        <span />
-      )}
-      {step && (
-        <p className="flex items-center gap-2.5 text-muted-foreground text-xs">
-          Step {step} of 2
-          <span aria-hidden className="flex gap-1">
-            {[1, 2].map((n) => (
-              <span
-                key={n}
-                className={cn(
-                  "h-1 w-5 rounded-full",
-                  n <= step ? "bg-primary" : "bg-foreground/15",
-                )}
-              />
-            ))}
-          </span>
-        </p>
-      )}
-    </CardContent>
-  );
-}
-
-function StepHeader({ title, description }: { title: string; description: ReactNode }) {
-  return (
-    <CardHeader>
-      <CardTitle className="max-sm:font-extrabold max-sm:text-4xl max-sm:tracking-[-0.035em]">
-        {title}
-      </CardTitle>
-      <CardDescription>{description}</CardDescription>
-    </CardHeader>
-  );
-}
-
 function VaultStep({
   onSubmit,
   loading,
@@ -350,7 +284,7 @@ function VaultStep({
 
   return (
     <>
-      <StepHeader
+      <AuthCardHeader
         title="Create a new vault"
         description="Give it a name and choose a password. You'll use the password every time you unlock."
       />
@@ -442,7 +376,7 @@ function EmailStep({
 
   return (
     <div hidden={!visible} className="flex flex-col gap-6">
-      <StepHeader
+      <AuthCardHeader
         title="Sync across devices"
         description="Add your email to sign in on other devices."
       />
@@ -533,14 +467,6 @@ function CreateErrorBox({ error }: { error: "failed" | "unlock_failed" }) {
         "Creating the vault failed. Please try again."
       )}
     </FieldError>
-  );
-}
-
-function PrivateWindowNote({ children }: { children: ReactNode }) {
-  return (
-    <AuthNote tone="warning" icon={<EyeOffIcon />}>
-      {children}
-    </AuthNote>
   );
 }
 

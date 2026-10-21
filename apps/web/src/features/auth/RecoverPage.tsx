@@ -76,6 +76,7 @@ export default function RecoverPage() {
   const { profile } = useStore();
   const { networkOffline } = useContext(SessionContext);
   const local = searchParams.get("vault") === "local" && profile?.mode === "local";
+  const loginPath = local ? authPaths.login : authPaths.accountLogin;
   const [loading, setLoading] = useState(false);
   const [newRecoveryKey, setNewRecoveryKey] = useState<Uint8Array | null>(null);
   const [recoveredEmail, setRecoveredEmail] = useState("");
@@ -122,7 +123,7 @@ export default function RecoverPage() {
         }
         onDone={() => {
           setNewRecoveryKey(null);
-          navigate(authPaths.login);
+          navigate(loginPath);
         }}
       />
 
@@ -142,7 +143,7 @@ export default function RecoverPage() {
             <CardHeader>
               <CardTitle>Reset password</CardTitle>
               <CardDescription>
-                Remembered it? <AuthTextLink href={authPaths.login}>Log in</AuthTextLink>
+                Remembered it? <AuthTextLink href={loginPath}>Log in</AuthTextLink>
               </CardDescription>
             </CardHeader>
 

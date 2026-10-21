@@ -6,6 +6,7 @@ import { lazyPreload } from "@/lib/lazy-preload";
 import AuthLayout from "./AuthLayout";
 import { HoldUnlockRedirectContext } from "./unlock-redirect";
 
+const AccountLoginPage = lazyPreload(() => import("./AccountLoginPage"));
 const BiometricEnrollPage = lazyPreload(() => import("./BiometricEnrollPage"));
 const CreateVaultPage = lazyPreload(() => import("./CreateVaultPage"));
 const LoginPage = lazyPreload(() => import("./LoginPage"));
@@ -18,6 +19,7 @@ export default function AuthRoutes() {
   const { needsBiometricEnroll, profile } = useStore();
   const [isEnrollBiometricRoute] = useRoute(authPaths.enrollBiometric);
   const [isCreateRoute] = useRoute(authPaths.create);
+  const [isAccountLoginRoute] = useRoute(authPaths.accountLogin);
   const [redirectHeld, setRedirectHeld] = useState(false);
 
   if (vaultUnlocked && !redirectHeld) {
@@ -27,12 +29,13 @@ export default function AuthRoutes() {
   }
 
   return (
-    <AuthLayout phoneHeader={!isCreateRoute}>
+    <AuthLayout phoneHeader={!isCreateRoute && !isAccountLoginRoute}>
       <HoldUnlockRedirectContext value={setRedirectHeld}>
         <Suspense fallback={null}>
           <Switch>
             <Route path={authPaths.welcome} component={WelcomePage} />
             <Route path={authPaths.login} component={LoginPage} />
+            <Route path={authPaths.accountLogin} component={AccountLoginPage} />
             <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
             <Route path={authPaths.recover} component={RecoverPage} />
             <Route path={authPaths.create} component={CreateVaultPage} />

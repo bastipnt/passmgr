@@ -11,6 +11,7 @@ import {
 import type { EventSourceLike } from "@trpc/server/unstable-core-do-not-import";
 import { createContext, type ReactNode, useContext, useState } from "react";
 import { generateAuthHeaders, generateSubscriptionParams } from "../util/headers";
+import { serverHost } from "../util/server-url";
 import { TRPCProvider } from "../util/trpc";
 
 function makeQueryClient() {
@@ -32,6 +33,10 @@ export function useServerUrl(): string {
   const serverUrl = useContext(ServerUrlContext);
   if (serverUrl === null) throw new Error("useServerUrl must be used within ClientProvider");
   return serverUrl;
+}
+
+export function useServerHost(): string {
+  return serverHost(useServerUrl());
 }
 
 let browserQueryClient: QueryClient | undefined = undefined;

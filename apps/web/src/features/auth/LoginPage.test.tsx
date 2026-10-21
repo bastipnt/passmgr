@@ -16,9 +16,13 @@ import { type LocalProfile, secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { Router } from "wouter";
+import { memoryLocation } from "wouter/memory-location";
+import { authPaths } from "@/app/route-paths";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen, waitFor, within } from "@/test/render";
+import AccountLoginPage from "./AccountLoginPage";
 import LoginPage from "./LoginPage";
 
 // Real `useUnlock` / `useLogin`; only the layers below them are replaced.
@@ -102,25 +106,31 @@ const session: ContextType<typeof SessionContext> = {
   lock,
 };
 
-function renderPage({ networkOffline = true } = {}) {
+function renderPage({ networkOffline = true, Page = LoginPage } = {}) {
+  const location = memoryLocation({ path: authPaths.login, record: true });
   renderWithProviders(
-    <SessionContext.Provider value={{ ...session, networkOffline }}>
-      <LoginPage />
-    </SessionContext.Provider>,
+    <Router hook={location.hook}>
+      <SessionContext.Provider value={{ ...session, networkOffline }}>
+        <Page />
+      </SessionContext.Provider>
+    </Router>,
   );
+  return location;
 }
 
-/** "Switch" from the active profile's unlock to the email login (if it shows). */
-async function showLogin() {
-  const switchButton = screen.queryByRole("button", { name: /^switch$/i });
-  if (switchButton) await userEvent.click(switchButton);
+function renderAccountLogin({ networkOffline = true } = {}) {
+  return renderPage({ networkOffline, Page: AccountLoginPage });
+}
+
+/** "Switch" from the active profile's unlock to the list of profiles. */
+async function showProfiles() {
+  await userEvent.click(screen.getByRole("button", { name: /^switch$/i }));
 }
 
 async function login(email: string, password: string) {
-  await showLogin();
   await userEvent.type(screen.getByLabelText("Email"), email);
   await userEvent.type(screen.getByLabelText("Password"), password);
-  await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+  await userEvent.click(screen.getByRole("button", { name: /^log in$/i }));
 }
 
 /** The active profile's unlock: the password alone. */
@@ -195,7 +205,7 @@ describe("LoginPage offline", () => {
   });
 
   it("can't add an account the device has no profile for", async () => {
-    renderPage();
+    renderAccountLogin();
     await login("mallory@example.com", "some password");
 
     await screen.findByText(/can't add an account offline/i);
@@ -222,7 +232,7 @@ describe("LoginPage offline", () => {
   it("signs in by email to a profile on the device as if it was picked", async () => {
     store.profiles = [profileEntry(bobProfile), profileEntry(linkedProfile)];
     store.profile = bobProfile;
-    renderPage();
+    renderAccountLogin();
     await login("Alice@Example.com", "right password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
@@ -304,29 +314,20 @@ describe("LoginPage stored vault", () => {
   });
 });
 
-describe("LoginPage errors", () => {
+describe("AccountLoginPage errors", () => {
   beforeEach(resetMocks);
 
   it("hides the error once the credentials are edited", async () => {
-    renderPage();
+    renderAccountLogin();
     await login("mallory@example.com", "some password");
     await screen.findByText(/can't add an account offline/i);
 
     await userEvent.type(screen.getByLabelText("Password"), "x");
     expect(screen.queryByText(/can't add an account offline/i)).not.toBeInTheDocument();
   });
-
-  it("hides the error when picking a profile", async () => {
-    renderPage();
-    await login("mallory@example.com", "some password");
-    await screen.findByText(/can't add an account offline/i);
-
-    await userEvent.click(profileButton(/alice@example.com/i));
-    expect(screen.queryByText(/can't add an account offline/i)).not.toBeInTheDocument();
-  });
 });
 
-describe("LoginPage online", () => {
+describe("AccountLoginPage online", () => {
   beforeEach(() => {
     resetMocks();
     vi.mocked(argon2WorkerService.derive).mockRejectedValue(new Error("worker crashed"));
@@ -336,7 +337,7 @@ describe("LoginPage online", () => {
   it("revokes the fresh server session when the vault can't be unlocked", async () => {
     store.profiles = [];
     store.profile = null;
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("alice@example.com", "right password");
 
     await screen.findByText(/check your email and password/i);
@@ -348,7 +349,7 @@ describe("LoginPage online", () => {
   it("adds an account new to this device next to the profiles already there", async () => {
     vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
     vi.mocked(loginUserCore).mockImplementation(serverLogin("user-bob"));
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
@@ -362,7 +363,7 @@ describe("LoginPage online", () => {
 
   it("says the server can't be reached instead of blaming the credentials", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new LoginUnreachableError());
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "some password");
 
     await screen.findByText(/can't reach the server/i);
@@ -371,28 +372,25 @@ describe("LoginPage online", () => {
 
   it("blames the credentials when the server refuses them", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new OpaqueLoginFailedError());
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "wrong password");
 
     await screen.findByText(/check your email and password/i);
     expect(screen.queryByText(/can't reach the server/i)).not.toBeInTheDocument();
   });
 
-  it("keeps the throttle warning on edits, but drops it when picking a profile", async () => {
+  it("keeps the throttle warning on edits", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new LoginThrottledError());
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("mallory@example.com", "some password");
     await screen.findByText(/too many login attempts/i);
 
     await userEvent.type(screen.getByLabelText("Password"), "x");
     expect(screen.getByText(/too many login attempts/i)).toBeInTheDocument();
-
-    await userEvent.click(profileButton(/alice@example.com/i));
-    expect(screen.queryByText(/too many login attempts/i)).not.toBeInTheDocument();
   });
 });
 
-describe("LoginPage two-factor", () => {
+describe("two-factor", () => {
   beforeEach(() => {
     resetMocks();
     store.profiles = [];
@@ -422,11 +420,14 @@ describe("LoginPage two-factor", () => {
 
   it("asks for the code in place of the form, then signs in", async () => {
     vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     const code = await screen.findByLabelText("Authentication code");
     expect(screen.getByLabelText("Password")).not.toBeVisible();
+    // The account it signs in to, on this server.
+    expect(screen.getByText("bob@example.com")).toBeInTheDocument();
+    expect(screen.getAllByText("vault.example.com")).not.toHaveLength(0);
     await userEvent.type(code, "123456");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
 
@@ -436,7 +437,7 @@ describe("LoginPage two-factor", () => {
 
   it("says a wrong code didn't work and asks again", async () => {
     vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await userEvent.type(await screen.findByLabelText("Authentication code"), "000000");
@@ -450,7 +451,7 @@ describe("LoginPage two-factor", () => {
 
   it("takes a backup code", async () => {
     vi.mocked(loginUserCore).mockImplementation(challengedLogin("abcde-fghjk"));
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await userEvent.click(await screen.findByRole("button", { name: "Use a backup code" }));
@@ -461,7 +462,7 @@ describe("LoginPage two-factor", () => {
 
   it("cancelling goes back to the form without an error", async () => {
     vi.mocked(loginUserCore).mockImplementation(challengedLogin("123456"));
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await screen.findByLabelText("Authentication code");
@@ -492,7 +493,7 @@ describe("LoginPage two-factor", () => {
 
   it("says when the two-factor step ran out", async () => {
     vi.mocked(loginUserCore).mockRejectedValue(new SecondFactorExpiredError());
-    renderPage({ networkOffline: false });
+    renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
     await screen.findByText(/two-factor sign-in timed out/i);
@@ -513,7 +514,7 @@ describe("LoginPage profiles", () => {
     renderPage();
     expect(screen.queryByRole("list", { name: /vaults on this device/i })).not.toBeInTheDocument();
 
-    await showLogin();
+    await showProfiles();
     expect(profileButton(/alice@example.com/i)).toBeInTheDocument();
     expect(profileButton(/travel/i)).toBeInTheDocument();
     expect(profileButton(/bob@example.com/i)).toBeInTheDocument();
@@ -532,7 +533,7 @@ describe("LoginPage profiles", () => {
 
   it("picking a profile opens its unlock", async () => {
     renderPage();
-    await showLogin();
+    await showProfiles();
     await userEvent.click(profileButton(/travel/i));
 
     expect(store.selectProfile).toHaveBeenCalledWith(localProfile.profileId);
@@ -543,7 +544,7 @@ describe("LoginPage profiles", () => {
   it("says so when a picked profile can't be opened, staying on the list", async () => {
     store.selectProfile.mockRejectedValueOnce(new Error("disk I/O error"));
     renderPage();
-    await showLogin();
+    await showProfiles();
     await userEvent.click(profileButton(/travel/i));
 
     expect(await screen.findByText(/couldn.t be opened/i)).toBeInTheDocument();
@@ -562,7 +563,7 @@ describe("LoginPage profiles", () => {
   it("removes every profile after a warning that names what is lost", async () => {
     store.countPendingChanges.mockResolvedValue(2);
     renderPage();
-    await showLogin();
+    await showProfiles();
     await userEvent.click(screen.getByRole("button", { name: /remove all vaults/i }));
 
     const dialog = await screen.findByRole("dialog");
@@ -572,6 +573,61 @@ describe("LoginPage profiles", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: /^remove all$/i }));
 
     expect(store.removeAllProfiles).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("AccountLoginPage", () => {
+  beforeEach(resetMocks);
+
+  it("names the server it logs in to", () => {
+    renderAccountLogin();
+    expect(screen.getByText("vault.example.com")).toBeInTheDocument();
+  });
+
+  it("says the vault is gone on lock or reload in a private window", () => {
+    vi.mocked(useStoragePersistent).mockReturnValue(false);
+    renderAccountLogin();
+    expect(screen.getByRole("note")).toHaveTextContent(/log in again to bring it back/i);
+  });
+
+  it("offers to try again when the server can't be reached", async () => {
+    vi.mocked(loginUserCore).mockRejectedValue(new LoginUnreachableError());
+    renderAccountLogin({ networkOffline: false });
+    await login("bob@example.com", "some password");
+
+    expect(await screen.findByRole("button", { name: /^try again$/i })).toBeInTheDocument();
+  });
+});
+
+describe("LoginPage switch", () => {
+  beforeEach(resetMocks);
+
+  it("goes to the welcome screen when the device holds no vault", () => {
+    store.profiles = [];
+    store.profile = null;
+    const location = renderPage();
+    expect(location.history.at(-1)).toBe(authPaths.welcome);
+  });
+
+  it("offers to log in to another account or create a vault", async () => {
+    renderPage();
+    await showProfiles();
+
+    expect(screen.getByRole("link", { name: /log in to another account/i })).toHaveAttribute(
+      "href",
+      authPaths.accountLogin,
+    );
+    expect(screen.getByRole("link", { name: /create new vault/i })).toHaveAttribute(
+      "href",
+      authPaths.create,
+    );
+  });
+
+  it("goes back to the unlock", async () => {
+    renderPage();
+    await showProfiles();
+    await userEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    expect(screen.getByRole("button", { name: /^unlock$/i })).toBeInTheDocument();
   });
 });
 

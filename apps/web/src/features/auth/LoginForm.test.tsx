@@ -16,7 +16,7 @@ describe("LoginForm", () => {
 
     await userEvent.type(screen.getByLabelText("Email"), "user@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await userEvent.click(screen.getByRole("button", { name: /^unlock vault$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^log in$/i }));
 
     expect(onSubmit).toHaveBeenCalledTimes(1);
     expect(onSubmit).toHaveBeenCalledWith(
@@ -50,6 +50,11 @@ describe("LoginForm", () => {
     expect(screen.getByText(/too many login attempts/i)).toBeInTheDocument();
   });
 
+  it("offers to try again after the server couldn't be reached", () => {
+    renderWithProviders(<LoginForm onSubmit={vi.fn()} loading={false} retry />);
+    expect(screen.getByRole("button", { name: /^try again$/i })).toBeInTheDocument();
+  });
+
   it("password input has type=password and autocomplete=current-password", () => {
     renderWithProviders(<LoginForm onSubmit={vi.fn()} loading={false} />);
 
@@ -67,7 +72,7 @@ describe("LoginForm", () => {
 
   it("disables submit button while loading", () => {
     renderWithProviders(<LoginForm onSubmit={vi.fn()} loading={true} />);
-    expect(screen.getByRole("button", { name: /unlock vault/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /^log in/i })).toBeDisabled();
   });
 
   it("locks the fields while loading and restores focus afterwards", async () => {
