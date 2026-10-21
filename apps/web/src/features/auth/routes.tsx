@@ -20,6 +20,7 @@ export default function AuthRoutes() {
   const [isEnrollBiometricRoute] = useRoute(authPaths.enrollBiometric);
   const [isCreateRoute] = useRoute(authPaths.create);
   const [isAccountLoginRoute] = useRoute(authPaths.accountLogin);
+  const [isRestoreRoute] = useRoute(authPaths.restore);
   const [redirectHeld, setRedirectHeld] = useState(false);
 
   if (vaultUnlocked && !redirectHeld) {
@@ -29,7 +30,7 @@ export default function AuthRoutes() {
   }
 
   return (
-    <AuthLayout phoneHeader={!isCreateRoute && !isAccountLoginRoute}>
+    <AuthLayout phoneHeader={!isCreateRoute && !isAccountLoginRoute && !isRestoreRoute}>
       <HoldUnlockRedirectContext value={setRedirectHeld}>
         <Suspense fallback={null}>
           <Switch>

@@ -14,7 +14,7 @@ import { Button } from "@repo/ui/components/Button";
 import { FieldError } from "@repo/ui/components/Field";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
-import { LogInIcon, type LucideIcon, PlusIcon, TrashIcon } from "lucide-react";
+import { ArchiveRestoreIcon, LogInIcon, type LucideIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { authPaths } from "@/app/route-paths";
@@ -95,6 +95,9 @@ function SwitchVaultList({ onPick, pickFailed }: SwitchVaultListProps) {
         </AddLink>
         <AddLink href={authPaths.create} icon={PlusIcon}>
           Create new vault
+        </AddLink>
+        <AddLink href={authPaths.restore} icon={ArchiveRestoreIcon}>
+          Restore from backup
         </AddLink>
       </section>
     </div>

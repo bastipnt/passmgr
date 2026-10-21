@@ -109,6 +109,24 @@ describe("useRestoreBackup", () => {
     expect(reload).toHaveBeenCalled();
   });
 
+  it("adds the restored vault next to the profiles already on the device", async () => {
+    const existing = profileEntry({ profileId: "p-old", mode: "local", email: null, userId: null });
+    store.profiles = [existing];
+    const { result } = renderRestore();
+
+    await act(async () => {
+      await result.current.restore(data, "hunter2hunter2", "Restored");
+    });
+    await act(async () => {
+      expect(await result.current.finishRestore()).toEqual({ created: 1, updated: 0, skipped: 0 });
+    });
+
+    expect(store.profiles).toHaveLength(2);
+    expect(store.profiles[0]).toBe(existing);
+    expect(store.profile?.profileId).not.toBe("p-old");
+    expect(store.records.writeImport).toHaveBeenCalledOnce();
+  });
+
   it("reports a failed import; the vault stays open", async () => {
     store.records.writeImport.mockRejectedValueOnce(new Error("disk"));
     vi.spyOn(console, "error").mockImplementation(() => undefined);

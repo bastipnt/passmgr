@@ -1,151 +1,121 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRestoreBackup } from "@repo/client";
-import type { ExportData } from "@repo/schema";
+import {
+  IMPORT_ERROR_MESSAGES,
+  type ImportError,
+  type OpenedBackup,
+  useOpenBackupFile,
+  useRestoreBackup,
+  useStore,
+} from "@repo/client";
 import { toast, useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/Card";
+import { Card, CardContent } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
-import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { FileDropZone, type FileDropZoneHandle } from "@repo/ui/components/FileDropZone";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { ArrowRightIcon, LockIcon, TagIcon } from "lucide-react";
-import { useState } from "react";
-import { type Control, useWatch } from "react-hook-form";
+import { cn } from "@repo/ui/lib/utils";
+import { formatBytes } from "@repo/util";
+import {
+  ArrowRightIcon,
+  CheckIcon,
+  FileLockIcon,
+  FileUpIcon,
+  FileXIcon,
+  InfoIcon,
+  KeyRoundIcon,
+  Trash2Icon,
+} from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
-import OpenBackupForm from "@/components/OpenBackupForm";
 import { PageMeta } from "@/components/PageMeta";
-import { PasswordStrengthMeter } from "@/features/password-generation";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
-import { AuthHero, HeroAccent, HeroSteps } from "./AuthHero";
+import { useStoragePersistent } from "@/hooks/use-storage-persistent";
+import AuthCardHeader from "./AuthCardHeader";
+import AuthNote from "./AuthNote";
 import AuthTextLink from "./AuthTextLink";
+import { useAuthHome } from "./auth-home";
+import CreateErrorBox from "./CreateErrorBox";
+import NewVaultFields, {
+  NEW_VAULT_DEFAULTS,
+  type NewVaultValues,
+  newVaultSchema,
+} from "./NewVaultFields";
+import PasswordNote from "./PasswordNote";
+import PrivateWindowNote from "./PrivateWindowNote";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
+import StepBar from "./StepBar";
 
-const RESTORE_STEPS = [
-  {
-    title: "Open your backup",
-    description: "An encrypted backup asks for the password you gave it.",
-  },
-  {
-    title: "Pick a master password",
-    description: "The restored vault gets its own, and a new recovery key.",
-  },
-  {
-    title: "Back where you were",
-    description: "Every record of the backup, stored encrypted on this device.",
-  },
-];
+const backupPasswordSchema = z.object({ backupPassword: z.string().min(1) });
+type BackupPasswordValues = z.infer<typeof backupPasswordSchema>;
 
-const restoreSchema = z
-  .object({
-    name: z.string().max(60),
-    password: z.string().min(8),
-    confirmPassword: z.string(),
-  })
-  .refine((v) => v.password === v.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  });
-
-type FormValues = z.infer<typeof restoreSchema>;
+/** Extra help after `IMPORT_ERROR_MESSAGES` where the restore page has some. */
+const ERROR_HINTS: Partial<Record<ImportError, string>> = {
+  wrong_password: "It's the one you gave the backup, not your vault password.",
+  invalid_file: "Choose the .json file you exported from passmgr.",
+};
 
 /**
- * Restore a backup into a new vault on this device (ADR 0001 D12): for a
- * cleared browser or a new device. Added next to the profiles already here.
+ * Restore a backup into a new vault on this device (ADR 0001 D12), next to
+ * the vaults already here: open the file, then name the vault and pick its password.
  */
 export default function RestoreBackupPage() {
-  const [data, setData] = useState<ExportData>();
+  const [, navigate] = useLocation();
+  const home = useAuthHome();
+  const hasVaults = useStore().profiles.length > 0;
+  const persistent = useStoragePersistent();
 
-  return (
-    <>
-      <PageMeta title="Restore a backup" noindex />
-      <AuthHero
-        title={
-          <>
-            Lost your browser data? <HeroAccent>Restore</HeroAccent> your vault.
-          </>
-        }
-      >
-        <HeroSteps steps={RESTORE_STEPS} />
-      </AuthHero>
+  const [step, setStep] = useState<"file" | "vault">("file");
+  const [backup, setBackup] = useState<OpenedBackup>();
+  const backupFile = useOpenBackupFile((opened) => {
+    setBackup(opened);
+    setStep("vault");
+  });
+  const dropZone = useRef<FileDropZoneHandle>(null);
 
-      <Card variant="glass">
-        <CardHeader>
-          <CardTitle>Restore a backup</CardTitle>
-          <CardDescription>
-            {data ? (
-              <>
-                {data.records.length} record(s) found.{" "}
-                <button
-                  type="button"
-                  className="rounded-sm font-semibold text-foreground underline decoration-1 decoration-foreground/40 underline-offset-4 outline-none hover:decoration-foreground focus-visible:ring-4 focus-visible:ring-ring/25"
-                  onClick={() => setData(undefined)}
-                >
-                  Choose another file
-                </button>
-              </>
-            ) : (
-              <>
-                No backup? <AuthTextLink href={authPaths.create}>Start fresh</AuthTextLink>
-              </>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {data ? (
-            <NewVaultForm data={data} />
-          ) : (
-            <OpenBackupForm
-              onOpened={setData}
-              renderActions={(submit) => <div className="flex justify-end">{submit}</div>}
-            />
-          )}
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function NewVaultForm({ data }: { data: ExportData }) {
   const { restore, finishRestore, restoreError } = useRestoreBackup();
   const [loading, setLoading] = useState(false);
-  const [recoveryKey, setRecoveryKey] = useState<Uint8Array | null>(null);
-  const [vaultName, setVaultName] = useState("");
+  const [created, setCreated] = useState<{ recoveryKey: Uint8Array; name: string }>();
+  const [restoreTried, setRestoreTried] = useState(false);
+  const [pickCount, setPickCount] = useState(0);
 
-  const { handleSubmit, control } = useForm<FormValues>({
-    resolver: zodResolver(restoreSchema),
-    defaultValues: { name: "", password: "", confirmPassword: "" },
-  });
+  const pickFile = (file: File) => {
+    setBackup(undefined);
+    setStep("file");
+    setRestoreTried(false);
+    setPickCount((n) => n + 1);
+    void backupFile.pick(file);
+  };
 
-  const onSubmit = async ({ name, password }: FormValues) => {
+  const onVaultSubmit = async ({ name, password }: NewVaultValues) => {
+    if (!backup) return;
     // The restored vault's only copy lives in OPFS: asked while the submit is a user gesture.
     void requestPersistentStorage();
+    setRestoreTried(true);
     setLoading(true);
     try {
-      const key = await restore(data, password, name);
-      if (key) {
-        setVaultName(name);
-        setRecoveryKey(key);
-      }
+      const recoveryKey = await restore(backup.data, password, name);
+      if (recoveryKey) setCreated({ recoveryKey, name });
     } finally {
       setLoading(false);
     }
   };
 
+  const back = step === "file" ? () => navigate(home) : created ? undefined : () => setStep("file");
+  const { file, error } = backupFile;
+  const unopenable = error !== undefined && !backupFile.encrypted;
+
   return (
     <>
+      <PageMeta title="Restore a backup" noindex />
       <RecoveryKeyDialog
-        recoveryKey={recoveryKey}
-        name={vaultName}
+        recoveryKey={created?.recoveryKey ?? null}
+        name={created?.name || undefined}
         onDone={() => {
-          setRecoveryKey(null);
+          setCreated(undefined);
           // Unlocking leaves the auth routes on its own; the import runs on after that.
           void finishRestore().then((result) => {
             if (result) toast.success(`Backup restored: ${result.created} record(s).`);
@@ -156,63 +126,304 @@ function NewVaultForm({ data }: { data: ExportData }) {
           });
         }}
       />
-      <form onSubmit={handleSubmit(onSubmit)}>
-        <FormLock locked={loading}>
-          <FieldGroup className="gap-5">
-            <ControlledInput
-              control={control}
-              name="name"
-              label="Name"
-              autoComplete="off"
-              placeholder="e.g. Personal"
-              labelAction={<span className="text-muted-foreground text-xs">optional</span>}
-              leadingIcon={<TagIcon />}
-            />
-            <ControlledPasswordInput
-              control={control}
-              name="password"
-              label="New master password"
-              autoComplete="new-password"
-              leadingIcon={<LockIcon />}
-              labelAction={<span className="text-muted-foreground text-xs">min. 8 characters</span>}
-              hint={<NewPasswordStrength control={control} />}
-            />
-            <ControlledPasswordInput
-              control={control}
-              name="confirmPassword"
-              label="Confirm master password"
-              autoComplete="new-password"
-              leadingIcon={<LockIcon />}
-            />
 
-            {restoreError === "unlock_failed" ? (
-              <FieldError variant="box">
-                Your vault was created, but it couldn&apos;t be opened.{" "}
-                <AuthTextLink href={authPaths.login}>Unlock it with your password</AuthTextLink> and
-                import the backup under Settings → Security.
-              </FieldError>
-            ) : (
-              restoreError === "failed" && (
-                <FieldError variant="box">Creating the vault failed. Please try again.</FieldError>
-              )
-            )}
+      <div className="flex w-full flex-col lg:col-span-full lg:mx-auto lg:max-w-md">
+        <Card variant="glass" flatOnPhone>
+          <StepBar
+            onBack={back}
+            step={step === "file" ? 1 : 2}
+            disabled={loading || backupFile.opening}
+          />
 
-            <Button type="submit" size="lg" className="w-full" disabled={loading}>
-              Restore vault
-              {loading ? (
-                <Spinner data-icon="inline-end" />
-              ) : (
-                <ArrowRightIcon data-icon="inline-end" />
+          <div hidden={step !== "file"} className="flex flex-col gap-6">
+            <AuthCardHeader
+              title="Restore a backup"
+              description={
+                hasVaults
+                  ? "Open a backup you exported from passmgr. It becomes a new vault on this device, next to the ones already here."
+                  : "Open a backup you exported from passmgr. It becomes a new vault on this device."
+              }
+            />
+            <CardContent className="flex flex-col gap-5">
+              <FileDropZone
+                ref={dropZone}
+                onFile={pickFile}
+                accept=".json,application/json"
+                label="Backup file"
+                icon={<FileUpIcon />}
+                title="Choose a backup file"
+                hint="or drop it here · .json"
+                className={cn(file && "hidden")}
+              />
+              {file && (
+                <FileChip
+                  icon={unopenable ? <FileXIcon /> : <FileLockIcon />}
+                  tone={unopenable ? "error" : "neutral"}
+                  title={file.name}
+                  detail={
+                    unopenable
+                      ? "Can't be restored"
+                      : backupFile.encrypted
+                        ? `Encrypted backup · ${formatBytes(file.size)}`
+                        : formatBytes(file.size)
+                  }
+                  onChange={() => dropZone.current?.open()}
+                  disabled={backupFile.opening}
+                />
               )}
-            </Button>
-          </FieldGroup>
-        </FormLock>
-      </form>
+
+              {backupFile.encrypted ? (
+                <BackupPasswordForm
+                  key={pickCount}
+                  onSubmit={({ backupPassword }) => backupFile.open(backupPassword)}
+                  opening={backupFile.opening}
+                  error={error && <OpenErrorBox error={error} />}
+                />
+              ) : (
+                <>
+                  {error && <OpenErrorBox error={error} />}
+                  {backup && (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setStep("vault")}
+                    >
+                      Continue
+                      <ArrowRightIcon data-icon="inline-end" />
+                    </Button>
+                  )}
+                  {(!file || error) && (
+                    <AuthNote icon={<InfoIcon className="text-primary" />}>
+                      <strong className="font-semibold">
+                        Coming from another password manager?
+                      </strong>{" "}
+                      <AuthTextLink href={authPaths.create}>Create a vault</AuthTextLink> first,
+                      then import under Settings → Security.
+                    </AuthNote>
+                  )}
+                </>
+              )}
+              <PasswordNote>The file is opened on this device only</PasswordNote>
+            </CardContent>
+          </div>
+
+          {backup && (
+            <VaultStep
+              key={pickCount}
+              visible={step === "vault"}
+              backup={backup}
+              fileName={file?.name ?? ""}
+              onChangeFile={() => dropZone.current?.open()}
+              onSubmit={onVaultSubmit}
+              loading={loading || created !== undefined}
+              note={
+                persistent === false && (
+                  <PrivateWindowNote>
+                    <strong className="font-semibold">
+                      This browser can&apos;t keep your vault
+                    </strong>{" "}
+                    (private window?). The restored vault is gone once you close this tab. Keep the
+                    backup file.
+                  </PrivateWindowNote>
+                )
+              }
+              error={
+                restoreTried &&
+                (restoreError === "failed" || restoreError === "unlock_failed") && (
+                  <CreateErrorBox
+                    error={restoreError}
+                    afterUnlock=" and import the backup under Settings → Security."
+                  />
+                )
+              }
+            />
+          )}
+        </Card>
+      </div>
     </>
   );
 }
 
-function NewPasswordStrength({ control }: { control: Control<FormValues> }) {
-  const password = useWatch({ control, name: "password" }) ?? "";
-  return <PasswordStrengthMeter password={password} />;
+function OpenErrorBox({ error }: { error: ImportError }) {
+  const hint = ERROR_HINTS[error];
+  return (
+    <FieldError variant="box">
+      {hint ? (
+        <span>
+          <strong className="font-semibold">{IMPORT_ERROR_MESSAGES[error]}</strong> {hint}
+        </span>
+      ) : (
+        IMPORT_ERROR_MESSAGES[error]
+      )}
+    </FieldError>
+  );
+}
+
+function BackupPasswordForm({
+  onSubmit,
+  opening,
+  error,
+}: {
+  onSubmit: (values: BackupPasswordValues) => Promise<void>;
+  opening: boolean;
+  error: ReactNode;
+}) {
+  const { handleSubmit, control, setFocus } = useForm<BackupPasswordValues>({
+    resolver: zodResolver(backupPasswordSchema),
+    defaultValues: { backupPassword: "" },
+  });
+
+  useEffect(() => setFocus("backupPassword"), [setFocus]);
+
+  return (
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <FormLock locked={opening}>
+        <FieldGroup className="gap-5">
+          <ControlledPasswordInput
+            control={control}
+            name="backupPassword"
+            label="Backup password"
+            autoComplete="off"
+            leadingIcon={<KeyRoundIcon />}
+            hint={
+              !error && (
+                <p className="text-muted-foreground text-xs">
+                  The password you gave the backup when you exported it.
+                </p>
+              )
+            }
+          />
+          {error}
+          <Button type="submit" size="lg" className="w-full" disabled={opening}>
+            Continue
+            {opening ? (
+              <Spinner data-icon="inline-end" />
+            ) : (
+              <ArrowRightIcon data-icon="inline-end" />
+            )}
+          </Button>
+        </FieldGroup>
+      </FormLock>
+    </form>
+  );
+}
+
+function VaultStep({
+  visible,
+  backup,
+  fileName,
+  onChangeFile,
+  onSubmit,
+  loading,
+  note,
+  error,
+}: {
+  /** Hidden, not unmounted, on Back: the typed name and password stay. */
+  visible: boolean;
+  backup: OpenedBackup;
+  fileName: string;
+  onChangeFile: () => void;
+  onSubmit: (values: NewVaultValues) => Promise<void>;
+  loading: boolean;
+  note: ReactNode;
+  error: ReactNode;
+}) {
+  const { handleSubmit, control } = useForm<NewVaultValues>({
+    resolver: zodResolver(newVaultSchema),
+    defaultValues: NEW_VAULT_DEFAULTS,
+  });
+
+  return (
+    <div hidden={!visible} className="flex flex-col gap-6">
+      <AuthCardHeader
+        title="Set up the vault"
+        description="Choose a password for the restored vault. You'll get a new recovery key for it."
+      />
+      <CardContent>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <FormLock locked={loading}>
+            <FieldGroup className="gap-5">
+              <FileChip
+                icon={<CheckIcon />}
+                tone="success"
+                title={`${backup.data.records.length} record(s) ready to restore`}
+                detail={backup.encrypted ? fileName : "Plain JSON export · not encrypted"}
+                onChange={onChangeFile}
+                disabled={loading}
+              />
+              {!backup.encrypted && (
+                <AuthNote icon={<Trash2Icon className="text-muted-foreground" />}>
+                  <strong className="font-semibold">This file isn&apos;t encrypted.</strong> Anyone
+                  who can read it can read your passwords: delete it once the vault is restored.
+                </AuthNote>
+              )}
+              {note}
+              <NewVaultFields control={control} />
+              {error}
+              <Button type="submit" size="lg" className="w-full" disabled={loading}>
+                Restore vault
+                {loading ? (
+                  <Spinner data-icon="inline-end" />
+                ) : (
+                  <ArrowRightIcon data-icon="inline-end" />
+                )}
+              </Button>
+              <PasswordNote />
+            </FieldGroup>
+          </FormLock>
+        </form>
+      </CardContent>
+    </div>
+  );
+}
+
+const CHIP_ICON = {
+  neutral: "bg-primary/10 text-primary",
+  success: "bg-success/12 text-success",
+  error: "bg-destructive/10 text-destructive",
+};
+
+function FileChip({
+  icon,
+  tone,
+  title,
+  detail,
+  onChange,
+  disabled,
+}: {
+  icon: ReactNode;
+  tone: keyof typeof CHIP_ICON;
+  title: string;
+  detail: string;
+  onChange: () => void;
+  disabled: boolean;
+}) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl border border-foreground/10 bg-white/50 p-3 dark:border-white/10 dark:bg-white/[0.04]">
+      <span
+        aria-hidden
+        className={cn(
+          "grid size-10 shrink-0 place-items-center rounded-xl [&>svg]:size-5",
+          CHIP_ICON[tone],
+        )}
+      >
+        {icon}
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <span className="truncate font-semibold text-sm">{title}</span>
+        <span className="truncate text-muted-foreground text-xs">{detail}</span>
+      </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="text-primary max-sm:h-12"
+        onClick={onChange}
+        disabled={disabled}
+      >
+        Change
+      </Button>
+    </div>
+  );
 }

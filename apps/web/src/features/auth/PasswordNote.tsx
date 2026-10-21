@@ -1,7 +1,14 @@
 import { cn } from "@repo/ui/lib/utils";
 import { ShieldCheckIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-export default function PasswordNote({ className }: { className?: string }) {
+export default function PasswordNote({
+  className,
+  children = "Your password never leaves this device",
+}: {
+  className?: string;
+  children?: ReactNode;
+}) {
   return (
     <p
       className={cn(
@@ -10,7 +17,7 @@ export default function PasswordNote({ className }: { className?: string }) {
       )}
     >
       <ShieldCheckIcon className="size-3.5" aria-hidden />
-      Your password never leaves this device
+      {children}
     </p>
   );
 }

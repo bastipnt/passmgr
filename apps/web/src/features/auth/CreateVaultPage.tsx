@@ -11,7 +11,6 @@ import { Button } from "@repo/ui/components/Button";
 import { Card, CardContent } from "@repo/ui/components/Card";
 import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
 import {
@@ -22,38 +21,28 @@ import {
   type LucideIcon,
   MailIcon,
   RefreshCwIcon,
-  ShieldIcon,
   SmartphoneIcon,
 } from "lucide-react";
 import { type ReactNode, useEffect, useState } from "react";
-import { type Control, useWatch } from "react-hook-form";
 import { useLocation, useSearchParams } from "wouter";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
-import { PasswordStrengthMeter } from "@/features/password-generation";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import AuthCardHeader from "./AuthCardHeader";
-import AuthTextLink from "./AuthTextLink";
 import { useAuthHome } from "./auth-home";
+import CreateErrorBox from "./CreateErrorBox";
+import NewVaultFields, {
+  NEW_VAULT_DEFAULTS,
+  type NewVaultValues,
+  newVaultSchema,
+} from "./NewVaultFields";
 import PasswordNote from "./PasswordNote";
 import PrivateWindowNote from "./PrivateWindowNote";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
 import StepBar from "./StepBar";
 import { useHoldUnlockRedirect } from "./unlock-redirect";
-
-const vaultSchema = z
-  .object({
-    name: z.string().max(60),
-    password: z.string().min(8),
-    confirmPassword: z.string(),
-  })
-  .refine((v) => v.password === v.confirmPassword, {
-    path: ["confirmPassword"],
-    message: "Passwords do not match",
-  });
-type VaultValues = z.infer<typeof vaultSchema>;
 
 const emailSchema = z.object({ email: z.email() });
 type EmailValues = z.infer<typeof emailSchema>;
@@ -89,7 +78,7 @@ export default function CreateVaultPage() {
 
   const [step, setStep] = useState<Step>("vault");
   const [visitedEmail, setVisitedEmail] = useState(false);
-  const [vault, setVault] = useState<VaultValues>();
+  const [vault, setVault] = useState<NewVaultValues>();
   const [loading, setLoading] = useState(false);
   const [shown, setShown] = useState<NewRecoveryKey>();
 
@@ -113,12 +102,13 @@ export default function CreateVaultPage() {
     }
   }
 
-  const keepLocal = ({ password, name }: VaultValues) => run(() => keepLocalVault(password, name));
+  const keepLocal = ({ password, name }: NewVaultValues) =>
+    run(() => keepLocalVault(password, name));
 
   const createAccount = ({ email }: EmailValues) =>
     run(async () => vault && createAccountVault(vault.password, vault.name, email, invite));
 
-  const onVaultSubmit = (values: VaultValues) => {
+  const onVaultSubmit = (values: NewVaultValues) => {
     setVault(values);
     if (canSync) setStep("sync");
     else void keepLocal(values);
@@ -270,16 +260,16 @@ function VaultStep({
   note,
   error,
 }: {
-  onSubmit: (values: VaultValues) => void;
+  onSubmit: (values: NewVaultValues) => void;
   loading: boolean;
   /** No sync step follows: this one creates the vault. */
   single: boolean;
   note: ReactNode;
   error: ReactNode;
 }) {
-  const { handleSubmit, control } = useForm<VaultValues>({
-    resolver: zodResolver(vaultSchema),
-    defaultValues: { name: "", password: "", confirmPassword: "" },
+  const { handleSubmit, control } = useForm<NewVaultValues>({
+    resolver: zodResolver(newVaultSchema),
+    defaultValues: NEW_VAULT_DEFAULTS,
   });
 
   return (
@@ -293,33 +283,7 @@ function VaultStep({
           <FormLock locked={loading}>
             <FieldGroup className="gap-5">
               {note}
-              <ControlledInput
-                control={control}
-                name="name"
-                label="Vault name"
-                autoComplete="off"
-                placeholder="e.g. Personal"
-                labelAction={<span className="text-muted-foreground text-xs">Optional</span>}
-                leadingIcon={<ShieldIcon />}
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="password"
-                label="Password"
-                autoComplete="new-password"
-                leadingIcon={<LockIcon />}
-                labelAction={
-                  <span className="text-muted-foreground text-xs">min. 8 characters</span>
-                }
-                hint={<NewPasswordStrength control={control} />}
-              />
-              <ControlledPasswordInput
-                control={control}
-                name="confirmPassword"
-                label="Confirm password"
-                autoComplete="new-password"
-                leadingIcon={<LockIcon />}
-              />
+              <NewVaultFields control={control} />
               {error}
               <Button type="submit" size="lg" className="w-full" disabled={loading}>
                 {single ? "Create vault" : "Continue"}
@@ -455,30 +419,10 @@ function EmailStep({
   );
 }
 
-function CreateErrorBox({ error }: { error: "failed" | "unlock_failed" }) {
-  return (
-    <FieldError variant="box">
-      {error === "unlock_failed" ? (
-        <span>
-          Your vault was created, but it couldn&apos;t be opened.{" "}
-          <AuthTextLink href={authPaths.login}>Unlock it with your password</AuthTextLink>
-        </span>
-      ) : (
-        "Creating the vault failed. Please try again."
-      )}
-    </FieldError>
-  );
-}
-
 function SyncLaterNote() {
   return (
     <p className="text-center text-muted-foreground text-xs">
       You can turn on sync later in Settings.
     </p>
   );
-}
-
-function NewPasswordStrength({ control }: { control: Control<VaultValues> }) {
-  const password = useWatch({ control, name: "password" }) ?? "";
-  return <PasswordStrengthMeter password={password} />;
 }

@@ -9,25 +9,9 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Spinner } from "@repo/ui/components/Spinner";
+import { formatBytes } from "@repo/util";
 import { HardDriveIcon } from "lucide-react";
 import { useStorageDurability } from "@/hooks/use-storage-durability";
-
-const UNITS = ["byte", "kilobyte", "megabyte", "gigabyte", "terabyte"] as const;
-
-/** Decimal units, like the browsers' own storage settings: "1.2MB". */
-function formatBytes(value: number): string {
-  let unit = 0;
-  while (value >= 1000 && unit < UNITS.length - 1) {
-    value /= 1000;
-    unit++;
-  }
-  return new Intl.NumberFormat("en", {
-    style: "unit",
-    unit: UNITS[unit],
-    unitDisplay: "narrow",
-    maximumFractionDigits: 1,
-  }).format(value);
-}
 
 /** "1.2MB of 10GB", or null when the browser doesn't say. */
 export function formatStorageUsage(usage: number | null, quota: number | null): string | null {
