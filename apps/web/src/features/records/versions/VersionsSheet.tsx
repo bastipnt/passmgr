@@ -1,11 +1,10 @@
 import { ShortcutLayer } from "@repo/client";
 import {
   ResponsiveSheet,
-  SheetCloseAction,
+  SheetDrawerHeader,
   SheetIconAction,
 } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
-import { DrawerDescription, DrawerTitle } from "@repo/ui/components/Drawer";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { ChevronLeftIcon } from "lucide-react";
 import { Link } from "wouter";
@@ -54,20 +53,9 @@ export default function VersionsSheet() {
 
   const sheetActions = (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-row items-center gap-2">
-        <SheetCloseAction />
+      <SheetDrawerHeader title={title} description={description}>
         {isDetail && <BackToList recordId={recordId} />}
-        <div className="ml-1 flex min-w-0 flex-col">
-          <DrawerTitle className="truncate font-bold font-display text-lg leading-6 tracking-[-0.02em]">
-            {title}
-          </DrawerTitle>
-          {description && (
-            <DrawerDescription className="truncate text-muted-foreground text-xs">
-              {description}
-            </DrawerDescription>
-          )}
-        </div>
-      </div>
+      </SheetDrawerHeader>
       {isDetail && <VersionHeadings recordId={recordId} version={version} />}
     </div>
   );

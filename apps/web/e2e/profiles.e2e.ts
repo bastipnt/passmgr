@@ -34,6 +34,12 @@ function profileList(page: Page) {
   return page.getByRole("list", { name: /vaults on this device/i });
 }
 
+/** A profile's row in "Switch vault"; its remove button's name starts with "Remove". */
+function profileButton(page: Page, label: string) {
+  const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return profileList(page).getByRole("button", { name: new RegExp(`^${escaped}`) });
+}
+
 async function unlockWithPassword(page: Page, password: string) {
   await page.locator('input[name="password"]').fill(password);
   await page.locator('form button[type="submit"]').click();
@@ -73,12 +79,10 @@ test.describe("multiple profiles per device", () => {
     await lockByReload(page);
     await expect(unlockCard(page, "Travel")).toBeVisible();
     await showProfiles(page);
-    await expect(profileList(page).getByRole("button")).toHaveCount(3);
+    await expect(profileList(page).getByRole("listitem")).toHaveCount(3);
 
     // Picking a profile unlocks it with the password alone.
-    await profileList(page)
-      .getByRole("button", { name: new RegExp(alice.email) })
-      .click();
+    await profileButton(page, alice.email).click();
     await expect(unlockCard(page, alice.email)).toBeVisible();
     await unlockWithPassword(page, alice.password);
 
@@ -90,11 +94,21 @@ test.describe("multiple profiles per device", () => {
     await lockByReload(page);
     await expect(unlockCard(page, bob.email)).toBeVisible();
     await showProfiles(page);
-    await expect(profileList(page).getByRole("button")).toHaveCount(3);
+    await expect(profileList(page).getByRole("listitem")).toHaveCount(3);
+
+    // Remove one from the sheet: the others stay, the next one opens.
+    await profileList(page)
+      .getByRole("button", { name: `Remove ${bob.email} from this device` })
+      .click();
+    const removeOne = page.getByRole("dialog", { name: /^remove vault$/i });
+    await expect(removeOne.getByText(/server are not affected/i)).toBeVisible();
+    await removeOne.getByRole("button", { name: /^remove vault$/i }).click();
+    await expect(profileList(page).getByRole("listitem")).toHaveCount(2);
+    await expect(profileButton(page, bob.email)).toHaveCount(0);
 
     // Remove all: back to a device without profiles.
     await page.getByRole("button", { name: /remove all vaults from this device/i }).click();
-    const dialog = page.getByRole("dialog");
+    const dialog = page.getByRole("dialog", { name: /remove all vaults/i });
     await expect(dialog.getByText(/only copy/i)).toBeVisible();
     await dialog.getByRole("button", { name: /^remove all$/i }).click();
     await expect(profileList(page)).toHaveCount(0);

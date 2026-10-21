@@ -1,5 +1,6 @@
 import { getRecordWebsites, RECORD_TYPE_HUES } from "@repo/client";
 import type { RecordData, RecordType } from "@repo/schema";
+import { hueTint } from "@repo/ui/lib/hue-tint";
 import { cn } from "@repo/ui/lib/utils";
 import {
   BracesIcon,
@@ -11,7 +12,6 @@ import {
   SquareTerminalIcon,
   WifiIcon,
 } from "lucide-react";
-import type { CSSProperties } from "react";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
 export const RECORD_TYPE_ICONS: Record<RecordType, LucideIcon> = {
@@ -41,15 +41,10 @@ type RecordTypeTileProps = {
 /** The type's icon on a tile tinted with its hue (the avatar's fallback colours). */
 export function RecordTypeTile({ type, size = "default", className }: RecordTypeTileProps) {
   const Icon = RECORD_TYPE_ICONS[type];
-  const hue = RECORD_TYPE_HUES[type];
-  const style: CSSProperties = {
-    backgroundColor: `oklch(var(--avatar-fallback-l-bg) var(--avatar-fallback-c-bg) ${hue})`,
-    color: `oklch(var(--avatar-fallback-l-fg) var(--avatar-fallback-c-fg) ${hue})`,
-  };
 
   return (
     <span
-      style={style}
+      style={hueTint(RECORD_TYPE_HUES[type])}
       className={cn("grid shrink-0 place-items-center", SIZES[size].tile, className)}
       aria-hidden
     >

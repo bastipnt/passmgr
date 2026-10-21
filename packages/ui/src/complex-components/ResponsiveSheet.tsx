@@ -5,7 +5,9 @@ import {
   DrawerActions,
   DrawerClose,
   DrawerContent,
+  DrawerDescription,
   DrawerPopup,
+  DrawerTitle,
 } from "@repo/ui/components/Drawer";
 import {
   Sheet,
@@ -134,4 +136,35 @@ function SheetCloseAction({ className }: { className?: string }) {
   );
 }
 
-export { ResponsiveSheet, SheetCloseAction, SheetIconAction };
+/**
+ * The phone drawer's title row, for its `actions` (the desktop sheet shows
+ * `title` / `description` in its own header). `children` sit after the close button.
+ */
+function SheetDrawerHeader({
+  title,
+  description,
+  children,
+}: {
+  title: string;
+  description?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-row items-center gap-2">
+      <SheetCloseAction />
+      {children}
+      <div className="ml-1 flex min-w-0 flex-col">
+        <DrawerTitle className="truncate font-bold font-display text-lg leading-6 tracking-[-0.02em]">
+          {title}
+        </DrawerTitle>
+        {description && (
+          <DrawerDescription className="truncate text-muted-foreground text-xs">
+            {description}
+          </DrawerDescription>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export { ResponsiveSheet, SheetCloseAction, SheetDrawerHeader, SheetIconAction };

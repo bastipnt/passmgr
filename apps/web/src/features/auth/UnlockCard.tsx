@@ -27,6 +27,8 @@ type UnlockCardProps = {
   /** Omitted for a vault without an account. */
   email?: string;
   name?: string | null;
+  /** The avatar's colour, see `ProfileAvatar`. */
+  hue?: number;
   biometrics: boolean;
   onSubmit: (password: string) => Promise<void>;
   onSwitch: () => void;
@@ -44,6 +46,7 @@ type UnlockCardProps = {
 export default function UnlockCard({
   email,
   name,
+  hue,
   biometrics,
   onSubmit,
   onSwitch,
@@ -69,7 +72,12 @@ export default function UnlockCard({
           <SignedOutNote />
         </div>
 
-        <StoredAccountRow email={email} name={name} onSwitch={challenged ? undefined : onSwitch} />
+        <StoredAccountRow
+          email={email}
+          name={name}
+          hue={hue}
+          onSwitch={challenged ? undefined : onSwitch}
+        />
 
         {secondFactor.request && (
           <SecondFactorStep {...secondFactor} request={secondFactor.request} />

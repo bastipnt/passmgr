@@ -1,22 +1,30 @@
 import { Button } from "@repo/ui/components/Button";
 import { ArrowLeftRightIcon } from "lucide-react";
-import { AccountAvatar, LocalVaultAvatar } from "./ProfileList";
+import ProfileAvatar from "./ProfileAvatar";
 
 type StoredAccountRowProps = {
   /** Omitted for a vault without an account. */
   email?: string;
   /** A local vault's name, if it has one. */
   name?: string | null;
+  /** The avatar's colour, see `ProfileAvatar`. */
+  hue?: number;
   /** In place of "Synced account" / "On this device only". */
   detail?: string;
   /** Omitted when there is nothing to switch to. */
   onSwitch?: () => void;
 };
 
-export default function StoredAccountRow({ email, name, detail, onSwitch }: StoredAccountRowProps) {
+export default function StoredAccountRow({
+  email,
+  name,
+  hue,
+  detail,
+  onSwitch,
+}: StoredAccountRowProps) {
   return (
     <div className="flex items-center gap-3 rounded-2xl border border-foreground/8 bg-white/50 p-3 dark:border-white/10 dark:bg-white/[0.04]">
-      {email ? <AccountAvatar email={email} /> : <LocalVaultAvatar />}
+      <ProfileAvatar email={email} hue={hue} />
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate font-semibold text-[0.95rem]">
           {email ?? name ?? "Vault on this device"}

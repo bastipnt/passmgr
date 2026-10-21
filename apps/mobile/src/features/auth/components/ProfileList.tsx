@@ -1,4 +1,10 @@
-import { profileLabel, unsyncedChangesWarning, useRemoveFromDevice, useStore } from "@repo/client";
+import {
+  profileLabel,
+  removeVaultsDescription,
+  useProfilesPendingChanges,
+  useRemoveFromDevice,
+  useStore,
+} from "@repo/client";
 import type { ProfileEntry } from "@repo/store";
 import { RemoveDialog, toast } from "@repo/ui-native";
 import { ChevronRight, HardDrive } from "lucide-react-native";
@@ -17,37 +23,18 @@ type ProfileListProps = {
  * more than one profile (a single one is the "Unlock" button's).
  */
 export function ProfileList({ onPick }: ProfileListProps) {
-  const { profiles, active, countPendingChanges } = useStore();
+  const { profiles, active } = useStore();
   const { removeAll, removing } = useRemoveFromDevice();
   const muted = useCSSVariable("--color-muted-foreground") as string;
   const [confirming, setConfirming] = useState(false);
-  const [pending, setPending] = useState<number>();
+  const { pending, count } = useProfilesPendingChanges();
 
   if (profiles.length === 0) return null;
 
-  async function confirmRemoveAll() {
-    setPending(undefined);
+  function confirmRemoveAll() {
     setConfirming(true);
-    try {
-      const linked = profiles.filter((p) => p.mode === "linked");
-      const counts = await Promise.all(linked.map((p) => countPendingChanges(p.profileId)));
-      setPending(counts.reduce((sum, n) => sum + n, 0));
-    } catch (e) {
-      console.error("Counting unsynced changes failed", e);
-    }
+    void count(profiles);
   }
-
-  const local = profiles.filter((p) => p.mode === "local").length;
-  const description = [
-    "Accounts and their data on the server are not affected.",
-    local > 0 &&
-      (local === 1
-        ? " One vault has no account: this is its only copy, everything in it is lost for good."
-        : ` ${local} vaults have no account: these are their only copies, everything in them is lost for good.`),
-    unsyncedChangesWarning(pending),
-  ]
-    .filter(Boolean)
-    .join("");
 
   return (
     <View className="gap-2">
@@ -68,7 +55,7 @@ export function ProfileList({ onPick }: ProfileListProps) {
         hitSlop={8}
         accessibilityRole="button"
         disabled={removing}
-        onPress={() => void confirmRemoveAll()}
+        onPress={confirmRemoveAll}
       >
         <Text className="text-muted-foreground text-xs underline">
           Remove all vaults from this device
@@ -77,10 +64,8 @@ export function ProfileList({ onPick }: ProfileListProps) {
       <RemoveDialog
         open={confirming}
         onOpenChange={setConfirming}
-        title={
-          profiles.length === 1 ? "Remove the vault?" : `Remove all ${profiles.length} vaults?`
-        }
-        description={description}
+        title={profiles.length === 1 ? "Remove the vault?" : "Remove all vaults?"}
+        description={removeVaultsDescription(profiles, pending)}
         removeTitle="Remove all"
         closeTitle="Cancel"
         onRemove={() => {

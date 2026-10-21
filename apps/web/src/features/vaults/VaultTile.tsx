@@ -1,5 +1,6 @@
 import { type VaultIcon, type VaultInfo, vaultHue, vaultIcon } from "@repo/client";
 import type { VaultMeta } from "@repo/schema";
+import { hueTint } from "@repo/ui/lib/hue-tint";
 import { cn } from "@repo/ui/lib/utils";
 import {
   BriefcaseIcon,
@@ -14,7 +15,6 @@ import {
   VaultIcon as VaultDoorIcon,
   WalletIcon,
 } from "lucide-react";
-import type { CSSProperties } from "react";
 
 export const VAULT_ICON_COMPONENTS: Record<VaultIcon, LucideIcon> = {
   vault: VaultDoorIcon,
@@ -35,14 +35,6 @@ const SIZES = {
   default: { tile: "size-9 rounded-[10px]", icon: "size-[1.125rem]" },
 } as const;
 
-/** Tinted like `RecordTypeTile`: the avatar fallback's lightness and chroma, the vault's hue. */
-export function vaultTint(hue: number): CSSProperties {
-  return {
-    backgroundColor: `oklch(var(--avatar-fallback-l-bg) var(--avatar-fallback-c-bg) ${hue})`,
-    color: `oklch(var(--avatar-fallback-l-fg) var(--avatar-fallback-c-fg) ${hue})`,
-  };
-}
-
 type VaultTileProps = {
   vault: Pick<VaultMeta, "icon" | "color">;
   size?: keyof typeof SIZES;
@@ -54,7 +46,7 @@ export function VaultTile({ vault, size = "default", className }: VaultTileProps
   const Icon = VAULT_ICON_COMPONENTS[vaultIcon(vault)];
   return (
     <span
-      style={vaultTint(vaultHue(vault))}
+      style={hueTint(vaultHue(vault))}
       className={cn("grid shrink-0 place-items-center", SIZES[size].tile, className)}
       aria-hidden
     >

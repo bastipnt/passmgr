@@ -133,7 +133,8 @@ server, apart from account operations that genuinely need it (registration, logi
 >   background rekey never lands in a profile opened meanwhile. Mobile fast-unlock restores the
 >   last used profile only.
 > - **Login semantics:** the unlock screen shows the last used profile's unlock card; "Switch"
->   shows the email login with every profile listed (pick one → its unlock). Signing in with the
+>   opens a sheet with every profile listed (pick one → its unlock, or remove it) and the ways to
+>   log in to another account or create a vault. Signing in with the
 >   email of a profile on the device unlocks that profile exactly like picking it
 >   (`useUnlock().unlockByEmail` → `unlockLocal`: no download, no wipe; offline too). Any other
 >   email logs in to the server, and `openAccountProfile` opens the profile of that `userId` or

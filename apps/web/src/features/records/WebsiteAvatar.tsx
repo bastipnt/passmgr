@@ -1,6 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
+import { hueTint } from "@repo/ui/lib/hue-tint";
 import { useWebsiteAvatar } from "@repo/ui-shared";
-import { type CSSProperties } from "react";
 
 type Website = { value: string };
 
@@ -30,15 +30,10 @@ export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvat
   const { hue, src, status } = useWebsiteAvatar({ title, websites });
   const { tile, fallback } = SIZES[size];
 
-  const fallbackStyle: CSSProperties = {
-    backgroundColor: `oklch(var(--avatar-fallback-l-bg) var(--avatar-fallback-c-bg) ${hue})`,
-    color: `oklch(var(--avatar-fallback-l-fg) var(--avatar-fallback-c-fg) ${hue})`,
-  };
-
   return (
     <Avatar className={tile}>
       {status === "ok" && src && <AvatarImage src={src} className="rounded-sm" />}
-      <AvatarFallback style={fallbackStyle} className={fallback}>
+      <AvatarFallback style={hueTint(hue)} className={fallback}>
         {title.charAt(0)}
       </AvatarFallback>
     </Avatar>

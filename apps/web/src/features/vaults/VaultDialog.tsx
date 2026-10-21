@@ -28,9 +28,10 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Spinner } from "@repo/ui/components/Spinner";
+import { hueTint } from "@repo/ui/lib/hue-tint";
 import { cn } from "@repo/ui/lib/utils";
 import { type SubmitEvent, useId, useState } from "react";
-import { VAULT_ICON_COMPONENTS, VaultTile, vaultTint } from "./VaultTile";
+import { VAULT_ICON_COMPONENTS, VaultTile } from "./VaultTile";
 
 type VaultDialogProps = {
   open: boolean;
@@ -149,7 +150,7 @@ function VaultForm({ vault, actions, onDone, onCreated }: VaultFormProps) {
               return (
                 <label
                   key={option}
-                  style={selected ? vaultTint(VAULT_COLORS[color]) : undefined}
+                  style={selected ? hueTint(VAULT_COLORS[color]) : undefined}
                   className={cn(
                     "grid size-10 cursor-pointer place-items-center rounded-xl border border-foreground/10 has-focus-visible:ring-4 has-focus-visible:ring-ring/25 dark:border-white/10",
                     selected ? "border-transparent" : "text-muted-foreground hover:bg-foreground/5",

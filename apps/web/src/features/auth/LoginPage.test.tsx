@@ -122,7 +122,7 @@ function renderAccountLogin({ networkOffline = true } = {}) {
   return renderPage({ networkOffline, Page: AccountLoginPage });
 }
 
-/** "Switch" from the active profile's unlock to the list of profiles. */
+/** "Switch" on the active profile's unlock: the sheet with every profile. */
 async function showProfiles() {
   await userEvent.click(screen.getByRole("button", { name: /^switch$/i }));
 }
@@ -139,9 +139,10 @@ async function unlockStored(password: string) {
   await userEvent.click(screen.getByRole("button", { name: /^unlock$/i }));
 }
 
+/** A profile's row in "Switch vault" (its name comes first; its remove button starts with "Remove"). */
 function profileButton(name: RegExp) {
   return within(screen.getByRole("list", { name: /vaults on this device/i })).getByRole("button", {
-    name,
+    name: new RegExp(`^${name.source}`, name.flags),
   });
 }
 
@@ -560,13 +561,39 @@ describe("LoginPage profiles", () => {
     expect(store.removeAllProfiles).not.toHaveBeenCalled();
   });
 
+  it("removes one profile from the sheet after a warning for its kind", async () => {
+    store.countPendingChanges.mockResolvedValue(1);
+    renderPage();
+    await showProfiles();
+    await userEvent.click(
+      screen.getByRole("button", { name: /remove bob@example.com from this device/i }),
+    );
+
+    const dialog = await screen.findByRole("dialog", { name: /^remove vault$/i });
+    expect(within(dialog).getByText(/server are not affected/i)).toBeInTheDocument();
+    await waitFor(() => expect(within(dialog).getByText(/1 change/i)).toBeInTheDocument());
+    expect(store.countPendingChanges).toHaveBeenCalledWith(bobProfile.profileId);
+    await userEvent.click(within(dialog).getByRole("button", { name: /^remove vault$/i }));
+
+    expect(store.removeProfile).toHaveBeenCalledWith(bobProfile.profileId);
+  });
+
+  it("warns that a local vault removed from the sheet is its only copy", async () => {
+    renderPage();
+    await showProfiles();
+    await userEvent.click(screen.getByRole("button", { name: /remove travel from this device/i }));
+
+    const dialog = await screen.findByRole("dialog", { name: /^remove vault$/i });
+    expect(within(dialog).getByText(/only copy/i)).toBeInTheDocument();
+  });
+
   it("removes every profile after a warning that names what is lost", async () => {
     store.countPendingChanges.mockResolvedValue(2);
     renderPage();
     await showProfiles();
     await userEvent.click(screen.getByRole("button", { name: /remove all vaults/i }));
 
-    const dialog = await screen.findByRole("dialog");
+    const dialog = await screen.findByRole("dialog", { name: /remove all vaults/i });
     expect(within(dialog).getByText(/all 3 vaults/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/only copy/i)).toBeInTheDocument();
     await waitFor(() => expect(within(dialog).getByText(/4 changes/i)).toBeInTheDocument());
@@ -623,11 +650,23 @@ describe("LoginPage switch", () => {
     );
   });
 
-  it("goes back to the unlock", async () => {
+  it("closes back to the unlock", async () => {
     renderPage();
     await showProfiles();
-    await userEvent.click(screen.getByRole("button", { name: /^back$/i }));
+    await userEvent.click(screen.getByRole("button", { name: /^close$/i }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole("list", { name: /vaults on this device/i })).toBeNull(),
+    );
     expect(screen.getByRole("button", { name: /^unlock$/i })).toBeInTheDocument();
+  });
+
+  it("opens the sheet by itself when the active profile can't be unlocked", () => {
+    store.accountKeyMaterial = null;
+    renderPage();
+
+    expect(screen.queryByRole("button", { name: /^unlock$/i })).toBeNull();
+    expect(profileButton(/alice@example.com/i)).toBeInTheDocument();
   });
 });
 
