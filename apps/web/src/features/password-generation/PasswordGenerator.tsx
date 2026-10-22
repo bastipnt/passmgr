@@ -18,7 +18,7 @@ import { Button } from "@repo/ui/components/Button";
 import type { DialogHandle } from "@repo/ui/components/Dialog";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import GeneratorModeSwitch from "./GeneratorModeSwitch";
 import PassphraseOptionsForm from "./PassphraseOptionsForm";
 import PasswordOptionsForm from "./PasswordOptionsForm";
@@ -27,16 +27,21 @@ import PasswordStrengthMeter from "./PasswordStrengthMeter";
 type PasswordGeneratorProps = {
   handle: DialogHandle<unknown>;
   onUse: (password: string) => void;
+  /** Opens in this mode instead of the saved default. */
+  mode?: GeneratorMode;
+  note?: ReactNode;
 };
 
 const TITLE = "Generate password";
 
-export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorProps) {
-  const {
-    mode: defaultMode,
-    pwOpts: defaultPwOpts,
-    phOpts: defaultPhOpts,
-  } = useGeneratorDefaults();
+export default function PasswordGenerator({
+  onUse,
+  handle,
+  mode: modeOverride,
+  note,
+}: PasswordGeneratorProps) {
+  const { mode: savedMode, pwOpts: defaultPwOpts, phOpts: defaultPhOpts } = useGeneratorDefaults();
+  const defaultMode = modeOverride ?? savedMode;
 
   const [open, setOpen] = useState(false);
   // Seeded from the saved defaults; edits here are for this password only and
@@ -151,6 +156,7 @@ export default function PasswordGenerator({ onUse, handle }: PasswordGeneratorPr
               </div>
               <PasswordStrengthMeter password={error ? "" : generated} />
             </div>
+            {note}
 
             {mode === "password" ? (
               <PasswordOptionsForm pwOpts={pwOpts} setPwOpts={setPwOpts} />

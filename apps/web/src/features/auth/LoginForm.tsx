@@ -9,10 +9,12 @@ import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { ArrowRightIcon, LockIcon, MailIcon } from "lucide-react";
 import { useEffect } from "react";
+import { useWatch } from "react-hook-form";
 import z from "zod";
 import { authPaths } from "@/app/route-paths";
 import AuthTextLink from "./AuthTextLink";
 import PasswordNote from "./PasswordNote";
+import type { RecoverState } from "./recover-email";
 import SignInError from "./SignInError";
 
 const userCredentialsSchema = z.object({
@@ -37,6 +39,8 @@ export default function LoginForm({ onSubmit, error, retry, loading, onEdit }: L
     resolver: zodResolver(userCredentialsSchema),
     defaultValues: { email: "", password: "" },
   });
+  const email = useWatch({ control, name: "email" });
+  const recoverState: RecoverState | undefined = email ? { email } : undefined;
 
   useEffect(() => {
     if (!onEdit) return;
@@ -66,7 +70,7 @@ export default function LoginForm({ onSubmit, error, retry, loading, onEdit }: L
             autoComplete="current-password"
             leadingIcon={<LockIcon />}
             labelAction={
-              <AuthTextLink href={authPaths.recover} tone="muted">
+              <AuthTextLink href={authPaths.recover} state={recoverState} tone="muted">
                 Forgot password?
               </AuthTextLink>
             }

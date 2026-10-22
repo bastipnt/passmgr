@@ -330,7 +330,7 @@ function VaultStep({
   note: ReactNode;
   error: ReactNode;
 }) {
-  const { handleSubmit, control } = useForm<NewVaultValues>({
+  const { handleSubmit, control, setValue } = useForm<NewVaultValues>({
     resolver: zodResolver(newVaultSchema),
     defaultValues: NEW_VAULT_DEFAULTS,
   });
@@ -360,7 +360,7 @@ function VaultStep({
                 </AuthNote>
               )}
               {note}
-              <NewVaultFields control={control} />
+              <NewVaultFields control={control} setValue={setValue} />
               {error}
               <Button type="submit" size="lg" className="w-full" disabled={loading}>
                 Restore vault

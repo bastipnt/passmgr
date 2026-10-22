@@ -27,6 +27,7 @@ vi.mock("@repo/client/src/hooks/use-link-account", () => ({
 }));
 vi.mock("@repo/client", async () => ({
   ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
+  ...(await (await import("@/test/password-generator-mock")).passwordGeneratorMocks()),
   ...(await import("@repo/client/src/hooks/use-link-account")),
   ...(await vi.importActual<object>("@repo/client/src/hooks/use-create-vault")),
   usePasswordStrength: () => null,

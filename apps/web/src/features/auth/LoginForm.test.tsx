@@ -1,5 +1,6 @@
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { authPaths } from "@/app/route-paths";
 import { renderWithProviders, screen } from "@/test/render";
 import LoginForm from "./LoginForm";
 
@@ -101,5 +102,17 @@ describe("LoginForm", () => {
 
     await userEvent.type(screen.getByLabelText("Password"), "x");
     expect(onEdit).toHaveBeenCalled();
+  });
+
+  it("carries the typed email to Forgot password? in history state, not the URL", async () => {
+    renderWithProviders(<LoginForm onSubmit={vi.fn()} loading={false} />);
+
+    await userEvent.type(screen.getByLabelText("Email"), "user@example.com");
+    await userEvent.click(screen.getByRole("link", { name: "Forgot password?" }));
+
+    expect(window.location.pathname).toBe(authPaths.recover);
+    expect(window.location.search).toBe("");
+    expect(window.history.state).toEqual({ email: "user@example.com" });
+    window.history.replaceState(null, "", "/");
   });
 });

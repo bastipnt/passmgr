@@ -37,6 +37,7 @@ vi.mock("@repo/client", async () => {
   >("@repo/client/src/hooks/use-second-factor-request");
   return {
     ...(await (await import("@/test/emergency-kit-mock")).emergencyKitMocks()),
+    ...(await (await import("@/test/password-generator-mock")).passwordGeneratorMocks()),
     usePasswordStrength: () => null,
     profileHue: () => 200,
     RECOVERY_ERROR_MESSAGES,
@@ -139,6 +140,39 @@ describe("RecoverPage from the account login", () => {
 
     await waitFor(() => {
       expect(recover).toHaveBeenCalledWith("alice@example.com", KEY, "a new password");
+    });
+  });
+
+  it("takes the email typed on the login form, still editable", async () => {
+    window.history.replaceState({ email: "bob@example.com" }, "");
+    renderPage();
+    window.history.replaceState(null, "");
+
+    const email = screen.getByLabelText("Email");
+    expect(email).toHaveValue("bob@example.com");
+    await userEvent.clear(email);
+    await userEvent.type(email, "alice@example.com");
+    expect(email).toHaveValue("alice@example.com");
+  });
+
+  it("generates a passphrase into both new password fields", async () => {
+    recover.mockResolvedValue(undefined);
+    renderPage();
+    await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
+    await enterKey();
+
+    await userEvent.click(await screen.findByRole("button", { name: "Generate" }));
+    expect(await screen.findByText(/keep it with your emergency kit/)).toBeInTheDocument();
+    const use = screen.getByRole("button", { name: "Use" });
+    await waitFor(() => expect(use).toBeEnabled());
+    await userEvent.click(use);
+
+    const password = (screen.getByLabelText("New password") as HTMLInputElement).value;
+    expect(password).toMatch(/^\w+(-\w+){3}$/);
+    expect(screen.getByLabelText("Confirm new password")).toHaveValue(password);
+    await userEvent.click(screen.getByRole("button", { name: /^reset password$/i }));
+    await waitFor(() => {
+      expect(recover).toHaveBeenCalledWith("alice@example.com", KEY, password);
     });
   });
 

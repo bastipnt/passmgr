@@ -7,6 +7,7 @@ type AuthTextLinkProps = {
   children: ReactNode;
   tone?: "strong" | "muted";
   className?: string;
+  state?: unknown;
 };
 
 /** Inline underlined link for auth card copy ("Create an account", "Forgot password?"). */
@@ -14,11 +15,13 @@ export default function AuthTextLink({
   href,
   tone = "strong",
   className,
+  state,
   children,
 }: AuthTextLinkProps) {
   return (
     <Link
       href={href}
+      state={state}
       className={cn(
         "rounded-sm underline decoration-1 underline-offset-4 outline-none transition-colors focus-visible:ring-4 focus-visible:ring-ring/25",
         tone === "strong"

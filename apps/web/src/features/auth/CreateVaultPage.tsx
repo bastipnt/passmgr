@@ -263,7 +263,7 @@ function VaultStep({
   note: ReactNode;
   error: ReactNode;
 }) {
-  const { handleSubmit, control } = useForm<NewVaultValues>({
+  const { handleSubmit, control, setValue } = useForm<NewVaultValues>({
     resolver: zodResolver(newVaultSchema),
     defaultValues: NEW_VAULT_DEFAULTS,
   });
@@ -279,7 +279,7 @@ function VaultStep({
           <FormLock locked={loading}>
             <FieldGroup className="gap-5">
               {note}
-              <NewVaultFields control={control} />
+              <NewVaultFields control={control} setValue={setValue} />
               {error}
               <Button type="submit" size="lg" className="w-full" disabled={loading}>
                 {single ? "Create vault" : "Continue"}

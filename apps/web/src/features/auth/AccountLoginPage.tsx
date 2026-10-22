@@ -8,7 +8,6 @@ import {
   useUnlock,
 } from "@repo/client";
 import { Card, CardContent } from "@repo/ui/components/Card";
-import { ServerIcon } from "lucide-react";
 import { useCallback, useState } from "react";
 import { useLocation } from "wouter";
 import { authPaths } from "@/app/route-paths";
@@ -103,18 +102,6 @@ export default function AccountLoginPage() {
           </CardContent>
         </Card>
       </div>
-      <ServerLine host={serverHost} />
     </>
-  );
-}
-
-function ServerLine({ host }: { host: string }) {
-  return (
-    <div className="mt-auto flex justify-center sm:absolute sm:inset-x-0 sm:bottom-8 sm:mx-auto sm:max-w-6xl sm:justify-end sm:px-10">
-      <p className="flex items-center gap-1.5 text-muted-foreground text-xs">
-        <ServerIcon className="size-3.5" aria-hidden />
-        Server <span className="font-medium text-foreground">{host}</span>
-      </p>
-    </div>
   );
 }

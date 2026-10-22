@@ -20,7 +20,7 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { KeyRoundIcon, LockIcon } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { type Control, useWatch } from "react-hook-form";
-import { PasswordStrengthMeter } from "@/features/password-generation";
+import { NewPasswordLabelAction, PasswordStrengthMeter } from "@/features/password-generation";
 
 /**
  * Change the master password (ADR 0001 D10). A local vault changes it on this
@@ -36,7 +36,7 @@ export default function ChangePasswordDialog({
 }) {
   const [open, setOpen] = useState(false);
   const { changePassword, changeError, clearChangeError, changing, blocked } = useChangePassword();
-  const { handleSubmit, control, reset } = useForm<ChangePasswordFormValues>({
+  const { handleSubmit, control, reset, setValue } = useForm<ChangePasswordFormValues>({
     resolver: zodResolver(changePasswordFormSchema),
     defaultValues: { currentPassword: "", password: "", confirmPassword: "" },
   });
@@ -88,9 +88,7 @@ export default function ChangePasswordDialog({
                 label="New password"
                 autoComplete="new-password"
                 leadingIcon={<KeyRoundIcon />}
-                labelAction={
-                  <span className="text-muted-foreground text-xs">min. 8 characters</span>
-                }
+                labelAction={<NewPasswordLabelAction setValue={setValue} />}
                 hint={<NewPasswordHint control={control} />}
               />
               <ControlledPasswordInput

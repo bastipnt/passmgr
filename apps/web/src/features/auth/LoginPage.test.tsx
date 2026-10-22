@@ -606,11 +606,6 @@ describe("LoginPage profiles", () => {
 describe("AccountLoginPage", () => {
   beforeEach(resetMocks);
 
-  it("names the server it logs in to", () => {
-    renderAccountLogin();
-    expect(screen.getByText("vault.example.com")).toBeInTheDocument();
-  });
-
   it("says the vault is gone on lock or reload in a private window", () => {
     vi.mocked(useStoragePersistent).mockReturnValue(false);
     renderAccountLogin();

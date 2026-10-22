@@ -1,9 +1,9 @@
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { LockIcon, ShieldIcon } from "lucide-react";
-import { type Control, useWatch } from "react-hook-form";
+import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import z from "zod";
-import { PasswordStrengthMeter } from "@/features/password-generation";
+import { NewPasswordLabelAction, PasswordStrengthMeter } from "@/features/password-generation";
 
 export const newVaultSchema = z
   .object({
@@ -19,7 +19,13 @@ export type NewVaultValues = z.infer<typeof newVaultSchema>;
 
 export const NEW_VAULT_DEFAULTS: NewVaultValues = { name: "", password: "", confirmPassword: "" };
 
-export default function NewVaultFields({ control }: { control: Control<NewVaultValues> }) {
+export default function NewVaultFields({
+  control,
+  setValue,
+}: {
+  control: Control<NewVaultValues>;
+  setValue: UseFormSetValue<NewVaultValues>;
+}) {
   return (
     <>
       <ControlledInput
@@ -37,7 +43,7 @@ export default function NewVaultFields({ control }: { control: Control<NewVaultV
         label="Password"
         autoComplete="new-password"
         leadingIcon={<LockIcon />}
-        labelAction={<span className="text-muted-foreground text-xs">min. 8 characters</span>}
+        labelAction={<NewPasswordLabelAction setValue={setValue} />}
         hint={<NewPasswordStrength control={control} />}
       />
       <ControlledPasswordInput

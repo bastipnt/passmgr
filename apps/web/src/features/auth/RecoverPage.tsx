@@ -37,7 +37,7 @@ import { type Control, useWatch } from "react-hook-form";
 import { useLocation, useSearchParams } from "wouter";
 import { authPaths, recoverActiveSearch } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
-import { PasswordStrengthMeter } from "@/features/password-generation";
+import { NewPasswordLabelAction, PasswordStrengthMeter } from "@/features/password-generation";
 import { useWarnBeforeUnload } from "@/hooks/use-warn-before-unload";
 import AuthCardHeader from "./AuthCardHeader";
 import AuthChip from "./AuthChip";
@@ -45,6 +45,7 @@ import AuthNote from "./AuthNote";
 import PasswordNote from "./PasswordNote";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
 import RecoveryKeyInput from "./RecoveryKeyInput";
+import { useRecoverEmail } from "./recover-email";
 import SecondFactorStep from "./SecondFactorStep";
 import StepBar from "./StepBar";
 import StoredAccountRow from "./StoredAccountRow";
@@ -81,6 +82,7 @@ function RecoverFlow() {
   const local = profile?.mode === "local";
   const profileEmail = profile?.mode === "linked" ? profile.email : undefined;
   const loginPath = fromUnlock ? authPaths.login : authPaths.accountLogin;
+  const loginEmail = useRecoverEmail();
 
   const { checkRecoveryKey, recover, recoverLocal, recoveryError, clearRecoveryError } =
     useRecovery();
@@ -98,7 +100,7 @@ function RecoverFlow() {
     useForm<RecoverFormValues>({
       resolver: zodResolver(local ? localRecoverFormSchema : recoverFormSchema),
       defaultValues: {
-        email: profileEmail ?? "",
+        email: profileEmail ?? loginEmail,
         recoveryKey: "",
         password: "",
         confirmPassword: "",
@@ -344,9 +346,7 @@ function RecoverFlow() {
                         label="New password"
                         autoComplete="new-password"
                         leadingIcon={<LockIcon />}
-                        labelAction={
-                          <span className="text-muted-foreground text-xs">min. 8 characters</span>
-                        }
+                        labelAction={<NewPasswordLabelAction setValue={setValue} />}
                         hint={<NewPasswordHint control={control} />}
                       />
                       <ControlledPasswordInput
