@@ -82,7 +82,7 @@ beforeEach(() => {
 async function add(profile: LocalProfile, name?: string) {
   return await store.create(
     profile,
-    (vault) => vault.setAccountKeyMaterial(material, [personal], profile),
+    (vault) => vault.setAccountKeyMaterial(material, [personal], { profile }),
     { name },
   );
 }

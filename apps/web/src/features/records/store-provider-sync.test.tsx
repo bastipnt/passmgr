@@ -28,6 +28,7 @@ const vault = {
   getProfile: vi.fn(async () => null),
   getAccountKeyMaterial: vi.fn(async () => null),
   getBiometricKeyMaterial: vi.fn(async () => null),
+  getPendingRecovery: vi.fn(async () => null),
   getSyncCursors: vi.fn(async () => ({})),
   getVaults: vi.fn(async () => []),
   applySync: vi.fn(async () => false),

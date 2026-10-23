@@ -18,16 +18,18 @@ import {
   startDeviceLogin,
 } from "@repo/client/src/login";
 import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFactorPromptProvider";
+import { finishPendingRecovery, RecoveryFailedError } from "@repo/client/src/recover";
 import {
   createUserKeyPair,
   genKey,
   getPasswordKekParams,
   SESSION_SIGNED_OUT,
+  sealPendingRecovery,
   wrapAccountKey,
   wrapVaultKey,
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
-import type { MemberVault, UserKeyPair } from "@repo/schema";
+import type { MemberVault, PendingRecovery, UserKeyPair } from "@repo/schema";
 import {
   clearLoginBundle,
   hasLoginBundle,
@@ -38,7 +40,7 @@ import {
   persistLoginBundle,
   secretsStore,
 } from "@repo/store";
-import { toBase64 } from "@repo/util";
+import { fromString, toBase64 } from "@repo/util";
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
@@ -69,6 +71,10 @@ vi.mock("@repo/client/src/login", async (importActual) => {
     startDeviceLogin: vi.fn(),
   };
 });
+vi.mock("@repo/client/src/recover", async (importActual) => ({
+  ...(await importActual<object>()),
+  finishPendingRecovery: vi.fn(),
+}));
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
   argon2WorkerService: { derive: vi.fn() },
 }));
@@ -207,8 +213,10 @@ beforeEach(() => {
     accountKeyMaterial: null,
     biometricKeyMaterial: {},
     needsBiometricEnroll: false,
+    pendingRecovery: false,
   });
   store.vault.getProfile.mockResolvedValue(ALICE);
+  store.vault.getPendingRecovery.mockResolvedValue(null);
   trpcClient.user.heartbeat.query.mockResolvedValue({ ok: true });
 });
 
@@ -465,6 +473,7 @@ describe("biometricUnlock", () => {
         email: "alice@example.com",
         userId: ALICE.userId,
         userPasswordKeys: passwordKeys,
+        recoveryKeys: null,
         vaultKeys: wraps,
         userKeyPair,
       };
@@ -586,6 +595,7 @@ describe("useEnrollBiometric", () => {
         userId: ALICE.userId,
         password: "pw",
         userPasswordKeys: passwordKeys,
+        recoveryKeys: null,
         vaultKeys: wraps,
         userKeyPair,
       };
@@ -629,6 +639,7 @@ describe("useConnectServer", () => {
   /** An unlocked linked vault and a server login that hands out `userId`'s keys. */
   function unlockedVault({ userId = "user-alice" }: { userId?: string } = {}) {
     const { accountKey, wraps, userKeyPair } = keyring();
+    const sealWith = accountKey.slice();
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadVaultKeys(wraps);
     store.vault.getVaults.mockResolvedValue(wraps);
@@ -639,10 +650,12 @@ describe("useConnectServer", () => {
         userId,
         password: "pw",
         userPasswordKeys: passwordKeys,
+        recoveryKeys: null,
         vaultKeys: wraps,
         userKeyPair,
       };
     });
+    return { accountKey: sealWith };
   }
 
   function renderConnect() {
@@ -792,6 +805,67 @@ describe("useConnectServer", () => {
     expect(session.attachServer).not.toHaveBeenCalled();
   });
 
+  describe("with a password reset made offline", () => {
+    const pending: PendingRecovery = {
+      recoveryAuthKey: B64_32,
+      userKeys: {
+        ...passwordKeys,
+        passwordKekSalt: B64_32,
+        encryptedAccountKey: toBase64(new Uint8Array(48)),
+        accountKeyEncryptionNonce: toBase64(new Uint8Array(24)),
+        recoveryKekSalt: B64_32,
+        recoveryVerifier: B64_32,
+        encryptedAccountKeyRecovery: toBase64(new Uint8Array(48)),
+        accountKeyEncryptionNonceRecovery: toBase64(new Uint8Array(24)),
+      },
+    };
+
+    function withPendingReset() {
+      const { accountKey } = unlockedVault();
+      store.pendingRecovery = true;
+      store.vault.getPendingRecovery.mockResolvedValue(
+        sealPendingRecovery(accountKey, fromString(JSON.stringify(pending))),
+      );
+    }
+
+    it("finishes it on the server before logging in with the new password", async () => {
+      withPendingReset();
+
+      expect(await connectOnce()).toBe("online");
+      expect(finishPendingRecovery).toHaveBeenCalledWith(
+        trpcClient,
+        ALICE.email,
+        expect.any(Uint8Array),
+        pending,
+      );
+      expect(store.clearPendingRecovery).toHaveBeenCalledWith(ALICE.profileId);
+      expect(vi.mocked(finishPendingRecovery).mock.invocationCallOrder[0]).toBeLessThan(
+        vi.mocked(loginUserCore).mock.invocationCallOrder[0] ?? 0,
+      );
+    });
+
+    it("drops it when the server refuses, and logs in as it stands", async () => {
+      withPendingReset();
+      vi.mocked(finishPendingRecovery).mockRejectedValueOnce(new RecoveryFailedError());
+
+      expect(await connectOnce()).toBe("online");
+      expect(store.clearPendingRecovery).toHaveBeenCalledWith(ALICE.profileId);
+      expect(loginUserCore).toHaveBeenCalled();
+    });
+
+    it.each([
+      ["unreachable", new LoginUnreachableError()],
+      ["throttled", new LoginThrottledError()],
+    ] as const)("keeps it for the next connect when %s", async (expected, error) => {
+      withPendingReset();
+      vi.mocked(finishPendingRecovery).mockRejectedValueOnce(error);
+
+      expect(await connectOnce()).toBe(expected);
+      expect(store.clearPendingRecovery).not.toHaveBeenCalled();
+      expect(loginUserCore).not.toHaveBeenCalled();
+    });
+  });
+
   it.each([
     ["online", false, true],
     ["rejected", false, true],
@@ -821,7 +895,7 @@ describe("unlock: which profile?", () => {
       accountKeyEncryptionNonce,
     };
     vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
-    return { userPasswordKeys, wraps, userKeyPair };
+    return { userPasswordKeys, recoveryKeys: null, wraps, userKeyPair };
   }
 
   async function unlockWith(keys: ReturnType<typeof account>, userId = "user-alice") {
@@ -833,6 +907,7 @@ describe("unlock: which profile?", () => {
         userId,
         password: "pw",
         userPasswordKeys: keys.userPasswordKeys,
+        recoveryKeys: null,
         vaultKeys: keys.wraps,
         userKeyPair: keys.userKeyPair,
       });
@@ -849,6 +924,7 @@ describe("unlock: which profile?", () => {
       { userId: ALICE.userId, email: "alice@example.com" },
       { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
       keys.wraps,
+      null,
     );
     expect(store.profiles).toHaveLength(1);
     expect(secretsStore.isVaultUnlocked).toBe(true);

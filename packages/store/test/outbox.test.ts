@@ -476,7 +476,7 @@ describe("trash and purge", () => {
         },
       },
       [personal],
-      { profileId: "p1", mode: "linked", email: "a@example.com", userId: "u1" },
+      { profile: { profileId: "p1", mode: "linked", email: "a@example.com", userId: "u1" } },
     );
     await vault.writeLocalChanges([{ kind: "create", ...ciphertext("r1", "a") }]);
     await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);

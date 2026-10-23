@@ -124,7 +124,7 @@ export function useLinkAccount() {
         profileId,
         { ...info.userPasswordKeys, userKeyPair: info.userKeyPair },
         info.vaultKeys,
-        profile,
+        { profile, recoveryWrap: info.recoveryKeys },
       );
     } catch (e) {
       console.error("Linking the local vault failed", e);

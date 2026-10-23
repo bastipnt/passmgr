@@ -1,4 +1,5 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
+import type { PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
 import { rekeyIfBelowFloor } from "../account/rekey-password-keys";
@@ -16,6 +17,7 @@ import {
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { reloadVaultKeys, useStore } from "../providers/StoreProvider";
+import { finishPendingRecovery, parsePendingRecovery, RecoveryFailedError } from "../recover";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
 
@@ -130,6 +132,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
             ? await deriveOpaquePassword(credential, email)
             : credential;
         try {
+          await finishPendingReset(email, opaquePassword);
           return await loginWithOpaquePassword(trpc, session, email, opaquePassword, ask);
         } finally {
           wipe(opaquePassword);
@@ -184,7 +187,9 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     try {
       const material = { ...info.userPasswordKeys, userKeyPair: info.userKeyPair };
       const cachedVaults = await active.vault.getVaults();
-      await storeRef.current.saveAccount(profileId, material, info.vaultKeys);
+      await storeRef.current.saveAccount(profileId, material, info.vaultKeys, {
+        recoveryWrap: info.recoveryKeys,
+      });
       if (!stillUnlocked(epoch)) return { result: "cancelled" };
       if (!sameVaults(cachedVaults, info.vaultKeys)) reloadVaultKeys(info.vaultKeys);
 
@@ -196,6 +201,35 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
 
     await persistSession(profileId);
     return { result: "online", profileId, info };
+  }
+
+  /**
+   * A password reset made on this device while offline goes to the server
+   * first (ADR 0001 D10 amended): until it has, only the old password logs in.
+   * A refusal ends it for good: the recovery key changed on another device, or
+   * an earlier try went through unanswered (then the login below works).
+   * Throttled or unreachable: it stays for the next connect.
+   */
+  async function finishPendingReset(email: string, opaquePassword: Uint8Array) {
+    const active = storeRef.current.current();
+    const sealed = active?.pendingRecovery ? await active.vault.getPendingRecovery() : null;
+    if (!active || !sealed) return;
+    let pending: PendingRecovery;
+    try {
+      pending = parsePendingRecovery(secretsStore.openPendingRecovery(sealed));
+    } catch (e) {
+      if (!secretsStore.isVaultUnlocked) throw e;
+      console.error("The password reset made on this device couldn't be read", e);
+      await storeRef.current.clearPendingRecovery(active.entry.profileId);
+      return;
+    }
+    try {
+      await finishPendingRecovery(trpc, email, opaquePassword, pending);
+    } catch (e) {
+      if (!(e instanceof RecoveryFailedError)) throw e;
+      console.error("The server refused the password reset made on this device");
+    }
+    await storeRef.current.clearPendingRecovery(active.entry.profileId);
   }
 
   /** Best-effort, see `rekeyIfBelowFloor`; never turns a connect into a failure. */

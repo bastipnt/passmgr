@@ -48,6 +48,7 @@ const SUCCESS = {
     encryptedAccountKey: "eak",
     accountKeyEncryptionNonce: "nonce",
   },
+  recoveryKeys: null,
   vaultKeys: [],
   userKeyPair: {
     keyVersion: 1,

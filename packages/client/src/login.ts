@@ -183,14 +183,14 @@ export async function loginWithOpaquePassword(
     throw requestFailure(err, LoginFinishFailedError);
   }
 
-  const { sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } =
+  const { sessionId, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } =
     "secondFactorRequired" in finishedLogin
       ? await passSecondFactor(trpc, finishedLogin.challengeId, onSecondFactor)
       : finishedLogin;
 
   await loginSession(sessionId, sessionKey, authSalt);
 
-  return { email, userId, userPasswordKeys, vaultKeys, userKeyPair };
+  return { email, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair };
 }
 
 /**
@@ -264,12 +264,19 @@ export async function startDeviceLogin(
       throw requestFailure(err, DeviceLoginRejectedError);
     }
 
-    const { sessionId, userId, userPasswordKeys, vaultKeys, userKeyPair } =
+    const { sessionId, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } =
       "secondFactorRequired" in finished
         ? await passSecondFactor(trpc, finished.challengeId, onSecondFactor)
         : finished;
     await loginSession(sessionId, sessionKey, authSalt);
-    return { email: normalizeEmail(email), userId, userPasswordKeys, vaultKeys, userKeyPair };
+    return {
+      email: normalizeEmail(email),
+      userId,
+      userPasswordKeys,
+      recoveryKeys,
+      vaultKeys,
+      userKeyPair,
+    };
   }
 
   return { challenge, startedAt: Date.now(), finish, discard };

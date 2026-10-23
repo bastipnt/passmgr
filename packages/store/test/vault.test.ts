@@ -253,7 +253,7 @@ describe("profile", () => {
   it("is null until set, then round-trips with the key material", async () => {
     expect(await vault.getProfile()).toBeNull();
 
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
 
     expect(await vault.getProfile()).toEqual(linked);
     expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
@@ -261,13 +261,13 @@ describe("profile", () => {
 
   it("round-trips a local profile without email or userId", async () => {
     const local: LocalProfile = { profileId: "p-2", mode: "local", email: null, userId: null };
-    await vault.setAccountKeyMaterial(accountKey, [personal], local);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: local });
 
     expect(await vault.getProfile()).toEqual(local);
   });
 
   it("keeps the profile when the key material is set without one", async () => {
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
     await vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "rekeyed" }, [
       personal,
     ]);
@@ -276,16 +276,16 @@ describe("profile", () => {
   });
 
   it("replaces the profile: there is only ever one", async () => {
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
     const other: LocalProfile = { ...linked, profileId: "p-3", userId: "u-2" };
-    await vault.setAccountKeyMaterial(accountKey, [personal], other);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: other });
 
     expect(await vault.getProfile()).toEqual(other);
   });
 
   it("writes no profile when the rest of the write fails", async () => {
     await expect(
-      vault.setAccountKeyMaterial(accountKey, [personal, personal], linked),
+      vault.setAccountKeyMaterial(accountKey, [personal, personal], { profile: linked }),
     ).rejects.toThrow();
 
     expect(await vault.getProfile()).toBeNull();
@@ -312,7 +312,7 @@ describe("createLocalVault", () => {
 
   it("never replaces a vault already on the device", async () => {
     const linked: LocalProfile = { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u" };
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
 
     await expect(
       vault.createLocalVault(
@@ -387,7 +387,7 @@ describe("createLocalVault", () => {
     ]);
     const linked: LocalProfile = { ...local, mode: "linked", email: "a@b.c", userId: "u-1" };
 
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
 
     expect(await vault.getProfile()).toEqual(linked);
     expect(await vault.getRecoveryKeyMaterial()).toBeNull();
@@ -413,7 +413,7 @@ describe("createLocalVault", () => {
 
   it("never replaces a linked vault's key wraps locally", async () => {
     const linked: LocalProfile = { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u" };
-    await vault.setAccountKeyMaterial(accountKey, [personal], linked);
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
 
     await expect(
       vault.setLocalKeyMaterial({ ...accountKey, encryptedAccountKey: "other" }, recovery),
@@ -444,6 +444,89 @@ describe("createLocalVault", () => {
 
     expect(await vault.getRecoveryKeyMaterial()).toBeNull();
     expect(await vault.getProfile()).toBeNull();
+  });
+});
+
+describe("linked profile recovery", () => {
+  const linked: LocalProfile = { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u" };
+  const { recoveryVerifier: _, ...wrap } = {
+    recoveryKekSalt: toBase64(new Uint8Array(32).fill(4)),
+    encryptedAccountKeyRecovery: toBase64(new Uint8Array(48).fill(5)),
+    accountKeyEncryptionNonceRecovery: toBase64(new Uint8Array(24).fill(6)),
+    recoveryVerifier: toBase64(new Uint8Array(32).fill(7)),
+  };
+  const nextWrap = { ...wrap, recoveryKekSalt: toBase64(new Uint8Array(32).fill(1)) };
+  const pending = {
+    ciphertext: toBase64(new Uint8Array(80).fill(2)),
+    nonce: toBase64(new Uint8Array(24).fill(3)),
+  };
+  const nextMaterial = { ...accountKey, encryptedAccountKey: toBase64(new Uint8Array(48).fill(8)) };
+
+  it("caches a login's recovery wrap, without a verifier", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], {
+      profile: linked,
+      recoveryWrap: wrap,
+    });
+
+    expect(await vault.getRecoveryWrap()).toEqual(wrap);
+    expect(await vault.getRecoveryKeyMaterial()).toBeNull();
+  });
+
+  it("stores an offline reset's wraps and pending recovery together", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], {
+      profile: linked,
+      recoveryWrap: wrap,
+    });
+
+    await vault.setLinkedRecovery(nextMaterial, nextWrap, pending);
+
+    expect(await vault.getAccountKeyMaterial()).toEqual(nextMaterial);
+    expect(await vault.getRecoveryWrap()).toEqual(nextWrap);
+    expect(await vault.getPendingRecovery()).toEqual(pending);
+  });
+
+  it("drops the pending recovery when a login brings the server's key set", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
+    await vault.setLinkedRecovery(nextMaterial, nextWrap, pending);
+
+    await vault.setAccountKeyMaterial(accountKey, [personal], { recoveryWrap: wrap });
+
+    expect(await vault.getPendingRecovery()).toBeNull();
+    expect(await vault.getRecoveryWrap()).toEqual(wrap);
+  });
+
+  it("keeps the pending recovery through a rekey", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
+    await vault.setLinkedRecovery(nextMaterial, nextWrap, pending);
+
+    await vault.setAccountKeyMaterial(nextMaterial, [personal]);
+
+    expect(await vault.getPendingRecovery()).toEqual(pending);
+  });
+
+  it("never stores a pending recovery for a local vault", async () => {
+    await vault.createLocalVault(
+      accountKey,
+      { ...wrap, recoveryVerifier: toBase64(new Uint8Array(32).fill(7)) },
+      [personal],
+      { profileId: "p-local", mode: "local", email: null, userId: null },
+    );
+
+    await expect(vault.setLinkedRecovery(nextMaterial, nextWrap, pending)).rejects.toThrow(
+      /Not a linked vault/,
+    );
+    expect(await vault.getPendingRecovery()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toEqual(accountKey);
+  });
+
+  it("clears the pending recovery once the server took it", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
+    await vault.setLinkedRecovery(nextMaterial, nextWrap, pending);
+
+    await vault.clearPendingRecovery();
+
+    expect(await vault.getPendingRecovery()).toBeNull();
+    expect(await vault.getAccountKeyMaterial()).toEqual(nextMaterial);
   });
 });
 
@@ -570,10 +653,7 @@ describe("clear", () => {
   it("removes records, profile, key material, vault keys and sync state", async () => {
     await vault.upsertRecords([record("r1", 1)]);
     await vault.setAccountKeyMaterial(accountKey, [personal], {
-      profileId: "p-1",
-      mode: "linked",
-      email: "a@b.c",
-      userId: "u-1",
+      profile: { profileId: "p-1", mode: "linked", email: "a@b.c", userId: "u-1" },
     });
     await vault.setBiometricKeyMaterial(biometricKey);
     await vault.applySync({

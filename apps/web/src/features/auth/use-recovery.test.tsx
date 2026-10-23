@@ -1,14 +1,23 @@
 import { SessionContext } from "@repo/client";
 import { generateLocalVault } from "@repo/client/src/account/create-local-vault";
 import { useRecovery } from "@repo/client/src/hooks/use-recovery";
+import { LoginUnreachableError } from "@repo/client/src/login";
+import { RecoveryFailedError } from "@repo/client/src/recover";
 import {
+  deriveRecoveryAuthKey,
   getPasswordKekParams,
+  openPendingRecovery,
   retrievePRK,
   setPasswordKekParams,
   unwrapAccountKey,
   unwrapAccountKeyWithRecoveryKey,
 } from "@repo/crypto";
-import type { AccountKeyMaterial } from "@repo/schema";
+import {
+  type AccountKeyMaterial,
+  getArgonBounds,
+  pendingRecoverySchema,
+  setArgonBounds,
+} from "@repo/schema";
 import type { LocalProfile } from "@repo/store";
 import { fromBase64, toBase64 } from "@repo/util";
 import { act, renderHook } from "@testing-library/react";
@@ -16,10 +25,14 @@ import type { ContextType, ReactNode } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 
-const recoverAccount = vi.hoisted(() => vi.fn());
+const { recoverAccount, finishPendingRecovery } = vi.hoisted(() => ({
+  recoverAccount: vi.fn(),
+  finishPendingRecovery: vi.fn(),
+}));
 vi.mock("@repo/client/src/recover", async (importActual) => ({
   ...(await importActual<object>()),
   recoverAccount,
+  finishPendingRecovery,
 }));
 // The real Argon2 derivation, on the main thread (no workers here).
 vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
@@ -95,7 +108,7 @@ describe("useRecovery — checking the key first", () => {
     const { result } = renderHook(() => useRecovery());
     let ok = false;
     await act(async () => {
-      ok = await result.current.checkRecoveryKey(recoveryKey, false);
+      ok = await result.current.checkRecoveryKey(recoveryKey, "alice@example.com");
     });
     return { ok, error: result.current.recoveryError };
   }
@@ -244,7 +257,7 @@ describe("useRecovery — local vault", () => {
     const { result } = renderHook(() => useRecovery());
     let ok = false;
     await act(async () => {
-      ok = await result.current.checkRecoveryKey(recoveryKey, true);
+      ok = await result.current.checkRecoveryKey(recoveryKey);
     });
     return { ok, error: result.current.recoveryError };
   }
@@ -268,5 +281,176 @@ describe("useRecovery — local vault", () => {
 
     expect(error).toBe("failed");
     expect(store.saveLocalKeyMaterial).not.toHaveBeenCalled();
+  });
+});
+
+describe("useRecovery — account vault on this device", () => {
+  const PASSWORD = "hunter2hunter2";
+  const NEW_PASSWORD = "a brand new master password";
+
+  const previous = getPasswordKekParams();
+  const bounds = getArgonBounds();
+  beforeAll(() => {
+    setPasswordKekParams({ t: 1, m: 8, p: 1 });
+    // The pending recovery's key set is validated like the server's input.
+    setArgonBounds({ tMin: 1, mMin: 8, mMultipleOf: 1 });
+  });
+  afterAll(() => {
+    setPasswordKekParams(previous);
+    setArgonBounds(bounds);
+  });
+
+  let keyring: Awaited<ReturnType<typeof generateLocalVault>>;
+
+  beforeEach(async () => {
+    keyring = await generateLocalVault(PASSWORD);
+    Object.assign(store, {
+      profiles: [profileEntry(BOB), profileEntry(ALICE)],
+      profile: BOB,
+      accountKeyMaterial: keyring.material,
+      pendingRecovery: false,
+    });
+    const { recoveryVerifier: _, ...wrap } = keyring.recovery;
+    store.vault.getRecoveryWrap.mockResolvedValue(wrap);
+    store.vault.getVaults.mockResolvedValue(keyring.vaults);
+    store.vault.getPendingRecovery.mockResolvedValue(null);
+  });
+
+  function render(networkOffline: boolean) {
+    const session = { networkOffline } as ContextType<typeof SessionContext>;
+    return renderHook(() => useRecovery(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <SessionContext.Provider value={session}>{children}</SessionContext.Provider>
+      ),
+    }).result;
+  }
+
+  async function recoverWith(recoveryKey: Uint8Array, networkOffline = true) {
+    const result = render(networkOffline);
+    let newKey: Uint8Array | undefined;
+    await act(async () => {
+      newKey = await result.current.recover(
+        "alice@example.com",
+        toBase64(recoveryKey),
+        NEW_PASSWORD,
+      );
+    });
+    return { newKey, error: result.current.recoveryError };
+  }
+
+  function pendingOf(call: unknown[]) {
+    const sealed = call[3] as Parameters<typeof openPendingRecovery>[1];
+    const plaintext = openPendingRecovery(keyring.accountKey, sealed);
+    return pendingRecoverySchema.parse(JSON.parse(new TextDecoder().decode(plaintext)));
+  }
+
+  it("resets offline on the device and keeps the server's part for later", async () => {
+    const { newKey, error } = await recoverWith(keyring.recoveryKey);
+
+    expect(error).toBeUndefined();
+    expect(store.selectProfile).toHaveBeenCalledWith(ALICE.profileId);
+    const call = store.saveLinkedRecovery.mock.calls[0]!;
+    const [profileId, material, recoveryWrap] = call;
+    expect(profileId).toBe(ALICE.profileId);
+    const kek = await retrievePRK(
+      NEW_PASSWORD,
+      fromBase64(material.passwordKekSalt),
+      material.passwordKekParams,
+    );
+    expect(
+      unwrapAccountKey(kek, material.encryptedAccountKey, material.accountKeyEncryptionNonce),
+    ).toEqual(keyring.accountKey);
+    expect(await unwrapAccountKeyWithRecoveryKey(newKey!, recoveryWrap)).toEqual(
+      keyring.accountKey,
+    );
+    expect(recoveryWrap).not.toHaveProperty("recoveryVerifier");
+
+    // The server's proof is the old key's; the key set is the one just made.
+    const pending = pendingOf(call);
+    expect(pending.recoveryAuthKey).toBe(
+      toBase64(await deriveRecoveryAuthKey(keyring.recoveryKey)),
+    );
+    expect(pending.userKeys).toMatchObject(recoveryWrap);
+    expect(pending.userKeys.encryptedAccountKey).toBe(material.encryptedAccountKey);
+    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId);
+    expect(recoverAccount).not.toHaveBeenCalled();
+  });
+
+  it("online, hands the reset to the server right away and keeps nothing pending", async () => {
+    finishPendingRecovery.mockResolvedValueOnce(undefined);
+
+    const { newKey } = await recoverWith(keyring.recoveryKey, false);
+
+    expect(newKey).toHaveLength(32);
+    const call = store.saveLinkedRecovery.mock.calls[0]!;
+    expect(finishPendingRecovery).toHaveBeenCalledWith(
+      expect.anything(),
+      "alice@example.com",
+      expect.any(Uint8Array),
+      pendingOf(call),
+    );
+    expect(store.clearPendingRecovery).toHaveBeenCalledWith(ALICE.profileId);
+    expect(recoverAccount).not.toHaveBeenCalled();
+    expect(store.removeProfile).not.toHaveBeenCalled();
+  });
+
+  it("online, changes nothing when the server refuses (a stale cached wrap)", async () => {
+    finishPendingRecovery.mockRejectedValueOnce(new RecoveryFailedError());
+
+    const { newKey, error } = await recoverWith(keyring.recoveryKey, false);
+
+    expect(newKey).toBeUndefined();
+    expect(error).toBe("failed");
+    expect(store.saveLinkedRecovery).not.toHaveBeenCalled();
+    expect(store.forgetQuickUnlock).not.toHaveBeenCalled();
+  });
+
+  it("online but unreachable, keeps the reset pending for the next connect", async () => {
+    finishPendingRecovery.mockRejectedValueOnce(new LoginUnreachableError());
+
+    await recoverWith(keyring.recoveryKey, false);
+
+    expect(store.saveLinkedRecovery).toHaveBeenCalled();
+    expect(store.clearPendingRecovery).not.toHaveBeenCalled();
+  });
+
+  it("keeps an earlier pending reset's proof: the server still knows only that key", async () => {
+    const first = await recoverWith(keyring.recoveryKey);
+    const firstCall = store.saveLinkedRecovery.mock.calls[0]!;
+    store.vault.getRecoveryWrap.mockResolvedValue(firstCall[2]);
+    store.vault.getPendingRecovery.mockResolvedValue(firstCall[3]);
+
+    await recoverWith(first.newKey!);
+
+    const pending = pendingOf(store.saveLinkedRecovery.mock.calls[1]!);
+    expect(pending.recoveryAuthKey).toBe(pendingOf(firstCall).recoveryAuthKey);
+  });
+
+  it("refuses a key that doesn't open the cached wrap while offline", async () => {
+    const other = await generateLocalVault(PASSWORD);
+
+    const { newKey, error } = await recoverWith(other.recoveryKey);
+
+    expect(newKey).toBeUndefined();
+    expect(error).toBe("wrong_key");
+    expect(store.saveLinkedRecovery).not.toHaveBeenCalled();
+  });
+
+  it("leaves a key the cached wrap doesn't open to the server when online", async () => {
+    const other = await generateLocalVault(PASSWORD);
+
+    await recoverWith(other.recoveryKey, false);
+
+    expect(store.saveLinkedRecovery).not.toHaveBeenCalled();
+    expect(recoverAccount).toHaveBeenCalled();
+  });
+
+  it("needs the server for an account without a cached wrap", async () => {
+    store.vault.getRecoveryWrap.mockResolvedValue(null);
+
+    const { error } = await recoverWith(keyring.recoveryKey);
+
+    expect(error).toBe("offline");
+    expect(store.saveLinkedRecovery).not.toHaveBeenCalled();
   });
 });

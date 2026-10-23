@@ -37,9 +37,9 @@ export function useSyncSummary(): {
   retryParked: () => Promise<void>;
 } {
   const { mode, networkOffline } = useContext(SessionContext);
-  const { syncManager } = useStore();
+  const { syncManager, active } = useStore();
   const status = useSyncStatus();
-  const summary = summarizeSync(mode, status, networkOffline);
+  const summary = summarizeSync(mode, status, networkOffline, active?.pendingRecovery);
   return {
     status,
     summary,

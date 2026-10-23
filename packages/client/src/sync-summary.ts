@@ -25,11 +25,13 @@ function changes(count: number): string {
 /**
  * The sync indicator's state and copy for a session and its sync status.
  * `networkOffline`: the device has no network, whatever the sync status says.
+ * `pendingRecovery`: a password reset made on this device waits for the server.
  */
 export function summarizeSync(
   mode: SessionMode | null | undefined,
   status: SyncStatus,
   networkOffline: boolean,
+  pendingRecovery = false,
 ): SyncSummary {
   if (mode === "local" || !mode)
     return {
@@ -65,6 +67,14 @@ export function summarizeSync(
 
   if (status.phase === "syncing")
     return { state: "syncing", title: "Syncing…", detail: "Exchanging changes with the server." };
+
+  if (offline && pendingRecovery)
+    return {
+      state: "offline",
+      title: "Password reset waiting",
+      detail:
+        "Your new password works on this device. Your account switches to it once the server is reachable; until then nothing syncs.",
+    };
 
   if (offline) {
     const waiting =

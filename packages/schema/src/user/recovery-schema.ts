@@ -30,6 +30,25 @@ export const finishRecoveryInputSchema = z.object({
   userKeys: userKeySchema,
 });
 
+/**
+ * A password reset done on the device while the server was out of reach (a
+ * linked profile, ADR 0001 D10 amended): what `finishRecovery` needs once
+ * online. Kept encrypted under the account key (`sealedPendingRecoverySchema`).
+ * `recoveryAuthKey` is the old recovery key's proof, never the key itself.
+ */
+export const pendingRecoverySchema = z.object({
+  recoveryAuthKey: z.base64().length(44),
+  userKeys: userKeySchema,
+});
+
+export const sealedPendingRecoverySchema = z.object({
+  ciphertext: z.base64(),
+  nonce: z.base64().length(32),
+});
+
+export type PendingRecovery = z.infer<typeof pendingRecoverySchema>;
+export type SealedPendingRecovery = z.infer<typeof sealedPendingRecoverySchema>;
+
 const passwordFields = {
   password: z.string().min(8),
   confirmPassword: z.string(),

@@ -7,6 +7,8 @@ import {
   type EncryptedVaultMeta,
   type MemberVault,
   type RecoveryKeySchema,
+  type RecoveryWrapSchema,
+  type SealedPendingRecovery,
   type UserPublicKey,
 } from "@repo/schema";
 import { inArray } from "drizzle-orm";
@@ -30,14 +32,19 @@ import {
 import {
   clearBiometricKey,
   clearKeysTable,
+  clearPendingRecovery,
   clearRecoveryKey,
   getAccountKey,
   getBiometricKey,
   getPeerKey,
+  getPendingRecovery,
   getRecoveryKey,
+  getRecoveryWrap,
   isPeerRemoved,
+  replaceRecoveryWrap,
   setPeerKey,
   setPeerRemoved,
+  setPendingRecovery,
   upsertAccountKey,
   upsertBiometricKey,
   upsertRecoveryKey,
@@ -446,18 +453,26 @@ export class Vault {
   /**
    * Store the account key wrap and the vaults (with their key wraps) together,
    * atomically. With `profile`, the profile is replaced in the same transaction;
-   * a `linked` one drops the recovery wrap a local vault kept (linking, ADR 0001
-   * D9: the server holds it now).
+   * a `linked` one drops the recovery material a local vault kept (linking, ADR
+   * 0001 D9: the server holds it now). `recoveryWrap` (a login's): the server's
+   * recovery wrap replaces what is stored, and a pending recovery is dropped:
+   * the login's key set supersedes it.
    */
   async setAccountKeyMaterial(
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    profile?: LocalProfile,
+    {
+      profile,
+      recoveryWrap,
+    }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null } = {},
   ): Promise<void> {
     await this.ready();
     await this.transaction(async (tx) => {
       if (profile) await replaceProfile(profile, tx);
-      if (profile?.mode === "linked") await clearRecoveryKey(tx);
+      if (recoveryWrap !== undefined) {
+        await replaceRecoveryWrap(recoveryWrap, tx);
+        await clearPendingRecovery(tx);
+      } else if (profile?.mode === "linked") await clearRecoveryKey(tx);
       await upsertAccountKey(material, tx);
       await replaceVaults(vaults, tx);
     });
@@ -504,7 +519,42 @@ export class Vault {
     });
   }
 
-  /** The recovery wrap + verifier of a local vault; null for a linked one (the server holds it). */
+  /**
+   * A linked profile's password reset while offline (ADR 0001 D10 amended): the
+   * new password wrap, the new recovery wrap and the pending server recovery,
+   * atomically. Refuses (throws) for any profile but a `linked` one.
+   */
+  async setLinkedRecovery(
+    material: AccountKeyMaterial,
+    recoveryWrap: RecoveryWrapSchema,
+    pending: SealedPendingRecovery,
+  ): Promise<void> {
+    await this.ready();
+    await this.transaction(async (tx) => {
+      if ((await getProfile(tx))?.mode !== "linked") throw new Error("Not a linked vault");
+      await upsertAccountKey(material, tx);
+      await replaceRecoveryWrap(recoveryWrap, tx);
+      await setPendingRecovery(pending, tx);
+    });
+  }
+
+  /** The recovery wrap of the account key: a local vault's, or a linked one's cached from its last login. */
+  async getRecoveryWrap(): Promise<RecoveryWrapSchema | null> {
+    await this.ready();
+    return await getRecoveryWrap(this.db);
+  }
+
+  async getPendingRecovery(): Promise<SealedPendingRecovery | null> {
+    await this.ready();
+    return await getPendingRecovery(this.db);
+  }
+
+  async clearPendingRecovery(): Promise<void> {
+    await this.ready();
+    await clearPendingRecovery(this.db);
+  }
+
+  /** The recovery wrap + verifier of a local vault; null for a linked one (no verifier, see `getRecoveryWrap`). */
   async getRecoveryKeyMaterial(): Promise<RecoveryKeySchema | null> {
     await this.ready();
     return await getRecoveryKey(this.db);

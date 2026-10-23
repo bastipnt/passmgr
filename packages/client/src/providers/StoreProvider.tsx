@@ -1,5 +1,11 @@
 import { type BiometricKeyMaterial, isPrfSupported } from "@repo/crypto";
-import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  MemberVault,
+  RecoveryKeySchema,
+  RecoveryWrapSchema,
+  SealedPendingRecovery,
+} from "@repo/schema";
 import {
   clearAutofillEntries,
   clearLoginBundle,
@@ -57,6 +63,8 @@ export type ActiveProfile = {
   /** The cached account key wrap: present once the profile can unlock without the server. */
   accountKeyMaterial: AccountKeyMaterial | null;
   biometricKeyMaterial: BiometricKeyMaterial | null;
+  /** A linked profile's password reset done offline, still to reach the server. */
+  pendingRecovery: boolean;
 };
 
 type StoreContextValue = {
@@ -100,18 +108,20 @@ type StoreContextValue = {
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
+    recoveryWrap: RecoveryWrapSchema | null,
   ) => Promise<ActiveProfile>;
   /**
    * Store the account key wrap and the vaults (and, when given, a changed
-   * profile row) in a profile, atomically, and update the state to match. The
-   * profile is named: a background write (a rekey) lands in the profile it
-   * was made for, even when another one was opened meanwhile.
+   * profile row, or a login's recovery wrap, which ends a pending recovery) in
+   * a profile, atomically, and update the state to match. The profile is
+   * named: a background write (a rekey) lands in the profile it was made for,
+   * even when another one was opened meanwhile.
    */
   saveAccount: (
     profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    profile?: LocalProfile,
+    options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
   ) => Promise<void>;
   /**
    * Replace both account key wraps of a `local` profile (local recovery, ADR
@@ -122,6 +132,18 @@ type StoreContextValue = {
     material: AccountKeyMaterial,
     recovery: RecoveryKeySchema,
   ) => Promise<void>;
+  /**
+   * A `linked` profile's password reset while offline (ADR 0001 D10 amended):
+   * the new wraps and the pending server recovery, atomically.
+   */
+  saveLinkedRecovery: (
+    profileId: string,
+    material: AccountKeyMaterial,
+    recoveryWrap: RecoveryWrapSchema,
+    pending: SealedPendingRecovery,
+  ) => Promise<void>;
+  /** The server took a profile's pending recovery (or refused it for good). */
+  clearPendingRecovery: (profileId: string) => Promise<void>;
   /**
    * Add a profile with a vault on this device only (`local`, ADR 0001 D2) next
    * to the others and make it the active one. Locked only.
@@ -379,12 +401,22 @@ export function StoreProvider({
   /** Read what the profile's database holds for an unlock. */
   const load = useCallback(
     async (entry: ProfileEntry, vault: Vault): Promise<ActiveProfile> => {
-      const [profile, accountKeyMaterial, biometricKeyMaterial] = await Promise.all([
-        vault.getProfile(),
-        vault.getAccountKeyMaterial(),
-        vault.getBiometricKeyMaterial(),
-      ]);
-      return { entry, vault, ...bind(vault), profile, accountKeyMaterial, biometricKeyMaterial };
+      const [profile, accountKeyMaterial, biometricKeyMaterial, pendingRecovery] =
+        await Promise.all([
+          vault.getProfile(),
+          vault.getAccountKeyMaterial(),
+          vault.getBiometricKeyMaterial(),
+          vault.getPendingRecovery(),
+        ]);
+      return {
+        entry,
+        vault,
+        ...bind(vault),
+        profile,
+        accountKeyMaterial,
+        biometricKeyMaterial,
+        pendingRecovery: pendingRecovery !== null,
+      };
     },
     [bind],
   );
@@ -536,14 +568,16 @@ export function StoreProvider({
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
+    recoveryWrap: RecoveryWrapSchema | null,
   ) {
-    return await switchLock(() => openAccount(account, material, vaults));
+    return await switchLock(() => openAccount(account, material, vaults, recoveryWrap));
   }
 
   async function openAccount(
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
+    recoveryWrap: RecoveryWrapSchema | null,
   ) {
     assertLocked();
     const existing = await profiles.findByUserId(account.userId);
@@ -556,7 +590,10 @@ export function StoreProvider({
         userId: account.userId,
       };
       const changed = opened.profile?.email !== account.email || opened.profile.mode !== "linked";
-      await saveAccount(existing.profileId, material, vaults, changed ? profile : undefined);
+      await saveAccount(existing.profileId, material, vaults, {
+        profile: changed ? profile : undefined,
+        recoveryWrap,
+      });
       return requireActive({ current });
     }
 
@@ -567,7 +604,7 @@ export function StoreProvider({
       userId: account.userId,
     };
     const { vault } = await profiles.create(profile, (v) =>
-      v.setAccountKeyMaterial(material, vaults, profile),
+      v.setAccountKeyMaterial(material, vaults, { profile, recoveryWrap }),
     );
     return await activate(profile.profileId, vault);
   }
@@ -576,12 +613,15 @@ export function StoreProvider({
     profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    nextProfile?: LocalProfile,
+    {
+      profile: nextProfile,
+      recoveryWrap,
+    }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null } = {},
   ) {
     if (nextProfile && nextProfile.profileId !== profileId)
       throw new Error("A profile can't take another profile's row");
     await profiles.withVault(profileId, (vault) =>
-      vault.setAccountKeyMaterial(material, vaults, nextProfile),
+      vault.setAccountKeyMaterial(material, vaults, { profile: nextProfile, recoveryWrap }),
     );
     if (nextProfile) {
       await profiles.update(nextProfile);
@@ -602,6 +642,7 @@ export function StoreProvider({
       entry,
       accountKeyMaterial: material,
       profile: nextProfile ?? open.profile,
+      pendingRecovery: recoveryWrap === undefined && open.pendingRecovery,
     });
   }
 
@@ -613,6 +654,26 @@ export function StoreProvider({
     await profiles.withVault(profileId, (vault) => vault.setLocalKeyMaterial(material, recovery));
     const open = activeRef.current;
     if (open?.entry.profileId === profileId) setActive({ ...open, accountKeyMaterial: material });
+  }
+
+  async function saveLinkedRecovery(
+    profileId: string,
+    material: AccountKeyMaterial,
+    recoveryWrap: RecoveryWrapSchema,
+    pending: SealedPendingRecovery,
+  ) {
+    await profiles.withVault(profileId, (vault) =>
+      vault.setLinkedRecovery(material, recoveryWrap, pending),
+    );
+    const open = activeRef.current;
+    if (open?.entry.profileId === profileId)
+      setActive({ ...open, accountKeyMaterial: material, pendingRecovery: true });
+  }
+
+  async function clearPendingRecovery(profileId: string) {
+    await profiles.withVault(profileId, (vault) => vault.clearPendingRecovery());
+    const open = activeRef.current;
+    if (open?.entry.profileId === profileId) setActive({ ...open, pendingRecovery: false });
   }
 
   async function createLocalVault(
@@ -717,6 +778,8 @@ export function StoreProvider({
     openAccountProfile,
     saveAccount,
     saveLocalKeyMaterial,
+    saveLinkedRecovery,
+    clearPendingRecovery,
     createLocalVault,
     countPendingChanges,
     removeProfile,

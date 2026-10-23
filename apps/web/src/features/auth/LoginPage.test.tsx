@@ -155,6 +155,7 @@ function serverLogin(userId: string = linkedProfile.userId) {
       userId,
       password: "right password",
       userPasswordKeys: accountKeyMaterial,
+      recoveryKeys: null,
       vaultKeys: [personalVault],
       userKeyPair: accountKeyMaterial.userKeyPair,
     };
@@ -259,7 +260,7 @@ describe("LoginPage stored vault", () => {
     expect(vi.mocked(loginUserCore).mock.calls[0]?.[2]).toBe("alice@example.com");
     // Same account, same profile: only its key material is refreshed.
     expect(store.saveAccount.mock.calls[0]?.[0]).toBe(linkedProfile.profileId);
-    expect(store.saveAccount.mock.calls[0]?.[3]).toBeUndefined();
+    expect(store.saveAccount.mock.calls[0]?.[3]).toEqual({ recoveryWrap: null });
     // Let the background connect finish, so it can't leak into the next test.
     await waitFor(() => expect(secretsStore.hasServerSession).toBe(true));
   });
@@ -309,9 +310,25 @@ describe("LoginPage stored vault", () => {
       { userId: linkedProfile.userId, email: "alice@example.com" },
       accountKeyMaterial,
       [personalVault],
+      null,
     );
     expect(store.profile?.profileId).toBe(linkedProfile.profileId);
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
+  });
+
+  it("never lets the old password undo a reset still waiting for the server", async () => {
+    store.pendingRecovery = true;
+    unlockVault.mockImplementationOnce(() => {
+      throw new Error("decrypt failed: the old password");
+    });
+    vi.mocked(loginUserCore).mockImplementation(serverLogin());
+    renderPage({ networkOffline: false });
+    await unlockStored("old password");
+
+    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    expect(loginUserCore).not.toHaveBeenCalled();
+    expect(store.openAccountProfile).not.toHaveBeenCalled();
+    store.pendingRecovery = false;
   });
 });
 

@@ -1,5 +1,5 @@
 import { genKey } from "@repo/crypto";
-import type { MemberVault, UserKeyPair } from "@repo/schema";
+import type { MemberVault, PasswordKeySchema, RecoveryWrapSchema, UserKeyPair } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { appRouter } from "../../src/router";
 import { createCallerFactory } from "../../src/trpc";
@@ -47,6 +47,8 @@ export async function loginAndGetAuthKey(
   authKey: Uint8Array;
   vaultKeys: MemberVault[];
   userKeyPair: UserKeyPair;
+  userPasswordKeys: PasswordKeySchema;
+  recoveryKeys: RecoveryWrapSchema | null;
 }> {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartLogin(password, email);
@@ -77,6 +79,8 @@ export async function loginAndGetAuthKey(
     authKey,
     vaultKeys: finished.vaultKeys,
     userKeyPair: finished.userKeyPair,
+    userPasswordKeys: finished.userPasswordKeys,
+    recoveryKeys: finished.recoveryKeys,
   };
 }
 

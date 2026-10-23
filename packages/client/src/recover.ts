@@ -5,26 +5,37 @@ import {
   generateUserKeys,
   normalizeEmail,
   OPAQUE_SERVER_IDENTITY,
+  openPendingRecovery,
+  sealPendingRecovery,
   unwrapAccountKeyWithRecoveryKey,
   unwrapVaultKey,
   wipe,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
-import type {
-  AccountKeyMaterial,
-  MemberVault,
-  RecoveryKeySchema,
-  RecoveryWrapSchema,
+import {
+  type AccountKeyMaterial,
+  type MemberVault,
+  type PendingRecovery,
+  pendingRecoverySchema,
+  type RecoveryKeySchema,
+  type RecoveryWrapSchema,
+  type SealedPendingRecovery,
 } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
-import { fromBase64, toBase64 } from "@repo/util";
+import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { devicePasswordKekParams } from "./account/password-kek-params";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
-import { LoginThrottledError } from "./login";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
+import { LoginThrottledError, LoginUnreachableError } from "./login";
+import {
+  b64ToBytes,
+  bytesToB64,
+  opaqueConfig as config,
+  opaqueInput,
+  opaqueInputFor,
+} from "./opaque";
 import { deriveArgon2InWorker } from "./util/derive-password-kek";
-import { isThrottled } from "./util/trpc-errors";
+import { isServerAnswer, isServerError, isThrottled } from "./util/trpc-errors";
 
 export type RecoveryTRPCClient = Pick<TRPCClient<AppRouter>, "recovery">;
 
@@ -158,12 +169,12 @@ export async function recoverAccount(
 }
 
 /**
- * Check a `local` profile's recovery key against its recovery wrap, before a
+ * Check a recovery key against a recovery wrap on the device, before a
  * new password is asked for. Throws `RecoveryKeyInvalidError` (malformed key)
  * or `RecoveryFailedError` (the key doesn't open the wrap).
  */
 export async function checkLocalRecoveryKey(
-  recovery: RecoveryKeySchema,
+  recovery: RecoveryWrapSchema,
   rawRecoveryKey: string,
 ): Promise<void> {
   const recoveryKey = parseRecoveryKey(rawRecoveryKey);
@@ -192,31 +203,118 @@ export type LocalRecovery = {
  * every record stays readable; the old recovery key stops working once the
  * result is stored.
  *
- * The recovered key must open the personal vault: the result replaces the
- * only password wrap on the device, and one around another key would lock
- * the vault for good.
- *
  * Throws `RecoveryKeyInvalidError` (malformed key), `RecoveryFailedError`
  * (the key doesn't open the wrap) or `LocalRecoveryMismatchError`.
  */
 export async function recoverLocalVault(
   material: AccountKeyMaterial,
-  recovery: RecoveryKeySchema,
+  recovery: RecoveryWrapSchema,
   vaults: readonly MemberVault[],
   rawRecoveryKey: string,
   newPassword: string,
 ): Promise<LocalRecovery> {
-  const recoveryKey = parseRecoveryKey(rawRecoveryKey);
-  let accountKey: Uint8Array;
-  try {
-    accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, recovery);
-  } catch {
-    throw new RecoveryFailedError();
-  } finally {
-    wipe(recoveryKey);
-  }
+  return await rewrapOnDevice(recovery, vaults, rawRecoveryKey, async (accountKey) => {
+    const passwordWrap = await wrapGivenAccountKeyForPassword(newPassword, accountKey);
+    const { recoveryKey, ...newRecovery } = await generateRecoveryKeys(accountKey);
+    return {
+      material: { ...passwordWrap, userKeyPair: material.userKeyPair },
+      recovery: newRecovery,
+      recoveryKey,
+    };
+  });
+}
 
+/** What a linked profile's offline reset stores, and the key to show once. */
+export type LinkedRecovery = {
+  material: AccountKeyMaterial;
+  recoveryWrap: RecoveryWrapSchema;
+  pending: SealedPendingRecovery;
+  /** `pending` opened, for finishing it right away when online. */
+  serverRecovery: PendingRecovery;
+  /** Plaintext: the caller shows it once, then wipes it. Never sent anywhere. */
+  recoveryKey: Uint8Array;
+};
+
+/**
+ * Reset the master password of a `linked` profile on the device (ADR 0001 D10
+ * amended), with the recovery wrap cached from its last login: the same new
+ * wraps as `recoverLocalVault`, and the server's recovery to finish once
+ * online (`finishPendingRecovery`), sealed under the account key. Its proof is
+ * the recovery key the server still knows: an earlier pending reset's, when
+ * there is one (the key entered now may be the one that reset issued).
+ *
+ * Throws like `recoverLocalVault`.
+ */
+export async function recoverLinkedVault(
+  material: AccountKeyMaterial,
+  recoveryWrap: RecoveryWrapSchema,
+  vaults: readonly MemberVault[],
+  earlier: SealedPendingRecovery | null,
+  rawRecoveryKey: string,
+  newPassword: string,
+): Promise<LinkedRecovery> {
+  return await rewrapOnDevice(
+    recoveryWrap,
+    vaults,
+    rawRecoveryKey,
+    async (accountKey, recoveryKey) => {
+      const recoveryAuthKey = earlier
+        ? parsePendingRecovery(openPendingRecovery(accountKey, earlier)).recoveryAuthKey
+        : await recoveryAuthKeyOf(recoveryKey);
+      const passwordWrap = await wrapGivenAccountKeyForPassword(newPassword, accountKey);
+      const { recoveryKey: newRecoveryKey, ...newRecovery } =
+        await generateRecoveryKeys(accountKey);
+      const pending: PendingRecovery = {
+        recoveryAuthKey,
+        userKeys: { ...passwordWrap, ...newRecovery },
+      };
+      const { recoveryVerifier: _, ...newWrap } = newRecovery;
+      const plaintext = fromString(JSON.stringify(pending));
+      try {
+        return {
+          material: { ...passwordWrap, userKeyPair: material.userKeyPair },
+          recoveryWrap: newWrap,
+          pending: sealPendingRecovery(accountKey, plaintext),
+          serverRecovery: pending,
+          recoveryKey: newRecoveryKey,
+        };
+      } finally {
+        wipe(plaintext);
+      }
+    },
+  );
+}
+
+async function recoveryAuthKeyOf(recoveryKey: Uint8Array): Promise<string> {
+  const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);
   try {
+    return toBase64(recoveryAuthKey);
+  } finally {
+    wipe(recoveryAuthKey);
+  }
+}
+
+/**
+ * Unwrap the account key with the recovery key and hand it to `rewrap`.
+ *
+ * The recovered key must open the personal vault: the result replaces the
+ * only password wrap on the device, and one around another key would lock
+ * the vault for good.
+ */
+async function rewrapOnDevice<T>(
+  wrap: RecoveryWrapSchema,
+  vaults: readonly MemberVault[],
+  rawRecoveryKey: string,
+  rewrap: (accountKey: Uint8Array, recoveryKey: Uint8Array) => Promise<T>,
+): Promise<T> {
+  const recoveryKey = parseRecoveryKey(rawRecoveryKey);
+  let accountKey: Uint8Array | undefined;
+  try {
+    try {
+      accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, wrap);
+    } catch {
+      throw new RecoveryFailedError();
+    }
     const personal = vaults.find((v) => v.kind === "personal");
     try {
       if (!personal) throw new Error("no personal vault");
@@ -224,15 +322,79 @@ export async function recoverLocalVault(
     } catch {
       throw new LocalRecoveryMismatchError();
     }
-
-    const passwordWrap = await wrapGivenAccountKeyForPassword(newPassword, accountKey);
-    const { recoveryKey: newRecoveryKey, ...newRecovery } = await generateRecoveryKeys(accountKey);
-    return {
-      material: { ...passwordWrap, userKeyPair: material.userKeyPair },
-      recovery: newRecovery,
-      recoveryKey: newRecoveryKey,
-    };
+    return await rewrap(accountKey, recoveryKey);
   } finally {
-    wipe(accountKey);
+    wipe(recoveryKey);
+    if (accountKey) wipe(accountKey);
   }
+}
+
+/** A pending recovery opened from its seal (`openPendingRecovery`); wipes `plaintext`. */
+export function parsePendingRecovery(plaintext: Uint8Array): PendingRecovery {
+  try {
+    return pendingRecoverySchema.parse(JSON.parse(new TextDecoder().decode(plaintext)));
+  } finally {
+    wipe(plaintext);
+  }
+}
+
+/**
+ * Finish a linked profile's offline reset on the server (`recovery.startRecovery`
+ * + `finishRecovery`): the old recovery key's proof, a new OPAQUE registration
+ * for the new password (`opaquePassword`, its `deriveOpaquePassword`) and the
+ * key set made on the device. The server swaps the OPAQUE record and key set
+ * and revokes every session, as for `recoverAccount`.
+ *
+ * Throws `RecoveryFailedError` (the server refused: the account's recovery key
+ * changed meanwhile, or the reset already went through), `LoginThrottledError`
+ * or `LoginUnreachableError` (retry later).
+ */
+export async function finishPendingRecovery(
+  trpc: RecoveryTRPCClient,
+  rawEmail: string,
+  opaquePassword: Uint8Array,
+  pending: PendingRecovery,
+): Promise<void> {
+  const email = normalizeEmail(rawEmail);
+  const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
+  const req = await client.registerInit(opaqueInput(opaquePassword));
+  if (req instanceof Error) throw new RecoveryFailedError();
+
+  let attemptId: string;
+  let registrationResponse: string;
+  try {
+    ({ attemptId, registrationResponse } = await trpc.recovery.startRecovery.mutate({
+      email,
+      recoveryAuthKey: pending.recoveryAuthKey,
+      registrationRequest: bytesToB64(req.serialize()),
+    }));
+  } catch (err) {
+    throw recoveryRequestFailure(err);
+  }
+
+  let resp: RegistrationResponse;
+  try {
+    resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
+  } catch {
+    throw new RecoveryFailedError();
+  }
+  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
+  if (finished instanceof Error) throw new RecoveryFailedError();
+
+  try {
+    await trpc.recovery.finishRecovery.mutate({
+      email,
+      attemptId,
+      registrationRecord: bytesToB64(finished.record.serialize()),
+      userKeys: pending.userKeys,
+    });
+  } catch (err) {
+    throw recoveryRequestFailure(err);
+  }
+}
+
+function recoveryRequestFailure(err: unknown): Error {
+  if (isThrottled(err)) return new LoginThrottledError();
+  if (!isServerAnswer(err) || isServerError(err)) return new LoginUnreachableError();
+  return new RecoveryFailedError();
 }

@@ -26,9 +26,10 @@ let mockNetworkOffline = false;
 let mockSearch = "";
 
 vi.mock("@repo/client", async () => {
-  const { RECOVERY_ERROR_MESSAGES } = await vi.importActual<
-    typeof import("@repo/client/src/hooks/use-recovery")
-  >("@repo/client/src/hooks/use-recovery");
+  const { accountProfileEntry, RECOVERY_ERROR_MESSAGES, RECOVERY_OFFLINE_NOTE } =
+    await vi.importActual<typeof import("@repo/client/src/hooks/use-recovery")>(
+      "@repo/client/src/hooks/use-recovery",
+    );
   const { SessionContext } = await vi.importActual<
     typeof import("@repo/client/src/providers/SessionProvider")
   >("@repo/client/src/providers/SessionProvider");
@@ -40,7 +41,9 @@ vi.mock("@repo/client", async () => {
     ...(await (await import("@/test/password-generator-mock")).passwordGeneratorMocks()),
     usePasswordStrength: () => null,
     profileHue: () => 200,
+    accountProfileEntry,
     RECOVERY_ERROR_MESSAGES,
+    RECOVERY_OFFLINE_NOTE,
     SessionContext,
     signInToAccount: (...args: unknown[]) => signInToAccount(...args),
     useSecondFactorRequest,
@@ -60,6 +63,7 @@ vi.mock("@repo/client", async () => {
       profiles: mockProfile ? [mockProfile] : [],
       active: mockProfile && { entry: { name: "Home vault" }, profile: mockProfile },
       biometricKeyMaterial: mockBiometrics ? {} : null,
+      current: () => null,
     }),
   };
 });
@@ -133,7 +137,7 @@ describe("RecoverPage from the account login", () => {
     await userEvent.type(screen.getByLabelText("Email"), "alice@example.com");
     await enterKey();
 
-    expect(checkRecoveryKey).toHaveBeenCalledWith(KEY, false);
+    expect(checkRecoveryKey).toHaveBeenCalledWith(KEY, "alice@example.com");
     expect(await screen.findByText("Choose a new password")).toBeInTheDocument();
     expect(screen.getByText(/signed out on all your devices/i)).toBeInTheDocument();
     await choosePassword();
@@ -305,11 +309,12 @@ describe("RecoverPage from the account login", () => {
     expect(await screen.findByText(/too many attempts/i)).toBeInTheDocument();
   });
 
-  it("says up front that an account's reset needs a connection", () => {
+  it("promises no offline reset for an account that isn't on this device", async () => {
     mockNetworkOffline = true;
     renderPage();
-    expect(screen.getByText(/needs a connection to the server/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /^continue$/i })).toBeDisabled();
+    await userEvent.type(screen.getByLabelText("Email"), "carol@example.com");
+    expect(screen.queryByText(/switches to it once you're online/i)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^continue$/i })).toBeEnabled();
   });
 });
 
@@ -317,6 +322,13 @@ describe("RecoverPage from an account's unlock card", () => {
   beforeEach(() => {
     mockProfile = ALICE;
     mockSearch = "vault=active";
+  });
+
+  it("says offline that the account switches to the new password once online", () => {
+    mockNetworkOffline = true;
+    renderPage();
+    expect(screen.getByText(/switches to it once you're online/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^continue$/i })).toBeEnabled();
   });
 
   it("takes the email from the profile", async () => {
@@ -379,10 +391,10 @@ describe("RecoverPage local vault", () => {
 
     expect(screen.queryByLabelText("Email")).toBeNull();
     expect(screen.getByText("Home vault")).toBeInTheDocument();
-    expect(screen.queryByText(/needs a connection/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/switches to it once you're online/i)).not.toBeInTheDocument();
     await enterKey();
 
-    expect(checkRecoveryKey).toHaveBeenCalledWith(KEY, true);
+    expect(checkRecoveryKey).toHaveBeenCalledWith(KEY, undefined);
     expect(await screen.findByText("Recovery key accepted")).toBeInTheDocument();
     expect(screen.getByText(/biometric unlock is switched off/i)).toBeInTheDocument();
     expect(screen.queryByText(/signed out on all/i)).not.toBeInTheDocument();

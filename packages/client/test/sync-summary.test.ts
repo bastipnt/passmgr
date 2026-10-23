@@ -41,6 +41,14 @@ describe("summarizeSync", () => {
     expect(summary.detail).toContain("3 changes saved on this device");
   });
 
+  it("names a password reset still waiting for the server while not connected", () => {
+    expect(summarizeSync("offline", idle, false, true)).toMatchObject({
+      state: "offline",
+      title: "Password reset waiting",
+    });
+    expect(summarizeSync("online", idle, false, true).state).toBe("synced");
+  });
+
   it("a linked vault without a server session is not connected, though the network is up", () => {
     expect(summarizeSync("offline", idle, false)).toMatchObject({
       state: "offline",

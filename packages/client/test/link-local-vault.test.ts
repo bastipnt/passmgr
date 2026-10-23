@@ -120,6 +120,7 @@ async function fakeServer() {
             sessionId: "s-1",
             userId: account.userId,
             userPasswordKeys,
+            recoveryKeys: null,
             vaultKeys,
             userKeyPair,
           };

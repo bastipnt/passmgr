@@ -4,7 +4,11 @@ import {
   type AccountKeyMaterial,
   type ArgonParams,
   type RecoveryKeySchema,
+  type RecoveryWrapSchema,
   recoveryKeySchema,
+  recoveryWrapSchema,
+  type SealedPendingRecovery,
+  sealedPendingRecoverySchema,
   type UserPublicKey,
   userKeyPairSchema,
   userPublicKeySchema,
@@ -70,8 +74,9 @@ export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | n
 }
 
 /**
- * RECOVERY KEY (local profile only: the recovery wrap of the account key and
- * the verifier, kept on the device until linking uploads them, ADR 0001 D9)
+ * RECOVERY KEY: the recovery wrap of the account key. A local profile keeps the
+ * verifier with it until linking uploads both (ADR 0001 D9); a linked one keeps
+ * the server's wrap only, for a reset while offline (D10 amended).
  */
 
 const RECOVERY_KEY_MATERIAL_KEYS = Object.keys(recoveryKeySchema.shape);
@@ -86,9 +91,49 @@ export async function getRecoveryKey(db: LocalDb): Promise<RecoveryKeySchema | n
   return parsed.success ? parsed.data : null;
 }
 
-/** Linking: the server holds the recovery wrap from then on (ADR 0001 D9). */
 export async function clearRecoveryKey(db: LocalDb): Promise<void> {
   await db.delete(keyMaterial).where(inArray(keyMaterial.key, RECOVERY_KEY_MATERIAL_KEYS));
+}
+
+/** Replace whatever recovery material is stored with the wrap alone (a linked profile's). */
+export async function replaceRecoveryWrap(
+  wrap: RecoveryWrapSchema | null,
+  db: LocalDb,
+): Promise<void> {
+  await clearRecoveryKey(db);
+  if (wrap) await upsertEntries(Object.entries(recoveryWrapSchema.parse(wrap)), db);
+}
+
+export async function getRecoveryWrap(db: LocalDb): Promise<RecoveryWrapSchema | null> {
+  const res = await getEntries(Object.keys(recoveryWrapSchema.shape), db);
+  const parsed = recoveryWrapSchema.safeParse(res);
+  return parsed.success ? parsed.data : null;
+}
+
+/**
+ * PENDING RECOVERY: a linked profile's password reset done offline, waiting
+ * for the server (encrypted under the account key).
+ */
+
+const PENDING_RECOVERY_KEY = "pendingRecovery";
+
+export async function setPendingRecovery(sealed: SealedPendingRecovery, db: LocalDb) {
+  await upsertEntries([[PENDING_RECOVERY_KEY, JSON.stringify(sealed)]], db);
+}
+
+export async function getPendingRecovery(db: LocalDb): Promise<SealedPendingRecovery | null> {
+  const value = (await getEntries([PENDING_RECOVERY_KEY], db))[PENDING_RECOVERY_KEY];
+  if (value === undefined) return null;
+  try {
+    const parsed = sealedPendingRecoverySchema.safeParse(JSON.parse(value));
+    return parsed.success ? parsed.data : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function clearPendingRecovery(db: LocalDb): Promise<void> {
+  await db.delete(keyMaterial).where(eq(keyMaterial.key, PENDING_RECOVERY_KEY));
 }
 
 /**

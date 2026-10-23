@@ -2,6 +2,7 @@ import type {
   EncryptedVaultMeta,
   RecoveryKeySchema,
   RecoveryWrapSchema,
+  SealedPendingRecovery,
   UserKeySchema,
   VaultKeyLink,
   VaultKeyWrap,
@@ -35,6 +36,7 @@ import { encryptVaultMeta } from "./vault-data";
  */
 
 const ACCOUNT_KEY_AAD = fromString("passmgr/account-key/v1");
+const PENDING_RECOVERY_AAD = fromString("passmgr/pending-recovery/v1");
 
 function vaultKeyAad(vaultId: string, keyVersion: number): Uint8Array {
   return fromString(`passmgr/vault-key/v1/${vaultId}/${keyVersion}`);
@@ -259,4 +261,21 @@ export async function unwrapAccountKeyWithRecoveryKey(
   } finally {
     wipe(recoveryKek);
   }
+}
+
+/** Encrypt a pending recovery (`PendingRecovery`, serialized) under the account key. */
+export function sealPendingRecovery(
+  accountKey: Uint8Array,
+  plaintext: Uint8Array,
+): SealedPendingRecovery {
+  const [ciphertext, nonce] = encryptXChaChaWithAAD(accountKey, plaintext, PENDING_RECOVERY_AAD);
+  return { ciphertext, nonce };
+}
+
+/** Throws when the account key doesn't open it (AEAD tag failure). */
+export function openPendingRecovery(
+  accountKey: Uint8Array,
+  sealed: SealedPendingRecovery,
+): Uint8Array {
+  return decryptXChaChaWithAAD(accountKey, sealed.ciphertext, sealed.nonce, PENDING_RECOVERY_AAD);
 }

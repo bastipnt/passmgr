@@ -1,6 +1,12 @@
 import type { ActiveProfile } from "@repo/client";
 import type { BiometricKeyMaterial } from "@repo/crypto";
-import type { AccountKeyMaterial, MemberVault, RecoveryKeySchema } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  MemberVault,
+  RecoveryKeySchema,
+  RecoveryWrapSchema,
+  SealedPendingRecovery,
+} from "@repo/schema";
 import type { LocalProfile, ProfileEntry } from "@repo/store";
 import { type Mock, vi } from "vitest";
 
@@ -9,6 +15,8 @@ export type FakeVault = {
   getProfile: Mock;
   getAccountKeyMaterial: Mock;
   getRecoveryKeyMaterial: Mock;
+  getRecoveryWrap: Mock;
+  getPendingRecovery: Mock;
   countPendingChanges: Mock<() => Promise<number>>;
   setBiometricKeyMaterial: Mock;
   clearBiometricKeyMaterial: Mock;
@@ -20,6 +28,8 @@ export function fakeVault(): FakeVault {
     getProfile: vi.fn(async () => null),
     getAccountKeyMaterial: vi.fn(async () => null),
     getRecoveryKeyMaterial: vi.fn(async () => null),
+    getRecoveryWrap: vi.fn(async () => null),
+    getPendingRecovery: vi.fn(async () => null),
     countPendingChanges: vi.fn(async () => 0),
     setBiometricKeyMaterial: vi.fn(),
     clearBiometricKeyMaterial: vi.fn(),
@@ -76,6 +86,7 @@ export function createFakeStore() {
     biometricKeyMaterial: null as BiometricKeyMaterial | null,
     needsBiometricEnroll: false,
     biometricDismissed: false,
+    pendingRecovery: false,
     vault: fakeVault(),
     syncManager,
     records,
@@ -93,6 +104,7 @@ export function createFakeStore() {
         profile,
         accountKeyMaterial: store.accountKeyMaterial,
         biometricKeyMaterial: store.biometricKeyMaterial,
+        pendingRecovery: store.pendingRecovery,
       } as unknown as ActiveProfile;
     },
     current: () => store.active,
@@ -111,6 +123,7 @@ export function createFakeStore() {
         account: { userId: string; email: string },
         material: AccountKeyMaterial,
         _vaults: readonly MemberVault[],
+        _recoveryWrap: RecoveryWrapSchema | null,
       ) => {
         const existing = store.profiles.find((p) => p.userId === account.userId);
         const profile: LocalProfile = {
@@ -129,7 +142,7 @@ export function createFakeStore() {
         profileId: string,
         material: AccountKeyMaterial,
         _vaults: readonly MemberVault[],
-        _profile?: LocalProfile,
+        _options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
       ) => {
         if (store.profile?.profileId === profileId) store.accountKeyMaterial = material;
       },
@@ -139,6 +152,22 @@ export function createFakeStore() {
         if (store.profile?.profileId === profileId) store.accountKeyMaterial = material;
       },
     ),
+    saveLinkedRecovery: vi.fn(
+      async (
+        profileId: string,
+        material: AccountKeyMaterial,
+        _recoveryWrap: RecoveryWrapSchema,
+        _pending: SealedPendingRecovery,
+      ) => {
+        if (store.profile?.profileId === profileId) {
+          store.accountKeyMaterial = material;
+          store.pendingRecovery = true;
+        }
+      },
+    ),
+    clearPendingRecovery: vi.fn(async (profileId: string) => {
+      if (store.profile?.profileId === profileId) store.pendingRecovery = false;
+    }),
     createLocalVault: vi.fn(),
     countPendingChanges: vi.fn(async () => 0),
     removeProfile: vi.fn(),

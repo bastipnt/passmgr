@@ -107,7 +107,7 @@ async function launch({ biometricSupported = true } = {}) {
 /** A profile on the device, as an earlier login left it, with one record. */
 async function seed(profile: LocalProfile, recordId: string) {
   const { vault } = await profiles.create(profile, (v) =>
-    v.setAccountKeyMaterial(material, [personal], profile),
+    v.setAccountKeyMaterial(material, [personal], { profile }),
   );
   await vault.upsertRecords([record(recordId)]);
   await profiles.close(profile.profileId);
@@ -247,9 +247,12 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
     const before = databases.names();
 
     await act(async () => {
-      await store.openAccountProfile({ userId: ALICE.userId, email: ALICE.email }, material, [
-        personal,
-      ]);
+      await store.openAccountProfile(
+        { userId: ALICE.userId, email: ALICE.email },
+        material,
+        [personal],
+        null,
+      );
     });
 
     expect(store.active?.entry.profileId).toBe(ALICE.profileId);
@@ -262,9 +265,12 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
     await launch();
 
     await act(async () => {
-      await store.openAccountProfile({ userId: "u-carol", email: "carol@example.com" }, material, [
-        personal,
-      ]);
+      await store.openAccountProfile(
+        { userId: "u-carol", email: "carol@example.com" },
+        material,
+        [personal],
+        null,
+      );
     });
 
     expect(store.profiles).toHaveLength(2);
@@ -285,6 +291,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         { userId: ALICE.userId, email: "alice@new.example" },
         material,
         [personal],
+        null,
       );
     });
 

@@ -1,6 +1,8 @@
 import {
+  deriveOpaquePassword,
   deriveRecoveryAuthKey,
   genKey,
+  openPendingRecovery,
   retrievePRK,
   unwrapAccountKey,
   unwrapVaultKey,
@@ -10,10 +12,13 @@ import { fromBase64, toBase64 } from "@repo/util";
 import { and, isNull } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
+  finishPendingRecovery,
+  parsePendingRecovery,
   RecoveryFailedError,
   RecoveryKeyInvalidError,
   type RecoveryTRPCClient,
   recoverAccount,
+  recoverLinkedVault,
 } from "../../../../packages/client/src/recover";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
@@ -129,6 +134,50 @@ describe("account recovery (real Postgres + Redis)", () => {
     const rows = await db.select().from(keysTable);
     expect(rows).toHaveLength(2);
     expect(rows.filter((r) => r.valid_to === null)).toHaveLength(1);
+  });
+
+  it("finishes a reset made on the device while offline", async () => {
+    const { recoveryKey, accountKey } = await register(email, password);
+    const login = await loginAndGetAuthKey(email, password);
+    if (!login.recoveryKeys) throw new Error("the login gave no recovery wrap");
+
+    // Offline: the device resets with the wrap its last login cached.
+    const onDevice = await recoverLinkedVault(
+      { ...login.userPasswordKeys, userKeyPair: login.userKeyPair },
+      login.recoveryKeys,
+      login.vaultKeys,
+      null,
+      toBase64(recoveryKey),
+      newPassword,
+    );
+    // Nothing reached the server yet.
+    await expect(loginAndGetAuthKey(email, newPassword)).rejects.toThrow();
+
+    // Online again.
+    const pending = parsePendingRecovery(openPendingRecovery(accountKey, onDevice.pending));
+    const opaquePassword = await deriveOpaquePassword(newPassword, email);
+    await finishPendingRecovery(recoveryClient(), email, opaquePassword, pending);
+
+    await expect(loginAndGetAuthKey(email, password)).rejects.toThrow();
+    const after = await loginAndGetAuthKey(email, newPassword);
+    expect(await accountKeyViaPassword(newPassword)).toEqual(accountKey);
+    // The recovery key shown on the device is the account's now.
+    expect(after.recoveryKeys).toEqual(onDevice.recoveryWrap);
+    const sessionBefore = await callSigned(
+      login.sessionId,
+      login.authKey,
+      "query",
+      "user.heartbeat",
+      undefined,
+    );
+    await expect(sessionBefore.user.heartbeat()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+
+    // A second try (the answer got lost) is refused: the old key's proof is spent.
+    const captured: CapturedCall[] = [];
+    await expect(
+      finishPendingRecovery(recoveryClient(captured), email, opaquePassword, pending),
+    ).rejects.toThrow();
+    expect(captured.map((c) => c.path)).toEqual(["recovery.startRecovery"]);
   });
 
   it("rotates the recovery key: the old one stops working, the new one works", async () => {

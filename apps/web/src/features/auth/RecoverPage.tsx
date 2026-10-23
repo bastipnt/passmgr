@@ -1,7 +1,9 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
+  accountProfileEntry,
   profileHue,
   RECOVERY_ERROR_MESSAGES,
+  RECOVERY_OFFLINE_NOTE,
   SessionContext,
   signInToAccount,
   useLogin,
@@ -55,8 +57,9 @@ type Step = "key" | "password";
 /**
  * Reset a forgotten password with the recovery key: the key, then a new
  * password, then the new key is shown and the vault opens with the new
- * password. An account's goes through the server (online only); the unlock
- * card's local vault (`recoverActive`) stays on the device (ADR 0001 D10).
+ * password. A vault on this device resets there (ADR 0001 D10): the unlock
+ * card's local vault (`recoverActive`) for good, an account's with the server
+ * finishing it once online; an account new to this device through the server.
  */
 export default function RecoverPage() {
   return useStore().loaded ? <RecoverFlow /> : null;
@@ -114,7 +117,8 @@ function RecoverFlow() {
     return () => subscription.unsubscribe();
   }, [watch, clearRecoveryError]);
 
-  const offline = networkOffline && !local;
+  const email = useWatch({ control, name: "email" });
+  const offline = networkOffline && !local && !!accountProfileEntry(store.profiles, email ?? "");
 
   const goTo = (next: Step) => {
     clearRecoveryError();
@@ -125,7 +129,8 @@ function RecoverFlow() {
     if (!(await trigger(["email", "recoveryKey"]))) return;
     setLoading(true);
     try {
-      if (await checkRecoveryKey(getValues("recoveryKey"), local)) goTo("password");
+      if (await checkRecoveryKey(getValues("recoveryKey"), local ? undefined : getValues("email")))
+        goTo("password");
     } finally {
       setLoading(false);
     }
@@ -160,7 +165,11 @@ function RecoverFlow() {
       console.error("Opening the vault after the reset failed", err);
     }
     if (opened) {
-      toast.success("Password reset. Use your new password from now on.");
+      toast.success(
+        store.current()?.pendingRecovery
+          ? "Password reset on this device. Your account switches to it once you're online."
+          : "Password reset. Use your new password from now on.",
+      );
       return;
     }
     setLoading(false);
@@ -299,26 +308,16 @@ function RecoverFlow() {
                         )}
                       />
 
-                      {offline ? (
-                        <OfflineNote />
+                      {recoveryError ? (
+                        <FieldError variant="box">
+                          {RECOVERY_ERROR_MESSAGES[recoveryError]}
+                        </FieldError>
                       ) : (
-                        recoveryError && (
-                          <FieldError variant="box">
-                            {RECOVERY_ERROR_MESSAGES[recoveryError]}
-                          </FieldError>
-                        )
+                        offline && <OfflineNote />
                       )}
 
-                      <SubmitButton loading={loading} disabled={offline}>
-                        Continue
-                      </SubmitButton>
-                      {offline ? (
-                        <p className="text-center text-muted-foreground text-xs">
-                          A local vault&apos;s reset works offline.
-                        </p>
-                      ) : (
-                        <PasswordNote>Your recovery key never leaves this device</PasswordNote>
-                      )}
+                      <SubmitButton loading={loading}>Continue</SubmitButton>
+                      <PasswordNote>Your recovery key never leaves this device</PasswordNote>
                     </FieldGroup>
                   ) : (
                     <FieldGroup className="gap-5">
@@ -383,9 +382,7 @@ function RecoverFlow() {
                             </>
                           )}
 
-                      {offline ? (
-                        <OfflineNote />
-                      ) : recoveryError === "throttled" ? (
+                      {recoveryError === "throttled" ? (
                         <AuthNote tone="warning" icon={<ClockIcon />}>
                           {RECOVERY_ERROR_MESSAGES.throttled}
                         </AuthNote>
@@ -403,17 +400,15 @@ function RecoverFlow() {
                             </button>
                           </span>
                         </FieldError>
+                      ) : recoveryError ? (
+                        <FieldError variant="box">
+                          {RECOVERY_ERROR_MESSAGES[recoveryError]}
+                        </FieldError>
                       ) : (
-                        recoveryError && (
-                          <FieldError variant="box">
-                            {RECOVERY_ERROR_MESSAGES[recoveryError]}
-                          </FieldError>
-                        )
+                        offline && <OfflineNote />
                       )}
 
-                      <SubmitButton loading={loading} disabled={offline}>
-                        Reset password
-                      </SubmitButton>
+                      <SubmitButton loading={loading}>Reset password</SubmitButton>
                       {local && <PasswordNote />}
                     </FieldGroup>
                   )}
@@ -427,17 +422,9 @@ function RecoverFlow() {
   );
 }
 
-function SubmitButton({
-  loading,
-  disabled,
-  children,
-}: {
-  loading: boolean;
-  disabled: boolean;
-  children: string;
-}) {
+function SubmitButton({ loading, children }: { loading: boolean; children: string }) {
   return (
-    <Button type="submit" size="lg" className="w-full" disabled={loading || disabled}>
+    <Button type="submit" size="lg" className="w-full" disabled={loading}>
       {children}
       {loading ? <Spinner data-icon="inline-end" /> : <ArrowRightIcon data-icon="inline-end" />}
     </Button>
@@ -446,9 +433,8 @@ function SubmitButton({
 
 function OfflineNote() {
   return (
-    <AuthNote tone="warning" icon={<WifiOffIcon />}>
-      <strong className="font-semibold">You&apos;re offline.</strong>{" "}
-      {RECOVERY_ERROR_MESSAGES.offline}
+    <AuthNote icon={<WifiOffIcon className="text-primary" />}>
+      <strong className="font-semibold">You&apos;re offline.</strong> {RECOVERY_OFFLINE_NOTE}
     </AuthNote>
   );
 }

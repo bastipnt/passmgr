@@ -5,6 +5,7 @@ import {
   encryptRecordData,
   encryptVaultMeta,
   hkdf,
+  openPendingRecovery,
   openSealedVaultKey,
   type RecordCipherContext,
   rotateVaultKey,
@@ -24,6 +25,7 @@ import {
   type EncryptedVaultMeta,
   type MemberKeySeal,
   type MemberVault,
+  type SealedPendingRecovery,
   type UserKeyPair,
   type UserPublicKey,
   type VaultInvitation,
@@ -286,6 +288,12 @@ class SecretsStore {
   clearOpaquePassword() {
     if (this.opaquePassword) wipe(this.opaquePassword);
     this.opaquePassword = undefined;
+  }
+
+  /** The serialized `PendingRecovery` (the caller wipes it). Throws while locked or when it doesn't open. */
+  openPendingRecovery(sealed: SealedPendingRecovery): Uint8Array {
+    if (!this.accountKey) throw new SessionLockedError();
+    return openPendingRecovery(this.accountKey, sealed);
   }
 
   get isVaultUnlocked(): boolean {

@@ -52,10 +52,7 @@ beforeEach(async () => {
   secretsStore.loadVaultKeys([...local.vaults, work]);
   vault = new Vault(createTestDriver());
   await vault.setAccountKeyMaterial(local.material, [...local.vaults, work], {
-    profileId: "p-1",
-    mode: "linked",
-    email: "me@example.com",
-    userId: SELF,
+    profile: { profileId: "p-1", mode: "linked", email: "me@example.com", userId: SELF },
   });
 });
 afterEach(async () => {

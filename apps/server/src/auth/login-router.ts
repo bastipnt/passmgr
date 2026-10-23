@@ -90,9 +90,9 @@ function denySecondFactor(
 type LoginStage = "finishLogin" | "finishDeviceLogin" | "verifySecondFactor";
 
 /**
- * What a completed login hands out besides the session: the password wrap of
- * the account key, the wrap of every vault key the user holds and the current
- * keypair.
+ * What a completed login hands out besides the session: the password and
+ * recovery wraps of the account key, the wrap of every vault key the user holds
+ * and the current keypair.
  */
 async function loginKeys(
   log: LoginLog | undefined,
@@ -106,6 +106,10 @@ async function loginKeys(
       passwordKekSalt: true,
       encryptedAccountKey: true,
       accountKeyEncryptionNonce: true,
+      recoveryKekSalt: true,
+      encryptedAccountKeyRecovery: true,
+      accountKeyEncryptionNonceRecovery: true,
+      recoveryVerifier: true,
     },
     where: {
       userId,
@@ -132,7 +136,19 @@ async function loginKeys(
     .limit(1);
   if (!userKeyPair) denyLogin(log, stage, "no_key_pair", emailHash);
 
-  return { userPasswordKeys: keyQueryRes, vaultKeys, userKeyPair };
+  const {
+    recoveryKekSalt,
+    encryptedAccountKeyRecovery,
+    accountKeyEncryptionNonceRecovery,
+    recoveryVerifier,
+    ...userPasswordKeys
+  } = keyQueryRes;
+  // Without a verifier the server can't finish a recovery: no offline reset either.
+  const recoveryKeys = recoveryVerifier
+    ? { recoveryKekSalt, encryptedAccountKeyRecovery, accountKeyEncryptionNonceRecovery }
+    : null;
+
+  return { userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair };
 }
 
 /** The session's auth key (base64), derived from the login's session key as the client does. */

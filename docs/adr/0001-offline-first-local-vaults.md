@@ -94,7 +94,7 @@ server, apart from account operations that genuinely need it (registration, logi
 > builds the same keyring for registration and for a local vault, so linking (D9) reuses it as is.
 > `useCreateLocalVault` stores it with `Vault.createLocalVault` in one transaction: the `local`
 > profile, the password wrap + keypair (`AccountKeyMaterial`) and the recovery wrap + verifier
-> (`RecoveryKeySchema`, kept only for local profiles: for D9's upload and D10's local recovery). It
+> (`RecoveryKeySchema`; the verifier is kept only for local profiles, for D9's upload; linked ones keep the wrap since D10's 2026-10-23 amendment). It
 > refuses (`VaultExistsError`) when the device holds any trace of a vault (raw profile, account key,
 > vault or record rows). The vault unlocks only after the
 > recovery key is confirmed, with the account key kept from creation (no second Argon2). A `local`
@@ -560,7 +560,7 @@ There is never a silent wipe.
 > like a new one, and on a retry the invite is already spent, so a registration error only counts
 > when the login fails too. The account must hold this vault's public key, otherwise the email
 > belongs to another account (`rejected`). Then `saveAccount` turns the profile `linked` (registry
-> too) and drops the local recovery wrap in the same transaction, and `SessionContext.linkServer`
+> too) and replaces the local recovery material with the login's wrap (the verifier goes) in the same transaction, and `SessionContext.linkServer`
 > attaches the session and switches the mode `local` → `online`, in that order: going online
 > starts the sync. **The upload is the outbox:** every local write already has an outbox entry, so
 > the first sync pushes every record with its full history in `record.push` batches, and an
@@ -586,6 +586,30 @@ There is never a silent wipe.
 > recovery wrap and replaces both wraps in one transaction (`Vault.setLocalKeyMaterial`); an
 > account's recovery is refused offline. Both a change and a recovery drop the biometric
 > enrollment; for an account the server also deletes every device credential (web device login).
+
+> **Amended 2026-10-23** (linked recovery offline): an account's password reset with the recovery
+> key no longer needs the server. Every login hands out the account's recovery wrap
+> (`loginSuccessSchema.recoveryKeys`, without the verifier; null for an account without one), and
+> the profile caches it (`Vault.setAccountKeyMaterial`'s `recoveryWrap`). A reset of a linked
+> profile on the device is **always local-first**, online too (`useRecovery().recover` →
+> `recoverLinkedVault`): it unwraps the account key with the cached wrap, writes a new password
+> wrap, a new recovery wrap and a *pending recovery* in one transaction (`Vault.setLinkedRecovery`),
+> and shows the new recovery key right away. Online, the server takes it before anything is stored
+> (refused: nothing changes, so a cached wrap gone stale can't make the device diverge); offline or
+> unreachable, it is stored pending. The pending recovery is the old recovery key's proof
+> (`recoveryAuthKey`, never the key) and the new key set, sealed under the account key
+> (`sealPendingRecovery`, AAD `passmgr/pending-recovery/v1`); a second reset before it reached the
+> server keeps the first one's proof. The next connect with the new password
+> (`useConnectServer`) finishes it first (`finishPendingRecovery`: `startRecovery` +
+> `finishRecovery` with that key set, then the login); throttled or unreachable keeps it for the
+> next connect. The recovery wins over a password change made elsewhere meanwhile (the recovery
+> wrap is carried over, so the proof still holds); a refused proof (the account was recovered
+> elsewhere, or an earlier try went through unanswered) drops it, and the device stays `offline`
+> until a login with the account's current password replaces the local wraps. While a reset is
+> pending, the unlock never falls back to a server login (the old password would undo it). Any login that
+> stores a key set drops a pending recovery. Until then the sync indicator says "Password reset
+> waiting". A key the cached wrap doesn't open goes to the server when online (the wrap may be
+> stale); a linked profile without a cached wrap still needs the server.
 
 ### D11 — Binding ciphertext to its context (crypto v2)
 

@@ -1,5 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { RECOVERY_ERROR_MESSAGES, SessionContext, useRecovery, useStore } from "@repo/client";
+import {
+  accountProfileEntry,
+  RECOVERY_ERROR_MESSAGES,
+  RECOVERY_OFFLINE_NOTE,
+  SessionContext,
+  useRecovery,
+  useStore,
+} from "@repo/client";
 import { localRecoverFormSchema, type RecoverFormValues, recoverFormSchema } from "@repo/schema";
 import {
   BottomSheet,
@@ -11,7 +18,7 @@ import {
   FormLock,
 } from "@repo/ui-native";
 import { type Ref, useContext, useImperativeHandle, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Text, View } from "react-native";
 import { RecoveryKeyDialog } from "./RecoveryKeyDialog";
 
@@ -24,8 +31,9 @@ type RecoverSheetProps = {
 };
 
 /**
- * "Forgot password?": reset the master password with the recovery key. An
- * account's needs the server; a local vault's stays on the device.
+ * "Forgot password?": reset the master password with the recovery key. A
+ * local vault's stays on the device; an account on this device resets here
+ * too and the server follows once online; any other account needs the server.
  */
 export function RecoverSheet({
   ref,
@@ -33,7 +41,7 @@ export function RecoverSheet({
   onSwitchToSignIn,
 }: RecoverSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);
-  const { profile } = useStore();
+  const { profile, profiles } = useStore();
   const { networkOffline } = useContext(SessionContext);
   const local = localRequested && profile?.mode === "local";
   const { recover, recoverLocal, recoveryError } = useRecovery();
@@ -49,9 +57,8 @@ export function RecoverSheet({
     resolver: zodResolver(local ? localRecoverFormSchema : recoverFormSchema),
     defaultValues: { email: "", recoveryKey: "", password: "", confirmPassword: "" },
   });
-
-  // An account's recovery needs the server: say so before the user types it all.
-  const error = recoveryError ?? (networkOffline && !local ? "offline" : undefined);
+  const email = useWatch({ control, name: "email" });
+  const offline = networkOffline && !local && !!accountProfileEntry(profiles, email ?? "");
 
   const onSubmit = async ({ email, recoveryKey, password }: RecoverFormValues) => {
     setLoading(true);
@@ -143,8 +150,17 @@ export function RecoverSheet({
           />
         </FormLock>
 
-        {error && (
-          <FieldError variant="box" errors={[{ message: RECOVERY_ERROR_MESSAGES[error] }]} />
+        {recoveryError ? (
+          <FieldError
+            variant="box"
+            errors={[{ message: RECOVERY_ERROR_MESSAGES[recoveryError] }]}
+          />
+        ) : (
+          offline && (
+            <Text className="text-muted-foreground text-sm">
+              You&apos;re offline. {RECOVERY_OFFLINE_NOTE}
+            </Text>
+          )
         )}
       </BottomSheet>
     </>

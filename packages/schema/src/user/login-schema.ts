@@ -1,7 +1,7 @@
 import z from "zod";
 import { memberVaultSchema } from "../vault-schema";
 import { emailSchema } from "./email-schema";
-import { passwordKeySchema, userKeyPairSchema } from "./key-schema";
+import { passwordKeySchema, recoveryWrapSchema, userKeyPairSchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
 
 export const startLoginInputSchema = z.object({
@@ -30,6 +30,9 @@ export const loginSuccessSchema = z.object({
   // another account is noticed before its keys meet this device's data.
   userId: z.string(),
   userPasswordKeys: passwordKeySchema,
+  // Cached on the device for a password reset while offline; null for an
+  // account made before recovery keys existed.
+  recoveryKeys: recoveryWrapSchema.nullable(),
   vaultKeys: z.array(memberVaultSchema),
   userKeyPair: userKeyPairSchema,
 });

@@ -72,6 +72,7 @@ beforeEach(async () => {
       userId: "u-alice",
       password: PASSWORD,
       userPasswordKeys: local.material,
+      recoveryKeys: null,
       vaultKeys: local.vaults,
       userKeyPair: local.material.userKeyPair,
     },
@@ -104,7 +105,15 @@ describe("useLinkAccount", () => {
       local.profile.profileId,
       expect.objectContaining({ encryptedAccountKey: local.material.encryptedAccountKey }),
       local.vaults,
-      { ...local.profile, mode: "linked", email: "alice@example.com", userId: "u-alice" },
+      {
+        profile: {
+          ...local.profile,
+          mode: "linked",
+          email: "alice@example.com",
+          userId: "u-alice",
+        },
+        recoveryWrap: null,
+      },
     );
     expect(linkServer).toHaveBeenCalledWith(...serverSession);
     // The profile is linked before the session goes online (which starts the upload).

@@ -47,7 +47,7 @@ export function useUnlock() {
    */
   async function unlock(info: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
-    const { password, userPasswordKeys, vaultKeys, userKeyPair } = info;
+    const { password, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } = info;
 
     let passwordKek: Uint8Array;
     try {
@@ -65,6 +65,7 @@ export function useUnlock() {
         { userId: info.userId, email: normalizeEmail(info.email) },
         material,
         vaultKeys,
+        recoveryKeys,
       );
     } catch (e) {
       console.error("Opening the account's profile failed", e);
@@ -136,7 +137,8 @@ export function useUnlock() {
     }
     if (opaquePassword) wipe(opaquePassword);
 
-    if (profile.mode === "linked" && !networkOffline) {
+    // A reset made here waits for the server: the old password must not undo it.
+    if (profile.mode === "linked" && !networkOffline && !active.pendingRecovery) {
       // A closed code prompt isn't a wrong password: no error for it.
       let cancelled = false;
       const ask = onSecondFactor ?? contextPrompt;

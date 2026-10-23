@@ -203,7 +203,7 @@ Login:
    challenge goes to Redis (`login2fa:<challengeId>`, 5 min, the derived `authKey` inside) and the answer is `{ secondFactorRequired, challengeId }`;
    `login.verifySecondFactor` takes a TOTP code (±1 step, step > `lastUsedStep`) or a backup code, a wrong one counts against
    `loginlock:<emailHash>`, `SECOND_FACTOR_MAX_ATTEMPTS` burn the challenge (`SECOND_FACTOR_INVALID` / `_EXPIRED`), then continues as below
-   (session marked `secondFactor`). Otherwise it creates the session in Redis (24h sliding TTL, hard cap `SESSION_MAX_AGE_MS` = 30 days from `authenticatedAt`; indexed per user in `usersessions:<userId>`, a sorted set by last activity; `deviceName` from the client's `x-device-name` header, `ClientProvider`'s `deviceName`), returns `sessionId` + the wrapped account key + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
+   (session marked `secondFactor`). Otherwise it creates the session in Redis (24h sliding TTL, hard cap `SESSION_MAX_AGE_MS` = 30 days from `authenticatedAt`; indexed per user in `usersessions:<userId>`, a sorted set by last activity; `deviceName` from the client's `x-device-name` header, `ClientProvider`'s `deviceName`), returns `sessionId` + the wrapped account key + its recovery wrap (`recoveryKeys`, null without a verifier; cached for an offline reset) + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
    Client: `loginUser`'s `onSecondFactor` prompt (`SecondFactorPrompt`, only called when challenged; `null` → `SecondFactorCancelledError`).
    Login forms pass their own (`useSecondFactorRequest`: web `LoginPage` inline step, mobile sheets); every other login (reconnect,
    `freshLogin`) uses `SecondFactorPromptProvider` (web `SecondFactorPromptRoot` dialog; mobile has none, so a background reconnect
@@ -212,7 +212,7 @@ Login:
 
 Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `generateKeyring` (same
 keyring as registration) → `Vault.createLocalVault` stores a `local` profile, the password wrap, the
-recovery wrap + verifier (local profiles only) and the personal vault atomically, in a new profile
+recovery wrap + verifier (the verifier on local profiles only) and the personal vault atomically, in a new profile
 database next to any others (optional display name). Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
 Durability (ADR 0001 D12): web asks `navigator.storage.persist()` on create (`StorageSettings` shows it);
 a `local` profile gets a backup reminder (`useBackupReminder`, from the registry's `lastExportAt` —
@@ -243,7 +243,7 @@ Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password ch
 `registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,
 keypair, every vault via `finishRegistration`'s `vaults`; nothing re-encrypted, recovery key stays valid)
 and logs in; the account must hold the vault's public key. Then `saveAccount` makes the profile `linked`
-(drops the local recovery wrap) **before** `linkServer` goes online: the first sync pushes the outbox,
+(keeps the login's recovery wrap, drops the verifier) **before** `linkServer` goes online: the first sync pushes the outbox,
 which already holds every local version, so the upload resumes by itself. Repeating a half-done link is safe.
 
 Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the unlocked
@@ -287,10 +287,19 @@ Recovery (forgotten password, `auth/recovery-router.ts`):
 
 Local recovery (`local` profile, ADR 0001 D10): `useRecovery().recoverLocal` → `recoverLocalVault` unwraps the account key
 with the recovery wrap kept on the device, `generateUserKeys` → `Vault.setLocalKeyMaterial` replaces both wraps
-atomically; no server. An account's recovery is refused offline (`offline`).
+atomically; no server.
+Linked profile on the device (D10 amended 2026-10-23, always local-first, online too): `useRecovery().recover` →
+`recoverLinkedVault` with the recovery wrap cached from the last login → `Vault.setLinkedRecovery` (new password wrap, new
+recovery wrap and a *pending recovery*: the old key's `recoveryAuthKey` + the new key set, sealed under the account key,
+`sealPendingRecovery`; a second reset keeps the first proof). Online it goes to the server before anything is stored
+(`finishPendingRecovery`; refused: nothing changes, so a stale cached wrap can't diverge); offline or unreachable, the next
+connect with the new password finishes it before the login (`useConnectServer`); throttled / unreachable keeps it, a refusal
+drops it. While pending, `unlockLocal` never falls back to a server login (the old password must not undo it); a login's key
+set drops it. `summarizeSync` shows "Password reset waiting". A key the cached wrap doesn't open goes to the server when online;
+an account without a cached wrap still needs the server (`offline`).
 Web `RecoverPage` (`authPaths.recover` from the account login, `recoverActive` from the unlock card): key step
-(`checkRecoveryKey`: format only for an account, the server checks it with the new password; a local vault's is
-unwrapped), then the new password, the new key (`RecoveryKeyDialog`), then the vault opens with the new password.
+(`checkRecoveryKey(key, email?)`: unwrapped when the device has the wrap, else format only and the server checks it with
+the new password), then the new password, the new key (`RecoveryKeyDialog`), then the vault opens with the new password.
 
 Password change (ADR 0001 D10, `useChangePassword`, one hook for both modes): `local` → `changeLocalPassword`
 (current password checked against the stored wrap, account key rewrapped on the device). `linked` → only `online`,
