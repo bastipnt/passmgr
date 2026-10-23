@@ -100,6 +100,14 @@ export function leftBehindNotes(report: ForeignImportReport): string[] {
   return notes;
 }
 
+/** "2 items weren't imported: too large." — the short form of `report.skipped`. */
+export function skippedNote(report: ForeignImportReport): string | undefined {
+  const { skipped } = report;
+  if (skipped.length === 0) return undefined;
+  const reasons = [...new Set(skipped.map(({ reason }) => SKIP_REASON_LABELS[reason]))];
+  return `${notImported(skipped.length, "item", "items")}: ${reasons.join(", ")}.`;
+}
+
 /** Before the import: what the file holds. */
 export function foreignImportIntro(foreign: ForeignImport): string {
   const source = IMPORT_SOURCE_LABELS[foreign.source];

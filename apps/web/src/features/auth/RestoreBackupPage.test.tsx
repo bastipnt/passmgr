@@ -1,3 +1,5 @@
+import { readFile } from "node:fs/promises";
+import { join } from "node:path";
 import { buildExportData, encryptExport, exportToJson } from "@repo/client";
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import userEvent from "@testing-library/user-event";
@@ -22,11 +24,6 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
 }));
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
 let mockPersistent: boolean | null = true;
 vi.mock("@/hooks/use-storage-persistent", () => ({ useStoragePersistent: () => mockPersistent }));
 vi.mock("@/hooks/use-storage-durability", () => ({ requestPersistentStorage: vi.fn() }));
@@ -37,6 +34,12 @@ Object.defineProperty(globalThis.navigator, "clipboard", {
 });
 
 const BACKUP_PASSWORD = "backup-password";
+const CHROME_CSV =
+  "name,url,username,password,note\r\n" +
+  "Mail,https://mail.example.com,jana,mail-pw,\r\n" +
+  "Bank,https://bank.example.com,jana@example.com,bank-pw,\r\n";
+const kdbxFixture = (name: string) =>
+  join(import.meta.dirname, "../../../../../packages/crypto/test/fixtures/kdbx", name);
 const PASSWORD = "hunter2hunter2";
 
 const data = buildExportData(
@@ -63,7 +66,10 @@ beforeEach(() => {
   store.profiles = [profileEntry({ profileId: "p-old", mode: "local", email: null, userId: null })];
   restoreHook.restoreError = undefined;
   restoreHook.restore.mockResolvedValue(new Uint8Array(32).fill(1));
-  restoreHook.finishRestore.mockResolvedValue({ created: 1, updated: 0, skipped: 0 });
+  restoreHook.finishRestore.mockResolvedValue({
+    ok: true,
+    result: { created: 1, updated: 0, skipped: 0 },
+  });
 });
 afterEach(() => vi.clearAllMocks());
 
@@ -95,7 +101,7 @@ describe("RestoreBackupPage", () => {
     expect(screen.getByText(/next to the ones already here/i)).toBeInTheDocument();
 
     await user.upload(
-      screen.getByLabelText("Backup file"),
+      screen.getByLabelText("Backup or export file"),
       file(await encryptExport(data, BACKUP_PASSWORD)),
     );
     await screen.findByText(/encrypted backup ·/i);
@@ -103,7 +109,7 @@ describe("RestoreBackupPage", () => {
     await user.type(screen.getByLabelText("Backup password"), "wrong-password");
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
     await screen.findByText(/not your vault password/i);
-    expect(screen.queryByText("Can't be restored")).not.toBeInTheDocument();
+    expect(screen.queryByText("Can't be opened")).not.toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Backup password"));
     await user.type(screen.getByLabelText("Backup password"), BACKUP_PASSWORD);
@@ -115,7 +121,11 @@ describe("RestoreBackupPage", () => {
 
     await setUpVault();
     await waitFor(() =>
-      expect(restoreHook.restore).toHaveBeenCalledWith(data, PASSWORD, "Restored"),
+      expect(restoreHook.restore).toHaveBeenCalledWith(
+        { kind: "backup", data, encrypted: true },
+        PASSWORD,
+        "Restored",
+      ),
     );
 
     await screen.findByText(/save your recovery key/i);
@@ -128,7 +138,7 @@ describe("RestoreBackupPage", () => {
     const user = userEvent.setup();
     renderPage();
 
-    await user.upload(screen.getByLabelText("Backup file"), file(exportToJson(data)));
+    await user.upload(screen.getByLabelText("Backup or export file"), file(exportToJson(data)));
 
     await screen.findByText("1 record(s) ready to restore");
     expect(screen.getByText(/plain json export · not encrypted/i)).toBeInTheDocument();
@@ -142,27 +152,86 @@ describe("RestoreBackupPage", () => {
     expect(screen.getByLabelText("Vault name")).toHaveValue("Kept");
   });
 
-  it("refuses a file that isn't a backup and points to the import", async () => {
+  it("refuses a file it can't read", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.upload(screen.getByLabelText("Backup or export file"), file("hello", "notes.csv"));
+
+    await screen.findByText(/can't import this file/i);
+    expect(screen.getByText("Can't be opened")).toBeInTheDocument();
+    expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+  });
+
+  it("imports another password manager's export into a new vault", async () => {
     const user = userEvent.setup();
     renderPage();
 
     await user.upload(
-      screen.getByLabelText("Backup file"),
+      screen.getByLabelText("Backup or export file"),
+      file(CHROME_CSV, "Chrome Passwords.csv"),
+    );
+
+    await screen.findByText("2 item(s) ready to import");
+    expect(screen.getByText(/chrome \/ edge export · chrome passwords\.csv/i)).toBeInTheDocument();
+    expect(screen.getByText(/this file isn't encrypted/i)).toBeInTheDocument();
+
+    await userEvent.type(screen.getByLabelText("Vault name"), "Imported");
+    await userEvent.type(screen.getByLabelText("Password"), PASSWORD);
+    await userEvent.type(screen.getByLabelText("Confirm password"), PASSWORD);
+    await userEvent.click(screen.getByRole("button", { name: /create vault & import/i }));
+    await waitFor(() => expect(restoreHook.restore).toHaveBeenCalledOnce());
+    const [source, password, name] = restoreHook.restore.mock.calls[0]!;
+    expect(source).toMatchObject({ kind: "foreign", foreign: { source: "chrome" } });
+    expect(source.foreign.data.records).toHaveLength(2);
+    expect([password, name]).toEqual([PASSWORD, "Imported"]);
+  });
+
+  it("stays on the file step for an export with nothing in it", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.upload(
+      screen.getByLabelText("Backup or export file"),
       file("name,url,username,password\r\n", "Chrome Passwords.csv"),
     );
 
-    await screen.findByText(/isn't a backup or export of this app/i);
-    expect(screen.getByText("Can't be restored")).toBeInTheDocument();
-    expect(screen.getByText(/coming from another password manager/i)).toBeInTheDocument();
+    await screen.findByText(/holds nothing to import/i);
     expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^continue$/i })).not.toBeInTheDocument();
   });
+
+  it("opens a KeePass database with its password and key file", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.upload(
+      screen.getByLabelText("Backup or export file"),
+      new File([await readFile(kdbxFixture("kdbxweb-Argon2.kdbx"))], "Passwords.kdbx"),
+    );
+    await screen.findByText(/keepass database ·/i);
+    await user.upload(
+      screen.getByLabelText("Key file"),
+      new File([await readFile(kdbxFixture("kdbxweb-demo.key"))], "demo.key"),
+    );
+    await user.type(screen.getByLabelText("Database password"), "wrong");
+    await user.click(screen.getByRole("button", { name: /^continue$/i }));
+    await screen.findByText(/doesn't open this keepass database/i, undefined, { timeout: 15_000 });
+
+    await user.clear(screen.getByLabelText("Database password"));
+    await user.type(screen.getByLabelText("Database password"), "demo");
+    await user.click(screen.getByRole("button", { name: /^continue$/i }));
+    await screen.findByText(/item\(s\) ready to import/, undefined, { timeout: 15_000 });
+    expect(screen.getByText(/keepass database · passwords\.kdbx/i)).toBeInTheDocument();
+    expect(screen.queryByText(/this file isn't encrypted/i)).not.toBeInTheDocument();
+  }, 30_000);
 
   it("warns in a private window", async () => {
     mockPersistent = false;
     const user = userEvent.setup();
     renderPage();
 
-    await user.upload(screen.getByLabelText("Backup file"), file(exportToJson(data)));
+    await user.upload(screen.getByLabelText("Backup or export file"), file(exportToJson(data)));
 
     await screen.findByText(/gone once you close this tab/i);
   });

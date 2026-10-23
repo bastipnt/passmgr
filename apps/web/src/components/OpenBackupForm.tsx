@@ -1,23 +1,18 @@
 import {
-  type ExportFileContents,
   type ForeignImport,
   IMPORT_ERROR_MESSAGES,
   IMPORT_FILE_ACCEPT,
-  type ImportError,
-  MAX_IMPORT_FILE_BYTES,
-  openExportEnvelope,
-  openKeePassDatabase,
-  readExportFile,
-  readFileError,
-  readImportFile,
+  useOpenImportFile,
 } from "@repo/client";
-import type { ExportData, ExportEnvelope } from "@repo/schema";
+import type { ExportData } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/Field";
+import { FilePickerButton } from "@repo/ui/components/FilePickerButton";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { ArrowRightIcon, FileKeyIcon, FileUpIcon, KeyRoundIcon } from "lucide-react";
-import { type ReactNode, useId, useRef, useState } from "react";
+import { ArrowRightIcon, FileUpIcon, KeyRoundIcon } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
+import KeyFileButton from "./KeyFileButton";
 
 type OpenBackupFormProps = {
   /** The file's records, decrypted. */
@@ -42,74 +37,25 @@ export default function OpenBackupForm({
   children,
   renderActions,
 }: OpenBackupFormProps) {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const keyFileRef = useRef<HTMLInputElement>(null);
   const passwordId = useId();
-  const [fileName, setFileName] = useState<string>();
-  const [envelope, setEnvelope] = useState<ExportEnvelope>();
-  const [kdbx, setKdbx] = useState<Uint8Array>();
   const [keyFile, setKeyFile] = useState<{ name: string; bytes: Uint8Array }>();
   const [password, setPassword] = useState("");
-  const [opening, setOpening] = useState(false);
-  const [error, setError] = useState<ImportError>();
+  const importFile = useOpenImportFile(
+    (opened) => {
+      if (opened.kind === "foreign") onForeignOpened?.(opened.foreign);
+      else onOpened(opened.data);
+    },
+    { foreign: !!onForeignOpened },
+  );
+  const { file, locked, opening, error } = importFile;
 
-  async function pick(file: File | undefined) {
-    if (!file) return;
-    setError(undefined);
-    setEnvelope(undefined);
-    setKdbx(undefined);
-    setKeyFile(undefined);
-    setPassword("");
-    setFileName(file.name);
-    if (file.size > MAX_IMPORT_FILE_BYTES) {
-      setError("too_large");
-      return;
-    }
-    try {
-      let contents: ExportFileContents;
-      if (onForeignOpened) {
-        const read = readImportFile(new Uint8Array(await file.arrayBuffer()));
-        if (read.kind === "foreign") {
-          onForeignOpened(read.foreign);
-          return;
-        }
-        if (read.kind === "kdbx") {
-          setKdbx(read.file);
-          return;
-        }
-        contents = read.contents;
-      } else {
-        contents = readExportFile(await file.text());
-      }
-      if (contents.encrypted) setEnvelope(contents.envelope);
-      else onOpened(contents.data);
-    } catch (e) {
-      setError(readFileError(e));
-    }
-  }
-
-  async function open(event: React.SubmitEvent<HTMLFormElement>) {
+  function open(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!canOpen) return;
-    setError(undefined);
-    setOpening(true);
-    try {
-      if (kdbx) {
-        onForeignOpened?.(await openKeePassDatabase(kdbx, { password, keyFile: keyFile?.bytes }));
-      } else if (envelope) {
-        onOpened(await openExportEnvelope(envelope, password));
-      }
-    } catch (e) {
-      const reason = readFileError(e);
-      if (reason === "failed") console.error("Opening the backup failed", e);
-      setError(reason);
-    } finally {
-      setOpening(false);
-    }
+    if (canOpen) void importFile.open(password, keyFile?.bytes);
   }
 
   // A KeePass database may have an empty password.
-  const canOpen = !!kdbx || (!!envelope && !!password);
+  const canOpen = locked === "kdbx" || (locked === "backup" && !!password);
   const submit = (
     <Button type="submit" disabled={!canOpen || opening}>
       Continue
@@ -120,35 +66,24 @@ export default function OpenBackupForm({
   return (
     <form onSubmit={open}>
       <FieldGroup className="my-4 gap-4">
-        <input
-          ref={inputRef}
-          type="file"
-          accept={onForeignOpened ? IMPORT_FILE_ACCEPT : ".json,application/json"}
-          className="hidden"
-          aria-label={onForeignOpened ? "Export file" : "Backup file"}
-          onChange={(e) => {
-            void pick(e.target.files?.[0]);
-            // Picking the same file again (after a wrong password) fires again.
-            e.target.value = "";
+        <FilePickerButton
+          onFile={(picked) => {
+            setKeyFile(undefined);
+            setPassword("");
+            void importFile.pick(picked);
           }}
-        />
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full justify-start"
+          accept={onForeignOpened ? IMPORT_FILE_ACCEPT : ".json,application/json"}
+          label={onForeignOpened ? "Export file" : "Backup file"}
+          icon={<FileUpIcon />}
           disabled={opening}
-          onClick={() => inputRef.current?.click()}
         >
-          <FileUpIcon />
-          <span className="truncate">
-            {fileName ?? (onForeignOpened ? "Choose an export file…" : "Choose a backup file…")}
-          </span>
-        </Button>
+          {file?.name ?? (onForeignOpened ? "Choose an export file…" : "Choose a backup file…")}
+        </FilePickerButton>
 
-        {(envelope || kdbx) && (
+        {locked && (
           <Field>
             <FieldLabel htmlFor={passwordId}>
-              {kdbx ? "Database password" : "Backup password"}
+              {locked === "kdbx" ? "Database password" : "Backup password"}
             </FieldLabel>
             <InputGroup>
               <InputGroupAddon>
@@ -166,32 +101,9 @@ export default function OpenBackupForm({
           </Field>
         )}
 
-        {kdbx && (
+        {locked === "kdbx" && (
           <Field>
-            <input
-              ref={keyFileRef}
-              type="file"
-              className="hidden"
-              aria-label="Key file"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                e.target.value = "";
-                if (!file) return;
-                void file
-                  .arrayBuffer()
-                  .then((buffer) => setKeyFile({ name: file.name, bytes: new Uint8Array(buffer) }));
-              }}
-            />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full justify-start"
-              disabled={opening}
-              onClick={() => keyFileRef.current?.click()}
-            >
-              <FileKeyIcon />
-              <span className="truncate">{keyFile?.name ?? "Key file (optional)…"}</span>
-            </Button>
+            <KeyFileButton keyFile={keyFile} onKeyFile={setKeyFile} disabled={opening} />
           </Field>
         )}
 

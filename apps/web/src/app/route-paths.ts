@@ -11,7 +11,7 @@ export const authPaths = {
   enrollBiometric: "/enroll-biometric",
   /** A new vault, on this device first; an account to sync it is optional (ADR 0001 D2, D9). */
   create: "/create",
-  /** A backup restored into a new local vault (ADR 0001 D12). */
+  /** A backup or another app's export into a new local vault (ADR 0001 D12). */
   restore: "/restore",
   /** Recovery of an account by its email, from the account login. */
   recover: "/recover",

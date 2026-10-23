@@ -97,7 +97,7 @@ function SwitchVaultList({ onPick, pickFailed }: SwitchVaultListProps) {
           Create new vault
         </AddLink>
         <AddLink href={authPaths.restore} icon={ArchiveRestoreIcon}>
-          Restore from backup
+          Restore or import
         </AddLink>
       </section>
     </div>

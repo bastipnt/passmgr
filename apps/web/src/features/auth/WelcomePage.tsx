@@ -109,7 +109,8 @@ export default function WelcomePage() {
             />
           </nav>
           <p className="text-center text-muted-foreground text-sm">
-            Have a backup file? <AuthTextLink href={authPaths.restore}>Restore it</AuthTextLink>
+            Have a backup or another app&apos;s export?{" "}
+            <AuthTextLink href={authPaths.restore}>Import it</AuthTextLink>
           </p>
           <PasswordNote className="max-sm:hidden" />
         </CardContent>

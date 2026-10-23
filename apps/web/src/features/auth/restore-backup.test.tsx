@@ -1,4 +1,4 @@
-import { buildExportData, SessionContext, useRestoreBackup } from "@repo/client";
+import { buildExportData, readImportFile, SessionContext, useRestoreBackup } from "@repo/client";
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
@@ -57,6 +57,12 @@ const data = buildExportData(
   ],
 );
 
+const backup = { kind: "backup", data, encrypted: false } as const;
+
+const chromeCsv = new TextEncoder().encode(
+  "name,url,username,password,note\r\nMail,https://mail.example.com,jana,mail-pw,\r\n",
+);
+
 const previous = getPasswordKekParams();
 beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
 afterAll(() => setPasswordKekParams(previous));
@@ -80,19 +86,19 @@ describe("useRestoreBackup", () => {
 
     let recoveryKey: Uint8Array | undefined;
     await act(async () => {
-      recoveryKey = await result.current.restore(data, "hunter2hunter2", "Restored");
+      recoveryKey = await result.current.restore(backup, "hunter2hunter2", "Restored");
     });
     expect(recoveryKey).toHaveLength(32);
     expect(store.createLocalVault.mock.calls[0]![4]).toBe("Restored");
     // Nothing is written before the vault is unlocked.
     expect(store.records.writeImport).not.toHaveBeenCalled();
 
-    let restored: Awaited<ReturnType<typeof result.current.finishRestore>> = null;
+    let restored: Awaited<ReturnType<typeof result.current.finishRestore>> | undefined;
     await act(async () => {
       restored = await result.current.finishRestore();
     });
 
-    expect(restored).toEqual({ created: 1, updated: 0, skipped: 0 });
+    expect(restored).toEqual({ ok: true, result: { created: 1, updated: 0, skipped: 0 } });
     const personal = secretsStore.defaultVaultId;
     const [entries] = store.records.writeImport.mock.calls[0]! as unknown as [
       { kind: string; recordId: string; vaultId: string; data: object }[],
@@ -109,16 +115,46 @@ describe("useRestoreBackup", () => {
     expect(reload).toHaveBeenCalled();
   });
 
+  it("imports another app's export into the new personal vault, every record new", async () => {
+    const read = readImportFile(chromeCsv);
+    if (read.kind !== "foreign") throw new Error("expected a foreign import");
+    const { result } = renderRestore();
+
+    await act(async () => {
+      await result.current.restore(read, "hunter2hunter2", "Imported");
+    });
+    await act(async () => {
+      expect(await result.current.finishRestore()).toEqual({
+        ok: true,
+        result: { created: 1, updated: 0, skipped: 0 },
+      });
+    });
+
+    const [entries] = store.records.writeImport.mock.calls[0]! as unknown as [
+      { kind: string; recordId: string; vaultId: string; data: object }[],
+    ];
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      kind: "create",
+      vaultId: secretsStore.defaultVaultId,
+      data: { type: "login", title: "Mail", username: "jana", password: "mail-pw" },
+    });
+    expect(entries[0]!.recordId).not.toBe(read.foreign.data.records[0]!.id);
+  });
+
   it("adds the restored vault next to the profiles already on the device", async () => {
     const existing = profileEntry({ profileId: "p-old", mode: "local", email: null, userId: null });
     store.profiles = [existing];
     const { result } = renderRestore();
 
     await act(async () => {
-      await result.current.restore(data, "hunter2hunter2", "Restored");
+      await result.current.restore(backup, "hunter2hunter2", "Restored");
     });
     await act(async () => {
-      expect(await result.current.finishRestore()).toEqual({ created: 1, updated: 0, skipped: 0 });
+      expect(await result.current.finishRestore()).toEqual({
+        ok: true,
+        result: { created: 1, updated: 0, skipped: 0 },
+      });
     });
 
     expect(store.profiles).toHaveLength(2);
@@ -133,10 +169,13 @@ describe("useRestoreBackup", () => {
     const { result } = renderRestore();
 
     await act(async () => {
-      await result.current.restore(data, "hunter2hunter2");
+      await result.current.restore(backup, "hunter2hunter2");
     });
     await act(async () => {
-      expect(await result.current.finishRestore()).toBeNull();
+      expect(await result.current.finishRestore()).toEqual({
+        ok: false,
+        stopped: { written: 0, total: 1 },
+      });
     });
 
     expect(result.current.restoreError).toBe("import_failed");
@@ -149,10 +188,10 @@ describe("useRestoreBackup", () => {
     const { result } = renderRestore();
 
     await act(async () => {
-      expect(await result.current.restore(data, "hunter2hunter2")).toBeUndefined();
+      expect(await result.current.restore(backup, "hunter2hunter2")).toBeUndefined();
     });
     await act(async () => {
-      expect(await result.current.finishRestore()).toBeNull();
+      expect(await result.current.finishRestore()).toEqual({ ok: false });
     });
 
     expect(result.current.restoreError).toBe("failed");

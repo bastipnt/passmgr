@@ -225,8 +225,9 @@ Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`re
 `openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
 `RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
 it came from; an id already there (live or deleted) → skip / overwrite (new version, revives a deleted one; unchanged
-content writes nothing) / keep both. Restore (`useRestoreBackup`, web `/restore`): a backup into a new local vault
-under a new master password, every record into its personal vault, ids kept (`keepIds`: a re-import skips them). Mobile has no export / import UI yet.
+content writes nothing) / keep both. Restore or import (`useRestoreBackup`, web `/restore`; the file opened by
+`useOpenImportFile`): a backup or another manager's export (below) into a new local vault under a new master password,
+every record into its personal vault; a backup's ids kept (`keepIds`: a re-import skips them), a foreign one's all new. Mobile has no export / import UI yet.
 Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
 (Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON; 1Password 1PUX via `fflate`; KeePass XML via an injectable
 `ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
