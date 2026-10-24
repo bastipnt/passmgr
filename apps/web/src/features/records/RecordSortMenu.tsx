@@ -1,10 +1,14 @@
-import { RECORD_TYPE_LABELS } from "@repo/client";
-import type { SortOption, TypeFilter } from "@repo/client/src/providers/SortedRecordsProvider";
-import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
-import { RECORD_TYPES } from "@repo/schema";
+import type { CategoryFilter, SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
+import {
+  CATEGORIES,
+  categoryLabel,
+  SORT_LABELS,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuLabel,
@@ -19,28 +23,28 @@ import {
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowUpDownIcon, TagIcon } from "lucide-react";
 
-const TYPE_FILTERS: { value: TypeFilter; label: string }[] = [
-  { value: "all", label: "All items" },
-  ...RECORD_TYPES.map((type) => ({ value: type, label: RECORD_TYPE_LABELS[type].plural })),
-];
-
 type RecordSortMenuProps = {
   /** `fab`: a round icon button for the phone's bottom dock, opening upward. */
   variant?: "inline" | "fab";
 };
 
-// No tag is ever empty, so "" stands for every record in the radio group.
-const ALL_TAGS = "";
-
-/** Sort order and the type and tag filters, in one menu: they decide what the list shows. */
+/** Sort order and the category and tag filters, in one menu: they decide what the list shows. */
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
-  const { sort, handleSortChange, typeFilter, setTypeFilter, tagFilter, setTagFilter, tags } =
-    useSortedRecords();
+  const {
+    sort,
+    handleSortChange,
+    categoryFilter,
+    setCategoryFilter,
+    tagFilters,
+    toggleTag,
+    clearTags,
+    tags,
+  } = useSortedRecords();
   const fab = variant === "fab";
-  const filtered = typeFilter !== "all" || tagFilter !== null;
+  const filtered = categoryFilter !== "all" || tagFilters.length > 0;
   const showing = [
-    typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural,
-    tagFilter === null ? undefined : `tagged ${tagFilter}`,
+    categoryFilter === "all" ? undefined : categoryLabel(categoryFilter),
+    tagFilters.length === 0 ? undefined : `tagged ${tagFilters.join(", ")}`,
   ].filter(Boolean);
   const accessibleName = `Sort: ${SORT_LABELS[sort]}${showing.length > 0 ? `, showing ${showing.join(" ")}` : ""}`;
 
@@ -92,12 +96,12 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
         <DropdownMenuGroup>
           <DropdownMenuLabel>Show</DropdownMenuLabel>
           <DropdownMenuRadioGroup
-            value={typeFilter}
-            onValueChange={(value) => setTypeFilter(value as TypeFilter)}
+            value={categoryFilter}
+            onValueChange={(value) => setCategoryFilter(value as CategoryFilter)}
           >
-            {TYPE_FILTERS.map(({ value, label }) => (
-              <DropdownMenuRadioItem key={value} value={value}>
-                {label}
+            {CATEGORIES.map((category) => (
+              <DropdownMenuRadioItem key={category} value={category}>
+                {categoryLabel(category)}
               </DropdownMenuRadioItem>
             ))}
           </DropdownMenuRadioGroup>
@@ -108,21 +112,27 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             <DropdownMenuSub>
               <DropdownMenuSubTrigger>
                 <TagIcon />
-                <span className="flex-1 truncate">{tagFilter ?? "Tag"}</span>
+                <span className="flex-1 truncate">
+                  {tagFilters.length > 0 ? tagFilters.join(", ") : "Tag"}
+                </span>
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent className="max-h-80 min-w-48">
-                <DropdownMenuRadioGroup
-                  value={tagFilter ?? ALL_TAGS}
-                  onValueChange={(value) => setTagFilter(value === ALL_TAGS ? null : value)}
+                <DropdownMenuCheckboxItem
+                  checked={tagFilters.length === 0}
+                  onCheckedChange={clearTags}
                 >
-                  <DropdownMenuRadioItem value={ALL_TAGS}>All tags</DropdownMenuRadioItem>
-                  {tags.map(({ tag, count }) => (
-                    <DropdownMenuRadioItem key={tag} value={tag}>
-                      <span className="min-w-0 flex-1 truncate">{tag}</span>
-                      <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
-                    </DropdownMenuRadioItem>
-                  ))}
-                </DropdownMenuRadioGroup>
+                  All tags
+                </DropdownMenuCheckboxItem>
+                {tags.map(({ tag, count }) => (
+                  <DropdownMenuCheckboxItem
+                    key={tag}
+                    checked={tagFilters.includes(tag)}
+                    onCheckedChange={() => toggleTag(tag)}
+                  >
+                    <span className="min-w-0 flex-1 truncate">{tag}</span>
+                    <span className="text-muted-foreground text-xs tabular-nums">{count}</span>
+                  </DropdownMenuCheckboxItem>
+                ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
           </>

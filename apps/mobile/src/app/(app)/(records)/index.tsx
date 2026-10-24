@@ -1,15 +1,15 @@
 import {
+  CATEGORIES,
+  categoryLabel,
+  emptyCategoryHint,
   listTitle,
-  RECORD_TYPE_LABELS,
   SORT_LABELS,
   type SortOption,
-  type TypeFilter,
   useGetRecords,
   useRecordSearch,
   useSortedRecords,
   useVaults,
 } from "@repo/client";
-import { RECORD_TYPES } from "@repo/schema";
 import { Screen } from "@repo/ui-native";
 import { Stack, useRouter } from "expo-router";
 import { useEffect, useRef } from "react";
@@ -24,11 +24,6 @@ import { recordPaths } from "@/route-paths";
 
 const SORT_OPTIONS = Object.entries(SORT_LABELS) as [SortOption, string][];
 
-const TYPE_FILTERS: [TypeFilter, string][] = [
-  ["all", "All items"],
-  ...RECORD_TYPES.map((type): [TypeFilter, string] => [type, RECORD_TYPE_LABELS[type].plural]),
-];
-
 /** Scroll distance after which the page title has left and the bar shows it. */
 const TITLE_IN_BAR_OFFSET = 48;
 
@@ -38,23 +33,24 @@ export default function RecordsScreen() {
   const {
     sort,
     handleSortChange,
-    typeFilter,
-    setTypeFilter,
+    categoryFilter,
+    setCategoryFilter,
     vaultFilter,
     setVaultFilter,
-    tagFilter,
-    setTagFilter,
+    tagFilters,
+    toggleTag,
+    clearTags,
     tags,
   } = useSortedRecords();
   const { vaults, getVault, hasSeveralVaults } = useVaults();
   const recordGroups = useRecordSearch("", {
-    type: typeFilter,
+    category: categoryFilter,
     vault: vaultFilter,
-    tag: tagFilter,
+    tags: tagFilters,
   });
   const shownCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
   const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
-  const title = listTitle({ typeFilter, tagFilter, searching: false, vault: shownVault });
+  const title = listTitle({ categoryFilter, tagFilters, searching: false, vault: shownVault });
   const foregroundColor = useCSSVariable("--color-foreground") as string;
   const primaryColor = useCSSVariable("--color-primary") as string;
   const headerTitleStyle = useResolveClassNames("font-display-bold text-foreground");
@@ -67,7 +63,7 @@ export default function RecordsScreen() {
 
   // A new sort or filter reshuffles the whole list, so the old scroll offset
   // points at unrelated records — go back to the top. Skips the initial render.
-  const list = `${sort}:${typeFilter}:${vaultFilter}:${tagFilter}`;
+  const list = `${sort}:${categoryFilter}:${vaultFilter}:${tagFilters.join(",")}`;
   const prevListRef = useRef(list);
   useEffect(() => {
     if (prevListRef.current === list) return;
@@ -101,7 +97,7 @@ export default function RecordsScreen() {
                 type: "sfSymbol",
                 // Filled while the list is narrowed.
                 name:
-                  typeFilter === "all" && vaultFilter === "all" && tagFilter === null
+                  categoryFilter === "all" && vaultFilter === "all" && tagFilters.length === 0
                     ? "line.3.horizontal.decrease.circle"
                     : "line.3.horizontal.decrease.circle.fill",
               },
@@ -142,11 +138,11 @@ export default function RecordsScreen() {
                     type: "submenu",
                     label: "Show",
                     inline: true,
-                    items: TYPE_FILTERS.map(([value, label]) => ({
+                    items: CATEGORIES.map((category) => ({
                       type: "action",
-                      label,
-                      state: value === typeFilter ? "on" : "off",
-                      onPress: () => setTypeFilter(value),
+                      label: categoryLabel(category),
+                      state: category === categoryFilter ? "on" : "off",
+                      onPress: () => setCategoryFilter(category),
                     })),
                   },
                   // A submenu of its own: there can be many.
@@ -154,19 +150,19 @@ export default function RecordsScreen() {
                     ? [
                         {
                           type: "submenu" as const,
-                          label: tagFilter === null ? "Tag" : `Tag: ${tagFilter}`,
+                          label: tagFilters.length === 0 ? "Tag" : `Tag: ${tagFilters.join(", ")}`,
                           items: [
                             {
                               type: "action" as const,
                               label: "All tags",
-                              state: tagFilter === null ? ("on" as const) : ("off" as const),
-                              onPress: () => setTagFilter(null),
+                              state: tagFilters.length === 0 ? ("on" as const) : ("off" as const),
+                              onPress: clearTags,
                             },
                             ...tags.map(({ tag, count }) => ({
                               type: "action" as const,
                               label: `${tag} (${count})`,
-                              state: tag === tagFilter ? ("on" as const) : ("off" as const),
-                              onPress: () => setTagFilter(tag),
+                              state: tagFilters.includes(tag) ? ("on" as const) : ("off" as const),
+                              onPress: () => toggleTag(tag),
                             })),
                           ],
                         },
@@ -223,11 +219,7 @@ export default function RecordsScreen() {
           />
         ) : ready ? (
           <EmptyRecordList
-            hint={
-              recordsNumber > 0 && typeFilter !== "all"
-                ? `No ${RECORD_TYPE_LABELS[typeFilter].nouns} yet.`
-                : undefined
-            }
+            hint={recordsNumber > 0 ? emptyCategoryHint(categoryFilter, tagFilters) : undefined}
           />
         ) : null}
       </Animated.ScrollView>

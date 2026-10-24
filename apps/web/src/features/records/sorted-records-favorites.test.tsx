@@ -105,17 +105,28 @@ describe("favorites group", () => {
   it("follows the type and vault filters, and is gone when none is left", () => {
     const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
 
-    act(() => result.current.setTypeFilter("wifi"));
+    act(() => result.current.setCategoryFilter("wifi"));
     expect(shape(result.current.recordGroups)).toEqual([[FAVORITES_LABEL, ["zoo"]]]);
 
     act(() => {
-      result.current.setTypeFilter("all");
+      result.current.setCategoryFilter("all");
       result.current.setVaultFilter("v2");
     });
     expect(shape(result.current.recordGroups)).toEqual([[FAVORITES_LABEL, ["jira"]]]);
 
-    act(() => result.current.setTypeFilter("wifi"));
+    act(() => result.current.setCategoryFilter("wifi"));
     expect(result.current.recordGroups).toEqual([]);
+  });
+
+  it("is the whole list in the favorites category, grouped by the sort", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => result.current.setCategoryFilter("favorites"));
+    expect(shape(result.current.recordGroups)).toEqual([["Today", ["jira", "zoo", "bank"]]]);
+    expect(result.current.categoryCounts.favorites).toBe(3);
+
+    act(() => result.current.setVaultFilter("v1"));
+    expect(result.current.categoryFilter).toBe("all");
   });
 
   it("is not part of a search, which stays one flat list", () => {

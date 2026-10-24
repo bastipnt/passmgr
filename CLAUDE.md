@@ -480,7 +480,7 @@ Peer public keys are pinned per device on first use (`Vault.pinPeerKey`); a chan
 `revoked_records`, `Vault.getRevokedVaults`) to copy into a writable vault (`copyRevokedRecords`, one transaction) or discard.
 
 Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
-records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search ignores it). Create /
+records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search keeps to it; a switch resets the category). Create /
 rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
 first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
 it. Web: `features/vaults/` (switcher in the list bar, picker in the create sheet, Settings → Vaults); mobile:
@@ -490,6 +490,8 @@ Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star 
 history as "Added to / Removed from favorites", shared with every member of a shared vault; `read` members only see it).
 `SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
 normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
+The list's `categoryFilter` is `all`, `favorites` (starred, any type; no extra group) or a record type; `categoryCounts`
+count each for the vault and tags in view.
 Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
 
 Duplicate (web `MoreDropdown`, mobile record "More" menu): opens the create form as a copy, nothing saved until Save.
@@ -502,9 +504,10 @@ Tags (`useTags` / `useTagActions`, `records/tags.ts`; no folders): `tags` in the
 from the records (no tag entity, nothing on the server). Normalised by `@repo/schema` `tags.ts` (trim, one space, matched
 without case, a record keeps the first spelling, lists show the most used); forms refuse a comma (the CSV export joins with ", "), over `MAX_TAG_LENGTH` or
 `MAX_TAGS`; stored payloads stay lenient, imports go through `sanitizeTag`. Edited in every record form (`TagInput`:
-web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsProvider`'s `tagFilter` (one tag, session
-only, AND with vault and type, dropped once no record of the vault in view carries it; `tags` follow the vault
-filter; a detail chip's `showTag` clears the other filters first) and
+web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsProvider`'s `tagFilters` (several, all
+required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
+carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
+records left if added; a search ignores tags and category; a detail chip's `showTag` clears the other filters first) and
 search's third tier (after title, subtitle); `listTitle` is shared. Web: "Tag" submenu in `RecordSortMenu`, mobile: in the
 records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags

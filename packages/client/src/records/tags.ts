@@ -2,9 +2,6 @@ import { type DecryptedRecord, normalizeTags, tagKey } from "@repo/schema";
 
 export type TagCount = { tag: string; count: number };
 
-/** The list's tag filter: one tag, or `null` for every record. */
-export type TagFilter = string | null;
-
 /**
  * Every tag on `records` with how many carry it, A–Z. Tags match without case;
  * each is shown in its most used spelling.
@@ -33,8 +30,14 @@ export function hasTag(record: Pick<DecryptedRecord, "tags">, tag: string): bool
   return (record.tags ?? []).some((own) => tagKey(own) === key);
 }
 
-export function filterByTag(records: DecryptedRecord[], tag: TagFilter): DecryptedRecord[] {
-  return tag === null ? records : records.filter((record) => hasTag(record, tag));
+/** The records carrying every tag in `tags`; with none, every record. */
+export function filterByTags(
+  records: DecryptedRecord[],
+  tags: readonly string[],
+): DecryptedRecord[] {
+  return tags.length === 0
+    ? records
+    : records.filter((record) => tags.every((tag) => hasTag(record, tag)));
 }
 
 /** `tags` with `from` renamed to `to`; onto a tag it already has, the two merge. */

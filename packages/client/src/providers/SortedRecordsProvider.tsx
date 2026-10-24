@@ -1,4 +1,4 @@
-import { type DecryptedRecord, type RecordType, tagKey } from "@repo/schema";
+import { type DecryptedRecord, RECORD_TYPES, type RecordType, tagKey } from "@repo/schema";
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
@@ -7,13 +7,32 @@ import { useVaults } from "../hooks/use-vaults";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 import { getRecordSubtitle } from "../records/record-summary";
-import { filterByTag, type TagCount, type TagFilter } from "../records/tags";
+import { collectTags, filterByTags, type TagCount } from "../records/tags";
 import type { VaultFilter, VaultInfo } from "../vaults/vault-info";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
 export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
-/** Which records the list shows: every type, or one. */
-export type TypeFilter = RecordType | "all";
+/** Which records the list shows: every one, the starred ones (of any type), or one type. */
+export type CategoryFilter = RecordType | "all" | "favorites";
+
+export const CATEGORIES: readonly CategoryFilter[] = ["all", "favorites", ...RECORD_TYPES];
+
+export function categoryLabel(category: CategoryFilter): string {
+  if (category === "all") return "All items";
+  if (category === "favorites") return FAVORITES_LABEL;
+  return RECORD_TYPE_LABELS[category].plural;
+}
+
+/** What an empty list says when a category or tags narrow it. */
+export function emptyCategoryHint(
+  category: CategoryFilter,
+  tags: readonly string[] = [],
+): string | undefined {
+  if (tags.length > 0) return "Nothing here carries these tags.";
+  if (category === "all") return undefined;
+  if (category === "favorites") return "No favorites yet.";
+  return `No ${RECORD_TYPE_LABELS[category].nouns} yet.`;
+}
 
 export const DEFAULT_SORT: SortOption = "most-recent";
 
@@ -109,7 +128,13 @@ export const FAVORITES_LABEL = "Favorites";
  * the rest by `sort`. With favorites above it, the non-letter group of an
  * A–Z list gets a "#" label, else its rows would read as favorites.
  */
-function groupRecords(sortedRecords: DecryptedRecord[], sort: SortOption): RecordGroup[] {
+function groupRecords(
+  sortedRecords: DecryptedRecord[],
+  sort: SortOption,
+  category: CategoryFilter = "all",
+): RecordGroup[] {
+  // Every record here is starred: a favorites group would repeat the whole list.
+  if (category === "favorites") return groupBySort(sortedRecords, sort);
   const favorites = sortedRecords.filter((record) => record.favorite);
   if (favorites.length === 0) return groupBySort(sortedRecords, sort);
   const rest = groupBySort(
@@ -195,9 +220,13 @@ function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRec
   });
 }
 
-/** The records of one type, or all of them. */
-export function filterByType(records: DecryptedRecord[], type: TypeFilter): DecryptedRecord[] {
-  return type === "all" ? records : records.filter((record) => record.type === type);
+export function filterByCategory(
+  records: DecryptedRecord[],
+  category: CategoryFilter,
+): DecryptedRecord[] {
+  if (category === "all") return records;
+  if (category === "favorites") return records.filter((record) => record.favorite);
+  return records.filter((record) => record.type === category);
 }
 
 /** The records of one vault, or of all of them. */
@@ -214,16 +243,25 @@ function useVaultFilter(): [VaultFilter, (vault: VaultFilter) => void] {
 }
 
 /**
- * The tag filter, while a record of the vault in view carries the tag. Once
- * none does (renamed, removed, another vault picked) it's dropped, so it
- * doesn't come back by itself later.
+ * The selected tags, in the order picked, each while a record of the vault in
+ * view carries it. Once none does (renamed, removed, another vault picked) it's
+ * dropped, so it doesn't come back by itself later.
  */
-function useTagFilter(tags: TagCount[]): [TagFilter, (tag: TagFilter) => void] {
-  const [stored, setStored] = useState<TagFilter>(null);
-  const key = stored === null ? null : tagKey(stored);
-  const shown = key === null ? undefined : tags.find(({ tag }) => tagKey(tag) === key);
-  if (stored !== null && !shown) setStored(null);
-  return [shown?.tag ?? null, setStored];
+function useTagFilters(
+  vaultTags: TagCount[],
+): [string[], (update: (tags: string[]) => string[]) => void] {
+  const [stored, setStored] = useState<string[]>([]);
+  const shown = useMemo(
+    () =>
+      stored.flatMap((selected) => {
+        const key = tagKey(selected);
+        const match = vaultTags.find(({ tag }) => tagKey(tag) === key);
+        return match ? [match.tag] : [];
+      }),
+    [stored, vaultTags],
+  );
+  if (shown.length !== stored.length) setStored(shown);
+  return [shown, setStored];
 }
 
 /** Title matches first, then subtitle matches, then tag matches. */
@@ -241,35 +279,37 @@ export function filterBySearch(records: DecryptedRecord[], query: string): Decry
   return [...titleMatches, ...subtitleMatches, ...tagMatches];
 }
 
-type ListFilters = { type?: TypeFilter; vault?: VaultFilter; tag?: TagFilter };
+type ListFilters = { category?: CategoryFilter; vault?: VaultFilter; tags?: readonly string[] };
+
+const NO_TAGS: readonly string[] = [];
 
 function filterRecords(
   records: DecryptedRecord[],
-  { type = "all", vault = "all", tag = null }: ListFilters,
+  { category = "all", vault = "all", tags = NO_TAGS }: ListFilters,
 ): DecryptedRecord[] {
-  return filterByTag(filterByType(filterByVault(records, vault), type), tag);
+  return filterByCategory(filterByTags(filterByVault(records, vault), tags), category);
 }
 
 /**
- * The list's title: what it shows. A search covers every type, vault and tag.
- * Otherwise the vault in view, the type and the tag it's narrowed to.
+ * The list's title: what it shows. A search covers the whole vault in view.
+ * Otherwise the vault in view, the category and the tags it's narrowed to.
  */
 export function listTitle({
-  typeFilter,
-  tagFilter,
+  categoryFilter,
+  tagFilters,
   searching,
   vault,
 }: {
-  typeFilter: TypeFilter;
-  tagFilter: TagFilter;
+  categoryFilter: CategoryFilter;
+  tagFilters: readonly string[];
   searching: boolean;
   vault?: VaultInfo;
 }): string {
   if (searching) return "Results";
   const parts = [
     vault?.name,
-    typeFilter === "all" ? undefined : RECORD_TYPE_LABELS[typeFilter].plural,
-    tagFilter === null ? undefined : `#${tagFilter}`,
+    categoryFilter === "all" ? undefined : categoryLabel(categoryFilter),
+    tagFilters.length === 0 ? undefined : tagFilters.map((tag) => `#${tag}`).join(" "),
   ].filter((part) => part !== undefined);
   return parts.length > 0 ? parts.join(" · ") : "All items";
 }
@@ -279,16 +319,28 @@ type SortedRecordsContextValue = {
   setQuery: (query: string) => void;
   sort: SortOption;
   handleSortChange: (value: string) => void;
-  /** The list's type filter. A search ignores it and looks through every record. */
-  typeFilter: TypeFilter;
-  setTypeFilter: (type: TypeFilter) => void;
-  /** The list's vault filter ("All vaults" or one). A search ignores it too. */
+  /** The list's category. A search ignores it and looks through the whole vault in view. */
+  categoryFilter: CategoryFilter;
+  setCategoryFilter: (category: CategoryFilter) => void;
+  /** How many records each category holds, in the vault and tags in view. */
+  categoryCounts: Record<CategoryFilter, number>;
+  /** The list's vault filter ("All vaults" or one). A search keeps to it. */
   vaultFilter: VaultFilter;
+  /** Picks the vault in view and shows all of it again (category "all"). */
   setVaultFilter: (vault: VaultFilter) => void;
-  /** The list's tag filter, for this session only. A search ignores it too. */
-  tagFilter: TagFilter;
-  setTagFilter: (tag: TagFilter) => void;
-  /** The tags of the vault in view (of every vault for "All vaults"), to filter by. */
+  /**
+   * The selected tags, in the order picked, for this session only; a record
+   * must carry every one. A search ignores them.
+   */
+  tagFilters: string[];
+  toggleTag: (tag: string) => void;
+  removeTag: (tag: string) => void;
+  clearTags: () => void;
+  /**
+   * The tags of the vault in view (of every vault for "All vaults"), the
+   * selected ones first, then A–Z. `count`: the records left with the tag
+   * added to the category and tags in view (0 for a tag that would empty it).
+   */
   tags: TagCount[];
   /** Every record carrying `tag`: the other filters and the search cleared. */
   showTag: (tag: string) => void;
@@ -312,20 +364,53 @@ export function useSortedRecords(): SortedRecordsContextValue {
  * has a dedicated search tab whose input must not filter the records tab, so it
  * keeps its query in local state and groups the results through this hook.
  * An empty query falls back to the regular sorted grouping of the records
- * `filters` let through (the records tab passes the list's); a search looks
- * through every record, as the provider's does.
+ * `filters` let through (the records tab passes the list's); a search keeps to
+ * `filters.vault` only, as the provider's does.
  */
 export function useRecordSearch(query: string, filters: ListFilters = {}): RecordGroup[] {
   const { records } = useGetRecords();
   const { sort } = useSortedRecords();
   const trimmed = query.trim();
-  const { type, vault, tag } = filters;
+  const { category, vault, tags } = filters;
 
   return useMemo(() => {
     if (!trimmed)
-      return groupRecords(sortRecords(filterRecords(records, { type, vault, tag }), sort), sort);
-    return [{ label: null, records: filterBySearch(records, trimmed) }];
-  }, [records, sort, trimmed, type, vault, tag]);
+      return groupRecords(
+        sortRecords(filterRecords(records, { category, vault, tags }), sort),
+        sort,
+        category,
+      );
+    return [
+      { label: null, records: filterBySearch(filterByVault(records, vault ?? "all"), trimmed) },
+    ];
+  }, [records, sort, trimmed, category, vault, tags]);
+}
+
+function countCategories(records: DecryptedRecord[]): Record<CategoryFilter, number> {
+  const counts = Object.fromEntries(CATEGORIES.map((category) => [category, 0])) as Record<
+    CategoryFilter,
+    number
+  >;
+  for (const record of records) {
+    counts.all += 1;
+    if (record.type in counts) counts[record.type] += 1;
+    if (record.favorite) counts.favorites += 1;
+  }
+  return counts;
+}
+
+function tagCounts(
+  vaultTags: TagCount[],
+  selected: readonly string[],
+  inView: DecryptedRecord[],
+): TagCount[] {
+  const counts = new Map(collectTags(inView).map(({ tag, count }) => [tagKey(tag), count]));
+  const withCount = ({ tag }: TagCount) => ({ tag, count: counts.get(tagKey(tag)) ?? 0 });
+  const selectedKeys = selected.map(tagKey);
+  return [
+    ...selected.map((tag) => withCount({ tag, count: 0 })),
+    ...vaultTags.filter(({ tag }) => !selectedKeys.includes(tagKey(tag))).map(withCount),
+  ];
 }
 
 type SortedRecordsProviderProps = {
@@ -335,30 +420,39 @@ type SortedRecordsProviderProps = {
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
-  const [vaultFilter, setVaultFilter] = useVaultFilter();
-  const tags = useTags(vaultFilter);
-  const [tagFilter, setTagFilter] = useTagFilter(tags);
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
+  const [vaultFilter, setStoredVaultFilter] = useVaultFilter();
+  const vaultTags = useTags(vaultFilter);
+  const [tagFilters, setTagFilters] = useTagFilters(vaultTags);
   const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
 
   const hasQuery = query.trim().length > 0;
-  // A search looks through every record: the filter narrows browsing, and a
-  // match hidden by it would read as "not in the vault".
-  const filtered = useMemo(
-    () =>
-      hasQuery
-        ? filterBySearch(records, query)
-        : filterRecords(records, { type: typeFilter, vault: vaultFilter, tag: tagFilter }),
-    [records, query, hasQuery, typeFilter, vaultFilter, tagFilter],
+  const vaultRecords = useMemo(() => filterByVault(records, vaultFilter), [records, vaultFilter]);
+  const taggedRecords = useMemo(
+    () => filterByTags(vaultRecords, tagFilters),
+    [vaultRecords, tagFilters],
   );
+  const browsed = useMemo(
+    () => filterByCategory(taggedRecords, categoryFilter),
+    [taggedRecords, categoryFilter],
+  );
+  const categoryCounts = useMemo(() => countCategories(taggedRecords), [taggedRecords]);
+  const tags = useMemo(
+    () => tagCounts(vaultTags, tagFilters, browsed),
+    [vaultTags, tagFilters, browsed],
+  );
+
+  // A search keeps to the vault in view (the scope the user picked) but not to
+  // the category or tags: those narrow browsing, and a match hidden by them
+  // would read as "not in the vault".
   const recordGroups = useMemo(
     () =>
       hasQuery
-        ? [{ label: null, records: filtered }]
-        : groupRecords(sortRecords(filtered, sort), sort),
-    [filtered, sort, hasQuery],
+        ? [{ label: null, records: filterBySearch(vaultRecords, query) }]
+        : groupRecords(sortRecords(browsed, sort), sort, categoryFilter),
+    [vaultRecords, browsed, query, hasQuery, sort, categoryFilter],
   );
   // In the order shown: favorites first, so arrow keys walk the list as it reads.
   const sortedRecords = useMemo(
@@ -368,21 +462,45 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
 
-  // The vault and type filters may hide every record with the tag (its record
-  // was opened from a search), which would drop the tag filter right away.
+  const setVaultFilter = useCallback(
+    (vault: VaultFilter) => {
+      setStoredVaultFilter(vault);
+      setCategoryFilter("all");
+    },
+    [setStoredVaultFilter],
+  );
+
+  const toggleTag = useCallback(
+    (tag: string) =>
+      setTagFilters((selected) =>
+        selected.some((own) => tagKey(own) === tagKey(tag))
+          ? selected.filter((own) => tagKey(own) !== tagKey(tag))
+          : [...selected, tag],
+      ),
+    [setTagFilters],
+  );
+  const removeTag = useCallback(
+    (tag: string) =>
+      setTagFilters((selected) => selected.filter((own) => tagKey(own) !== tagKey(tag))),
+    [setTagFilters],
+  );
+  const clearTags = useCallback(() => setTagFilters(() => []), [setTagFilters]);
+
+  // The vault and category may hide every record with the tag (its record was
+  // opened from a search), which would drop the tag right away.
   const showTag = useCallback(
     (tag: string) => {
       setQuery("");
-      setTypeFilter("all");
       setVaultFilter("all");
-      setTagFilter(tag);
+      setTagFilters(() => [tag]);
     },
-    [setVaultFilter, setTagFilter],
+    [setVaultFilter, setTagFilters],
   );
 
-  function handleSortChange(value: string) {
-    setStoredSort(value as SortOption);
-  }
+  const handleSortChange = useCallback(
+    (value: string) => setStoredSort(value as SortOption),
+    [setStoredSort],
+  );
 
   const value = useMemo(
     () => ({
@@ -390,12 +508,15 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setQuery,
       sort,
       handleSortChange,
-      typeFilter,
-      setTypeFilter,
+      categoryFilter,
+      setCategoryFilter,
+      categoryCounts,
       vaultFilter,
       setVaultFilter,
-      tagFilter,
-      setTagFilter,
+      tagFilters,
+      toggleTag,
+      removeTag,
+      clearTags,
       tags,
       showTag,
       sortedRecords,
@@ -405,11 +526,15 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [
       query,
       sort,
-      typeFilter,
+      handleSortChange,
+      categoryFilter,
+      categoryCounts,
       vaultFilter,
       setVaultFilter,
-      tagFilter,
-      setTagFilter,
+      tagFilters,
+      toggleTag,
+      removeTag,
+      clearTags,
       tags,
       showTag,
       sortedRecords,

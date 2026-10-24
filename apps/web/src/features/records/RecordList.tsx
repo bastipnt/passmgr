@@ -1,14 +1,14 @@
 import {
+  emptyCategoryHint,
   getRecordSubtitle,
   listTitle,
-  RECORD_TYPE_LABELS,
   useGetRecords,
   useShortcut,
   useVaults,
   type VaultInfo,
 } from "@repo/client";
 import {
-  type TypeFilter,
+  type CategoryFilter,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
@@ -112,7 +112,13 @@ function RecordListSkeleton() {
 }
 
 /** Ghost rows standing in for the first items. */
-function EmptyRecordList({ typeFilter }: { typeFilter: TypeFilter }) {
+function EmptyRecordList({
+  categoryFilter,
+  tagFilters,
+}: {
+  categoryFilter: CategoryFilter;
+  tagFilters: readonly string[];
+}) {
   return (
     <div className="flex flex-col gap-2">
       {[1, 0.7, 0.4].map((opacity) => (
@@ -130,9 +136,8 @@ function EmptyRecordList({ typeFilter }: { typeFilter: TypeFilter }) {
         </div>
       ))}
       <p className="px-1.5 pt-2 text-muted-foreground text-sm">
-        {typeFilter === "all"
-          ? "Your items will show up here, grouped by when you last used them."
-          : `No ${RECORD_TYPE_LABELS[typeFilter].nouns} yet.`}
+        {emptyCategoryHint(categoryFilter, tagFilters) ??
+          "Your items will show up here, grouped by when you last used them."}
       </p>
     </div>
   );
@@ -177,13 +182,20 @@ export default function RecordList() {
   const [isIndex] = useRoute(recordPaths.index);
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
-  const { query, typeFilter, vaultFilter, tagFilter, sortedRecords, recordGroups, hasGroupLabels } =
-    useSortedRecords();
+  const {
+    query,
+    categoryFilter,
+    vaultFilter,
+    tagFilters,
+    sortedRecords,
+    recordGroups,
+    hasGroupLabels,
+  } = useSortedRecords();
   const { getVault, hasSeveralVaults } = useVaults();
   const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
-  // Rows name their vault where the list mixes several: "All vaults", or a search.
+  // Rows name their vault where the list mixes several.
   const rowVault = (record: DecryptedRecord) =>
-    hasSeveralVaults && (!shownVault || query.trim()) ? getVault(record.vaultId) : undefined;
+    hasSeveralVaults && !shownVault ? getVault(record.vaultId) : undefined;
   const isMobile = useIsMobile();
   const prevQueryRef = useRef(query);
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
@@ -259,7 +271,7 @@ export default function RecordList() {
 
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
-  const title = listTitle({ typeFilter, tagFilter, searching: hasQuery, vault: shownVault });
+  const title = listTitle({ categoryFilter, tagFilters, searching: hasQuery, vault: shownVault });
 
   return (
     <div
@@ -291,7 +303,7 @@ export default function RecordList() {
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : sortedRecords.length === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">
-          <EmptyRecordList typeFilter={typeFilter} />
+          <EmptyRecordList categoryFilter={categoryFilter} tagFilters={tagFilters} />
         </div>
       ) : (
         <div
