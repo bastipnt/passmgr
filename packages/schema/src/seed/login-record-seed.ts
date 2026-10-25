@@ -10,6 +10,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "GitHub",
+    tags: ["dev", "work", "2fa"],
     username: "linpark",
     password: "vN7#qT2m!Rx9$kLw4Zp",
     totp: "IZF6XAWJY3QBCZZCGSEG3OWLWZMRJ5XE",
@@ -23,6 +24,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Google",
+    tags: ["personal", "email", "2fa"],
     username: "lin.park@example.com",
     password: "copper-lantern-orbit-maple",
     totp: "WO2Z72FZP6PZFRQLS5KY6BFYDIOINCPS",
@@ -36,6 +38,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Amazon",
+    tags: ["shopping", "subscriptions"],
     username: "lin.park@example.com",
     password: "Hb8$wqLe2!pZn5",
     websites: [{ value: "https://www.amazon.de" }, { value: "https://www.amazon.com" }],
@@ -45,6 +48,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Netflix",
+    tags: ["streaming", "subscriptions", "family"],
     username: "lin.park@example.com",
     password: "Sunflower!2019",
     websites: [{ value: "https://www.netflix.com/login" }],
@@ -54,6 +58,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Spotify",
+    tags: ["streaming", "subscriptions", "music"],
     username: "linpark.music",
     password: "Sunflower!2019",
     websites: [{ value: "https://accounts.spotify.com" }],
@@ -63,6 +68,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "PayPal",
+    tags: ["finance", "shopping"],
     username: "lin.park@example.com",
     password: "tR4!mZ8q#Lp2Wv6",
     totp: "7RUEPI6PV26N57URCIJGOZYWTXWHGGZD",
@@ -73,6 +79,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Apple Account",
+    tags: ["personal", "devices", "2fa"],
     username: "lin.park@example.com",
     password: "Qm9!vX3r$Tn7Lz",
     websites: [{ value: "https://account.apple.com" }, { value: "https://www.icloud.com" }],
@@ -85,6 +92,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Microsoft (Work)",
+    tags: ["work", "client-acme", "email"],
     username: "lin.park@acme-corp.example",
     password: "Kd2#pW9x!Mv5Rq8",
     totp: "YCJADW6FILG43NZ263DNFV2ZLCU3GL3C",
@@ -98,6 +106,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Slack",
+    tags: ["work", "communication", "client-acme"],
     username: "lin.park@acme-corp.example",
     password: "Zx7!bN4q$Wm2Pt",
     websites: [{ value: "https://acme-corp.slack.com" }],
@@ -107,6 +116,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Notion",
+    tags: ["work", "productivity"],
     username: "lin.park@example.com",
     password: "harbor-velvet-sprout-ninety",
     websites: [{ value: "https://www.notion.so/login" }],
@@ -116,6 +126,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Figma",
+    tags: ["work", "design"],
     username: "lin.park@acme-corp.example",
     password: "Pf6$tQ9m!Xc3Hw",
     totp: "KIL3TIN73MHMQ7MXKJSOMLGH7C3KUHSL",
@@ -126,6 +137,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "LinkedIn",
+    tags: ["social", "career"],
     username: "lin.park@example.com",
     password: "Lp3#vR8n!Zq5Km",
     websites: [{ value: "https://www.linkedin.com/login" }],
@@ -135,6 +147,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Reddit",
+    tags: ["social", "forums"],
     username: "quiet_lantern",
     password: "Sunflower!2019",
     websites: [{ value: "https://www.reddit.com/login" }],
@@ -144,6 +157,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Discord",
+    tags: ["social", "gaming", "communication"],
     username: "linpark",
     password: "Wn5!kT8x#Rb2Qv",
     totp: "GXSCBYO2GR7KIBASTJAU7IK7LZZ4GLC2",
@@ -156,6 +170,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Steam",
+    tags: ["gaming", "shopping"],
     username: "quietlantern",
     password: "Gm8#zQ4r!Vt6Np",
     websites: [
@@ -168,6 +183,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Airbnb",
+    tags: ["travel", "family"],
     username: "lin.park@example.com",
     password: "Bt7$wN3q!Lm9Xz",
     websites: [{ value: "https://www.airbnb.com/login" }],
@@ -177,6 +193,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Booking.com",
+    tags: ["travel"],
     username: "lin.park@example.com",
     password: "Vr2!qM6x#Tk8Wp",
     websites: [{ value: "https://account.booking.com/sign-in" }],
@@ -186,6 +203,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Deutsche Bahn",
+    tags: ["travel", "work"],
     username: "lin.park@example.com",
     password: "zug2014",
     websites: [{ value: "https://www.bahn.de" }],
@@ -195,6 +213,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Wikipedia",
+    tags: ["forums", "legacy"],
     username: "QuietLantern",
     password: "wiki1234",
     websites: [{ value: "https://en.wikipedia.org/wiki/Special:UserLogin" }],
@@ -204,6 +223,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "AWS Console",
+    tags: ["dev", "infra", "cloud", "client-acme"],
     username: "lin.park",
     password: "Hq9#xR2m!Wv7Tn4Kp",
     totp: "JSPBCXYJGMFEN32SYR4QGPHB5U6HXU3W",
@@ -220,6 +240,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "Dropbox",
+    tags: ["cloud", "legacy", "productivity"],
     username: "lin.park@example.com",
     password: "Cn4!pZ7w#Qr3Mx",
     totp: "WXDJOVQYPVLZUX76URGOFQVXOOUXW46S",
@@ -230,6 +251,7 @@ export const exampleLoginRecords: LoginRecord[] = [
   {
     type: "login",
     title: "FRITZ!Box",
+    tags: ["home", "network", "admin"],
     username: "admin",
     password: "meadow-tractor-quilt-seven",
     websites: [{ value: "http://fritz.box" }],

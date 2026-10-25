@@ -28,7 +28,10 @@ type RecordSortMenuProps = {
   variant?: "inline" | "fab";
 };
 
-/** Sort order and the category and tag filters, in one menu: they decide what the list shows. */
+/**
+ * Sort order and the category filter, in one menu: they decide what the list
+ * shows. On phones (`fab`) the tag filter too; desktop has the `TagBar`.
+ */
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
   const {
     sort,
@@ -106,7 +109,7 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
-        {tags.length > 0 && (
+        {fab && tags.length > 0 && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuSub>

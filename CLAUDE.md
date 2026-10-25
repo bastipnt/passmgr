@@ -508,8 +508,9 @@ web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsP
 required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
 carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
 records left if added; a search ignores tags and category; a detail chip's `showTag` clears the other filters first) and
-search's third tier (after title, subtitle); `listTitle` is shared. Web: "Tag" submenu in `RecordSortMenu`, mobile: in the
-records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
+search's third tier (after title, subtitle); `listTitle` is shared. Web desktop: `TagBar` (pill row under the header, selected first,
+overflow behind "All N tags", `@repo/ui` `TagPill` / `TagPicker`); web phone: "Tag" submenu in the `RecordSortMenu` fab;
+mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.
 

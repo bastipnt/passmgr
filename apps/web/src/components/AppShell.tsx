@@ -6,6 +6,8 @@ import ShellBackdrop from "@/components/ShellBackdrop";
 
 type AppShellProps = {
   header: ReactNode;
+  /** A row between the header and the main area (desktop only). */
+  subheader?: ReactNode;
   /** Laid out by the caller, usually as `ShellPanel`s in a grid. */
   children: ReactNode;
   mainClassName?: string;
@@ -17,16 +19,17 @@ type AppShellProps = {
  * the whole screen with a plain header row pinned over the content, and
  * scroll the document (see `MobileVault` for why).
  */
-export function AppShell({ header, children, mainClassName }: AppShellProps) {
+export function AppShell({ header, subheader, children, mainClassName }: AppShellProps) {
   return (
-    <div className="relative isolate flex min-h-dvh flex-col sm:grid sm:h-dvh sm:grid-rows-[auto_minmax(0,1fr)] sm:gap-4 sm:p-5">
+    <div className="relative isolate flex min-h-dvh flex-col sm:h-dvh sm:gap-4 sm:p-5">
       <ShellBackdrop />
       <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-20 sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
         {header}
       </header>
+      {subheader && <div className="shrink-0 empty:hidden max-sm:hidden">{subheader}</div>}
       <main
         className={cn(
-          "relative grid min-h-0 max-sm:flex-1 max-sm:pb-[env(safe-area-inset-bottom)] sm:gap-4",
+          "relative grid min-h-0 flex-1 max-sm:pb-[env(safe-area-inset-bottom)] sm:gap-4",
           mainClassName,
         )}
       >

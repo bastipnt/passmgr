@@ -35,6 +35,7 @@ import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { SyncStatusMenu } from "./SyncStatusMenu";
+import { TagBar } from "./TagBar";
 
 type RecordLayoutProps = {
   children: ReactNode;
@@ -140,6 +141,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     <SortedRecordsProvider>
       <AppShell
         mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]"
+        subheader={<TagBar />}
         header={
           <>
             <RouterLink

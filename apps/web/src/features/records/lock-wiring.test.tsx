@@ -33,6 +33,7 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
 }));
 vi.mock("./SyncStatusMenu", () => ({ SyncStatusMenu: () => null }));
 vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
+vi.mock("./TagBar", () => ({ TagBar: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));
 vi.mock("@/features/vaults", () => ({ VaultSwitcher: () => null }));
 

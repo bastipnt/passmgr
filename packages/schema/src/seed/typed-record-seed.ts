@@ -10,6 +10,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "card",
     title: "Visa (personal)",
+    tags: ["finance", "banking"],
     cardholderName: "Lin Park",
     number: "4111111111111111",
     expiry: "09/29",
@@ -20,6 +21,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "card",
     title: "Mastercard (travel)",
+    tags: ["finance", "travel"],
     cardholderName: "Lin Park",
     number: "5555555555554444",
     expiry: "03/28",
@@ -29,6 +31,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "card",
     title: "Amex (work)",
+    tags: ["finance", "work", "expenses"],
     cardholderName: "Lin Park",
     number: "378282246310005",
     expiry: "11/27",
@@ -37,6 +40,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "identity",
     title: "Lin Park",
+    tags: ["personal", "documents"],
     firstName: "Lin",
     lastName: "Park",
     email: "lin.park@example.com",
@@ -54,16 +58,19 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "note",
     title: "Front door code",
+    tags: ["home", "family"],
     note: "Building: 4711#\nBike cellar: 0815",
   },
   {
     type: "note",
     title: "Crypto wallet seed",
+    tags: ["finance", "crypto", "backup"],
     note: "abandon ability able about above absent absorb abstract absurd abuse access accident",
   },
   {
     type: "ssh_key",
     title: "MacBook Pro (ed25519)",
+    tags: ["dev", "devices"],
     publicKey:
       "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAILx14NGT/Zvo27z1HasC2lsWOBeXJo+zA/DVVNQV/G5T lin@macbook",
     privateKey:
@@ -73,6 +80,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "api_key",
     title: "OpenWeather API",
+    tags: ["dev", "side-project"],
     keyId: "lin-park-dev",
     secret: "b6907d289e10d714a6e88b30761fae22",
     host: "api.openweathermap.org",
@@ -80,6 +88,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "api_key",
     title: "Stripe (test mode)",
+    tags: ["dev", "finance", "client-acme"],
     keyId: "pk_test_51ExampleExampleExample",
     secret: "sk_test_51ExampleExampleExampleSecret",
     host: "api.stripe.com",
@@ -88,6 +97,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "wifi",
     title: "Home Wi-Fi",
+    tags: ["home", "network", "family"],
     ssid: "Park-Home",
     password: "blue-kettle-sunday-42",
     security: "wpa2",
@@ -95,6 +105,7 @@ export const exampleTypedRecords: RecordData[] = [
   {
     type: "wifi",
     title: "Office guest",
+    tags: ["work", "network"],
     ssid: "ACME-Guest",
     password: "welcome2026",
     security: "wpa3",
