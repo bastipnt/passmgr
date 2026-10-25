@@ -30,6 +30,7 @@ import { VaultSwitcher } from "@/features/vaults";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
+import { CategorySidebar } from "./CategorySidebar";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
@@ -140,7 +141,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   return (
     <SortedRecordsProvider>
       <AppShell
-        mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[21rem_minmax(0,1fr)]"
+        mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[13.75rem_19rem_minmax(0,1fr)] xl:grid-cols-[13.75rem_21.25rem_minmax(0,1fr)]"
         subheader={<TagBar />}
         header={
           <>
@@ -185,7 +186,10 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </>
         }
       >
-        <ShellPanel viewportClassName="scroll-pt-24 scroll-pb-3">
+        <ShellPanel className="hidden lg:block">
+          <CategorySidebar />
+        </ShellPanel>
+        <ShellPanel viewportClassName="scroll-pt-28 scroll-pb-3">
           <RecordList />
         </ShellPanel>
         <MainContent>{children}</MainContent>

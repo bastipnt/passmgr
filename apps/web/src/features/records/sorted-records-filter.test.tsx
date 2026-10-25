@@ -1,5 +1,6 @@
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
+  listHeading,
   listTitle,
   SortedRecordsProvider,
   useRecordSearch,
@@ -312,5 +313,13 @@ describe("listTitle", () => {
     expect(listTitle({ categoryFilter: "all", tagFilters: ["work"], searching: true })).toBe(
       "Results",
     );
+  });
+});
+
+describe("listHeading", () => {
+  it("names the category, or the search", () => {
+    expect(listHeading("all", false)).toBe("All items");
+    expect(listHeading("ssh_key", false)).toBe("SSH keys");
+    expect(listHeading("favorites", true)).toBe("Results");
   });
 });

@@ -290,6 +290,11 @@ function filterRecords(
   return filterByCategory(filterByTags(filterByVault(records, vault), tags), category);
 }
 
+/** The list heading where the vault and the tags show elsewhere (desktop: header, subtitle). */
+export function listHeading(categoryFilter: CategoryFilter, searching: boolean): string {
+  return searching ? "Results" : categoryLabel(categoryFilter);
+}
+
 /**
  * The list's title: what it shows. A search covers the whole vault in view.
  * Otherwise the vault in view, the category and the tags it's narrowed to.

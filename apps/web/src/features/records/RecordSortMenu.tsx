@@ -20,6 +20,7 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
+import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowUpDownIcon, TagIcon } from "lucide-react";
 
@@ -29,8 +30,9 @@ type RecordSortMenuProps = {
 };
 
 /**
- * Sort order and the category filter, in one menu: they decide what the list
- * shows. On phones (`fab`) the tag filter too; desktop has the `TagBar`.
+ * The sort order. Where there is no `CategorySidebar` (phones, and desktop
+ * below `lg`) it also holds the category filter; on phones (`fab`) the tag
+ * filter too, as desktop has the `TagBar`.
  */
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
   const {
@@ -44,6 +46,9 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
     tags,
   } = useSortedRecords();
   const fab = variant === "fab";
+  // Tailwind `lg`, where `RecordLayout` shows the `CategorySidebar`.
+  const hasSidebar = useMediaQuery("(min-width: 64rem)");
+  const showCategories = fab || !hasSidebar;
   const filtered = categoryFilter !== "all" || tagFilters.length > 0;
   const showing = [
     categoryFilter === "all" ? undefined : categoryLabel(categoryFilter),
@@ -60,7 +65,7 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
               variant="floating"
               size="fab"
               aria-label={accessibleName}
-              // A dot on the button: the list is narrowed to one type.
+              // A dot on the button: a category or tags narrow the list.
               className={cn(
                 filtered &&
                   "relative after:absolute after:top-2.5 after:right-2.5 after:size-2 after:rounded-full after:bg-primary",
@@ -95,20 +100,24 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
-          <DropdownMenuLabel>Show</DropdownMenuLabel>
-          <DropdownMenuRadioGroup
-            value={categoryFilter}
-            onValueChange={(value) => setCategoryFilter(value as CategoryFilter)}
-          >
-            {CATEGORIES.map((category) => (
-              <DropdownMenuRadioItem key={category} value={category}>
-                {categoryLabel(category)}
-              </DropdownMenuRadioItem>
-            ))}
-          </DropdownMenuRadioGroup>
-        </DropdownMenuGroup>
+        {showCategories && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>Show</DropdownMenuLabel>
+              <DropdownMenuRadioGroup
+                value={categoryFilter}
+                onValueChange={(value) => setCategoryFilter(value as CategoryFilter)}
+              >
+                {CATEGORIES.map((category) => (
+                  <DropdownMenuRadioItem key={category} value={category}>
+                    {categoryLabel(category)}
+                  </DropdownMenuRadioItem>
+                ))}
+              </DropdownMenuRadioGroup>
+            </DropdownMenuGroup>
+          </>
+        )}
         {fab && tags.length > 0 && (
           <>
             <DropdownMenuSeparator />

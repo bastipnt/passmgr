@@ -1,6 +1,7 @@
 import {
   emptyCategoryHint,
   getRecordSubtitle,
+  listHeading,
   listTitle,
   useGetRecords,
   useShortcut,
@@ -175,6 +176,24 @@ function MobileListTitle({ title, count }: { title: string; count: number }) {
   );
 }
 
+function TaggedSubtitle({ tags }: { tags: readonly string[] }) {
+  const parts = new Intl.ListFormat("en", { type: "conjunction" }).formatToParts(tags);
+  return (
+    <p className="truncate text-muted-foreground text-xs">
+      tagged{" "}
+      {parts.map((part, i) =>
+        part.type === "element" ? (
+          <strong key={i} className="font-semibold text-foreground">
+            {part.value}
+          </strong>
+        ) : (
+          part.value
+        ),
+      )}
+    </p>
+  );
+}
+
 export default function RecordList() {
   // Loose match: a record stays "in view" (highlighted, arrow-navigable) while
   // one of its sub-route sheets — edit, versions — is open.
@@ -271,15 +290,21 @@ export default function RecordList() {
 
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
-  const title = listTitle({ categoryFilter, tagFilters, searching: hasQuery, vault: shownVault });
+  const subtitled = !hasQuery && tagFilters.length > 0;
 
   return (
     <div
       ref={listRef}
-      className="flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]"
+      className={cn(
+        "flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
+        subtitled && "sm:[--list-bar-h:4.25rem]",
+      )}
     >
       {isMobile ? (
-        <MobileListTitle title={title} count={sortedRecords.length} />
+        <MobileListTitle
+          title={listTitle({ categoryFilter, tagFilters, searching: hasQuery, vault: shownVault })}
+          count={sortedRecords.length}
+        />
       ) : (
         <div
           className={cn(
@@ -287,12 +312,15 @@ export default function RecordList() {
             hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
           )}
         >
-          <h2 className="flex min-w-0 items-baseline gap-1.5 font-semibold">
-            <span className="truncate">{title}</span>
-            <span className="font-normal text-muted-foreground text-sm tabular-nums">
-              {sortedRecords.length}
-            </span>
-          </h2>
+          <div className="min-w-0">
+            <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
+              <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
+              <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
+                {sortedRecords.length}
+              </span>
+            </h2>
+            {subtitled && <TaggedSubtitle tags={tagFilters} />}
+          </div>
           <RecordSortMenu />
         </div>
       )}

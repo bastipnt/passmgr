@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from "react";
+import { useMediaQuery } from "./use-media-query";
 
 const QUERY = "(max-width: 639px)";
 
@@ -7,12 +7,6 @@ export function isMobile() {
   return window.matchMedia(QUERY).matches;
 }
 
-function subscribe(cb: () => void) {
-  const mql = window.matchMedia(QUERY);
-  mql.addEventListener("change", cb);
-  return () => mql.removeEventListener("change", cb);
-}
-
 export function useIsMobile() {
-  return useSyncExternalStore(subscribe, isMobile, () => false);
+  return useMediaQuery(QUERY);
 }
