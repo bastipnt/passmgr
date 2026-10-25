@@ -24,6 +24,10 @@ export function capitalize(input: string): string {
   return input.charAt(0).toUpperCase() + input.slice(1);
 }
 
+export function counted(n: number, one: string, many: string): string {
+  return `${n} ${n === 1 ? one : many}`;
+}
+
 export const UUIDV4_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 /** A stable, non-cryptographic hash of a string (for picking colours and the like). */

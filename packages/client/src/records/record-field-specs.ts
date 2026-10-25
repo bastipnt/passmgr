@@ -65,7 +65,16 @@ export type FieldSpec = {
  */
 export const RECORD_TYPE_LABELS: Record<
   RecordType,
-  { type: string; plural: string; noun: string; nouns: string; fields: string; hint: string }
+  {
+    type: string;
+    plural: string;
+    /** `plural` where it doesn't fit a small tile. */
+    short?: string;
+    noun: string;
+    nouns: string;
+    fields: string;
+    hint: string;
+  }
 > = {
   login: {
     noun: "login",
@@ -80,6 +89,7 @@ export const RECORD_TYPE_LABELS: Record<
     nouns: "credit cards",
     type: "Credit card",
     plural: "Credit cards",
+    short: "Cards",
     fields: "Card",
     hint: "Card number, expiry and security code",
   },
@@ -96,6 +106,7 @@ export const RECORD_TYPE_LABELS: Record<
     nouns: "secure notes",
     type: "Secure note",
     plural: "Secure notes",
+    short: "Notes",
     fields: "Note",
     hint: "Free text, encrypted",
   },
@@ -120,6 +131,7 @@ export const RECORD_TYPE_LABELS: Record<
     nouns: "Wi-Fi networks",
     type: "Wi-Fi",
     plural: "Wi-Fi networks",
+    short: "Wi-Fi",
     fields: "Network",
     hint: "Network name and password",
   },

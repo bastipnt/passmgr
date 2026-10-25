@@ -1,4 +1,5 @@
 import { type DecryptedRecord, RECORD_TYPES, type RecordType, tagKey } from "@repo/schema";
+import { counted } from "@repo/util";
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
@@ -21,6 +22,18 @@ export function categoryLabel(category: CategoryFilter): string {
   if (category === "all") return "All items";
   if (category === "favorites") return FAVORITES_LABEL;
   return RECORD_TYPE_LABELS[category].plural;
+}
+
+export function categoryShortLabel(category: CategoryFilter): string {
+  if (category === "all" || category === "favorites") return categoryLabel(category);
+  return RECORD_TYPE_LABELS[category].short ?? categoryLabel(category);
+}
+
+export function categoryCountLabel(category: CategoryFilter, count: number): string {
+  if (category === "all") return counted(count, "item", "items");
+  if (category === "favorites") return counted(count, "favorite", "favorites");
+  const { noun, nouns } = RECORD_TYPE_LABELS[category];
+  return counted(count, noun, nouns);
 }
 
 /** What an empty list says when a category or tags narrow it. */

@@ -1,4 +1,5 @@
 import type { DecryptedRecord } from "@repo/schema";
+import { counted } from "@repo/util";
 import type { BreachedPassword } from "./breach-check";
 import type {
   InsecureWebsite,
@@ -140,7 +141,7 @@ export const SKIPPED_CHECK_LABEL: Record<SkippedCheck, string> = {
   missingTwoFactor: "missing 2FA",
 };
 
-const passwords = (n: number) => `${n} ${n === 1 ? "password" : "passwords"}`;
+const passwords = (n: number) => counted(n, "password", "passwords");
 
 /** "2 of 24 passwords need attention." */
 export function securityScoreSummary({ checked, atRisk }: SecurityScore): string {

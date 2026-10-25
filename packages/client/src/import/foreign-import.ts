@@ -16,7 +16,7 @@ import {
   recordPayloadJson,
   sanitizeTag,
 } from "@repo/schema";
-import { normalizeWebsite, parseWebsite, websiteHost } from "@repo/util";
+import { counted, normalizeWebsite, parseWebsite, websiteHost } from "@repo/util";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 
 /*
@@ -69,8 +69,6 @@ export const SKIP_REASON_LABELS: Record<SkipReason, string> = {
   invalid: "not a valid item",
   too_large: "too large",
 };
-
-const counted = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** "12 logins, 1 credit card": what an import holds, per type. */
 export function describeRecordCounts(records: readonly { type: RecordType }[]): string {

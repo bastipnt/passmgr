@@ -12,8 +12,8 @@ import ShellBackdrop from "@/components/ShellBackdrop";
 import { VaultSwitcher } from "@/features/vaults";
 import { AccountMenu } from "./AccountMenu";
 import { createSheetSearch } from "./CreateRecordSheet";
+import { FilterButton } from "./FilterSheet";
 import { NoSearchResults } from "./NoSearchResults";
-import { RecordFilterMenu } from "./RecordFilterMenu";
 import RecordList from "./RecordList";
 import { RecordSortMenu } from "./RecordSortMenu";
 
@@ -101,7 +101,7 @@ export default function MobileVault() {
       {/* Pinned to the viewport bottom while the list runs on beneath it, and
           resting at the same spot once it ends. */}
       <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-25 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
-        <RecordFilterMenu />
+        <FilterButton />
         <MobileSearchInput />
         <RecordSortMenu variant="fab" />
         <Link variant="default" size="fab" href={createSheetSearch()} aria-label="New item">

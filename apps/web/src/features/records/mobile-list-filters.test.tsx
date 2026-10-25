@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import { ActiveFilterChips } from "./ActiveFilterChips";
-import { RecordFilterMenu } from "./RecordFilterMenu";
+import { FilterButton } from "./FilterSheet";
 
 const list = vi.hoisted(() => ({
   query: "",
@@ -54,22 +54,22 @@ describe("ActiveFilterChips", () => {
   });
 });
 
-describe("RecordFilterMenu", () => {
+describe("FilterButton", () => {
   it("counts the category and each tag that are on", () => {
     Object.assign(list, { categoryFilter: "favorites", tagFilters: ["work", "infra"] });
-    renderWithProviders(<RecordFilterMenu />);
+    renderWithProviders(<FilterButton />);
     const button = screen.getByRole("button", { name: "Filter (3 on)" });
     expect(button).toHaveTextContent("3");
   });
 
   it("no count during a search, which ignores the filters", () => {
     Object.assign(list, { query: "git", tagFilters: ["work"] });
-    renderWithProviders(<RecordFilterMenu />);
+    renderWithProviders(<FilterButton />);
     expect(screen.getByRole("button", { name: "Filter" })).toHaveTextContent("");
   });
 
   it("no count while nothing is on", () => {
-    renderWithProviders(<RecordFilterMenu />);
+    renderWithProviders(<FilterButton />);
     expect(screen.getByRole("button", { name: "Filter" })).toHaveTextContent("");
   });
 });
