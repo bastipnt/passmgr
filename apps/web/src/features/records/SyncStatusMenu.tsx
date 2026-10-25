@@ -16,33 +16,15 @@ import {
 } from "@repo/ui/components/DropdownMenu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
-import {
-  CloudAlertIcon,
-  CloudCheckIcon,
-  CloudOffIcon,
-  CloudUploadIcon,
-  HardDriveIcon,
-  LogInIcon,
-  type LucideIcon,
-  RefreshCwIcon,
-  RotateCcwIcon,
-  UserRoundIcon,
-} from "lucide-react";
-import { type ComponentProps, type ReactElement, useState } from "react";
+import { LogInIcon, RefreshCwIcon, RotateCcwIcon, UserRoundIcon } from "lucide-react";
+import { type ComponentProps, type ReactElement, type ReactNode, useState } from "react";
 import { Link } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
 
-const ICONS: Record<SyncState, LucideIcon> = {
-  local: HardDriveIcon,
-  error: CloudAlertIcon,
-  syncing: RefreshCwIcon,
-  offline: CloudOffIcon,
-  pending: CloudUploadIcon,
-  synced: CloudCheckIcon,
-};
-
 type SyncStatusPopupProps = {
   trigger: ReactElement;
+  /** More menu items, after the sync ones. */
+  children?: ReactNode;
 } & Pick<ComponentProps<typeof DropdownMenuContent>, "align" | "side">;
 
 /**
@@ -51,7 +33,7 @@ type SyncStatusPopupProps = {
  * to create one. Offline is a state, not an error: writes keep working and
  * wait on the device.
  */
-function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps) {
+export function SyncStatusPopup({ trigger, align = "end", side, children }: SyncStatusPopupProps) {
   const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
   const { canReconnect, reconnect } = useReconnect();
@@ -92,41 +74,9 @@ function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps)
           <UserRoundIcon />
           {summary.state === "local" ? "Create online account" : "Account & sync"}
         </DropdownMenuItem>
+        {children}
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-/** The phone page bar's 48px button for `SyncStatusPopup`; desktop has the sidebar's `SyncStatusCard`. */
-export function SyncStatusMenu() {
-  const { summary } = useSyncSummary();
-  const Icon = ICONS[summary.state];
-
-  return (
-    <SyncStatusPopup
-      trigger={
-        <Button
-          variant="floating"
-          size="icon-xl"
-          aria-label={`Sync status: ${summary.title}`}
-          title={summary.title}
-          className="relative"
-        >
-          <Icon
-            className={cn(
-              summary.state === "syncing" && "animate-spin motion-reduce:animate-none",
-              summary.state === "error" && "text-destructive",
-            )}
-          />
-          {summary.state === "pending" && (
-            <span
-              aria-hidden
-              className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background"
-            />
-          )}
-        </Button>
-      }
-    />
   );
 }
 
@@ -138,6 +88,15 @@ const DOT_COLORS: Record<SyncState, string> = {
   pending: "bg-success",
   synced: "bg-success",
 };
+
+export function SyncDot({ state, className }: { state: SyncState; className?: string }) {
+  return (
+    <span
+      aria-hidden
+      className={cn("size-2 shrink-0 rounded-full", DOT_COLORS[state], className)}
+    />
+  );
+}
 
 const CARD_TRIGGER_CLASS =
   "rounded-xl outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25";
@@ -151,9 +110,7 @@ export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
   const now = useSyncClock(status.lastSyncedAt);
   const { title, detail } = syncCardLines(summary, status, now);
   const syncing = summary.state === "syncing";
-  const dot = (
-    <span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOT_COLORS[summary.state])} />
-  );
+  const dot = <SyncDot state={summary.state} />;
 
   if (collapsed)
     return (

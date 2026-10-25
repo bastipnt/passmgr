@@ -19,18 +19,26 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import Link from "@repo/ui/components/Link";
-import { ChevronsUpDownIcon, LayersIcon, PlusIcon, Settings2Icon } from "lucide-react";
-import { useState } from "react";
+import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
+import {
+  ChevronDownIcon,
+  ChevronsUpDownIcon,
+  LayersIcon,
+  PlusIcon,
+  Settings2Icon,
+} from "lucide-react";
+import { useRef, useState } from "react";
 import { settingsPaths } from "@/app/route-paths";
 import { VaultDialog } from "./VaultDialog";
 import { VaultTile } from "./VaultTile";
 
 type VaultSwitcherProps = {
   /**
-   * `scope`: the vault in view, by name (desktop header); `floating`: a round
-   * bar button showing its tile (phone).
+   * `scope`: the vault in view, by name (desktop header); `pill`: a floating
+   * pill with tile and name (phone bar), which shrinks to its tile as the page
+   * scrolls, making room for the list title.
    */
-  variant: "scope" | "floating";
+  variant: "scope" | "pill";
 };
 
 /** Pick the vault the app shows (or all of them), or create one. */
@@ -40,6 +48,8 @@ export function VaultSwitcher({ variant }: VaultSwitcherProps) {
   const { vaultFilter, setVaultFilter } = useSortedRecords();
   const { canChangeVaults } = useVaultActions();
   const [createOpen, setCreateOpen] = useState(false);
+  const pillRef = useRef<HTMLButtonElement>(null);
+  useScrollCollapse(pillRef);
   const current = vaultFilter === "all" ? undefined : getVault(vaultFilter);
   const name = current?.name ?? "All vaults";
   const total = vaults.reduce((sum, vault) => sum + (counts.get(vault.vaultId) ?? 0), 0);
@@ -49,9 +59,26 @@ export function VaultSwitcher({ variant }: VaultSwitcherProps) {
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            variant === "floating" ? (
-              <Button variant="floating" size="icon-xl" aria-label={`Vault: ${name}`}>
-                {current ? <VaultTile vault={current} size="sm" /> : <LayersIcon />}
+            variant === "pill" ? (
+              <Button
+                ref={pillRef}
+                variant="floating"
+                size="lg"
+                aria-label={`Vault: ${name}`}
+                // Collapses over MobileListTitle's range, so the title arrives as the name goes.
+                className="scroll-collapse min-w-0 gap-0 px-2.5 font-semibold text-[0.9375rem] [--scroll-collapse-range:4.125rem]"
+              >
+                {current ? (
+                  <VaultTile vault={current} size="sm" />
+                ) : (
+                  <span className="grid size-7 shrink-0 place-items-center">
+                    <LayersIcon className="size-4.5" />
+                  </span>
+                )}
+                <span className="flex min-w-0 max-w-[calc(11rem*(1-var(--scroll-collapse)))] items-center gap-1.5 overflow-hidden pl-[calc(0.5rem*(1-var(--scroll-collapse)))] opacity-[calc(1-var(--scroll-collapse)*1.5)]">
+                  <span className="truncate">{name}</span>
+                  <ChevronDownIcon className="text-muted-foreground" />
+                </span>
               </Button>
             ) : (
               <Button
@@ -72,7 +99,7 @@ export function VaultSwitcher({ variant }: VaultSwitcherProps) {
             )
           }
         />
-        <DropdownMenuContent align={variant === "floating" ? "end" : "start"} className="min-w-56">
+        <DropdownMenuContent align="start" className="min-w-56">
           <DropdownMenuGroup>
             <DropdownMenuLabel>Show</DropdownMenuLabel>
             <DropdownMenuRadioGroup

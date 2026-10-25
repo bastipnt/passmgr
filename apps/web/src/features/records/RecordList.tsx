@@ -2,7 +2,6 @@ import {
   emptyCategoryHint,
   getRecordSubtitle,
   listHeading,
-  listTitle,
   useGetRecords,
   useShortcut,
   useVaults,
@@ -31,6 +30,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultBadge } from "@/features/vaults";
+import { ActiveFilterChips } from "./ActiveFilterChips";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSortMenu } from "./RecordSortMenu";
 
@@ -147,11 +147,12 @@ function EmptyRecordList({
 /**
  * The phone list's large title — the page title, as the list is the screen.
  * Like `MobileRecordPage`'s, it scrolls up into MobileVault's bar (next to the
- * brand mark), shrinking as it goes. Sticky within the list, so it pins inside
- * the bar, centered on the brand mark (the bar's 3rem content box centers at
- * +1.5rem; Bricolage's caps sit centered in the h-9 line box, so +0.375rem).
- * It collapses over the scroll that carries it from its hero spot (0.75rem
- * under the 3.75rem bar) up to there: 4.5rem - 0.375rem.
+ * vault pill, which shrinks to its tile meanwhile), shrinking as it goes.
+ * Sticky within the list, so it pins inside the bar, centered on the pill
+ * (the bar's 3rem content box centers at +1.5rem; Bricolage's caps sit
+ * centered in the h-9 line box, so +0.375rem). It collapses over the scroll
+ * that carries it from its hero spot (0.75rem under the 3.75rem bar) up to
+ * there: 4.5rem - 0.375rem.
  */
 function MobileListTitle({ title, count }: { title: string; count: number }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
@@ -162,10 +163,10 @@ function MobileListTitle({ title, count }: { title: string; count: number }) {
       ref={titleRef}
       className={cn(
         "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.375rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:4.125rem]",
-        // Hero → bar: past the brand mark (px-4 + size-9 + 0.75rem). It clears the
-        // mark sideways before rising level with it, so the two never overlap.
+        // Hero → bar: past the collapsed pill (px-4 + size-12 + 0.75rem). It clears
+        // the pill sideways before rising level with it, so the two never overlap.
         // Not truncated (that clips descenders): "Wi-Fi networks n" is short enough.
-        "ms-[calc(1.25rem+2.75rem*min(1,var(--scroll-collapse)*1.5))] text-[calc(2.125rem-1.0625rem*var(--scroll-collapse))]",
+        "ms-[calc(1.25rem+3.5rem*min(1,var(--scroll-collapse)*1.5))] text-[calc(2.125rem-1.0625rem*var(--scroll-collapse))]",
       )}
     >
       <span>{title}</span>{" "}
@@ -301,10 +302,13 @@ export default function RecordList() {
       )}
     >
       {isMobile ? (
-        <MobileListTitle
-          title={listTitle({ categoryFilter, tagFilters, searching: hasQuery, vault: shownVault })}
-          count={sortedRecords.length}
-        />
+        <>
+          <MobileListTitle
+            title={listHeading(categoryFilter, hasQuery)}
+            count={sortedRecords.length}
+          />
+          <ActiveFilterChips />
+        </>
       ) : (
         <div
           className={cn(

@@ -17,7 +17,7 @@ import {
 import { useId } from "react";
 import { RECORD_TYPE_ICONS } from "./RecordAvatar";
 
-const CATEGORY_ICONS: Record<CategoryFilter, LucideIcon> = {
+export const CATEGORY_ICONS: Record<CategoryFilter, LucideIcon> = {
   all: LayoutListIcon,
   favorites: StarIcon,
   ...RECORD_TYPE_ICONS,

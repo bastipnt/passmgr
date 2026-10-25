@@ -5,11 +5,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { renderWithProviders, screen } from "@/test/render";
-import MobileVault from "./MobileVault";
 import RecordLayout from "./RecordLayout";
 
 // Every lock entry point goes through `useLockVault` (it ends the server session);
-// the hook itself is covered in lock-vault.test.ts.
+// the hook itself is covered in lock-vault.test.ts, the phone's (AccountMenu) in
+// sync-status-menu.test.tsx.
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("./lock-vault", () => ({ useLockVault: () => lockVault }));
 
@@ -31,7 +31,6 @@ vi.mock("./RecordList", () => ({ default: () => null }));
 vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({ getVault: () => undefined }),
 }));
-vi.mock("./SyncStatusMenu", () => ({ SyncStatusMenu: () => null }));
 vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
 vi.mock("./TagBar", () => ({ TagBar: () => null }));
 vi.mock("./CategorySidebar", () => ({ CategorySidebar: () => null }));
@@ -67,15 +66,6 @@ describe("lock entry points", () => {
     renderShell(<RecordLayout>content</RecordLayout>);
 
     await userEvent.keyboard("{Control>}l{/Control}");
-
-    expect(lockVault).toHaveBeenCalledTimes(1);
-  });
-
-  it("phone: the bar's lock button locks through useLockVault", async () => {
-    isMobile.value = true;
-    renderShell(<MobileVault />);
-
-    await userEvent.click(screen.getByRole("button", { name: "Lock vault" }));
 
     expect(lockVault).toHaveBeenCalledTimes(1);
   });

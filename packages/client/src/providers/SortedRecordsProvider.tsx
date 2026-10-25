@@ -290,9 +290,17 @@ function filterRecords(
   return filterByCategory(filterByTags(filterByVault(records, vault), tags), category);
 }
 
-/** The list heading where the vault and the tags show elsewhere (desktop: header, subtitle). */
+/** The list heading where the vault and the tags show elsewhere (desktop: header, subtitle; web phone: vault pill, filter chips). */
 export function listHeading(categoryFilter: CategoryFilter, searching: boolean): string {
   return searching ? "Results" : categoryLabel(categoryFilter);
+}
+
+/** The category (unless "All items") and each tag narrowing the list. */
+export function activeFilterCount(
+  categoryFilter: CategoryFilter,
+  tagFilters: readonly string[],
+): number {
+  return (categoryFilter === "all" ? 0 : 1) + tagFilters.length;
 }
 
 /**

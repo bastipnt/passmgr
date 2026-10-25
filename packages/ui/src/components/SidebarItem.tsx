@@ -1,5 +1,6 @@
 import { mergeProps } from "@base-ui/react/merge-props";
 import { useRender } from "@base-ui/react/use-render";
+import { CountBadge } from "@repo/ui/components/CountBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -52,18 +53,18 @@ export function SidebarItem({
           <>
             <Icon aria-hidden />
             <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>{label}</span>
-            {count !== undefined && (!collapsed || warning) && (
+            {count !== undefined && warning && (
+              <CountBadge
+                count={count}
+                placement={collapsed ? "corner" : "inline"}
+                className={cn(dimmed && "opacity-70")}
+              />
+            )}
+            {count !== undefined && !warning && !collapsed && (
               <span
-                aria-hidden={collapsed || undefined}
                 className={cn(
                   "text-xs tabular-nums",
-                  warning
-                    ? "grid h-5 min-w-5 place-items-center rounded-full bg-warning/20 px-1.5 font-semibold text-amber-700 dark:text-strength-strong"
-                    : active
-                      ? "font-semibold"
-                      : "text-muted-foreground",
-                  collapsed &&
-                    "absolute -top-1 -right-1 h-4 min-w-4 bg-warning px-1 text-[0.625rem] text-amber-950 dark:text-amber-950",
+                  active ? "font-semibold" : "text-muted-foreground",
                   dimmed && "opacity-70",
                 )}
               >
