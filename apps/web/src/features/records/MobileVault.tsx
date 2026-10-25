@@ -97,7 +97,7 @@ export default function MobileVault() {
         </RouterLink>
         <span className="flex-1" />
         <VaultSwitcher variant="floating" />
-        <SyncStatusMenu variant="floating" />
+        <SyncStatusMenu />
         <Button variant="floating" size="icon-xl" onClick={lockVault} aria-label="Lock vault">
           <LockIcon />
         </Button>

@@ -20,7 +20,6 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
-import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { cn } from "@repo/ui/lib/utils";
 import { ArrowUpDownIcon, TagIcon } from "lucide-react";
 
@@ -30,9 +29,8 @@ type RecordSortMenuProps = {
 };
 
 /**
- * The sort order. Where there is no `CategorySidebar` (phones, and desktop
- * below `lg`) it also holds the category filter; on phones (`fab`) the tag
- * filter too, as desktop has the `TagBar`.
+ * The sort order. On phones (`fab`) also the category and tag filters, which
+ * desktop has in the `CategorySidebar` and the `TagBar`.
  */
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
   const {
@@ -46,9 +44,6 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
     tags,
   } = useSortedRecords();
   const fab = variant === "fab";
-  // Tailwind `lg`, where `RecordLayout` shows the `CategorySidebar`.
-  const hasSidebar = useMediaQuery("(min-width: 64rem)");
-  const showCategories = fab || !hasSidebar;
   const filtered = categoryFilter !== "all" || tagFilters.length > 0;
   const showing = [
     categoryFilter === "all" ? undefined : categoryLabel(categoryFilter),
@@ -100,7 +95,7 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
-        {showCategories && (
+        {fab && (
           <>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>

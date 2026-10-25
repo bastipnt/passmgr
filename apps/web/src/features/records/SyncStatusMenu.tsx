@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
 import {
   CloudAlertIcon,
@@ -96,13 +97,8 @@ function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps)
   );
 }
 
-type SyncStatusMenuProps = {
-  /** `outline`: the desktop header's, below `lg`; `floating`: the phone's 48px page-bar button. */
-  variant?: "outline" | "floating";
-};
-
-/** Icon button for `SyncStatusPopup`, where the sidebar's `SyncStatusCard` isn't shown. */
-export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
+/** The phone page bar's 48px button for `SyncStatusPopup`; desktop has the sidebar's `SyncStatusCard`. */
+export function SyncStatusMenu() {
   const { summary } = useSyncSummary();
   const Icon = ICONS[summary.state];
 
@@ -110,8 +106,8 @@ export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
     <SyncStatusPopup
       trigger={
         <Button
-          variant={variant}
-          size={variant === "floating" ? "icon-xl" : "icon"}
+          variant="floating"
+          size="icon-xl"
           aria-label={`Sync status: ${summary.title}`}
           title={summary.title}
           className="relative"
@@ -143,12 +139,48 @@ const DOT_COLORS: Record<SyncState, string> = {
   synced: "bg-success",
 };
 
-/** The desktop sidebar's sync card: a dot and two lines, opening `SyncStatusPopup`. */
-export function SyncStatusCard() {
+const CARD_TRIGGER_CLASS =
+  "rounded-xl outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25";
+
+/**
+ * The desktop sidebar's sync card: a dot and two lines, opening `SyncStatusPopup`.
+ * `collapsed` (the icon rail) keeps only the dot, the lines in its tooltip.
+ */
+export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
   const { status, summary, canSync, syncNow } = useSyncSummary();
   const now = useSyncClock(status.lastSyncedAt);
   const { title, detail } = syncCardLines(summary, status, now);
   const syncing = summary.state === "syncing";
+  const dot = (
+    <span aria-hidden className={cn("size-2 shrink-0 rounded-full", DOT_COLORS[summary.state])} />
+  );
+
+  if (collapsed)
+    return (
+      <Tooltip>
+        <SyncStatusPopup
+          align="start"
+          side="right"
+          trigger={
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  aria-label={`Sync status: ${summary.title}`}
+                  className={cn(CARD_TRIGGER_CLASS, "grid size-10 place-items-center")}
+                >
+                  {dot}
+                </button>
+              }
+            />
+          }
+        />
+        <TooltipContent side="right" className="flex flex-col">
+          <span className="font-semibold">{title}</span>
+          <span className="opacity-80">{detail}</span>
+        </TooltipContent>
+      </Tooltip>
+    );
 
   return (
     <div className="flex items-center gap-1 rounded-2xl border border-foreground/10 bg-card/70 p-1 dark:border-white/10">
@@ -159,12 +191,12 @@ export function SyncStatusCard() {
           <button
             type="button"
             aria-label={`Sync status: ${summary.title}`}
-            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25"
+            className={cn(
+              CARD_TRIGGER_CLASS,
+              "flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left",
+            )}
           >
-            <span
-              aria-hidden
-              className={cn("size-2 shrink-0 rounded-full", DOT_COLORS[summary.state])}
-            />
+            {dot}
             <span className="flex min-w-0 flex-col">
               <span className="truncate font-semibold text-sm">{title}</span>
               <span className="truncate text-muted-foreground text-xs">{detail}</span>

@@ -132,10 +132,10 @@ vi.mock("@repo/client", async (importActual) => ({
 vi.mock("./SyncStatusMenu", () => ({ SyncStatusCard: () => null }));
 
 describe("SidebarFooter", () => {
-  const renderFooter = () =>
+  const renderFooter = (collapsed = false) =>
     renderWithProviders(
       <Router hook={memoryLocation({ path: "/" }).hook}>
-        <SidebarFooter />
+        <SidebarFooter collapsed={collapsed} />
       </Router>,
     );
 
@@ -163,5 +163,15 @@ describe("SidebarFooter", () => {
       expect(screen.getByRole("link", { name: "Pass Monitor" })).toBeInTheDocument();
       unmount();
     }
+  });
+
+  it("collapsed: icons keep their names, the Pass Monitor its badge", () => {
+    mocks.issueCount = 3;
+    renderFooter(true);
+    const passMonitor = screen.getByRole("link", { name: "Pass Monitor (3)" });
+    expect(passMonitor).toHaveTextContent("3");
+    expect(screen.getByText("Pass Monitor")).toHaveClass("sr-only");
+    expect(screen.getByRole("link", { name: "Account & sync" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
 });

@@ -1,11 +1,11 @@
-import { ShortcutProvider } from "@repo/client";
+import { PREF_KEYS, ShortcutProvider } from "@repo/client";
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
   SortedRecordsProvider,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
-import { render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -14,6 +14,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { CategorySidebar } from "./CategorySidebar";
 import RecordList from "./RecordList";
+import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
   return {
@@ -72,10 +73,35 @@ function Providers({ children }: { children: ReactNode }) {
   );
 }
 
+function Sidebar() {
+  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  return (
+    <div id="sidebar">
+      <CategorySidebar
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+        controlsId="sidebar"
+      />
+    </div>
+  );
+}
+
+function setWindowWide(wide: boolean) {
+  vi.spyOn(window, "matchMedia").mockImplementation(
+    (query: string) =>
+      ({
+        matches: wide && query === "(min-width: 64rem)",
+        media: query,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+      }) as unknown as MediaQueryList,
+  );
+}
+
 function renderSidebar() {
   render(
     <Providers>
-      <CategorySidebar />
+      <Sidebar />
       <Titles />
     </Providers>,
   );
@@ -90,7 +116,10 @@ const listed = () =>
     .map((item) => item.textContent)
     .sort();
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  setWindowWide(true);
+});
 
 describe("CategorySidebar", () => {
   it("lists All items, Favorites and every record type with its count", () => {
@@ -98,6 +127,7 @@ describe("CategorySidebar", () => {
     expect(
       within(sidebar())
         .getAllByRole("button")
+        .filter((button) => button.hasAttribute("aria-pressed"))
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual([
       "All items (3)",
@@ -144,6 +174,51 @@ describe("CategorySidebar", () => {
   });
 });
 
+describe("CategorySidebar collapsed", () => {
+  const toggle = () => screen.getByRole("button", { name: "Sidebar" });
+
+  it("starts expanded on a wide window", () => {
+    renderSidebar();
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(toggle()).toHaveAttribute("aria-controls", "sidebar");
+    expect(within(sidebar()).getByText("Logins")).not.toHaveClass("sr-only");
+  });
+
+  it("stays a rail without a toggle on a narrow window, whatever was stored", () => {
+    localStorage.setItem(PREF_KEYS.sidebarCollapsed, "false");
+    setWindowWide(false);
+    renderSidebar();
+    expect(screen.queryByRole("button", { name: "Sidebar" })).toBeNull();
+    expect(within(sidebar()).getByText("Logins")).toHaveClass("sr-only");
+  });
+
+  it("collapses to named icons and remembers the choice", async () => {
+    const user = renderSidebar();
+
+    await user.click(toggle());
+
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(sidebar()).toHaveAccessibleName("Categories");
+    expect(category("Logins (2)")).toHaveAttribute("aria-pressed", "false");
+    expect(within(sidebar()).getByText("Logins")).toHaveClass("sr-only");
+    expect(localStorage.getItem(PREF_KEYS.sidebarCollapsed)).toBe("true");
+
+    cleanup();
+    renderSidebar();
+    expect(toggle()).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("shows the name and count in a tooltip on focus", async () => {
+    setWindowWide(false);
+    const user = renderSidebar();
+
+    await user.tab();
+
+    expect(category("All items (3)")).toHaveFocus();
+    expect(await screen.findByText("All items (3)")).toBeInTheDocument();
+  });
+});
+
 describe("RecordList header", () => {
   function renderList() {
     const location = memoryLocation({ path: "/records" });
@@ -151,7 +226,7 @@ describe("RecordList header", () => {
       <Router hook={location.hook}>
         <ShortcutProvider>
           <Providers>
-            <CategorySidebar />
+            <Sidebar />
             <TagPicks />
             <RecordList />
           </Providers>

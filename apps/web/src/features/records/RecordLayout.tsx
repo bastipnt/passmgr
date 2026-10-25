@@ -19,11 +19,13 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
+import { TooltipProvider } from "@repo/ui/components/Tooltip";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { LockIcon, PlusIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
-import { type ReactNode, useEffect, useRef, useState } from "react";
+import { cn } from "@repo/ui/lib/utils";
+import { LockIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Link as RouterLink, useLocation, useSearchParams } from "wouter";
-import { recordPaths, settingsPaths } from "@/app/route-paths";
+import { recordPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { VaultSwitcher } from "@/features/vaults";
@@ -36,8 +38,8 @@ import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { SidebarFooter } from "./SidebarFooter";
-import { SyncStatusMenu } from "./SyncStatusMenu";
 import { TagBar } from "./TagBar";
+import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 type RecordLayoutProps = {
   children: ReactNode;
@@ -114,6 +116,9 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     AUTO_LOCK_DEFAULT_MINUTES,
   );
 
+  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const sidebarId = useId();
+
   useIdleLock(autoLockMinutes, lockVault);
 
   useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
@@ -142,7 +147,12 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   return (
     <SortedRecordsProvider>
       <AppShell
-        mainClassName="sm:grid-cols-[17rem_minmax(0,1fr)] lg:grid-cols-[13.75rem_19rem_minmax(0,1fr)] xl:grid-cols-[13.75rem_21.25rem_minmax(0,1fr)]"
+        mainClassName={cn(
+          "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+          sidebarCollapsed
+            ? "sm:grid-cols-[4rem_17rem_minmax(0,1fr)] lg:grid-cols-[4rem_19rem_minmax(0,1fr)] xl:grid-cols-[4rem_21.25rem_minmax(0,1fr)]"
+            : "lg:grid-cols-[13.75rem_19rem_minmax(0,1fr)] xl:grid-cols-[13.75rem_21.25rem_minmax(0,1fr)]",
+        )}
         subheader={<TagBar />}
         header={
           <>
@@ -160,19 +170,6 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
             <VaultSwitcher variant="scope" />
             <SearchInput />
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              {/* Below `lg` the sidebar, and with it its footer, is hidden. */}
-              <div className="flex items-center gap-2 lg:hidden">
-                <SyncStatusMenu />
-                <Link
-                  variant="outline"
-                  size="icon"
-                  href={settingsPaths.index}
-                  aria-label="Settings"
-                  title="Settings"
-                >
-                  <SlidersHorizontalIcon />
-                </Link>
-              </div>
               <Button
                 variant="outline"
                 size="icon"
@@ -190,9 +187,15 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </>
         }
       >
-        <ShellPanel className="hidden lg:block" viewportClassName="flex flex-col">
-          <CategorySidebar />
-          <SidebarFooter />
+        <ShellPanel id={sidebarId} viewportClassName="flex flex-col">
+          <TooltipProvider>
+            <CategorySidebar
+              collapsed={sidebarCollapsed}
+              onCollapsedChange={setSidebarCollapsed}
+              controlsId={sidebarId}
+            />
+            <SidebarFooter collapsed={sidebarCollapsed} />
+          </TooltipProvider>
         </ShellPanel>
         <ShellPanel viewportClassName="scroll-pt-28 scroll-pb-3">
           <RecordList />

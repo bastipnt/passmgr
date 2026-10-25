@@ -14,6 +14,8 @@ export const PREF_KEYS = {
   /** Per profile: see `backupReminderSnoozedKey`. */
   backupReminderSnoozed: "backup-reminder-snoozed",
   recentRecords: "search.recent-records",
+  /** Web categories sidebar, from `lg` up (narrower it is always collapsed). */
+  sidebarCollapsed: "pass-mgr-sidebar-collapsed",
 
   generatorMode: "pass-mgr-generator-mode",
   generatorPasswordOptions: "pass-mgr-generator-password-options",

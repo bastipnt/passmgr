@@ -199,4 +199,18 @@ describe("SyncStatusCard", () => {
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry failed changes" }));
     expect(retryParked).toHaveBeenCalledOnce();
   });
+
+  it("collapsed: only the dot, the lines in its tooltip, opening the same details", async () => {
+    status = { ...status, lastSyncedAt: Date.now() - 2 * 60_000 };
+    renderMenu("online", false, <SyncStatusCard collapsed />);
+    expect(card()).toHaveAccessibleName("Sync status: Synced");
+    expect(card()).toHaveTextContent("");
+    expect(screen.queryByRole("button", { name: "Sync now" })).toBeNull();
+
+    await userEvent.hover(card());
+    expect(await screen.findByText("Synced 2 minutes ago")).toBeInTheDocument();
+
+    await userEvent.click(card());
+    expect(await screen.findByRole("menuitem", { name: "Sync now" })).toBeInTheDocument();
+  });
 });
