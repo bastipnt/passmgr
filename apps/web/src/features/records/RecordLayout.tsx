@@ -1,9 +1,14 @@
-import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, usePreference, useShortcut } from "@repo/client";
+import {
+  AUTO_LOCK_DEFAULT_MINUTES,
+  PREF_KEYS,
+  usePreference,
+  useShortcut,
+  useVaults,
+} from "@repo/client";
 import {
   SortedRecordsProvider,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
-import { ThemeToggle } from "@repo/ui/complex-components/ThemeToggle";
 import { BrandLockup, BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -15,19 +20,13 @@ import {
 import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import {
-  CircleHelpIcon,
-  LockIcon,
-  PlusIcon,
-  SearchIcon,
-  SlidersHorizontalIcon,
-  XIcon,
-} from "lucide-react";
-import { type ReactNode, useRef, useState } from "react";
-import { Link as RouterLink, useLocation } from "wouter";
+import { LockIcon, PlusIcon, SearchIcon, SlidersHorizontalIcon, XIcon } from "lucide-react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
+import { Link as RouterLink, useLocation, useSearchParams } from "wouter";
 import { recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
+import { VaultSwitcher } from "@/features/vaults";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
@@ -42,7 +41,9 @@ type RecordLayoutProps = {
 };
 
 function SearchInput() {
-  const { query, setQuery } = useSortedRecords();
+  const { query, setQuery, vaultFilter } = useSortedRecords();
+  const { getVault } = useVaults();
+  const label = `Search ${vaultFilter === "all" ? "all vaults" : getVault(vaultFilter)?.name}`;
   const inputRef = useRef<HTMLInputElement>(null);
 
   useShortcut("$mod+k", () => inputRef.current?.focus(), {
@@ -51,14 +52,14 @@ function SearchInput() {
   });
 
   return (
-    <InputGroup className="max-w-sm">
+    <InputGroup className="ml-1 min-w-36 max-w-[34rem] flex-1">
       <InputGroupAddon align="inline-start">
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
         ref={inputRef}
-        placeholder="Search vault…"
-        aria-label="Search vault"
+        placeholder={`${label}…`}
+        aria-label={label}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onKeyDown={(e) => {
@@ -94,7 +95,15 @@ function MainContent({ children }: { children: ReactNode }) {
 
 export default function RecordLayout({ children }: RecordLayoutProps) {
   const [, navigate] = useLocation();
-  const [helpOpen, setHelpOpen] = useState(false);
+  const [searchParams, setSearchParams] = useSearchParams();
+  // A one-shot request (Settings → General): read once, then dropped, so a reload doesn't reopen it.
+  const [helpOpen, setHelpOpen] = useState(() => searchParams.has(recordPaths.shortcutsParam));
+  useEffect(() => {
+    if (!searchParams.has(recordPaths.shortcutsParam)) return;
+    const next = new URLSearchParams(searchParams);
+    next.delete(recordPaths.shortcutsParam);
+    setSearchParams(next, { replace: true });
+  }, [searchParams, setSearchParams]);
   const isMobile = useIsMobile();
   const lockVault = useLockVault();
   const [autoLockMinutes] = usePreference<number>(
@@ -136,23 +145,17 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
             <RouterLink
               href={recordPaths.index}
               aria-label="passmgr"
-              className="shrink-0 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25 lg:w-[calc(21rem-1rem)]"
+              className="shrink-0 rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring/25"
             >
-              <BrandMark className="sm:hidden" />
-              <BrandLockup className="hidden sm:inline-flex" />
+              <BrandMark className="md:hidden" />
+              <BrandLockup className="hidden md:inline-flex" />
             </RouterLink>
+            <span aria-hidden className="-mx-1.5 font-light text-2xl text-foreground/20">
+              /
+            </span>
+            <VaultSwitcher variant="scope" />
             <SearchInput />
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <Button
-                variant="outline"
-                size="icon"
-                className="hidden sm:inline-flex"
-                onClick={() => setHelpOpen(true)}
-                aria-label="Show keyboard shortcuts"
-                title="Keyboard shortcuts"
-              >
-                <CircleHelpIcon />
-              </Button>
               <SyncStatusMenu />
               <Link
                 variant="outline"
@@ -172,10 +175,9 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
               >
                 <LockIcon />
               </Button>
-              <ThemeToggle className="hidden md:inline-flex" />
               <Link variant="default" href={createSheetSearch()} aria-label="New record">
                 <PlusIcon />
-                <span className="hidden sm:inline">New record</span>
+                <span className="hidden lg:inline">New record</span>
               </Link>
             </div>
           </>

@@ -22,6 +22,8 @@ export const authPaths = {
   recoverActive: `/recover?${recoverActiveSearch}`,
 } as const;
 
+const shortcutsParam = "shortcuts";
+
 export const recordPaths = {
   index: "/",
 
@@ -50,6 +52,9 @@ export const recordPaths = {
   createTypeParam: "type",
   /** With `createParam`: the record to copy; its type replaces `createTypeParam`. */
   createDuplicateParam: "duplicate",
+  /** Presence opens the keyboard shortcuts list over the vault. */
+  shortcutsParam: shortcutsParam,
+  shortcuts: `/?${shortcutsParam}`,
 } as const;
 
 export const settingsPaths = {

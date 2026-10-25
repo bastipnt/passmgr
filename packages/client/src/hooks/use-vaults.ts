@@ -36,6 +36,16 @@ export function useVaults() {
   }, [vaults]);
 }
 
+/** How many records each vault holds, by `vaultId`. */
+export function useVaultRecordCounts(): ReadonlyMap<string, number> {
+  const { records } = useRecordsContext();
+  return useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const { vaultId } of records) counts.set(vaultId, (counts.get(vaultId) ?? 0) + 1);
+    return counts;
+  }, [records]);
+}
+
 /**
  * Create, rename and delete vaults (ADR 0001 D6). A `local` profile changes
  * them on the device only; a linked one on the server first (`online` only:

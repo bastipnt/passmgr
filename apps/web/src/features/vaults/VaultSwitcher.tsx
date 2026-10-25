@@ -1,6 +1,7 @@
 import {
   useSortedRecords,
   useVaultActions,
+  useVaultRecordCounts,
   useVaults,
   type VaultFilter,
   vaultAccessLabel,
@@ -18,30 +19,30 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import Link from "@repo/ui/components/Link";
-import { ChevronDownIcon, LayersIcon, PlusIcon, Settings2Icon } from "lucide-react";
-import { type ReactNode, useState } from "react";
+import { ChevronsUpDownIcon, LayersIcon, PlusIcon, Settings2Icon } from "lucide-react";
+import { useState } from "react";
 import { settingsPaths } from "@/app/route-paths";
 import { VaultDialog } from "./VaultDialog";
 import { VaultTile } from "./VaultTile";
 
 type VaultSwitcherProps = {
   /**
-   * `title`: the list's heading as the trigger (desktop list bar); `floating`:
-   * a round bar button showing the vault in view (phone).
+   * `scope`: the vault in view, by name (desktop header); `floating`: a round
+   * bar button showing its tile (phone).
    */
-  variant: "title" | "floating";
-  /** The `title` trigger's text: what the list shows. */
-  children?: ReactNode;
+  variant: "scope" | "floating";
 };
 
-/** Pick the vault the list shows (or all of them), or create one. */
-export function VaultSwitcher({ variant, children }: VaultSwitcherProps) {
+/** Pick the vault the app shows (or all of them), or create one. */
+export function VaultSwitcher({ variant }: VaultSwitcherProps) {
   const { vaults, getVault } = useVaults();
+  const counts = useVaultRecordCounts();
   const { vaultFilter, setVaultFilter } = useSortedRecords();
   const { canChangeVaults } = useVaultActions();
   const [createOpen, setCreateOpen] = useState(false);
   const current = vaultFilter === "all" ? undefined : getVault(vaultFilter);
-  const label = `Vault: ${current?.name ?? "All vaults"}`;
+  const name = current?.name ?? "All vaults";
+  const total = vaults.reduce((sum, vault) => sum + (counts.get(vault.vaultId) ?? 0), 0);
 
   return (
     <>
@@ -49,19 +50,24 @@ export function VaultSwitcher({ variant, children }: VaultSwitcherProps) {
         <DropdownMenuTrigger
           render={
             variant === "floating" ? (
-              <Button variant="floating" size="icon-xl" aria-label={label}>
+              <Button variant="floating" size="icon-xl" aria-label={`Vault: ${name}`}>
                 {current ? <VaultTile vault={current} size="sm" /> : <LayersIcon />}
               </Button>
             ) : (
               <Button
                 variant="ghost"
-                size="sm"
-                aria-label={label}
-                className="-ml-2 h-9 gap-1.5 px-2 font-semibold text-base"
+                aria-label={`Vault: ${name}`}
+                className="h-10 min-w-0 max-w-56 gap-2.5 pr-2.5 pl-2 font-semibold text-[0.9375rem]"
               >
-                {current && <VaultTile vault={current} size="xs" />}
-                {children}
-                <ChevronDownIcon className="text-muted-foreground" />
+                {current ? (
+                  <VaultTile vault={current} size="sm" />
+                ) : (
+                  <span className="grid size-7 shrink-0 place-items-center">
+                    <LayersIcon className="size-4" />
+                  </span>
+                )}
+                <span className="truncate">{name}</span>
+                <ChevronsUpDownIcon className="text-muted-foreground" />
               </Button>
             )
           }
@@ -78,7 +84,8 @@ export function VaultSwitcher({ variant, children }: VaultSwitcherProps) {
                 <span className="grid size-5 place-items-center">
                   <LayersIcon className="size-4" />
                 </span>
-                All vaults
+                <span className="flex-1">All vaults</span>
+                <VaultCount count={total} />
               </DropdownMenuRadioItem>
               {vaults.map((vault) => (
                 <DropdownMenuRadioItem key={vault.vaultId} value={vault.vaultId} closeOnClick>
@@ -87,6 +94,7 @@ export function VaultSwitcher({ variant, children }: VaultSwitcherProps) {
                   {vaultAccessLabel(vault) && (
                     <span className="text-muted-foreground text-xs">{vaultAccessLabel(vault)}</span>
                   )}
+                  <VaultCount count={counts.get(vault.vaultId) ?? 0} />
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
@@ -104,4 +112,8 @@ export function VaultSwitcher({ variant, children }: VaultSwitcherProps) {
       <VaultDialog open={createOpen} onOpenChange={setCreateOpen} onCreated={setVaultFilter} />
     </>
   );
+}
+
+function VaultCount({ count }: { count: number }) {
+  return <span className="text-muted-foreground text-xs tabular-nums">{count}</span>;
 }

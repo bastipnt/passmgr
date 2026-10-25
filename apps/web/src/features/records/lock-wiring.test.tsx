@@ -22,11 +22,15 @@ vi.mock("@repo/client/src/providers/SortedRecordsProvider", () => ({
   useSortedRecords: () => ({
     query: "",
     setQuery: () => {},
+    vaultFilter: "all",
     sortedRecords: [],
     hasGroupLabels: false,
   }),
 }));
 vi.mock("./RecordList", () => ({ default: () => null }));
+vi.mock("@repo/client/src/hooks/use-vaults", () => ({
+  useVaults: () => ({ getVault: () => undefined }),
+}));
 vi.mock("./SyncStatusMenu", () => ({ SyncStatusMenu: () => null }));
 vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));

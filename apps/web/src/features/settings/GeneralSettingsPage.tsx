@@ -1,5 +1,14 @@
 import { DEFAULT_SORT, PREF_KEYS, SORT_LABELS, type SortOption, usePreference } from "@repo/client";
-import { Item, ItemContent, ItemGroup, ItemTitle } from "@repo/ui/components/Item";
+import {
+  Item,
+  ItemActions,
+  ItemContent,
+  ItemDescription,
+  ItemGroup,
+  ItemTitle,
+} from "@repo/ui/components/Item";
+import { Kbd } from "@repo/ui/components/Kbd";
+import Link from "@repo/ui/components/Link";
 import {
   Select,
   SelectContent,
@@ -10,8 +19,10 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/ToggleGroup";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useTheme } from "@repo/ui/providers/ThemeProvider";
 import { Monitor, Moon, Sun } from "lucide-react";
+import { recordPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 const themes = [
@@ -35,6 +46,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 export default function GeneralSettingsPage() {
   const { theme, setTheme } = useTheme();
   const [sort, setSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
+  const isMobile = useIsMobile();
 
   return (
     <>
@@ -109,6 +121,22 @@ export default function GeneralSettingsPage() {
               </Select>
             </ItemContent>
           </Item>
+
+          {!isMobile && (
+            <Item variant="outline">
+              <ItemContent>
+                <ItemTitle>Keyboard shortcuts</ItemTitle>
+                <ItemDescription>
+                  Press <Kbd>?</Kbd> in your vault to list them.
+                </ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Link variant="outline" size="sm" href={recordPaths.shortcuts}>
+                  Show
+                </Link>
+              </ItemActions>
+            </Item>
+          )}
         </ItemGroup>
       </div>
     </>

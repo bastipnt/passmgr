@@ -29,7 +29,7 @@ import { ChevronRightIcon, StarIcon } from "lucide-react";
 import { useCallback, useEffect, useRef } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { VaultBadge, VaultSwitcher } from "@/features/vaults";
+import { VaultBadge } from "@/features/vaults";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSortMenu } from "./RecordSortMenu";
 
@@ -287,13 +287,11 @@ export default function RecordList() {
             hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
           )}
         >
-          <h2 className="min-w-0 font-semibold">
-            <VaultSwitcher variant="title">
-              <span className="truncate">{title}</span>
-              <span className="ml-0.5 font-normal text-muted-foreground text-sm tabular-nums">
-                {sortedRecords.length}
-              </span>
-            </VaultSwitcher>
+          <h2 className="flex min-w-0 items-baseline gap-1.5 font-semibold">
+            <span className="truncate">{title}</span>
+            <span className="font-normal text-muted-foreground text-sm tabular-nums">
+              {sortedRecords.length}
+            </span>
           </h2>
           <RecordSortMenu />
         </div>
