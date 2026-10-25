@@ -419,7 +419,7 @@ throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps
 `MAX_REQUEST_BYTES`. Storage quota: `vaults.usedBytes` (each version's `pushChangeBytes`, tombstones included, kept by
 `takeVaultSeqs` / `dropPurgedHistory`) summed over an owner's live vaults against `STORAGE_QUOTA_MB`; a chain with a put
 past it is `rejected` `quota` (parked, `SyncStatus.storageFull`), and so is a `moved` tombstone in that batch (the move's
-other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusMenu`, mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web desktop `SyncStatusCard` in the sidebar footer, `syncCardLines`; else `SyncStatusMenu`; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
@@ -441,6 +441,7 @@ Logins only: insecure websites = a website on `http://` (loopback aside), missin
 host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
 refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
 setup docs (`useMissingTwoFactor`). No network request.
+Sidebar badge (web desktop `SidebarFooter`): `usePassMonitorIssueCount`, the overview's counts summed (`passMonitorIssueCount`, duplicates aside) with weak only from ratings the Pass Monitor cached and breaches only from stored results, so it runs no zxcvbn and no request.
 Security score (`securityScore`, `records/security-score.ts`; web `SecurityScoreCard` atop the Pass Monitor): the mean
 per-password health (1 minus the summed `SCORE_PENALTY`s, capped) over `usePassMonitor().monitored`; duplicates don't
 count, a breached password keeps it below good. `undefined` while a counted check runs (the breach check too, until its

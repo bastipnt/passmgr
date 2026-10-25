@@ -8,7 +8,7 @@ test("imports a Chrome password export into the vault", async ({ page }) => {
   test.setTimeout(90_000);
   await createLocalVault(page, "Import", randomPassword());
 
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Security", exact: true }).click();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
@@ -41,7 +41,7 @@ test("imports a KeePass database with its password and key file", async ({ page 
   test.setTimeout(90_000);
   await createLocalVault(page, "KeePass", randomPassword());
 
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Security", exact: true }).click();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 

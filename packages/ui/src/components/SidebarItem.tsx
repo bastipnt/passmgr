@@ -7,6 +7,8 @@ type SidebarItemProps = Omit<useRender.ComponentProps<"button">, "children"> & {
   icon: LucideIcon;
   label: string;
   count?: number;
+  /** `warning`: the count is something to act on (an amber badge), not a tally. */
+  countTone?: "plain" | "warning";
   /** Styling only: the caller sets `aria-pressed` / `aria-current`. */
   active?: boolean;
   /** Nothing behind it (an empty category): greyed, still usable. */
@@ -17,6 +19,7 @@ export function SidebarItem({
   icon: Icon,
   label,
   count,
+  countTone = "plain",
   active,
   dimmed,
   className,
@@ -45,7 +48,11 @@ export function SidebarItem({
               <span
                 className={cn(
                   "text-xs tabular-nums",
-                  active ? "font-semibold" : "text-muted-foreground",
+                  countTone === "warning"
+                    ? "grid h-5 min-w-5 place-items-center rounded-full bg-warning/20 px-1.5 font-semibold text-amber-700 dark:text-strength-strong"
+                    : active
+                      ? "font-semibold"
+                      : "text-muted-foreground",
                   dimmed && "opacity-70",
                 )}
               >

@@ -4,6 +4,7 @@ import type { PasswordStrength } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { useStore } from "../providers/StoreProvider";
+import { findBreachedPasswords } from "../records/breach-check";
 import {
   findDuplicateLogins,
   findInsecureWebsites,
@@ -14,11 +15,13 @@ import {
   type MissingTwoFactor,
   type MonitorGroup,
   type OldPassword,
+  passMonitorIssueCount,
   sortWeakPasswords,
   type WeakPassword,
   weakPasswordOf,
 } from "../records/pass-monitor";
 import { monitoredPassword } from "../records/password-health";
+import { useStoredBreachChecks } from "./use-breach-check";
 import { useTwoFactorDirectory } from "./use-two-factor-directory";
 
 export type PassMonitor = {
@@ -54,18 +57,16 @@ function cachedRate(ratings: Map<string, PasswordStrength | null>, record: Decry
   };
 }
 
+function ratingsOf(vault: object) {
+  let ratings = ratingsByVault.get(vault);
+  if (!ratings) ratingsByVault.set(vault, (ratings = new Map()));
+  return ratings;
+}
+
 const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
-/**
- * Weak, reused, duplicate and old passwords, insecure websites and logins missing 2FA
- * across every vault, from the decrypted records.
- */
-export function usePassMonitor(): PassMonitor {
+function useCheapFindings() {
   const { records, ready, revision } = useRecordsContext();
-  const { vault } = useStore();
-  const [rated, setRated] = useState<WeakPassword[] | null>(null);
-  const [weakFailed, setWeakFailed] = useState(false);
-  const { directory, failed: twoFactorFailed } = useTwoFactorDirectory();
 
   // `records` is a new array on every render; `revision` says when its content changed.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -85,11 +86,24 @@ export function usePassMonitor(): PassMonitor {
     [snapshot, ready],
   );
 
+  return { snapshot, ready, cheap };
+}
+
+/**
+ * Weak, reused, duplicate and old passwords, insecure websites and logins missing 2FA
+ * across every vault, from the decrypted records.
+ */
+export function usePassMonitor(): PassMonitor {
+  const { snapshot, ready, cheap } = useCheapFindings();
+  const { vault } = useStore();
+  const [rated, setRated] = useState<WeakPassword[] | null>(null);
+  const [weakFailed, setWeakFailed] = useState(false);
+  const { directory, failed: twoFactorFailed } = useTwoFactorDirectory();
+
   useEffect(() => {
     if (!ready || !vault) return;
     let cancelled = false;
-    let ratings = ratingsByVault.get(vault);
-    if (!ratings) ratingsByVault.set(vault, (ratings = new Map()));
+    const ratings = ratingsOf(vault);
     void (async () => {
       await loadPasswordStrength();
       setWeakFailed(false);
@@ -138,4 +152,29 @@ export function usePassMonitor(): PassMonitor {
     missingTwoFactor,
     twoFactorFailed,
   };
+}
+
+/**
+ * The Pass Monitor's issue count (`passMonitorIssueCount`) without its heavy part:
+ * weak passwords only as far as `usePassMonitor` rated them already, breaches only
+ * from stored results (nothing is checked). `null` until the records, the 2FA
+ * directory and the breach setting are known.
+ */
+export function usePassMonitorIssueCount(): number | null {
+  const { snapshot, cheap } = useCheapFindings();
+  const { vault } = useStore();
+  const { directory, failed: twoFactorFailed } = useTwoFactorDirectory();
+  const { current: breach } = useStoredBreachChecks();
+
+  return useMemo(() => {
+    if (!cheap || !vault || !breach || (!directory && !twoFactorFailed)) return null;
+    const ratings = ratingsOf(vault);
+    const cachedRating = (record: DecryptedRecord) => () => ratings.get(versionKey(record)) ?? null;
+    return passMonitorIssueCount({
+      ...cheap,
+      weak: snapshot.flatMap((record) => weakPasswordOf(record, cachedRating(record)) ?? []),
+      missingTwoFactor: directory ? findMissingTwoFactor(snapshot, directory) : null,
+      breached: breach.enabled ? findBreachedPasswords(cheap.monitored, breach.checks) : null,
+    });
+  }, [snapshot, cheap, vault, directory, twoFactorFailed, breach]);
 }

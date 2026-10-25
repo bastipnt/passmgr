@@ -1,4 +1,11 @@
-import { type SyncState, useLastSyncedLabel, useReconnect, useSyncSummary } from "@repo/client";
+import {
+  type SyncState,
+  syncCardLines,
+  useLastSyncedLabel,
+  useReconnect,
+  useSyncClock,
+  useSyncSummary,
+} from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
@@ -20,7 +27,7 @@ import {
   RotateCcwIcon,
   UserRoundIcon,
 } from "lucide-react";
-import { useState } from "react";
+import { type ComponentProps, type ReactElement, useState } from "react";
 import { Link } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
 
@@ -33,52 +40,27 @@ const ICONS: Record<SyncState, LucideIcon> = {
   synced: CloudCheckIcon,
 };
 
-type SyncStatusMenuProps = {
-  /** `floating`: the phone's 48px page-bar button. */
-  variant?: "outline" | "floating";
-};
+type SyncStatusPopupProps = {
+  trigger: ReactElement;
+} & Pick<ComponentProps<typeof DropdownMenuContent>, "align" | "side">;
 
 /**
- * Header indicator of where syncing stands (ADR 0001 D8), opening the details
- * and what can be done about it: sync now, retry parked changes, or (a vault
- * without an account) the account settings to create one. Offline is a state,
- * not an error: writes keep working and wait on the device.
+ * Where syncing stands (ADR 0001 D8) and what can be done about it: sync now,
+ * retry parked changes, or (a vault without an account) the account settings
+ * to create one. Offline is a state, not an error: writes keep working and
+ * wait on the device.
  */
-export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
+function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps) {
   const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
   const { canReconnect, reconnect } = useReconnect();
   // Controlled, so opening re-renders and reads `canReconnect()` afresh.
   const [open, setOpen] = useState(false);
-  const Icon = ICONS[summary.state];
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
-      <DropdownMenuTrigger
-        render={
-          <Button
-            variant={variant}
-            size={variant === "floating" ? "icon-xl" : "icon"}
-            aria-label={`Sync status: ${summary.title}`}
-            title={summary.title}
-            className="relative"
-          >
-            <Icon
-              className={cn(
-                summary.state === "syncing" && "animate-spin motion-reduce:animate-none",
-                summary.state === "error" && "text-destructive",
-              )}
-            />
-            {summary.state === "pending" && (
-              <span
-                aria-hidden
-                className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background"
-              />
-            )}
-          </Button>
-        }
-      />
-      <DropdownMenuContent align="end" className="w-72">
+      <DropdownMenuTrigger render={trigger} />
+      <DropdownMenuContent align={align} side={side} className="w-72">
         <output className="flex flex-col gap-1 px-2 py-1.5">
           <span className="font-semibold text-sm">{summary.title}</span>
           <span className="text-muted-foreground text-xs">{summary.detail}</span>
@@ -111,5 +93,97 @@ export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  );
+}
+
+type SyncStatusMenuProps = {
+  /** `outline`: the desktop header's, below `lg`; `floating`: the phone's 48px page-bar button. */
+  variant?: "outline" | "floating";
+};
+
+/** Icon button for `SyncStatusPopup`, where the sidebar's `SyncStatusCard` isn't shown. */
+export function SyncStatusMenu({ variant = "outline" }: SyncStatusMenuProps) {
+  const { summary } = useSyncSummary();
+  const Icon = ICONS[summary.state];
+
+  return (
+    <SyncStatusPopup
+      trigger={
+        <Button
+          variant={variant}
+          size={variant === "floating" ? "icon-xl" : "icon"}
+          aria-label={`Sync status: ${summary.title}`}
+          title={summary.title}
+          className="relative"
+        >
+          <Icon
+            className={cn(
+              summary.state === "syncing" && "animate-spin motion-reduce:animate-none",
+              summary.state === "error" && "text-destructive",
+            )}
+          />
+          {summary.state === "pending" && (
+            <span
+              aria-hidden
+              className="absolute top-1 right-1 size-2 rounded-full bg-primary ring-2 ring-background"
+            />
+          )}
+        </Button>
+      }
+    />
+  );
+}
+
+const DOT_COLORS: Record<SyncState, string> = {
+  local: "bg-muted-foreground/50",
+  error: "bg-destructive",
+  offline: "bg-destructive",
+  syncing: "bg-success",
+  pending: "bg-success",
+  synced: "bg-success",
+};
+
+/** The desktop sidebar's sync card: a dot and two lines, opening `SyncStatusPopup`. */
+export function SyncStatusCard() {
+  const { status, summary, canSync, syncNow } = useSyncSummary();
+  const now = useSyncClock(status.lastSyncedAt);
+  const { title, detail } = syncCardLines(summary, status, now);
+  const syncing = summary.state === "syncing";
+
+  return (
+    <div className="flex items-center gap-1 rounded-2xl border border-foreground/10 bg-card/70 p-1 dark:border-white/10">
+      <SyncStatusPopup
+        align="start"
+        side="top"
+        trigger={
+          <button
+            type="button"
+            aria-label={`Sync status: ${summary.title}`}
+            className="flex min-w-0 flex-1 items-center gap-2.5 rounded-xl px-2 py-1.5 text-left outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25"
+          >
+            <span
+              aria-hidden
+              className={cn("size-2 shrink-0 rounded-full", DOT_COLORS[summary.state])}
+            />
+            <span className="flex min-w-0 flex-col">
+              <span className="truncate font-semibold text-sm">{title}</span>
+              <span className="truncate text-muted-foreground text-xs">{detail}</span>
+            </span>
+          </button>
+        }
+      />
+      {(canSync || syncing) && (
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          onClick={syncNow}
+          disabled={syncing}
+          aria-label="Sync now"
+          title="Sync now"
+        >
+          <RefreshCwIcon className={cn(syncing && "animate-spin motion-reduce:animate-none")} />
+        </Button>
+      )}
+    </div>
   );
 }

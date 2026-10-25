@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { SyncStatus } from "../src/sync-manager";
-import { formatLastSynced, summarizeSync } from "../src/sync-summary";
+import { formatClock, formatLastSynced, summarizeSync, syncCardLines } from "../src/sync-summary";
 
 const idle: SyncStatus = {
   phase: "idle",
@@ -84,5 +84,64 @@ describe("formatLastSynced", () => {
     [2 * 86_400_000, "Last synced 2 days ago"],
   ])("%i ms ago → %s", (ago, text) => {
     expect(formatLastSynced(now - ago, now)).toBe(text);
+  });
+});
+
+describe("syncCardLines", () => {
+  const now = new Date(2026, 9, 25, 15, 0).getTime();
+  const at1432 = new Date(2026, 9, 25, 14, 32).getTime();
+  const lines = (
+    mode: Parameters<typeof summarizeSync>[0],
+    status: SyncStatus,
+    networkOffline = false,
+    pendingRecovery = false,
+  ) => syncCardLines(summarizeSync(mode, status, networkOffline, pendingRecovery), status, now);
+
+  it("online: when it last synced", () => {
+    expect(lines("online", { ...idle, lastSyncedAt: now - 2 * 60_000 })).toEqual({
+      title: "Online",
+      detail: "Synced 2 minutes ago",
+    });
+    expect(lines("online", { ...idle, pending: 1 })).toEqual({
+      title: "Online",
+      detail: "1 change waiting",
+    });
+  });
+
+  it("offline: the last sync's time, or the changes waiting in its place", () => {
+    const offline = { ...idle, phase: "offline" as const, lastSyncedAt: at1432 };
+    expect(lines("online", offline, true)).toEqual({
+      title: "Offline",
+      detail: `Last synced ${formatClock(at1432, now)}`,
+    });
+    expect(lines("online", { ...offline, pending: 4 }, true)).toEqual({
+      title: "Offline",
+      detail: "4 changes waiting",
+    });
+    expect(lines("offline", { ...offline, lastSyncedAt: null })).toEqual({
+      title: "Not connected",
+      detail: "Not synced yet",
+    });
+  });
+
+  it("a local vault doesn't sync", () => {
+    expect(lines("local", idle)).toEqual({ title: "On this device", detail: "No sync" });
+  });
+
+  it("other states keep the summary's title", () => {
+    expect(lines("online", { ...idle, parked: 2, storageFull: true }).title).toBe("Storage full");
+    expect(lines("online", { ...idle, parked: 1 }).title).toBe("Some changes didn't sync");
+    expect(lines("offline", { ...idle, phase: "offline" }, false, true).title).toBe(
+      "Password reset waiting",
+    );
+  });
+});
+
+describe("formatClock", () => {
+  it("a time today, else the day", () => {
+    const now = new Date(2026, 9, 25, 15, 0).getTime();
+    expect(formatClock(new Date(2026, 9, 25, 14, 32).getTime(), now)).toMatch(/32/);
+    expect(formatClock(new Date(2026, 9, 12, 14, 32).getTime(), now)).toMatch(/12/);
+    expect(formatClock(new Date(2026, 9, 12, 14, 32).getTime(), now)).not.toMatch(/32/);
   });
 });

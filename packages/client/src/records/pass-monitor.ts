@@ -181,3 +181,33 @@ export function findMissingTwoFactor(
     })
     .sort((a, b) => byTitle(a.record, b.record));
 }
+
+/** How many records a list of groups holds; `undefined` while it isn't known. */
+export function groupedCount(groups: readonly MonitorGroup[] | null): number | undefined {
+  return groups?.reduce((sum, group) => sum + group.records.length, 0);
+}
+
+export type PassMonitorIssues = {
+  weak: readonly unknown[] | null;
+  reused: readonly MonitorGroup[] | null;
+  old: readonly unknown[] | null;
+  insecure: readonly unknown[] | null;
+  missingTwoFactor: readonly unknown[] | null;
+  breached: readonly unknown[] | null;
+};
+
+/**
+ * The Pass Monitor overview's counts summed, duplicates aside (two copies of one
+ * account aren't a weakness). A check not known yet, or known in part, counts
+ * what is known, so the total only grows as checks finish.
+ */
+export function passMonitorIssueCount(issues: PassMonitorIssues): number {
+  return (
+    (issues.weak?.length ?? 0) +
+    (groupedCount(issues.reused) ?? 0) +
+    (issues.old?.length ?? 0) +
+    (issues.insecure?.length ?? 0) +
+    (issues.missingTwoFactor?.length ?? 0) +
+    (issues.breached?.length ?? 0)
+  );
+}

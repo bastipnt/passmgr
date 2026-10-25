@@ -34,7 +34,7 @@ test("idle timeout locks the vault and ends its server session", async ({ page, 
   // Only the second device is still signed in.
   await loginUser(secondDevice, email, password);
   await expectInApp(secondDevice);
-  await secondDevice.getByRole("button", { name: "Settings", exact: true }).click();
+  await secondDevice.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(secondDevice).toHaveURL(/\/settings\/account$/);
   const devices = secondDevice.getByRole("list", { name: "Signed-in devices" });
   await expect(devices.getByRole("listitem")).toHaveCount(1);

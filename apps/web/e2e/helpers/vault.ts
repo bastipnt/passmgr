@@ -157,7 +157,7 @@ export async function expectInHistory(
   }).toPass({ timeout });
 }
 
-/** The header sync indicator (ADR 0001 D8). */
+/** The sync indicator (ADR 0001 D8): the sidebar card on desktop, the page-bar button on phones. */
 export function syncStatus(page: Page) {
   return page.getByRole("button", { name: /^Sync status:/ });
 }

@@ -1,4 +1,4 @@
-import { securityScore, useBreachCheck, usePassMonitor } from "@repo/client";
+import { groupedCount, securityScore, useBreachCheck, usePassMonitor } from "@repo/client";
 import { Badge } from "@repo/ui/components/Badge";
 import {
   Item,
@@ -50,9 +50,6 @@ function Category({ path, title, description, count, failed, off }: CategoryProp
     </Item>
   );
 }
-
-const groupedCount = (groups: { records: unknown[] }[] | null) =>
-  groups?.reduce((sum, group) => sum + group.records.length, 0);
 
 export default function PassMonitorPage() {
   const monitor = usePassMonitor();

@@ -35,6 +35,7 @@ vi.mock("./SyncStatusMenu", () => ({ SyncStatusMenu: () => null }));
 vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
 vi.mock("./TagBar", () => ({ TagBar: () => null }));
 vi.mock("./CategorySidebar", () => ({ CategorySidebar: () => null }));
+vi.mock("./SidebarFooter", () => ({ SidebarFooter: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));
 vi.mock("@/features/vaults", () => ({ VaultSwitcher: () => null }));
 

@@ -56,8 +56,8 @@ export function useSyncSummary(): {
 
 const LAST_SYNCED_TICK_MS = 30_000;
 
-/** "Last synced 5 minutes ago", kept current while shown; null before the first sync. */
-export function useLastSyncedLabel(lastSyncedAt: number | null): string | null {
+/** The current time, ticking while there is a last sync to say "5 minutes ago" of. */
+export function useSyncClock(lastSyncedAt: number | null): number {
   const [now, setNow] = useState(Date.now);
 
   useEffect(() => {
@@ -67,5 +67,11 @@ export function useLastSyncedLabel(lastSyncedAt: number | null): string | null {
     return () => clearInterval(timer);
   }, [lastSyncedAt]);
 
-  return lastSyncedAt === null ? null : formatLastSynced(lastSyncedAt, Math.max(now, lastSyncedAt));
+  return lastSyncedAt === null ? now : Math.max(now, lastSyncedAt);
+}
+
+/** "Last synced 5 minutes ago", kept current while shown; null before the first sync. */
+export function useLastSyncedLabel(lastSyncedAt: number | null): string | null {
+  const now = useSyncClock(lastSyncedAt);
+  return lastSyncedAt === null ? null : formatLastSynced(lastSyncedAt, now);
 }

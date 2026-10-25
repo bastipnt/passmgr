@@ -52,7 +52,7 @@ async function freshCode(secret: string, used: Set<number>): Promise<string> {
 }
 
 async function openSecuritySettings(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Security", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/security$/);
 }

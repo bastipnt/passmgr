@@ -20,7 +20,7 @@ import {
  */
 
 async function openAccountSettings(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/account$/);
 }
 

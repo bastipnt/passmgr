@@ -19,7 +19,7 @@ import {
  */
 
 async function rotatePersonalVaultKey(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Vaults" }).click();
   await expect(page).toHaveURL(/\/settings\/vaults$/);
   await page.getByRole("button", { name: "Rotate the key of Personal" }).click();

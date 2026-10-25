@@ -8,7 +8,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { settingsPaths } from "@/app/route-paths";
 import { createFakeStore } from "@/test/fake-store";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
-import { SyncStatusMenu } from "./SyncStatusMenu";
+import { SyncStatusCard, SyncStatusMenu } from "./SyncStatusMenu";
 
 const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
@@ -62,14 +62,12 @@ beforeEach(() => {
   store.biometricKeyMaterial = null;
 });
 
-function renderMenu(mode: SessionMode, networkOffline = false) {
+function renderMenu(mode: SessionMode, networkOffline = false, indicator = <SyncStatusMenu />) {
   const location = memoryLocation({ path: "/", record: true });
   const session = { mode, networkOffline } as ContextType<typeof SessionContext>;
   renderWithProviders(
     <Router hook={location.hook}>
-      <SessionContext.Provider value={session}>
-        <SyncStatusMenu />
-      </SessionContext.Provider>
+      <SessionContext.Provider value={session}>{indicator}</SessionContext.Provider>
     </Router>,
   );
   return location;
@@ -155,5 +153,50 @@ describe("SyncStatusMenu", () => {
     await userEvent.click(screen.getByRole("button", { name: "Sync status: Not connected" }));
     await screen.findByRole("menuitem", { name: "Account & sync" });
     expect(screen.queryByRole("menuitem", { name: "Connect now" })).toBeNull();
+  });
+});
+
+describe("SyncStatusCard", () => {
+  const renderCard = (mode: SessionMode, networkOffline = false) =>
+    renderMenu(mode, networkOffline, <SyncStatusCard />);
+  const card = () => screen.getByRole("button", { name: /^Sync status:/ });
+
+  it("online: when it last synced, and sync now", async () => {
+    status = { ...status, lastSyncedAt: Date.now() - 2 * 60_000 };
+    renderCard("online");
+    expect(card()).toHaveAccessibleName("Sync status: Synced");
+    expect(card()).toHaveTextContent("OnlineSynced 2 minutes ago");
+
+    await userEvent.click(screen.getByRole("button", { name: "Sync now" }));
+    expect(sync).toHaveBeenCalledOnce();
+  });
+
+  it("offline: the last sync's time, no sync now", () => {
+    status = { ...status, phase: "offline", lastSyncedAt: Date.now() };
+    renderCard("online", true);
+    expect(card()).toHaveTextContent(/^OfflineLast synced \S+/);
+    expect(screen.queryByRole("button", { name: "Sync now" })).toBeNull();
+  });
+
+  it("offline with changes waiting says how many", () => {
+    status = { ...status, phase: "offline", pending: 4, lastSyncedAt: Date.now() };
+    renderCard("online", true);
+    expect(card()).toHaveTextContent("Offline4 changes waiting");
+  });
+
+  it("a local vault: on this device, no sync", () => {
+    renderCard("local");
+    expect(card()).toHaveTextContent("On this deviceNo sync");
+    expect(screen.queryByRole("button", { name: "Sync now" })).toBeNull();
+  });
+
+  it("an error keeps the summary's wording, and opens the details", async () => {
+    status = { ...status, pending: 1, parked: 1 };
+    renderCard("online");
+    expect(card()).toHaveTextContent(/^Some changes didn't sync/);
+
+    await userEvent.click(card());
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Retry failed changes" }));
+    expect(retryParked).toHaveBeenCalledOnce();
   });
 });

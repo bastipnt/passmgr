@@ -36,30 +36,10 @@ const SAVE_EVERY = 25;
 const byVersion = (checks: readonly BreachCheck[]) =>
   new Map(checks.map((check) => [breachCheckKey(check), check]));
 
-/**
- * Breach check (HIBP k-anonymity) of every login and Wi-Fi password, opt-in per
- * profile on this device. While mounted and on, checks the passwords without a
- * result or with one older than `BREACH_RECHECK_DAYS`.
- */
-export function useBreachCheck(): BreachCheckState {
-  const { records, ready, revision } = useRecordsContext();
+/** The open profile's breach check setting and stored results; `current` is `null` while they load. */
+export function useStoredBreachChecks() {
   const { vault } = useStore();
-  const { networkOffline } = useContext(SessionContext);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [checking, setChecking] = useState(false);
-  const [failed, setFailed] = useState(false);
-
-  const current = loaded && loaded.vault === vault ? loaded : null;
-  const enabled = current?.enabled ?? null;
-  const checks = current?.checks;
-
-  // `records` is a new array on every render; `revision` says when its content changed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const snapshot = useMemo(() => records, [revision]);
-  const monitored = useMemo(
-    () => (ready ? snapshot.filter((record) => monitoredPassword(record)) : []),
-    [snapshot, ready],
-  );
 
   useEffect(() => {
     if (!vault) return;
@@ -75,6 +55,33 @@ export function useBreachCheck(): BreachCheckState {
       cancelled = true;
     };
   }, [vault]);
+
+  return { current: loaded && loaded.vault === vault ? loaded : null, setLoaded };
+}
+
+/**
+ * Breach check (HIBP k-anonymity) of every login and Wi-Fi password, opt-in per
+ * profile on this device. While mounted and on, checks the passwords without a
+ * result or with one older than `BREACH_RECHECK_DAYS`.
+ */
+export function useBreachCheck(): BreachCheckState {
+  const { records, ready, revision } = useRecordsContext();
+  const { vault } = useStore();
+  const { networkOffline } = useContext(SessionContext);
+  const { current, setLoaded } = useStoredBreachChecks();
+  const [checking, setChecking] = useState(false);
+  const [failed, setFailed] = useState(false);
+
+  const enabled = current?.enabled ?? null;
+  const checks = current?.checks;
+
+  // `records` is a new array on every render; `revision` says when its content changed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const snapshot = useMemo(() => records, [revision]);
+  const monitored = useMemo(
+    () => (ready ? snapshot.filter((record) => monitoredPassword(record)) : []),
+    [snapshot, ready],
+  );
 
   useEffect(() => {
     if (!vault || !ready || !enabled || !checks || networkOffline) return;
@@ -156,7 +163,7 @@ export function useBreachCheck(): BreachCheckState {
         checks: on && prev?.vault === vault ? prev.checks : new Map(),
       }));
     },
-    [vault],
+    [vault, setLoaded],
   );
 
   const { breached, lastCheckedAt } = useMemo(() => {

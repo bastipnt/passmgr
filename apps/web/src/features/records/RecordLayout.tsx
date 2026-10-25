@@ -35,6 +35,7 @@ import { createSheetSearch } from "./CreateRecordSheet";
 import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
+import { SidebarFooter } from "./SidebarFooter";
 import { SyncStatusMenu } from "./SyncStatusMenu";
 import { TagBar } from "./TagBar";
 
@@ -159,16 +160,19 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
             <VaultSwitcher variant="scope" />
             <SearchInput />
             <div className="ml-auto flex shrink-0 items-center gap-2">
-              <SyncStatusMenu />
-              <Link
-                variant="outline"
-                size="icon"
-                href={settingsPaths.index}
-                aria-label="Settings"
-                title="Settings"
-              >
-                <SlidersHorizontalIcon />
-              </Link>
+              {/* Below `lg` the sidebar, and with it its footer, is hidden. */}
+              <div className="flex items-center gap-2 lg:hidden">
+                <SyncStatusMenu />
+                <Link
+                  variant="outline"
+                  size="icon"
+                  href={settingsPaths.index}
+                  aria-label="Settings"
+                  title="Settings"
+                >
+                  <SlidersHorizontalIcon />
+                </Link>
+              </div>
               <Button
                 variant="outline"
                 size="icon"
@@ -186,8 +190,9 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           </>
         }
       >
-        <ShellPanel className="hidden lg:block">
+        <ShellPanel className="hidden lg:block" viewportClassName="flex flex-col">
           <CategorySidebar />
+          <SidebarFooter />
         </ShellPanel>
         <ShellPanel viewportClassName="scroll-pt-28 scroll-pb-3">
           <RecordList />

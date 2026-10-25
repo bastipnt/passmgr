@@ -7,6 +7,7 @@ import {
   findMissingTwoFactor,
   findOldPasswords,
   findReusedPasswords,
+  passMonitorIssueCount,
   passwordAgeLabel,
   type RateStrength,
   sortWeakPasswords,
@@ -232,5 +233,22 @@ describe("findMissingTwoFactor", () => {
       ["a", "example.com"],
       ["b", "example.com"],
     ]);
+  });
+});
+
+describe("passMonitorIssueCount", () => {
+  it("adds up the overview's counts, duplicates aside, unknown checks as nothing", () => {
+    const a = record("a");
+    const b = record("b");
+    expect(
+      passMonitorIssueCount({
+        weak: [a],
+        reused: [{ id: "a", records: [a, b] }],
+        old: [b],
+        insecure: [],
+        missingTwoFactor: null,
+        breached: [a],
+      }),
+    ).toBe(5);
   });
 });

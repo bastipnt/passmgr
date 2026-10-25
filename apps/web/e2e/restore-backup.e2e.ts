@@ -10,7 +10,7 @@ test("restores an encrypted backup next to an existing vault", async ({ page }) 
   await createLocalVault(page, "Source", password);
   await createLogin(page, { title: "Mail", username: "jana", password: "mail-pw" });
 
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Security", exact: true }).click();
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const dialog = page.getByRole("dialog");

@@ -119,3 +119,54 @@ export function formatTimeAgo(at: number, now = Date.now()): string {
 export function formatLastSynced(at: number, now = Date.now()): string {
   return `Last synced ${formatTimeAgo(at, now)}`;
 }
+
+function sameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
+}
+
+/** "14:32" for a time today, else its date ("12 Oct"), in the device's locale. */
+export function formatClock(at: number, now = Date.now()): string {
+  const date = new Date(at);
+  return sameDay(date, new Date(now))
+    ? date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })
+    : date.toLocaleDateString(undefined, { day: "numeric", month: "short" });
+}
+
+/**
+ * The two lines of a compact sync card (the web sidebar's): whether this device
+ * talks to the server, then the one thing worth knowing about it.
+ */
+export function syncCardLines(
+  summary: SyncSummary,
+  status: SyncStatus,
+  now = Date.now(),
+): { title: string; detail: string } {
+  const { lastSyncedAt } = status;
+  switch (summary.state) {
+    case "local":
+      return { title: "On this device", detail: "No sync" };
+    case "synced":
+      return {
+        title: "Online",
+        detail: lastSyncedAt === null ? "Up to date" : `Synced ${formatTimeAgo(lastSyncedAt, now)}`,
+      };
+    case "pending":
+    case "syncing":
+      return { title: "Online", detail: summary.title };
+    case "offline":
+      return {
+        title: summary.title,
+        detail:
+          status.pending > 0
+            ? `${changes(status.pending)} waiting`
+            : lastSyncedAt === null
+              ? "Not synced yet"
+              : `Last synced ${formatClock(lastSyncedAt, now)}`,
+      };
+    case "error":
+      return {
+        title: summary.title,
+        detail: lastSyncedAt === null ? "Not synced yet" : formatLastSynced(lastSyncedAt, now),
+      };
+  }
+}
