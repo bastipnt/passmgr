@@ -132,7 +132,8 @@ Rules:
   `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
   `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
   Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
-  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all); the record sits on the ground.
+  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all; `SearchPanel` while searching);
+  the record sits on the ground.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
@@ -452,7 +453,9 @@ and the server (and every device that pulls it) drops all versions below it (`dr
 
 Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and
 Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after decryption. Weak = zxcvbn score < 3 (rated
-in chunks, ratings cached per version, never the password), reused = exact match, duplicates = same username on a shared
+in chunks, ratings cached per version, never the password). zxcvbn costs 100–500 ms a password: every rating goes through
+`strengthWorkerService` (`@repo/crypto/services`; a Web Worker on web, deferred on the JS thread on mobile), incl.
+`usePasswordStrength`, never `getStrengthFromString` on the main thread, reused = exact match, duplicates = same username on a shared
 website host, old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
 `RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
 `password` in `mergeRecord`.
@@ -528,11 +531,16 @@ without case, a record keeps the first spelling, lists show the most used); form
 web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsProvider`'s `tagFilters` (several, all
 required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
 carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
-records left if added; a search ignores tags and category; a detail chip's `showTag` clears the other filters first) and
-search's third tier (after title, subtitle; a query starting with `#`, `TAG_SEARCH_PREFIX`, matches tags only); `clearFilters`
+records left if added; a detail chip's `showTag` clears the other filters first) and search's third tier. Search
+(`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle → tag with why each matched; a query starting
+with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
+`searchAllItems` widens past category and tags until the query or the filters change (`OutsideScope`, also on phones);
+`recentRecords` (session only, search previews excluded); `searchSections` builds the panel's groups; `clearFilters`
 drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
-Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`),
-the chips under the list heading remove one or Clear all; web phone: `FilterSheet` (category grid + tags), the
+Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
+while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
+records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves); the
+highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: `FilterSheet` (category grid + tags), the
 ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.

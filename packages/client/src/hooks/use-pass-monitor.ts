@@ -1,4 +1,4 @@
-import { getStrengthFromString, loadPasswordStrength } from "@repo/crypto";
+import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { DecryptedRecord } from "@repo/schema";
 import type { PasswordStrength } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
@@ -17,6 +17,7 @@ import {
   type OldPassword,
   passMonitorIssueCount,
   sortWeakPasswords,
+  strengthInputs,
   type WeakPassword,
   weakPasswordOf,
 } from "../records/pass-monitor";
@@ -49,21 +50,11 @@ const ratingsByVault = new WeakMap<object, Map<string, PasswordStrength | null>>
 const versionKey = (record: DecryptedRecord) =>
   `${record.recordId}|${record.version}|${record.clientUpdatedAt}`;
 
-function cachedRate(ratings: Map<string, PasswordStrength | null>, record: DecryptedRecord) {
-  return (password: string, userInputs: string[]) => {
-    const key = versionKey(record);
-    if (!ratings.has(key)) ratings.set(key, getStrengthFromString(password, userInputs));
-    return ratings.get(key) ?? null;
-  };
-}
-
 function ratingsOf(vault: object) {
   let ratings = ratingsByVault.get(vault);
   if (!ratings) ratingsByVault.set(vault, (ratings = new Map()));
   return ratings;
 }
-
-const nextTask = () => new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 function useCheapFindings() {
   const { records, ready, revision } = useRecordsContext();
@@ -105,17 +96,24 @@ export function usePassMonitor(): PassMonitor {
     let cancelled = false;
     const ratings = ratingsOf(vault);
     void (async () => {
-      await loadPasswordStrength();
-      setWeakFailed(false);
       const found: WeakPassword[] = [];
       for (let start = 0; start < snapshot.length; start += CHUNK_SIZE) {
-        if (start > 0) await nextTask();
+        const chunk = snapshot.slice(start, start + CHUNK_SIZE);
+        await Promise.all(
+          chunk.map(async (record) => {
+            const password = monitoredPassword(record);
+            const key = versionKey(record);
+            if (password && !ratings.has(key))
+              ratings.set(key, await strengthWorkerService.rate(password, strengthInputs(record)));
+          }),
+        );
         if (cancelled) return;
-        for (const record of snapshot.slice(start, start + CHUNK_SIZE)) {
-          const finding = weakPasswordOf(record, cachedRate(ratings, record));
+        for (const record of chunk) {
+          const finding = weakPasswordOf(record, () => ratings.get(versionKey(record)) ?? null);
           if (finding) found.push(finding);
         }
       }
+      setWeakFailed(false);
       const current = new Set(snapshot.map(versionKey));
       for (const key of ratings.keys()) if (!current.has(key)) ratings.delete(key);
       if (!cancelled) setRated(sortWeakPasswords(found));

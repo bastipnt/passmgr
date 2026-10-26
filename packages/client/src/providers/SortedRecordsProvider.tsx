@@ -16,7 +16,13 @@ import { useTags } from "../hooks/use-tags";
 import { useVaults } from "../hooks/use-vaults";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
-import { getRecordSubtitle } from "../records/record-summary";
+import {
+  filterByTagText,
+  matchRecords,
+  parseSearch,
+  type RecordMatch,
+  TAG_SEARCH_PREFIX,
+} from "../records/record-search";
 import { collectTags, filterByTags, type TagCount } from "../records/tags";
 import type { VaultFilter, VaultInfo } from "../vaults/vault-info";
 
@@ -286,29 +292,15 @@ function useTagFilters(
   return [shown, setStored];
 }
 
-/** A query starting with this matches tags only. */
-export const TAG_SEARCH_PREFIX = "#";
-
-/** Title matches first, then subtitle matches, then tag matches. */
-export function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
-  if (!query.trim()) return records;
-  const q = query.toLowerCase().trim();
-  if (q.startsWith(TAG_SEARCH_PREFIX)) {
-    const tagQuery = q.slice(TAG_SEARCH_PREFIX.length).trim();
-    return records.filter((record) =>
-      record.tags?.some((tag) => tag.toLowerCase().includes(tagQuery)),
-    );
-  }
-  const titleMatches: DecryptedRecord[] = [];
-  const subtitleMatches: DecryptedRecord[] = [];
-  const tagMatches: DecryptedRecord[] = [];
-  for (const record of records) {
-    if (record.title.toLowerCase().includes(q)) titleMatches.push(record);
-    else if (getRecordSubtitle(record)?.toLowerCase().includes(q)) subtitleMatches.push(record);
-    else if (record.tags?.some((tag) => tag.toLowerCase().includes(q))) tagMatches.push(record);
-  }
-  return [...titleMatches, ...subtitleMatches, ...tagMatches];
+/** The records a query finds: tag mode lists those carrying a matching tag. */
+function searchRecords(records: DecryptedRecord[], query: string): DecryptedRecord[] {
+  const { tagMode, text } = parseSearch(query);
+  return tagMode
+    ? filterByTagText(records, text)
+    : matchRecords(records, text).map(({ record }) => record);
 }
+
+const RECENT_LIMIT = 5;
 
 type ListFilters = { category?: CategoryFilter; vault?: VaultFilter; tags?: readonly string[] };
 
@@ -335,8 +327,8 @@ export function activeFilterCount(
 }
 
 /**
- * The list's title: what it shows. A search covers the whole vault in view.
- * Otherwise the vault in view, the category and the tags it's narrowed to.
+ * The list's title: what it shows. While searching, the results; otherwise
+ * the vault in view, the category and the tags it's narrowed to.
  */
 export function listTitle({
   categoryFilter,
@@ -363,18 +355,18 @@ type SortedRecordsContextValue = {
   setQuery: (query: string) => void;
   sort: SortOption;
   handleSortChange: (value: string) => void;
-  /** The list's category. A search ignores it and looks through the whole vault in view. */
+  /** The list's category. A search keeps to it, unless `searchAll`. */
   categoryFilter: CategoryFilter;
   setCategoryFilter: (category: CategoryFilter) => void;
   /** How many records each category holds, in the vault and tags in view. */
   categoryCounts: Record<CategoryFilter, number>;
-  /** The list's vault filter ("All vaults" or one). A search keeps to it. */
+  /** The list's vault filter ("All vaults" or one). A search always keeps to it. */
   vaultFilter: VaultFilter;
   /** Picks the vault in view and shows all of it again (category "all"). */
   setVaultFilter: (vault: VaultFilter) => void;
   /**
    * The selected tags, in the order picked, for this session only; a record
-   * must carry every one. A search ignores them.
+   * must carry every one. A search keeps to them, unless `searchAll`.
    */
   tagFilters: string[];
   toggleTag: (tag: string) => void;
@@ -383,7 +375,7 @@ type SortedRecordsContextValue = {
   /** Back to the whole vault in view: category "all", no tags. */
   clearFilters: () => void;
   /** The list's search field, so others can focus it. */
-  searchInputRef: RefObject<{ focus: () => void } | null>;
+  searchInputRef: RefObject<{ focus: () => void; blur: () => void } | null>;
   /** Focuses the search with the tag prefix typed. */
   searchTags: () => void;
   /**
@@ -399,6 +391,19 @@ type SortedRecordsContextValue = {
   recordGroups: RecordGroup[];
   /** Whether any group carries a label (none do while searching). */
   hasGroupLabels: boolean;
+  /** The search's records with why each matched (none in tag mode or without a query). */
+  recordMatches: RecordMatch[];
+  /**
+   * Records the search finds in the vault in view that the category or tags
+   * hide; empty while `searchAll` or in tag mode.
+   */
+  outsideScope: DecryptedRecord[];
+  /** Ends with the query or once the filters change. */
+  searchAll: boolean;
+  searchAllItems: () => void;
+  /** Session only. */
+  recentRecords: DecryptedRecord[];
+  noteOpened: (recordId: string) => void;
 };
 
 const SortedRecordsContext = createContext<SortedRecordsContextValue | null>(null);
@@ -410,12 +415,12 @@ export function useSortedRecords(): SortedRecordsContextValue {
 }
 
 /**
- * Search over all records without touching the provider's own `query`. Mobile
+ * Search without touching the provider's own `query`. Mobile
  * has a dedicated search tab whose input must not filter the records tab, so it
  * keeps its query in local state and groups the results through this hook.
  * An empty query falls back to the regular sorted grouping of the records
  * `filters` let through (the records tab passes the list's); a search keeps to
- * `filters.vault` only, as the provider's does.
+ * them too, as the provider's does.
  */
 export function useRecordSearch(query: string, filters: ListFilters = {}): RecordGroup[] {
   const { records } = useGetRecords();
@@ -431,7 +436,10 @@ export function useRecordSearch(query: string, filters: ListFilters = {}): Recor
         category,
       );
     return [
-      { label: null, records: filterBySearch(filterByVault(records, vault ?? "all"), trimmed) },
+      {
+        label: null,
+        records: searchRecords(filterRecords(records, { category, vault, tags }), trimmed),
+      },
     ];
   }, [records, sort, trimmed, category, vault, tags]);
 }
@@ -469,7 +477,9 @@ type SortedRecordsProviderProps = {
 
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
-  const [query, setQuery] = useState("");
+  const [query, setStoredQuery] = useState("");
+  const [searchAllFor, setSearchAllFor] = useState<string | null>(null);
+  const [recentIds, setRecentIds] = useState<string[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [vaultFilter, setStoredVaultFilter] = useVaultFilter();
   const vaultTags = useTags(vaultFilter);
@@ -494,15 +504,36 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [vaultTags, tagFilters, browsed],
   );
 
-  // A search keeps to the vault in view (the scope the user picked) but not to
-  // the category or tags: those narrow browsing, and a match hidden by them
-  // would read as "not in the vault".
+  const filtersKey = [vaultFilter, categoryFilter, ...tagFilters.map(tagKey)].join("\u0000");
+  const searchAll = searchAllFor === filtersKey;
+  const search = useMemo(() => parseSearch(query), [query]);
+  const searchScope = searchAll ? vaultRecords : browsed;
+  const recordMatches = useMemo(
+    () => (hasQuery && !search.tagMode ? matchRecords(searchScope, search.text) : []),
+    [hasQuery, search, searchScope],
+  );
+  // Counted rather than hidden, so a match the filters keep out doesn't read as "not in the vault".
+  const outsideScope = useMemo(() => {
+    if (!hasQuery || search.tagMode || searchScope === vaultRecords) return [];
+    const inScope = new Set(recordMatches.map(({ record }) => record.recordId));
+    return matchRecords(vaultRecords, search.text)
+      .map(({ record }) => record)
+      .filter((record) => !inScope.has(record.recordId));
+  }, [recordMatches, hasQuery, search, searchScope, vaultRecords]);
+
   const recordGroups = useMemo(
     () =>
       hasQuery
-        ? [{ label: null, records: filterBySearch(vaultRecords, query) }]
+        ? [
+            {
+              label: null,
+              records: search.tagMode
+                ? filterByTagText(searchScope, search.text)
+                : recordMatches.map(({ record }) => record),
+            },
+          ]
         : groupRecords(sortRecords(browsed, sort), sort, categoryFilter),
-    [vaultRecords, browsed, query, hasQuery, sort, categoryFilter],
+    [hasQuery, search, searchScope, recordMatches, browsed, sort, categoryFilter],
   );
   // In the order shown: favorites first, so arrow keys walk the list as it reads.
   const sortedRecords = useMemo(
@@ -511,6 +542,26 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   );
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
+
+  const setQuery = useCallback((next: string) => {
+    setStoredQuery(next);
+    if (!next.trim()) setSearchAllFor(null);
+  }, []);
+  const searchAllItems = useCallback(() => setSearchAllFor(filtersKey), [filtersKey]);
+
+  const noteOpened = useCallback(
+    (recordId: string) =>
+      setRecentIds((ids) =>
+        ids[0] === recordId
+          ? ids
+          : [recordId, ...ids.filter((id) => id !== recordId)].slice(0, RECENT_LIMIT),
+      ),
+    [],
+  );
+  const recentRecords = useMemo(() => {
+    const byId = new Map(vaultRecords.map((record) => [record.recordId, record]));
+    return recentIds.flatMap((id) => byId.get(id) ?? []);
+  }, [recentIds, vaultRecords]);
 
   const setVaultFilter = useCallback(
     (vault: VaultFilter) => {
@@ -540,11 +591,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     clearTags();
   }, [clearTags]);
 
-  const searchInputRef = useRef<{ focus: () => void } | null>(null);
+  const searchInputRef = useRef<{ focus: () => void; blur: () => void } | null>(null);
   const searchTags = useCallback(() => {
     setQuery(TAG_SEARCH_PREFIX);
     searchInputRef.current?.focus();
-  }, []);
+  }, [setQuery]);
 
   // The vault and category may hide every record with the tag (its record was
   // opened from a search), which would drop the tag right away.
@@ -554,7 +605,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setVaultFilter("all");
       setTagFilters(() => [tag]);
     },
-    [setVaultFilter, setTagFilters],
+    [setQuery, setVaultFilter, setTagFilters],
   );
 
   const handleSortChange = useCallback(
@@ -585,9 +636,16 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       sortedRecords,
       recordGroups,
       hasGroupLabels,
+      recordMatches,
+      outsideScope,
+      searchAll,
+      searchAllItems,
+      recentRecords,
+      noteOpened,
     }),
     [
       query,
+      setQuery,
       sort,
       handleSortChange,
       categoryFilter,
@@ -605,6 +663,12 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       sortedRecords,
       recordGroups,
       hasGroupLabels,
+      recordMatches,
+      outsideScope,
+      searchAll,
+      searchAllItems,
+      recentRecords,
+      noteOpened,
     ],
   );
 

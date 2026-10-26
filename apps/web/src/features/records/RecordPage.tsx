@@ -31,5 +31,5 @@ export default function RecordPage() {
   const { recordId } = useParams();
   if (!recordId) return <Redirect to={recordPaths.index} replace />;
 
-  return <RecordScreen recordId={recordId} />;
+  return <RecordScreen key={recordId} recordId={recordId} />;
 }

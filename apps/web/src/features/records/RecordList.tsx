@@ -27,7 +27,7 @@ import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronRightIcon, StarIcon } from "lucide-react";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultBadge } from "@/features/vaults";
@@ -35,6 +35,8 @@ import { ActiveFilterChips } from "./ActiveFilterChips";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSearch } from "./RecordSearch";
 import { RecordSortMenu } from "./RecordSortMenu";
+import { SearchPanel } from "./SearchPanel";
+import { PREVIEW_DELAY_MS, useSearchPanel } from "./use-search-panel";
 
 type RecordRowProps = {
   record: DecryptedRecord;
@@ -195,6 +197,7 @@ export default function RecordList() {
     sortedRecords,
     recordGroups,
     hasGroupLabels,
+    noteOpened,
   } = useSortedRecords();
   const { getVault, hasSeveralVaults } = useVaults();
   const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
@@ -202,7 +205,8 @@ export default function RecordList() {
   const rowVault = (record: DecryptedRecord) =>
     hasSeveralVaults && !shownVault ? getVault(record.vaultId) : undefined;
   const isMobile = useIsMobile();
-  const prevQueryRef = useRef(query);
+  const panel = useSearchPanel(!isMobile);
+  const listboxId = useId();
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
   const shouldFocusRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -212,41 +216,66 @@ export default function RecordList() {
     else recordRefs.current.delete(id);
   }, []);
 
+  // ↑↓ move the highlight at once; the record opens once they settle (as in the search).
+  const [pendingId, setPendingId] = useState<string>();
+  const highlightedId = pendingId ?? params?.recordId;
+
   const navigateByOffset = useCallback(
     (offset: number) => {
       if (sortedRecords.length === 0) return;
-      const currentIndex = sortedRecords.findIndex(
-        (record) => record.recordId === params?.recordId,
-      );
+      const currentIndex = sortedRecords.findIndex((record) => record.recordId === highlightedId);
       const nextIndex = Math.max(0, Math.min(sortedRecords.length - 1, currentIndex + offset));
       const nextRecord = sortedRecords[nextIndex];
       if (nextRecord) {
         shouldFocusRef.current = true;
-        navigate(recordPaths.record(nextRecord.recordId));
+        setPendingId(nextRecord.recordId);
       }
     },
-    [sortedRecords, params?.recordId, navigate],
+    [sortedRecords, highlightedId],
   );
 
   useEffect(() => {
-    if (!shouldFocusRef.current || !params?.recordId) return;
-    const el = recordRefs.current.get(params.recordId);
+    if (!pendingId) return;
+    if (pendingId === params?.recordId) {
+      setPendingId(undefined);
+      return;
+    }
+    const timer = setTimeout(() => navigate(recordPaths.record(pendingId)), PREVIEW_DELAY_MS);
+    return () => clearTimeout(timer);
+  }, [pendingId, params?.recordId, navigate]);
+
+  // Another way to a record (a click, a link) drops a pending ↑↓.
+  const routeRecordId = params?.recordId;
+  const lastRouteRecordId = useRef(routeRecordId);
+  if (lastRouteRecordId.current !== routeRecordId) {
+    lastRouteRecordId.current = routeRecordId;
+    if (pendingId && pendingId !== routeRecordId) setPendingId(undefined);
+  }
+
+  useEffect(() => {
+    if (!shouldFocusRef.current || !highlightedId) return;
+    const el = recordRefs.current.get(highlightedId);
     if (el) {
       el.focus({ preventScroll: true });
       el.scrollIntoView({ block: "nearest" });
       shouldFocusRef.current = false;
     }
-  }, [params?.recordId]);
+  }, [highlightedId]);
+
+  // Search previews don't count as opened.
+  useEffect(() => {
+    if (params?.recordId && !panel.open) noteOpened(params.recordId);
+  }, [params?.recordId, panel.open, noteOpened]);
 
   useShortcut("ArrowDown", () => navigateByOffset(1), {
     description: "Next record",
-    enabled: ready && sortedRecords.length > 0,
+    enabled: ready && sortedRecords.length > 0 && !panel.open,
     allowInInput: true,
   });
 
   useShortcut("ArrowUp", () => navigateByOffset(-1), {
     description: "Previous record",
-    enabled: ready && sortedRecords.length > 0,
+    enabled: ready && sortedRecords.length > 0 && !panel.open,
     allowInInput: true,
   });
 
@@ -259,16 +288,6 @@ export default function RecordList() {
     }
   }, [isMobile, ready, isIndex, sortedRecords, navigate]);
 
-  // Auto-navigate to first filtered result when search query changes
-  useEffect(() => {
-    if (!isMobile && prevQueryRef.current !== query) {
-      prevQueryRef.current = query;
-      if (sortedRecords.length > 0) {
-        navigate(recordPaths.record(sortedRecords[0].recordId), { replace: true });
-      }
-    }
-  }, [isMobile, query, sortedRecords, navigate]);
-
   // Firefox has no scroll-driven animations; this fades the group labels instead.
   useStickyLabelFade(listRef, ready ? recordGroups : null);
 
@@ -277,16 +296,26 @@ export default function RecordList() {
       <>
         {!isMobile && (
           <div className="px-3 pt-3">
-            <RecordSearch />
+            <RecordSearch panel={panel} listboxId={listboxId} />
           </div>
         )}
         <RecordListSkeleton />
       </>
     );
 
+  if (panel.open)
+    return (
+      <div className="flex min-h-full flex-col">
+        <div className="sticky-bar px-3 pt-3 pb-1">
+          <RecordSearch panel={panel} listboxId={listboxId} />
+        </div>
+        <SearchPanel panel={panel} listboxId={listboxId} />
+      </div>
+    );
+
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
-  const filtered = !hasQuery && activeFilterCount(categoryFilter, tagFilters) > 0;
+  const filtered = activeFilterCount(categoryFilter, tagFilters) > 0;
 
   return (
     <div
@@ -311,7 +340,7 @@ export default function RecordList() {
             hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
           )}
         >
-          <RecordSearch />
+          <RecordSearch panel={panel} listboxId={listboxId} />
           <div className="flex min-h-0 flex-1 items-center justify-between gap-2 px-1.5">
             <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
               <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
@@ -358,7 +387,7 @@ export default function RecordList() {
                   <RecordRow
                     key={record.recordId}
                     record={record}
-                    active={!isMobile && record.recordId === params?.recordId}
+                    active={!isMobile && record.recordId === highlightedId}
                     isMobile={isMobile}
                     vault={rowVault(record)}
                     registerRef={registerRef}

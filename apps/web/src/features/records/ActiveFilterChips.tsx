@@ -5,10 +5,9 @@ import { cn } from "@repo/ui/lib/utils";
 import { CATEGORY_ICONS } from "./CategorySidebar";
 
 export function ActiveFilterChips({ variant = "phone" }: { variant?: "phone" | "desktop" }) {
-  const { query, categoryFilter, setCategoryFilter, tagFilters, removeTag, clearFilters } =
+  const { categoryFilter, setCategoryFilter, tagFilters, removeTag, clearFilters } =
     useSortedRecords();
-  // A search ignores category and tags.
-  if (query.trim() || (categoryFilter === "all" && tagFilters.length === 0)) return null;
+  if (categoryFilter === "all" && tagFilters.length === 0) return null;
   const CategoryIcon = CATEGORY_ICONS[categoryFilter];
   const category = categoryLabel(categoryFilter);
   const desktop = variant === "desktop";

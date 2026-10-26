@@ -170,7 +170,7 @@ export default function MobileRecordPage() {
   const { recordId } = useParams();
   if (!recordId) return <Redirect to={recordPaths.index} replace />;
 
-  return <MobileRecordLoader recordId={recordId} />;
+  return <MobileRecordLoader key={recordId} recordId={recordId} />;
 }
 
 function MobileRecordLoader({ recordId }: { recordId: string }) {

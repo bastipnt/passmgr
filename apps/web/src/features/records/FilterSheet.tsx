@@ -20,10 +20,9 @@ const TITLE = "Filter";
 const SECTION_LABEL = "font-semibold text-muted-foreground text-xs uppercase tracking-wider";
 
 export function FilterButton() {
-  const { query, categoryFilter, tagFilters } = useSortedRecords();
+  const { categoryFilter, tagFilters } = useSortedRecords();
   const [open, setOpen] = useState(false);
-  // A search ignores category and tags.
-  const active = query.trim() ? 0 : activeFilterCount(categoryFilter, tagFilters);
+  const active = activeFilterCount(categoryFilter, tagFilters);
 
   return (
     <>

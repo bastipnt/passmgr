@@ -69,17 +69,39 @@ describe("category filter", () => {
     expect(ids(result.current.sortedRecords)).toEqual(["card"]);
   });
 
-  it("is ignored by a search, which looks through every record", () => {
+  it("scopes a search, counting the matches it hides until widened", () => {
     const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
 
     act(() => {
       result.current.setCategoryFilter("card");
       result.current.setQuery("git");
     });
+    expect(ids(result.current.sortedRecords)).toEqual([]);
+    expect(ids(result.current.outsideScope)).toEqual(["login"]);
+
+    act(() => result.current.searchAllItems());
     expect(ids(result.current.sortedRecords)).toEqual(["login"]);
+    expect(result.current.outsideScope).toEqual([]);
+    expect(result.current.categoryFilter).toBe("card");
+
+    act(() => result.current.setQuery(""));
+    expect(result.current.searchAll).toBe(false);
   });
 
-  it("applies to useRecordSearch's browsing, not its search", () => {
+  it("ends Search all items once the filters change", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.setCategoryFilter("card");
+      result.current.setQuery("git");
+    });
+    act(() => result.current.searchAllItems());
+    act(() => result.current.setCategoryFilter("wifi"));
+    expect(result.current.searchAll).toBe(false);
+    expect(ids(result.current.outsideScope)).toEqual(["login"]);
+  });
+
+  it("applies to useRecordSearch's browsing and search", () => {
     const { result, rerender } = renderHook(
       ({ query }) => useRecordSearch(query, { category: "wifi" }).flatMap((group) => group.records),
       { wrapper: Providers, initialProps: { query: "" } },
@@ -87,7 +109,9 @@ describe("category filter", () => {
     expect(ids(result.current)).toEqual(["wifi"]);
 
     rerender({ query: "visa" });
-    expect(ids(result.current)).toEqual(["card"]);
+    expect(ids(result.current)).toEqual([]);
+    rerender({ query: "home" });
+    expect(ids(result.current)).toEqual(["wifi"]);
   });
 });
 
@@ -229,14 +253,16 @@ describe("tag filters", () => {
     expect(result.current.tagFilters).toEqual(["work"]);
   });
 
-  it("is ignored by a search", () => {
+  it("scopes a search", () => {
     const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
 
     act(() => {
-      result.current.toggleTag("bank");
-      result.current.setQuery("jira");
+      result.current.toggleTag("work");
+      result.current.setQuery("o");
     });
-    expect(ids(result.current.sortedRecords)).toEqual(["work"]);
+    expect(ids(result.current.sortedRecords)).toEqual(["login", "work"]);
+    expect(ids(result.current.outsideScope)).toEqual(["wifi"]);
+    expect(result.current.recordMatches.map(({ field }) => field)).toEqual(["subtitle", "tag"]);
   });
 
   it("showTag selects only that tag, every other filter cleared", () => {

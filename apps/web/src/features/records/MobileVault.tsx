@@ -14,6 +14,7 @@ import { AccountButton } from "./AccountSheet";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { FilterButton } from "./FilterSheet";
 import { NoSearchResults } from "./NoSearchResults";
+import { OutsideScope } from "./OutsideScope";
 import RecordList from "./RecordList";
 import { RecordSortMenu } from "./RecordSortMenu";
 
@@ -91,6 +92,7 @@ export default function MobileVault() {
 
       <div className="flex-1">
         <RecordList />
+        {query.trim() && !noResults && <OutsideScope className="mx-4 mt-4" />}
         {noResults && (
           <div className="pt-6">
             <NoSearchResults />

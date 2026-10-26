@@ -63,10 +63,10 @@ describe("ActiveFilterChips", () => {
     expect(list.clearFilters).toHaveBeenCalledOnce();
   });
 
-  it("hides during a search, which ignores them", () => {
+  it("stays during a search, which keeps to them", () => {
     Object.assign(list, { query: "git", tagFilters: ["work"] });
     renderWithProviders(<ActiveFilterChips />);
-    expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
+    expect(screen.getByRole("list", { name: "Active filters" })).toBeInTheDocument();
   });
 });
 
@@ -78,10 +78,10 @@ describe("FilterButton", () => {
     expect(button).toHaveTextContent("3");
   });
 
-  it("no count during a search, which ignores the filters", () => {
+  it("keeps its count during a search, which keeps to the filters", () => {
     Object.assign(list, { query: "git", tagFilters: ["work"] });
     renderWithProviders(<FilterButton />);
-    expect(screen.getByRole("button", { name: "Filter" })).toHaveTextContent("");
+    expect(screen.getByRole("button", { name: "Filter (1 on)" })).toHaveTextContent("1");
   });
 
   it("no count while nothing is on", () => {

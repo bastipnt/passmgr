@@ -1,39 +1,32 @@
-import {
-  getStrengthFromString,
-  isPasswordStrengthLoaded,
-  loadPasswordStrength,
-} from "@repo/crypto";
+import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { PasswordStrength } from "@repo/util";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
-/** Strength of a user-entered password; `null` while empty or while the estimator loads. */
+/**
+ * Strength of a password; `null` while empty or before its first rating. Rated off the main
+ * thread, so the last rating stays while the next runs (no flicker while typing). A component
+ * showing different records' passwords should remount per record (`key`) to not show the
+ * previous one's meanwhile.
+ */
 export function usePasswordStrength(
   password: string | undefined,
   userInputs?: string[],
 ): PasswordStrength | null {
-  const [loaded, setLoaded] = useState(isPasswordStrengthLoaded);
-  const hasPassword = !!password;
+  const [strength, setStrength] = useState<PasswordStrength | null>(null);
+  // Callers pass a fresh array every render: compare the inputs by content.
+  const inputsKey = userInputs?.filter(Boolean).join("\n") ?? "";
 
   useEffect(() => {
-    if (loaded || !hasPassword) return;
+    if (!password) return;
     let active = true;
-    loadPasswordStrength()
-      .then(() => active && setLoaded(true))
-      .catch((error: unknown) =>
-        console.error("Failed to load the password strength estimator", error),
-      );
+    strengthWorkerService
+      .rate(password, inputsKey ? inputsKey.split("\n") : [])
+      .then((rated) => active && setStrength(rated))
+      .catch((error: unknown) => console.error("Failed to rate the password strength", error));
     return () => {
       active = false;
     };
-  }, [loaded, hasPassword]);
+  }, [password, inputsKey]);
 
-  // Callers pass a fresh array every render: compare the inputs by content.
-  const inputsKey = userInputs?.filter(Boolean).join("\n") ?? "";
-  return useMemo(
-    () =>
-      loaded && password
-        ? getStrengthFromString(password, inputsKey ? inputsKey.split("\n") : [])
-        : null,
-    [loaded, password, inputsKey],
-  );
+  return password ? strength : null;
 }

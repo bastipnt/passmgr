@@ -8,11 +8,11 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@repo/ui/components/Empty";
-import { PlusIcon, SearchXIcon, XIcon } from "lucide-react";
+import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useOpenCreateSheet } from "./CreateRecordSheet";
 
 export function NoSearchResults() {
-  const { query, setQuery } = useSortedRecords();
+  const { query, setQuery, outsideScope, searchAllItems } = useSortedRecords();
   const openCreateSheet = useOpenCreateSheet();
 
   return (
@@ -24,10 +24,18 @@ export function NoSearchResults() {
           </EmptyMedia>
           <EmptyTitle>No results for &ldquo;{query.trim()}&rdquo;</EmptyTitle>
           <EmptyDescription>
-            Nothing in your vault matches. Search looks at titles, usernames and websites.
+            {outsideScope.length > 0
+              ? `Nothing in this view matches, ${outsideScope.length} more outside it.`
+              : "Nothing in your vault matches. Search looks at titles, usernames and websites."}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row flex-wrap justify-center">
+          {outsideScope.length > 0 && (
+            <Button variant="outline" onClick={searchAllItems}>
+              <SearchIcon data-icon="inline-start" />
+              Search all items
+            </Button>
+          )}
           <Button variant="outline" onClick={() => setQuery("")}>
             <XIcon data-icon="inline-start" />
             Clear search

@@ -23,7 +23,7 @@ export type RateStrength = (password: string, userInputs: string[]) => PasswordS
 const byTitle = (a: DecryptedRecord, b: DecryptedRecord) => a.title.localeCompare(b.title);
 
 /** What zxcvbn should treat as known words for this record's password. */
-function strengthInputs(record: DecryptedRecord): string[] {
+export function strengthInputs(record: DecryptedRecord): string[] {
   const username = isRecordType(record, "login") ? record.username : undefined;
   const ssid = isRecordType(record, "wifi") ? record.ssid : undefined;
   return [record.title, username, ssid, ...loginHosts(record)].filter(

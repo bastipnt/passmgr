@@ -5,7 +5,7 @@ import {
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -121,6 +121,8 @@ const listed = () =>
     .sort();
 
 beforeEach(() => {
+  // jsdom doesn't lay out.
+  Element.prototype.scrollIntoView = vi.fn();
   localStorage.clear();
   setWindowWide(true);
 });
@@ -225,41 +227,46 @@ describe("CategorySidebar collapsed", () => {
   });
 });
 
+function renderList() {
+  const location = memoryLocation({ path: "/records", record: true });
+  render(
+    <Router hook={location.hook}>
+      <ShortcutProvider>
+        <Providers>
+          <Sidebar />
+          <TagPicks />
+          <RecordList />
+        </Providers>
+      </ShortcutProvider>
+    </Router>,
+  );
+  return { user: userEvent.setup(), location };
+}
+
+function TagPicks() {
+  const { toggleTag } = useSortedRecords();
+  return (
+    <>
+      <button type="button" onClick={() => toggleTag("work")}>
+        pick work
+      </button>
+      <button type="button" onClick={() => toggleTag("infra")}>
+        pick infra
+      </button>
+    </>
+  );
+}
+
+const options = (listbox: string) =>
+  within(screen.getByRole("listbox", { name: listbox }))
+    .getAllByRole("option")
+    .map((option) => option.textContent?.match(/GitHub|Jira|Visa|infra|work/)?.[0]);
+
 describe("RecordList header", () => {
-  function renderList() {
-    const location = memoryLocation({ path: "/records" });
-    render(
-      <Router hook={location.hook}>
-        <ShortcutProvider>
-          <Providers>
-            <Sidebar />
-            <TagPicks />
-            <RecordList />
-          </Providers>
-        </ShortcutProvider>
-      </Router>,
-    );
-    return userEvent.setup();
-  }
-
-  function TagPicks() {
-    const { toggleTag } = useSortedRecords();
-    return (
-      <>
-        <button type="button" onClick={() => toggleTag("work")}>
-          pick work
-        </button>
-        <button type="button" onClick={() => toggleTag("infra")}>
-          pick infra
-        </button>
-      </>
-    );
-  }
-
   const header = () => screen.getByRole("heading", { level: 2, name: /^(?!Categories)/ });
 
   it("titles the list with the category and its count, the filters as chips below", async () => {
-    const user = renderList();
+    const { user } = renderList();
     expect(header()).toHaveTextContent("All items3");
     expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
 
@@ -283,15 +290,140 @@ describe("RecordList header", () => {
   });
 
   it("the sidebar's Tags row counts the tags, then the ones on, and opens the search in tag mode", async () => {
-    const user = renderList();
-    const search = screen.getByRole("textbox", { name: /^Search/ });
+    const { user } = renderList();
 
     await user.click(screen.getByRole("button", { name: "Search tags (2)" }));
+    const search = screen.getByRole("combobox", { name: "Search tags" });
     expect(search).toHaveFocus();
-    expect(search).toHaveValue("#");
+    expect(search).toHaveValue("");
+    expect(options("Tags")).toEqual(["infra", "work"]);
 
-    await user.clear(search);
-    await user.click(screen.getByRole("button", { name: "pick work" }));
+    await user.keyboard("{Enter}");
+    expect(
+      within(screen.getByRole("listbox", { name: "Tags" })).getByRole("option", { selected: true }),
+    ).toHaveTextContent(/^infra/);
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("listbox")).toBeNull();
     expect(screen.getByRole("button", { name: "Search tags (1 on)" })).toHaveTextContent("1 on");
+    expect(screen.getByRole("list", { name: "Active filters" })).toHaveTextContent("infra");
+  });
+});
+
+describe("search panel", () => {
+  const field = () => screen.getByRole("combobox", { name: /^Search/ });
+
+  it("replaces the list while focused: hint, top tags, then records and tags as you type", async () => {
+    const { user } = renderList();
+    await user.click(field());
+
+    expect(screen.queryByRole("heading", { level: 2, name: /^(?!Categories)/ })).toBeNull();
+    expect(screen.getByText("records and tags")).toBeInTheDocument();
+    expect(options("Search results")).toEqual(["work", "infra"]);
+
+    await user.keyboard("o");
+    expect(options("Search results")).toEqual(["work", "GitHub", "Jira"]);
+    expect(screen.getByRole("group", { name: "Records" })).toHaveTextContent("tagged #work");
+  });
+
+  it("↑↓ move, the highlighted record previews, ↵ opens it and closes the search", async () => {
+    const { user, location } = renderList();
+    await user.click(field());
+    await user.keyboard("o");
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/github"));
+
+    await user.keyboard("{ArrowDown}");
+    expect(field()).toHaveAttribute(
+      "aria-activedescendant",
+      screen.getByRole("option", { name: /Jira/ }).id,
+    );
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/jira"));
+
+    await user.keyboard("{Enter}");
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(field()).toHaveValue("");
+    expect(location.history?.at(-1)).toBe("/record/jira");
+  });
+
+  it("previews only once ↑↓ settle, and not on hover", async () => {
+    const { user, location } = renderList();
+    await user.click(field());
+    await user.keyboard("o");
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/github"));
+    const activeBefore = field().getAttribute("aria-activedescendant");
+
+    await user.hover(screen.getByRole("option", { name: /Jira/ }));
+    expect(field()).toHaveAttribute("aria-activedescendant", activeBefore);
+
+    await user.keyboard("{ArrowDown}{ArrowUp}{ArrowDown}");
+    expect(location.history?.at(-1)).toBe("/record/github");
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/jira"));
+  });
+
+  it("focusing alone keeps the open record; Esc brings it back after a preview", async () => {
+    const { user, location } = renderList();
+    await user.click(screen.getByRole("link", { name: /Visa/ }));
+    expect(location.history?.at(-1)).toBe("/record/visa");
+
+    await user.click(field());
+    expect(location.history?.at(-1)).toBe("/record/visa");
+
+    await user.keyboard("jir");
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/jira"));
+
+    await user.keyboard("{Escape}");
+    expect(location.history?.at(-1)).toBe("/record/visa");
+    expect(screen.queryByRole("listbox")).toBeNull();
+  });
+
+  it("gives the list back on blur, the query still applied", async () => {
+    const { user } = renderList();
+    await user.click(field());
+    await user.keyboard("jir");
+    await user.click(screen.getByRole("button", { name: "pick infra" }));
+
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByRole("heading", { level: 2, name: /Results/ })).toBeInTheDocument();
+  });
+
+  it("# switches to tag mode, Backspace on its empty token back to all", async () => {
+    const { user } = renderList();
+    await user.click(field());
+    await user.keyboard("#");
+    expect(screen.getByRole("combobox", { name: "Search tags" })).toHaveValue("");
+
+    await user.keyboard("{Backspace}");
+    expect(screen.getByRole("combobox", { name: "Search all vaults" })).toHaveValue("");
+    expect(screen.getByRole("listbox", { name: "Search results" })).toBeInTheDocument();
+  });
+
+  it("keeps to the filters, counts what they hide and widens on Search all items", async () => {
+    const { user } = renderList();
+    await user.click(category("Credit cards (1)"));
+    await user.click(field());
+    await user.keyboard("git");
+
+    expect(screen.getByRole("list", { name: "Search scope" })).toHaveTextContent("Credit cards");
+    expect(screen.getByText("1 more outside Credit cards")).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: /^GitHub/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Search all items" }));
+    expect(screen.getByRole("list", { name: "Search scope" })).toHaveTextContent("All items");
+    expect(options("Search results")).toEqual(["GitHub"]);
+    expect(field()).toHaveFocus();
+  });
+});
+
+describe("list ↑↓", () => {
+  it("move the highlight at once and open only the record they settle on", async () => {
+    const { user, location } = renderList();
+    await user.click(screen.getByRole("link", { name: /GitHub/ }));
+
+    await user.keyboard("{ArrowDown}{ArrowDown}");
+    expect(screen.getByRole("link", { name: /Visa/ })).toHaveFocus();
+    expect(location.history?.at(-1)).toBe("/record/github");
+
+    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/visa"));
+    expect(location.history).not.toContain("/record/jira");
   });
 });
