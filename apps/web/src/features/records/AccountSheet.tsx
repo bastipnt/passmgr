@@ -53,7 +53,7 @@ export function AccountButton() {
         {issues ? <CountBadge count={issues} className="-top-0.5 -right-0.5" /> : null}
         <SyncDot
           state={summary.state}
-          className="absolute right-1 bottom-1 size-2.5 ring-2 ring-white dark:ring-[rgb(28_26_40)]"
+          className="absolute right-1 bottom-1 size-2.5 ring-2 ring-white dark:ring-card"
         />
       </Button>
       <AccountSheet open={open} onOpenChange={setOpen} />

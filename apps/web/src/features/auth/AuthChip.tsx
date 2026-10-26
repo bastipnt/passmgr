@@ -3,7 +3,7 @@ import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
 const TONES = {
-  neutral: { icon: "bg-primary/10 text-primary", detail: "text-muted-foreground" },
+  neutral: { icon: "bg-primary/10 text-primary-text", detail: "text-muted-foreground" },
   success: { icon: "bg-success/12 text-success", detail: "text-muted-foreground" },
   error: { icon: "bg-destructive/10 text-destructive", detail: "text-destructive" },
 };
@@ -43,7 +43,7 @@ export default function AuthChip({
         type="button"
         variant="ghost"
         size="sm"
-        className="text-primary max-sm:h-12"
+        className="text-primary-text max-sm:h-12"
         onClick={onChange}
         disabled={disabled}
       >

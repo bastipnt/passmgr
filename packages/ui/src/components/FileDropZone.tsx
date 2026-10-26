@@ -71,7 +71,7 @@ function FileDropZone({
       >
         <span
           aria-hidden
-          className="mb-2 grid size-12 place-items-center rounded-xl bg-primary/10 text-primary [&>svg]:size-5"
+          className="mb-2 grid size-12 place-items-center rounded-xl bg-primary/10 text-primary-text [&>svg]:size-5"
         >
           {icon}
         </span>

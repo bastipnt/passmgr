@@ -1,7 +1,8 @@
 /*
- * Cross-platform semantic color palette — the single source of truth.
- * Consumed by web (packages/ui/src/styles/globals.css) and mobile
- * (apps/mobile/src/global.css, the uniwind cssEntryFile).
+ * Cross-platform semantic color palette. Consumed by web
+ * (packages/ui/src/styles/globals.css) and mobile (apps/mobile/src/global.css,
+ * the uniwind cssEntryFile). Web overrides the colors with the accent presets
+ * of ./presets.css; mobile still renders these.
  *
  * THE SHAPE BELOW IS LOAD-BEARING FOR MOBILE. uniwind's rule-visitor only
  * extracts theme values from `@layer theme { :root { &:where(.<theme>) {} } }`:
@@ -36,6 +37,9 @@
   --color-primary: unset;
   --color-primary-foreground: unset;
   --color-primary-pressed: unset;
+  /* Accent as text and icons: darker than --color-primary in light mode,
+     lighter in dark, so it reads on the ground. */
+  --color-primary-text: unset;
   --color-secondary: unset;
   --color-secondary-foreground: unset;
   --color-accent: unset;
@@ -45,8 +49,8 @@
   --color-input: unset;
   --color-field: unset;
   --color-ring: unset;
-  /* Page ground behind the light-field: background tinted toward violet
-     (web: --edge-tint in globals.css, a color-mix of the same values). */
+  /* Page ground behind the light-field: background tinted toward violet.
+     Web derives its own (--edge-tint in globals.css, flat in presets.css). */
   --color-edge-tint: unset;
 }
 
@@ -102,6 +106,7 @@
       --color-primary: #6e56f5;
       --color-primary-foreground: #ffffff;
       --color-primary-pressed: #5b43e0;
+      --color-primary-text: #6e56f5;
       --color-secondary: #ffffff;
       --color-secondary-foreground: #16141f;
       --color-accent: #eceaf3;
@@ -126,6 +131,7 @@
       --color-primary: #6e56f5;
       --color-primary-foreground: #ffffff;
       --color-primary-pressed: #5b43e0;
+      --color-primary-text: #8b78ff;
       --color-secondary: #1a1922;
       --color-secondary-foreground: #f4f2fa;
       --color-accent: #23222e;

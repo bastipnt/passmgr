@@ -1,0 +1,185 @@
+/*
+ * Accent presets of the web app. Berry is the default on :root;
+ * `data-accent="<preset>"` on <html> picks another one, and on any element
+ * scopes one to it (e.g. a swatch). Overrides ./theme.css (unlayered, so it
+ * beats `@layer theme`). Web only: uniwind can't read this shape.
+ *
+ * Each preset sets ground, panel, text and accent; the rest derives below.
+ * On-accent text is white in light mode and the ground in dark mode: white
+ * on the brighter dark accents stays under 4.5:1. Meaning colors (strength,
+ * warnings, destructive) never come from a preset.
+ * Contrast is checked by test/presets.test.ts.
+ */
+
+:root,
+[data-accent] {
+  --color-card-foreground: var(--color-foreground);
+  --color-popover: var(--color-card);
+  --color-popover-foreground: var(--color-foreground);
+  --color-secondary: var(--color-card);
+  --color-secondary-foreground: var(--color-foreground);
+  --color-accent: var(--color-muted);
+  --color-accent-foreground: var(--color-foreground);
+  --color-border: color-mix(in oklab, var(--color-foreground) 10%, transparent);
+  --color-input: color-mix(in oklab, var(--color-foreground) 13%, transparent);
+  --color-ring: var(--color-primary);
+  --color-primary-pressed: color-mix(in oklab, var(--color-primary) 85%, #000);
+  --color-edge-tint: var(--color-background);
+}
+
+:root,
+[data-accent="berry"] {
+  @variant light {
+    --color-background: #f5f1f3;
+    --color-foreground: #1e141a;
+    --color-card: #ffffff;
+    --color-muted: #ece5e9;
+    --color-muted-foreground: #6e5e67;
+    --color-field: #f2edf0;
+    --color-primary: #b4307a;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #93245f;
+  }
+
+  @variant dark {
+    --color-background: #141013;
+    --color-foreground: #f5eef2;
+    --color-card: #1e181c;
+    --color-muted: #2a2228;
+    --color-muted-foreground: #b4a6ae;
+    --color-field: #272026;
+    --color-primary: #d04a93;
+    --color-primary-foreground: #141013;
+    --color-primary-text: #f49acb;
+  }
+}
+
+[data-accent="violet"] {
+  @variant light {
+    --color-background: #f3f2f7;
+    --color-foreground: #181522;
+    --color-card: #ffffff;
+    --color-muted: #e8e6ef;
+    --color-muted-foreground: #656075;
+    --color-field: #efeef5;
+    --color-primary: #6e56f5;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #4b33d6;
+  }
+
+  @variant dark {
+    --color-background: #0f0e15;
+    --color-foreground: #f0effa;
+    --color-card: #181620;
+    --color-muted: #22202e;
+    --color-muted-foreground: #aaa7be;
+    --color-field: #201e2b;
+    --color-primary: #8b78ff;
+    --color-primary-foreground: #0f0e15;
+    --color-primary-text: #c3b4ff;
+  }
+}
+
+[data-accent="cobalt"] {
+  @variant light {
+    --color-background: #eef1f6;
+    --color-foreground: #101825;
+    --color-card: #ffffff;
+    --color-muted: #e1e6ef;
+    --color-muted-foreground: #586479;
+    --color-field: #e9edf4;
+    --color-primary: #2f5bea;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #1f45c6;
+  }
+
+  @variant dark {
+    --color-background: #0d1117;
+    --color-foreground: #ebf1fa;
+    --color-card: #141a22;
+    --color-muted: #1d2531;
+    --color-muted-foreground: #9facbf;
+    --color-field: #1b222d;
+    --color-primary: #5b82ff;
+    --color-primary-foreground: #0d1117;
+    --color-primary-text: #a9c0ff;
+  }
+}
+
+[data-accent="pine"] {
+  @variant light {
+    --color-background: #f2f1ec;
+    --color-foreground: #1b1809;
+    --color-card: #ffffff;
+    --color-muted: #e8e6dd;
+    --color-muted-foreground: #68644e;
+    --color-field: #efede7;
+    --color-primary: #0f7b6c;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #0b6357;
+  }
+
+  @variant dark {
+    --color-background: #0e1412;
+    --color-foreground: #eaf3f0;
+    --color-card: #151d1b;
+    --color-muted: #1d2925;
+    --color-muted-foreground: #9dafa9;
+    --color-field: #1b2723;
+    --color-primary: #2bb39f;
+    --color-primary-foreground: #0e1412;
+    --color-primary-text: #7fe0cf;
+  }
+}
+
+[data-accent="ember"] {
+  @variant light {
+    --color-background: #f6f2ee;
+    --color-foreground: #20150a;
+    --color-card: #ffffff;
+    --color-muted: #eee6df;
+    --color-muted-foreground: #71604f;
+    --color-field: #f3eee9;
+    --color-primary: #c2410c;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #9a3412;
+  }
+
+  @variant dark {
+    --color-background: #15110e;
+    --color-foreground: #f5efea;
+    --color-card: #1f1915;
+    --color-muted: #2c241e;
+    --color-muted-foreground: #b5a89f;
+    --color-field: #29211c;
+    --color-primary: #f0773e;
+    --color-primary-foreground: #15110e;
+    --color-primary-text: #ffb48c;
+  }
+}
+
+[data-accent="graphite"] {
+  @variant light {
+    --color-background: #ededf0;
+    --color-foreground: #17171f;
+    --color-card: #ffffff;
+    --color-muted: #e2e2e7;
+    --color-muted-foreground: #62626e;
+    --color-field: #e9e9ed;
+    --color-primary: #18181b;
+    --color-primary-foreground: #ffffff;
+    --color-primary-text: #18181b;
+  }
+
+  @variant dark {
+    --color-background: #18181b;
+    --color-foreground: #f0f0f4;
+    --color-card: #212125;
+    --color-muted: #2c2c32;
+    --color-muted-foreground: #aaaab3;
+    --color-field: #29292f;
+    --color-primary: #e4e4e7;
+    --color-primary-foreground: #18181b;
+    --color-primary-text: #fafafa;
+  }
+}

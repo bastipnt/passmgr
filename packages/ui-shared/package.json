@@ -5,19 +5,23 @@
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",
-    "./theme.css": "./src/tokens/theme.css"
+    "./theme.css": "./src/tokens/theme.css",
+    "./presets.css": "./src/tokens/presets.css"
   },
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@repo/util": "workspace:*"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@types/node": "catalog:",
     "oxlint": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vitest": "catalog:"
   },
   "peerDependencies": {
     "expo-blur": "catalog:",

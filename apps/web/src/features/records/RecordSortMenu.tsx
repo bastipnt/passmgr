@@ -32,7 +32,7 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
           ) : (
             // The visible label is the current sort; "Sort:" keeps the purpose
             // in the accessible name without dropping the visible text (WCAG 2.5.3).
-            <Button variant="ghost" size="sm" className="text-primary dark:text-ring">
+            <Button variant="ghost" size="sm" className="text-primary-text">
               <span className="sr-only">Sort: </span>
               <ArrowUpDownIcon />
               {SORT_LABELS[sort]}

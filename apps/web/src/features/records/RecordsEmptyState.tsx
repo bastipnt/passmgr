@@ -52,7 +52,7 @@ export default function RecordsEmptyState() {
           <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-muted-foreground text-sm">
             {FEATURES.map(({ icon: Icon, label }) => (
               <li key={label} className="flex items-center gap-1.5">
-                <Icon className="size-4 text-primary dark:text-ring" aria-hidden />
+                <Icon className="size-4 text-primary-text" aria-hidden />
                 {label}
               </li>
             ))}

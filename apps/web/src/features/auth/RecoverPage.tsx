@@ -282,7 +282,7 @@ function RecoverFlow() {
                               <button
                                 type="button"
                                 onClick={pasteRecoveryKey}
-                                className="flex cursor-pointer items-center gap-1 font-medium text-primary text-xs hover:underline"
+                                className="flex cursor-pointer items-center gap-1 font-medium text-primary-text text-xs hover:underline"
                               >
                                 <ClipboardIcon className="size-3.5" aria-hidden />
                                 Paste
@@ -359,7 +359,7 @@ function RecoverFlow() {
 
                       {local
                         ? store.biometricKeyMaterial && (
-                            <AuthNote icon={<InfoIcon className="text-primary" />}>
+                            <AuthNote icon={<InfoIcon className="text-primary-text" />}>
                               <strong className="font-semibold">
                                 Biometric unlock is switched off.
                               </strong>{" "}
@@ -375,7 +375,7 @@ function RecoverFlow() {
                                 </strong>
                                 . Sign in again there with the new password.
                               </AuthNote>
-                              <AuthNote icon={<InfoIcon className="text-primary" />}>
+                              <AuthNote icon={<InfoIcon className="text-primary-text" />}>
                                 <strong className="font-semibold">Two-factor stays on</strong> if
                                 you use it: signing in still asks for a code.
                               </AuthNote>
@@ -433,7 +433,7 @@ function SubmitButton({ loading, children }: { loading: boolean; children: strin
 
 function OfflineNote() {
   return (
-    <AuthNote icon={<WifiOffIcon className="text-primary" />}>
+    <AuthNote icon={<WifiOffIcon className="text-primary-text" />}>
       <strong className="font-semibold">You&apos;re offline.</strong> {RECOVERY_OFFLINE_NOTE}
     </AuthNote>
   );

@@ -9,7 +9,7 @@ export type LightFieldIntensity = "vivid" | "dim";
 export type LightFieldProps = {
   /**
    * `vivid` = the auth screens' full-strength field. `dim` = the signed-in
-   * ground: weaker blobs under a glass-fill veil (web's `ShellBackdrop`).
+   * ground: weaker blobs under a glass-fill veil (web has moved to a flat ground).
    */
   intensity?: LightFieldIntensity;
 };

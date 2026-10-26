@@ -7,11 +7,10 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
-        // Solid violet, no gradient — color is for the light field, not the controls.
-        // Light mode gets the depth dark mode has for free: a top highlight, a
-        // darker rim and a violet drop.
+        // Solid accent, no gradient. Light mode gets the depth dark mode has for
+        // free: a top highlight, a darker rim and an accent drop.
         default:
-          "border-primary-pressed/70 bg-primary/92 text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_1px_2px_rgb(58_36_190/0.3),0_8px_18px_-8px_rgb(110_86_245/0.6)] hover:bg-primary-pressed/92 dark:border-transparent dark:bg-primary dark:shadow-none dark:hover:bg-primary-pressed [a]:hover:bg-primary-pressed",
+          "border-primary-pressed/70 bg-primary/92 text-primary-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.22),0_1px_2px_color-mix(in_oklab,var(--color-primary-pressed)_30%,transparent),0_8px_18px_-8px_color-mix(in_oklab,var(--color-primary)_60%,transparent)] hover:bg-primary-pressed/92 dark:border-transparent dark:bg-primary dark:shadow-none dark:hover:bg-primary-pressed [a]:hover:bg-primary-pressed",
         // Raised: translucent white glass with a lit top edge in light, faint glass in dark.
         outline:
           "border-foreground/8 bg-white/55 text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.8),0_1px_2px_rgb(22_20_31/0.07),0_4px_12px_-6px_rgb(22_20_31/0.12)] backdrop-blur-md backdrop-saturate-140 hover:bg-white/80 aria-expanded:bg-white/80 dark:border-white/14 dark:bg-white/5 dark:shadow-none dark:backdrop-filter-none dark:aria-expanded:bg-white/10 dark:hover:bg-white/10",
@@ -25,8 +24,8 @@ const buttonVariants = cva(
           "border-destructive/16 bg-destructive/9 text-destructive hover:bg-destructive/15 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:border-transparent dark:bg-destructive/15 dark:focus-visible:ring-destructive/40 dark:hover:bg-destructive/25",
         // Chrome that hovers over scrolling content on mobile: frosted, pill-shaped.
         floating:
-          "rounded-full border-foreground/8 bg-white/70 text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_6px_18px_-8px_rgb(22_20_31/0.28)] backdrop-blur-xl backdrop-saturate-160 hover:bg-white/85 aria-expanded:bg-white/85 dark:border-white/14 dark:bg-[rgb(28_26_40/0.62)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_6px_16px_-8px_rgb(0_0_0/0.6)] dark:aria-expanded:bg-[rgb(40_38_54/0.72)] dark:hover:bg-[rgb(40_38_54/0.72)]",
-        link: "justify-start text-primary underline-offset-4 hover:underline dark:text-ring",
+          "rounded-full border-foreground/8 bg-white/70 text-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_6px_18px_-8px_rgb(22_20_31/0.28)] backdrop-blur-xl backdrop-saturate-160 hover:bg-white/85 aria-expanded:bg-white/85 dark:border-white/14 dark:bg-card/62 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_6px_16px_-8px_rgb(0_0_0/0.6)] dark:aria-expanded:bg-muted/72 dark:hover:bg-muted/72",
+        link: "justify-start text-primary-text underline-offset-4 hover:underline",
       },
       size: {
         default:

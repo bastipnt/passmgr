@@ -56,7 +56,7 @@ export function VaultSheet({ open, onOpenChange, counts, total, onNewVault }: Va
             size="lg"
             href={settingsPaths.vaults}
             onClick={() => onOpenChange(false)}
-            className="ml-auto text-primary dark:text-ring"
+            className="ml-auto text-primary-text"
           >
             Manage
           </Link>
@@ -97,11 +97,11 @@ export function VaultSheet({ open, onOpenChange, counts, total, onNewVault }: Va
         <hr className="my-1 border-foreground/10 dark:border-white/10" />
         <ListRow
           media={
-            <span className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/40 border-dashed text-primary dark:text-ring">
+            <span className="grid size-9 shrink-0 place-items-center rounded-full border border-primary/40 border-dashed text-primary-text">
               <PlusIcon aria-hidden className="size-4.5" />
             </span>
           }
-          title={<span className="text-primary dark:text-ring">New vault</span>}
+          title={<span className="text-primary-text">New vault</span>}
           disabled={!canChangeVaults}
           onClick={() => {
             creating.current = true;
@@ -114,5 +114,5 @@ export function VaultSheet({ open, onOpenChange, counts, total, onNewVault }: Va
 }
 
 function SelectedMark() {
-  return <CheckIcon aria-hidden className="size-5 shrink-0 text-primary dark:text-ring" />;
+  return <CheckIcon aria-hidden className="size-5 shrink-0 text-primary-text" />;
 }

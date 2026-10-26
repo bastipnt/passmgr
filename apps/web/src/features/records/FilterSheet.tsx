@@ -78,7 +78,7 @@ export function FilterSheet({
           <Button
             variant="ghost"
             size="lg"
-            className="ml-auto text-primary dark:text-ring"
+            className="ml-auto text-primary-text"
             disabled={activeFilterCount(categoryFilter, tagFilters) === 0}
             onClick={reset}
           >

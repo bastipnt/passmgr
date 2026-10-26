@@ -76,12 +76,7 @@ export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
       <DropdownMenu>
         <DropdownMenuTrigger
           render={
-            <Button
-              variant="ghost"
-              size="sm"
-              type="button"
-              className="w-fit text-primary dark:text-ring"
-            >
+            <Button variant="ghost" size="sm" type="button" className="w-fit text-primary-text">
               <PlusIcon />
               Add field
             </Button>

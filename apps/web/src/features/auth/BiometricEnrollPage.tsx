@@ -64,7 +64,7 @@ export default function BiometricEnrollPage() {
           <ul className="flex flex-col gap-2 text-muted-foreground text-sm">
             {["Stays on this device only", "Turn it off anytime in Settings"].map((item) => (
               <li key={item} className="flex items-center gap-2">
-                <CheckIcon className="size-4 text-primary dark:text-ring" aria-hidden />
+                <CheckIcon className="size-4 text-primary-text" aria-hidden />
                 {item}
               </li>
             ))}

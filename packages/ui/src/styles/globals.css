@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "@repo/ui-shared/theme.css";
+@import "@repo/ui-shared/presets.css";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/dm-sans";
@@ -128,8 +129,9 @@
 }
 
 /*
- * "Dichroic Glass" surfaces (doop canvas "passmgr — auth redesign"). Color
- * lives in the light field behind the UI; panels on top are quiet glass.
+ * "Dichroic Glass" surfaces of the auth screens (doop canvas "passmgr — auth
+ * redesign"). Color lives in the light field behind the UI; panels on top are
+ * quiet glass. The unlocked app replaces them with the flat ground below.
  */
 :root {
   --glass-fill: rgb(255 255 255 / 0.5);
@@ -159,7 +161,7 @@
   --field-opacity: 0.5;
   --sticky-bar-fill: transparent;
   --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
-  --glass-popover-fill: rgb(28 26 40 / 0.72);
+  --glass-popover-fill: color-mix(in oklab, var(--color-popover) 72%, transparent);
   --glass-popover-shadow: inset 0 1px 0 rgb(255 255 255 / 0.1), 0 18px 40px -12px rgb(0 0 0 / 0.7);
 }
 
@@ -171,9 +173,36 @@
     --field-opacity: 0.5;
     --sticky-bar-fill: transparent;
     --edge-tint: color-mix(in oklab, var(--color-background) 85%, rgb(122 92 255));
-    --glass-popover-fill: rgb(28 26 40 / 0.72);
+    --glass-popover-fill: color-mix(in oklab, var(--color-popover) 72%, transparent);
     --glass-popover-shadow:
       inset 0 1px 0 rgb(255 255 255 / 0.1), 0 18px 40px -12px rgb(0 0 0 / 0.7);
+  }
+}
+
+/*
+ * Unlocked app (`useFlatGround`): no light field, one flat ground, and the
+ * glass turns into solid panels without blur. After the dark blocks above,
+ * which it must beat at equal specificity.
+ */
+:root[data-ground="flat"] {
+  --edge-tint: var(--color-background);
+  --glass-fill: var(--color-card);
+  --glass-border: var(--color-border);
+  --glass-shadow:
+    0 1px 2px color-mix(in oklab, var(--color-foreground) 4%, transparent),
+    0 18px 44px -18px color-mix(in oklab, var(--color-foreground) 18%, transparent);
+  --glass-blur: none;
+  --glass-popover-fill: var(--color-popover);
+  --glass-popover-blur: none;
+
+  /* Desktop bars sit in a panel; phone bars sit on the ground itself. */
+  --sticky-bar-fill: var(--color-background);
+  @media (width >= 40rem) {
+    --sticky-bar-fill: var(--glass-fill);
+  }
+
+  @variant dark {
+    --glass-shadow: 0 18px 44px -18px rgb(0 0 0 / 0.6);
   }
 }
 
@@ -266,7 +295,7 @@
   background-color: var(--glass-fill);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-shadow);
-  backdrop-filter: blur(28px) saturate(1.4);
+  backdrop-filter: var(--glass-blur, blur(28px) saturate(1.4));
 
   @media (prefers-reduced-transparency: reduce) {
     background-color: var(--color-card);
@@ -280,7 +309,7 @@
   background-color: var(--glass-popover-fill);
   border: 1px solid var(--glass-border);
   box-shadow: var(--glass-popover-shadow);
-  backdrop-filter: blur(24px) saturate(1.6);
+  backdrop-filter: var(--glass-popover-blur, blur(24px) saturate(1.6));
 
   @media (prefers-reduced-transparency: reduce) {
     background-color: var(--color-popover);

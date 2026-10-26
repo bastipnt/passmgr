@@ -27,7 +27,7 @@ export function FilterTile({
         "relative flex min-h-18 flex-col items-start justify-end gap-1.5 rounded-2xl border border-foreground/10 p-3 text-left font-medium text-sm outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25 dark:border-white/10",
         count === 0 && "text-muted-foreground/70",
         active &&
-          "border-primary/40 bg-primary/10 text-primary hover:bg-primary/15 dark:border-ring/50 dark:bg-primary/20 dark:text-ring",
+          "border-primary/40 bg-primary/10 text-primary-text hover:bg-primary/15 dark:border-ring/50 dark:bg-primary/20",
         className,
       )}
       {...props}

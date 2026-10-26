@@ -2,6 +2,7 @@ import { getPrimaryWebsite, RECORD_TYPE_LABELS, useRecordVault } from "@repo/cli
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
+import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
@@ -9,7 +10,6 @@ import { useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
-import ShellBackdrop from "@/components/ShellBackdrop";
 import Record from "./Record";
 import { FavoriteButton, MoreDropdown, RecordVaultLine } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
@@ -39,6 +39,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   const titleRef = useRef<HTMLHeadingElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   useScrollCollapse(titleRef);
+  useFlatGround();
 
   // The collapsed title ends before the bar's actions (px-4 + their width + gap-2).
   useLayoutEffect(() => {
@@ -57,7 +58,6 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
-      <ShellBackdrop />
       <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-xl" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />

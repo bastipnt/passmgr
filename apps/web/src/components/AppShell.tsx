@@ -1,8 +1,8 @@
 import { ScrollArea } from "@repo/ui/components/ScrollArea";
+import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import type { ComponentProps, ReactNode } from "react";
-import ShellBackdrop from "@/components/ShellBackdrop";
 
 type AppShellProps = {
   header: ReactNode;
@@ -14,15 +14,16 @@ type AppShellProps = {
 };
 
 /**
- * Signed-in frame: a dimmed light field, a floating glass header bar and a
- * main area that fills the rest of the viewport. Phones drop the glass, use
+ * Signed-in frame on the flat ground: a floating header panel and a main area
+ * that fills the rest of the viewport. Phones drop the panels, use
  * the whole screen with a plain header row pinned over the content, and
  * scroll the document (see `MobileVault` for why).
  */
 export function AppShell({ header, subheader, children, mainClassName }: AppShellProps) {
+  useFlatGround();
+
   return (
     <div className="relative isolate flex min-h-dvh flex-col sm:h-dvh sm:gap-4 sm:p-5">
-      <ShellBackdrop />
       <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-20 sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
         {header}
       </header>
@@ -40,13 +41,11 @@ export function AppShell({ header, subheader, children, mainClassName }: AppShel
 }
 
 /**
- * Independently scrolling column of the shell; glass from `sm` up. Phones
+ * Independently scrolling column of the shell; a panel from `sm` up. Phones
  * scroll the document instead, so there it's a plain section. Keep it
  * unpadded so a `PanelHeader` can pin edge to edge — pad the content instead.
  * Scrolls in a `ScrollArea`, whose hover-only scrollbar stays clear of the
  * rounded corners; scroll-padding and the like go in `viewportClassName`.
- * No backdrop blur of its own: with one, Chrome's sticky bars inside blur
- * nothing — and the light field behind is blurred already.
  */
 export function ShellPanel({
   className,
@@ -62,10 +61,7 @@ export function ShellPanel({
   return (
     <ScrollArea
       render={<section />}
-      className={cn(
-        "sm:glass sm:backdrop-filter-none! min-h-0 sm:rounded-[28px] sm:[--scroll-area-inset:28px]",
-        className,
-      )}
+      className={cn("sm:glass min-h-0 sm:rounded-[28px] sm:[--scroll-area-inset:28px]", className)}
       viewportClassName={cn("isolate overscroll-contain", viewportClassName)}
       {...props}
     />

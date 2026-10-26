@@ -55,7 +55,7 @@ it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.trans
 
 ### Testing
 
-Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
+Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`, `ui-shared`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
 
 Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and
 starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE secrets) and tears it down
@@ -133,6 +133,11 @@ Rules:
   `RecordSortMenu`), the record. Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`:
   the same pages, sync card, Lock), the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton`
   → `FilterSheet`, search, sort, new).
+- **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
+  `data-accent` on `<html>` (or any element, for a swatch). Accent as text is `text-primary-text`, never `text-primary`
+  (that's the fill: buttons, the TOTP ring). Meaning colors (strength, warnings, destructive) never take the accent.
+  The light field is for auth screens only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`,
+  `data-ground="flat"` on `<html>`), which gives the flat ground and turns `glass` / `glass-popover` solid without blur.
 - **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'

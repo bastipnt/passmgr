@@ -259,7 +259,7 @@ export default function RestoreBackupPage() {
                 </>
               )}
               {empty && (
-                <AuthNote icon={<InfoIcon className="text-primary" />}>
+                <AuthNote icon={<InfoIcon className="text-primary-text" />}>
                   {foreignImportIntro(empty)}
                 </AuthNote>
               )}

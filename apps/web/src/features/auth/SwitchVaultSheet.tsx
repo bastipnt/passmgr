@@ -172,7 +172,7 @@ function AddLink({
     <Link href={href} className={cn(ROW, ROW_FOCUS, "font-medium text-[0.95rem]")}>
       <span
         aria-hidden
-        className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"
+        className="grid size-11 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary-text"
       >
         <Icon className="size-5" />
       </span>

@@ -45,8 +45,7 @@ export function SidebarItem({
           "flex h-9 w-full items-center gap-2.5 rounded-xl px-2.5 text-left font-medium text-sm outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25 [&_svg]:size-4 [&_svg]:shrink-0",
           collapsed && "relative size-10 justify-center px-0",
           dimmed && "text-muted-foreground/70",
-          active &&
-            "bg-primary/10 text-primary hover:bg-primary/15 dark:bg-primary/20 dark:text-ring",
+          active && "bg-primary/10 text-primary-text hover:bg-primary/15 dark:bg-primary/20",
           className,
         ),
         children: (

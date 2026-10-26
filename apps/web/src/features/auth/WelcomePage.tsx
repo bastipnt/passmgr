@@ -46,7 +46,7 @@ function Choice({ href, icon: Icon, title, primary = false }: ChoiceProps) {
         aria-hidden
         className={cn(
           "grid size-9 shrink-0 place-items-center rounded-[10px] sm:size-11 sm:rounded-xl",
-          primary ? "bg-white/16 ring-1 ring-white/22" : "bg-primary/10 text-primary",
+          primary ? "bg-white/16 ring-1 ring-white/22" : "bg-primary/10 text-primary-text",
         )}
       >
         <Icon className="size-5" />

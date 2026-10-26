@@ -5,12 +5,13 @@ Cross-platform design tokens for [passmgr](../../README.md). Source of truth for
 ## What's in here
 
 - **`src/tokens/theme.css`** — the semantic color palette (`--color-background`, `--color-primary`, …) as CSS custom properties, defined once for both platforms. Exported as `@repo/ui-shared/theme.css`.
+- **`src/tokens/presets.css`** — web only: the accent presets (Berry default on `:root`, others via `data-accent="<preset>"`) that override `theme.css`. `test/presets.test.ts` checks their contrast. Exported as `@repo/ui-shared/presets.css`.
 - **`src/tokens/colors.ts`** — only the colors JS reads directly: `BRAND_COLOR`, `LEVEL_COLOR`, `FIELD_COLORS` (light-field blobs / spectrum text).
 - **`src/hooks/use-website-avatar.ts`** — favicon lookup + fallback hue.
 
 ## Consumers
 
-- `@repo/ui` → `packages/ui/src/styles/globals.css` imports `theme.css` (web)
+- `@repo/ui` → `packages/ui/src/styles/globals.css` imports `theme.css` and `presets.css` (web)
 - `apps/mobile` → `apps/mobile/src/global.css` imports `theme.css` (uniwind `cssEntryFile`)
 
 Both then generate the same utility names (`bg-primary`, `text-primary-foreground`, …).

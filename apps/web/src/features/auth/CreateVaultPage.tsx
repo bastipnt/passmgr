@@ -191,7 +191,7 @@ export default function CreateVaultPage() {
                       <li key={text} className="flex items-center gap-3 text-sm">
                         <span
                           aria-hidden
-                          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary"
+                          className="grid size-8 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary-text"
                         >
                           <Icon className="size-4" />
                         </span>

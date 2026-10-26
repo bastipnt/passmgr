@@ -83,7 +83,7 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
       <Button
         variant="ghost"
         size="sm"
-        className="w-fit text-primary dark:text-ring"
+        className="w-fit text-primary-text"
         onClick={() => append({ value: "" })}
         type="button"
       >

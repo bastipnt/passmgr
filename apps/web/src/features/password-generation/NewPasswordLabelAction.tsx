@@ -33,7 +33,7 @@ export default function NewPasswordLabelAction<T extends NewPasswordFormValues>(
         render={
           <button
             type="button"
-            className="flex cursor-pointer items-center gap-1 font-medium text-primary text-xs hover:underline"
+            className="flex cursor-pointer items-center gap-1 font-medium text-primary-text text-xs hover:underline"
           >
             <WandSparklesIcon className="size-3.5" aria-hidden />
             Generate

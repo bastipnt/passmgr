@@ -6,9 +6,9 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import Link from "@repo/ui/components/Link";
+import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { cn } from "@repo/ui/lib/utils";
 import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
-import ShellBackdrop from "@/components/ShellBackdrop";
 import { VaultSwitcher } from "@/features/vaults";
 import { AccountButton } from "./AccountSheet";
 import { createSheetSearch } from "./CreateRecordSheet";
@@ -22,7 +22,7 @@ function MobileSearchInput() {
   const { query, setQuery } = useSortedRecords();
 
   return (
-    <InputGroup className="h-14 min-w-0 flex-1 rounded-full border-foreground/8 bg-white/50 shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_12px_30px_-12px_rgb(22_20_31/0.3)] backdrop-blur-2xl backdrop-saturate-180 has-[[data-slot=input-group-control]:focus-visible]:bg-white/90 dark:border-white/14 dark:bg-[rgb(28_26_40/0.62)] dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_12px_30px_-12px_rgb(0_0_0/0.7)] dark:has-[[data-slot=input-group-control]:focus-visible]:bg-[rgb(28_26_40/0.8)]">
+    <InputGroup className="h-14 min-w-0 flex-1 rounded-full border-foreground/8 bg-white/50 shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_12px_30px_-12px_rgb(22_20_31/0.3)] backdrop-blur-2xl backdrop-saturate-180 has-[[data-slot=input-group-control]:focus-visible]:bg-white/90 dark:border-white/14 dark:bg-card/62 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_12px_30px_-12px_rgb(0_0_0/0.7)] dark:has-[[data-slot=input-group-control]:focus-visible]:bg-card/80">
       <InputGroupAddon align="inline-start" className="pl-4">
         <SearchIcon className="size-5!" />
       </InputGroupAddon>
@@ -56,7 +56,7 @@ function MobileSearchInput() {
 
 /**
  * Phone vault page, shaped like a native app rather than a shrunken desktop:
- * the list runs edge to edge over the light field under a large title (which
+ * the list runs edge to edge over the ground under a large title (which
  * collapses into the bar on scroll) and the filters that are on, and the
  * controls float over it: the vault pill and the account button on top;
  * filter, search, sort and "new" in a bottom dock. Records open as pushed
@@ -70,6 +70,7 @@ function MobileSearchInput() {
 export default function MobileVault() {
   const { query, sortedRecords, hasGroupLabels } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
+  useFlatGround();
 
   return (
     // --list-top: the bar's exact height (top pad + size-12 buttons + pb-3),
@@ -77,7 +78,6 @@ export default function MobileVault() {
     // down under them (they have none of their own): one blur for bar and label.
     // --list-label-h sits here, not in RecordList, so the bar can read it.
     <div className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.75rem)]">
-      <ShellBackdrop />
       <header
         className={cn(
           "sticky-bar sticky-bar-edge z-20 flex h-(--list-top) shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3",
