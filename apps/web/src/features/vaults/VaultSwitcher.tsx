@@ -20,6 +20,7 @@ import {
 } from "@repo/ui/components/DropdownMenu";
 import Link from "@repo/ui/components/Link";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
+import { cn } from "@repo/ui/lib/utils";
 import {
   ChevronDownIcon,
   ChevronsUpDownIcon,
@@ -35,15 +36,18 @@ import { VaultTile } from "./VaultTile";
 
 type VaultSwitcherProps = {
   /**
-   * `scope`: the vault in view, by name, with a menu (desktop header); `pill`:
+   * `scope`: the vault in view, by name, with a menu (desktop sidebar); `pill`:
    * a floating pill with tile and name opening `VaultSheet` (phone bar), which
    * shrinks to its tile as the page scrolls, making room for the list title.
    */
   variant: "scope" | "pill";
+  /** `scope` on the sidebar rail: the tile only. */
+  collapsed?: boolean;
+  className?: string;
 };
 
 /** Pick the vault the app shows (or all of them), or create one. */
-export function VaultSwitcher({ variant }: VaultSwitcherProps) {
+export function VaultSwitcher({ variant, collapsed = false, className }: VaultSwitcherProps) {
   const { vaults, getVault } = useVaults();
   const counts = useVaultRecordCounts();
   const { vaultFilter, setVaultFilter } = useSortedRecords();
@@ -103,7 +107,12 @@ export function VaultSwitcher({ variant }: VaultSwitcherProps) {
             <Button
               variant="ghost"
               aria-label={`Vault: ${name}`}
-              className="h-10 min-w-0 max-w-56 gap-2.5 pr-2.5 pl-2 font-semibold text-[0.9375rem]"
+              title={collapsed ? name : undefined}
+              className={cn(
+                "h-10 min-w-0 gap-2.5 font-semibold text-[0.9375rem]",
+                collapsed ? "w-10 px-0" : "justify-start pr-2.5 pl-1.5",
+                className,
+              )}
             >
               {current ? (
                 <VaultTile vault={current} size="sm" />
@@ -112,8 +121,12 @@ export function VaultSwitcher({ variant }: VaultSwitcherProps) {
                   <LayersIcon className="size-4" />
                 </span>
               )}
-              <span className="truncate">{name}</span>
-              <ChevronsUpDownIcon className="text-muted-foreground" />
+              {!collapsed && (
+                <>
+                  <span className="flex-1 truncate text-left">{name}</span>
+                  <ChevronsUpDownIcon className="text-muted-foreground" />
+                </>
+              )}
             </Button>
           }
         />

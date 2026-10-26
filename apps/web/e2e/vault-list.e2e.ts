@@ -17,7 +17,7 @@ async function expectListed(page: Page, ids: string[], { ordered = false } = {})
 
 /**
  * Alpha (work, finance) and Beta (favorite; work) in the personal vault,
- * Gamma (work) in a "Work" vault created from the header switcher, which
+ * Gamma (work) in a "Work" vault created from the vault switcher, which
  * then shows it.
  */
 async function seed(page: Page): Promise<Seeded> {
@@ -37,9 +37,7 @@ async function seed(page: Page): Promise<Seeded> {
   return { alpha, beta, gamma };
 }
 
-test("desktop: vault in the header, category, two tags, sort, collapsed sidebar", async ({
-  page,
-}) => {
+test("desktop: vault switcher, category, search, sort, collapsed sidebar", async ({ page }) => {
   const { alpha, beta, gamma } = await seed(page);
   await expectListed(page, [gamma]);
 
@@ -62,14 +60,9 @@ test("desktop: vault in the header, category, two tags, sort, collapsed sidebar"
   await sidebar.getByRole("button", { name: /^All items/ }).click();
   await expectListed(page, [alpha, beta, gamma]);
 
-  const tags = page.getByRole("group", { name: "Tags" });
-  await tags.getByRole("button", { name: "work (3)" }).click();
-  await expectListed(page, [alpha, beta, gamma]);
-  await tags.getByRole("button", { name: "finance (1)" }).click();
-  await expect(tags.getByRole("button", { name: "Remove tag work" })).toBeVisible();
-  await expect(tags.getByRole("button", { name: "Remove tag finance" })).toBeVisible();
+  await page.getByRole("textbox", { name: "Search all vaults" }).fill("Alpha");
   await expectListed(page, [alpha]);
-  await tags.getByRole("button", { name: "Clear" }).click();
+  await page.getByRole("button", { name: "Clear search" }).click();
   await expectListed(page, [alpha, beta, gamma]);
 
   const sortBy = async (label: string) => {
@@ -92,6 +85,8 @@ test("desktop: vault in the header, category, two tags, sort, collapsed sidebar"
   await sidebar.getByRole("button", { name: "Favorites (1)" }).click();
   await expectListed(page, [beta]);
   await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Lock vault" }).click();
+  await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
 });
 
 test("phone: filter sheet, vault sheet, account sheet → Lock", async ({ page }) => {

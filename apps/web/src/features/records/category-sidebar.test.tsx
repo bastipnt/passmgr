@@ -14,6 +14,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { CategorySidebar } from "./CategorySidebar";
 import RecordList from "./RecordList";
+import { SidebarHeader } from "./SidebarHeader";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -50,6 +51,11 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({ getVault: () => undefined }),
 }));
 
+vi.mock("@/features/vaults", async (importActual) => ({
+  ...(await importActual<object>()),
+  VaultSwitcher: () => null,
+}));
+
 // jsdom has no `CSS.supports`; the scroll effects are out of scope here.
 vi.mock("@repo/ui/hooks/use-sticky-label-fade", () => ({ useStickyLabelFade: () => {} }));
 vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
@@ -77,11 +83,8 @@ function Sidebar() {
   const [collapsed, setCollapsed] = useSidebarCollapsed();
   return (
     <div id="sidebar">
-      <CategorySidebar
-        collapsed={collapsed}
-        onCollapsedChange={setCollapsed}
-        controlsId="sidebar"
-      />
+      <SidebarHeader collapsed={collapsed} onCollapsedChange={setCollapsed} controlsId="sidebar" />
+      <CategorySidebar collapsed={collapsed} />
     </div>
   );
 }
@@ -213,6 +216,8 @@ describe("CategorySidebar collapsed", () => {
     const user = renderSidebar();
 
     await user.tab();
+    expect(screen.getByRole("button", { name: "New record" })).toHaveFocus();
+    await user.tab();
 
     expect(category("All items (3)")).toHaveFocus();
     expect(await screen.findByText("All items (3)")).toBeInTheDocument();
@@ -263,5 +268,10 @@ describe("RecordList header", () => {
 
     expect(header()).toHaveTextContent("Logins1");
     expect(screen.getByText(/^tagged/)).toHaveTextContent("tagged work and infra");
+
+    await user.click(screen.getByRole("button", { name: "Clear tags" }));
+
+    expect(screen.queryByText(/^tagged/)).not.toBeInTheDocument();
+    expect(header()).toHaveTextContent("Logins2");
   });
 });

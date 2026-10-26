@@ -32,6 +32,7 @@ import { recordPaths } from "@/app/route-paths";
 import { VaultBadge } from "@/features/vaults";
 import { ActiveFilterChips } from "./ActiveFilterChips";
 import { RecordAvatar } from "./RecordAvatar";
+import { RecordSearch } from "./RecordSearch";
 import { RecordSortMenu } from "./RecordSortMenu";
 
 type RecordRowProps = {
@@ -177,20 +178,30 @@ function MobileListTitle({ title, count }: { title: string; count: number }) {
   );
 }
 
-function TaggedSubtitle({ tags }: { tags: readonly string[] }) {
+function TaggedSubtitle({ tags, onClear }: { tags: readonly string[]; onClear: () => void }) {
   const parts = new Intl.ListFormat("en", { type: "conjunction" }).formatToParts(tags);
   return (
-    <p className="truncate text-muted-foreground text-xs">
-      tagged{" "}
-      {parts.map((part, i) =>
-        part.type === "element" ? (
-          <strong key={i} className="font-semibold text-foreground">
-            {part.value}
-          </strong>
-        ) : (
-          part.value
-        ),
-      )}
+    <p className="flex min-w-0 items-baseline gap-1.5 text-muted-foreground text-xs">
+      <span className="truncate">
+        tagged{" "}
+        {parts.map((part, i) =>
+          part.type === "element" ? (
+            <strong key={i} className="font-semibold text-foreground">
+              {part.value}
+            </strong>
+          ) : (
+            part.value
+          ),
+        )}
+      </span>
+      <button
+        type="button"
+        onClick={onClear}
+        className="shrink-0 font-semibold text-primary-text hover:underline"
+        aria-label="Clear tags"
+      >
+        Clear
+      </button>
     </p>
   );
 }
@@ -207,6 +218,7 @@ export default function RecordList() {
     categoryFilter,
     vaultFilter,
     tagFilters,
+    clearTags,
     sortedRecords,
     recordGroups,
     hasGroupLabels,
@@ -287,7 +299,17 @@ export default function RecordList() {
   // Firefox has no scroll-driven animations; this fades the group labels instead.
   useStickyLabelFade(listRef, ready ? recordGroups : null);
 
-  if (!ready) return <RecordListSkeleton />;
+  if (!ready)
+    return (
+      <>
+        {!isMobile && (
+          <div className="px-3 pt-3">
+            <RecordSearch />
+          </div>
+        )}
+        <RecordListSkeleton />
+      </>
+    );
 
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
@@ -297,8 +319,8 @@ export default function RecordList() {
     <div
       ref={listRef}
       className={cn(
-        "flex flex-col gap-2 pb-3 [--list-bar-h:3.5rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
-        subtitled && "sm:[--list-bar-h:4.25rem]",
+        "flex flex-col gap-2 pb-3 [--list-bar-h:6.75rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
+        subtitled && "sm:[--list-bar-h:7.5rem]",
       )}
     >
       {isMobile ? (
@@ -312,20 +334,23 @@ export default function RecordList() {
       ) : (
         <div
           className={cn(
-            "sticky-bar flex h-(--list-bar-h) items-center justify-between gap-2 px-4.5 pt-1",
+            "sticky-bar flex h-(--list-bar-h) flex-col px-3 pt-3",
             hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
           )}
         >
-          <div className="min-w-0">
-            <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
-              <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
-              <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
-                {sortedRecords.length}
-              </span>
-            </h2>
-            {subtitled && <TaggedSubtitle tags={tagFilters} />}
+          <RecordSearch />
+          <div className="flex min-h-0 flex-1 items-center justify-between gap-2 px-1.5">
+            <div className="min-w-0">
+              <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
+                <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
+                <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
+                  {sortedRecords.length}
+                </span>
+              </h2>
+              {subtitled && <TaggedSubtitle tags={tagFilters} onClear={clearTags} />}
+            </div>
+            <RecordSortMenu />
           </div>
-          <RecordSortMenu />
         </div>
       )}
       {noResults ? (

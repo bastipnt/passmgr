@@ -10,8 +10,7 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
   const issues = usePassMonitorIssueCount();
 
   return (
-    <div className={cn("mt-auto flex flex-col gap-2 p-3 pt-0", collapsed && "items-center")}>
-      <SidebarDivider collapsed={collapsed} />
+    <div className={cn("flex flex-col gap-2", collapsed && "items-center")}>
       <nav aria-label="App">
         <ul className="flex flex-col gap-0.5">
           <li>
@@ -42,6 +41,7 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
           </li>
         </ul>
       </nav>
+      <SidebarDivider collapsed={collapsed} />
       <SyncStatusCard collapsed={collapsed} />
     </div>
   );

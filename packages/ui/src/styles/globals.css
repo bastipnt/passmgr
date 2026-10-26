@@ -197,7 +197,8 @@
   --glass-popover-fill: var(--color-popover);
   --glass-popover-blur: none;
 
-  /* Desktop bars sit in a panel; phone bars sit on the ground itself. */
+  /* Desktop bars sit in a panel (`ShellPanel surface="ground"` sets the ground back);
+   * phone bars sit on the ground itself. */
   --sticky-bar-fill: var(--color-background);
   @media (width >= 40rem) {
     --sticky-bar-fill: var(--glass-fill);
