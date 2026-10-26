@@ -1,6 +1,6 @@
 import { Button } from "@repo/ui/components/Button";
+import { ProfileAvatar } from "@repo/ui/components/ProfileAvatar";
 import { ArrowLeftRightIcon } from "lucide-react";
-import ProfileAvatar from "./ProfileAvatar";
 
 type StoredAccountRowProps = {
   /** Omitted for a vault without an account. */

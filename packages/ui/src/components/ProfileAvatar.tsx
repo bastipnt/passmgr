@@ -8,7 +8,7 @@ type ProfileAvatarProps = {
   hue?: number;
 };
 
-export default function ProfileAvatar({ email, hue }: ProfileAvatarProps) {
+export function ProfileAvatar({ email, hue }: ProfileAvatarProps) {
   return (
     <span
       aria-hidden

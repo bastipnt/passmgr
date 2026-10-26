@@ -1,14 +1,14 @@
 import { SessionContext, type SessionMode, type SyncStatus } from "@repo/client";
-import { secretsStore } from "@repo/store";
+import { type LocalProfile, secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
-import { createFakeStore } from "@/test/fake-store";
+import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
-import { AccountMenu } from "./AccountMenu";
+import { AccountButton } from "./AccountSheet";
 import { SyncStatusCard } from "./SyncStatusMenu";
 
 const store = createFakeStore();
@@ -24,6 +24,7 @@ vi.mock("@repo/client/src/hooks/use-pass-monitor", async (importActual) => ({
 }));
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("./lock-vault", () => ({ useLockVault: () => lockVault }));
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => true }));
 
 const connect = vi.fn(async () => "online" as const);
 const connectWithDevice = vi.fn(async () => "online" as const);
@@ -72,7 +73,7 @@ beforeEach(() => {
   issueCount.value = null;
 });
 
-function renderMenu(mode: SessionMode, networkOffline = false, indicator = <AccountMenu />) {
+function renderMenu(mode: SessionMode, networkOffline = false, indicator = <SyncStatusCard />) {
   const location = memoryLocation({ path: "/", record: true });
   const session = { mode, networkOffline } as ContextType<typeof SessionContext>;
   renderWithProviders(
@@ -83,11 +84,11 @@ function renderMenu(mode: SessionMode, networkOffline = false, indicator = <Acco
   return location;
 }
 
-describe("AccountMenu: sync", () => {
+describe("SyncStatusPopup", () => {
   it("a local vault offers to create an online account", async () => {
     const location = renderMenu("local");
     await userEvent.click(
-      screen.getByRole("button", { name: /sync status: On this device only$/ }),
+      screen.getByRole("button", { name: /^Sync status: On this device only$/ }),
     );
     const create = await screen.findByRole("menuitem", { name: "Create online account" });
     expect(screen.queryByRole("menuitem", { name: "Sync now" })).toBeNull();
@@ -99,7 +100,7 @@ describe("AccountMenu: sync", () => {
   it("offline is a state, not an error: no sync, the changes wait on the device", async () => {
     status = { ...status, phase: "offline", pending: 2 };
     renderMenu("online", true);
-    await userEvent.click(screen.getByRole("button", { name: /sync status: Offline$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: Offline$/ }));
     expect(await screen.findByText(/2 changes saved on this device/)).toBeTruthy();
     expect(screen.queryByRole("menuitem", { name: "Sync now" })).toBeNull();
   });
@@ -107,7 +108,7 @@ describe("AccountMenu: sync", () => {
   it("syncs on demand while online", async () => {
     status = { ...status, pending: 1, lastSyncedAt: Date.now() };
     renderMenu("online");
-    await userEvent.click(screen.getByRole("button", { name: /sync status: 1 change waiting$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: 1 change waiting$/ }));
     expect(await screen.findByText("Last synced just now")).toBeTruthy();
 
     await userEvent.click(await screen.findByRole("menuitem", { name: "Sync now" }));
@@ -117,7 +118,7 @@ describe("AccountMenu: sync", () => {
   it("a failed round can be synced again by hand", async () => {
     status = { ...status, phase: "error", error: "boom" };
     renderMenu("online");
-    await userEvent.click(screen.getByRole("button", { name: /sync status: Sync failed$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: Sync failed$/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Sync now" }));
     expect(sync).toHaveBeenCalledOnce();
   });
@@ -126,7 +127,7 @@ describe("AccountMenu: sync", () => {
     status = { ...status, pending: 1, parked: 1 };
     renderMenu("online");
     await userEvent.click(
-      screen.getByRole("button", { name: /sync status: Some changes didn't sync$/ }),
+      screen.getByRole("button", { name: /^Sync status: Some changes didn't sync$/ }),
     );
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry failed changes" }));
     expect(retryParked).toHaveBeenCalledOnce();
@@ -137,7 +138,7 @@ describe("AccountMenu: sync", () => {
     secretsStore.keepOpaquePassword(new Uint8Array(32).fill(1));
     status = { ...status, phase: "offline" };
     renderMenu("offline");
-    await userEvent.click(screen.getByRole("button", { name: /sync status: Not connected$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: Not connected$/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
     expect(connect).toHaveBeenCalledWith(new Uint8Array(32).fill(1));
   });
@@ -152,7 +153,7 @@ describe("AccountMenu: sync", () => {
     };
     status = { ...status, phase: "offline" };
     renderMenu("offline");
-    await userEvent.click(screen.getByRole("button", { name: /sync status: Not connected$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: Not connected$/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Connect now" }));
     await waitFor(() => expect(connectWithDevice).toHaveBeenCalledTimes(1));
     expect(take).toHaveBeenCalledWith("cred");
@@ -162,7 +163,7 @@ describe("AccountMenu: sync", () => {
   it("no connect by hand without the password, or without network", async () => {
     status = { ...status, phase: "offline" };
     renderMenu("offline");
-    await userEvent.click(screen.getByRole("button", { name: /sync status: Not connected$/ }));
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status: Not connected$/ }));
     await screen.findByRole("menuitem", { name: "Account & sync" });
     expect(screen.queryByRole("menuitem", { name: "Connect now" })).toBeNull();
   });
@@ -227,12 +228,12 @@ describe("SyncStatusCard", () => {
   });
 });
 
-describe("AccountMenu", () => {
+describe("AccountButton", () => {
   const button = () => screen.getByRole("button", { name: /^Account/ });
 
   it("names the Pass Monitor issues and the sync state, with an amber badge", () => {
     issueCount.value = 3;
-    renderMenu("online");
+    renderMenu("online", false, <AccountButton />);
     expect(button()).toHaveAccessibleName("Account, 3 Pass Monitor issues, sync status: Synced");
     expect(button()).toHaveTextContent("3");
   });
@@ -243,7 +244,7 @@ describe("AccountMenu", () => {
       const { unmount } = renderWithProviders(
         <Router hook={memoryLocation({ path: "/" }).hook}>
           <SessionContext.Provider value={{ mode: "local" } as ContextType<typeof SessionContext>}>
-            <AccountMenu />
+            <AccountButton />
           </SessionContext.Provider>
         </Router>,
       );
@@ -252,19 +253,75 @@ describe("AccountMenu", () => {
       unmount();
     }
   });
+});
 
-  it("links the Pass Monitor and Settings, and locks", async () => {
-    const location = renderMenu("local");
-    await userEvent.click(button());
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Pass Monitor" }));
-    await waitFor(() => expect(location.history.at(-1)).toBe(passMonitorPaths.index));
+describe("AccountSheet", () => {
+  const openSheet = async () => userEvent.click(screen.getByRole("button", { name: /^Account/ }));
 
-    await userEvent.click(button());
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Lock vault" }));
+  afterEach(() => {
+    store.profile = null;
+    store.profiles = [];
+  });
+
+  it("shows the profile: an account by its email, a local vault by its name", async () => {
+    store.profile = { profileId: "p1", mode: "linked", userId: "u1", email: "jana@example.com" };
+    renderMenu("online", false, <AccountButton />);
+    await openSheet();
+    expect(await screen.findByText("jana@example.com")).toBeInTheDocument();
+    expect(screen.getByText("Synced account")).toBeInTheDocument();
+  });
+
+  it("a local vault is on this device", async () => {
+    const profile: LocalProfile = { profileId: "p2", mode: "local", email: null, userId: null };
+    store.profile = profile;
+    store.profiles = [profileEntry(profile, "Home")];
+    renderMenu("local", false, <AccountButton />);
+    await openSheet();
+    expect(await screen.findByText("Home")).toBeInTheDocument();
+    expect(screen.getByText("On this device only")).toBeInTheDocument();
+  });
+
+  it.each([
+    ["Pass Monitor", passMonitorPaths.index],
+    ["Account & sync", settingsPaths.account],
+    ["Settings", settingsPaths.index],
+  ])("%s pushes its page and closes the sheet", async (name, path) => {
+    const location = renderMenu("local", false, <AccountButton />);
+    await openSheet();
+    await userEvent.click(await screen.findByRole("link", { name: new RegExp(`^${name}`) }));
+    await waitFor(() => expect(location.history.at(-1)).toBe(path));
+    await waitFor(() => expect(screen.queryByRole("link", { name: /^Settings/ })).toBeNull());
+  });
+
+  it("names the Pass Monitor issues on its row", async () => {
+    issueCount.value = 2;
+    renderMenu("online", false, <AccountButton />);
+    await openSheet();
+    expect(
+      await screen.findByRole("link", { name: /^Pass Monitor.*2 issues$/ }),
+    ).toBeInTheDocument();
+  });
+
+  it("has the sync card, with sync now", async () => {
+    renderMenu("online", false, <AccountButton />);
+    await openSheet();
+    await userEvent.click(await screen.findByRole("button", { name: "Sync now" }));
+    expect(sync).toHaveBeenCalledOnce();
+  });
+
+  it("its sync card opens the sync menu", async () => {
+    renderMenu("local", false, <AccountButton />);
+    await openSheet();
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Sync status: On this device only" }),
+    );
+    expect(await screen.findByRole("menuitem", { name: "Create online account" })).toBeVisible();
+  });
+
+  it("locks", async () => {
+    renderMenu("local", false, <AccountButton />);
+    await openSheet();
+    await userEvent.click(await screen.findByRole("button", { name: "Lock vault" }));
     expect(lockVault).toHaveBeenCalledOnce();
-
-    await userEvent.click(button());
-    await userEvent.click(await screen.findByRole("menuitem", { name: "Settings" }));
-    await waitFor(() => expect(location.history.at(-1)).toBe(settingsPaths.index));
   });
 });

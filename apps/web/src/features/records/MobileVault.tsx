@@ -10,7 +10,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
 import ShellBackdrop from "@/components/ShellBackdrop";
 import { VaultSwitcher } from "@/features/vaults";
-import { AccountMenu } from "./AccountMenu";
+import { AccountButton } from "./AccountSheet";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { FilterButton } from "./FilterSheet";
 import { NoSearchResults } from "./NoSearchResults";
@@ -86,7 +86,7 @@ export default function MobileVault() {
       >
         <VaultSwitcher variant="pill" />
         <span className="flex-1" />
-        <AccountMenu />
+        <AccountButton />
       </header>
 
       <div className="flex-1">

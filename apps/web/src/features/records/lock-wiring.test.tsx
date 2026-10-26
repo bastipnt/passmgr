@@ -8,7 +8,7 @@ import { renderWithProviders, screen } from "@/test/render";
 import RecordLayout from "./RecordLayout";
 
 // Every lock entry point goes through `useLockVault` (it ends the server session);
-// the hook itself is covered in lock-vault.test.ts, the phone's (AccountMenu) in
+// the hook itself is covered in lock-vault.test.ts, the phone's (AccountSheet) in
 // sync-status-menu.test.tsx.
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("./lock-vault", () => ({ useLockVault: () => lockVault }));

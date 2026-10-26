@@ -7,7 +7,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { renderWithProviders, screen } from "@/test/render";
+import { settingsPaths } from "@/app/route-paths";
+import { renderWithProviders, screen, waitFor } from "@/test/render";
 import { VaultSwitcher } from "./VaultSwitcher";
 
 function makeRecord(id: string, vaultId: string, data: RecordData): DecryptedRecord {
@@ -50,7 +51,12 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
     ]),
   useVaultActions: () => ({ canChangeVaults: true }),
 }));
-vi.mock("./VaultDialog", () => ({ VaultDialog: () => null }));
+vi.mock("./VaultDialog", () => ({
+  VaultDialog: ({ open }: { open: boolean }) => (open ? <dialog open>New vault</dialog> : null),
+}));
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => true }));
+// jsdom has no `CSS.supports`; the pill's collapse is out of scope here.
+vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
 
 function ListProbe() {
   const { sortedRecords, categoryFilter, setCategoryFilter } = useSortedRecords();
@@ -69,15 +75,17 @@ function ListProbe() {
   );
 }
 
-function renderSwitcher() {
-  return renderWithProviders(
-    <Router hook={memoryLocation({ path: "/" }).hook}>
+function renderSwitcher(variant: "scope" | "pill" = "scope") {
+  const location = memoryLocation({ path: "/", record: true });
+  renderWithProviders(
+    <Router hook={location.hook}>
       <SortedRecordsProvider>
-        <VaultSwitcher variant="scope" />
+        <VaultSwitcher variant={variant} />
         <ListProbe />
       </SortedRecordsProvider>
     </Router>,
   );
+  return location;
 }
 
 const shown = () =>
@@ -120,5 +128,52 @@ describe("header vault scope switcher", () => {
     expect(category()).toBe("all");
     expect(shown()).toEqual(["Hetzner"]);
     expect(screen.getByRole("button", { name: "Vault: Koch Studio" })).toBeInTheDocument();
+  });
+});
+
+describe("phone vault sheet", () => {
+  const sheet = () => screen.getByRole("dialog");
+
+  it("lists every vault with its item count, a check on the current one", async () => {
+    renderSwitcher("pill");
+    await userEvent.click(screen.getByRole("button", { name: "Vault: All vaults" }));
+
+    const all = await screen.findByRole("button", { name: /^All vaults\s*3 items/ });
+    expect(all).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("button", { name: /^Personal\s*2 items/ })).toHaveAttribute(
+      "aria-pressed",
+      "false",
+    );
+    expect(screen.getByRole("button", { name: /^Koch Studio\s*1 item$/ })).toBeInTheDocument();
+  });
+
+  it("a pick scopes the list, resets the category and closes the sheet", async () => {
+    const user = userEvent.setup();
+    renderSwitcher("pill");
+    await user.click(screen.getByRole("button", { name: "Cards" }));
+    expect(category()).toBe("card");
+
+    await user.click(screen.getByRole("button", { name: "Vault: All vaults" }));
+    await user.click(await screen.findByRole("button", { name: /^Koch Studio/ }));
+
+    expect(category()).toBe("all");
+    expect(shown()).toEqual(["Hetzner"]);
+    expect(screen.getByRole("button", { name: "Vault: Koch Studio" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("Manage opens the vault settings", async () => {
+    const location = renderSwitcher("pill");
+    await userEvent.click(screen.getByRole("button", { name: "Vault: All vaults" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Manage" }));
+    await waitFor(() => expect(location.history.at(-1)).toBe(settingsPaths.vaults));
+  });
+
+  it("New vault closes the sheet for the create dialog", async () => {
+    renderSwitcher("pill");
+    await userEvent.click(screen.getByRole("button", { name: "Vault: All vaults" }));
+    expect(sheet()).toHaveTextContent("Vaults");
+    await userEvent.click(await screen.findByRole("button", { name: "New vault" }));
+    await waitFor(() => expect(screen.getByRole("dialog")).toHaveTextContent(/^New vault$/));
   });
 });

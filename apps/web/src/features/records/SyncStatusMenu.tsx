@@ -102,7 +102,8 @@ const CARD_TRIGGER_CLASS =
   "rounded-xl outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25";
 
 /**
- * The desktop sidebar's sync card: a dot and two lines, opening `SyncStatusPopup`.
+ * The sync card of the desktop sidebar and the phone's account sheet: a dot and
+ * two lines, opening `SyncStatusPopup`.
  * `collapsed` (the icon rail) keeps only the dot, the lines in its tooltip.
  */
 export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {

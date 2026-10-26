@@ -12,13 +12,13 @@ import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { ResponsiveSheet, SheetDrawerHeader } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { FieldError } from "@repo/ui/components/Field";
+import { ProfileAvatar } from "@repo/ui/components/ProfileAvatar";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { ArchiveRestoreIcon, LogInIcon, type LucideIcon, PlusIcon, TrashIcon } from "lucide-react";
 import { useState } from "react";
 import { Link } from "wouter";
 import { authPaths } from "@/app/route-paths";
-import ProfileAvatar from "./ProfileAvatar";
 
 const TITLE = "Switch vault";
 const DESCRIPTION = "Vaults on this device, last opened first.";
