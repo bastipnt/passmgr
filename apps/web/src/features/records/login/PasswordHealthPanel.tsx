@@ -7,9 +7,10 @@ import {
   useStoredBreachCount,
 } from "@repo/client";
 import { type DecryptedRecord, isRecordType } from "@repo/schema";
+import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import { ExternalLink } from "@repo/ui/components/ExternalLink";
 import { cn } from "@repo/ui/lib/utils";
-import { CheckIcon, MinusIcon, TriangleAlertIcon } from "lucide-react";
+import { CheckIcon, MinusIcon, ShieldCheckIcon, TriangleAlertIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 
@@ -29,7 +30,7 @@ const TONE_CLASS: Record<Tone, string> = {
 
 function HealthRow({ tone, title, detail }: { tone: Tone; title: string; detail: ReactNode }) {
   return (
-    <li className="flex items-center gap-3 px-4 py-3">
+    <li className="flex min-h-12 items-center gap-3 py-2.5">
       <span
         className={cn(
           "grid size-6 shrink-0 place-items-center rounded-full [&_svg]:size-3.5",
@@ -65,11 +66,8 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
   const reused = health.reusedIn.length > 0;
 
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-        Password health
-      </h2>
-      <ul className="divide-y divide-foreground/8 rounded-2xl border border-foreground/10 bg-white/60 max-sm:-mx-4 max-sm:rounded-none max-sm:border-x-0 max-sm:bg-transparent dark:divide-white/8 dark:border-white/10 dark:bg-white/3 max-sm:dark:bg-transparent max-sm:[&>li]:px-5">
+    <DetailSection title="Password health" icon={<ShieldCheckIcon />}>
+      <ul className="divide-y divide-foreground/8 border-foreground/8 border-y dark:divide-white/8 dark:border-white/8">
         <HealthRow
           tone={!strength ? "neutral" : strong ? "good" : "warn"}
           title={strength ? `${strength.label} password` : "Checking strength"}
@@ -109,6 +107,6 @@ export function PasswordHealthPanel({ record }: { record: DecryptedRecord }) {
           }
         />
       </ul>
-    </section>
+    </DetailSection>
   );
 }

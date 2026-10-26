@@ -28,7 +28,7 @@ function makeRecord(version: number, fields: Partial<LoginRecord>): DecryptedRec
 /** The wrapper carrying the diff colours for a field, found by its title. */
 function cellFor(title: string) {
   const heading = screen.getByText(title);
-  const cell = heading.closest("[data-slot='item-group']");
+  const cell = heading.closest("[data-slot='detail-field-group']");
   expect(cell).not.toBeNull();
   return cell as HTMLElement;
 }
@@ -36,7 +36,7 @@ function cellFor(title: string) {
 function cellsFor(title: string) {
   return screen
     .getAllByText(title)
-    .map((node) => node.closest("[data-slot='item-group']") as HTMLElement);
+    .map((node) => node.closest("[data-slot='detail-field-group']") as HTMLElement);
 }
 
 describe("VersionDetail", () => {

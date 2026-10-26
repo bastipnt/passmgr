@@ -6,7 +6,7 @@ import {
   useRecordHistory,
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
-import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
+import { DetailFieldGroup } from "@repo/ui/complex-components/DetailField";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
@@ -72,9 +72,9 @@ function DiffCell({
   return (
     <div>
       {caption && <p className="mb-1 text-muted-foreground text-xs sm:sr-only">{caption}</p>}
-      <ItemDisplayGroup className={CELL_CLASS[status][side]}>
+      <DetailFieldGroup variant="card" className={CELL_CLASS[status][side]}>
         <LoginFieldDisplay spec={spec} />
-      </ItemDisplayGroup>
+      </DetailFieldGroup>
     </div>
   );
 }

@@ -28,6 +28,7 @@ const SIZES = {
   default: { tile: "size-9 rounded-[10px]", icon: "size-[1.125rem]" },
   md: { tile: "size-[2.625rem] rounded-xl", icon: "size-5" },
   lg: { tile: "size-14 rounded-2xl", icon: "size-7" },
+  xl: { tile: "size-16 rounded-[1.125rem]", icon: "size-8" },
 } as const;
 
 type RecordTypeTileProps = {

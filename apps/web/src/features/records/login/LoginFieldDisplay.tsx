@@ -2,32 +2,25 @@ import {
   type FieldSpec,
   PREF_KEYS,
   REVEAL_TIMEOUT_DEFAULT_SECONDS,
-  usePasswordStrength,
   usePreference,
 } from "@repo/client";
-import { ItemDisplay } from "@repo/ui/complex-components/ItemDisplay";
-import Link from "@repo/ui/components/Link";
+import { DetailField } from "@repo/ui/complex-components/DetailField";
+import { buttonVariants } from "@repo/ui/components/Button";
+import { cn } from "@repo/ui/lib/utils";
 import { websiteLink } from "@repo/util";
-import {
-  EarthIcon,
-  KeyIcon,
-  LockIcon,
-  MailIcon,
-  NotebookPenIcon,
-  TagIcon,
-  TextIcon,
-} from "lucide-react";
+import { ExternalLinkIcon } from "lucide-react";
+import { shortcutHint } from "@/lib/formatShortcut";
+import { RECORD_SHORTCUTS } from "../use-record-actions";
 import TotpField from "./TotpField";
 
 export type OnCopy = (value: string | undefined, label: string) => void;
 
-/** Historical revisions are read-only, so their fields render without a copy action. */
-const noCopy: OnCopy = () => {};
-
 type LoginFieldDisplayProps = {
   spec: FieldSpec;
-  /** Omit to render the field without a copy action. */
+  /** Omit to render the field without a copy action (a historical revision). */
   onCopy?: OnCopy;
+  /** Show the copy shortcuts of the record on screen next to their fields. */
+  showShortcuts?: boolean;
 };
 
 /**
@@ -35,40 +28,59 @@ type LoginFieldDisplayProps = {
  * (`@repo/client`), so everything web-specific — components, icons, copy
  * behaviour — lives here.
  */
-export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldDisplayProps) {
+export default function LoginFieldDisplay({
+  spec,
+  onCopy,
+  showShortcuts = false,
+}: LoginFieldDisplayProps) {
   const [revealSeconds] = usePreference<number>(
     PREF_KEYS.revealTimeoutSeconds,
     REVEAL_TIMEOUT_DEFAULT_SECONDS,
   );
   const revealTimeoutMs = revealSeconds * 1_000;
-  const strength = usePasswordStrength(spec.kind === "password" ? spec.value : undefined);
+  const copy = (value: string | undefined) => onCopy && (() => onCopy(value, spec.label));
 
   switch (spec.kind) {
     case "title":
+    case "text":
       return (
-        <ItemDisplay title={spec.label} value={spec.value} onClick={() => {}} icon={<TagIcon />} />
+        <DetailField
+          label={spec.label}
+          value={spec.value}
+          onCopy={copy(spec.copyValue ?? spec.value)}
+        />
       );
 
     case "username":
       return (
-        <ItemDisplay
-          title={spec.label}
+        <DetailField
+          label={spec.label}
           value={spec.value}
-          onClick={() => onCopy(spec.value, spec.label)}
-          icon={<MailIcon />}
+          onCopy={copy(spec.value)}
+          shortcut={showShortcuts ? shortcutHint(RECORD_SHORTCUTS.copyUsername) : undefined}
         />
       );
 
     case "password":
       return (
-        <ItemDisplay
-          title={spec.label}
+        <DetailField
+          label={spec.label}
           value={spec.value}
-          onClick={({ type }) => type === "copy" && onCopy(spec.value, spec.label)}
-          icon={<KeyIcon />}
-          variant={spec.value ? "password" : "noAction"}
-          strength={strength ?? undefined}
+          hidden
           revealTimeoutMs={revealTimeoutMs}
+          onCopy={copy(spec.value)}
+          shortcut={showShortcuts ? shortcutHint(RECORD_SHORTCUTS.copyPassword) : undefined}
+        />
+      );
+
+    case "secret":
+      return (
+        <DetailField
+          label={spec.label}
+          value={spec.value}
+          hidden
+          revealTimeoutMs={revealTimeoutMs}
+          onCopy={copy(spec.copyValue ?? spec.value)}
         />
       );
 
@@ -77,55 +89,50 @@ export default function LoginFieldDisplay({ spec, onCopy = noCopy }: LoginFieldD
 
     case "websites":
       return (
-        <ItemDisplay
-          title={spec.label}
+        <DetailField
+          label={spec.label}
           value={
             <ul>
-              {spec.values
-                ?.map((value) => websiteLink(value))
-                .map(({ text, href }, i) => (
-                  <li key={i}>
-                    {href ? (
-                      <Link target="_blank" href={href} className="p-0">
-                        {text}
-                      </Link>
-                    ) : (
-                      <span className="break-all">{text}</span>
-                    )}
-                  </li>
-                ))}
+              {spec.values?.map((value, i) => (
+                <li key={i}>{websiteLink(value).text}</li>
+              ))}
             </ul>
           }
-          onClick={() => {}}
-          icon={<EarthIcon />}
-          variant="noAction"
+          multiline
         />
       );
 
     case "note":
       return (
-        <ItemDisplay
-          title={spec.label}
-          value={<span className="wrap-break-word whitespace-pre-line">{spec.value}</span>}
-          onClick={() => {}}
-          icon={<NotebookPenIcon />}
-          variant="noAction"
-        />
-      );
-
-    case "text":
-    case "secret":
-      return (
-        <ItemDisplay
-          title={spec.label}
-          value={spec.value}
-          onClick={({ type }) =>
-            type === "copy" && onCopy(spec.copyValue ?? spec.value, spec.label)
-          }
-          icon={spec.kind === "secret" ? <LockIcon /> : <TextIcon />}
-          variant={spec.kind === "secret" ? "hidden" : "default"}
-          revealTimeoutMs={revealTimeoutMs}
-        />
+        <DetailField label={spec.label} value={spec.value} multiline onCopy={copy(spec.value)} />
       );
   }
+}
+
+export function WebsiteRow({ value, onCopy }: { value: string; onCopy?: OnCopy }) {
+  const { text, href } = websiteLink(value);
+
+  return (
+    <DetailField
+      value={text}
+      copyLabel="website"
+      onCopy={onCopy && (() => onCopy(value, "Website"))}
+      actions={
+        href && (
+          <a
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${text}`}
+            className={cn(
+              buttonVariants({ variant: "ghost", size: "icon-sm" }),
+              "text-muted-foreground",
+            )}
+          >
+            <ExternalLinkIcon />
+          </a>
+        )
+      }
+    />
+  );
 }

@@ -107,7 +107,7 @@ type MultipleRecordDetailsItemProps = BaseRecordDetailsItemProps & {
 };
 
 /**
- * One field of a record, as web's `ItemDisplay` at phone width: icon tile,
+ * One field of a record: icon tile,
  * small label, value — and the whole row is the copy button. Secrets get a
  * trailing eye toggle.
  */

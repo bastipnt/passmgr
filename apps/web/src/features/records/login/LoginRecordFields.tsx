@@ -1,67 +1,73 @@
 import { type FieldGroup, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
-import { ItemDisplayGroup } from "@repo/ui/complex-components/ItemDisplay";
+import { DetailCodeBlock, DetailFieldGroup } from "@repo/ui/complex-components/DetailField";
+import { DetailSection } from "@repo/ui/complex-components/DetailSection";
+import { EarthIcon, FileTextIcon, ListPlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
-import { RecordTags } from "../RecordTags";
+import { RECORD_TYPE_ICONS } from "../RecordAvatar";
 import { useCopyField } from "../record-utils";
 import { HistorySection } from "./HistorySection";
-import LoginFieldDisplay from "./LoginFieldDisplay";
+import LoginFieldDisplay, { WebsiteRow } from "./LoginFieldDisplay";
 import { PasswordHealthPanel } from "./PasswordHealthPanel";
 import { PreviousSecretsSection } from "./PreviousSecretsSection";
 
 type LoginRecordFieldsProps = {
   record: DecryptedRecord;
-  /** Type-specific extras above the history (a Wi-Fi's QR code). */
+  /** Type-specific extras above the previous secrets (a Wi-Fi's QR code). */
   extra?: ReactNode;
 };
-
-// The title is the page heading, so it isn't repeated as a field. The
-// type-specific group takes its label from the record type.
-const COLUMNS: { group: FieldGroup; label?: string }[][] = [
-  [{ group: "fields" }, { group: "custom", label: "Extra fields" }],
-  [
-    { group: "websites", label: "Websites" },
-    { group: "note", label: "Note" },
-  ],
-];
 
 export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
   const specs = getRecordFieldSpecs(record, { includeDerived: true });
   const copyField = useCopyField();
+  const TypeIcon = RECORD_TYPE_ICONS[record.type];
+  const inGroup = (group: FieldGroup) => specs.filter((spec) => spec.group === group);
+
+  const fields = inGroup("fields");
+  const [websites] = inGroup("websites");
+  const [note] = inGroup("note");
+  const custom = inGroup("custom");
 
   return (
-    <div className="grid items-start gap-6 xl:grid-cols-2">
-      {COLUMNS.map((column, i) => (
-        <div key={i} className="flex flex-col gap-6">
-          {column.map(({ group, label }) => {
-            const groupSpecs = specs.filter((spec) => spec.group === group);
-            if (groupSpecs.length === 0) return null;
-
-            return (
-              <section key={group} className="flex flex-col gap-2">
-                <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-                  {label ?? RECORD_TYPE_LABELS[record.type].fields}
-                </h2>
-                {/* Full-bleed rows on phones, like a native grouped list. */}
-                <ItemDisplayGroup flushOnMobile>
-                  {groupSpecs.map((spec) => (
-                    <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} />
-                  ))}
-                </ItemDisplayGroup>
-              </section>
-            );
-          })}
-          {i === 1 && (
-            <>
-              <RecordTags record={record} />
-              {extra}
-              <PasswordHealthPanel record={record} />
-              <PreviousSecretsSection record={record} />
-              <HistorySection record={record} />
-            </>
-          )}
-        </div>
-      ))}
+    <div className="flex flex-col gap-8">
+      {fields.length > 0 && (
+        <DetailSection title={RECORD_TYPE_LABELS[record.type].fields} icon={<TypeIcon />}>
+          <DetailFieldGroup>
+            {fields.map((spec) => (
+              <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} showShortcuts />
+            ))}
+          </DetailFieldGroup>
+        </DetailSection>
+      )}
+      <PasswordHealthPanel record={record} />
+      {websites?.values && (
+        <DetailSection title="Websites" icon={<EarthIcon />} count={websites.values.length}>
+          <DetailFieldGroup>
+            {websites.values.map((value, i) => (
+              <WebsiteRow key={i} value={value} onCopy={copyField} />
+            ))}
+          </DetailFieldGroup>
+        </DetailSection>
+      )}
+      {note?.value && (
+        <DetailSection title="Note" icon={<FileTextIcon />}>
+          <DetailCodeBlock copyLabel="note" onCopy={() => copyField(note.value, "Note")}>
+            {note.value}
+          </DetailCodeBlock>
+        </DetailSection>
+      )}
+      {custom.length > 0 && (
+        <DetailSection title="Extra fields" icon={<ListPlusIcon />} count={custom.length}>
+          <DetailFieldGroup>
+            {custom.map((spec) => (
+              <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} />
+            ))}
+          </DetailFieldGroup>
+        </DetailSection>
+      )}
+      {extra}
+      <PreviousSecretsSection record={record} />
+      <HistorySection record={record} />
     </div>
   );
 }

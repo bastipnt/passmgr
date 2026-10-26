@@ -1,5 +1,6 @@
 import { qrCodePath, wifiQrPayload } from "@repo/client";
 import type { WifiRecord } from "@repo/schema";
+import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import { Button } from "@repo/ui/components/Button";
 import { EyeOffIcon, QrCodeIcon } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -30,11 +31,8 @@ export function WifiQrCode({ record }: { record: WifiRecord }) {
   const box = (qr?.size ?? 0) + QUIET_ZONE * 2;
 
   return (
-    <section className="flex flex-col gap-2">
-      <h2 className="px-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-        Share network
-      </h2>
-      <div className="flex flex-col items-start gap-3 rounded-2xl border border-foreground/10 p-4 dark:border-white/10">
+    <DetailSection title="Share network" icon={<QrCodeIcon />}>
+      <div className="flex flex-col items-start gap-3 border-foreground/8 border-y py-3 dark:border-white/8">
         {qr && (
           <svg
             viewBox={`${-QUIET_ZONE} ${-QUIET_ZONE} ${box} ${box}`}
@@ -55,6 +53,6 @@ export function WifiQrCode({ record }: { record: WifiRecord }) {
           {shown ? "Hide QR code" : "Show QR code"}
         </Button>
       </div>
-    </section>
+    </DetailSection>
   );
 }

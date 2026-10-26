@@ -12,13 +12,17 @@ function secretSpecs(record: DecryptedRecord): Map<string, FieldSpec> {
   );
 }
 
+function usedUntilLabel(spec: FieldSpec, date: string): string {
+  return spec.kind === "password" ? `Used until ${date}` : `${spec.label} · used until ${date}`;
+}
+
 /**
  * Every value a password or secret field held before it was changed or cleared,
  * newest replacement first. `record` is the version on screen; `history` is its
  * stored revisions newest first (`useRecordHistory`), which may lag behind it or
  * miss revisions that don't decrypt, so the current values come from `record`.
- * Each comes back as a `secret` field spec labelled with the field and the date it
- * was replaced. A value any secret field holds now (also after a custom field was
+ * Each comes back as a `secret` field spec labelled with the date it was replaced
+ * (and the field, unless it is the record's own password). A value any secret field holds now (also after a custom field was
  * renamed) is left out; one replaced more than once is listed once, at its latest
  * replacement.
  */
@@ -45,7 +49,7 @@ export function previousSecrets(record: DecryptedRecord, history: DecryptedRecor
         ...spec,
         key: `${key}@${version.version}`,
         kind: "secret",
-        label: `${spec.label} · until ${toLocalDateStr(newer.clientUpdatedAt)}`,
+        label: usedUntilLabel(spec, toLocalDateStr(newer.clientUpdatedAt)),
       });
     }
     newer = version;

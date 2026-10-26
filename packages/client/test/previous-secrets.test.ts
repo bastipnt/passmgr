@@ -37,8 +37,8 @@ describe("previousSecrets", () => {
     const entries = previous(login(1, "a"), login(2, "b"), login(3, "b"), login(4, "c"));
 
     expect(entries.map(({ value, label }) => [value, label])).toEqual([
-      ["b", `Password · until ${until(4)}`],
-      ["a", `Password · until ${until(2)}`],
+      ["b", `Used until ${until(4)}`],
+      ["a", `Used until ${until(2)}`],
     ]);
   });
 
@@ -62,8 +62,8 @@ describe("previousSecrets", () => {
     const entries = previousSecrets(login(3, "c"), [login(2, "b"), login(1, "a")]);
 
     expect(entries.map(({ value, label }) => [value, label])).toEqual([
-      ["b", `Password · until ${until(3)}`],
-      ["a", `Password · until ${until(2)}`],
+      ["b", `Used until ${until(3)}`],
+      ["a", `Used until ${until(2)}`],
     ]);
   });
 
@@ -75,7 +75,7 @@ describe("previousSecrets", () => {
     );
 
     expect(entries.map(({ value, label }) => [value, label])).toEqual([
-      ["1111", `PIN · until ${until(2)}`],
+      ["1111", `PIN · used until ${until(2)}`],
     ]);
   });
 

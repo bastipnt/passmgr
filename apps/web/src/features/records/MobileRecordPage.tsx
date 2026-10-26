@@ -1,4 +1,4 @@
-import { getPrimaryWebsite, RECORD_TYPE_LABELS, useRecordVault } from "@repo/client";
+import { getPrimaryWebsite, useRecordVault } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
@@ -11,9 +11,10 @@ import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
 import Record from "./Record";
-import { FavoriteButton, MoreDropdown, RecordVaultLine } from "./RecordActions";
+import { FavoriteButton, MoreDropdown } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
+import { RecordSubtitle } from "./RecordSubtitle";
 import { useCopyField } from "./record-utils";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 
@@ -35,7 +36,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   const password = record.type === "login" || record.type === "wifi" ? record.password : undefined;
   const primaryWebsite = getPrimaryWebsite(record);
   const hasDock = Boolean(password || primaryWebsite);
-  const { vault, writable, showVault } = useRecordVault(record);
+  const { writable } = useRecordVault(record);
   const titleRef = useRef<HTMLHeadingElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
   useScrollCollapse(titleRef);
@@ -103,7 +104,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       >
         <RecordAvatar record={record} size="lg" />
         <div className="flex min-w-0 flex-col pt-9">
-          {primaryWebsite ? (
+          {primaryWebsite && (
             <a
               href={primaryWebsite.url}
               target="_blank"
@@ -113,18 +114,12 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
               {primaryWebsite.host}
               <ExternalLinkIcon className="size-3.5" aria-hidden />
             </a>
-          ) : (
-            record.type !== "login" && (
-              <span className="text-muted-foreground text-sm">
-                {RECORD_TYPE_LABELS[record.type].type}
-              </span>
-            )
           )}
-          {showVault && vault && <RecordVaultLine vault={vault} writable={writable} />}
+          <RecordSubtitle record={record} />
         </div>
       </div>
 
-      <div className="relative flex-1 px-4 pt-2 pb-[max(env(safe-area-inset-bottom),1rem)]">
+      <div className="relative flex-1 px-4 pt-5 pb-[max(env(safe-area-inset-bottom),1rem)]">
         <Record record={record} />
       </div>
 

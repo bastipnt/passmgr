@@ -51,6 +51,12 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
   };
 }
 
+export const RECORD_SHORTCUTS = {
+  copyPassword: "$mod+Shift+c",
+  copyUsername: "$mod+Shift+u",
+  edit: "$mod+e",
+} as const;
+
 /**
  * Record-scoped shortcuts. Register these **once per screen** — `useRecordActions`
  * runs in several components at once, and registering there would mean the same
@@ -68,21 +74,25 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
     record?.type === "login" || record?.type === "wifi" ? record.password : undefined;
   const username = record?.type === "login" ? record.username : undefined;
 
-  useShortcut("$mod+Shift+c", () => copyField(password, "Password"), {
+  useShortcut(RECORD_SHORTCUTS.copyPassword, () => copyField(password, "Password"), {
     description: "Copy password",
     enabled: ready && !!password,
     allowInInput: true,
   });
 
-  useShortcut("$mod+Shift+u", () => copyField(username, "Username"), {
+  useShortcut(RECORD_SHORTCUTS.copyUsername, () => copyField(username, "Username"), {
     description: "Copy username",
     enabled: ready && !!username,
     allowInInput: true,
   });
 
-  useShortcut("$mod+e", () => navigate(recordPaths.editRecord(recordId), { replace: true }), {
-    description: "Edit record",
-    enabled: ready && !!record,
-    allowInInput: true,
-  });
+  useShortcut(
+    RECORD_SHORTCUTS.edit,
+    () => navigate(recordPaths.editRecord(recordId), { replace: true }),
+    {
+      description: "Edit record",
+      enabled: ready && !!record,
+      allowInInput: true,
+    },
+  );
 }

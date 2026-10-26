@@ -1,6 +1,4 @@
 import {
-  getPrimaryWebsite,
-  RECORD_TYPE_LABELS,
   recordErrorMessage,
   ShortcutLayer,
   useMoveRecord,
@@ -21,13 +19,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
+import { Kbd } from "@repo/ui/components/Kbd";
 import Link from "@repo/ui/components/Link";
 import { cn } from "@repo/ui/lib/utils";
 import {
   CopyPlusIcon,
   EllipsisIcon,
-  ExternalLinkIcon,
-  LockIcon,
   PencilLineIcon,
   StarIcon,
   Timeline,
@@ -36,9 +33,12 @@ import {
 import { useState } from "react";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { VaultBadge, VaultTile } from "@/features/vaults";
+import { VaultTile } from "@/features/vaults";
+import { shortcutHint } from "@/lib/formatShortcut";
 import { duplicateSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
+import { RecordSubtitle } from "./RecordSubtitle";
+import { RECORD_SHORTCUTS } from "./use-record-actions";
 
 type MoreDropdownProps = {
   record: DecryptedRecord;
@@ -183,35 +183,16 @@ type RecordActionsProps = {
 };
 
 export function RecordActions({ record, onDelete, className }: RecordActionsProps) {
-  const { recordId, title } = record;
-  const primaryWebsite = getPrimaryWebsite(record);
-  const { vault, writable, showVault } = useRecordVault(record);
+  const { writable } = useRecordVault(record);
 
   return (
-    <div className={cn("flex flex-row items-center justify-between gap-4", className)}>
-      <div className="flex min-w-0 flex-row items-center gap-4">
-        <RecordAvatar record={record} size="lg" />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <h1 className="truncate font-bold font-display text-3xl tracking-[-0.02em]">{title}</h1>
-          {primaryWebsite ? (
-            <a
-              href={primaryWebsite.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex w-fit items-center gap-1.5 text-muted-foreground text-sm hover:text-foreground"
-            >
-              {primaryWebsite.host}
-              <ExternalLinkIcon className="size-3.5" aria-hidden />
-            </a>
-          ) : (
-            record.type !== "login" && (
-              <span className="text-muted-foreground text-sm">
-                {RECORD_TYPE_LABELS[record.type].type}
-              </span>
-            )
-          )}
-          {showVault && vault && <RecordVaultLine vault={vault} writable={writable} />}
-        </div>
+    <div className={cn("flex items-start gap-4.5", className)}>
+      <RecordAvatar record={record} size="xl" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2.5 pt-1">
+        <h1 className="truncate font-display font-extrabold text-[2.5rem] leading-none tracking-[-0.035em]">
+          {record.title}
+        </h1>
+        <RecordSubtitle record={record} />
       </div>
 
       <div className="flex shrink-0 items-center gap-2">
@@ -220,37 +201,19 @@ export function RecordActions({ record, onDelete, className }: RecordActionsProp
           <Link
             variant="outline"
             size="lg"
-            className="h-10 font-medium text-sm"
+            className="h-10 gap-1.5 pr-2.5 pl-3.5 font-medium text-sm"
             aria-label="Edit"
-            href={recordPaths.editRecord(recordId)}
+            href={recordPaths.editRecord(record.recordId)}
           >
             <PencilLineIcon />
             Edit
+            <Kbd aria-hidden className="ml-1 border border-foreground/10 bg-transparent">
+              {shortcutHint(RECORD_SHORTCUTS.edit)}
+            </Kbd>
           </Link>
         )}
         <MoreDropdown record={record} onDelete={onDelete} />
       </div>
     </div>
-  );
-}
-
-/** Which vault the record is in, and that it's read-only there. */
-export function RecordVaultLine({
-  vault,
-  writable,
-}: {
-  vault: Parameters<typeof VaultBadge>[0]["vault"];
-  writable: boolean;
-}) {
-  return (
-    <span className="flex items-center gap-2 text-muted-foreground text-sm">
-      <VaultBadge vault={vault} />
-      {!writable && (
-        <span className="inline-flex items-center gap-1">
-          <LockIcon className="size-3.5" aria-hidden />
-          Read only
-        </span>
-      )}
-    </span>
   );
 }

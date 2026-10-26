@@ -1,6 +1,5 @@
 import { Redirect, useParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { PanelHeader } from "@/components/AppShell";
 import Record from "./Record";
 import { RecordActions } from "./RecordActions";
 import { RecordFallback } from "./RecordFallback";
@@ -15,12 +14,9 @@ function RecordScreen({ recordId }: { recordId: string }) {
   if (!record) return <Redirect to={recordPaths.index} replace />;
 
   return (
-    <section>
-      <PanelHeader className="block px-6 pt-6 pb-5 lg:px-7 lg:pt-7">
+    <section className="px-8 pt-7.5 pb-10 xl:px-16">
+      <div className="flex max-w-160 flex-col gap-8">
         <RecordActions record={record} onDelete={() => deleteRecord(recordId)} />
-      </PanelHeader>
-
-      <div className="px-6 pt-2 pb-6 lg:px-7 lg:pb-7">
         <Record record={record} />
       </div>
     </section>

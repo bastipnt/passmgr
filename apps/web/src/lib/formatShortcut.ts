@@ -33,3 +33,11 @@ export function formatShortcut(key: string): string[] {
     return part;
   });
 }
+
+/** A binding as one compact hint: "⌘⇧C" on a Mac, "Ctrl+Shift+C" elsewhere. */
+export function shortcutHint(key: string): string {
+  const tokens = formatShortcut(key);
+  return isMac
+    ? tokens.map((token) => (token === "Shift" ? "⇧" : token)).join("")
+    : tokens.join("+");
+}

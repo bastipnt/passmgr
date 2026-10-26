@@ -24,7 +24,7 @@ type SectionGroupProps = {
 
 /**
  * Edge-to-edge run of rows with hairlines between them and above/below — the
- * shape web's `ItemDisplayGroup flushOnMobile` takes at phone width.
+ * shape web's `DetailFieldGroup` takes.
  */
 export function SectionGroup({ children, className }: SectionGroupProps) {
   // `toArray` drops nulls and assigns stable keys, so separators keyed off it
