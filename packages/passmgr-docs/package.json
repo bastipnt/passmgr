@@ -11,12 +11,12 @@
     "format": "biome format --write"
   },
   "dependencies": {
-    "cn": "^0.4.0",
-    "fumadocs-core": "16.17.1",
+    "cn": "^0.5.0",
+    "fumadocs-core": "16.17.5",
     "fumadocs-mdx": "15.4.7",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.17.1",
-    "lucide-react": "^1.50.0",
-    "next": "16.3.8",
+    "lucide-react": "^1.59.0",
+    "next": "16.4.2",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
@@ -26,7 +26,7 @@
     "@types/node": "^26.6.4",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.31",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "@biomejs/biome": "^2.5.15"
