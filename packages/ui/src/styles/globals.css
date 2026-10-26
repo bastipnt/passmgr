@@ -495,6 +495,32 @@
   }
 }
 
+/* `sticky-label` for a label with controls (a fold toggle): clickable while
+ * pinned, inert from the first pixel it's pushed, so it never takes a click
+ * meant for the bar's buttons it slides over. */
+@utility sticky-label-interactive {
+  position: sticky;
+  top: var(--sticky-label-top, 0px);
+
+  @supports (animation-timeline: view()) {
+    animation-name: sticky-label-exit, sticky-label-inert;
+    animation-timing-function: linear;
+    animation-fill-mode: both;
+    animation-timeline: view(block var(--sticky-label-top, 0px) 0px);
+    animation-range: exit 0% exit 100%;
+  }
+}
+
+@keyframes sticky-label-inert {
+  0% {
+    pointer-events: auto;
+  }
+  1%,
+  100% {
+    pointer-events: none;
+  }
+}
+
 /* Drives --scroll-collapse from 0 to 1 over the first --scroll-collapse-range
  * of its nearest scroller's scroll, for scroll-linked styles written as calc()s
  * of it (e.g. a large title shrinking into the bar above). Browsers without

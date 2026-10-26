@@ -9,6 +9,8 @@ export const PREF_KEYS = {
   /** Same key as web's `ThemeProvider` (`<theme key>-accent`). */
   accent: "pass-mgr-theme-accent",
   sort: "pass-mgr-sort",
+  /** Web "All vaults" list: grouped by vault ("By vault" in the sort menu). */
+  groupByVault: "pass-mgr-group-by-vault",
   /** "all" or a vault id; a vault this profile doesn't have reads as "all". */
   vaultFilter: "pass-mgr-vault-filter",
   /** Per profile: see `biometricDismissedKey`. */

@@ -10,6 +10,7 @@ import {
 import {
   activeFilterCount,
   type CategoryFilter,
+  type RecordGroup,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
@@ -26,11 +27,11 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
-import { ChevronRightIcon, StarIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, StarIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { VaultBadge } from "@/features/vaults";
+import { VaultTile } from "@/features/vaults";
 import { ActiveFilterChips } from "./ActiveFilterChips";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSearch } from "./RecordSearch";
@@ -42,7 +43,7 @@ type RecordRowProps = {
   record: DecryptedRecord;
   active: boolean;
   isMobile: boolean;
-  /** "All vaults" with more than one: the vault it's in. */
+  /** Marked on the avatar where the list mixes several vaults. */
   vault?: VaultInfo;
   registerRef: (id: string, el: HTMLAnchorElement | null) => void;
 };
@@ -54,10 +55,16 @@ type RecordRowProps = {
  */
 function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowProps) {
   // scroll-mt: RecordLayout's scroll padding covers the bar without the chips.
+  // --vault-mark-ring: the row's own fill (Item's hover / active tints over the list's).
   return (
     <Item
       variant={active ? "active" : "default"}
-      className="group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)"
+      className={cn(
+        active
+          ? "[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_10%,var(--sticky-bar-fill))] hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_15%,var(--sticky-bar-fill))] dark:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_20%,var(--sticky-bar-fill))]"
+          : "hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_5%,var(--sticky-bar-fill))]",
+        "group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)",
+      )}
       render={
         <Link
           href={recordPaths.record(record.recordId)}
@@ -66,7 +73,7 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
       }
     >
       <ItemMedia className="max-sm:self-center! max-sm:translate-y-0!">
-        <RecordAvatar record={record} size={isMobile ? "md" : "default"} />
+        <RecordAvatar record={record} size={isMobile ? "md" : "default"} vault={vault} />
       </ItemMedia>
       <ItemContent className="min-w-0 gap-0 max-sm:flex-row max-sm:items-center max-sm:gap-2 max-sm:self-stretch max-sm:border-foreground/8 max-sm:border-t max-sm:pr-4 max-sm:group-first/row:border-t-0 dark:max-sm:border-white/8">
         <div className="min-w-0 flex-1">
@@ -80,12 +87,6 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
             )}
           </ItemTitle>
           <ItemDescription className="line-clamp-1 text-[0.8rem] max-sm:text-sm">
-            {vault && (
-              <>
-                <VaultBadge vault={vault} className="max-w-[45%] align-bottom" />
-                {" · "}
-              </>
-            )}
             {getRecordSubtitle(record) || "—"}
           </ItemDescription>
         </div>
@@ -95,6 +96,42 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
         />
       </ItemContent>
     </Item>
+  );
+}
+
+/** "By vault": the group's sticky label, with the vault, its record count and a fold toggle. */
+function VaultGroupHeader({
+  group,
+  vault,
+  controls,
+  onToggle,
+}: {
+  group: RecordGroup;
+  vault: VaultInfo;
+  controls: string;
+  onToggle: (vaultId: string) => void;
+}) {
+  return (
+    <h3 className="sticky-label-interactive z-11 flex h-(--list-label-h) items-center px-3 [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:items-end max-sm:px-2.5 max-sm:pb-0.5">
+      <button
+        type="button"
+        aria-expanded={!group.folded}
+        aria-controls={controls}
+        onClick={() => onToggle(vault.vaultId)}
+        className="flex w-full items-center gap-2 rounded-xl px-2 py-1 text-left outline-none hover:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring/50"
+      >
+        <VaultTile vault={vault} size="xs" />
+        <span className="truncate font-semibold text-sm">{vault.name}</span>
+        <span className="text-muted-foreground text-xs tabular-nums">{group.records.length}</span>
+        <ChevronDownIcon
+          className={cn(
+            "ml-auto size-4 shrink-0 text-muted-foreground transition-transform",
+            group.folded && "-rotate-90",
+          )}
+          aria-hidden
+        />
+      </button>
+    </h3>
   );
 }
 
@@ -192,21 +229,21 @@ export default function RecordList() {
   const {
     query,
     categoryFilter,
-    vaultFilter,
     tagFilters,
     sortedRecords,
     recordGroups,
     hasGroupLabels,
     noteOpened,
+    showVaultBadges,
+    toggleVaultFold,
   } = useSortedRecords();
-  const { getVault, hasSeveralVaults } = useVaults();
-  const shownVault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
-  // Rows name their vault where the list mixes several.
+  const { getVault } = useVaults();
   const rowVault = (record: DecryptedRecord) =>
-    hasSeveralVaults && !shownVault ? getVault(record.vaultId) : undefined;
+    showVaultBadges ? getVault(record.vaultId) : undefined;
   const isMobile = useIsMobile();
   const panel = useSearchPanel(!isMobile);
   const listboxId = useId();
+  const groupsId = useId();
   const recordRefs = useRef(new Map<string, HTMLAnchorElement>());
   const shouldFocusRef = useRef(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -314,7 +351,9 @@ export default function RecordList() {
     );
 
   const hasQuery = query.trim().length > 0;
-  const noResults = hasQuery && sortedRecords.length === 0;
+  // Folded "By vault" groups still count: they are listed, only collapsed.
+  const listedCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
+  const noResults = hasQuery && listedCount === 0;
   const filtered = activeFilterCount(categoryFilter, tagFilters) > 0;
 
   return (
@@ -327,10 +366,7 @@ export default function RecordList() {
     >
       {isMobile ? (
         <>
-          <MobileListTitle
-            title={listHeading(categoryFilter, hasQuery)}
-            count={sortedRecords.length}
-          />
+          <MobileListTitle title={listHeading(categoryFilter, hasQuery)} count={listedCount} />
           <ActiveFilterChips />
         </>
       ) : (
@@ -345,7 +381,7 @@ export default function RecordList() {
             <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
               <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
               <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
-                {sortedRecords.length}
+                {listedCount}
               </span>
             </h2>
             <RecordSortMenu />
@@ -360,7 +396,7 @@ export default function RecordList() {
       {noResults ? (
         // Phones show the full "no results" state in the layout instead.
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
-      ) : sortedRecords.length === 0 ? (
+      ) : listedCount === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">
           <EmptyRecordList categoryFilter={categoryFilter} tagFilters={tagFilters} />
         </div>
@@ -369,20 +405,34 @@ export default function RecordList() {
           className={cn("flex flex-col gap-1 max-sm:gap-0", hasGroupLabels && "-mt-2 max-sm:mt-0")}
         >
           {recordGroups.map((recordGroup) => (
-            <section key={recordGroup.label ?? "all"}>
+            <section key={recordGroup.vault?.vaultId ?? recordGroup.label ?? "all"}>
               {/* No frost of its own: the bar's reaches exactly --list-label-h
                   under it. z-11 keeps the label above that frost (sticky-bar is z-10;
                   on phones it's MobileVault's z-20 header, so z-21, under the z-25
                   dock); sticky-label fades it out as the next group pushes it into
                   the bar. Pushed up there it overlaps the bar's buttons, faded but
-                  still hit-testable — hence pointer-events-none. */}
-              {recordGroup.label && (
-                <h3 className="sticky-label pointer-events-none z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
-                  {recordGroup.label}
-                </h3>
+                  still hit-testable — hence pointer-events-none (the vault header:
+                  sticky-label-interactive). */}
+              {recordGroup.vault ? (
+                <VaultGroupHeader
+                  group={recordGroup}
+                  vault={recordGroup.vault}
+                  controls={`${groupsId}-${recordGroup.vault.vaultId}`}
+                  onToggle={toggleVaultFold}
+                />
+              ) : (
+                recordGroup.label && (
+                  <h3 className="sticky-label pointer-events-none z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
+                    {recordGroup.label}
+                  </h3>
+                )
               )}
               {/* One wrapper per group, so each group's first row drops its hairline. */}
-              <ItemGroup className="gap-1 px-3 max-sm:gap-0 max-sm:px-0">
+              <ItemGroup
+                id={recordGroup.vault && `${groupsId}-${recordGroup.vault.vaultId}`}
+                hidden={recordGroup.folded}
+                className="gap-1 px-3 max-sm:gap-0 max-sm:px-0"
+              >
                 {recordGroup.records.map((record) => (
                   <RecordRow
                     key={record.recordId}

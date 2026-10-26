@@ -1,4 +1,4 @@
-import { getRecordWebsites, RECORD_TYPE_HUES } from "@repo/client";
+import { getRecordWebsites, RECORD_TYPE_HUES, type VaultInfo } from "@repo/client";
 import type { RecordData, RecordType } from "@repo/schema";
 import { hueTint } from "@repo/ui/lib/hue-tint";
 import { cn } from "@repo/ui/lib/utils";
@@ -12,6 +12,7 @@ import {
   SquareTerminalIcon,
   WifiIcon,
 } from "lucide-react";
+import { VaultMark } from "@/features/vaults";
 import { WebsiteAvatar } from "./WebsiteAvatar";
 
 export const RECORD_TYPE_ICONS: Record<RecordType, LucideIcon> = {
@@ -57,12 +58,23 @@ export function RecordTypeTile({ type, size = "default", className }: RecordType
 type RecordAvatarProps = {
   record: RecordData;
   size?: keyof typeof SIZES;
+  /** Marked in the bottom-right corner (a list mixing several vaults). */
+  vault?: VaultInfo;
 };
 
 /** A login's site icon (or initial); every other type shows its type icon. */
-export function RecordAvatar({ record, size = "default" }: RecordAvatarProps) {
-  if (record.type === "login") {
-    return <WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} size={size} />;
-  }
-  return <RecordTypeTile type={record.type} size={size} />;
+export function RecordAvatar({ record, size = "default", vault }: RecordAvatarProps) {
+  const avatar =
+    record.type === "login" ? (
+      <WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} size={size} />
+    ) : (
+      <RecordTypeTile type={record.type} size={size} />
+    );
+  if (!vault) return avatar;
+  return (
+    <span className="relative flex shrink-0">
+      {avatar}
+      <VaultMark vault={vault} className="absolute -right-1 -bottom-1" />
+    </span>
+  );
 }

@@ -140,9 +140,14 @@ function RecordOptionRow({
   active: boolean;
 }) {
   const { record, match } = option;
+  const { canGroupByVault } = useSortedRecords();
+  const { getVault } = useVaults();
   return (
     <>
-      <RecordAvatar record={record} />
+      <RecordAvatar
+        record={record}
+        vault={canGroupByVault ? getVault(record.vaultId) : undefined}
+      />
       <span className="flex min-w-0 flex-1 flex-col">
         <span
           className={cn("truncate font-semibold text-[0.95rem]", active && "text-primary-text")}
@@ -282,8 +287,9 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
                       tabIndex={-1}
                       onClick={() => choose(option)}
                       className={cn(
-                        "flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-2.5 py-2 hover:bg-foreground/4 dark:hover:bg-white/6",
-                        isActive && "border-primary/25 bg-primary/8 dark:bg-primary/15",
+                        "flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-2.5 py-2 hover:bg-foreground/4 dark:hover:bg-white/6 hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_4%,var(--sticky-bar-fill))] dark:hover:[--vault-mark-ring:color-mix(in_oklab,white_6%,var(--sticky-bar-fill))]",
+                        isActive &&
+                          "border-primary/25 bg-primary/8 [--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_8%,var(--sticky-bar-fill))] dark:bg-primary/15 dark:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_15%,var(--sticky-bar-fill))]",
                         option.kind === "tag" && option.dimmed && !isActive && "opacity-50",
                       )}
                     >

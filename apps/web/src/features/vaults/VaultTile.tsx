@@ -55,7 +55,28 @@ export function VaultTile({ vault, size = "default", className }: VaultTileProps
   );
 }
 
-/** The vault's name after a small tile, inline (a record's vault in "All vaults"). */
+/**
+ * The vault's initial on a small solid tile in its colour, for a corner of a
+ * record's avatar. Ringed in `--vault-mark-ring` (default: the list's fill),
+ * which a row sets to its own background.
+ */
+export function VaultMark({ vault, className }: { vault: VaultInfo; className?: string }) {
+  return (
+    <span
+      title={vault.name}
+      style={{ backgroundColor: `oklch(0.58 0.15 ${vaultHue(vault)})` }}
+      className={cn(
+        "grid size-4 place-items-center rounded-[5px] font-bold text-[0.5625rem] text-white leading-none ring-(--vault-mark-ring,var(--sticky-bar-fill)) ring-2",
+        className,
+      )}
+    >
+      <span aria-hidden>{vault.name.charAt(0).toUpperCase()}</span>
+      <span className="sr-only">In {vault.name}</span>
+    </span>
+  );
+}
+
+/** The vault's name after a small tile, inline. */
 export function VaultBadge({ vault, className }: { vault: VaultInfo; className?: string }) {
   return (
     <span className={cn("inline-flex min-w-0 items-center gap-1.5", className)}>

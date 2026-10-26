@@ -7,4 +7,4 @@ export { VaultInvitations } from "./VaultInvitations";
 export { VaultMembersDialog } from "./VaultMembersDialog";
 export { VaultPicker } from "./VaultPicker";
 export { VaultSwitcher } from "./VaultSwitcher";
-export { VaultBadge, VaultTile } from "./VaultTile";
+export { VaultBadge, VaultMark, VaultTile } from "./VaultTile";

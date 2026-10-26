@@ -27,7 +27,13 @@ import { collectTags, filterByTags, type TagCount } from "../records/tags";
 import type { VaultFilter, VaultInfo } from "../vaults/vault-info";
 
 export type SortOption = "most-recent" | "alphabetical" | "newest" | "oldest";
-export type RecordGroup = { label: string | null; records: DecryptedRecord[] };
+export type RecordGroup = {
+  label: string | null;
+  records: DecryptedRecord[];
+  /** "By vault": the group's vault; `folded` hides its records (kept for the count). */
+  vault?: VaultInfo;
+  folded?: boolean;
+};
 /** Which records the list shows: every one, the starred ones (of any type), or one type. */
 export type CategoryFilter = RecordType | "all" | "favorites";
 
@@ -148,7 +154,7 @@ function getDateBucket(ts: string | null): (typeof BUCKET_ORDER)[number] {
   return "Older";
 }
 
-/** The label of the starred records' group, atop the list in every sort. */
+/** The label of the starred records' group, atop the list in every sort (not "By vault"). */
 export const FAVORITES_LABEL = "Favorites";
 
 /**
@@ -214,6 +220,32 @@ function groupBySort(sortedRecords: DecryptedRecord[], sort: SortOption): Record
       label: b,
       records: bucketMap.get(b)!,
     }));
+}
+
+/**
+ * "By vault": a group per vault in the vaults' order, each in the list's order
+ * with its starred records first (no favorites group across vaults).
+ */
+function groupRecordsByVault(
+  sortedRecords: DecryptedRecord[],
+  vaults: readonly VaultInfo[],
+  folded: ReadonlySet<string>,
+): RecordGroup[] {
+  return vaults.flatMap((vault) => {
+    const records = sortedRecords.filter((record) => record.vaultId === vault.vaultId);
+    if (records.length === 0) return [];
+    return [
+      {
+        label: vault.name,
+        vault,
+        folded: folded.has(vault.vaultId),
+        records: [
+          ...records.filter((record) => record.favorite),
+          ...records.filter((record) => !record.favorite),
+        ],
+      },
+    ];
+  });
 }
 
 function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRecord[] {
@@ -355,6 +387,15 @@ type SortedRecordsContextValue = {
   setQuery: (query: string) => void;
   sort: SortOption;
   handleSortChange: (value: string) => void;
+  /** "By vault" is on (a device preference); it applies only while `canGroupByVault`. */
+  groupByVault: boolean;
+  setGroupByVault: (on: boolean) => void;
+  /** "All vaults" with more than one in view. */
+  canGroupByVault: boolean;
+  /** "By vault" folds, for this session only. */
+  toggleVaultFold: (vaultId: string) => void;
+  /** Rows mark their vault on the avatar: "All vaults" with several, unless grouped by vault. */
+  showVaultBadges: boolean;
   /** The list's category. A search keeps to it, unless `searchAll`. */
   categoryFilter: CategoryFilter;
   setCategoryFilter: (category: CategoryFilter) => void;
@@ -386,7 +427,7 @@ type SortedRecordsContextValue = {
   tags: TagCount[];
   /** Every record carrying `tag`: the other filters and the search cleared. */
   showTag: (tag: string) => void;
-  /** The listed records in the order shown (favorites first). */
+  /** The listed records in the order shown, folded groups left out. */
   sortedRecords: DecryptedRecord[];
   recordGroups: RecordGroup[];
   /** Whether any group carries a label (none do while searching). */
@@ -484,11 +525,20 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const [vaultFilter, setStoredVaultFilter] = useVaultFilter();
   const vaultTags = useTags(vaultFilter);
   const [tagFilters, setTagFilters] = useTagFilters(vaultTags);
+  const { vaults, hasSeveralVaults } = useVaults();
+  const [storedGroupByVault, setGroupByVault] = usePreference<boolean>(
+    PREF_KEYS.groupByVault,
+    false,
+  );
+  const groupByVault = storedGroupByVault === true;
+  const [foldedVaults, setFoldedVaults] = useState<ReadonlySet<string>>(() => new Set());
   const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
 
   const hasQuery = query.trim().length > 0;
+  const canGroupByVault = vaultFilter === "all" && hasSeveralVaults;
+  const groupedByVault = groupByVault && canGroupByVault && !hasQuery;
   const vaultRecords = useMemo(() => filterByVault(records, vaultFilter), [records, vaultFilter]);
   const taggedRecords = useMemo(
     () => filterByTags(vaultRecords, tagFilters),
@@ -532,13 +582,36 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
                 : recordMatches.map(({ record }) => record),
             },
           ]
-        : groupRecords(sortRecords(browsed, sort), sort, categoryFilter),
-    [hasQuery, search, searchScope, recordMatches, browsed, sort, categoryFilter],
+        : groupedByVault
+          ? groupRecordsByVault(sortRecords(browsed, sort), vaults, foldedVaults)
+          : groupRecords(sortRecords(browsed, sort), sort, categoryFilter),
+    [
+      hasQuery,
+      search,
+      searchScope,
+      recordMatches,
+      browsed,
+      sort,
+      categoryFilter,
+      groupedByVault,
+      vaults,
+      foldedVaults,
+    ],
   );
-  // In the order shown: favorites first, so arrow keys walk the list as it reads.
+  // In the order shown, so arrow keys walk the list as it reads.
   const sortedRecords = useMemo(
-    () => recordGroups.flatMap((recordGroup) => recordGroup.records),
+    () => recordGroups.flatMap((recordGroup) => (recordGroup.folded ? [] : recordGroup.records)),
     [recordGroups],
+  );
+
+  const toggleVaultFold = useCallback(
+    (vaultId: string) =>
+      setFoldedVaults((folded) => {
+        const next = new Set(folded);
+        if (!next.delete(vaultId)) next.add(vaultId);
+        return next;
+      }),
+    [],
   );
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
@@ -619,6 +692,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setQuery,
       sort,
       handleSortChange,
+      groupByVault,
+      setGroupByVault,
+      canGroupByVault,
+      toggleVaultFold,
+      showVaultBadges: canGroupByVault && !groupedByVault,
       categoryFilter,
       setCategoryFilter,
       categoryCounts,
@@ -648,6 +726,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setQuery,
       sort,
       handleSortChange,
+      groupByVault,
+      setGroupByVault,
+      canGroupByVault,
+      toggleVaultFold,
+      groupedByVault,
       categoryFilter,
       categoryCounts,
       vaultFilter,

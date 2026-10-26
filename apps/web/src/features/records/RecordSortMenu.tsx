@@ -3,11 +3,13 @@ import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/Sorted
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { ArrowUpDownIcon } from "lucide-react";
@@ -18,7 +20,8 @@ type RecordSortMenuProps = {
 };
 
 export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
-  const { sort, handleSortChange } = useSortedRecords();
+  const { sort, handleSortChange, groupByVault, setGroupByVault, canGroupByVault } =
+    useSortedRecords();
   const fab = variant === "fab";
 
   return (
@@ -56,6 +59,14 @@ export function RecordSortMenu({ variant = "inline" }: RecordSortMenuProps) {
             ))}
           </DropdownMenuRadioGroup>
         </DropdownMenuGroup>
+        {canGroupByVault && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuCheckboxItem checked={groupByVault} onCheckedChange={setGroupByVault}>
+              By vault
+            </DropdownMenuCheckboxItem>
+          </>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

@@ -514,6 +514,11 @@ Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star 
 history as "Added to / Removed from favorites", shared with every member of a shared vault; `read` members only see it).
 `SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
 normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
+Web "All vaults" with several vaults (`canGroupByVault`): rows carry a vault letter badge on the avatar (`VaultMark`,
+`showVaultBadges`, search results too); "By vault" in `RecordSortMenu` (`groupByVault`, device pref) groups by vault
+instead (sort inside, starred first per vault, no favorites group, no badges); its headers are sticky like the
+other labels (`sticky-label-interactive`: clickable while pinned, inert once pushed) and fold for the session
+(`toggleVaultFold`; folded rows left out of `sortedRecords`).
 The list's `categoryFilter` is `all`, `favorites` (starred, any type; no extra group) or a record type; `categoryCounts`
 count each for the vault and tags in view (web: desktop `CategorySidebar`, phone `FilterSheet`).
 Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.

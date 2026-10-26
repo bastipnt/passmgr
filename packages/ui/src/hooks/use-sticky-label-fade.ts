@@ -14,18 +14,22 @@ function scrollerTop(el: HTMLElement) {
 }
 
 function fadeLabels(root: HTMLElement) {
-  for (const label of root.querySelectorAll<HTMLElement>(".sticky-label")) {
+  for (const label of root.querySelectorAll<HTMLElement>(
+    ".sticky-label, .sticky-label-interactive",
+  )) {
     const pinnedTop = scrollerTop(label) + Number.parseFloat(getComputedStyle(label).top);
     const pushed = pinnedTop - label.getBoundingClientRect().top;
     const progress = Math.min(1, Math.max(0, pushed / label.offsetHeight));
     label.style.opacity = progress > 0 ? String(1 - progress) : "";
+    label.style.pointerEvents = progress > 0 ? "none" : "";
   }
 }
 
 /**
- * JS fallback for the `sticky-label` utility's exit fade in browsers without
- * scroll-driven animations (Firefox): fades each `.sticky-label` under `root`
- * as the next section pushes it out. `deps` re-syncs after the labels change.
+ * JS fallback for the `sticky-label` / `sticky-label-interactive` exit fade in
+ * browsers without scroll-driven animations (Firefox): fades each one under
+ * `root` as the next section pushes it out, inert meanwhile. `deps` re-syncs
+ * after the labels change.
  */
 export function useStickyLabelFade(root: RefObject<HTMLElement | null>, deps: unknown) {
   useEffect(() => {
