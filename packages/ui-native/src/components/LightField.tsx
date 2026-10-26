@@ -4,16 +4,6 @@ import { StyleSheet, useColorScheme, useWindowDimensions, View } from "react-nat
 import Svg, { Defs, Ellipse, LinearGradient, RadialGradient, Rect, Stop } from "react-native-svg";
 import { useCSSVariable } from "uniwind";
 
-export type LightFieldIntensity = "vivid" | "dim";
-
-export type LightFieldProps = {
-  /**
-   * `vivid` = the auth screens' full-strength field. `dim` = the signed-in
-   * ground: weaker blobs under a glass-fill veil (web has moved to a flat ground).
-   */
-  intensity?: LightFieldIntensity;
-};
-
 /*
  * Web's `.light-field` at phone width (packages/ui/src/styles/globals.css):
  * four radial blobs, each `<rx> <ry> at <x> <y>` fading out at 70%.
@@ -26,17 +16,8 @@ const BLOBS = [
   { color: FIELD_COLORS.violet, rx: 576, ry: 512, x: 0.9, y: 0.75 },
 ] as const;
 
-/** `--field-opacity` per intensity and theme. */
-const OPACITY: Record<LightFieldIntensity, { light: number; dark: number }> = {
-  vivid: { light: 0.45, dark: 0.5 },
-  dim: { light: 0.28, dark: 0.28 },
-};
-
-/**
- * `--glass-fill` (white at 50% / 6%), laid over the dim field mid-screen. As
- * color + opacity: SVG stops ignore the alpha of an `rgba()` color.
- */
-const VEIL_OPACITY = { light: 0.5, dark: 0.06 };
+/** `--field-opacity` per theme. */
+const OPACITY = { light: 0.45, dark: 0.5 };
 
 const EASE_STEPS = 8;
 
@@ -69,11 +50,11 @@ function easedStops(
 type Pair = [offset: number, opacity: number];
 
 /**
- * Full-screen backdrop of four soft color blobs, fading into `edge-tint` at
+ * The auth screens' backdrop: four soft color blobs, fading into `edge-tint` at
  * the top and bottom. Non-interactive and non-scrolling: render it as the
  * first child of a screen (see `Screen`), behind the scroll view.
  */
-export function LightField({ intensity = "dim" }: LightFieldProps) {
+export function LightField() {
   const { width, height } = useWindowDimensions();
   // `Appearance` carries the resolved scheme (the app mirrors its preference
   // into it); Uniwind's `theme` reads "light" while following the system.
@@ -81,8 +62,7 @@ export function LightField({ intensity = "dim" }: LightFieldProps) {
   const background = useCSSVariable("--color-background") as string;
   const edge = useCSSVariable("--color-edge-tint") as string;
 
-  const opacity = OPACITY[intensity][scheme];
-  const veilOpacity = intensity === "dim" ? VEIL_OPACITY[scheme] : 0;
+  const opacity = OPACITY[scheme];
 
   return (
     <View pointerEvents="none" style={StyleSheet.absoluteFill}>
@@ -98,20 +78,6 @@ export function LightField({ intensity = "dim" }: LightFieldProps) {
               children={easedStops(blob.color, [0, opacity], [0.7, 0])}
             />
           ))}
-          {/* Two single-color layers rather than one edge → veil gradient: SVG
-              interpolates color and opacity separately, so fading an opaque
-              color into translucent white passes through grey. */}
-          <LinearGradient
-            id="field-veil"
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-            children={[
-              ...easedStops("#ffffff", [0.04, 0], [0.3, veilOpacity]),
-              ...easedStops("#ffffff", [0.7, veilOpacity], [0.96, 0]),
-            ]}
-          />
           <LinearGradient
             id="field-edge"
             x1="0"
@@ -135,7 +101,6 @@ export function LightField({ intensity = "dim" }: LightFieldProps) {
             fill={`url(#field-${i})`}
           />
         ))}
-        <Rect width={width} height={height} fill="url(#field-veil)" />
         <Rect width={width} height={height} fill="url(#field-edge)" />
       </Svg>
     </View>

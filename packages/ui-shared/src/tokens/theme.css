@@ -1,8 +1,9 @@
 /*
  * Cross-platform semantic color palette. Consumed by web
  * (packages/ui/src/styles/globals.css) and mobile (apps/mobile/src/global.css,
- * the uniwind cssEntryFile). Web overrides the colors with the accent presets
- * of ./presets.css; mobile still renders these.
+ * the uniwind cssEntryFile). The values are the default preset's
+ * (`accentVariables(DEFAULT_ACCENT)`, test/presets.test.ts): web overrides
+ * them with ./presets.css, mobile at runtime with the picked preset.
  *
  * THE SHAPE BELOW IS LOAD-BEARING FOR MOBILE. uniwind's rule-visitor only
  * extracts theme values from `@layer theme { :root { &:where(.<theme>) {} } }`:
@@ -49,8 +50,8 @@
   --color-input: unset;
   --color-field: unset;
   --color-ring: unset;
-  /* Page ground behind the light-field: background tinted toward violet.
-     Web derives its own (--edge-tint in globals.css, flat in presets.css). */
+  /* Page ground (stack content, behind the light-field). A preset sets it to
+     the background (presets.css on web, accentVariables on mobile). */
   --color-edge-tint: unset;
 }
 
@@ -95,53 +96,53 @@
 @layer theme {
   :root {
     @variant light {
-      --color-background: #f5f3fa;
-      --color-foreground: #16141f;
+      --color-background: #f5f1f3;
+      --color-foreground: #1e141a;
       --color-card: #ffffff;
-      --color-card-foreground: #16141f;
+      --color-card-foreground: #1e141a;
       --color-popover: #ffffff;
-      --color-popover-foreground: #16141f;
-      --color-muted: #eceaf3;
-      --color-muted-foreground: #5e5a70;
-      --color-primary: #6e56f5;
+      --color-popover-foreground: #1e141a;
+      --color-muted: #ece5e9;
+      --color-muted-foreground: #6e5e67;
+      --color-primary: #b4307a;
       --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #5b43e0;
-      --color-primary-text: #6e56f5;
+      --color-primary-pressed: #902561;
+      --color-primary-text: #93245f;
       --color-secondary: #ffffff;
-      --color-secondary-foreground: #16141f;
-      --color-accent: #eceaf3;
-      --color-accent-foreground: #16141f;
+      --color-secondary-foreground: #1e141a;
+      --color-accent: #ece5e9;
+      --color-accent-foreground: #1e141a;
       --color-destructive: #e11d48;
-      --color-border: #dcd9e4;
-      --color-input: #d6d3e0;
-      --color-field: #f1eff7;
-      --color-ring: #6e56f5;
-      --color-edge-tint: #eae8fc;
+      --color-border: #1e141a1a;
+      --color-input: #1e141a21;
+      --color-field: #f2edf0;
+      --color-ring: #b4307a;
+      --color-edge-tint: #f5f1f3;
     }
 
     @variant dark {
-      --color-background: #0a0a12;
-      --color-foreground: #f4f2fa;
-      --color-card: #13121c;
-      --color-card-foreground: #f4f2fa;
-      --color-popover: #17161f;
-      --color-popover-foreground: #f4f2fa;
-      --color-muted: #1e1d28;
-      --color-muted-foreground: #a7a3bc;
-      --color-primary: #6e56f5;
-      --color-primary-foreground: #ffffff;
-      --color-primary-pressed: #5b43e0;
-      --color-primary-text: #8b78ff;
-      --color-secondary: #1a1922;
-      --color-secondary-foreground: #f4f2fa;
-      --color-accent: #23222e;
-      --color-accent-foreground: #f4f2fa;
+      --color-background: #141013;
+      --color-foreground: #f5eef2;
+      --color-card: #1e181c;
+      --color-card-foreground: #f5eef2;
+      --color-popover: #1e181c;
+      --color-popover-foreground: #f5eef2;
+      --color-muted: #2a2228;
+      --color-muted-foreground: #b4a6ae;
+      --color-primary: #d04a93;
+      --color-primary-foreground: #141013;
+      --color-primary-pressed: #a73a75;
+      --color-primary-text: #f49acb;
+      --color-secondary: #1e181c;
+      --color-secondary-foreground: #f5eef2;
+      --color-accent: #2a2228;
+      --color-accent-foreground: #f5eef2;
       --color-destructive: #f0445a;
-      --color-border: #2c2b36;
-      --color-input: #2e2d38;
-      --color-field: #16151f;
-      --color-ring: #8b78ff;
-      --color-edge-tint: #18162f;
+      --color-border: #f5eef21a;
+      --color-input: #f5eef221;
+      --color-field: #272026;
+      --color-ring: #d04a93;
+      --color-edge-tint: #141013;
     }
   }
 }

@@ -6,6 +6,7 @@ export * from "./src/components/BottomSheet";
 export * from "./src/components/Button";
 export * from "./src/components/ButtonGroup";
 // *** BLOCKS ***
+export * from "./src/components/blocks/AccentPicker";
 export * from "./src/components/blocks/BiometricGlyph";
 export * from "./src/components/blocks/BiometricUnlockButton";
 export * from "./src/components/blocks/BrandMark";

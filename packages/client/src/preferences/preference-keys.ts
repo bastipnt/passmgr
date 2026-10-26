@@ -6,6 +6,8 @@
 export const PREF_KEYS = {
   /** Read directly by `packages/ui` ThemeProvider and mobile `use-theme-preference`. */
   theme: "pass-mgr-theme",
+  /** Same key as web's `ThemeProvider` (`<theme key>-accent`). */
+  accent: "pass-mgr-theme-accent",
   sort: "pass-mgr-sort",
   /** "all" or a vault id; a vault this profile doesn't have reads as "all". */
   vaultFilter: "pass-mgr-vault-filter",

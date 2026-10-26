@@ -3,7 +3,8 @@
  * `data-accent="<preset>"` on <html> picks another one, and on any element
  * scopes one to it (e.g. a swatch; a `light` / `dark` class on it picks the
  * mode). Overrides ./theme.css (unlayered, so it beats `@layer theme`).
- * Web only: uniwind can't read this shape.
+ * Web only: uniwind can't read this shape. Native applies the same values
+ * at runtime (`ACCENT_COLORS` / `accentVariables` in ./accents.ts).
  *
  * Each preset sets ground, panel, text and accent; the rest derives below.
  * On-accent text is white in light mode and the ground in dark mode: white

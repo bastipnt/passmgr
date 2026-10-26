@@ -1,12 +1,19 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { ACCENT_PRESETS, DEFAULT_ACCENT, parseAccent } from "../src/tokens/accents";
+import {
+  ACCENT_COLORS,
+  ACCENT_PRESETS,
+  accentVariables,
+  DEFAULT_ACCENT,
+  parseAccent,
+} from "../src/tokens/accents";
 
 const MODES = ["light", "dark"] as const;
 
 type Tokens = Record<string, string>;
 
 const css = readFileSync(new URL("../src/tokens/presets.css", import.meta.url), "utf8");
+const themeCss = readFileSync(new URL("../src/tokens/theme.css", import.meta.url), "utf8");
 
 function presetTokens(preset: string, mode: string): Tokens {
   const block = css.split(`[data-accent="${preset}"] {`)[1]?.split("\n}")[0] ?? "";
@@ -34,6 +41,10 @@ function contrast(a: string, b: string): number {
 }
 
 describe.each(ACCENT_PRESETS)("preset %s", (preset) => {
+  it.each(MODES)("%s: native colors match presets.css", (mode) => {
+    expect(ACCENT_COLORS[preset][mode]).toEqual(presetTokens(preset, mode));
+  });
+
   it.each(MODES)("%s: text reads on the ground and on panels", (mode) => {
     const t = presetTokens(preset, mode);
     expect(Object.keys(t)).toHaveLength(9);
@@ -44,6 +55,43 @@ describe.each(ACCENT_PRESETS)("preset %s", (preset) => {
       expect(contrast(t["primary-text"] ?? "", surface)).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t["primary-foreground"] ?? "", t.primary ?? "")).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("accentVariables", () => {
+  const themeColors = [...themeCss.matchAll(/^\s*(--color-[\w-]+): unset;/gm)].map(
+    ([, name]) => name,
+  );
+
+  it.each(MODES)("sets every theme color except destructive (%s)", (mode) => {
+    const names = new Set(Object.keys(accentVariables("pine", mode)));
+    expect(names).toEqual(new Set(themeColors.filter((name) => name !== "--color-destructive")));
+  });
+
+  it("derives like presets.css", () => {
+    const vars = accentVariables("berry", "light");
+    expect(vars["--color-border"]).toBe("#1e141a1a");
+    expect(vars["--color-edge-tint"]).toBe("#f5f1f3");
+    expect(vars["--color-primary-pressed"]).toMatch(/^#[0-9a-f]{6}$/);
+    expect(luminance(vars["--color-primary-pressed"] ?? "")).toBeLessThan(luminance("#b4307a"));
+  });
+});
+
+describe("theme.css", () => {
+  it.each(MODES)("holds the default preset (%s)", (mode) => {
+    const block = themeCss
+      .split("@layer theme {")
+      .at(-1)
+      ?.split(`@variant ${mode} {`)[1]
+      ?.split("}")[0];
+    const declared = Object.fromEntries(
+      [...(block ?? "").matchAll(/(--color-[\w-]+): (#[0-9a-f]+);/g)].map(([, name, hex]) => [
+        name,
+        hex,
+      ]),
+    );
+    const { "--color-destructive": _, ...colors } = declared;
+    expect(colors).toEqual(accentVariables(DEFAULT_ACCENT, mode));
   });
 });
 

@@ -22,11 +22,17 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
 import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useLayoutEffect } from "react";
 import { useAppActive } from "@/hooks/use-app-active";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
-import { applyTheme, getStoredTheme, useThemePreference } from "@/hooks/use-theme-preference";
+import {
+  applyAccent,
+  applyTheme,
+  getStoredAccent,
+  getStoredTheme,
+  useThemePreference,
+} from "@/hooks/use-theme-preference";
 import { deviceName } from "@/lib/device-name";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 
@@ -91,8 +97,11 @@ export default function RootLayout() {
 
   // Apply the persisted appearance choice. Uniwind's light/dark themes are
   // adaptive; "system" (the default) re-enables tracking the OS color scheme.
-  useEffect(() => {
+  // A layout effect runs after the children subscribed to Uniwind and before
+  // the first paint, so the default palette never flashes.
+  useLayoutEffect(() => {
     applyTheme(getStoredTheme(preferencesStore));
+    applyAccent(getStoredAccent(preferencesStore));
   }, [preferencesStore]);
 
   return (

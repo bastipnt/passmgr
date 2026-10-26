@@ -22,6 +22,7 @@ import {
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/ToggleGroup";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useTheme } from "@repo/ui/providers/ThemeProvider";
+import { ACCENT_HINT } from "@repo/ui-shared";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { recordPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
@@ -86,10 +87,7 @@ export default function GeneralSettingsPage() {
               <ItemContent className="gap-2">
                 <ItemTitle>Accent</ItemTitle>
                 <AccentPicker />
-                <ItemDescription>
-                  Logo, buttons, selection and links use the accent. Green, amber and red keep their
-                  meaning in every option.
-                </ItemDescription>
+                <ItemDescription>{ACCENT_HINT}</ItemDescription>
               </ItemContent>
             </Item>
           </ItemGroup>

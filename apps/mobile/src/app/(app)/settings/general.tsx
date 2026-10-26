@@ -1,7 +1,9 @@
 import { DEFAULT_SORT, PREF_KEYS, SORT_LABELS, type SortOption, usePreference } from "@repo/client";
-import { OptionList, Screen, SectionGroup, SettingsSection } from "@repo/ui-native";
+import { AccentPicker, OptionList, Screen, SectionGroup, SettingsSection } from "@repo/ui-native";
+import { ACCENT_HINT } from "@repo/ui-shared";
 import { ScrollView, Text, View } from "react-native";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
+import { useAccentPreference } from "@/hooks/use-theme-preference";
 
 const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
   label: SORT_LABELS[value],
@@ -10,6 +12,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 
 export default function GeneralSettingsScreen() {
   const [sort, setSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
+  const { accent, setAccent } = useAccentPreference();
 
   return (
     <Screen>
@@ -28,6 +31,10 @@ export default function GeneralSettingsScreen() {
 
         <SettingsSection title="Theme">
           <ThemeSwitch hideLabel />
+        </SettingsSection>
+
+        <SettingsSection title="Accent" description={ACCENT_HINT}>
+          <AccentPicker value={accent} onChange={setAccent} />
         </SettingsSection>
 
         <SettingsSection flush title="Default sort order">

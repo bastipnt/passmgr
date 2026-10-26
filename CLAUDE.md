@@ -159,11 +159,15 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   sibling package (v4 only auto-detects the app itself).
 - Compose variants with `cva` + `cn()` from `@repo/ui-native/lib/utils`, mirroring
   `packages/ui`.
+- Accent presets: `global.css` holds one palette; the picked preset (Settings → General `AccentPicker`,
+  `PREF_KEYS.accent`, device-level) overrides it in both modes at runtime (`applyAccent` in
+  `use-theme-preference.ts`: `Uniwind.updateCSSVariables` with `@repo/ui-shared` `accentVariables`; `ACCENT_COLORS`
+  must equal `presets.css`, a test checks it). Applied in a layout effect on launch, so no flash.
 - Read tokens in JS via `useCSSVariable(name)` (in components) or
   `Uniwind.getCSSVariable(name)` (outside). Wrap non-core third-party components with
   `withUniwind` to give them `className`.
-- **Look = web at phone width.** Screens wrap in `Screen` (`@repo/ui-native`, renders the
-  `LightField` blob backdrop; `field="vivid"` on auth). Stack `contentStyle`: pages `bg-edge-tint`,
+- **Look = web at phone width.** Screens wrap in `Screen` (`@repo/ui-native`; flat ground, `field` on auth
+  renders the `LightField` blob backdrop). Stack `contentStyle`: pages `bg-edge-tint`,
   formSheets `bg-popover`. Lists and field groups are flush (`Section` / `SectionGroup`,
   `RecordListItem`, `RecordDetailsItem` — whole row copies), not boxed cards. Prefer native chrome:
   header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with

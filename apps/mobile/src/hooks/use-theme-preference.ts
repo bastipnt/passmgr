@@ -1,4 +1,5 @@
 import { PREF_KEYS, type PreferencesStore, usePreferences } from "@repo/client";
+import { type AccentPreset, accentVariables, parseAccent } from "@repo/ui-shared";
 import { useCallback, useState } from "react";
 import { Appearance } from "react-native";
 import { Uniwind } from "uniwind";
@@ -42,4 +43,31 @@ export function useThemePreference() {
   );
 
   return { preference, setPreference };
+}
+
+export function getStoredAccent(preferences: PreferencesStore): AccentPreset {
+  return parseAccent(preferences.get(PREF_KEYS.accent));
+}
+
+/** global.css holds one palette; a preset overrides it in both modes, so system switches keep it. */
+export function applyAccent(accent: AccentPreset) {
+  for (const mode of ["light", "dark"] as const) {
+    Uniwind.updateCSSVariables(mode, accentVariables(accent, mode));
+  }
+}
+
+export function useAccentPreference() {
+  const preferences = usePreferences();
+  const [accent, setAccentState] = useState(() => getStoredAccent(preferences));
+
+  const setAccent = useCallback(
+    (next: AccentPreset) => {
+      preferences.set(PREF_KEYS.accent, next);
+      applyAccent(next);
+      setAccentState(next);
+    },
+    [preferences],
+  );
+
+  return { accent, setAccent };
 }

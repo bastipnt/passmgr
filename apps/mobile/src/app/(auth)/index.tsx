@@ -38,7 +38,7 @@ function HeroLine({ children }: { children: string }) {
   );
 }
 
-/** Web's auth screen at phone width: vivid light field, display hero, chips. */
+/** Web's auth screen at phone width: light field, display hero, chips. */
 export default function LoginScreen() {
   const insets = useSafeAreaInsets();
   const muted = useCSSVariable("--color-muted-foreground") as string;
@@ -73,7 +73,7 @@ export default function LoginScreen() {
   }
 
   return (
-    <Screen field="vivid">
+    <Screen field>
       <View
         className="flex-1 px-5"
         style={{ paddingTop: Math.max(insets.top, 24), paddingBottom: insets.bottom + 16 }}

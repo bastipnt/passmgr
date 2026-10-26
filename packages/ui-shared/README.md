@@ -5,8 +5,9 @@ Cross-platform design tokens for [passmgr](../../README.md). Source of truth for
 ## What's in here
 
 - **`src/tokens/theme.css`** — the semantic color palette (`--color-background`, `--color-primary`, …) as CSS custom properties, defined once for both platforms. Exported as `@repo/ui-shared/theme.css`.
-- **`src/tokens/presets.css`** — web only: the accent presets (Berry default on `:root`, others via `data-accent="<preset>"`) that override `theme.css`. `test/presets.test.ts` checks their contrast. Exported as `@repo/ui-shared/presets.css`.
-- **`src/tokens/colors.ts`** — only the colors JS reads directly: `BRAND_COLOR`, `LEVEL_COLOR`, `FIELD_COLORS` (light-field blobs / spectrum text).
+- **`src/tokens/presets.css`** — web: the accent presets (Berry default on `:root`, others via `data-accent="<preset>"`) that override `theme.css`. Exported as `@repo/ui-shared/presets.css`.
+- **`src/tokens/accents.ts`** — the preset list, labels and the same colors for native (`ACCENT_COLORS`, `accentVariables`: every `--color-*` a preset sets, which mobile applies at runtime). `test/presets.test.ts` checks contrast and that both stay equal.
+- **`src/tokens/colors.ts`** — only the colors JS reads directly: `LEVEL_COLOR`, `FIELD_COLORS` (light-field blobs / spectrum text).
 - **`src/hooks/use-website-avatar.ts`** — favicon lookup + fallback hue.
 
 ## Consumers

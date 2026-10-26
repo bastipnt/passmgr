@@ -1,6 +1,6 @@
-import { BRAND_COLOR } from "@repo/ui-shared";
 import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { useCSSVariable } from "uniwind";
 
 import { cn } from "../../lib/utils";
 
@@ -25,10 +25,17 @@ export function BrandGlyph({ size = 24, color = "#ffffff" }: BrandGlyphProps) {
 export type BrandMarkProps = {
   /** Tile edge in px. Web default is 36. */
   size?: number;
+  /** Tile and glyph colors; default the current accent (`primary`, `primary-foreground`). */
+  colors?: { tile: string; glyph: string };
 };
 
-/** White shield on a solid violet tile — RN port of web's `BrandMark`. */
-export function BrandMark({ size = 36 }: BrandMarkProps) {
+/** Shield on a solid accent tile — RN port of web's `BrandMark`. */
+export function BrandMark({ size = 36, colors }: BrandMarkProps) {
+  const [primary, onPrimary] = useCSSVariable([
+    "--color-primary",
+    "--color-primary-foreground",
+  ]) as string[];
+
   return (
     <View
       className="items-center justify-center"
@@ -37,10 +44,10 @@ export function BrandMark({ size = 36 }: BrandMarkProps) {
         height: size,
         borderRadius: size * 0.3,
         borderCurve: "continuous",
-        backgroundColor: BRAND_COLOR,
+        backgroundColor: colors?.tile ?? primary,
       }}
     >
-      <BrandGlyph size={size * 0.74} />
+      <BrandGlyph size={size * 0.74} color={colors?.glyph ?? onPrimary} />
     </View>
   );
 }

@@ -5,9 +5,6 @@
  * useCSSVariable("--color-primary") on native, or var(--color-primary) on web.
  */
 
-/** Solid brand violet — the app-mark tile and primary actions. */
-export const BRAND_COLOR = "#6E56F5";
-
 export const LEVEL_COLOR = {
   weak: "#f0445a",
   fair: "#ff8a3d",
