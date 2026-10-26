@@ -62,7 +62,7 @@ starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE 
 after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
 clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
 offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
-(local vault, create / edit / read a login, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+(local vault, create / edit / read a login, the listed records, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
 
 ## Architecture
 
@@ -127,6 +127,12 @@ Rules:
   `app/page-transitions.ts` (View Transitions, driven by the router's location hook). A new page
   gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
   `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
+- **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: header (`VaultSwitcher`, search,
+  Lock, New record), `TagBar`, then three columns: `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`)
+  over `SidebarFooter` (Pass Monitor, Account & sync, Settings, `SyncStatusCard`), `RecordList` (heading +
+  `RecordSortMenu`), the record. Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`:
+  the same pages, sync card, Lock), the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton`
+  → `FilterSheet`, search, sort, new).
 - **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
@@ -419,7 +425,7 @@ throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps
 `MAX_REQUEST_BYTES`. Storage quota: `vaults.usedBytes` (each version's `pushChangeBytes`, tombstones included, kept by
 `takeVaultSeqs` / `dropPurgedHistory`) summed over an owner's live vaults against `STORAGE_QUOTA_MB`; a chain with a put
 past it is `rejected` `quota` (parked, `SyncStatus.storageFull`), and so is a `moved` tombstone in that batch (the move's
-other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web desktop `SyncStatusCard` in the sidebar footer, `syncCardLines`; else `SyncStatusMenu`; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.
@@ -484,7 +490,8 @@ Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults
 records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search keeps to it; a switch resets the category). Create /
 rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
 first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
-it. Web: `features/vaults/` (switcher in the list bar, picker in the create sheet, Settings → Vaults); mobile:
+it. Web: `features/vaults/` (`VaultSwitcher`: desktop header menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
+Settings → Vaults); mobile:
 Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
 
 Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star is a new version (synced, in the
@@ -492,7 +499,7 @@ history as "Added to / Removed from favorites", shared with every member of a sh
 `SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
 normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
 The list's `categoryFilter` is `all`, `favorites` (starred, any type; no extra group) or a record type; `categoryCounts`
-count each for the vault and tags in view.
+count each for the vault and tags in view (web: desktop `CategorySidebar`, phone `FilterSheet`).
 Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
 
 Duplicate (web `MoreDropdown`, mobile record "More" menu): opens the create form as a copy, nothing saved until Save.
@@ -509,9 +516,9 @@ web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsP
 required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
 carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
 records left if added; a search ignores tags and category; a detail chip's `showTag` clears the other filters first) and
-search's third tier (after title, subtitle); `listTitle` (phones) / `listHeading` (desktop, tags in a subtitle) are shared. Web desktop: `TagBar` (pill row under the header, selected first,
-overflow behind "All N tags", `@repo/ui` `TagPill` / `TagPicker`); web phone: "Tag" submenu in the `RecordSortMenu` fab;
-mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
+search's third tier (after title, subtitle); `listTitle` (mobile app) / `listHeading` (web; desktop shows the tags in a subtitle) are shared. Web desktop: `TagBar` (pill row under the header, selected first,
+overflow behind "All N tags", `@repo/ui` `TagPill` / `TagPicker`); web phone: `FilterSheet` (category grid + tags), the
+ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.
 

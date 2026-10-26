@@ -17,14 +17,12 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
 import { LogInIcon, RefreshCwIcon, RotateCcwIcon, UserRoundIcon } from "lucide-react";
-import { type ComponentProps, type ReactElement, type ReactNode, useState } from "react";
+import { type ComponentProps, type ReactElement, useState } from "react";
 import { Link } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
 
 type SyncStatusPopupProps = {
   trigger: ReactElement;
-  /** More menu items, after the sync ones. */
-  children?: ReactNode;
 } & Pick<ComponentProps<typeof DropdownMenuContent>, "align" | "side">;
 
 /**
@@ -33,7 +31,7 @@ type SyncStatusPopupProps = {
  * to create one. Offline is a state, not an error: writes keep working and
  * wait on the device.
  */
-export function SyncStatusPopup({ trigger, align = "end", side, children }: SyncStatusPopupProps) {
+function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps) {
   const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
   const { canReconnect, reconnect } = useReconnect();
@@ -74,7 +72,6 @@ export function SyncStatusPopup({ trigger, align = "end", side, children }: Sync
           <UserRoundIcon />
           {summary.state === "local" ? "Create online account" : "Account & sync"}
         </DropdownMenuItem>
-        {children}
       </DropdownMenuContent>
     </DropdownMenu>
   );

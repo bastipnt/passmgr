@@ -129,7 +129,7 @@ vi.mock("@repo/client", async (importActual) => ({
   ...(await importActual<object>()),
   usePassMonitorIssueCount: () => mocks.issueCount,
 }));
-vi.mock("./SyncStatusMenu", () => ({ SyncStatusCard: () => null }));
+vi.mock("./SyncStatusCard", () => ({ SyncStatusCard: () => null }));
 
 describe("SidebarFooter", () => {
   const renderFooter = (collapsed = false) =>

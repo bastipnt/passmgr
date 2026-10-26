@@ -9,7 +9,7 @@ import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import { AccountButton } from "./AccountSheet";
-import { SyncStatusCard } from "./SyncStatusMenu";
+import { SyncStatusCard } from "./SyncStatusCard";
 
 const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({

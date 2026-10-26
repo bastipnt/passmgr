@@ -4,7 +4,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { CircleUserRoundIcon, SettingsIcon, ShieldCheckIcon } from "lucide-react";
 import { Link } from "wouter";
 import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
-import { SyncStatusCard } from "./SyncStatusMenu";
+import { SyncStatusCard } from "./SyncStatusCard";
 
 export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
   const issues = usePassMonitorIssueCount();

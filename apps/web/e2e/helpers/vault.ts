@@ -14,6 +14,8 @@ export type LoginFields = {
   note?: string;
   /** Added as a new website, after any the login has. */
   website?: string;
+  /** Added after any the login has. */
+  tags?: string[];
 };
 
 /** Resolves once the vault is open on the record list (or a record). */
@@ -52,7 +54,7 @@ export async function reloadAndUnlock(page: Page, password: string): Promise<voi
 
 async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
   const sheet = page.getByRole("dialog");
-  const { website, ...inputs } = fields;
+  const { website, tags = [], ...inputs } = fields;
   for (const [name, value] of Object.entries(inputs)) {
     if (value === undefined) continue;
     const input = sheet.locator(`[name="${name}"]`);
@@ -61,6 +63,12 @@ async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
   if (website !== undefined) {
     await sheet.getByRole("button", { name: "Add website" }).click();
     await sheet.locator('[name^="websites."][name$=".value"]').last().fill(website);
+  }
+  const tagInput = sheet.getByRole("combobox", { name: "Tags" });
+  for (const tag of tags) {
+    await tagInput.fill(tag);
+    await tagInput.press("Enter");
+    await expect(sheet.getByRole("button", { name: `Remove ${tag}`, exact: true })).toBeVisible();
   }
 }
 
@@ -75,6 +83,14 @@ export async function createLogin(page: Page, fields: LoginFields): Promise<stri
   const recordId = new URL(page.url()).pathname.split("/").at(-1);
   if (!recordId) throw new Error(`no record id in ${page.url()}`);
   return recordId;
+}
+
+/** The record ids the list shows, in its order. */
+export async function listedRecordIds(page: Page): Promise<string[]> {
+  const hrefs = await page
+    .locator('a[href^="/record/"]')
+    .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
+  return hrefs.flatMap((href) => /^\/record\/([^/?]+)$/.exec(href)?.[1] ?? []);
 }
 
 async function openRecord(page: Page, recordId: string): Promise<void> {
@@ -99,7 +115,7 @@ export async function editLogin(page: Page, recordId: string, fields: LoginField
 export async function expectLogin(
   page: Page,
   recordId: string,
-  fields: LoginFields,
+  fields: Omit<LoginFields, "tags">,
   timeout = 30_000,
 ): Promise<void> {
   await expect(async () => {
