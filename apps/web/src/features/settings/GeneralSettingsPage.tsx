@@ -1,4 +1,5 @@
 import { DEFAULT_SORT, PREF_KEYS, SORT_LABELS, type SortOption, usePreference } from "@repo/client";
+import { AccentPicker } from "@repo/ui/complex-components/AccentPicker";
 import {
   Item,
   ItemActions,
@@ -54,6 +55,45 @@ export default function GeneralSettingsPage() {
         <PanelTitle>General Settings</PanelTitle>
       </PanelHeader>
       <div className="px-4 pb-4">
+        <section aria-labelledby="appearance-heading" className="mb-6">
+          <h2 id="appearance-heading" className="mb-2 font-medium text-muted-foreground text-sm">
+            Appearance
+          </h2>
+          <ItemGroup>
+            <Item variant="outline">
+              <ItemContent className="gap-2">
+                <ItemTitle id="theme-label">Theme</ItemTitle>
+                <ToggleGroup
+                  aria-labelledby="theme-label"
+                  className="w-full"
+                  value={[theme]}
+                  onValueChange={(value) => {
+                    const next = value[0] as ThemeValue | undefined;
+                    if (next) setTheme(next);
+                  }}
+                >
+                  {themes.map(({ label, value, icon: Icon }) => (
+                    <ToggleGroupItem key={value} value={value} aria-label={label}>
+                      <Icon />
+                      {label}
+                    </ToggleGroupItem>
+                  ))}
+                </ToggleGroup>
+              </ItemContent>
+            </Item>
+
+            <Item variant="outline">
+              <ItemContent className="gap-2">
+                <ItemTitle>Accent</ItemTitle>
+                <AccentPicker />
+                <ItemDescription>
+                  Logo, buttons, selection and links use the accent. Green, amber and red keep their
+                  meaning in every option.
+                </ItemDescription>
+              </ItemContent>
+            </Item>
+          </ItemGroup>
+        </section>
         <ItemGroup>
           <Item variant="outline">
             <ItemContent className="gap-2">
@@ -73,27 +113,6 @@ export default function GeneralSettingsPage() {
                   </SelectGroup>
                 </SelectContent>
               </Select>
-            </ItemContent>
-          </Item>
-
-          <Item variant="outline">
-            <ItemContent className="gap-2">
-              <ItemTitle>Theme</ItemTitle>
-              <ToggleGroup
-                className="w-full"
-                value={[theme]}
-                onValueChange={(value) => {
-                  const next = value[0] as ThemeValue | undefined;
-                  if (next) setTheme(next);
-                }}
-              >
-                {themes.map(({ label, value, icon: Icon }) => (
-                  <ToggleGroupItem key={value} value={value} aria-label={label}>
-                    <Icon />
-                    {label}
-                  </ToggleGroupItem>
-                ))}
-              </ToggleGroup>
             </ItemContent>
           </Item>
 

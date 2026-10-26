@@ -16,6 +16,8 @@ import { deviceNameFromUserAgent } from "@/lib/device-name";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
 
+export const THEME_STORAGE_KEY = "pass-mgr-theme";
+
 const DEVICE_NAME = deviceNameFromUserAgent(navigator.userAgent);
 
 /** Phones: toasts sit above the vault's bottom dock (56px FABs, `MobileVault`). */
@@ -27,7 +29,7 @@ function App() {
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <ThemeProvider storageKey="pass-mgr-theme">
+      <ThemeProvider storageKey={THEME_STORAGE_KEY}>
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
             <ShortcutProvider>

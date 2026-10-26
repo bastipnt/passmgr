@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { ACCENT_PRESETS, DEFAULT_ACCENT, parseAccent } from "../src/tokens/accents";
 
-const PRESETS = ["berry", "violet", "cobalt", "pine", "ember", "graphite"] as const;
 const MODES = ["light", "dark"] as const;
 
 type Tokens = Record<string, string>;
@@ -33,7 +33,7 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
-describe.each(PRESETS)("preset %s", (preset) => {
+describe.each(ACCENT_PRESETS)("preset %s", (preset) => {
   it.each(MODES)("%s: text reads on the ground and on panels", (mode) => {
     const t = presetTokens(preset, mode);
     expect(Object.keys(t)).toHaveLength(9);
@@ -44,5 +44,15 @@ describe.each(PRESETS)("preset %s", (preset) => {
       expect(contrast(t["primary-text"] ?? "", surface)).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t["primary-foreground"] ?? "", t.primary ?? "")).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("parseAccent", () => {
+  it("keeps a known preset", () => {
+    expect(parseAccent("pine")).toBe("pine");
+  });
+
+  it.each([null, "", "teal", 3])("falls back to the default for %s", (value) => {
+    expect(parseAccent(value)).toBe(DEFAULT_ACCENT);
   });
 });
