@@ -47,6 +47,17 @@ describe("matchRecords", () => {
     ]);
     expect(matchRecords(records, "dep")[2]).toMatchObject({ tag: "deploy" });
   });
+
+  it("matches a login's email as its subtitle, also next to a username", () => {
+    const withEmail = [
+      { ...login("Shop", "shopper"), email: "anna@mail.example" },
+      { ...login("Forum", ""), email: "anna@forum.example" },
+    ] as DecryptedRecord[];
+    expect(matchRecords(withEmail, "anna@")).toEqual([
+      { record: withEmail[0], field: "subtitle", subtitle: "anna@mail.example" },
+      { record: withEmail[1], field: "subtitle", subtitle: "anna@forum.example" },
+    ]);
+  });
 });
 
 describe("tags", () => {

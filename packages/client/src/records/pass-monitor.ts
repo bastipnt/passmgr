@@ -2,6 +2,7 @@ import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { normalize, type PasswordStrength, websiteHost } from "@repo/util";
 import { loginHosts } from "./login-hosts";
 import { monitoredPassword } from "./password-health";
+import { loginAccountName } from "./record-summary";
 import {
   type TwoFactorDirectory,
   type TwoFactorSite,
@@ -24,9 +25,9 @@ const byTitle = (a: DecryptedRecord, b: DecryptedRecord) => a.title.localeCompar
 
 /** What zxcvbn should treat as known words for this record's password. */
 export function strengthInputs(record: DecryptedRecord): string[] {
-  const username = isRecordType(record, "login") ? record.username : undefined;
+  const login = isRecordType(record, "login") ? record : undefined;
   const ssid = isRecordType(record, "wifi") ? record.ssid : undefined;
-  return [record.title, username, ssid, ...loginHosts(record)].filter(
+  return [record.title, login?.username, login?.email, ssid, ...loginHosts(record)].filter(
     (input): input is string => !!input,
   );
 }
@@ -73,9 +74,9 @@ export function findReusedPasswords(records: readonly DecryptedRecord[]): Monito
 }
 
 /**
- * Logins for the same account: the same username (case and spacing aside) on a
- * shared website host. Logins chain into one group through any host they share.
- * Without a username nothing says two logins are one account (API tokens, several keys).
+ * Logins for the same account: the same username, or email without one (case and
+ * spacing aside), on a shared website host. Logins chain into one group through any
+ * host they share. Without either nothing says two logins are one account (API tokens, several keys).
  */
 export function findDuplicateLogins(records: readonly DecryptedRecord[]): MonitorGroup[] {
   const parent = new Map<string, string>();
@@ -91,7 +92,7 @@ export function findDuplicateLogins(records: readonly DecryptedRecord[]): Monito
   const linked = new Set<string>();
   for (const record of records) {
     if (!isRecordType(record, "login")) continue;
-    const username = normalize(record.username ?? "");
+    const username = normalize(loginAccountName(record) ?? "");
     if (!username) continue;
     for (const host of new Set(loginHosts(record))) {
       const account = `${username}\n${host}`;

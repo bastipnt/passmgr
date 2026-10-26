@@ -5,6 +5,7 @@ import {
   EXPORT_FORMAT_VERSION,
   type ExportData,
   type ExportRecord,
+  MAX_FIELD_LENGTH,
   MAX_RECORD_PAYLOAD_BYTES,
   MAX_TAGS,
   MAX_TITLE_LENGTH,
@@ -171,10 +172,12 @@ function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
 }
 
+const EMAIL_TITLE = /^e-?mail(\s+address)?$/i;
+
 /**
  * The record's payload, or why it can't be imported. A website that is no URL,
  * domain or app id is kept as a "Website" field, an empty title becomes the host,
- * the username or "Imported item"; a long one is cut.
+ * the username (or email) or "Imported item"; a long one is cut.
  */
 export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
   const customFields: CustomField[] = (record.customFields ?? [])
@@ -195,11 +198,17 @@ export function finishRecord(record: ForeignRecord): RecordData | SkipReason {
   const fields = Object.fromEntries(
     Object.entries(record.fields ?? {}).filter(([, value]) => value !== undefined && value !== ""),
   );
-  const username = typeof fields.username === "string" ? fields.username : undefined;
+  if (record.type === "login" && fields.email === undefined) {
+    const index = customFields.findIndex(
+      (f) => f.type === "text" && EMAIL_TITLE.test(f.title) && f.value.length <= MAX_FIELD_LENGTH,
+    );
+    if (index >= 0) fields.email = customFields.splice(index, 1)[0]!.value;
+  }
+  const account = [fields.username, fields.email].find((v) => typeof v === "string");
   const title = (
     record.title?.trim() ||
     websites.map((value) => websiteHost(value)).find(Boolean) ||
-    username ||
+    account ||
     "Imported item"
   ).slice(0, MAX_TITLE_LENGTH);
   const tags = normalizeTags((record.tags ?? []).map(sanitizeTag)).slice(0, MAX_TAGS);

@@ -173,6 +173,9 @@ describe("finishRecord", () => {
     expect(finishRecord({ type: "login", fields: { username: "u" } })).toMatchObject({
       title: "u",
     });
+    expect(finishRecord({ type: "login", fields: { email: "e@x.de" } })).toMatchObject({
+      title: "e@x.de",
+    });
     expect(finishRecord({ type: "note" })).toMatchObject({ title: "Imported item" });
   });
 
@@ -215,6 +218,23 @@ describe("finishRecord", () => {
         { type: "text", title: "Website", value: "my bank" },
       ],
     });
+  });
+
+  it("turns a login's Email field into its email, unless the source gave one", () => {
+    const customFields = [
+      { title: "E-Mail Address", value: "a@example.com" },
+      { title: "Email", value: "b@example.com" },
+    ];
+    expect(finishRecord({ type: "login", title: "t", customFields })).toMatchObject({
+      email: "a@example.com",
+      customFields: [{ type: "text", title: "Email", value: "b@example.com" }],
+    });
+    expect(
+      finishRecord({ type: "login", title: "t", fields: { email: "c@example.com" }, customFields }),
+    ).toMatchObject({ email: "c@example.com", customFields: expect.any(Array) });
+    expect(
+      finishRecord({ type: "note", title: "t", customFields: [customFields[1]!] }),
+    ).not.toHaveProperty("email");
   });
 
   it("stamps the password date only when there is a password", () => {
@@ -303,6 +323,7 @@ describe("Bitwarden JSON", () => {
       type: "login",
       title: "GitHub",
       username: "octo",
+      email: "octo@example.com",
       password: "new-pw",
       totp: "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP",
       passwordChangedAt: "2024-03-01T10:00:00.000Z",
@@ -371,6 +392,7 @@ describe("1Password 1PUX", () => {
       type: "login",
       title: "Example",
       username: "alice",
+      email: "alice@example.com",
       password: "pw-now",
       totp: "otpauth://totp/Ex:alice?secret=JBSWY3DPEHPK3PXP",
       passwordChangedAt: new Date(1650000000 * 1000).toISOString(),
@@ -433,6 +455,7 @@ describe("KeePass XML", () => {
       type: "login",
       title: "Bank",
       username: "alice",
+      email: "alice@example.com",
       password: "current-pw",
       totp: "otpauth://totp/Bank:alice?secret=JBSWY3DPEHPK3PXP",
       passwordChangedAt: "2022-01-01T00:00:00.000Z",

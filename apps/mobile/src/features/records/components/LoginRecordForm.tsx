@@ -10,7 +10,7 @@ import {
   FormLock,
 } from "@repo/ui-native";
 import type { Href } from "expo-router";
-import { LockIcon, MailIcon, NotebookPenIcon, TagIcon } from "lucide-react-native";
+import { LockIcon, MailIcon, NotebookPenIcon, TagIcon, UserIcon } from "lucide-react-native";
 import { type Ref, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
 import { useCSSVariable } from "uniwind";
@@ -77,6 +77,16 @@ export default function LoginRecordForm({
             name="username"
             label="Username"
             autoComplete="off"
+            icon={<UserIcon size={18} color={iconColor} />}
+          />
+
+          <ControlledInput
+            control={control}
+            name="email"
+            label="Email"
+            autoComplete="off"
+            autoCapitalize="none"
+            keyboardType="email-address"
             icon={<MailIcon size={18} color={iconColor} />}
           />
 

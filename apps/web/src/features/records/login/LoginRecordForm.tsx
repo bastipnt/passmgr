@@ -4,7 +4,7 @@ import { FieldError, FieldGroup, FieldSeparator, FieldSet } from "@repo/ui/compo
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
 import { FormLock } from "@repo/ui/components/form/FormLock";
-import { LockIcon, MailIcon, TagIcon } from "lucide-react";
+import { LockIcon, MailIcon, TagIcon, UserIcon } from "lucide-react";
 import { type Ref, useImperativeHandle, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { PasswordField } from "@/features/password-generation";
@@ -56,20 +56,30 @@ export default function LoginRecordForm({
       <FormLock locked={disabled}>
         <FieldGroup className="gap-6">
           <FieldSet className="gap-5">
-            <div className="grid gap-5 sm:grid-cols-2">
-              <ControlledInput
-                control={control}
-                name="title"
-                label="Title"
-                autoComplete="off"
-                leadingIcon={<TagIcon />}
-              />
+            <ControlledInput
+              control={control}
+              name="title"
+              label="Title"
+              autoComplete="off"
+              leadingIcon={<TagIcon />}
+            />
 
+            <div className="grid gap-5 sm:grid-cols-2">
               <ControlledInput
                 control={control}
                 name="username"
                 label="Username"
                 autoComplete="off"
+                leadingIcon={<UserIcon />}
+              />
+
+              <ControlledInput
+                control={control}
+                name="email"
+                label="Email"
+                type="email"
+                autoComplete="off"
+                spellCheck={false}
                 leadingIcon={<MailIcon />}
               />
             </div>

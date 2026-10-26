@@ -8,7 +8,7 @@ export default function DuplicatesPage() {
   return (
     <MonitorPage
       title="Duplicates"
-      description="Logins with the same username on the same website. Keep one and delete the others."
+      description="Logins with the same username or email on the same website. Keep one and delete the others."
       count={duplicates?.length}
       empty="No duplicate logins."
     >

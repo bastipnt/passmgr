@@ -23,6 +23,7 @@
 				<String><Key>UserName</Key><Value>alice</Value></String>
 				<String><Key>otp</Key><Value>otpauth://totp/Bank:alice?secret=JBSWY3DPEHPK3PXP</Value></String>
 				<String><Key>Customer number</Key><Value>12345</Value></String>
+				<String><Key>E-mail</Key><Value>alice@example.com</Value></String>
 				<String><Key>Online PIN</Key><Value ProtectInMemory="True">0000</Value></String>
 				<Binary><Key>statement.pdf</Key><Value Ref="0" /></Binary>
 				<History>

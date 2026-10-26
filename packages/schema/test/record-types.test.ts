@@ -34,6 +34,7 @@ const RECORDS: { [T in RecordType]: RecordOfType<T> } = {
     type: "login",
     title: "GitHub",
     username: "octo",
+    email: "octo@example.com",
     password: "hunter2",
     websites: [{ value: "https://github.com" }],
     totp: "JBSWY3DPEHPK3PXP",
@@ -128,6 +129,7 @@ describe("recordDataSchema", () => {
     expect(fits({ title: "t".repeat(MAX_TITLE_LENGTH) })).toBe(true);
     expect(fits({ title: "t".repeat(MAX_TITLE_LENGTH + 1) })).toBe(false);
     expect(fits({ username: "u".repeat(MAX_FIELD_LENGTH + 1) })).toBe(false);
+    expect(fits({ email: "e".repeat(MAX_FIELD_LENGTH + 1) })).toBe(false);
     expect(fits({ note: "n".repeat(MAX_NOTE_LENGTH + 1) })).toBe(false);
     const website = { value: "https://example.com" };
     expect(fits({ websites: Array.from({ length: MAX_WEBSITES + 1 }, () => website) })).toBe(false);

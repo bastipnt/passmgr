@@ -73,6 +73,7 @@ const passwordChangedAt = z.string().optional();
 /** Type-specific fields, without `type` and the base fields. */
 const loginFields = {
   username: text,
+  email: text,
   password: text,
   passwordChangedAt,
   websites: websitesSchema.optional(),

@@ -134,6 +134,7 @@ const CSV_COLUMNS = [
   "type",
   "title",
   "username",
+  "email",
   "password",
   "websites",
   "totp",
@@ -170,6 +171,7 @@ function csvCell(value: string): string {
 const FORMULA_ESCAPED = new Set<string>([
   "vault",
   "title",
+  "email",
   "note",
   "fields",
   "customFields",
@@ -196,6 +198,7 @@ function csvRow(record: ExportRecord, vaultNames: Map<string, string>): string[]
     type: record.type,
     title: record.title,
     username: str("username"),
+    email: str("email"),
     password: str("password"),
     websites: record.type === "login" ? (record.websites ?? []).map((w) => w.value).join("\n") : "",
     totp: str("totp"),

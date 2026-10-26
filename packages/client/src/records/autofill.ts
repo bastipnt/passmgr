@@ -11,6 +11,7 @@ import { parseWebsite } from "@repo/util";
 import type { ImportEntry } from "../export/import-export";
 import { loginHosts } from "./login-hosts";
 import type { RecordRepository } from "./record-repository";
+import { loginAccountName } from "./record-summary";
 import { newLoginValues } from "./shared-login";
 
 /** The logins the OS autofill offers: every one with a password, by title. */
@@ -22,7 +23,7 @@ export function autofillEntries(records: readonly DecryptedRecord[]): AutofillEn
             {
               recordId: record.recordId,
               title: record.title,
-              username: record.username ?? "",
+              username: loginAccountName(record) ?? "",
               password: record.password,
               hosts: [...new Set(loginHosts(record))],
             },

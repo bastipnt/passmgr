@@ -77,6 +77,16 @@ describe("findDuplicateLogins", () => {
     expect(groups.map((g) => ids(g.records))).toEqual([["a", "b"]]);
   });
 
+  it("takes the email as the account of a login without a username", () => {
+    const groups = findDuplicateLogins([
+      record("a", { email: "jana@example.com", ...site("https://github.com") }),
+      record("b", { email: "Jana@example.com", ...site("https://github.com") }),
+      record("c", { username: "jana", email: "jana@example.com", ...site("https://github.com") }),
+    ]);
+
+    expect(groups.map((g) => ids(g.records))).toEqual([["a", "b"]]);
+  });
+
   it("chains logins that share a host with different members", () => {
     const groups = findDuplicateLogins([
       record("a", { username: "jana", ...site("a.com") }),

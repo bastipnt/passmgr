@@ -118,7 +118,10 @@ describe("readExportFile", () => {
 
 describe("importExportData", () => {
   it("round-trips an export into an empty vault, keeping ids and vaults", async () => {
-    const mail = await repository.create(login("Mail"));
+    const mail = await repository.create({
+      ...login("Mail"),
+      email: "me@example.com",
+    } as RecordData);
     await repository.create(login("VPN"), workId);
     const data = await exported();
     await vault.destroy();
@@ -130,7 +133,9 @@ describe("importExportData", () => {
     expect(result).toEqual({ created: 2, updated: 0, skipped: 0 });
     expect(await contents(personalId)).toEqual(["Mail:secret"]);
     expect(await contents(workId)).toEqual(["VPN:secret"]);
-    expect(await repository.getById(mail.recordId)).toMatchObject({ vaultId: personalId });
+    const imported = await repository.getById(mail.recordId);
+    expect(imported).toMatchObject({ vaultId: personalId });
+    expect(decryptRecord(imported!)).toMatchObject({ email: "me@example.com" });
     // Local versions with outbox entries: a linked profile pushes them.
     expect(await vault.countPendingChanges()).toBe(2);
   });

@@ -1,4 +1,4 @@
-import type { DecryptedRecord } from "@repo/schema";
+import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { getRecordSubtitle } from "./record-summary";
 import type { TagCount } from "./tags";
 
@@ -31,7 +31,16 @@ export type RecordMatch =
   | { record: DecryptedRecord; field: "subtitle"; subtitle: string }
   | { record: DecryptedRecord; field: "tag"; tag: string };
 
-/** Title matches first, then subtitle (username, number…) matches, then tag matches. */
+// A login's subtitle is its username when it has one, which would hide the email.
+function searchedSubtitles(record: DecryptedRecord): string[] {
+  const subtitle = getRecordSubtitle(record);
+  const email = isRecordType(record, "login") ? record.email : undefined;
+  return [subtitle, email !== subtitle ? email : undefined].filter(
+    (value): value is string => !!value,
+  );
+}
+
+/** Title matches first, then subtitle (username, email, number…) matches, then tag matches. */
 export function matchRecords(records: readonly DecryptedRecord[], text: string): RecordMatch[] {
   if (!text) return records.map((record) => ({ record, field: "title" }));
   const tiers: [RecordMatch[], RecordMatch[], RecordMatch[]] = [[], [], []];
@@ -40,8 +49,8 @@ export function matchRecords(records: readonly DecryptedRecord[], text: string):
       tiers[0].push({ record, field: "title" });
       continue;
     }
-    const subtitle = getRecordSubtitle(record);
-    if (subtitle && matchRange(subtitle, text)) {
+    const subtitle = searchedSubtitles(record).find((value) => matchRange(value, text));
+    if (subtitle) {
       tiers[1].push({ record, field: "subtitle", subtitle });
       continue;
     }

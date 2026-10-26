@@ -174,6 +174,7 @@ function typed(
         type: "login",
         fields: {
           username: loginField("username"),
+          email: pool.take((f) => f.raw.email !== undefined)?.value,
           password: loginField("password") ?? details.password,
           totp: totp(),
         },

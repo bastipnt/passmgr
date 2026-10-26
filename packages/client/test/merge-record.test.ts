@@ -33,6 +33,16 @@ describe("mergeRecord", () => {
     expect(mergeRecord(base, remote, local).data).toMatchObject({ username: "late" });
   });
 
+  it("merges a login's email like any other field", () => {
+    const merged = mergeRecord(
+      base,
+      [at(0, { email: "jana@example.com" })],
+      [at(5, { note: "B" })],
+    );
+
+    expect(merged.data).toEqual({ ...base, email: "jana@example.com", note: "B" });
+  });
+
   it("keeps a value both sides agree on", () => {
     const merged = mergeRecord(base, [at(9, { password: "new" })], [at(1, { password: "new" })]);
 

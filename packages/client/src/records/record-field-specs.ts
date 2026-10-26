@@ -175,6 +175,7 @@ const WIFI_SECURITY_LABEL: Record<NonNullable<WifiRecord["security"]>, string> =
 const TYPE_FIELDS: { [T in RecordType]: TypeField<RecordOfType<T>>[] } = {
   login: [
     { key: "username", kind: "username", label: "Username", always: true },
+    { key: "email", kind: "text", label: "Email" },
     { key: "password", kind: "password", label: "Password", always: true },
     { key: "totp", kind: "totp", label: "2FA token (TOTP)" },
   ],

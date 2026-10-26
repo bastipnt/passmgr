@@ -13,6 +13,7 @@
       "favorite": true,
       "fields": [
         { "name": "Recovery email", "value": "ops@example.com", "type": 0, "linkedId": null },
+        { "name": "Email", "value": "octo@example.com", "type": 0, "linkedId": null },
         { "name": "PIN", "value": "1234", "type": 1, "linkedId": null },
         { "name": "Remember me", "value": "true", "type": 2, "linkedId": null },
         { "name": null, "value": null, "type": 3, "linkedId": 100 },

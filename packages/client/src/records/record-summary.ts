@@ -1,5 +1,10 @@
-import type { RecordData } from "@repo/schema";
+import type { LoginRecord, RecordData } from "@repo/schema";
 import { parseWebsite } from "@repo/util";
+
+/** Who a login signs in as: its username, else its email. */
+export function loginAccountName(login: LoginRecord): string | undefined {
+  return login.username || login.email || undefined;
+}
 
 /**
  * The one-line secondary text of a record in lists and search: what tells two
@@ -11,7 +16,7 @@ import { parseWebsite } from "@repo/util";
 export function getRecordSubtitle(record: RecordData): string | undefined {
   switch (record.type) {
     case "login":
-      return record.username || undefined;
+      return loginAccountName(record);
     case "card": {
       const digits = record.number?.replace(/\D/g, "") ?? "";
       return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : undefined;

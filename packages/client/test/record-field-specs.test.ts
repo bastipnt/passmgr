@@ -23,6 +23,7 @@ describe("getRecordFieldSpecs", () => {
     const record: RecordData = {
       type: "login",
       title: "GitHub",
+      email: "octo@example.com",
       websites: [{ value: "https://github.com" }],
       note: "work",
       customFields: [{ type: "secret", title: "PIN", value: "1234" }],
@@ -31,6 +32,7 @@ describe("getRecordFieldSpecs", () => {
     expect(summary(record, { includeTitle: true })).toEqual([
       { key: "title", group: "title", kind: "title", value: "GitHub" },
       { key: "username", group: "fields", kind: "username", value: undefined },
+      { key: "email", group: "fields", kind: "text", value: "octo@example.com" },
       { key: "password", group: "fields", kind: "password", value: undefined },
       { key: "websites", group: "websites", kind: "websites", value: ["https://github.com"] },
       { key: "note", group: "note", kind: "note", value: "work" },
@@ -67,7 +69,12 @@ describe("getRecordFieldSpecs", () => {
 
 describe("getRecordSubtitle", () => {
   it.each<[string, RecordData, string | undefined]>([
-    ["a login's username", { type: "login", title: "x", username: "lin" }, "lin"],
+    ["a login's username", { type: "login", title: "x", username: "lin", email: "l@x.de" }, "lin"],
+    [
+      "a login's email without a username",
+      { type: "login", title: "x", email: "l@x.de" },
+      "l@x.de",
+    ],
     [
       "a card's last four digits",
       { type: "card", title: "x", number: "4111 1111 1111 4242" },
