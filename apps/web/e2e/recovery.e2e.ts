@@ -10,7 +10,13 @@ import {
   skipBiometricIfShown,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
-import { createLogin, expectInApp, expectLogin, expectSynced, syncStatus } from "./helpers/vault";
+import {
+  createLogin,
+  expectInApp,
+  expectLogin,
+  expectSynced,
+  expectSyncStatus,
+} from "./helpers/vault";
 
 test.describe("forgotten password → recover with recovery key", () => {
   test("resets the password, rotates the recovery key and logs in with the new one", async ({
@@ -96,7 +102,7 @@ test.describe("forgotten password, offline → reset on the device, account foll
     await page.waitForURL((url) => !url.pathname.startsWith("/recover"), { timeout: 30_000 });
     await skipBiometricIfShown(page);
     await expectInApp(page);
-    await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Password reset waiting");
+    await expectSyncStatus(page, "Password reset waiting");
     const recordId = await createLogin(page, { title: "Made offline", username: "offline-user" });
 
     // Back online: the reset reaches the server first, then the outbox.

@@ -67,9 +67,15 @@ export function SidebarTagsRow({ collapsed }: { collapsed: boolean }) {
       <SidebarItem
         icon={TagIcon}
         label="Tags"
-        count={on > 0 ? undefined : tags.length}
+        count={on > 0 ? (collapsed ? on : undefined) : tags.length}
+        countTone={on > 0 ? "primary" : "plain"}
         aria-label={on > 0 ? `Search tags (${on} on)` : `Search tags (${tags.length})`}
         collapsed={collapsed}
+        className={cn(
+          collapsed &&
+            on > 0 &&
+            "bg-primary/10 text-primary-text hover:bg-primary/15 dark:bg-primary/20",
+        )}
         onClick={searchTags}
         trailing={
           <>

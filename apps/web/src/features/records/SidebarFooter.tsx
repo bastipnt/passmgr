@@ -24,12 +24,15 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
             />
           </li>
           <li>
-            <SidebarItem
-              icon={CircleUserRoundIcon}
-              label="Account & sync"
-              collapsed={collapsed}
-              render={<Link href={settingsPaths.account} />}
-            />
+            {collapsed ? (
+              <SyncStatusCard collapsed />
+            ) : (
+              <SidebarItem
+                icon={CircleUserRoundIcon}
+                label="Account & sync"
+                render={<Link href={settingsPaths.account} />}
+              />
+            )}
           </li>
           <li>
             <SidebarItem
@@ -41,8 +44,12 @@ export function SidebarFooter({ collapsed = false }: { collapsed?: boolean }) {
           </li>
         </ul>
       </nav>
-      <SidebarDivider collapsed={collapsed} />
-      <SyncStatusCard collapsed={collapsed} />
+      {!collapsed && (
+        <>
+          <SidebarDivider />
+          <SyncStatusCard />
+        </>
+      )}
     </div>
   );
 }

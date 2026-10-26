@@ -5,6 +5,7 @@ import {
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import { Kbd } from "@repo/ui/components/Kbd";
+import { SidebarDivider } from "@repo/ui/components/SidebarItem";
 import { TooltipProvider } from "@repo/ui/components/Tooltip";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
@@ -23,7 +24,7 @@ import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { SidebarFooter } from "./SidebarFooter";
-import { SidebarHeader } from "./SidebarHeader";
+import { SidebarHeader, SidebarToggle } from "./SidebarHeader";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 type RecordLayoutProps = {
@@ -39,7 +40,6 @@ function LockButton({ collapsed, onLock }: { collapsed: boolean; onLock: () => v
         onClick={onLock}
         aria-label="Lock vault"
         title="Lock vault"
-        className="self-center"
       >
         <LockIcon />
       </Button>
@@ -88,7 +88,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     AUTO_LOCK_DEFAULT_MINUTES,
   );
 
-  const [sidebarCollapsed, setSidebarCollapsed] = useSidebarCollapsed();
+  const [sidebarCollapsed, setSidebarCollapsed, toggleRef] = useSidebarCollapsed();
   const sidebarId = useId();
 
   useIdleLock(autoLockMinutes, lockVault);
@@ -123,7 +123,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
           "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
           sidebarCollapsed
             ? "sm:grid-cols-[4rem_19rem_minmax(0,1fr)] xl:grid-cols-[4rem_24rem_minmax(0,1fr)]"
-            : "lg:grid-cols-[15rem_20rem_minmax(0,1fr)] xl:grid-cols-[15rem_24rem_minmax(0,1fr)]",
+            : "sm:grid-cols-[15rem_20rem_minmax(0,1fr)] xl:grid-cols-[15rem_24rem_minmax(0,1fr)]",
         )}
       >
         <ShellPanel
@@ -136,11 +136,25 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
               collapsed={sidebarCollapsed}
               onCollapsedChange={setSidebarCollapsed}
               controlsId={sidebarId}
+              toggleRef={toggleRef}
             />
             <CategorySidebar collapsed={sidebarCollapsed} />
             <SidebarTagsRow collapsed={sidebarCollapsed} />
-            <div className="mt-auto flex flex-col gap-2">
+            <div className={cn("mt-auto flex flex-col gap-2", sidebarCollapsed && "items-center")}>
               <SidebarFooter collapsed={sidebarCollapsed} />
+              {sidebarCollapsed && (
+                <>
+                  {setSidebarCollapsed && (
+                    <SidebarToggle
+                      ref={toggleRef}
+                      collapsed
+                      onCollapsedChange={setSidebarCollapsed}
+                      controlsId={sidebarId}
+                    />
+                  )}
+                  <SidebarDivider collapsed />
+                </>
+              )}
               <LockButton collapsed={sidebarCollapsed} onLock={lockVault} />
             </div>
           </TooltipProvider>

@@ -129,7 +129,10 @@ vi.mock("@repo/client", async (importActual) => ({
   ...(await importActual<object>()),
   usePassMonitorIssueCount: () => mocks.issueCount,
 }));
-vi.mock("./SyncStatusCard", () => ({ SyncStatusCard: () => null }));
+vi.mock("./SyncStatusCard", () => ({
+  SyncStatusCard: ({ collapsed }: { collapsed?: boolean }) =>
+    collapsed ? <button type="button">Account & sync, sync status</button> : null,
+}));
 
 describe("SidebarFooter", () => {
   const renderFooter = (collapsed = false) =>
@@ -165,13 +168,15 @@ describe("SidebarFooter", () => {
     }
   });
 
-  it("collapsed: icons keep their names, the Pass Monitor its badge", () => {
+  it("collapsed: icons keep their names, the Pass Monitor a dot, Account the sync status", () => {
     mocks.issueCount = 3;
     renderFooter(true);
     const passMonitor = screen.getByRole("link", { name: "Pass Monitor (3)" });
-    expect(passMonitor).toHaveTextContent("3");
+    expect(passMonitor).toHaveTextContent(/^Pass Monitor$/);
+    expect(passMonitor.querySelector(".bg-warning")).not.toBeNull();
     expect(screen.getByText("Pass Monitor")).toHaveClass("sr-only");
-    expect(screen.getByRole("link", { name: "Account & sync" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Account & sync" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Account & sync, sync status" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Settings" })).toBeInTheDocument();
   });
 });

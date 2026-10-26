@@ -9,6 +9,7 @@ import {
   expectInHistory,
   expectLogin,
   expectSynced,
+  expectSyncStatus,
   reloadAndUnlock,
   syncStatus,
 } from "./helpers/vault";
@@ -39,7 +40,7 @@ test.describe("offline-first", () => {
 
     // A vault without an account; its records survive a reload (OPFS).
     await createLocalVault(page, "Laptop", password);
-    await expect(syncStatus(page)).toHaveAccessibleName("Sync status: On this device only");
+    await expectSyncStatus(page, "On this device only");
     const recordId = await createLogin(page, {
       title: "Mail",
       username: "first-user",
@@ -77,9 +78,9 @@ test.describe("offline-first", () => {
     // edit wins a field changed on both sides, a field changed on one side
     // keeps that change.
     await phone.context().setOffline(true);
-    await expect(syncStatus(phone)).toHaveAccessibleName("Sync status: Offline");
+    await expectSyncStatus(phone, "Offline");
     await editLogin(phone, recordId, { username: "phone-user", note: "phone note" });
-    await expect(syncStatus(phone)).toHaveAccessibleName("Sync status: Offline");
+    await expectSyncStatus(phone, "Offline");
 
     await editLogin(page, recordId, { username: "laptop-user" });
     await expectSynced(page);
@@ -111,7 +112,7 @@ test.describe("offline-first", () => {
 
     // Offline is a state, not an error: writes land in the outbox.
     await page.context().setOffline(true);
-    await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Offline");
+    await expectSyncStatus(page, "Offline");
     const offlineId = await createLogin(page, { title: "Shop", username: "made-offline" });
     await editLogin(page, existingId, { username: "edited-offline" });
     await syncStatus(page).click();

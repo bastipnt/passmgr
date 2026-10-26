@@ -8,7 +8,7 @@ import {
   expectInHistory,
   expectLogin,
   expectSynced,
-  syncStatus,
+  expectSyncStatus,
 } from "./helpers/vault";
 
 /**
@@ -49,7 +49,7 @@ test("rotating a vault key re-encrypts its records, an offline edit included", a
   await expectInApp(phone);
   await expectSynced(phone);
   await phone.context().setOffline(true);
-  await expect(syncStatus(phone)).toHaveAccessibleName("Sync status: Offline");
+  await expectSyncStatus(phone, "Offline");
   await editLogin(phone, recordId, { username: "from-phone" }); // under the old key
 
   await rotatePersonalVaultKey(page);

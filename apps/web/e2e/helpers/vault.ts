@@ -173,11 +173,20 @@ export async function expectInHistory(
   }).toPass({ timeout });
 }
 
-/** The sync indicator (ADR 0001 D8): the sidebar card on desktop, the page-bar button on phones. */
+/**
+ * The sync indicator (ADR 0001 D8): the sidebar card on desktop (the rail's account icon when
+ * collapsed), the page-bar button on phones.
+ */
 export function syncStatus(page: Page) {
-  return page.getByRole("button", { name: /^Sync status:/ });
+  return page.getByRole("button", { name: /^(Account & sync, )?sync status:/i });
+}
+
+export async function expectSyncStatus(page: Page, title: string, timeout?: number) {
+  await expect(syncStatus(page)).toHaveAccessibleName(new RegExp(`sync status: ${title}$`, "i"), {
+    timeout,
+  });
 }
 
 export async function expectSynced(page: Page, timeout = 30_000): Promise<void> {
-  await expect(syncStatus(page)).toHaveAccessibleName("Sync status: Synced", { timeout });
+  await expectSyncStatus(page, "Synced", timeout);
 }

@@ -14,7 +14,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import RecordList from "./RecordList";
-import { SidebarHeader } from "./SidebarHeader";
+import { SidebarHeader, SidebarToggle } from "./SidebarHeader";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -80,12 +80,25 @@ function Providers({ children }: { children: ReactNode }) {
 }
 
 function Sidebar() {
-  const [collapsed, setCollapsed] = useSidebarCollapsed();
+  const [collapsed, setCollapsed, toggleRef] = useSidebarCollapsed();
   return (
     <div id="sidebar">
-      <SidebarHeader collapsed={collapsed} onCollapsedChange={setCollapsed} controlsId="sidebar" />
+      <SidebarHeader
+        collapsed={collapsed}
+        onCollapsedChange={setCollapsed}
+        controlsId="sidebar"
+        toggleRef={toggleRef}
+      />
       <CategorySidebar collapsed={collapsed} />
       <SidebarTagsRow collapsed={collapsed} />
+      {collapsed && setCollapsed && (
+        <SidebarToggle
+          ref={toggleRef}
+          collapsed
+          onCollapsedChange={setCollapsed}
+          controlsId="sidebar"
+        />
+      )}
     </div>
   );
 }
@@ -94,7 +107,7 @@ function setWindowWide(wide: boolean) {
   vi.spyOn(window, "matchMedia").mockImplementation(
     (query: string) =>
       ({
-        matches: wide && query === "(min-width: 64rem)",
+        matches: wide && query === "(min-width: 75rem)",
         media: query,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
@@ -204,6 +217,7 @@ describe("CategorySidebar collapsed", () => {
     await user.click(toggle());
 
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
+    expect(toggle()).toHaveFocus();
     expect(sidebar()).toHaveAccessibleName("Categories");
     expect(category("Logins (2)")).toHaveAttribute("aria-pressed", "false");
     expect(within(sidebar()).getByText("Logins")).toHaveClass("sr-only");
@@ -212,6 +226,12 @@ describe("CategorySidebar collapsed", () => {
     cleanup();
     renderSidebar();
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
+
+    toggle().focus();
+    await user.keyboard("{Enter}");
+    expect(toggle()).toHaveAttribute("aria-expanded", "true");
+    expect(toggle()).toHaveFocus();
+    expect(localStorage.getItem(PREF_KEYS.sidebarCollapsed)).toBe("false");
   });
 
   it("shows the name and count in a tooltip on focus", async () => {
@@ -307,6 +327,21 @@ describe("RecordList header", () => {
     expect(screen.queryByRole("listbox")).toBeNull();
     expect(screen.getByRole("button", { name: "Search tags (1 on)" })).toHaveTextContent("1 on");
     expect(screen.getByRole("list", { name: "Active filters" })).toHaveTextContent("infra");
+  });
+
+  it("collapsed, the tag icon is tinted with a badge while tags are on", async () => {
+    setWindowWide(false);
+    const { user } = renderList();
+    const tagIcon = () => screen.getByRole("button", { name: /^Search tags/ });
+    expect(tagIcon()).toHaveAccessibleName("Search tags (2)");
+    expect(tagIcon()).toHaveTextContent("Tags");
+    expect(tagIcon()).not.toHaveClass("bg-primary/10");
+
+    await user.click(screen.getByRole("button", { name: "pick work" }));
+
+    expect(tagIcon()).toHaveAccessibleName("Search tags (1 on)");
+    expect(tagIcon()).toHaveTextContent(/^Tags1$/);
+    expect(tagIcon()).toHaveClass("bg-primary/10");
   });
 });
 

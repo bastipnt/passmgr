@@ -85,6 +85,9 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await sidebar.getByRole("button", { name: "Favorites (1)" }).click();
   await expectListed(page, [beta]);
   await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^Account & sync, sync status: / })).toBeVisible();
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await page.getByRole("button", { name: "Lock vault" }).click();
   await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
 });

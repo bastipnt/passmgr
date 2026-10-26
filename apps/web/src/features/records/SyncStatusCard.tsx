@@ -16,7 +16,13 @@ import {
 } from "@repo/ui/components/DropdownMenu";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
-import { LogInIcon, RefreshCwIcon, RotateCcwIcon, UserRoundIcon } from "lucide-react";
+import {
+  CircleUserRoundIcon,
+  LogInIcon,
+  RefreshCwIcon,
+  RotateCcwIcon,
+  UserRoundIcon,
+} from "lucide-react";
 import { type ComponentProps, type ReactElement, useState } from "react";
 import { Link } from "wouter";
 import { settingsPaths } from "@/app/route-paths";
@@ -101,14 +107,13 @@ const CARD_TRIGGER_CLASS =
 /**
  * The sync card of the desktop sidebar and the phone's account sheet: a dot and
  * two lines, opening `SyncStatusPopup`.
- * `collapsed` (the icon rail) keeps only the dot, the lines in its tooltip.
+ * `collapsed` (the icon rail) is the rail's account icon with the dot on it, the lines in its tooltip.
  */
 export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
   const { status, summary, canSync, syncNow } = useSyncSummary();
   const now = useSyncClock(status.lastSyncedAt);
   const { title, detail } = syncCardLines(summary, status, now);
   const syncing = summary.state === "syncing";
-  const dot = <SyncDot state={summary.state} />;
 
   if (collapsed)
     return (
@@ -121,18 +126,21 @@ export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
               render={
                 <button
                   type="button"
-                  aria-label={`Sync status: ${summary.title}`}
-                  className={cn(CARD_TRIGGER_CLASS, "grid size-10 place-items-center")}
+                  aria-label={`Account & sync, sync status: ${summary.title}`}
+                  className={cn(CARD_TRIGGER_CLASS, "relative grid size-9 place-items-center")}
                 >
-                  {dot}
+                  <CircleUserRoundIcon aria-hidden className="size-4" />
+                  <SyncDot state={summary.state} className="absolute top-1.5 right-1.5" />
                 </button>
               }
             />
           }
         />
         <TooltipContent side="right" className="flex flex-col">
-          <span className="font-semibold">{title}</span>
-          <span className="opacity-80">{detail}</span>
+          <span className="font-semibold">Account & sync</span>
+          <span className="opacity-80">
+            {title} · {detail}
+          </span>
         </TooltipContent>
       </Tooltip>
     );
@@ -151,7 +159,7 @@ export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
               "flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left",
             )}
           >
-            {dot}
+            <SyncDot state={summary.state} />
             <span className="flex min-w-0 flex-col">
               <span className="truncate font-semibold text-sm">{title}</span>
               <span className="truncate text-muted-foreground text-xs">{detail}</span>
