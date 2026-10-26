@@ -39,8 +39,11 @@ export function weakPasswordOf(
   const password = monitoredPassword(record);
   if (!password) return undefined;
   const strength = rate(password, strengthInputs(record));
-  if (!strength || (strength.level !== "weak" && strength.level !== "fair")) return undefined;
-  return { record, strength };
+  return strength && isWeakStrength(strength) ? { record, strength } : undefined;
+}
+
+export function isWeakStrength(strength: PasswordStrength): boolean {
+  return strength.level === "weak" || strength.level === "fair";
 }
 
 /** Weakest first. */
@@ -116,25 +119,29 @@ export function passwordChangedAt(record: DecryptedRecord): string | undefined {
   return stamped ?? record.firstCreatedAt ?? undefined;
 }
 
+/** The record's finding when its password is unchanged for `OLD_PASSWORD_DAYS` or longer. */
+export function oldPasswordOf(record: DecryptedRecord, now = new Date()): OldPassword | undefined {
+  const changedAt = monitoredPassword(record) ? passwordChangedAt(record) : undefined;
+  if (!changedAt) return undefined;
+  const ageDays = Math.floor((now.getTime() - Date.parse(changedAt)) / DAY_MS);
+  return ageDays >= OLD_PASSWORD_DAYS ? { record, changedAt, ageDays } : undefined;
+}
+
 /** Passwords unchanged for `OLD_PASSWORD_DAYS` or longer, oldest first. */
 export function findOldPasswords(
   records: readonly DecryptedRecord[],
   now = new Date(),
 ): OldPassword[] {
   return records
-    .flatMap((record) => {
-      const changedAt = monitoredPassword(record) ? passwordChangedAt(record) : undefined;
-      if (!changedAt) return [];
-      const ageDays = Math.floor((now.getTime() - Date.parse(changedAt)) / DAY_MS);
-      return ageDays >= OLD_PASSWORD_DAYS ? [{ record, changedAt, ageDays }] : [];
-    })
+    .flatMap((record) => oldPasswordOf(record, now) ?? [])
     .sort((a, b) => b.ageDays - a.ageDays || byTitle(a.record, b.record));
 }
 
-/** "Unchanged for 2 years", in whole years (an old password is a year or older). */
-export function passwordAgeLabel(ageDays: number): string {
-  const years = Math.max(1, Math.floor(ageDays / 365));
-  return `Unchanged for ${years} ${years === 1 ? "year" : "years"}`;
+/** "Last changed 14 months ago": months under two years, whole years after. */
+export function passwordLastChangedLabel(ageDays: number): string {
+  const months = Math.round((ageDays * 12) / 365);
+  if (months < 24) return `Last changed ${months} ${months === 1 ? "month" : "months"} ago`;
+  return `Last changed ${Math.floor(months / 12)} years ago`;
 }
 
 // Loopback traffic never leaves the device, so plain HTTP there exposes nothing.

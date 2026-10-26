@@ -9,9 +9,6 @@ export function monitoredPassword(record: RecordData): string | undefined {
 export type PasswordHealth = {
   /** Other records that use the exact same password. */
   reusedIn: DecryptedRecord[];
-  /** How many passwords (including this one) the reuse check looked at. */
-  checkedCount: number;
-  hasTotp: boolean;
 };
 
 /** Health of a login's password across every vault; `null` when it has none. */
@@ -20,13 +17,9 @@ export function getPasswordHealth(
   allRecords: DecryptedRecord[],
 ): PasswordHealth | null {
   if (!isRecordType(record, "login") || !record.password) return null;
-  const withPassword = allRecords.filter((other) => monitoredPassword(other));
-
   return {
-    reusedIn: withPassword.filter(
+    reusedIn: allRecords.filter(
       (other) => other.recordId !== record.recordId && monitoredPassword(other) === record.password,
     ),
-    checkedCount: withPassword.length,
-    hasTotp: !!record.totp,
   };
 }

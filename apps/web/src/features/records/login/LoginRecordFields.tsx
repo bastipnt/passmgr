@@ -1,14 +1,14 @@
 import { type FieldGroup, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "@repo/client";
-import type { DecryptedRecord } from "@repo/schema";
+import { type DecryptedRecord, isRecordType } from "@repo/schema";
 import { DetailCodeBlock, DetailFieldGroup } from "@repo/ui/complex-components/DetailField";
 import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import { EarthIcon, FileTextIcon, ListPlusIcon } from "lucide-react";
-import type { ReactNode } from "react";
+import { Fragment, type ReactNode } from "react";
 import { RECORD_TYPE_ICONS } from "../RecordAvatar";
 import { useCopyField } from "../record-utils";
 import { HistorySection } from "./HistorySection";
 import LoginFieldDisplay, { WebsiteRow } from "./LoginFieldDisplay";
-import { PasswordHealthPanel } from "./PasswordHealthPanel";
+import { PasswordHealthLine } from "./PasswordHealthLine";
 import { PreviousSecretsSection } from "./PreviousSecretsSection";
 
 type LoginRecordFieldsProps = {
@@ -27,19 +27,31 @@ export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
   const [websites] = inGroup("websites");
   const [note] = inGroup("note");
   const custom = inGroup("custom");
+  const hasHealthLine = isRecordType(record, "login") && !!record.password;
 
   return (
     <div className="flex flex-col gap-8">
       {fields.length > 0 && (
         <DetailSection title={RECORD_TYPE_LABELS[record.type].fields} icon={<TypeIcon />}>
           <DetailFieldGroup>
-            {fields.map((spec) => (
-              <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} showShortcuts />
-            ))}
+            {fields.map((spec) =>
+              spec.kind === "password" && hasHealthLine ? (
+                <Fragment key={spec.key}>
+                  <LoginFieldDisplay
+                    spec={spec}
+                    onCopy={copyField}
+                    showShortcuts
+                    className="border-b-0 pb-1"
+                  />
+                  <PasswordHealthLine record={record} />
+                </Fragment>
+              ) : (
+                <LoginFieldDisplay key={spec.key} spec={spec} onCopy={copyField} showShortcuts />
+              ),
+            )}
           </DetailFieldGroup>
         </DetailSection>
       )}
-      <PasswordHealthPanel record={record} />
       {websites?.values && (
         <DetailSection title="Websites" icon={<EarthIcon />} count={websites.values.length}>
           <DetailFieldGroup>

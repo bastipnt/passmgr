@@ -8,7 +8,7 @@ import {
   findOldPasswords,
   findReusedPasswords,
   passMonitorIssueCount,
-  passwordAgeLabel,
+  passwordLastChangedLabel,
   type RateStrength,
   sortWeakPasswords,
   weakPasswordOf,
@@ -131,10 +131,20 @@ describe("findOldPasswords", () => {
       ["stamped", 741],
       ["created", 365],
     ]);
-    expect(old.map((o) => passwordAgeLabel(o.ageDays))).toEqual([
-      "Unchanged for 2 years",
-      "Unchanged for 1 year",
+    expect(old.map((o) => passwordLastChangedLabel(o.ageDays))).toEqual([
+      "Last changed 2 years ago",
+      "Last changed 12 months ago",
     ]);
+  });
+});
+
+describe("passwordLastChangedLabel", () => {
+  it("counts months under two years, whole years after", () => {
+    expect(passwordLastChangedLabel(365)).toBe("Last changed 12 months ago");
+    expect(passwordLastChangedLabel(425)).toBe("Last changed 14 months ago");
+    expect(passwordLastChangedLabel(729)).toBe("Last changed 2 years ago");
+    expect(passwordLastChangedLabel(741)).toBe("Last changed 2 years ago");
+    expect(passwordLastChangedLabel(1200)).toBe("Last changed 3 years ago");
   });
 });
 

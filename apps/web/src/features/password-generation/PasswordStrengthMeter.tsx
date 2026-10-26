@@ -32,8 +32,8 @@ type PasswordStrengthMeterProps = (
 ) & {
   /** Right-aligned hint on the label row, e.g. a character count. */
   aside?: ReactNode;
-  /** Segments only, no label row — for tight spots like the health panel. */
-  compact?: boolean;
+  /** Short segments with the label beside them in one line; no `aside` or warning. */
+  inline?: boolean;
   className?: string;
 };
 
@@ -43,7 +43,7 @@ export default function PasswordStrengthMeter({
   userInputs,
   strength: givenStrength,
   aside,
-  compact = false,
+  inline = false,
   className,
 }: PasswordStrengthMeterProps) {
   const ownStrength = usePasswordStrength(
@@ -52,26 +52,42 @@ export default function PasswordStrengthMeter({
   );
   const strength = givenStrength === undefined ? ownStrength : givenStrength;
   const filled = strength ? LEVELS.indexOf(strength.level) + 1 : 0;
+  const segments = (
+    <div className={cn("grid grid-cols-4", inline ? "w-16 gap-1" : "gap-1.5")} aria-hidden>
+      {LEVELS.map((level, i) => (
+        <span
+          key={level}
+          className={cn(
+            "h-1 rounded-full transition-colors",
+            i < filled ? SEGMENT_COLOR[level] : "bg-foreground/10",
+          )}
+        />
+      ))}
+    </div>
+  );
+
+  if (inline) {
+    return (
+      <div className={cn("flex items-center gap-2.5", className)}>
+        {segments}
+        <span
+          aria-live="polite"
+          className={cn(
+            "font-semibold",
+            strength ? LABEL_COLOR[strength.level] : "text-muted-foreground",
+          )}
+        >
+          <span className="sr-only">Strength: </span>
+          {strength ? strength.label : "Checking…"}
+        </span>
+      </div>
+    );
+  }
 
   return (
-    <div className={cn("flex flex-col gap-1.5", compact && "w-16", className)}>
-      <div className={cn("grid grid-cols-4", compact ? "gap-1" : "gap-1.5")} aria-hidden>
-        {LEVELS.map((level, i) => (
-          <span
-            key={level}
-            className={cn(
-              "h-1 rounded-full transition-colors",
-              i < filled ? SEGMENT_COLOR[level] : "bg-foreground/10",
-            )}
-          />
-        ))}
-      </div>
-      <div
-        className={cn(
-          "flex justify-between gap-2 text-muted-foreground text-xs",
-          compact && "sr-only",
-        )}
-      >
+    <div className={cn("flex flex-col gap-1.5", className)}>
+      {segments}
+      <div className="flex justify-between gap-2 text-muted-foreground text-xs">
         <span aria-live="polite">
           {strength ? (
             <>
@@ -86,9 +102,7 @@ export default function PasswordStrengthMeter({
         </span>
         {aside}
       </div>
-      {strength?.warning && !compact && (
-        <p className="text-muted-foreground text-xs">{strength.warning}</p>
-      )}
+      {strength?.warning && <p className="text-muted-foreground text-xs">{strength.warning}</p>}
     </div>
   );
 }

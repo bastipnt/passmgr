@@ -21,6 +21,7 @@ type LoginFieldDisplayProps = {
   onCopy?: OnCopy;
   /** Show the copy shortcuts of the record on screen next to their fields. */
   showShortcuts?: boolean;
+  className?: string;
 };
 
 /**
@@ -32,6 +33,7 @@ export default function LoginFieldDisplay({
   spec,
   onCopy,
   showShortcuts = false,
+  className,
 }: LoginFieldDisplayProps) {
   const [revealSeconds] = usePreference<number>(
     PREF_KEYS.revealTimeoutSeconds,
@@ -45,6 +47,7 @@ export default function LoginFieldDisplay({
     case "text":
       return (
         <DetailField
+          className={className}
           label={spec.label}
           value={spec.value}
           onCopy={copy(spec.copyValue ?? spec.value)}
@@ -54,6 +57,7 @@ export default function LoginFieldDisplay({
     case "username":
       return (
         <DetailField
+          className={className}
           label={spec.label}
           value={spec.value}
           onCopy={copy(spec.value)}
@@ -64,6 +68,7 @@ export default function LoginFieldDisplay({
     case "password":
       return (
         <DetailField
+          className={className}
           label={spec.label}
           value={spec.value}
           hidden
@@ -76,6 +81,7 @@ export default function LoginFieldDisplay({
     case "secret":
       return (
         <DetailField
+          className={className}
           label={spec.label}
           value={spec.value}
           hidden
@@ -90,6 +96,7 @@ export default function LoginFieldDisplay({
     case "websites":
       return (
         <DetailField
+          className={className}
           label={spec.label}
           value={
             <ul>
@@ -104,7 +111,13 @@ export default function LoginFieldDisplay({
 
     case "note":
       return (
-        <DetailField label={spec.label} value={spec.value} multiline onCopy={copy(spec.value)} />
+        <DetailField
+          className={className}
+          label={spec.label}
+          value={spec.value}
+          multiline
+          onCopy={copy(spec.value)}
+        />
       );
   }
 }

@@ -1,6 +1,7 @@
 import type { DecryptedRecord, LoginRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import { getPasswordHealth } from "../src/records/password-health";
+import { passwordIssues } from "../src/records/password-issues";
 
 function makeRecord(recordId: string, fields: Partial<LoginRecord> = {}): DecryptedRecord {
   return {
@@ -30,7 +31,6 @@ describe("getPasswordHealth", () => {
     const health = getPasswordHealth(github, [github, figma, notion]);
 
     expect(health?.reusedIn.map((r) => r.recordId)).toEqual(["figma"]);
-    expect(health?.checkedCount).toBe(3);
   });
 
   it("counts a Wi-Fi password as reuse, but other types' secrets not", () => {
@@ -39,17 +39,55 @@ describe("getPasswordHealth", () => {
     const card = { ...makeRecord("card"), type: "card", pin: "shared-secret-1" } as const;
 
     expect(getPasswordHealth(wifi, [github, wifi])).toBeNull();
-    expect(getPasswordHealth(github, [github, wifi, card])).toMatchObject({
-      reusedIn: [wifi],
-      checkedCount: 2,
-    });
+    expect(getPasswordHealth(github, [github, wifi, card])).toEqual({ reusedIn: [wifi] });
+  });
+});
+
+describe("passwordIssues", () => {
+  const github = makeRecord("github", { password: "shared-secret-1" });
+  const figma = makeRecord("figma", { password: "shared-secret-1" });
+  const health = getPasswordHealth(github, [github, figma])!;
+  const clean = { reusedIn: [] };
+
+  it("is empty for a strong, unique, unbreached, recent password", () => {
+    expect(
+      passwordIssues({
+        health: clean,
+        strength: { level: "strong", label: "Strong" },
+        breachCount: 0,
+        old: undefined,
+        twoFactorSite: undefined,
+      }),
+    ).toEqual([]);
   });
 
-  it("reports whether a TOTP secret is set", () => {
-    const withTotp = makeRecord("a", { password: "pw-123456", totp: "JBSWY3DPEHPK3PXP" });
-    const withoutTotp = makeRecord("b", { password: "pw-123456" });
+  it("lists every finding, most urgent first", () => {
+    const issues = passwordIssues({
+      health,
+      strength: { level: "fair", label: "Fair" },
+      breachCount: 12,
+      old: { record: github, changedAt: "2024-01-01T00:00:00.000Z", ageDays: 600 },
+      twoFactorSite: { domain: "github.com" },
+    });
 
-    expect(getPasswordHealth(withTotp, [withTotp])?.hasTotp).toBe(true);
-    expect(getPasswordHealth(withoutTotp, [withoutTotp])?.hasTotp).toBe(false);
+    expect(issues.map((issue) => issue.kind)).toEqual([
+      "breached",
+      "weak",
+      "reused",
+      "old",
+      "missing-two-factor",
+    ]);
+    expect(issues[2]).toEqual({ kind: "reused", records: [figma] });
+  });
+
+  it("waits for a rating before calling a password weak", () => {
+    const issues = passwordIssues({
+      health: clean,
+      strength: null,
+      breachCount: null,
+      old: undefined,
+      twoFactorSite: undefined,
+    });
+    expect(issues).toEqual([]);
   });
 });

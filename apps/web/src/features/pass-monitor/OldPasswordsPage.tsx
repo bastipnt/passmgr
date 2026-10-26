@@ -1,4 +1,4 @@
-import { passwordAgeLabel, usePassMonitor } from "@repo/client";
+import { passwordLastChangedLabel, usePassMonitor } from "@repo/client";
 import { ItemGroup } from "@repo/ui/components/Item";
 import { MonitorPage } from "./MonitorPage";
 import { MonitorRecordItem } from "./MonitorRecordItem";
@@ -18,7 +18,7 @@ export default function OldPasswordsPage() {
           <MonitorRecordItem
             key={record.recordId}
             record={record}
-            detail={passwordAgeLabel(ageDays)}
+            detail={passwordLastChangedLabel(ageDays)}
           />
         ))}
       </ItemGroup>
