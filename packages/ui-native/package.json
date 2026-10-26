@@ -43,7 +43,7 @@
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:",
-    "react-native-screens": "~4.26.0",
+    "react-native-screens": "~4.26.2",
     "react-native-svg": "catalog:",
     "tailwind-merge": "catalog:",
     "tailwindcss": "catalog:",

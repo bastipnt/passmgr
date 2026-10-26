@@ -20,12 +20,13 @@
     "fumadocs-core": "16.17.1",
     "fumadocs-mdx": "15.4.7",
     "fumadocs-ui": "npm:@fumadocs/base-ui@16.17.1",
-    "lucide-react": "^1.50.0",
+    "lucide-react": "^1.55.0",
     "react": "catalog:",
     "react-dom": "catalog:",
     "takumi-js": "^2.14.0"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.5.15",
     "@tailwindcss/vite": "^4.3.3",
     "@types/mdx": "^2.0.14",
     "@types/node": "^26.6.4",
@@ -37,7 +38,6 @@
     "srvx": "^1.0.5",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
-    "vite": "^8.3.2",
-    "@biomejs/biome": "^2.5.15"
+    "vite": "^8.3.2"
   }
 }

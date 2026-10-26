@@ -72,10 +72,10 @@ catalog:
   testcontainers: ^12.0.4
   typescript: ~6.0.3
   uniwind: ^1.10.0
-  vite: 8.0.16
+  vite: 8.3.4
   vitest: ^4.1.11
   wouter: ^3.10.0
-  zod: ^4.4.3
+  zod: ^4.6.7
 
 blockExoticSubdeps: true
 trustPolicy: no-downgrade
@@ -161,6 +161,13 @@ overrides:
   # via @bacons/apple-targets > @bacons/xcode > @expo/plist@0.0.18 (pins ~0.7).
   # 0.8 keeps the DOMParser API that build-time plist parsing uses.
   "@xmldom/xmldom@<0.8.15": "^0.8.15"
+  # zod <4.6.6 (GHSA-mrhx-c7xc-m3w5, memory exhaustion on oversized collections).
+  # @expo/cli pins zod ^3.25 and 3.x has no fix; its schemas (DevTools plugin /
+  # MCP config) use only the basic API that zod 4 keeps.
+  "@expo/cli>zod": "^4.6.7"
+  # @azure/msal-node <7.1.0 (GHSA-xcx6-jx8p-x3h5), via drizzle-orm's optional
+  # mssql driver (tedious > @azure/identity, which still asks ^6). We never load it.
+  "@azure/identity>@azure/msal-node": "^7.1.0"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
