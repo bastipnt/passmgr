@@ -6,7 +6,7 @@ import {
 import { RECORD_TYPES } from "@repo/schema";
 import { SidebarDivider, SidebarItem } from "@repo/ui/components/SidebarItem";
 import { cn } from "@repo/ui/lib/utils";
-import { LayoutListIcon, type LucideIcon, StarIcon } from "lucide-react";
+import { LayoutListIcon, type LucideIcon, SearchIcon, StarIcon, TagIcon } from "lucide-react";
 import { RECORD_TYPE_ICONS } from "./RecordAvatar";
 
 export const CATEGORY_ICONS: Record<CategoryFilter, LucideIcon> = {
@@ -50,5 +50,43 @@ export function CategorySidebar({ collapsed }: { collapsed: boolean }) {
       )}
       <ul className="flex flex-col gap-0.5">{RECORD_TYPES.map(item)}</ul>
     </nav>
+  );
+}
+
+/** The tags live in the search: the row opens it in tag mode. */
+export function SidebarTagsRow({ collapsed }: { collapsed: boolean }) {
+  const { tags, tagFilters, searchTags } = useSortedRecords();
+  if (tags.length === 0) return null;
+  const on = tagFilters.length;
+
+  return (
+    <div className={cn("flex flex-col gap-0.5", collapsed && "items-center")}>
+      <div className="py-1.5">
+        <SidebarDivider collapsed={collapsed} />
+      </div>
+      <SidebarItem
+        icon={TagIcon}
+        label="Tags"
+        count={on > 0 ? undefined : tags.length}
+        aria-label={on > 0 ? `Search tags (${on} on)` : `Search tags (${tags.length})`}
+        collapsed={collapsed}
+        onClick={searchTags}
+        trailing={
+          <>
+            {on > 0 && (
+              <span className="rounded-full bg-primary/10 px-2 py-0.5 font-semibold text-primary-text text-xs dark:bg-primary/20">
+                {on} on
+              </span>
+            )}
+            <span
+              aria-hidden
+              className="flex size-6 items-center justify-center rounded-lg border border-border text-muted-foreground [&_svg]:size-3.5"
+            >
+              <SearchIcon />
+            </span>
+          </>
+        }
+      />
+    </div>
   );
 }

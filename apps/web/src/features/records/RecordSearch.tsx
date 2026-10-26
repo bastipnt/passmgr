@@ -8,16 +8,13 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { SearchIcon, XIcon } from "lucide-react";
-import { useRef } from "react";
 import { modKey } from "@/lib/formatShortcut";
 
 export function RecordSearch() {
-  const { query, setQuery, vaultFilter } = useSortedRecords();
+  const { query, setQuery, vaultFilter, searchInputRef } = useSortedRecords();
   const { getVault } = useVaults();
   const label = `Search ${vaultFilter === "all" ? "all vaults" : getVault(vaultFilter)?.name}`;
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useShortcut("$mod+k", () => inputRef.current?.focus(), {
+  useShortcut("$mod+k", () => searchInputRef.current?.focus(), {
     description: "Focus search",
     allowInInput: true,
   });
@@ -28,7 +25,9 @@ export function RecordSearch() {
         <SearchIcon />
       </InputGroupAddon>
       <InputGroupInput
-        ref={inputRef}
+        ref={(el) => {
+          searchInputRef.current = el;
+        }}
         placeholder={`${label}…`}
         aria-label={label}
         value={query}

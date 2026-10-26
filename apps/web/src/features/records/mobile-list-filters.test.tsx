@@ -11,6 +11,7 @@ const list = vi.hoisted(() => ({
   tagFilters: [] as string[],
   setCategoryFilter: vi.fn(),
   removeTag: vi.fn(),
+  clearFilters: vi.fn(),
 }));
 vi.mock("@repo/client/src/providers/SortedRecordsProvider", async (importActual) => ({
   ...(await importActual<object>()),
@@ -19,7 +20,6 @@ vi.mock("@repo/client/src/providers/SortedRecordsProvider", async (importActual)
     categoryCounts: {},
     tags: [],
     toggleTag: vi.fn(),
-    clearTags: vi.fn(),
   }),
 }));
 
@@ -45,6 +45,22 @@ describe("ActiveFilterChips", () => {
 
     await userEvent.click(screen.getByRole("button", { name: "Remove filter Logins" }));
     expect(list.setCategoryFilter).toHaveBeenCalledWith("all");
+  });
+
+  it("phone: no Clear all, the filter sheet resets", () => {
+    Object.assign(list, { tagFilters: ["work"] });
+    renderWithProviders(<ActiveFilterChips />);
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+  });
+
+  it("desktop: Clear all takes every filter off, by keyboard too", async () => {
+    Object.assign(list, { categoryFilter: "login", tagFilters: ["work"] });
+    renderWithProviders(<ActiveFilterChips variant="desktop" />);
+    const clearAll = screen.getByRole("button", { name: "Clear all" });
+
+    clearAll.focus();
+    await userEvent.keyboard("{Enter}");
+    expect(list.clearFilters).toHaveBeenCalledOnce();
   });
 
   it("hides during a search, which ignores them", () => {

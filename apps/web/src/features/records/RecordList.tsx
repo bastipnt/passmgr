@@ -8,6 +8,7 @@ import {
   type VaultInfo,
 } from "@repo/client";
 import {
+  activeFilterCount,
   type CategoryFilter,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
@@ -50,10 +51,11 @@ type RecordRowProps = {
  * chevron — the record opens as its own page, so there is no active state.
  */
 function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowProps) {
+  // scroll-mt: RecordLayout's scroll padding covers the bar without the chips.
   return (
     <Item
       variant={active ? "active" : "default"}
-      className="group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5"
+      className="group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)"
       render={
         <Link
           href={recordPaths.record(record.recordId)}
@@ -178,34 +180,6 @@ function MobileListTitle({ title, count }: { title: string; count: number }) {
   );
 }
 
-function TaggedSubtitle({ tags, onClear }: { tags: readonly string[]; onClear: () => void }) {
-  const parts = new Intl.ListFormat("en", { type: "conjunction" }).formatToParts(tags);
-  return (
-    <p className="flex min-w-0 items-baseline gap-1.5 text-muted-foreground text-xs">
-      <span className="truncate">
-        tagged{" "}
-        {parts.map((part, i) =>
-          part.type === "element" ? (
-            <strong key={i} className="font-semibold text-foreground">
-              {part.value}
-            </strong>
-          ) : (
-            part.value
-          ),
-        )}
-      </span>
-      <button
-        type="button"
-        onClick={onClear}
-        className="shrink-0 font-semibold text-primary-text hover:underline"
-        aria-label="Clear tags"
-      >
-        Clear
-      </button>
-    </p>
-  );
-}
-
 export default function RecordList() {
   // Loose match: a record stays "in view" (highlighted, arrow-navigable) while
   // one of its sub-route sheets — edit, versions — is open.
@@ -218,7 +192,6 @@ export default function RecordList() {
     categoryFilter,
     vaultFilter,
     tagFilters,
-    clearTags,
     sortedRecords,
     recordGroups,
     hasGroupLabels,
@@ -313,14 +286,14 @@ export default function RecordList() {
 
   const hasQuery = query.trim().length > 0;
   const noResults = hasQuery && sortedRecords.length === 0;
-  const subtitled = !hasQuery && tagFilters.length > 0;
+  const filtered = !hasQuery && activeFilterCount(categoryFilter, tagFilters) > 0;
 
   return (
     <div
       ref={listRef}
       className={cn(
-        "flex flex-col gap-2 pb-3 [--list-bar-h:6.75rem] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
-        subtitled && "sm:[--list-bar-h:7.5rem]",
+        "flex flex-col gap-2 pb-3 [--list-bar-h:calc(6.75rem+var(--list-chips-h))] [--list-chips-h:0px] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
+        filtered && "sm:[--list-chips-h:3rem]",
       )}
     >
       {isMobile ? (
@@ -340,17 +313,19 @@ export default function RecordList() {
         >
           <RecordSearch />
           <div className="flex min-h-0 flex-1 items-center justify-between gap-2 px-1.5">
-            <div className="min-w-0">
-              <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
-                <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
-                <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
-                  {sortedRecords.length}
-                </span>
-              </h2>
-              {subtitled && <TaggedSubtitle tags={tagFilters} onClear={clearTags} />}
-            </div>
+            <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
+              <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
+              <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
+                {sortedRecords.length}
+              </span>
+            </h2>
             <RecordSortMenu />
           </div>
+          {filtered && (
+            <div className="pb-2">
+              <ActiveFilterChips variant="desktop" />
+            </div>
+          )}
         </div>
       )}
       {noResults ? (

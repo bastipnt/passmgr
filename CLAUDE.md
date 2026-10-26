@@ -130,8 +130,9 @@ Rules:
 - **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar
   sits on the ground (`ShellPanel surface="ground"`): `SidebarHeader` (`VaultSwitcher`, collapse toggle, New record),
   `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
-  `SidebarFooter` (Pass Monitor, Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only
-  raised panel (`RecordSearch` + heading + `RecordSortMenu`); the record sits on the ground.
+  `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
+  Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
+  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all); the record sits on the ground.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
@@ -528,8 +529,10 @@ web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsP
 required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
 carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
 records left if added; a search ignores tags and category; a detail chip's `showTag` clears the other filters first) and
-search's third tier (after title, subtitle); `listTitle` (mobile app) / `listHeading` (web; desktop shows the tags in a subtitle) are shared. Web desktop: a detail chip sets one, the list
-heading's "tagged …" subtitle clears them; web phone: `FilterSheet` (category grid + tags), the
+search's third tier (after title, subtitle; a query starting with `#`, `TAG_SEARCH_PREFIX`, matches tags only); `clearFilters`
+drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
+Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`),
+the chips under the list heading remove one or Clear all; web phone: `FilterSheet` (category grid + tags), the
 ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.

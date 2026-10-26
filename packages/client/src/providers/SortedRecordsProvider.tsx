@@ -1,6 +1,15 @@
 import { type DecryptedRecord, RECORD_TYPES, type RecordType, tagKey } from "@repo/schema";
 import { counted } from "@repo/util";
-import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
 import { useTags } from "../hooks/use-tags";
@@ -277,10 +286,19 @@ function useTagFilters(
   return [shown, setStored];
 }
 
+/** A query starting with this matches tags only. */
+export const TAG_SEARCH_PREFIX = "#";
+
 /** Title matches first, then subtitle matches, then tag matches. */
 export function filterBySearch(records: DecryptedRecord[], query: string): DecryptedRecord[] {
   if (!query.trim()) return records;
   const q = query.toLowerCase().trim();
+  if (q.startsWith(TAG_SEARCH_PREFIX)) {
+    const tagQuery = q.slice(TAG_SEARCH_PREFIX.length).trim();
+    return records.filter((record) =>
+      record.tags?.some((tag) => tag.toLowerCase().includes(tagQuery)),
+    );
+  }
   const titleMatches: DecryptedRecord[] = [];
   const subtitleMatches: DecryptedRecord[] = [];
   const tagMatches: DecryptedRecord[] = [];
@@ -303,7 +321,7 @@ function filterRecords(
   return filterByCategory(filterByTags(filterByVault(records, vault), tags), category);
 }
 
-/** The list heading where the vault and the tags show elsewhere (desktop: header, subtitle; web phone: vault pill, filter chips). */
+/** The list heading where the vault and the tags show elsewhere (web: vault switcher, filter chips). */
 export function listHeading(categoryFilter: CategoryFilter, searching: boolean): string {
   return searching ? "Results" : categoryLabel(categoryFilter);
 }
@@ -362,6 +380,12 @@ type SortedRecordsContextValue = {
   toggleTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   clearTags: () => void;
+  /** Back to the whole vault in view: category "all", no tags. */
+  clearFilters: () => void;
+  /** The list's search field, so others can focus it. */
+  searchInputRef: RefObject<{ focus: () => void } | null>;
+  /** Focuses the search with the tag prefix typed. */
+  searchTags: () => void;
   /**
    * The tags of the vault in view (of every vault for "All vaults"), the
    * selected ones first, then A–Z. `count`: the records left with the tag
@@ -511,6 +535,16 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [setTagFilters],
   );
   const clearTags = useCallback(() => setTagFilters(() => []), [setTagFilters]);
+  const clearFilters = useCallback(() => {
+    setCategoryFilter("all");
+    clearTags();
+  }, [clearTags]);
+
+  const searchInputRef = useRef<{ focus: () => void } | null>(null);
+  const searchTags = useCallback(() => {
+    setQuery(TAG_SEARCH_PREFIX);
+    searchInputRef.current?.focus();
+  }, []);
 
   // The vault and category may hide every record with the tag (its record was
   // opened from a search), which would drop the tag right away.
@@ -543,6 +577,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       toggleTag,
       removeTag,
       clearTags,
+      clearFilters,
+      searchInputRef,
+      searchTags,
       tags,
       showTag,
       sortedRecords,
@@ -561,6 +598,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       toggleTag,
       removeTag,
       clearTags,
+      clearFilters,
+      searchTags,
       tags,
       showTag,
       sortedRecords,

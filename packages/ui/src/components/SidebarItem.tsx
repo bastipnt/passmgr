@@ -4,6 +4,7 @@ import { CountBadge } from "@repo/ui/components/CountBadge";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
 type SidebarItemProps = Omit<useRender.ComponentProps<"button">, "children"> & {
   icon: LucideIcon;
@@ -17,6 +18,8 @@ type SidebarItemProps = Omit<useRender.ComponentProps<"button">, "children"> & {
   dimmed?: boolean;
   /** Icon only, with the label and count in a tooltip; a `warning` count stays as a badge. */
   collapsed?: boolean;
+  /** After the count, hidden when collapsed. */
+  trailing?: ReactNode;
 };
 
 export function SidebarItem({
@@ -27,11 +30,12 @@ export function SidebarItem({
   active,
   dimmed,
   collapsed,
+  trailing,
   className,
   render,
   ...props
 }: SidebarItemProps) {
-  const name = count === undefined ? label : `${label} (${count})`;
+  const name = props["aria-label"] ?? (count === undefined ? label : `${label} (${count})`);
   const warning = countTone === "warning";
 
   const item = useRender({
@@ -71,6 +75,7 @@ export function SidebarItem({
                 {count}
               </span>
             )}
+            {!collapsed && trailing}
           </>
         ),
       },

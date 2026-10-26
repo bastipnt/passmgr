@@ -58,14 +58,10 @@ export function FilterSheet({
     tagFilters,
     toggleTag,
     removeTag,
-    clearTags,
+    clearFilters,
   } = useSortedRecords();
   const isMobile = useIsMobile();
   const selected = new Set(tagFilters.map(tagKey));
-  const reset = () => {
-    setCategoryFilter("all");
-    clearTags();
-  };
 
   return (
     <ResponsiveSheet
@@ -80,7 +76,7 @@ export function FilterSheet({
             size="lg"
             className="ml-auto text-primary-text"
             disabled={activeFilterCount(categoryFilter, tagFilters) === 0}
-            onClick={reset}
+            onClick={clearFilters}
           >
             Reset
           </Button>

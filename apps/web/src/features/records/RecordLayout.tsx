@@ -17,7 +17,7 @@ import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
-import { CategorySidebar } from "./CategorySidebar";
+import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
@@ -138,6 +138,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
               controlsId={sidebarId}
             />
             <CategorySidebar collapsed={sidebarCollapsed} />
+            <SidebarTagsRow collapsed={sidebarCollapsed} />
             <div className="mt-auto flex flex-col gap-2">
               <SidebarFooter collapsed={sidebarCollapsed} />
               <LockButton collapsed={sidebarCollapsed} onLock={lockVault} />

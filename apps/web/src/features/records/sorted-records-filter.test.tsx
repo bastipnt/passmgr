@@ -258,6 +258,23 @@ describe("tag filters", () => {
     expect(ids(result.current.sortedRecords)).toEqual(["card"]);
   });
 
+  it("clearFilters drops the category and every tag, keeping the vault", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.setVaultFilter("v1");
+      result.current.setCategoryFilter("login");
+      result.current.toggleTag("code");
+    });
+    act(() => result.current.clearFilters());
+    expect(result.current).toMatchObject({
+      vaultFilter: "v1",
+      categoryFilter: "all",
+      tagFilters: [],
+    });
+    expect(ids(result.current.sortedRecords)).toEqual(["card", "login", "wifi"]);
+  });
+
   it("applies to useRecordSearch's browsing", () => {
     const { result } = renderHook(
       () => useRecordSearch("", { tags: ["code"] }).flatMap((group) => group.records),
@@ -294,6 +311,16 @@ describe("search", () => {
 
     act(() => result.current.setQuery("ban"));
     expect(ids(result.current.sortedRecords)).toEqual(["card"]);
+  });
+
+  it("matches only tags after a #", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => result.current.setQuery("#o"));
+    expect(ids(result.current.sortedRecords)).toEqual(["login", "work"]);
+
+    act(() => result.current.setQuery("#"));
+    expect(ids(result.current.sortedRecords)).toEqual(["card", "login", "work"]);
   });
 });
 

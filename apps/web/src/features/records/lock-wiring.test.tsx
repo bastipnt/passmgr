@@ -32,7 +32,7 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({ getVault: () => undefined }),
 }));
 vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
-vi.mock("./CategorySidebar", () => ({ CategorySidebar: () => null }));
+vi.mock("./CategorySidebar", () => ({ CategorySidebar: () => null, SidebarTagsRow: () => null }));
 vi.mock("./SidebarFooter", () => ({ SidebarFooter: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));
 vi.mock("@/features/vaults", () => ({ VaultSwitcher: () => null }));

@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
-import { CategorySidebar } from "./CategorySidebar";
+import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import RecordList from "./RecordList";
 import { SidebarHeader } from "./SidebarHeader";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
@@ -85,6 +85,7 @@ function Sidebar() {
     <div id="sidebar">
       <SidebarHeader collapsed={collapsed} onCollapsedChange={setCollapsed} controlsId="sidebar" />
       <CategorySidebar collapsed={collapsed} />
+      <SidebarTagsRow collapsed={collapsed} />
     </div>
   );
 }
@@ -257,21 +258,40 @@ describe("RecordList header", () => {
 
   const header = () => screen.getByRole("heading", { level: 2, name: /^(?!Categories)/ });
 
-  it("titles the list with the category and its count, the tags below", async () => {
+  it("titles the list with the category and its count, the filters as chips below", async () => {
     const user = renderList();
     expect(header()).toHaveTextContent("All items3");
-    expect(screen.queryByText(/^tagged/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
 
     await user.click(category("Logins (2)"));
     await user.click(screen.getByRole("button", { name: "pick work" }));
     await user.click(screen.getByRole("button", { name: "pick infra" }));
 
     expect(header()).toHaveTextContent("Logins1");
-    expect(screen.getByText(/^tagged/)).toHaveTextContent("tagged work and infra");
+    expect(
+      within(screen.getByRole("list", { name: "Active filters" }))
+        .getAllByRole("button")
+        .map((chip) => chip.getAttribute("aria-label")),
+    ).toEqual(["Remove filter Logins", "Remove tag work", "Remove tag infra"]);
 
-    await user.click(screen.getByRole("button", { name: "Clear tags" }));
-
-    expect(screen.queryByText(/^tagged/)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Remove tag infra" }));
     expect(header()).toHaveTextContent("Logins2");
+
+    await user.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
+    expect(header()).toHaveTextContent("All items3");
+  });
+
+  it("the sidebar's Tags row counts the tags, then the ones on, and opens the search in tag mode", async () => {
+    const user = renderList();
+    const search = screen.getByRole("textbox", { name: /^Search/ });
+
+    await user.click(screen.getByRole("button", { name: "Search tags (2)" }));
+    expect(search).toHaveFocus();
+    expect(search).toHaveValue("#");
+
+    await user.clear(search);
+    await user.click(screen.getByRole("button", { name: "pick work" }));
+    expect(screen.getByRole("button", { name: "Search tags (1 on)" })).toHaveTextContent("1 on");
   });
 });
