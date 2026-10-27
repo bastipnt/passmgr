@@ -3,8 +3,12 @@ import { RECORD_TYPES } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { renderWithProviders, screen, waitFor, within } from "@/test/render";
+import { decodeQrImage } from "./login/qr-decode";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
+
+// No canvas in jsdom: the decoder stands in, the camera is missing.
+vi.mock("./login/qr-decode", () => ({ decodeQr: vi.fn(), decodeQrImage: vi.fn() }));
 
 // The tag field offers the tags in use, which live in the records context.
 vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
@@ -104,6 +108,28 @@ describe("RecordForm", () => {
     await userEvent.paste("otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub");
 
     expect(totp.value).toBe("JBSWY3DPEHPK3PXP");
+  });
+
+  it("fills the one-time code from a QR code image", async () => {
+    renderWithProviders(<RecordForm type="login" onSubmit={vi.fn()} />);
+    await userEvent.click(screen.getByRole("button", { name: "Scan QR code" }));
+    const dialog = await screen.findByRole("dialog", { name: "Scan QR code" });
+    expect(await within(dialog).findByText(/No camera available/)).toBeInTheDocument();
+
+    vi.mocked(decodeQrImage).mockResolvedValueOnce("https://example.com");
+    const image = new File(["png"], "qr.png", { type: "image/png" });
+    await userEvent.upload(within(dialog).getByLabelText("QR code image"), image);
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent(
+      "doesn't set up a one-time code",
+    );
+
+    vi.mocked(decodeQrImage).mockResolvedValueOnce(
+      "otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub",
+    );
+    await userEvent.upload(within(dialog).getByLabelText("QR code image"), image);
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+    expect(screen.getByLabelText("One-time code")).toHaveValue("JBSWY3DPEHPK3PXP");
   });
 
   it("fills a hidden extra field from the generator, without a strength line", async () => {
@@ -368,13 +394,14 @@ describe("RecordForm", () => {
     expect(screen.queryByRole("button", { name: "Expand" })).not.toBeInTheDocument();
   });
 
-  it("marks the SSH private key hidden and names its format", async () => {
+  it("blurs the SSH private key until shown and names its format", async () => {
     renderWithProviders(<RecordForm type="ssh_key" onSubmit={vi.fn()} />);
 
     const privateKey = screen.getByLabelText("Private key");
-    expect(privateKey.className).toContain("[-webkit-text-security:disc]");
-    await userEvent.click(screen.getByRole("button", { name: "Show private key" }));
+    expect(privateKey.className).toContain("text-transparent");
     expect(privateKey.className).not.toContain("[-webkit-text-security:disc]");
+    await userEvent.click(screen.getByRole("button", { name: "Show private key" }));
+    expect(privateKey.className).not.toContain("text-transparent");
 
     await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
     expect(screen.getByText("OpenSSH · ssh-ed25519")).toBeInTheDocument();

@@ -20,3 +20,7 @@ export const fieldBoxClassName = `${fieldBoxFrameClassName} flex min-h-15 w-full
 /** Masks a text input until focused, without `type="password"` (no save-password prompt). */
 export const maskedTextClassName =
   "[-webkit-text-security:disc] focus:[-webkit-text-security:none]";
+
+/** Blurs text until focused; the shape stays readable, the characters don't. */
+export const blurredTextClassName =
+  "select-none text-transparent [text-shadow:0_0_7px_color-mix(in_oklab,var(--color-foreground)_55%,transparent)] focus:select-auto focus:text-foreground focus:[text-shadow:none]";

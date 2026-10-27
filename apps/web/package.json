@@ -30,6 +30,7 @@
     "@repo/ui-shared": "workspace:*",
     "@repo/util": "workspace:*",
     "@tailwindcss/postcss": "catalog:",
+    "jsqr": "1.4.0",
     "lucide-react": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",

@@ -25,6 +25,8 @@ export type ControlledBoxedInputProps<
   visibleLabel?: string;
   /** The label for assistive tech only. */
   hideLabel?: boolean;
+  /** After the visible label, on its line (a card's network); `label` stays the accessible name. */
+  labelSuffix?: ReactNode;
   mono?: boolean;
   /** Masked until focused or shown with the eye button; no `type="password"`. */
   secret?: boolean;
@@ -53,6 +55,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
   label,
   visibleLabel,
   hideLabel,
+  labelSuffix,
   mono = false,
   secret = false,
   leading,
@@ -81,7 +84,16 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
       disabled={disabled}
       render={({ field, fieldState }) => (
         <FieldBox
-          label={visibleLabel ?? label}
+          label={
+            labelSuffix ? (
+              <>
+                {visibleLabel ?? label}
+                {labelSuffix}
+              </>
+            ) : (
+              (visibleLabel ?? label)
+            )
+          }
           hideLabel={hideLabel}
           htmlFor={id}
           invalid={fieldState.invalid}
@@ -101,8 +113,11 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
                 />
               )}
               {type === "date" && (
+                // Firefox draws its own calendar button in the input and has no way
+                // to hide it: leave the picker to it there.
                 <FieldBoxButton
                   aria-label={`Pick ${lowerLabel}`}
+                  className="supports-[-moz-appearance:none]:hidden"
                   disabled={field.disabled}
                   onClick={() => inputRef.current?.showPicker()}
                 >
@@ -120,7 +135,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
             ref={mergeRefs(field.ref, inputRef, ref)}
             value={value ?? field.value ?? ""}
             id={id}
-            aria-label={visibleLabel && label}
+            aria-label={visibleLabel || labelSuffix ? label : undefined}
             type={type}
             aria-invalid={fieldState.invalid}
             onBlur={(event) => {

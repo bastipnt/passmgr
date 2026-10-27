@@ -27,7 +27,7 @@ const MIN_CARD_DIGITS = 12;
 
 /**
  * The number grouped as printed on the card while typing; the record stores
- * the digits (`recordFromForm`). The detected network trails it; a hint below
+ * the digits (`recordFromForm`). The detected network sits next to the label; a hint below
  * flags a failed checksum: almost always a typo, but still saved as typed.
  */
 export function CardNumberField({ control, setValue, label }: CardFieldProps) {
@@ -45,9 +45,9 @@ export function CardNumberField({ control, setValue, label }: CardFieldProps) {
       autoComplete="off"
       spellCheck={false}
       secret
-      trailing={
+      labelSuffix={
         brand && (
-          <span className="mr-2 rounded-md bg-primary/10 px-1.5 py-0.5 font-bold text-[0.7rem] text-primary-text uppercase italic tracking-wide">
+          <span className="ml-1.5 rounded bg-primary/10 px-1 py-px font-bold text-[0.625rem] text-primary-text uppercase italic tracking-wide">
             {CARD_BRAND_LABELS[brand]}
           </span>
         )

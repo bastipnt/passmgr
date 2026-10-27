@@ -5,7 +5,11 @@ import {
   FieldBoxRevealButton,
 } from "@repo/ui/components/FieldBox";
 import { useExpandable } from "@repo/ui/hooks/use-expandable";
-import { fieldBoxFrameClassName, maskedTextClassName } from "@repo/ui/lib/field-styles";
+import {
+  blurredTextClassName,
+  fieldBoxFrameClassName,
+  maskedTextClassName,
+} from "@repo/ui/lib/field-styles";
 import { cn, mergeRefs } from "@repo/ui/lib/utils";
 import { Maximize2Icon, Minimize2Icon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useId, useMemo, useRef, useState } from "react";
@@ -25,6 +29,8 @@ export type ControlledCodeBlockProps<
   hideLabel?: boolean;
   /** Masked until focused or shown with the eye button, marked "Hidden". */
   secret?: boolean;
+  /** How a `secret` is masked: dots, or blurred (keeps the text's shape). */
+  mask?: "dots" | "blur";
   /** `tall`: the record's body (a secure note). */
   size?: "default" | "tall";
   /** The bottom bar's status text; `masked` while a `secret` is not shown. */
@@ -52,6 +58,7 @@ export function ControlledCodeBlock<TFieldValues extends FieldValues = FieldValu
   label,
   hideLabel = false,
   secret = false,
+  mask = "dots",
   size = "default",
   summary,
   className,
@@ -117,7 +124,7 @@ export function ControlledCodeBlock<TFieldValues extends FieldValues = FieldValu
             hideLabel && !secret ? "py-3" : "pt-0.5 pb-3",
             size === "tall" ? "min-h-60 sm:min-h-105" : "min-h-24",
             !expanded && (size === "tall" ? "max-h-[min(40rem,70vh)]" : "max-h-80"),
-            masked && maskedTextClassName,
+            masked && (mask === "blur" ? blurredTextClassName : maskedTextClassName),
           )}
         />
         <div className="flex min-h-9 items-center justify-between gap-3 border-foreground/8 border-t py-1 pr-1.5 pl-3.5 text-muted-foreground text-xs dark:border-white/8">

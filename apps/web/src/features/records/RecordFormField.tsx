@@ -8,6 +8,7 @@ import { ControlledCodeBlock } from "@repo/ui/components/form/ControlledCodeBloc
 import type { Control, UseFormSetValue } from "react-hook-form";
 import { GeneratePasswordButton, PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
+import { TotpQrScanButton } from "./login/TotpQrScanButton";
 
 /**
  * One form for every shape: typed loosely by key, validated by the type's own
@@ -76,6 +77,13 @@ export default function RecordFormField({ spec, control, setValue, compact }: Fi
           autoComplete="off"
           spellCheck={false}
           mono
+          trailing={
+            <TotpQrScanButton
+              onScan={(secret) =>
+                setValue(name, secret, { shouldDirty: true, shouldValidate: true })
+              }
+            />
+          }
           onPaste={(event) => {
             const secret = totpSecretFromUri(event.clipboardData.getData("text"));
             if (!secret) return;
@@ -96,6 +104,7 @@ export default function RecordFormField({ spec, control, setValue, compact }: Fi
           name={name}
           label={spec.label}
           secret={spec.kind === "secretMultiline"}
+          mask={spec.mask === "blur" ? "blur" : "dots"}
           autoComplete="off"
           spellCheck={false}
           summary={(value, masked) => multilineSummary(spec, value, masked)}

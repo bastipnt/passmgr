@@ -59,6 +59,8 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   section?: RecordFormSection;
   /** A `multiline` block's status line; its character count without one. */
   summary?: "sshKeyFormat" | "sshFingerprint";
+  /** How a `secretMultiline` hides its value: blurred keeps the key's shape. Dots without. */
+  mask?: "blur";
 };
 
 export type RecordFormSection = "address";
@@ -166,6 +168,7 @@ export const RECORD_FORM_FIELDS: {
       label: "Private key",
       mono: true,
       summary: "sshKeyFormat",
+      mask: "blur",
     },
     {
       key: "publicKey",
