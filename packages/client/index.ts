@@ -103,6 +103,7 @@ export * from "./src/records/pass-monitor";
 export * from "./src/records/password-health";
 export * from "./src/records/password-issues";
 export * from "./src/records/previous-secrets";
+export * from "./src/records/record-detail";
 export * from "./src/records/record-edit";
 export * from "./src/records/record-field-specs";
 export * from "./src/records/record-form-fields";

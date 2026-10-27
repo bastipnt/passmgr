@@ -1,8 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import EditRecordSheet from "./EditRecordSheet";
-import { LoginRecordFields } from "./login/LoginRecordFields";
+import { RecordDetail } from "./RecordDetail";
 import VersionsSheet from "./versions/VersionsSheet";
-import { WifiQrCode } from "./wifi/WifiQrCode";
 
 type RecordProps = {
   record: DecryptedRecord;
@@ -11,10 +10,7 @@ type RecordProps = {
 export default function Record({ record }: RecordProps) {
   return (
     <>
-      <LoginRecordFields
-        record={record}
-        extra={record.type === "wifi" ? <WifiQrCode record={record} /> : undefined}
-      />
+      <RecordDetail record={record} />
 
       <EditRecordSheet record={record} />
       <VersionsSheet />

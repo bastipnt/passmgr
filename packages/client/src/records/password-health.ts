@@ -11,15 +11,16 @@ export type PasswordHealth = {
   reusedIn: DecryptedRecord[];
 };
 
-/** Health of a login's password across every vault; `null` when it has none. */
+/** Health of a login's or Wi-Fi's password across every vault; `null` when it has none. */
 export function getPasswordHealth(
   record: DecryptedRecord,
   allRecords: DecryptedRecord[],
 ): PasswordHealth | null {
-  if (!isRecordType(record, "login") || !record.password) return null;
+  const password = monitoredPassword(record);
+  if (!password) return null;
   return {
     reusedIn: allRecords.filter(
-      (other) => other.recordId !== record.recordId && monitoredPassword(other) === record.password,
+      (other) => other.recordId !== record.recordId && monitoredPassword(other) === password,
     ),
   };
 }

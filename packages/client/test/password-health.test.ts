@@ -33,12 +33,12 @@ describe("getPasswordHealth", () => {
     expect(health?.reusedIn.map((r) => r.recordId)).toEqual(["figma"]);
   });
 
-  it("counts a Wi-Fi password as reuse, but other types' secrets not", () => {
+  it("checks Wi-Fi passwords like logins, but other types' secrets not", () => {
     const github = makeRecord("github", { password: "shared-secret-1" });
     const wifi = { ...makeRecord("wifi"), type: "wifi", password: "shared-secret-1" } as const;
     const card = { ...makeRecord("card"), type: "card", pin: "shared-secret-1" } as const;
 
-    expect(getPasswordHealth(wifi, [github, wifi])).toBeNull();
+    expect(getPasswordHealth(wifi, [github, wifi])).toEqual({ reusedIn: [github] });
     expect(getPasswordHealth(github, [github, wifi, card])).toEqual({ reusedIn: [wifi] });
   });
 });

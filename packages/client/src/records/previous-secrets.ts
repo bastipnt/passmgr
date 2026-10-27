@@ -12,6 +12,9 @@ function secretSpecs(record: DecryptedRecord): Map<string, FieldSpec> {
   );
 }
 
+/** A former value of a secret field; `usedUntil` is the date it was replaced. */
+export type PreviousSecret = FieldSpec & { usedUntil: string };
+
 function usedUntilLabel(spec: FieldSpec, date: string): string {
   return spec.kind === "password" ? `Used until ${date}` : `${spec.label} · used until ${date}`;
 }
@@ -26,12 +29,15 @@ function usedUntilLabel(spec: FieldSpec, date: string): string {
  * renamed) is left out; one replaced more than once is listed once, at its latest
  * replacement.
  */
-export function previousSecrets(record: DecryptedRecord, history: DecryptedRecord[]): FieldSpec[] {
+export function previousSecrets(
+  record: DecryptedRecord,
+  history: DecryptedRecord[],
+): PreviousSecret[] {
   const current = secretSpecs(record);
   const currentValues = new Set([...current.values()].map((spec) => spec.value));
 
   const seen = new Set<string>();
-  const previous: FieldSpec[] = [];
+  const previous: PreviousSecret[] = [];
   let newer = record;
   let newerSpecs = current;
 
@@ -45,11 +51,13 @@ export function previousSecrets(record: DecryptedRecord, history: DecryptedRecor
       const id = `${key}\u0000${spec.compare}`;
       if (seen.has(id)) continue;
       seen.add(id);
+      const usedUntil = toLocalDateStr(newer.clientUpdatedAt);
       previous.push({
         ...spec,
         key: `${key}@${version.version}`,
         kind: "secret",
-        label: usedUntilLabel(spec, toLocalDateStr(newer.clientUpdatedAt)),
+        label: usedUntilLabel(spec, usedUntil),
+        usedUntil,
       });
     }
     newer = version;

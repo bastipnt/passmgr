@@ -11,7 +11,7 @@ import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { toLocalDateStr } from "@repo/util";
-import LoginFieldDisplay from "../login/LoginFieldDisplay";
+import FieldDisplay from "../FieldDisplay";
 
 // Unchanged rows recede; diffs get a tinted card in their status colour.
 const CELL_CLASS: Record<DiffStatus, { old: string; latest: string }> = {
@@ -73,7 +73,7 @@ function DiffCell({
     <div>
       {caption && <p className="mb-1 text-muted-foreground text-xs sm:sr-only">{caption}</p>}
       <DetailFieldGroup variant="card" className={CELL_CLASS[status][side]}>
-        <LoginFieldDisplay spec={spec} />
+        <FieldDisplay spec={spec} />
       </DetailFieldGroup>
     </div>
   );

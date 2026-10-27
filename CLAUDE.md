@@ -110,7 +110,7 @@ Rules:
 - **Sub-domain folders have no `index.ts`.** Import them by path (`./versions/VersionsSheet`).
   A barrel inside a feature hides the dependency graph and invites cycles.
 - **Sub-domain files may climb exactly one level** (`../use-route-sheet`,
-  `../login/LoginRecordFields`) to reach their parent feature; two or more is banned by
+  `../login/TotpField`) to reach their parent feature; two or more is banned by
   `no-restricted-imports` — use `@/` for anything further.
 - **Screens live in their feature** (`features/auth/LoginPage.tsx`). There is no
   top-level `pages/`. Only app-shell screens (`NotFound`, `ErrorFallback`) live in `app/`.
@@ -135,8 +135,14 @@ Rules:
   `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
   Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
   + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all; `SearchPanel` while searching);
-  the record sits on the ground, one column (`LoginRecordFields`: `DetailSection`s with `h2` headings, the note as
-  `DetailCodeBlock`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
+  the record sits on the ground, one column (`RecordDetail`: the form at rest, `@repo/client` `recordDetailLayout`
+  builds it from `RECORD_FORM_FIELDS` / `RECORD_FORM_LAYOUT`: the same sections in the same order, fields paired where
+  the form pairs them (`DetailFieldRow`), empty ones left out, then websites, extra fields (two per row), note, Version
+  history; a secure note starts with its note. Machine values mono, card number masked to first / last 4 + network,
+  expiry chip (`cardExpiryStatus`), identity address as one block (Copy address), SSH key Type · Fingerprint, private
+  key blurred (`DetailCodeBlock concealable`, nothing of it in the DOM until shown) + download, API secret keeps its
+  prefix (`apiSecretPrefix`), Wi-Fi QR full screen only while the page is in view; previous secrets fold into one
+  row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
   `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
@@ -476,7 +482,7 @@ Logins only: insecure websites = a website on `http://` (loopback aside), missin
 host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
 refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
 setup docs (`useMissingTwoFactor`). No network request.
-Record detail (web `PasswordHealthLine` under a login's password): one line with strength and "Not breached", plus an
+Record detail (web `PasswordHealthLine` under a login's or Wi-Fi's password): one line with strength and "Not breached", plus an
 "N issues" toggle opening `passwordIssues` (breached, weak, reused, old, missing 2FA, most urgent first; each with its fix:
 Change, Show for a single reuse, Set up with the site's 2FA docs, else Add code; Change / Add code only when writable) via `usePasswordHealth`; open state per record until a lock.
 Sidebar badge (web desktop `SidebarFooter`): `usePassMonitorIssueCount`, the overview's counts summed (`passMonitorIssueCount`, duplicates aside) with weak only from ratings the Pass Monitor cached and breaches only from stored results, so it runs no zxcvbn and no request.

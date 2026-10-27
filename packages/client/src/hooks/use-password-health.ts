@@ -1,8 +1,8 @@
-import { type DecryptedRecord, isRecordType } from "@repo/schema";
+import type { DecryptedRecord } from "@repo/schema";
 import type { PasswordStrength } from "@repo/util";
 import { useMemo } from "react";
 import { oldPasswordOf, strengthInputs } from "../records/pass-monitor";
-import { getPasswordHealth } from "../records/password-health";
+import { getPasswordHealth, monitoredPassword } from "../records/password-health";
 import { type PasswordIssue, passwordIssues } from "../records/password-issues";
 import { useStoredBreachCount } from "./use-breach-check";
 import { usePasswordStrength } from "./use-password-strength";
@@ -15,14 +15,11 @@ export type PasswordHealthSummary = {
   issues: PasswordIssue[];
 };
 
-/** A login's password health for its detail; `null` for a record without a login password. */
+/** A login's or Wi-Fi's password health for its detail; `null` for a record without one. */
 export function usePasswordHealth(record: DecryptedRecord): PasswordHealthSummary | null {
   const { records } = useGetRecords();
   const health = useMemo(() => getPasswordHealth(record, records), [record, records]);
-  const strength = usePasswordStrength(
-    isRecordType(record, "login") ? record.password : undefined,
-    strengthInputs(record),
-  );
+  const strength = usePasswordStrength(monitoredPassword(record), strengthInputs(record));
   const breachCount = useStoredBreachCount(record);
   const twoFactorSite = useMissingTwoFactor(record);
 

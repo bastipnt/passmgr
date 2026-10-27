@@ -111,7 +111,7 @@ function IssueRow({ title, detail, action }: IssueView) {
   );
 }
 
-/** Strength, breach result and issues of a login's password, under its row in the detail. */
+/** Strength, breach result and issues of a login's or Wi-Fi's password, under its row in the detail. */
 export function PasswordHealthLine({ record }: { record: DecryptedRecord }) {
   const health = usePasswordHealth(record);
   const { writable } = useRecordVault(record);
