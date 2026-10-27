@@ -25,11 +25,12 @@ Look at kanbot. The task in Review is done; do the next task at the top of the B
    non-obvious: a hidden constraint, a security invariant, a workaround for a specific bug, behavior
    that would surprise a reader. Never comment what the code already says (restating the function
    or variable name, narrating steps, "added for X" / task references). Good names over comments.
-5. Run the `/code-review:code-review` skill on the changes (the uncommitted diff on `main`, no PR).
+5. Run the `/code-review` skill on the changes (no PR).
    Also check the diff yourself for duplicated logic between web and mobile, and for reusable
    components placed in an app instead of a UI package, and remove comments that don't earn
    their place.
    Apply every finding's fix automatically, without asking, then re-run the relevant
-   typecheck/lint/tests.
+   typecheck/lint/tests. Then commit on the current branch (`claude`) with a Conventional Commits
+   message.
 6. Move the task to **Review** and add a short comment summarizing what changed, including the
    review findings and how each was fixed (or why it was skipped).
