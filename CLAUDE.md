@@ -62,7 +62,8 @@ starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE 
 after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
 clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
 offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
-(local vault, create / edit / read a login, the listed records, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+(local vault, create / edit / read a login, the listed records, desktop search + its options, password issues,
+Lock from the sidebar, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
 
 ## Architecture
 
@@ -133,7 +134,9 @@ Rules:
   `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
   Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
   + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all; `SearchPanel` while searching);
-  the record sits on the ground.
+  the record sits on the ground, one column (`LoginRecordFields`: `DetailSection`s with `h2` headings, the note as
+  `DetailCodeBlock`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
+  `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
@@ -143,6 +146,7 @@ Rules:
   (that's the fill: buttons, the TOTP ring). Meaning colors (strength, warnings, destructive) never take the accent.
   The light field is for auth screens only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`,
   `data-ground="flat"` on `<html>`), which gives the flat ground and turns `glass` / `glass-popover` solid without blur.
+  The logo (`BrandMark`) is a `bg-primary` tile, so it follows the accent (auth screens too).
 - **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
@@ -456,13 +460,16 @@ Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after de
 in chunks, ratings cached per version, never the password). zxcvbn costs 100–500 ms a password: every rating goes through
 `strengthWorkerService` (`@repo/crypto/services`; a Web Worker on web, deferred on the JS thread on mobile), incl.
 `usePasswordStrength`, never `getStrengthFromString` on the main thread, reused = exact match, duplicates = same username on a shared
-website host, old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
+website host (the email stands in for a missing username, `loginAccountName`), old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
 `RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
 `password` in `mergeRecord`.
 Logins only: insecure websites = a website on `http://` (loopback aside), missing 2FA = a password and no `totp`, the
 host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
 refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
 setup docs (`useMissingTwoFactor`). No network request.
+Record detail (web `PasswordHealthLine` under a login's password): one line with strength and "Not breached", plus an
+"N issues" toggle opening `passwordIssues` (breached, weak, reused, old, missing 2FA, most urgent first; each with its fix:
+Change, Show for a single reuse, Set up with the site's 2FA docs, else Add code; Change / Add code only when writable) via `usePasswordHealth`; open state per record until a lock.
 Sidebar badge (web desktop `SidebarFooter`): `usePassMonitorIssueCount`, the overview's counts summed (`passMonitorIssueCount`, duplicates aside) with weak only from ratings the Pass Monitor cached and breaches only from stored results, so it runs no zxcvbn and no request.
 Security score (`securityScore`, `records/security-score.ts`; web `SecurityScoreCard` atop the Pass Monitor): the mean
 per-password health (1 minus the summed `SCORE_PENALTY`s, capped) over `usePassMonitor().monitored`; duplicates don't
@@ -510,6 +517,9 @@ it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pi
 Settings → Vaults); mobile:
 Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
 
+Login `email` (optional, next to `username`): `loginAccountName` (the username, else the email) is the list subtitle,
+the autofill username and the duplicates key; search matches both; a foreign import takes an "Email" text field as it.
+
 Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star is a new version (synced, in the
 history as "Added to / Removed from favorites", shared with every member of a shared vault; `read` members only see it).
 `SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
@@ -537,7 +547,7 @@ web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsP
 required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
 carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
 records left if added; a detail chip's `showTag` clears the other filters first) and search's third tier. Search
-(`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle → tag with why each matched; a query starting
+(`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle (a login's email too) → tag with why each matched; a query starting
 with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
 `searchAllItems` widens past category and tags until the query or the filters change (`OutsideScope`, also on phones);
 `recentRecords` (session only, search previews excluded); `searchSections` builds the panel's groups; `clearFilters`

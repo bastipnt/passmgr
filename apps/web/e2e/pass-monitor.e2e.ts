@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { expect, test } from "@playwright/test";
 import { randomPassword } from "./helpers/auth";
-import { createLocalVault, createLogin } from "./helpers/vault";
+import { createLocalVault, createLogin, openPasswordIssues } from "./helpers/vault";
 
 /**
  * Pass Monitor (Settings → Pass Monitor): weak, reused, duplicate and old
@@ -79,7 +79,8 @@ test("checks passwords against HIBP only by hash prefix, once turned on", async 
 
   await breached.click();
   await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
-  await expect(page.getByText("Seen 2,254,650 times in data breaches")).toBeVisible();
+  const issues = await openPasswordIssues(page);
+  await expect(issues).toContainText("Seen 2,254,650 times in data breaches");
 });
 
 test("flags plain HTTP websites and logins missing 2FA from the bundled list", async ({ page }) => {
@@ -118,10 +119,9 @@ test("flags plain HTTP websites and logins missing 2FA from the bundled list", a
   await expect(page.getByRole("link", { name: /GitHub/ })).toContainText("github.com supports 2FA");
   await page.getByRole("link", { name: /GitHub/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
-  await expect(page.getByRole("link", { name: "github.com supports 2FA" })).toHaveAttribute(
-    "href",
-    /^https:\/\//,
-  );
+  const issues = await openPasswordIssues(page);
+  await expect(issues).toContainText("github.com supports 2FA");
+  await expect(issues.getByRole("link", { name: "Set up" })).toHaveAttribute("href", /^https:\/\//);
 
   expect(directoryRequests).toEqual([]);
 });

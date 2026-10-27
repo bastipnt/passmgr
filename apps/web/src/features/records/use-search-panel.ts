@@ -9,7 +9,7 @@ export const PREVIEW_DELAY_MS = 150;
 
 export type SearchOption = SearchItem & { id: string; on?: boolean };
 
-export type SearchOptionSection = Omit<SearchSection, "items"> & { options: SearchOption[] };
+type SearchOptionSection = Omit<SearchSection, "items"> & { options: SearchOption[] };
 
 /**
  * The desktop list's search: open while the field has focus, when its results

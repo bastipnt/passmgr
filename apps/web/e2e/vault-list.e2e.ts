@@ -1,19 +1,17 @@
 import { expect, type Page, test } from "@playwright/test";
 import { randomPassword } from "./helpers/auth";
-import { createLocalVault, createLogin, listedRecordIds } from "./helpers/vault";
+import {
+  createLocalVault,
+  createLogin,
+  expectListed,
+  lockFromSidebar,
+  searchField,
+  searchOptions,
+} from "./helpers/vault";
 
 type Seeded = { alpha: string; beta: string; gamma: string };
 
 const PHONE = { width: 390, height: 844 };
-
-async function expectListed(page: Page, ids: string[], { ordered = false } = {}) {
-  await expect
-    .poll(async () => {
-      const listed = await listedRecordIds(page);
-      return ordered ? listed : listed.sort();
-    })
-    .toEqual(ordered ? ids : [...ids].sort());
-}
 
 /**
  * Alpha (work, finance) and Beta (favorite; work) in the personal vault,
@@ -37,6 +35,8 @@ async function seed(page: Page): Promise<Seeded> {
   return { alpha, beta, gamma };
 }
 
+const row = (page: Page, id: string) => page.locator(`a[href="/record/${id}"]`);
+
 test("desktop: vault switcher, category, search, sort, collapsed sidebar", async ({ page }) => {
   const { alpha, beta, gamma } = await seed(page);
   await expectListed(page, [gamma]);
@@ -47,8 +47,12 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   };
   await pickVault(/^Personal/);
   await expectListed(page, [alpha, beta]);
+  await expect(row(page, alpha)).not.toContainText("In Personal");
   await pickVault(/^All vaults/);
   await expectListed(page, [alpha, beta, gamma]);
+  // Several vaults in view: each avatar carries its vault's mark.
+  await expect(row(page, alpha)).toContainText("In Personal");
+  await expect(row(page, gamma)).toContainText("In Work");
 
   const sidebar = page.getByRole("navigation", { name: "Categories" });
   await sidebar.getByRole("button", { name: "Favorites (1)" }).click();
@@ -60,9 +64,12 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await sidebar.getByRole("button", { name: /^All items/ }).click();
   await expectListed(page, [alpha, beta, gamma]);
 
-  await page.getByRole("textbox", { name: "Search all vaults" }).fill("Alpha");
-  await expectListed(page, [alpha]);
-  await page.getByRole("button", { name: "Clear search" }).click();
+  const search = searchField(page);
+  await search.fill("Alpha");
+  await expect(searchOptions(page).filter({ hasText: "Alpha" })).toHaveCount(1);
+  await expect(searchOptions(page).filter({ hasText: "Gamma" })).toHaveCount(0);
+  await page.keyboard.press("Escape");
+  await expect(search).toHaveValue("");
   await expectListed(page, [alpha, beta, gamma]);
 
   const sortBy = async (label: string) => {
@@ -78,6 +85,24 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await sortBy("Newest to oldest");
   await expectListed(page, [beta, gamma, alpha], { ordered: true });
 
+  // By vault: a group per vault (starred first inside), no favorites group, no marks; a group folds.
+  await page.getByRole("button", { name: /^Sort: / }).click();
+  await page.getByRole("menuitemcheckbox", { name: "By vault" }).click();
+  await page.keyboard.press("Escape");
+  await expectListed(page, [beta, alpha, gamma], { ordered: true });
+  await expect(row(page, gamma)).not.toContainText("In Work");
+  const workGroup = page.getByRole("heading", { name: /^Work/ }).getByRole("button");
+  await expect(workGroup).toHaveAttribute("aria-expanded", "true");
+  await workGroup.click();
+  await expect(workGroup).toHaveAttribute("aria-expanded", "false");
+  await expect(row(page, gamma)).toBeHidden();
+  await workGroup.click();
+  await expect(row(page, gamma)).toBeVisible();
+  await page.getByRole("button", { name: /^Sort: / }).click();
+  await page.getByRole("menuitemcheckbox", { name: "By vault" }).click();
+  await page.keyboard.press("Escape");
+  await expectListed(page, [beta, gamma, alpha], { ordered: true });
+
   const toggle = page.getByRole("button", { name: "Sidebar" });
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await toggle.click();
@@ -86,10 +111,15 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await expectListed(page, [beta]);
   await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Account & sync, sync status: / })).toBeVisible();
+  // The rail's Tags icon opens the search in tag mode.
+  await page.getByRole("button", { name: /^Search tags/ }).click();
+  await expect(page.getByRole("combobox", { name: "Search tags" })).toBeFocused();
+  await expect(searchOptions(page, "Tags").filter({ hasText: "work" })).toBeVisible();
+  await page.keyboard.press("Escape");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
-  await page.getByRole("button", { name: "Lock vault" }).click();
-  await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
+  await toggle.click();
+  await lockFromSidebar(page);
 });
 
 test("phone: filter sheet, vault sheet, account sheet → Lock", async ({ page }) => {

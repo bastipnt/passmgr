@@ -47,23 +47,13 @@
 
 /* Web-specific vars not in the shared token palette */
 :root {
-  --sidebar: var(--color-background);
-  --sidebar-foreground: var(--color-foreground);
-  --sidebar-primary: var(--color-primary);
-  --sidebar-primary-foreground: var(--color-primary-foreground);
-  --sidebar-accent: var(--color-accent);
-  --sidebar-accent-foreground: var(--color-accent-foreground);
-  --sidebar-border: var(--color-border);
-  --sidebar-ring: var(--color-ring);
-
   --avatar-fallback-l-bg: 0.92;
   --avatar-fallback-c-bg: 0.06;
   --avatar-fallback-l-fg: 0.35;
   --avatar-fallback-c-fg: 0.12;
 }
 
-/* Only the avatar-fallback vars differ by theme; the --sidebar-* aliases
- * resolve through --color-* and so track the theme on their own. */
+/* Only the avatar-fallback vars differ by theme. */
 .dark {
   --avatar-fallback-l-bg: 0.28;
   --avatar-fallback-c-bg: 0.06;
@@ -75,14 +65,6 @@
   --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque Variable", "DM Sans Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
 }
 
 @layer base {
@@ -549,13 +531,6 @@
   to {
     --scroll-collapse: 1;
   }
-}
-
-/* Multicolor headline accent. */
-@utility text-spectrum {
-  color: transparent;
-  background-image: linear-gradient(90deg, #ff3d8b, #ffb23f 40%, #2ec5ff 80%, #7a5cff);
-  background-clip: text;
 }
 
 @utility popup-nested {

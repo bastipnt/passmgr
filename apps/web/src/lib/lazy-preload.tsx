@@ -40,7 +40,7 @@ export function lazyPreload<T extends ComponentType<any>>(load: () => Promise<{ 
  * Loads every `lazyPreload` module, including the ones registered by modules loaded on the
  * way (a feature's own lazy pages), so later navigation never waits on a chunk.
  */
-export async function preloadAll() {
+async function preloadAll() {
   const done = new Set<Loader>();
   while (done.size < loaders.size) {
     const batch = [...loaders].filter((loader) => !done.has(loader));

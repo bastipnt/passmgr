@@ -10,6 +10,7 @@ import { saveRecoveryKey, skipBiometricIfShown, startCreateVault } from "./auth"
 export type LoginFields = {
   title?: string;
   username?: string;
+  email?: string;
   password?: string;
   note?: string;
   /** Added as a new website, after any the login has. */
@@ -91,6 +92,42 @@ export async function listedRecordIds(page: Page): Promise<string[]> {
     .locator('a[href^="/record/"]')
     .evaluateAll((links) => links.map((link) => link.getAttribute("href") ?? ""));
   return hrefs.flatMap((href) => /^\/record\/([^/?]+)$/.exec(href)?.[1] ?? []);
+}
+
+/** Desktop: the list panel's search field (a combobox; its results replace the list while it has focus). */
+export function searchField(page: Page) {
+  return page.getByRole("combobox", { name: /^Search / });
+}
+
+/** The search panel's records (`"Search results"`) or, in `#` tag mode, its tags (`"Tags"`). */
+export function searchOptions(page: Page, listbox: "Search results" | "Tags" = "Search results") {
+  return page.getByRole("listbox", { name: listbox }).getByRole("option");
+}
+
+/** Expand the record detail's password issues (under the password); resolves their list. */
+export async function openPasswordIssues(page: Page) {
+  await page.getByRole("button", { name: /^\d+ issues?$/, expanded: false }).click();
+  return page.getByRole("list", { name: "Password issues" });
+}
+
+/** Desktop: Lock vault at the sidebar's foot (an icon in the collapsed rail); waits for the unlock screen. */
+export async function lockFromSidebar(page: Page): Promise<void> {
+  await page.getByRole("button", { name: "Lock vault" }).click();
+  await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
+}
+
+/** Wait until the list shows exactly these records (in this order, if `ordered`). */
+export async function expectListed(
+  page: Page,
+  ids: string[],
+  { ordered = false } = {},
+): Promise<void> {
+  await expect
+    .poll(async () => {
+      const listed = await listedRecordIds(page);
+      return ordered ? listed : listed.sort();
+    })
+    .toEqual(ordered ? ids : [...ids].sort());
 }
 
 async function openRecord(page: Page, recordId: string): Promise<void> {
