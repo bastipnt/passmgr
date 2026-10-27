@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { generateSshKeyPair, sshKeyFingerprint, sshPublicKeyFromPrivateKey } from "../src/ssh-key";
+import {
+  generateSshKeyPair,
+  sshKeyFingerprint,
+  sshPrivateKeyFormat,
+  sshPublicKeyFromPrivateKey,
+} from "../src/ssh-key";
 
 // `ssh-keygen -t ed25519 -N "" -C test@example`, and the passphrase-protected
 // copy of the same key (`ssh-keygen -p -N secret`).
@@ -60,5 +65,23 @@ describe("sshPublicKeyFromPrivateKey", () => {
   it("is undefined for anything but an openssh-key-v1 file", () => {
     expect(sshPublicKeyFromPrivateKey("-----BEGIN RSA PRIVATE KEY-----\nAAAA\n")).toBeUndefined();
     expect(sshPublicKeyFromPrivateKey("hello")).toBeUndefined();
+  });
+});
+
+describe("sshPrivateKeyFormat", () => {
+  it("names an OpenSSH key with its type, encrypted or not", () => {
+    expect(sshPrivateKeyFormat(generateSshKeyPair().privateKey)).toBe("OpenSSH · ssh-ed25519");
+    expect(sshPrivateKeyFormat(ENCRYPTED_PRIVATE_KEY)).toBe("OpenSSH · ssh-ed25519");
+  });
+
+  it("names PEM and PKCS#8 files by their label", () => {
+    expect(sshPrivateKeyFormat("-----BEGIN RSA PRIVATE KEY-----\nMIIE")).toBe("PEM (RSA)");
+    expect(sshPrivateKeyFormat("-----BEGIN PRIVATE KEY-----\nMIIE")).toBe("PKCS#8");
+    expect(sshPrivateKeyFormat("-----BEGIN ENCRYPTED PRIVATE KEY-----")).toBe("PKCS#8, encrypted");
+  });
+
+  it("is undefined without a private key label", () => {
+    expect(sshPrivateKeyFormat("")).toBeUndefined();
+    expect(sshPrivateKeyFormat(PUBLIC_KEY)).toBeUndefined();
   });
 });

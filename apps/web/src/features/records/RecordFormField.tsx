@@ -1,16 +1,13 @@
-import type { FormFieldSpec } from "@repo/client";
+import { type FormFieldSpec, multilineSummary } from "@repo/client";
 import { totpSecretFromUri } from "@repo/crypto";
 import type { CustomField, RecordFormValues } from "@repo/schema";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
 import { ControlledBoxedSelect } from "@repo/ui/components/form/ControlledBoxedSelect";
 import { ControlledBoxedToggle } from "@repo/ui/components/form/ControlledBoxedToggle";
-import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
-import { maskedTextClassName } from "@repo/ui/lib/field-styles";
-import { cn } from "@repo/ui/lib/utils";
+import { ControlledCodeBlock } from "@repo/ui/components/form/ControlledCodeBlock";
 import type { Control, UseFormSetValue } from "react-hook-form";
 import { GeneratePasswordButton, PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
-import { SshFingerprintHint } from "./ssh/SshKeyActions";
 
 /**
  * One form for every shape: typed loosely by key, validated by the type's own
@@ -91,25 +88,15 @@ export default function RecordFormField({ spec, control, setValue }: FieldProps)
     case "multiline":
     case "secretMultiline":
       return (
-        <div className="flex flex-col gap-2">
-          <ControlledTextarea
-            control={control}
-            name={name}
-            label={spec.label}
-            autoComplete="off"
-            spellCheck={false}
-            rows={spec.kind === "secretMultiline" ? 6 : 3}
-            className={cn(
-              "font-mono text-xs",
-              spec.kind === "secretMultiline" && maskedTextClassName,
-            )}
-          />
-          {spec.key === "publicKey" && (
-            <SshFingerprintHint
-              control={control as unknown as Control<RecordFormValues<"ssh_key">>}
-            />
-          )}
-        </div>
+        <ControlledCodeBlock
+          control={control}
+          name={name}
+          label={spec.label}
+          secret={spec.kind === "secretMultiline"}
+          autoComplete="off"
+          spellCheck={false}
+          summary={(value, masked) => multilineSummary(spec, value, masked)}
+        />
       );
 
     case "cardNumber":

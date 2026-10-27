@@ -1,7 +1,11 @@
-import { FieldBox, FieldBoxButton, FieldBoxInput } from "@repo/ui/components/FieldBox";
+import {
+  FieldBox,
+  FieldBoxHiddenMarker,
+  FieldBoxInput,
+  FieldBoxRevealButton,
+} from "@repo/ui/components/FieldBox";
 import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
-import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import { type ReactNode, useId, useState } from "react";
 import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
 
@@ -63,25 +67,18 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                       placeholder="Label"
                       className="field-sizing-content min-w-12 max-w-full bg-transparent p-0 outline-none placeholder:text-muted-foreground/50 disabled:cursor-not-allowed"
                     />
-                    {secret && (
-                      <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-[0.6875rem] text-muted-foreground [&_svg]:size-2.75">
-                        <LockIcon />
-                        Hidden
-                      </span>
-                    )}
+                    {secret && <FieldBoxHiddenMarker />}
                   </span>
                 }
                 trailing={
                   <>
                     {secret && (
-                      <FieldBoxButton
-                        aria-label={revealed ? `Hide ${name}` : `Show ${name}`}
-                        aria-pressed={revealed}
+                      <FieldBoxRevealButton
+                        name={name}
+                        revealed={revealed}
+                        onRevealedChange={setRevealed}
                         disabled={valueField.disabled}
-                        onClick={() => setRevealed(!revealed)}
-                      >
-                        {revealed ? <EyeOffIcon /> : <EyeIcon />}
-                      </FieldBoxButton>
+                      />
                     )}
                     {trailing}
                   </>

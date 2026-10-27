@@ -65,6 +65,8 @@
   --font-sans: "DM Sans Variable", ui-sans-serif, system-ui, sans-serif;
   --font-display: "Bricolage Grotesque Variable", "DM Sans Variable", sans-serif;
   --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  /* Code blocks in forms: a step off the card toward the ground, in both modes. */
+  --color-code: color-mix(in oklab, var(--color-card) 60%, var(--color-background));
 }
 
 @layer base {

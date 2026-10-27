@@ -2,7 +2,7 @@ import { RECORD_FORM_FIELDS } from "@repo/client";
 import { RECORD_TYPES } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 
@@ -13,6 +13,8 @@ vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
 }));
 
 describe("RecordForm", () => {
+  afterEach(() => vi.restoreAllMocks());
+
   it.each(RECORD_TYPES)("renders the %s fields", (type) => {
     renderWithProviders(<RecordForm type={type} onSubmit={vi.fn()} />);
 
@@ -333,6 +335,48 @@ describe("RecordForm", () => {
       "Note",
       "Extra fields0",
     ]);
-    expect(screen.getByRole("textbox", { name: "Note" })).toHaveAttribute("rows", "10");
+    expect(screen.getByRole("textbox", { name: "Note" }).className).toContain("sm:min-h-105");
+  });
+
+  it("counts the note's words and characters as it is typed", async () => {
+    renderWithProviders(<RecordForm type="login" onSubmit={vi.fn()} />);
+
+    expect(screen.getByText("0 words")).toBeInTheDocument();
+    await userEvent.type(screen.getByRole("textbox", { name: "Note" }), "Door code{enter}4711 🔑");
+    expect(screen.getByText("4 words · 16 characters")).toBeInTheDocument();
+  });
+
+  it("expands a note taller than its box and collapses it again", async () => {
+    vi.spyOn(HTMLElement.prototype, "scrollHeight", "get").mockReturnValue(900);
+    vi.spyOn(HTMLElement.prototype, "clientHeight", "get").mockReturnValue(320);
+    renderWithProviders(
+      <RecordForm type="login" onSubmit={vi.fn()} defaultValues={{ note: "long\n".repeat(80) }} />,
+    );
+    const note = screen.getByRole("textbox", { name: "Note" });
+    expect(note.className).toContain("max-h-80");
+
+    await userEvent.click(screen.getByRole("button", { name: "Expand" }));
+    expect(note.className).not.toContain("max-h-80");
+
+    await userEvent.click(screen.getByRole("button", { name: "Collapse" }));
+    expect(note.className).toContain("max-h-80");
+  });
+
+  it("shows no Expand while the note fits", () => {
+    renderWithProviders(<RecordForm type="login" onSubmit={vi.fn()} />);
+
+    expect(screen.queryByRole("button", { name: "Expand" })).not.toBeInTheDocument();
+  });
+
+  it("marks the SSH private key hidden and names its format", async () => {
+    renderWithProviders(<RecordForm type="ssh_key" onSubmit={vi.fn()} />);
+
+    const privateKey = screen.getByLabelText("Private key");
+    expect(privateKey.className).toContain("[-webkit-text-security:disc]");
+    await userEvent.click(screen.getByRole("button", { name: "Show private key" }));
+    expect(privateKey.className).not.toContain("[-webkit-text-security:disc]");
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
+    expect(screen.getByText("OpenSSH · ssh-ed25519")).toBeInTheDocument();
   });
 });

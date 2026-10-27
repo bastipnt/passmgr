@@ -36,3 +36,17 @@ export function hashString(input: string): number {
   for (let i = 0; i < input.length; i++) h = (h * 31 + input.charCodeAt(i)) | 0;
   return Math.abs(h);
 }
+
+let graphemes: Intl.Segmenter | undefined;
+
+/** Words split on whitespace; characters as a reader counts them (an emoji is one). */
+export function textStats(text: string): { words: number; characters: number } {
+  const words = text.match(/\S+/gu)?.length ?? 0;
+  if (typeof Intl === "undefined" || !("Segmenter" in Intl)) {
+    return { words, characters: Array.from(text).length };
+  }
+  graphemes ??= new Intl.Segmenter(undefined, { granularity: "grapheme" });
+  let characters = 0;
+  for (const segment of graphemes.segment(text)) if (segment) characters++;
+  return { words, characters };
+}

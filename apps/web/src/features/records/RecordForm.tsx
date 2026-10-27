@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type FormFieldSpec,
+  noteSummary,
   RECORD_FORM_FIELDS,
   RECORD_FORM_LAYOUT,
   RECORD_FORM_SECTION_LABELS,
@@ -11,7 +12,7 @@ import { type RecordFormValues, type RecordType, recordFormSchemas } from "@repo
 import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import { FieldError } from "@repo/ui/components/Field";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
-import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
+import { ControlledCodeBlock } from "@repo/ui/components/form/ControlledCodeBlock";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { cn } from "@repo/ui/lib/utils";
 import { FileTextIcon, type LucideIcon, MapPinIcon } from "lucide-react";
@@ -80,14 +81,15 @@ export default function RecordForm<T extends RecordType>({
     ));
 
   const noteField = (
-    <ControlledTextarea
+    <ControlledCodeBlock
       control={control}
       name="note"
       label="Note"
       hideLabel
+      placeholder="Add a note…"
       autoComplete="off"
-      rows={layout.noteFirst ? 10 : undefined}
-      capped
+      size={layout.noteFirst ? "tall" : "default"}
+      summary={noteSummary}
     />
   );
 

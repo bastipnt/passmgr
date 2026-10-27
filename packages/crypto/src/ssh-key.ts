@@ -167,6 +167,30 @@ function readPublicKey(file: Uint8Array): string {
   return comment ? `${line} ${comment}` : line;
 }
 
+const PEM_PRIVATE_LABEL = /-----BEGIN ((?:[A-Z0-9]+ )*)PRIVATE KEY-----/;
+
+const PEM_FORMATS: Record<string, string> = {
+  "OPENSSH ": "OpenSSH",
+  "RSA ": "PEM (RSA)",
+  "EC ": "PEM (EC)",
+  "DSA ": "PEM (DSA)",
+  "": "PKCS#8",
+  "ENCRYPTED ": "PKCS#8, encrypted",
+};
+
+/**
+ * The private key file's format from its PEM label, with the key type for an
+ * OpenSSH one (`OpenSSH · ssh-ed25519`). `undefined` when there is no label.
+ */
+export function sshPrivateKeyFormat(privateKey: string): string | undefined {
+  const label = PEM_PRIVATE_LABEL.exec(privateKey)?.[1];
+  if (label === undefined) return undefined;
+  const format = PEM_FORMATS[label] ?? `PEM (${label.trim()})`;
+  if (label !== "OPENSSH ") return format;
+  const keyType = sshPublicKeyFromPrivateKey(privateKey)?.split(" ")[0];
+  return keyType ? `${format} · ${keyType}` : format;
+}
+
 /**
  * `SHA256:…` fingerprint of a one-line public key, as `ssh-keygen -l` prints
  * it. `undefined` when the line isn't an OpenSSH public key.

@@ -2,6 +2,7 @@ import { Button } from "@repo/ui/components/Button";
 import { FieldError } from "@repo/ui/components/Field";
 import { fieldBoxClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
+import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 
 type FieldBoxProps = {
@@ -112,4 +113,48 @@ function FieldBoxButton({ className, ...props }: ComponentProps<typeof Button>) 
   );
 }
 
-export { FieldBox, FieldBoxButton, FieldBoxError, FieldBoxInput, FieldBoxLabel };
+type FieldBoxRevealButtonProps = {
+  /** What is revealed, for the button's name ("password" → "Show password"). */
+  name: string;
+  revealed: boolean;
+  onRevealedChange: (revealed: boolean) => void;
+  disabled?: boolean;
+};
+
+function FieldBoxRevealButton({
+  name,
+  revealed,
+  onRevealedChange,
+  disabled,
+}: FieldBoxRevealButtonProps) {
+  return (
+    <FieldBoxButton
+      aria-label={revealed ? `Hide ${name}` : `Show ${name}`}
+      aria-pressed={revealed}
+      disabled={disabled}
+      onClick={() => onRevealedChange(!revealed)}
+    >
+      {revealed ? <EyeOffIcon /> : <EyeIcon />}
+    </FieldBoxButton>
+  );
+}
+
+/** After a label: the field is masked until revealed. */
+function FieldBoxHiddenMarker() {
+  return (
+    <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-[0.6875rem] text-muted-foreground [&_svg]:size-2.75">
+      <LockIcon />
+      Hidden
+    </span>
+  );
+}
+
+export {
+  FieldBox,
+  FieldBoxButton,
+  FieldBoxError,
+  FieldBoxHiddenMarker,
+  FieldBoxInput,
+  FieldBoxLabel,
+  FieldBoxRevealButton,
+};

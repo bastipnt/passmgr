@@ -1,6 +1,7 @@
 import { Button } from "@repo/ui/components/Button";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
+import { useExpandable } from "@repo/ui/hooks/use-expandable";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDownIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import {
@@ -8,7 +9,6 @@ import {
   type ReactNode,
   useCallback,
   useEffect,
-  useLayoutEffect,
   useRef,
   useState,
 } from "react";
@@ -204,10 +204,7 @@ type DetailCodeBlockProps = {
  */
 function DetailCodeBlock({ children, onCopy, copyLabel = "text" }: DetailCodeBlockProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [expanded, setExpanded] = useState(false);
-  const [overflows, setOverflows] = useState(false);
   const [atEnd, setAtEnd] = useState(false);
-  const clipped = overflows && !expanded;
 
   const measure = useCallback(() => {
     const el = scrollRef.current;
@@ -215,25 +212,11 @@ function DetailCodeBlock({ children, onCopy, copyLabel = "text" }: DetailCodeBlo
     setAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
   }, []);
 
-  useLayoutEffect(() => {
-    const el = scrollRef.current;
-    // Expanded, nothing overflows; keep the last answer so "Show less" stays.
-    if (!el || expanded) return;
-    const update = () => {
-      setOverflows(el.scrollHeight > el.clientHeight + 1);
-      measure();
-    };
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(el);
-    if (el.firstElementChild) observer.observe(el.firstElementChild);
-    return () => observer.disconnect();
-  }, [expanded, measure]);
-
-  const toggle = () => {
-    if (expanded && scrollRef.current) scrollRef.current.scrollTop = 0;
-    setExpanded(!expanded);
-  };
+  const { expanded, overflows, toggle } = useExpandable(scrollRef, {
+    content: children,
+    onMeasure: measure,
+  });
+  const clipped = overflows && !expanded;
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.025] dark:border-white/10 dark:bg-white/[0.03]">

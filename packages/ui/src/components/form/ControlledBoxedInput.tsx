@@ -1,7 +1,12 @@
-import { FieldBox, FieldBoxButton, FieldBoxInput } from "@repo/ui/components/FieldBox";
+import {
+  FieldBox,
+  FieldBoxButton,
+  FieldBoxInput,
+  FieldBoxRevealButton,
+} from "@repo/ui/components/FieldBox";
 import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn, mergeRefs } from "@repo/ui/lib/utils";
-import { CalendarIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import { CalendarIcon } from "lucide-react";
 import { type ComponentProps, type ReactNode, useId, useRef, useState } from "react";
 import {
   Controller,
@@ -85,14 +90,12 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
           trailing={
             <>
               {secret && (
-                <FieldBoxButton
-                  aria-label={revealed ? `Hide ${lowerLabel}` : `Show ${lowerLabel}`}
-                  aria-pressed={revealed}
+                <FieldBoxRevealButton
+                  name={lowerLabel}
+                  revealed={revealed}
+                  onRevealedChange={setRevealed}
                   disabled={field.disabled}
-                  onClick={() => setRevealed(!revealed)}
-                >
-                  {revealed ? <EyeOffIcon /> : <EyeIcon />}
-                </FieldBoxButton>
+                />
               )}
               {type === "date" && (
                 <FieldBoxButton

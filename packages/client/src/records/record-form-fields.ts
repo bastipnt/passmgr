@@ -1,4 +1,6 @@
+import { sshKeyFingerprint, sshPrivateKeyFormat } from "@repo/crypto";
 import type { RecordFormValues, RecordType, WifiRecord } from "@repo/schema";
+import { counted, textStats } from "@repo/util";
 
 /**
  * Which control edits the field. Like `FieldKind`, the list is shared across
@@ -51,6 +53,8 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   description?: string;
   /** Starts or continues a section of its own after the type's first one. */
   section?: RecordFormSection;
+  /** A `multiline` block's status line; its character count without one. */
+  summary?: "sshKeyFormat" | "sshFingerprint";
 };
 
 export type RecordFormSection = "address";
@@ -128,8 +132,20 @@ export const RECORD_FORM_FIELDS: {
   ],
   note: [],
   ssh_key: [
-    { key: "privateKey", kind: "secretMultiline", label: "Private key", mono: true },
-    { key: "publicKey", kind: "multiline", label: "Public key", mono: true },
+    {
+      key: "privateKey",
+      kind: "secretMultiline",
+      label: "Private key",
+      mono: true,
+      summary: "sshKeyFormat",
+    },
+    {
+      key: "publicKey",
+      kind: "multiline",
+      label: "Public key",
+      mono: true,
+      summary: "sshFingerprint",
+    },
     { key: "passphrase", kind: "secret", label: "Passphrase", generator: true },
   ],
   api_key: [
@@ -175,3 +191,27 @@ export const RECORD_FORM_LAYOUT: { [T in RecordType]: RecordFormLayout } = {
   api_key: {},
   wifi: {},
 };
+
+/** The note's status line: "N words · M characters", or "0 words" when empty. */
+export function noteSummary(text: string): string {
+  const { words, characters } = textStats(text);
+  const wordCount = counted(words, "word", "words");
+  return characters
+    ? `${wordCount} · ${counted(characters, "character", "characters")}`
+    : wordCount;
+}
+
+/**
+ * A multiline field's status line: the key's format or fingerprint once recognised, else
+ * its character count, left out while `masked` (the length of a secret is a hint).
+ */
+export function multilineSummary(spec: FormFieldSpec, value: string, masked = false): string {
+  const described =
+    spec.summary === "sshKeyFormat"
+      ? sshPrivateKeyFormat(value)
+      : spec.summary === "sshFingerprint"
+        ? sshKeyFingerprint(value)
+        : undefined;
+  if (described) return described;
+  return masked ? "" : counted(textStats(value).characters, "character", "characters");
+}

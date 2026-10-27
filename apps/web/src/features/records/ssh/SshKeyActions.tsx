@@ -102,11 +102,3 @@ export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
     </div>
   );
 }
-
-/** The public key's fingerprint under its field, once there is a valid one. */
-export function SshFingerprintHint({ control }: { control: Control<SshFormValues> }) {
-  const publicKey = useWatch({ control, name: "publicKey" }) ?? "";
-  const fingerprint = publicKey ? sshKeyFingerprint(publicKey) : undefined;
-  if (!fingerprint) return null;
-  return <p className="break-all font-mono text-muted-foreground text-xs">{fingerprint}</p>;
-}
