@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { Switch } from "@repo/ui/components/Switch";
+import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
 import { LockIcon, MailIcon, UserIcon } from "lucide-react";
 import { useId } from "react";
@@ -19,9 +20,6 @@ import { type Control, Controller, type UseFormSetValue } from "react-hook-form"
 import { PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
 import { SshFingerprintHint } from "./ssh/SshKeyActions";
-
-/** Masks a text input until focused, without `type="password"` (no save-password prompt). */
-const MASKED = "[-webkit-text-security:disc] focus:[-webkit-text-security:none]";
 
 /**
  * One form for every shape: typed loosely by key, validated by the type's own
@@ -122,7 +120,7 @@ export default function RecordFormField(props: FieldProps) {
           spellCheck={false}
           className={cn(
             (spec.mono || spec.kind === "secret") && "font-mono",
-            spec.kind === "secret" && MASKED,
+            spec.kind === "secret" && maskedTextClassName,
           )}
           leadingIcon={spec.kind === "secret" ? <LockIcon /> : spec.icon && TEXT_ICONS[spec.icon]}
         />
@@ -155,7 +153,10 @@ export default function RecordFormField(props: FieldProps) {
             autoComplete="off"
             spellCheck={false}
             rows={spec.kind === "secretMultiline" ? 6 : 3}
-            className={cn("font-mono text-xs", spec.kind === "secretMultiline" && MASKED)}
+            className={cn(
+              "font-mono text-xs",
+              spec.kind === "secretMultiline" && maskedTextClassName,
+            )}
           />
           {spec.key === "publicKey" && (
             <SshFingerprintHint

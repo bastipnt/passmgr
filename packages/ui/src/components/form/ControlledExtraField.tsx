@@ -1,4 +1,5 @@
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
+import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 import { useId } from "react";
@@ -57,8 +58,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                     id={id}
                     className={cn(
                       valueState.invalid && "text-destructive placeholder:text-destructive",
-                      type === "secret" &&
-                        "[-webkit-text-security:disc] focus:[-webkit-text-security:none]",
+                      type === "secret" && maskedTextClassName,
                     )}
                     aria-invalid={valueState.invalid}
                     autoComplete="off"

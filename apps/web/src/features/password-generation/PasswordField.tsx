@@ -1,6 +1,8 @@
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { InputGroupAddon, InputGroupButton } from "@repo/ui/components/InputGroup";
+import { maskedTextClassName } from "@repo/ui/lib/field-styles";
+import { cn } from "@repo/ui/lib/utils";
 import { KeyRoundIcon, WandSparklesIcon } from "lucide-react";
 import { useMemo } from "react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
@@ -25,7 +27,7 @@ export default function PasswordField<T extends PasswordFormValues>(props: Passw
   return (
     <div className="flex flex-col gap-2">
       <ControlledInput
-        className="font-mono [-webkit-text-security:disc] focus:[-webkit-text-security:none]"
+        className={cn("font-mono", maskedTextClassName)}
         control={control}
         name="password"
         label="Password"

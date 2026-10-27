@@ -9,6 +9,8 @@ import {
 } from "@repo/client";
 import type { RecordFormValues } from "@repo/schema";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { maskedTextClassName } from "@repo/ui/lib/field-styles";
+import { cn } from "@repo/ui/lib/utils";
 import { CalendarIcon, CreditCardIcon, TriangleAlertIcon } from "lucide-react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 
@@ -44,7 +46,7 @@ export function CardNumberField({ control, setValue, label }: CardFieldProps) {
       inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
-      className="font-mono [-webkit-text-security:disc] focus:[-webkit-text-security:none]"
+      className={cn("font-mono", maskedTextClassName)}
       leadingIcon={<CreditCardIcon />}
       value={formatCardNumber(number)}
       onChange={(event) => {
