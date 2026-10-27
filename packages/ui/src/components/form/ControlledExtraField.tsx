@@ -1,10 +1,9 @@
-import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
+import { FieldBox, FieldBoxButton, FieldBoxInput } from "@repo/ui/components/FieldBox";
 import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
-import type { ReactNode } from "react";
-import { useId } from "react";
+import { EyeIcon, EyeOffIcon, LockIcon } from "lucide-react";
+import { type ReactNode, useId, useState } from "react";
 import { type Control, Controller, type FieldPath, type FieldValues } from "react-hook-form";
-import { Field, FieldError } from "../Field";
 
 export type ControlledExtraFieldProps<
   TFieldValues extends FieldValues = FieldValues,
@@ -14,18 +13,26 @@ export type ControlledExtraFieldProps<
   control: Control<TFieldValues>;
   titleName: TTitleName;
   valueName: TValueName;
+  /** `secret`: masked until shown with the eye button, marked "Hidden". */
   type?: "text" | "secret";
-  icon?: ReactNode;
+  /** Before the label (a drag handle). */
+  leading?: ReactNode;
+  /** After the eye button. */
+  trailing?: ReactNode;
 };
 
+/** A user-named field in a box: the editable label inside at the top, the value under it. */
 export function ControlledExtraField<TFieldValues extends FieldValues = FieldValues>({
   control,
   titleName,
   valueName,
   type = "text",
-  icon,
+  leading,
+  trailing,
 }: ControlledExtraFieldProps<TFieldValues>) {
   const id = useId();
+  const [revealed, setRevealed] = useState(false);
+  const secret = type === "secret";
 
   return (
     <Controller
@@ -36,54 +43,61 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
           name={valueName}
           control={control}
           render={({ field: valueField, fieldState: valueState }) => {
-            const isInvalid = titleState.invalid || valueState.invalid;
+            const name = titleField.value || "field";
 
-            const fieldContent = (
-              <Field data-invalid={isInvalid} className="text-inherit!">
-                <InputGroup>
-                  <InputGroupAddon align="block-start">
+            return (
+              <FieldBox
+                htmlFor={id}
+                invalid={titleState.invalid || valueState.invalid}
+                error={titleState.error ?? valueState.error}
+                leading={leading}
+                label={
+                  <span className="flex items-center gap-1.5">
                     <input
                       {...titleField}
-                      data-slot="input-title"
-                      className={cn(
-                        "w-full border-none bg-transparent text-muted-foreground text-xs outline-none",
-                        titleState.invalid && "text-destructive",
-                      )}
-                      placeholder="Title"
+                      value={titleField.value ?? ""}
+                      data-slot="field-box-control"
+                      aria-label="Field label"
                       aria-invalid={titleState.invalid}
+                      autoComplete="off"
+                      placeholder="Label"
+                      className="field-sizing-content min-w-12 max-w-full bg-transparent p-0 outline-none placeholder:text-muted-foreground/50 disabled:cursor-not-allowed"
                     />
-                  </InputGroupAddon>
-                  <InputGroupInput
-                    {...valueField}
-                    id={id}
-                    className={cn(
-                      valueState.invalid && "text-destructive placeholder:text-destructive",
-                      type === "secret" && maskedTextClassName,
+                    {secret && (
+                      <span className="inline-flex shrink-0 items-center gap-0.5 font-semibold text-[0.6875rem] text-muted-foreground [&_svg]:size-2.75">
+                        <LockIcon />
+                        Hidden
+                      </span>
                     )}
-                    aria-invalid={valueState.invalid}
-                    autoComplete="off"
-                    placeholder="Value"
-                  />
-                </InputGroup>
-
-                {isInvalid && (
-                  <FieldError errors={[titleState.error, valueState.error].filter(Boolean)} />
-                )}
-              </Field>
-            );
-
-            if (icon) {
-              return (
-                <div className="flex flex-1 items-start gap-2">
-                  <span className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">
-                    {icon}
                   </span>
-                  {fieldContent}
-                </div>
-              );
-            }
-
-            return fieldContent;
+                }
+                trailing={
+                  <>
+                    {secret && (
+                      <FieldBoxButton
+                        aria-label={revealed ? `Hide ${name}` : `Show ${name}`}
+                        aria-pressed={revealed}
+                        disabled={valueField.disabled}
+                        onClick={() => setRevealed(!revealed)}
+                      >
+                        {revealed ? <EyeOffIcon /> : <EyeIcon />}
+                      </FieldBoxButton>
+                    )}
+                    {trailing}
+                  </>
+                }
+              >
+                <FieldBoxInput
+                  {...valueField}
+                  value={valueField.value ?? ""}
+                  id={id}
+                  aria-invalid={valueState.invalid}
+                  autoComplete="off"
+                  placeholder="Value"
+                  className={cn(secret && "font-mono", secret && !revealed && maskedTextClassName)}
+                />
+              </FieldBox>
+            );
           }}
         />
       )}

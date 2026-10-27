@@ -38,7 +38,7 @@ describe("RecordForm", () => {
     await userEvent.type(screen.getByPlaceholderText("example.com"), "github.com");
     await userEvent.click(screen.getByRole("button", { name: "Add field" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Text" }));
-    await userEvent.type(screen.getByPlaceholderText("Title"), "Team");
+    await userEvent.type(screen.getByPlaceholderText("Label"), "Team");
     await userEvent.type(screen.getByPlaceholderText("Value"), "core");
     await userEvent.type(screen.getByLabelText("Tags"), "dev{Enter}");
 

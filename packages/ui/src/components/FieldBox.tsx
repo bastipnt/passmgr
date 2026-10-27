@@ -6,36 +6,50 @@ import type { ComponentProps, ReactNode } from "react";
 
 type FieldBoxProps = {
   label: ReactNode;
+  /** Keeps the label for assistive tech only. */
+  hideLabel?: boolean;
   htmlFor?: string;
   description?: ReactNode;
   invalid?: boolean;
   error?: { message?: string };
   /** Under the box while there is no error. */
   hint?: ReactNode;
+  /** Before the label, outside it (a drag handle, an icon). */
+  leading?: ReactNode;
   trailing?: ReactNode;
+  /** `sm`: a 48px single-line box, for rows without a visible label. */
+  size?: "default" | "sm";
   children?: ReactNode;
   className?: string;
 };
 
 /**
  * A form field shaped like a record-detail row in a box: the label inside at the top,
- * the value under it, icon buttons trailing. The box draws focus, disabled and error
+ * the value under it, icon buttons trailing (`size="sm"` + `hideLabel`: one line). The box draws focus, disabled and error
  * states for the control marked `data-slot="field-box-control"` and for `invalid`.
  */
 function FieldBox({
   label,
+  hideLabel = false,
   htmlFor,
   description,
   invalid = false,
   error,
   hint,
+  leading,
   trailing,
+  size = "default",
   children,
   className,
 }: FieldBoxProps) {
   return (
     <div data-slot="field-box-field" className={cn("flex flex-col gap-1.5", className)}>
-      <div data-slot="field-box" data-invalid={invalid} className={fieldBoxClassName}>
+      <div
+        data-slot="field-box"
+        data-invalid={invalid}
+        className={cn(fieldBoxClassName, size === "sm" && "min-h-12 py-1.5")}
+      >
+        {leading}
         <label
           htmlFor={htmlFor}
           className={cn(
@@ -43,7 +57,7 @@ function FieldBox({
             children ? "cursor-text" : "cursor-pointer select-none",
           )}
         >
-          <FieldBoxLabel>{label}</FieldBoxLabel>
+          <FieldBoxLabel className={cn(hideLabel && "sr-only")}>{label}</FieldBoxLabel>
           {description && <span className="text-foreground/80 text-sm">{description}</span>}
           {children}
         </label>

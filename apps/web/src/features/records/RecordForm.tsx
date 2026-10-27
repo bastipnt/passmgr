@@ -90,7 +90,6 @@ export default function RecordForm<T extends RecordType>({
       capped
     />
   );
-  const extraFields = <ExtraFormFields control={control} setValue={setValue} />;
 
   return (
     <form
@@ -144,12 +143,12 @@ export default function RecordForm<T extends RecordType>({
           ))}
 
           {layout.websites ? (
-            <div className="grid items-start gap-8 sm:grid-cols-2 sm:gap-5">
+            <div className="grid items-start gap-8 sm:grid-cols-2 sm:gap-x-10">
               <WebsiteFormFields control={control} setValue={setValue} />
-              {extraFields}
+              <ExtraFormFields control={control} setValue={setValue} />
             </div>
           ) : (
-            extraFields
+            <ExtraFormFields control={control} setValue={setValue} wide />
           )}
 
           {!layout.noteFirst && (

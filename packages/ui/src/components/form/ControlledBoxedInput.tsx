@@ -16,17 +16,25 @@ export type ControlledBoxedInputProps<
   TTransformedValues = TFieldValues,
 > = {
   label: string;
+  /** The label for assistive tech only. */
+  hideLabel?: boolean;
   mono?: boolean;
   /** Masked until focused or shown with the eye button; no `type="password"`. */
   secret?: boolean;
+  /** Before the label (a drag handle, an icon). */
+  leading?: ReactNode;
   /** After the eye / calendar button. */
   trailing?: ReactNode;
+  size?: "default" | "sm";
   /** Under the box while there is no error. */
   hint?: ReactNode;
   /** On the box's wrapper (grid placement), not the input. */
   className?: string;
 } & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
-  Omit<ComponentProps<"input">, "name" | "defaultValue" | "className" | "id" | "aria-invalid">;
+  Omit<
+    ComponentProps<"input">,
+    "name" | "defaultValue" | "className" | "id" | "aria-invalid" | "size"
+  >;
 
 export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldValues>({
   name,
@@ -36,14 +44,18 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
   defaultValue,
   disabled,
   label,
+  hideLabel,
   mono = false,
   secret = false,
+  leading,
   trailing,
+  size,
   hint,
   type,
   className,
   ref,
   value,
+  onBlur,
   ...props
 }: ControlledBoxedInputProps<TFieldValues>) {
   const id = useId();
@@ -62,11 +74,14 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
       render={({ field, fieldState }) => (
         <FieldBox
           label={label}
+          hideLabel={hideLabel}
           htmlFor={id}
           invalid={fieldState.invalid}
           error={fieldState.error}
           hint={hint}
           className={className}
+          size={size}
+          leading={leading}
           trailing={
             <>
               {secret && (
@@ -101,6 +116,10 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
             id={id}
             type={type}
             aria-invalid={fieldState.invalid}
+            onBlur={(event) => {
+              field.onBlur();
+              onBlur?.(event);
+            }}
             className={cn(
               (mono || secret) && "font-mono placeholder:font-sans",
               secret && !revealed && maskedTextClassName,
