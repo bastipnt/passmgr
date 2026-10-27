@@ -1,4 +1,3 @@
-import { type LoginFormValues as FormValues } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
@@ -6,22 +5,21 @@ import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { normalizeWebsite } from "@repo/util";
 import { EarthIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
-import {
-  type Control,
-  type FieldErrors,
-  type UseFormRegister,
-  type UseFormSetValue,
-  useFieldArray,
-} from "react-hook-form";
+import { type Control, type UseFormSetValue, useFieldArray } from "react-hook-form";
 
-type WebsiteFieldsProps = {
-  control: Control<FormValues>;
-  register: UseFormRegister<FormValues>;
-  errors: FieldErrors<FormValues>;
-  setValue: UseFormSetValue<FormValues>;
+/** Any form with a websites list: a login. */
+type WebsiteFormValues = { websites?: { value: string }[] };
+
+type WebsiteFieldsProps<T extends WebsiteFormValues> = {
+  control: Control<T>;
+  setValue: UseFormSetValue<T>;
 };
 
-export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsProps) {
+export default function WebsiteFormFields<T extends WebsiteFormValues>(
+  props: WebsiteFieldsProps<T>,
+) {
+  // Paths don't narrow through a generic: pin the form to `websites`.
+  const { control, setValue } = props as unknown as WebsiteFieldsProps<WebsiteFormValues>;
   const { fields, append, replace, remove } = useFieldArray({
     control,
     name: "websites",

@@ -22,7 +22,9 @@ export type FormFieldKind =
   /** A fixed list of options. */
   | "select"
   /** On / off. */
-  | "toggle";
+  | "toggle"
+  /** A login's TOTP secret or `otpauth://` URI, monospaced. */
+  | "totp";
 
 export type FormFieldOption = { value: string; label: string };
 
@@ -43,6 +45,8 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   half?: boolean;
   /** Monospaced input (secrets, ids). */
   mono?: boolean;
+  /** A leading icon for a `text` field that names who it is. */
+  icon?: "user" | "mail";
 };
 
 export const WIFI_SECURITY_OPTIONS: readonly {
@@ -57,13 +61,19 @@ export const WIFI_SECURITY_OPTIONS: readonly {
 ];
 
 /**
- * The type-specific inputs of every form but the login's, which has its own
- * (websites, TOTP). Title, note and extra fields are common to every form and
- * not listed. A secure note has no inputs of its own: its body is the note.
+ * The type-specific inputs of every form. Title, note, extra fields and tags
+ * are common to every form and not listed. A secure note has no inputs of its
+ * own: its body is the note.
  */
 export const RECORD_FORM_FIELDS: {
-  [T in Exclude<RecordType, "login">]: readonly FormFieldSpec<T>[];
+  [T in RecordType]: readonly FormFieldSpec<T>[];
 } = {
+  login: [
+    { key: "username", kind: "text", label: "Username", half: true, icon: "user" },
+    { key: "email", kind: "text", label: "Email", input: "email", half: true, icon: "mail" },
+    { key: "password", kind: "password", label: "Password" },
+    { key: "totp", kind: "totp", label: "2FA token secret (TOTP)" },
+  ],
   card: [
     { key: "cardholderName", kind: "text", label: "Cardholder name" },
     { key: "number", kind: "cardNumber", label: "Card number", input: "numeric", mono: true },
@@ -99,4 +109,24 @@ export const RECORD_FORM_FIELDS: {
     { key: "security", kind: "select", label: "Security", options: WIFI_SECURITY_OPTIONS },
     { key: "hidden", kind: "toggle", label: "Hidden network" },
   ],
+};
+
+/** Where a type's form puts the common parts around its inputs. */
+export type RecordFormLayout = {
+  /** The note is the record's body: right under the title, taller. */
+  noteFirst?: boolean;
+  /** A websites list next to the extra fields; the note then goes below both. */
+  websites?: boolean;
+  /** Controls under the inputs that fill them in. */
+  actions?: "sshKey";
+};
+
+export const RECORD_FORM_LAYOUT: { [T in RecordType]: RecordFormLayout } = {
+  login: { websites: true },
+  card: {},
+  identity: {},
+  note: { noteFirst: true },
+  ssh_key: { actions: "sshKey" },
+  api_key: {},
+  wifi: {},
 };

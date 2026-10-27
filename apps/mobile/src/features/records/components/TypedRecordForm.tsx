@@ -263,7 +263,8 @@ function FormField(props: FieldProps) {
   const keyboardType = spec.input ? KEYBOARDS[spec.input] : undefined;
 
   switch (spec.kind) {
-    case "text": {
+    case "text":
+    case "totp": {
       const Icon = spec.input ? TEXT_ICONS[spec.input] : Type;
       return (
         <ControlledInput
@@ -427,7 +428,7 @@ type TypedRecordFormProps<T extends OtherRecordType> = {
 };
 
 /**
- * Web's `TypedRecordForm`: title, the type's inputs (shared
+ * Web's `RecordForm`: title, the type's inputs (shared
  * `RECORD_FORM_FIELDS`), note and extra fields. A secure note is all note.
  */
 export default function TypedRecordForm<T extends OtherRecordType>({
