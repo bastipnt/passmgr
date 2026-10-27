@@ -14,9 +14,13 @@ function RecordScreen({ recordId }: { recordId: string }) {
   if (!record) return <Redirect to={recordPaths.index} replace />;
 
   return (
-    <section className="px-8 pt-7.5 pb-10 xl:px-16">
-      <div className="flex max-w-160 flex-col gap-8">
-        <RecordActions record={record} onDelete={() => deleteRecord(recordId)} />
+    <section className="flex flex-col items-center px-8 pb-6">
+      <div className="flex w-full max-w-160 flex-col gap-8">
+        <RecordActions
+          className="sticky-bar pt-6"
+          record={record}
+          onDelete={() => deleteRecord(recordId)}
+        />
         <Record record={record} />
       </div>
     </section>

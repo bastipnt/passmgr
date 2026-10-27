@@ -25,7 +25,7 @@ export function AppShell({ header, children, mainClassName }: AppShellProps) {
     <div
       className={cn(
         "relative isolate flex min-h-dvh flex-col sm:h-dvh",
-        header ? "sm:gap-4 sm:p-5" : "sm:py-3 sm:pl-3",
+        header ? "sm:gap-4 sm:p-5" : "sm:p-0",
       )}
     >
       {header && (

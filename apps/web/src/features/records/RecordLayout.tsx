@@ -59,12 +59,12 @@ function LockButton({ collapsed, onLock }: { collapsed: boolean; onLock: () => v
   );
 }
 
-function MainContent({ children }: { children: ReactNode }) {
+function MainContent({ children, className }: { children: ReactNode; className?: string }) {
   const { query, sortedRecords } = useSortedRecords();
   const noResults = query.trim().length > 0 && sortedRecords.length === 0;
 
   return (
-    <ShellPanel surface="ground" className="hidden sm:block">
+    <ShellPanel surface="ground" className={cn("hidden sm:block", className)}>
       {noResults ? <NoSearchResults /> : children}
     </ShellPanel>
   );
@@ -120,6 +120,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     <SortedRecordsProvider>
       <AppShell
         mainClassName={cn(
+          "gap-y-0! pl-3 sm:grid-rows-[0.75rem_minmax(0,1fr)_0.75rem]",
           "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
           sidebarCollapsed
             ? "sm:grid-cols-[4rem_19rem_minmax(0,1fr)] xl:grid-cols-[4rem_24rem_minmax(0,1fr)]"
@@ -129,6 +130,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
         <ShellPanel
           id={sidebarId}
           surface="ground"
+          className="row-start-2"
           viewportClassName={cn("flex flex-col gap-3 p-0.5", !sidebarCollapsed && "pr-1.5")}
         >
           <TooltipProvider>
@@ -159,10 +161,10 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
             </div>
           </TooltipProvider>
         </ShellPanel>
-        <ShellPanel viewportClassName="scroll-pt-[10.25rem] scroll-pb-3">
+        <ShellPanel className="row-start-2" viewportClassName="scroll-pt-[10.25rem] scroll-pb-3">
           <RecordList />
         </ShellPanel>
-        <MainContent>{children}</MainContent>
+        <MainContent className="row-span-3">{children}</MainContent>
       </AppShell>
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <BackupReminder />
