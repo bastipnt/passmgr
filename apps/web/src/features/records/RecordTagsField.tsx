@@ -5,7 +5,15 @@ import type { Control } from "react-hook-form";
 
 type TagsFormValues = { tags?: string[] };
 
-export function RecordTagsField<T extends TagsFormValues>({ control }: { control: Control<T> }) {
+type RecordTagsFieldProps<T extends TagsFormValues> = {
+  control: Control<T>;
+  className?: string;
+};
+
+export function RecordTagsField<T extends TagsFormValues>({
+  control,
+  className,
+}: RecordTagsFieldProps<T>) {
   const suggestions = useTags().map(({ tag }) => tag);
 
   return (
@@ -15,6 +23,7 @@ export function RecordTagsField<T extends TagsFormValues>({ control }: { control
       label="Tags"
       suggestions={suggestions}
       maxLength={MAX_TAG_LENGTH}
+      className={className}
     />
   );
 }

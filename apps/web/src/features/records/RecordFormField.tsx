@@ -1,22 +1,12 @@
 import type { FormFieldSpec } from "@repo/client";
 import type { CustomField, RecordFormValues } from "@repo/schema";
-import { Field, FieldLabel } from "@repo/ui/components/Field";
-import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
+import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
+import { ControlledBoxedSelect } from "@repo/ui/components/form/ControlledBoxedSelect";
+import { ControlledBoxedToggle } from "@repo/ui/components/form/ControlledBoxedToggle";
 import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/Select";
-import { Switch } from "@repo/ui/components/Switch";
 import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
-import { LockIcon, MailIcon, UserIcon } from "lucide-react";
-import { useId } from "react";
-import { type Control, Controller, type UseFormSetValue } from "react-hook-form";
+import type { Control, UseFormSetValue } from "react-hook-form";
 import { PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
 import { SshFingerprintHint } from "./ssh/SshKeyActions";
@@ -42,74 +32,15 @@ type FieldProps = {
 
 const INPUT_TYPES = { email: "email", phone: "tel", numeric: "text", date: "date" } as const;
 
-const TEXT_ICONS = { user: <UserIcon />, mail: <MailIcon /> } as const;
-
-function SelectField({ spec, control }: FieldProps) {
-  const id = useId();
-  const options = spec.options ?? [];
-
-  return (
-    <Controller
-      control={control}
-      name={spec.key}
-      render={({ field }) => (
-        <Field>
-          <FieldLabel htmlFor={id}>{spec.label}</FieldLabel>
-          <Select
-            items={options}
-            value={(field.value as string | undefined) ?? null}
-            onValueChange={(value) => field.onChange(value ?? undefined)}
-          >
-            <SelectTrigger id={id} className="w-full">
-              <SelectValue placeholder="Not set" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                {options.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectGroup>
-            </SelectContent>
-          </Select>
-        </Field>
-      )}
-    />
-  );
-}
-
-function ToggleField({ spec, control }: FieldProps) {
-  const id = useId();
-
-  return (
-    <Controller
-      control={control}
-      name={spec.key}
-      render={({ field }) => (
-        <Field orientation="horizontal" className="items-center justify-between">
-          <FieldLabel htmlFor={id}>{spec.label}</FieldLabel>
-          <Switch
-            id={id}
-            checked={Boolean(field.value)}
-            onCheckedChange={(checked) => field.onChange(checked)}
-          />
-        </Field>
-      )}
-    />
-  );
-}
-
 /** One input, by its kind; the card's and the key's need their own controls. */
-export default function RecordFormField(props: FieldProps) {
-  const { spec, control, setValue } = props;
+export default function RecordFormField({ spec, control, setValue }: FieldProps) {
   const name = spec.key;
 
   switch (spec.kind) {
     case "text":
     case "secret":
       return (
-        <ControlledInput
+        <ControlledBoxedInput
           control={control}
           name={name}
           label={spec.label}
@@ -118,24 +49,21 @@ export default function RecordFormField(props: FieldProps) {
           placeholder={spec.placeholder}
           autoComplete="off"
           spellCheck={false}
-          className={cn(
-            (spec.mono || spec.kind === "secret") && "font-mono",
-            spec.kind === "secret" && maskedTextClassName,
-          )}
-          leadingIcon={spec.kind === "secret" ? <LockIcon /> : spec.icon && TEXT_ICONS[spec.icon]}
+          mono={spec.mono}
+          secret={spec.kind === "secret"}
         />
       );
 
     case "totp":
       return (
-        <ControlledInput
+        <ControlledBoxedInput
           control={control}
           name={name}
           label={spec.label}
+          placeholder={spec.placeholder}
           autoComplete="off"
           spellCheck={false}
-          className="font-mono"
-          leadingIcon={<LockIcon />}
+          mono
         />
       );
 
@@ -185,9 +113,23 @@ export default function RecordFormField(props: FieldProps) {
       );
 
     case "select":
-      return <SelectField {...props} />;
+      return (
+        <ControlledBoxedSelect
+          control={control}
+          name={name}
+          label={spec.label}
+          options={spec.options ?? []}
+        />
+      );
 
     case "toggle":
-      return <ToggleField {...props} />;
+      return (
+        <ControlledBoxedToggle
+          control={control}
+          name={name}
+          label={spec.label}
+          description={spec.description}
+        />
+      );
   }
 }

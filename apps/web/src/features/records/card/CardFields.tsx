@@ -8,10 +8,8 @@ import {
   isLuhnValid,
 } from "@repo/client";
 import type { RecordFormValues } from "@repo/schema";
-import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
-import { maskedTextClassName } from "@repo/ui/lib/field-styles";
-import { cn } from "@repo/ui/lib/utils";
-import { CalendarIcon, CreditCardIcon, TriangleAlertIcon } from "lucide-react";
+import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
+import { TriangleAlertIcon } from "lucide-react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 
 type CardFormValues = RecordFormValues<"card">;
@@ -29,8 +27,8 @@ const MIN_CARD_DIGITS = 12;
 
 /**
  * The number grouped as printed on the card while typing; the record stores
- * the digits (`recordFromForm`). Below it, the detected network, or a hint
- * when the checksum fails: almost always a typo, but still saved as typed.
+ * the digits (`recordFromForm`). The detected network trails it; a hint below
+ * flags a failed checksum: almost always a typo, but still saved as typed.
  */
 export function CardNumberField({ control, setValue, label }: CardFieldProps) {
   const number = useWatch({ control, name: "number" }) ?? "";
@@ -39,15 +37,21 @@ export function CardNumberField({ control, setValue, label }: CardFieldProps) {
   const checksumFails = digits.length >= MIN_CARD_DIGITS && !isLuhnValid(digits);
 
   return (
-    <ControlledInput
+    <ControlledBoxedInput
       control={control}
       name="number"
       label={label}
       inputMode="numeric"
       autoComplete="off"
       spellCheck={false}
-      className={cn("font-mono", maskedTextClassName)}
-      leadingIcon={<CreditCardIcon />}
+      secret
+      trailing={
+        brand && (
+          <span className="mr-2 rounded-md bg-primary/10 px-1.5 py-0.5 font-bold text-[0.7rem] text-primary-text uppercase italic tracking-wide">
+            {CARD_BRAND_LABELS[brand]}
+          </span>
+        )
+      }
       value={formatCardNumber(number)}
       onChange={(event) => {
         const input = event.target;
@@ -65,14 +69,12 @@ export function CardNumberField({ control, setValue, label }: CardFieldProps) {
         }
       }}
       hint={
-        checksumFails ? (
+        checksumFails && (
           <p className="flex items-center gap-1.5 text-amber-700 text-xs dark:text-[#ffb23f]">
             <TriangleAlertIcon className="size-3.5" aria-hidden />
             This number doesn&apos;t look right. Check it for a typo.
           </p>
-        ) : brand ? (
-          <p className="text-muted-foreground text-xs">{CARD_BRAND_LABELS[brand]}</p>
-        ) : undefined
+        )
       }
     />
   );
@@ -83,7 +85,7 @@ export function CardExpiryField({ control, setValue, label }: CardFieldProps) {
   const expiry = useWatch({ control, name: "expiry" }) ?? "";
 
   return (
-    <ControlledInput
+    <ControlledBoxedInput
       control={control}
       name="expiry"
       label={label}
@@ -91,7 +93,7 @@ export function CardExpiryField({ control, setValue, label }: CardFieldProps) {
       autoComplete="off"
       placeholder="MM/YY"
       maxLength={5}
-      leadingIcon={<CalendarIcon />}
+      mono
       onChange={(event) =>
         setValue("expiry", formatCardExpiry(event.target.value, expiry), {
           shouldDirty: true,

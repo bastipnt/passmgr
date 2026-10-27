@@ -10,6 +10,8 @@ type FieldBoxProps = {
   description?: ReactNode;
   invalid?: boolean;
   error?: { message?: string };
+  /** Under the box while there is no error. */
+  hint?: ReactNode;
   trailing?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -26,6 +28,7 @@ function FieldBox({
   description,
   invalid = false,
   error,
+  hint,
   trailing,
   children,
   className,
@@ -48,7 +51,7 @@ function FieldBox({
           <div className="flex shrink-0 items-center gap-1 empty:hidden">{trailing}</div>
         )}
       </div>
-      {invalid && <FieldBoxError error={error} />}
+      {invalid ? <FieldBoxError error={error} /> : hint && <div className="px-3.5">{hint}</div>}
     </div>
   );
 }

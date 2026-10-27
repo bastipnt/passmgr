@@ -1,7 +1,8 @@
 "use client";
 
 import { Combobox } from "@base-ui/react/combobox";
-import { fieldClassName } from "@repo/ui/lib/field-styles";
+import { FieldBoxLabel } from "@repo/ui/components/FieldBox";
+import { fieldBoxClassName } from "@repo/ui/lib/field-styles";
 import { popupClassName, popupItemClassName } from "@repo/ui/lib/popup-styles";
 import { cn } from "@repo/ui/lib/utils";
 import { tagKey as key, normalizeTag } from "@repo/util";
@@ -11,6 +12,7 @@ import { type KeyboardEvent, useRef, useState } from "react";
 type TagOption = { tag: string; create?: true };
 
 type TagInputProps = {
+  label: string;
   value: string[];
   onChange: (tags: string[]) => void;
   /** Tags to offer while typing (the ones already in use). */
@@ -24,15 +26,17 @@ type TagInputProps = {
 };
 
 /**
- * Chips with a text field: pick a suggested tag or type a new one (Enter or a
- * comma adds it). Tags match without case, so a typed "work" picks "Work".
+ * A boxed field of `#tag`s with a text field after them: pick a suggested tag or
+ * type a new one (Enter or a comma adds it), Backspace on the empty field removes
+ * the last. Tags match without case, so a typed "work" picks "Work".
  */
 export function TagInput({
+  label,
   value,
   onChange,
   suggestions,
   id,
-  placeholder = "Add a tag",
+  placeholder = "Add…",
   maxLength,
   disabled,
   "aria-invalid": invalid,
@@ -107,42 +111,49 @@ export function TagInput({
       itemToStringLabel={(option) => option.tag}
     >
       <Combobox.InputGroup
-        aria-invalid={invalid}
-        className={cn(
-          fieldClassName,
-          "flex min-h-10 w-full cursor-text flex-wrap items-center gap-1.5 px-2.5 py-1.5 focus-within:border-ring focus-within:bg-white focus-within:ring-4 focus-within:ring-ring/15 dark:focus-within:bg-white/5 dark:focus-within:ring-ring/20",
-        )}
+        data-slot="field-box"
+        data-invalid={invalid}
+        className={cn(fieldBoxClassName, "cursor-text")}
       >
-        <TagIcon className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-        <Combobox.Chips className="flex flex-1 flex-wrap items-center gap-1.5">
-          {value.map((tag) => (
-            <Combobox.Chip
-              key={key(tag)}
-              aria-label={tag}
-              className="flex h-6 items-center gap-1 rounded-full bg-primary/10 pr-1 pl-2.5 font-medium text-foreground text-xs outline-none data-highlighted:bg-primary/20 dark:bg-white/10"
-            >
-              {tag}
-              <Combobox.ChipRemove
-                aria-label={`Remove ${tag}`}
-                className="grid size-4 place-items-center rounded-full text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+        <div className="flex min-w-0 flex-1 flex-col">
+          <label htmlFor={id} className="flex min-w-0">
+            <FieldBoxLabel>{label}</FieldBoxLabel>
+          </label>
+          <Combobox.Chips className="flex flex-wrap items-center gap-x-1.5 gap-y-0.5">
+            {value.map((tag) => (
+              <Combobox.Chip
+                key={key(tag)}
+                aria-label={tag}
+                className="group/chip flex items-center rounded-md font-medium text-base outline-none data-highlighted:bg-primary/10 md:text-[0.97rem]"
               >
-                <XIcon className="size-3" />
-              </Combobox.ChipRemove>
-            </Combobox.Chip>
-          ))}
-          <Combobox.Input
-            id={id}
-            placeholder={value.length > 0 ? "" : placeholder}
-            maxLength={maxLength}
-            onKeyDown={onKeyDown}
-            onBlur={() => {
-              // Leaving the field (Save included) keeps what was typed.
-              if (pending.current) add(pending.current);
-              onBlur?.();
-            }}
-            className="h-7 min-w-24 flex-1 border-0 bg-transparent p-0 text-base outline-none placeholder:text-muted-foreground md:text-sm"
-          />
-        </Combobox.Chips>
+                <span aria-hidden className="text-muted-foreground/70">
+                  #
+                </span>
+                {tag}
+                <Combobox.ChipRemove
+                  aria-label={`Remove ${tag}`}
+                  className="ml-0.5 grid size-4 place-items-center rounded-full text-muted-foreground opacity-0 pointer-coarse:opacity-100 transition-opacity hover:bg-foreground/10 hover:text-foreground focus-visible:opacity-100 group-hover/chip:opacity-100 group-data-highlighted/chip:opacity-100"
+                >
+                  <XIcon className="size-3" />
+                </Combobox.ChipRemove>
+              </Combobox.Chip>
+            ))}
+            <Combobox.Input
+              id={id}
+              data-slot="field-box-control"
+              aria-invalid={invalid}
+              placeholder={placeholder}
+              maxLength={maxLength}
+              onKeyDown={onKeyDown}
+              onBlur={() => {
+                // Leaving the field (Save included) keeps what was typed.
+                if (pending.current) add(pending.current);
+                onBlur?.();
+              }}
+              className="h-6 min-w-16 flex-1 border-0 bg-transparent p-0 text-base outline-none placeholder:text-muted-foreground/70 disabled:cursor-not-allowed md:text-[0.97rem]"
+            />
+          </Combobox.Chips>
+        </div>
       </Combobox.InputGroup>
 
       {options.length > 0 && (

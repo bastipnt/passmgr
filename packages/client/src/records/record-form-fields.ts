@@ -41,12 +41,20 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   placeholder?: string;
   /** Only for `kind: "select"`. */
   options?: readonly FormFieldOption[];
-  /** May share a row with the next half-width field on wide screens. */
-  half?: boolean;
+  /** Shares a row with the next fields of the same width on wide screens. */
+  width?: "half" | "third";
   /** Monospaced input (secrets, ids). */
   mono?: boolean;
-  /** A leading icon for a `text` field that names who it is. */
-  icon?: "user" | "mail";
+  /** A line under the label (a toggle's meaning). */
+  description?: string;
+  /** Starts or continues a section of its own after the type's first one. */
+  section?: RecordFormSection;
+};
+
+export type RecordFormSection = "address";
+
+export const RECORD_FORM_SECTION_LABELS: { [S in RecordFormSection]: string } = {
+  address: "Address",
 };
 
 export const WIFI_SECURITY_OPTIONS: readonly {
@@ -69,55 +77,90 @@ export const RECORD_FORM_FIELDS: {
   [T in RecordType]: readonly FormFieldSpec<T>[];
 } = {
   login: [
-    { key: "username", kind: "text", label: "Username", half: true, icon: "user" },
-    { key: "email", kind: "text", label: "Email", input: "email", half: true, icon: "mail" },
+    { key: "username", kind: "text", label: "Username", width: "half" },
+    { key: "email", kind: "text", label: "Email", input: "email", width: "half" },
     { key: "password", kind: "password", label: "Password" },
-    { key: "totp", kind: "totp", label: "2FA token secret (TOTP)" },
+    {
+      key: "totp",
+      kind: "totp",
+      label: "2FA token secret (TOTP)",
+      placeholder: "Paste a secret or otpauth:// link",
+    },
   ],
   card: [
-    { key: "cardholderName", kind: "text", label: "Cardholder name" },
-    { key: "number", kind: "cardNumber", label: "Card number", input: "numeric", mono: true },
-    { key: "expiry", kind: "cardExpiry", label: "Expiry date", placeholder: "MM/YY", half: true },
-    { key: "securityCode", kind: "secret", label: "Security code", input: "numeric", half: true },
-    { key: "pin", kind: "secret", label: "PIN", input: "numeric", half: true },
+    { key: "cardholderName", kind: "text", label: "Cardholder name", width: "half" },
+    {
+      key: "number",
+      kind: "cardNumber",
+      label: "Card number",
+      input: "numeric",
+      mono: true,
+      width: "half",
+    },
+    {
+      key: "expiry",
+      kind: "cardExpiry",
+      label: "Expiry date",
+      placeholder: "MM/YY",
+      width: "third",
+    },
+    {
+      key: "securityCode",
+      kind: "secret",
+      label: "Security code",
+      input: "numeric",
+      width: "third",
+    },
+    { key: "pin", kind: "secret", label: "PIN", input: "numeric", width: "third" },
   ],
   identity: [
-    { key: "firstName", kind: "text", label: "First name", half: true },
-    { key: "lastName", kind: "text", label: "Last name", half: true },
-    { key: "email", kind: "text", label: "Email", input: "email", half: true },
-    { key: "phone", kind: "text", label: "Phone", input: "phone", half: true },
-    { key: "birthDate", kind: "text", label: "Date of birth", input: "date", half: true },
-    { key: "street", kind: "text", label: "Street" },
-    { key: "postalCode", kind: "text", label: "Postal code", half: true },
-    { key: "city", kind: "text", label: "City", half: true },
-    { key: "country", kind: "text", label: "Country" },
+    { key: "firstName", kind: "text", label: "First name", width: "half" },
+    { key: "lastName", kind: "text", label: "Last name", width: "half" },
+    { key: "email", kind: "text", label: "Email", input: "email", width: "half" },
+    { key: "phone", kind: "text", label: "Phone", input: "phone", width: "half" },
+    { key: "birthDate", kind: "text", label: "Date of birth", input: "date", width: "half" },
+    { key: "street", kind: "text", label: "Street", section: "address" },
+    { key: "postalCode", kind: "text", label: "Postal code", width: "half", section: "address" },
+    { key: "city", kind: "text", label: "City", width: "half", section: "address" },
+    { key: "country", kind: "text", label: "Country", width: "half", section: "address" },
   ],
   note: [],
   ssh_key: [
-    { key: "publicKey", kind: "multiline", label: "Public key", mono: true },
     { key: "privateKey", kind: "secretMultiline", label: "Private key", mono: true },
+    { key: "publicKey", kind: "multiline", label: "Public key", mono: true },
     { key: "passphrase", kind: "secret", label: "Passphrase" },
   ],
   api_key: [
-    { key: "keyId", kind: "text", label: "Key ID", mono: true },
-    { key: "secret", kind: "secret", label: "Secret", mono: true },
-    { key: "host", kind: "text", label: "Host", placeholder: "api.example.com" },
+    { key: "keyId", kind: "text", label: "Key ID", mono: true, width: "half" },
+    { key: "host", kind: "text", label: "Host", placeholder: "api.example.com", width: "half" },
+    { key: "secret", kind: "secretMultiline", label: "Secret", mono: true },
   ],
   wifi: [
-    { key: "ssid", kind: "text", label: "Network name (SSID)" },
+    { key: "ssid", kind: "text", label: "Network name (SSID)", width: "half" },
+    {
+      key: "security",
+      kind: "select",
+      label: "Security",
+      options: WIFI_SECURITY_OPTIONS,
+      width: "half",
+    },
     { key: "password", kind: "password", label: "Password" },
-    { key: "security", kind: "select", label: "Security", options: WIFI_SECURITY_OPTIONS },
-    { key: "hidden", kind: "toggle", label: "Hidden network" },
+    {
+      key: "hidden",
+      kind: "toggle",
+      label: "Hidden network",
+      description: "The network doesn't broadcast its name",
+    },
   ],
 };
 
 /** Where a type's form puts the common parts around its inputs. */
 export type RecordFormLayout = {
-  /** The note is the record's body: right under the title, taller. */
+  /** The note is the record's body: in the first section, under the tags, taller. */
   noteFirst?: boolean;
-  /** A websites list next to the extra fields; the note then goes below both. */
+  /** A websites list next to the extra fields. */
   websites?: boolean;
-  /** Controls under the inputs that fill them in. */
+  /** Controls in the first section's header that fill its inputs in. */
   actions?: "sshKey";
 };
 

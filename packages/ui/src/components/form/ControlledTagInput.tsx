@@ -1,3 +1,6 @@
+import { FieldBoxError } from "@repo/ui/components/FieldBox";
+import { TagInput } from "@repo/ui/components/TagInput";
+import { cn } from "@repo/ui/lib/utils";
 import { useId } from "react";
 import {
   type Control,
@@ -6,8 +9,6 @@ import {
   type FieldValues,
   type FieldError as FormFieldError,
 } from "react-hook-form";
-import { Field, FieldError, FieldLabel } from "../Field";
-import { TagInput } from "../TagInput";
 
 type ControlledTagInputProps<TFieldValues extends FieldValues> = {
   control: Control<TFieldValues>;
@@ -15,6 +16,8 @@ type ControlledTagInputProps<TFieldValues extends FieldValues> = {
   label: string;
   suggestions: readonly string[];
   maxLength?: number;
+  /** On the field's wrapper (grid placement). */
+  className?: string;
 };
 
 /** A tag list's error sits on the list, or (one bad tag) on that tag. */
@@ -30,6 +33,7 @@ export function ControlledTagInput<TFieldValues extends FieldValues = FieldValue
   label,
   suggestions,
   maxLength,
+  className,
 }: ControlledTagInputProps<TFieldValues>) {
   const id = useId();
 
@@ -40,10 +44,10 @@ export function ControlledTagInput<TFieldValues extends FieldValues = FieldValue
       render={({ field, fieldState }) => {
         const error = firstError(fieldState.error);
         return (
-          <Field data-invalid={!!error}>
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          <div data-slot="field-box-field" className={cn("flex flex-col gap-1.5", className)}>
             <TagInput
               id={id}
+              label={label}
               value={(field.value as string[] | undefined) ?? []}
               onChange={field.onChange}
               onBlur={field.onBlur}
@@ -52,8 +56,8 @@ export function ControlledTagInput<TFieldValues extends FieldValues = FieldValue
               disabled={field.disabled}
               aria-invalid={!!error}
             />
-            {error && <FieldError errors={[error]} />}
-          </Field>
+            {error && <FieldBoxError error={error} />}
+          </div>
         );
       }}
     />

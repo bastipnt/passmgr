@@ -41,6 +41,7 @@ export function ControlledTextarea<TFieldValues extends FieldValues = FieldValue
               {...field}
               value={field.value ?? ""}
               id={id}
+              aria-label={hideLabel ? label : undefined}
               aria-invalid={fieldState.invalid}
               {...props}
             />

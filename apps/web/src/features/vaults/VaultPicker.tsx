@@ -1,13 +1,5 @@
 import { useVaults } from "@repo/client";
-import { Field, FieldLabel } from "@repo/ui/components/Field";
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@repo/ui/components/Select";
+import { BoxedSelect } from "@repo/ui/components/form/ControlledBoxedSelect";
 import { VaultTile } from "./VaultTile";
 
 type VaultPickerProps = {
@@ -15,36 +7,37 @@ type VaultPickerProps = {
   onChange: (vaultId: string) => void;
   disabled?: boolean;
   label?: string;
+  className?: string;
 };
 
 /** Which of the vaults the user may write to a new item goes into. */
-export function VaultPicker({ value, onChange, disabled, label = "Vault" }: VaultPickerProps) {
+export function VaultPicker({
+  value,
+  onChange,
+  disabled,
+  label = "Vault",
+  className,
+}: VaultPickerProps) {
   const { writableVaults } = useVaults();
-  const items = writableVaults.map((vault) => ({ value: vault.vaultId, label: vault.name }));
+  const options = writableVaults.map((vault) => ({ value: vault.vaultId, label: vault.name }));
 
   return (
-    <Field>
-      <FieldLabel>{label}</FieldLabel>
-      <Select
-        items={items}
-        value={value}
-        onValueChange={(next) => onChange(next as string)}
-        disabled={disabled}
-      >
-        <SelectTrigger className="w-full" aria-label={label}>
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectGroup>
-            {writableVaults.map((vault) => (
-              <SelectItem key={vault.vaultId} value={vault.vaultId}>
-                <VaultTile vault={vault} size="xs" />
-                {vault.name}
-              </SelectItem>
-            ))}
-          </SelectGroup>
-        </SelectContent>
-      </Select>
-    </Field>
+    <BoxedSelect
+      label={label}
+      options={options}
+      value={value}
+      onValueChange={(next) => next && onChange(next)}
+      disabled={disabled}
+      className={className}
+      renderOption={(option) => {
+        const vault = writableVaults.find((own) => own.vaultId === option.value);
+        return (
+          <>
+            {vault && <VaultTile vault={vault} size="xs" />}
+            {option.label}
+          </>
+        );
+      }}
+    />
   );
 }

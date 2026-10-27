@@ -1,11 +1,12 @@
+import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
-import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
+import { FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { normalizeWebsite } from "@repo/util";
 import { EarthIcon, MinusIcon, PlusIcon } from "lucide-react";
 import { useEffect } from "react";
-import { type Control, type UseFormSetValue, useFieldArray } from "react-hook-form";
+import { type Control, type UseFormSetValue, useFieldArray, useWatch } from "react-hook-form";
 
 /** Any form with a websites list: a login. */
 type WebsiteFormValues = { websites?: { value: string }[] };
@@ -25,6 +26,10 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
     name: "websites",
   });
 
+  const filled = (useWatch({ control, name: "websites" }) ?? []).filter((site) =>
+    site?.value?.trim(),
+  ).length;
+
   useEffect(() => {
     if (fields.length >= 1) return;
 
@@ -36,10 +41,7 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
   }
 
   return (
-    <FieldSet>
-      <FieldLegend className="font-semibold text-[0.7rem]! text-muted-foreground uppercase tracking-[0.12em]">
-        Websites
-      </FieldLegend>
+    <DetailSection title="Websites" icon={<EarthIcon />} count={filled}>
       <FieldGroup className="gap-3">
         {fields.map((field, index) => (
           <div key={field.id} className="flex w-full items-center gap-2">
@@ -88,6 +90,6 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
         <PlusIcon />
         Add website
       </Button>
-    </FieldSet>
+    </DetailSection>
   );
 }

@@ -64,7 +64,7 @@ export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
   const generateLabel = (
     <>
       <SparklesIcon />
-      Generate key
+      Generate new key
     </>
   );
 
@@ -89,7 +89,7 @@ export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
       )}
       <Button variant="outline" size="sm" type="button" onClick={() => fileRef.current?.click()}>
         <FileUpIcon />
-        Import key file
+        Import file
       </Button>
       <input
         ref={fileRef}

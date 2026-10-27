@@ -1,4 +1,5 @@
 import type { CustomField } from "@repo/schema";
+import { DetailSection } from "@repo/ui/complex-components/DetailSection";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -7,9 +8,9 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
-import { FieldGroup, FieldLegend, FieldSet } from "@repo/ui/components/Field";
+import { FieldGroup } from "@repo/ui/components/Field";
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
-import { LockIcon, MinusIcon, PlusIcon, TextIcon } from "lucide-react";
+import { ListPlusIcon, LockIcon, MinusIcon, PlusIcon, TextIcon } from "lucide-react";
 import {
   type Control,
   type FieldErrors,
@@ -37,10 +38,7 @@ export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
   });
 
   return (
-    <FieldSet>
-      <FieldLegend className="font-semibold text-[0.7rem]! text-muted-foreground uppercase tracking-[0.12em]">
-        Additional fields
-      </FieldLegend>
+    <DetailSection title="Extra fields" icon={<ListPlusIcon />} count={fields.length}>
       <FieldGroup className="gap-3">
         {fields.map((field, index) => (
           <div key={field.id} className="flex w-full items-start gap-2">
@@ -91,6 +89,6 @@ export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-    </FieldSet>
+    </DetailSection>
   );
 }

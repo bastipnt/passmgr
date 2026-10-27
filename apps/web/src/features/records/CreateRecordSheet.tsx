@@ -151,12 +151,6 @@ export default function CreateRecordSheet() {
         actions={formActions}
         sheetClassName="sm:max-w-3xl!"
       >
-        {type && canPick && vaultId && (
-          // The form pads itself (px-5 / sm:px-7, py-6): the picker sits in that gutter above it.
-          <div className="-mb-4 px-5 pt-6 sm:max-w-sm sm:px-7">
-            <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
-          </div>
-        )}
         {type ? (
           <RecordForm
             // Remount on a new type or prefill so the form starts over.
@@ -165,6 +159,12 @@ export default function CreateRecordSheet() {
             onSubmit={(values) => handleSubmit(type, values)}
             serverError={createRecordError?.message}
             disabled={createPending}
+            vaultField={
+              canPick &&
+              vaultId && (
+                <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
+              )
+            }
             defaultValues={
               source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
             }

@@ -17,11 +17,12 @@ describe("RecordForm", () => {
     renderWithProviders(<RecordForm type={type} onSubmit={vi.fn()} />);
 
     for (const label of ["Title", ...RECORD_FORM_FIELDS[type].map((spec) => spec.label)]) {
-      expect(screen.getByText(label, { selector: "label" })).toBeInTheDocument();
+      expect(screen.getByLabelText(label)).toBeInTheDocument();
     }
-    expect(screen.getByText(type === "note" ? "Note" : "Notes")).toBeInTheDocument();
+    expect(screen.getByRole("textbox", { name: "Note" })).toBeInTheDocument();
     expect(screen.getByLabelText("Tags")).toBeInTheDocument();
-    expect(screen.queryByText("Websites") !== null).toBe(type === "login");
+    expect(screen.queryByRole("heading", { name: /^Websites/ }) !== null).toBe(type === "login");
+    expect(screen.queryByRole("combobox", { name: "Vault" })).not.toBeInTheDocument();
   });
 
   it("submits a login with its websites, extra fields and tags", async () => {
@@ -167,7 +168,47 @@ describe("RecordForm", () => {
     );
   });
 
-  it("adds typed tags as chips (a comma or Enter) and submits them", async () => {
+  it("offers the vault field next to the tags when given one", () => {
+    renderWithProviders(
+      <RecordForm type="login" onSubmit={vi.fn()} vaultField={<span>Vault field</span>} />,
+    );
+
+    expect(screen.getByText("Vault field")).toBeInTheDocument();
+  });
+
+  it("opens with the type's section, then its own sections, extra fields and the note", () => {
+    renderWithProviders(<RecordForm type="identity" onSubmit={vi.fn()} />);
+
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
+      "Personal info",
+      "Address",
+      "Extra fields0",
+      "Note",
+    ]);
+  });
+
+  it("removes the last tag with Backspace in the empty tag field", async () => {
+    const onSubmit = vi.fn();
+    const ref = createRef<RecordFormHandle>();
+    renderWithProviders(
+      <RecordForm
+        type="note"
+        onSubmit={onSubmit}
+        ref={ref}
+        defaultValues={{ title: "Codes", tags: ["home", "work"] }}
+      />,
+    );
+
+    await userEvent.type(screen.getByLabelText("Tags"), "{Backspace}");
+    expect(screen.queryByRole("button", { name: "Remove work" })).not.toBeInTheDocument();
+
+    ref.current?.triggerSubmit();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ tags: ["home"] })),
+    );
+  });
+
+  it("adds typed tags (a comma or Enter) and submits them", async () => {
     const onSubmit = vi.fn();
     const ref = createRef<RecordFormHandle>();
     renderWithProviders(<RecordForm type="note" onSubmit={onSubmit} ref={ref} />);
@@ -212,7 +253,7 @@ describe("RecordForm", () => {
     renderWithProviders(<RecordForm type="ssh_key" onSubmit={vi.fn()} />);
 
     await userEvent.type(screen.getByLabelText("Title"), "Work laptop");
-    await userEvent.click(screen.getByRole("button", { name: "Generate key" }));
+    await userEvent.click(screen.getByRole("button", { name: "Generate new key" }));
 
     expect((screen.getByLabelText("Public key") as HTMLTextAreaElement).value).toMatch(
       /^ssh-ed25519 \S+$/,
@@ -223,10 +264,13 @@ describe("RecordForm", () => {
     expect(screen.getByText(/^SHA256:/)).toBeInTheDocument();
   });
 
-  it("puts a secure note's body right under the title", () => {
+  it("puts a secure note's body in its first section, with no note section below", () => {
     renderWithProviders(<RecordForm type="note" onSubmit={vi.fn()} />);
 
-    const labels = screen.getAllByText(/^(Title|Note)$/).map((el) => el.textContent);
-    expect(labels).toEqual(["Title", "Note"]);
+    expect(screen.getAllByRole("heading").map((heading) => heading.textContent)).toEqual([
+      "Note",
+      "Extra fields0",
+    ]);
+    expect(screen.getByRole("textbox", { name: "Note" })).toHaveAttribute("rows", "10");
   });
 });

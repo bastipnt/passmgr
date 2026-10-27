@@ -21,13 +21,12 @@ export type ControlledBoxedInputProps<
   secret?: boolean;
   /** After the eye / calendar button. */
   trailing?: ReactNode;
+  /** Under the box while there is no error. */
+  hint?: ReactNode;
   /** On the box's wrapper (grid placement), not the input. */
   className?: string;
 } & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
-  Omit<
-    ComponentProps<"input">,
-    "name" | "defaultValue" | "className" | "id" | "value" | "aria-invalid"
-  >;
+  Omit<ComponentProps<"input">, "name" | "defaultValue" | "className" | "id" | "aria-invalid">;
 
 export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldValues>({
   name,
@@ -40,9 +39,11 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
   mono = false,
   secret = false,
   trailing,
+  hint,
   type,
   className,
   ref,
+  value,
   ...props
 }: ControlledBoxedInputProps<TFieldValues>) {
   const id = useId();
@@ -64,6 +65,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
           htmlFor={id}
           invalid={fieldState.invalid}
           error={fieldState.error}
+          hint={hint}
           className={className}
           trailing={
             <>
@@ -95,12 +97,12 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
           <FieldBoxInput
             {...field}
             ref={mergeRefs(field.ref, inputRef, ref)}
-            value={field.value ?? ""}
+            value={value ?? field.value ?? ""}
             id={id}
             type={type}
             aria-invalid={fieldState.invalid}
             className={cn(
-              (mono || secret) && "font-mono",
+              (mono || secret) && "font-mono placeholder:font-sans",
               secret && !revealed && maskedTextClassName,
               type === "date" &&
                 "[&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit]:p-0",
