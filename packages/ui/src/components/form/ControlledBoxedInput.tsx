@@ -113,11 +113,8 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
                 />
               )}
               {type === "date" && (
-                // Firefox draws its own calendar button in the input and has no way
-                // to hide it: leave the picker to it there.
                 <FieldBoxButton
                   aria-label={`Pick ${lowerLabel}`}
-                  className="supports-[-moz-appearance:none]:hidden"
                   disabled={field.disabled}
                   onClick={() => inputRef.current?.showPicker()}
                 >
@@ -145,8 +142,13 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
             className={cn(
               (mono || secret) && "font-mono placeholder:font-sans",
               secret && !revealed && maskedTextClassName,
-              type === "date" &&
+              type === "date" && [
                 "[&::-webkit-calendar-picker-indicator]:hidden [&::-webkit-datetime-edit]:p-0",
+                // Firefox draws its calendar button in the input, on the value's line, and
+                // can't hide it: the input reaches past the box and that strip is clipped
+                // (hit testing too), leaving the picker to the box's button.
+                "supports-[-moz-appearance:none]:w-[calc(100%+2rem)] supports-[-moz-appearance:none]:[clip-path:inset(0_2rem_0_0)]",
+              ],
             )}
             {...props}
           />
