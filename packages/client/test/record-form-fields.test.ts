@@ -4,6 +4,7 @@ import {
   type FormFieldSpec,
   multilineSummary,
   noteSummary,
+  phoneRows,
   RECORD_FORM_FIELDS,
 } from "../src/records/record-form-fields";
 
@@ -49,5 +50,30 @@ describe("multilineSummary", () => {
   it("keeps a masked secret's length to itself, not its format", () => {
     expect(multilineSummary(spec("secret"), "sk_live_1", true)).toBe("");
     expect(multilineSummary(spec("privateKey"), privateKey, true)).toBe("OpenSSH · ssh-ed25519");
+  });
+});
+
+describe("phoneRows", () => {
+  const keys = (specs: readonly FormFieldSpec[]) =>
+    phoneRows(specs).map((row) => row.map((field) => field.key));
+
+  it("keeps the card's expiry, code and PIN on one row", () => {
+    expect(keys(RECORD_FORM_FIELDS.card as readonly FormFieldSpec[])).toEqual([
+      ["cardholderName"],
+      ["number"],
+      ["expiry", "securityCode", "pin"],
+    ]);
+  });
+
+  it("pairs only neighbours that share a row", () => {
+    expect(keys(RECORD_FORM_FIELDS.identity as readonly FormFieldSpec[])).toEqual([
+      ["firstName", "lastName"],
+      ["email"],
+      ["phone"],
+      ["birthDate"],
+      ["street"],
+      ["postalCode", "city"],
+      ["country"],
+    ]);
   });
 });

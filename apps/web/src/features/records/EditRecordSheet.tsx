@@ -6,13 +6,17 @@ import {
 } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
-import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
+import {
+  ResponsiveSheet,
+  SheetFormBar,
+  SheetMediaHeader,
+} from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { toLocalDateStr } from "@repo/util";
 import { TrashIcon } from "lucide-react";
-import { useRef } from "react";
+import { type ReactElement, useRef } from "react";
 import { recordPaths } from "@/app/route-paths";
 import { RecordAvatar } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
@@ -40,6 +44,32 @@ function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
     actionCb: () => setOpen(false),
   });
 
+  const noun = RECORD_TYPE_LABELS[record.type].noun;
+  const changedOn = toLocalDateStr(record.clientUpdatedAt);
+
+  const deleteAction = (button: ReactElement) => (
+    <RemoveDialog
+      title="Delete record"
+      description="Are you sure you want to delete this record? This action cannot be undone."
+      removeTitle="Delete"
+      onRemove={() => deleteRecord(record.recordId)}
+    >
+      {button}
+    </RemoveDialog>
+  );
+
+  const saveButton = (label: string, className?: string) => (
+    <Button
+      size="lg"
+      className={className}
+      disabled={updatePending}
+      onClick={() => formRef.current?.triggerSubmit()}
+    >
+      {label}
+      {updatePending && <Spinner data-icon="inline-end" />}
+    </Button>
+  );
+
   const form = (
     <RecordForm
       type={record.type}
@@ -47,54 +77,52 @@ function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
       serverError={updateRecordError?.message}
       disabled={updatePending}
       defaultValues={recordFormDefaults(record)}
+      header={
+        isMobile && (
+          <SheetMediaHeader
+            media={<RecordAvatar record={record} size="ml" />}
+            title={record.title}
+            description={`Last changed ${changedOn}`}
+          />
+        )
+      }
+      footer={
+        isMobile && (
+          <div className="flex flex-col items-center gap-2.5">
+            {deleteAction(
+              <Button variant="destructive" size="lg" type="button" className="w-full">
+                <TrashIcon /> Delete {noun}
+              </Button>,
+            )}
+            <p className="text-muted-foreground text-xs">Every save keeps a version</p>
+          </div>
+        )
+      }
       ref={formRef}
     />
   );
 
-  const deleteAction = (
-    <RemoveDialog
-      title="Delete record"
-      description="Are you sure you want to delete this record? This action cannot be undone."
-      removeTitle="Delete"
-      onRemove={() => deleteRecord(record.recordId)}
-    >
-      <Button
-        variant="ghost-destructive"
-        size="lg"
-        type="button"
-        className="text-destructive"
-        disabled={updatePending}
-      >
-        <TrashIcon /> Delete
-      </Button>
-    </RemoveDialog>
-  );
-
   const formActions = (
-    <div className="flex flex-row justify-between gap-4">
-      <SheetCloseAction />
-      <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-between">
-        {!isMobile && deleteAction}
-        <div className="flex flex-row items-center gap-3">
-          {!isMobile && (
-            <>
-              <span className="hidden text-muted-foreground text-xs md:inline">
-                Every save keeps a version
-              </span>
-              <Button variant="outline" size="lg" type="button" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-            </>
-          )}
-          <Button
-            size="lg"
-            disabled={updatePending}
-            onClick={() => formRef.current?.triggerSubmit()}
-          >
-            Save changes
-            {updatePending && <Spinner data-icon="inline-end" />}
-          </Button>
-        </div>
+    <div className="flex flex-row items-center justify-between gap-3">
+      {deleteAction(
+        <Button
+          variant="ghost-destructive"
+          size="lg"
+          type="button"
+          className="text-destructive"
+          disabled={updatePending}
+        >
+          <TrashIcon /> Delete
+        </Button>,
+      )}
+      <div className="flex flex-row items-center gap-3">
+        <span className="hidden text-muted-foreground text-xs md:inline">
+          Every save keeps a version
+        </span>
+        <Button variant="outline" size="lg" type="button" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
+        {saveButton("Save changes")}
       </div>
     </div>
   );
@@ -106,10 +134,16 @@ function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
         onOpenChange={setOpen}
         onOpenChangeComplete={onOpenChangeComplete}
         sheetClassName="sm:max-w-3xl!"
-        title={`Edit ${RECORD_TYPE_LABELS[record.type].noun}`}
-        description={`${record.title} · last changed ${toLocalDateStr(record.clientUpdatedAt)}`}
+        title={`Edit ${noun}`}
+        description={`${record.title} · last changed ${changedOn}`}
         media={<RecordAvatar record={record} />}
-        actions={formActions}
+        actions={
+          isMobile ? (
+            <SheetFormBar title={`Edit ${noun}`} action={saveButton("Save", "rounded-full px-5")} />
+          ) : (
+            formActions
+          )
+        }
       >
         {form}
       </ResponsiveSheet>

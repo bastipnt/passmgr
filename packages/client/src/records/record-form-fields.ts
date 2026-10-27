@@ -45,6 +45,10 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   options?: readonly FormFieldOption[];
   /** Shares a row with the next fields of the same width on wide screens. */
   width?: "half" | "third";
+  /** Shares a row on phones too, in this ratio, with every neighbour that has one. */
+  phoneShare?: number;
+  /** The label where space is tight (phones). */
+  shortLabel?: string;
   /** Monospaced input (secrets, ids). */
   mono?: boolean;
   /** A `secret` the password generator can fill, with the password's defaults. */
@@ -109,25 +113,49 @@ export const RECORD_FORM_FIELDS: {
       label: "Expiry date",
       placeholder: "MM/YY",
       width: "third",
+      phoneShare: 1,
     },
     {
       key: "securityCode",
       kind: "secret",
       label: "Security code",
+      shortLabel: "CVC",
       input: "numeric",
       width: "third",
+      phoneShare: 1,
     },
-    { key: "pin", kind: "secret", label: "PIN", input: "numeric", width: "third" },
+    {
+      key: "pin",
+      kind: "secret",
+      label: "PIN",
+      input: "numeric",
+      width: "third",
+      phoneShare: 1,
+    },
   ],
   identity: [
-    { key: "firstName", kind: "text", label: "First name", width: "half" },
-    { key: "lastName", kind: "text", label: "Last name", width: "half" },
+    { key: "firstName", kind: "text", label: "First name", width: "half", phoneShare: 1 },
+    { key: "lastName", kind: "text", label: "Last name", width: "half", phoneShare: 1 },
     { key: "email", kind: "text", label: "Email", input: "email", width: "half" },
     { key: "phone", kind: "text", label: "Phone", input: "phone", width: "half" },
     { key: "birthDate", kind: "text", label: "Date of birth", input: "date", width: "half" },
     { key: "street", kind: "text", label: "Street", section: "address" },
-    { key: "postalCode", kind: "text", label: "Postal code", width: "half", section: "address" },
-    { key: "city", kind: "text", label: "City", width: "half", section: "address" },
+    {
+      key: "postalCode",
+      kind: "text",
+      label: "Postal code",
+      width: "half",
+      phoneShare: 2,
+      section: "address",
+    },
+    {
+      key: "city",
+      kind: "text",
+      label: "City",
+      width: "half",
+      phoneShare: 3,
+      section: "address",
+    },
     { key: "country", kind: "text", label: "Country", width: "half", section: "address" },
   ],
   note: [],
@@ -214,4 +242,15 @@ export function multilineSummary(spec: FormFieldSpec, value: string, masked = fa
         : undefined;
   if (described) return described;
   return masked ? "" : counted(textStats(value).characters, "character", "characters");
+}
+
+/** `specs` as phone rows: neighbours with a `phoneShare` share one, every other field is alone. */
+export function phoneRows(specs: readonly FormFieldSpec[]): FormFieldSpec[][] {
+  const rows: FormFieldSpec[][] = [];
+  for (const spec of specs) {
+    const last = rows.at(-1);
+    if (spec.phoneShare && last?.[0]?.phoneShare) last.push(spec);
+    else rows.push([spec]);
+  }
+  return rows;
 }

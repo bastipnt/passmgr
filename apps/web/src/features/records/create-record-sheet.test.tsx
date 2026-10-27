@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { renderWithProviders, screen } from "@/test/render";
+import { renderWithProviders, screen, within } from "@/test/render";
 import CreateRecordSheet from "./CreateRecordSheet";
 
 // The tag field offers the tags in use, which live in the records context.
@@ -19,6 +19,12 @@ const mocks = vi.hoisted(() => ({
   vaultFilter: "all",
   writableVaults: [] as { vaultId: string; name: string; kind: string; role: string }[],
   records: [] as DecryptedRecord[],
+  mobile: false,
+}));
+
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
+  useIsMobile: () => mocks.mobile,
+  isMobile: () => mocks.mobile,
 }));
 
 vi.mock("@repo/client", async (importOriginal) => ({
@@ -55,6 +61,7 @@ beforeEach(() => {
   mocks.records = [];
   mocks.vaultFilter = "all";
   mocks.writableVaults = [];
+  mocks.mobile = false;
 });
 
 function renderAt(path: string) {
@@ -120,6 +127,39 @@ describe("CreateRecordSheet", () => {
     renderAt("/?new=&type=note");
     mocks.createOpts?.onError?.(new Error("disk full"));
     expect(toast.error).toHaveBeenCalledWith("The item couldn't be saved");
+  });
+
+  describe("on a phone", () => {
+    beforeEach(() => {
+      mocks.mobile = true;
+    });
+
+    it("creates from the page bar", async () => {
+      renderAt("/?new=Home&type=wifi");
+
+      expect(screen.getByRole("heading", { name: "New Wi-Fi network" })).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Create" }));
+      await vi.waitFor(() => expect(mocks.createRecord).toHaveBeenCalled());
+    });
+
+    it("keeps the way back to the type picker in the form", async () => {
+      const location = renderAt("/?new=Home&type=wifi");
+
+      const form = screen.getByRole("textbox", { name: "Title" }).closest("form") as HTMLElement;
+      await userEvent.click(within(form).getByRole("button", { name: "Type" }));
+      expect(location.history.at(-1)).toBe("?new=Home");
+    });
+
+    it("puts the SSH key buttons above the private key", () => {
+      renderAt("/?new=&type=ssh_key");
+
+      const newKey = screen.getByRole("button", { name: "New key" });
+      const privateKey = screen.getByLabelText("Private key");
+      expect(
+        newKey.compareDocumentPosition(privateKey) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Import file" })).toBeInTheDocument();
+    });
   });
 
   describe("as a duplicate", () => {

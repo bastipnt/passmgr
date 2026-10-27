@@ -10,7 +10,11 @@ import {
 } from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
 import { toast } from "@repo/ui";
-import { ResponsiveSheet, SheetCloseAction } from "@repo/ui/complex-components/ResponsiveSheet";
+import {
+  ResponsiveSheet,
+  SheetFormBar,
+  SheetMediaHeader,
+} from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
@@ -91,40 +95,45 @@ export default function CreateRecordSheet() {
     createRecord(recordFromForm(formType, formValues), vaultId);
   }
 
-  const formActions = (
-    <div className="flex flex-row justify-between gap-4">
-      <SheetCloseAction />
+  const title = typeLabel ? `${duplicateId ? "Duplicate" : "New"} ${typeLabel}` : "New item";
+  const description = "Encrypted on this device before it's saved";
 
-      <div className="flex flex-row items-center gap-3 sm:w-full sm:justify-end">
-        {type && !duplicateId && (
-          // Back to the picker; what was typed so far is dropped with the form.
-          <Button
-            variant="ghost"
-            size="lg"
-            type="button"
-            className="sm:mr-auto"
-            onClick={() => navigate(createSheetSearch(initialTitle), { replace: true })}
-          >
-            <ChevronLeftIcon />
-            Type
-          </Button>
-        )}
-        {!isMobile && (
-          <Button variant="outline" size="lg" type="button" onClick={close}>
-            Cancel
-          </Button>
-        )}
-        {type && (
-          <Button
-            size="lg"
-            disabled={createPending}
-            onClick={() => formRef.current?.triggerSubmit()}
-          >
-            Create {typeLabel}
-            {createPending && <Spinner data-icon="inline-end" />}
-          </Button>
-        )}
-      </div>
+  // Back to the picker; what was typed so far is dropped with the form.
+  const backToPicker = type && !duplicateId && (
+    <Button
+      variant="ghost"
+      size="lg"
+      type="button"
+      className="sm:mr-auto"
+      disabled={createPending}
+      onClick={() => navigate(createSheetSearch(initialTitle), { replace: true })}
+    >
+      <ChevronLeftIcon />
+      Type
+    </Button>
+  );
+
+  const createButton = (label: string, className?: string) => (
+    <Button
+      size="lg"
+      className={className}
+      disabled={createPending}
+      onClick={() => formRef.current?.triggerSubmit()}
+    >
+      {label}
+      {createPending && <Spinner data-icon="inline-end" />}
+    </Button>
+  );
+
+  const formActions = isMobile ? (
+    <SheetFormBar title={title} action={type && createButton("Create", "rounded-full px-5")} />
+  ) : (
+    <div className="flex w-full flex-row items-center justify-end gap-3">
+      {backToPicker}
+      <Button variant="outline" size="lg" type="button" onClick={close}>
+        Cancel
+      </Button>
+      {type && createButton(`Create ${typeLabel}`)}
     </div>
   );
 
@@ -135,10 +144,8 @@ export default function CreateRecordSheet() {
         onOpenChange={(nextOpen) => {
           if (!nextOpen) close();
         }}
-        title={typeLabel ? `${duplicateId ? "Duplicate" : "New"} ${typeLabel}` : "New item"}
-        description={
-          type ? "Encrypted on this device before it's saved" : "What would you like to save?"
-        }
+        title={title}
+        description={type ? description : "What would you like to save?"}
         media={
           type ? (
             <RecordTypeTile type={type} />
@@ -167,6 +174,16 @@ export default function CreateRecordSheet() {
             }
             defaultValues={
               source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
+            }
+            header={
+              isMobile && (
+                <SheetMediaHeader
+                  media={<RecordTypeTile type={type} size="ml" />}
+                  description={description}
+                >
+                  {backToPicker}
+                </SheetMediaHeader>
+              )
             }
             ref={formRef}
           />

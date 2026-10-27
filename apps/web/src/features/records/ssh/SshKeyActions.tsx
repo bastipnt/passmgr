@@ -3,6 +3,7 @@ import type { RecordFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
+import { cn } from "@repo/ui/lib/utils";
 import { FileUpIcon, SparklesIcon } from "lucide-react";
 import { type ChangeEvent, useRef } from "react";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
@@ -12,6 +13,8 @@ type SshFormValues = RecordFormValues<"ssh_key">;
 type SshKeyActionsProps = {
   control: Control<SshFormValues>;
   setValue: UseFormSetValue<SshFormValues>;
+  /** Two half-width 48px buttons (phones) instead of a small pair in the section header. */
+  block?: boolean;
 };
 
 /** Key files are a few KB; anything far bigger is not one. */
@@ -24,7 +27,7 @@ const SET = { shouldDirty: true, shouldValidate: true } as const;
  * key is read from the file when it's in OpenSSH's format) or a `.pub` line.
  * Both stay on the device until the record is saved, encrypted.
  */
-export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
+export function SshKeyActions({ control, setValue, block = false }: SshKeyActionsProps) {
   const fileRef = useRef<HTMLInputElement>(null);
   const privateKey = useWatch({ control, name: "privateKey" });
 
@@ -61,15 +64,16 @@ export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
     }
   }
 
+  const size = block ? "lg" : "sm";
   const generateLabel = (
     <>
       <SparklesIcon />
-      Generate new key
+      {block ? "New key" : "Generate new key"}
     </>
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    <div className={cn("gap-2", block ? "grid grid-cols-2" : "flex flex-wrap items-center")}>
       {privateKey ? (
         // Generating over a key would silently lose it from the form.
         <RemoveDialog
@@ -78,16 +82,16 @@ export function SshKeyActions({ control, setValue }: SshKeyActionsProps) {
           removeTitle="Replace"
           onRemove={generate}
         >
-          <Button variant="outline" size="sm" type="button">
+          <Button variant="outline" size={size} type="button">
             {generateLabel}
           </Button>
         </RemoveDialog>
       ) : (
-        <Button variant="outline" size="sm" type="button" onClick={generate}>
+        <Button variant="outline" size={size} type="button" onClick={generate}>
           {generateLabel}
         </Button>
       )}
-      <Button variant="outline" size="sm" type="button" onClick={() => fileRef.current?.click()}>
+      <Button variant="outline" size={size} type="button" onClick={() => fileRef.current?.click()}>
         <FileUpIcon />
         Import file
       </Button>

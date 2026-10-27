@@ -21,6 +21,8 @@ export type ControlledBoxedInputProps<
   TTransformedValues = TFieldValues,
 > = {
   label: string;
+  /** Shown in place of `label` where space is tight; `label` stays the accessible name. */
+  visibleLabel?: string;
   /** The label for assistive tech only. */
   hideLabel?: boolean;
   mono?: boolean;
@@ -49,6 +51,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
   defaultValue,
   disabled,
   label,
+  visibleLabel,
   hideLabel,
   mono = false,
   secret = false,
@@ -78,7 +81,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
       disabled={disabled}
       render={({ field, fieldState }) => (
         <FieldBox
-          label={label}
+          label={visibleLabel ?? label}
           hideLabel={hideLabel}
           htmlFor={id}
           invalid={fieldState.invalid}
@@ -117,6 +120,7 @@ export function ControlledBoxedInput<TFieldValues extends FieldValues = FieldVal
             ref={mergeRefs(field.ref, inputRef, ref)}
             value={value ?? field.value ?? ""}
             id={id}
+            aria-label={visibleLabel && label}
             type={type}
             aria-invalid={fieldState.invalid}
             onBlur={(event) => {

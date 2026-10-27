@@ -26,12 +26,14 @@ type FieldProps = {
   spec: FormFieldSpec;
   control: Control<AnyFormValues>;
   setValue: UseFormSetValue<AnyFormValues>;
+  /** Phone width: a field's `shortLabel` shows in place of its label. */
+  compact?: boolean;
 };
 
 const INPUT_TYPES = { email: "email", phone: "tel", numeric: "text", date: "date" } as const;
 
 /** One input, by its kind; the card's and the key's need their own controls. */
-export default function RecordFormField({ spec, control, setValue }: FieldProps) {
+export default function RecordFormField({ spec, control, setValue, compact }: FieldProps) {
   const name = spec.key;
 
   switch (spec.kind) {
@@ -42,6 +44,7 @@ export default function RecordFormField({ spec, control, setValue }: FieldProps)
           control={control}
           name={name}
           label={spec.label}
+          visibleLabel={compact ? spec.shortLabel : undefined}
           type={spec.input ? INPUT_TYPES[spec.input] : "text"}
           inputMode={spec.input === "numeric" ? "numeric" : undefined}
           placeholder={spec.placeholder}

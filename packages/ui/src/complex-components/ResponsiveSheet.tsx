@@ -167,4 +167,52 @@ function SheetDrawerHeader({
   );
 }
 
-export { ResponsiveSheet, SheetCloseAction, SheetDrawerHeader, SheetIconAction };
+/** The phone drawer's page bar for a form: close, the title centred, the form's action. */
+function SheetFormBar({ title, action }: { title: string; action?: ReactNode }) {
+  return (
+    <div className="grid grid-cols-[1fr_minmax(0,auto)_1fr] items-center gap-2">
+      <SheetCloseAction className="justify-self-start" />
+      <DrawerTitle className="truncate text-center font-semibold text-[0.95rem]">
+        {title}
+      </DrawerTitle>
+      <div className="justify-self-end">{action}</div>
+    </div>
+  );
+}
+
+/** The top of a phone drawer's content: what it's about, under the page bar. */
+function SheetMediaHeader({
+  media,
+  title,
+  description,
+  children,
+}: {
+  media: ReactNode;
+  title?: ReactNode;
+  description?: ReactNode;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex flex-row items-center gap-3">
+      {media}
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        {title && (
+          <p className="truncate font-bold font-display text-[1.625rem] leading-8 tracking-[-0.02em]">
+            {title}
+          </p>
+        )}
+        {description && <p className="line-clamp-2 text-muted-foreground text-xs">{description}</p>}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export {
+  ResponsiveSheet,
+  SheetCloseAction,
+  SheetDrawerHeader,
+  SheetFormBar,
+  SheetIconAction,
+  SheetMediaHeader,
+};

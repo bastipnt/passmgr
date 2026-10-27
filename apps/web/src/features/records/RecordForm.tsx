@@ -2,6 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import {
   type FormFieldSpec,
   noteSummary,
+  phoneRows,
   RECORD_FORM_FIELDS,
   RECORD_FORM_LAYOUT,
   RECORD_FORM_SECTION_LABELS,
@@ -14,6 +15,7 @@ import { FieldError } from "@repo/ui/components/Field";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
 import { ControlledCodeBlock } from "@repo/ui/components/form/ControlledCodeBlock";
 import { FormLock } from "@repo/ui/components/form/FormLock";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { FileTextIcon, type LucideIcon, MapPinIcon } from "lucide-react";
 import { type ReactNode, type Ref, useImperativeHandle, useRef } from "react";
@@ -38,6 +40,10 @@ type RecordFormProps<T extends RecordType> = {
   defaultValues?: Partial<RecordFormValues<T>>;
   /** The target vault's field next to the tags; a create offers it, an edit moves instead. */
   vaultField?: ReactNode;
+  /** Above the first section (the phone drawer's record header). */
+  header?: ReactNode;
+  /** After the last section (the phone drawer's Delete). */
+  footer?: ReactNode;
   ref?: Ref<RecordFormHandle>;
 };
 
@@ -47,7 +53,7 @@ const SECTION_ICONS: { [S in RecordFormSection]: ReactNode } = {
 
 const WIDTH_CLASSES = { half: "sm:col-span-3", third: "sm:col-span-2" } as const;
 
-const gridClassName = "grid gap-2.5 sm:grid-cols-6";
+const gridClassName = "grid gap-2 sm:grid-cols-6 sm:gap-2.5";
 
 /** The create / edit form of every type; `RECORD_FORM_LAYOUT` places the common parts. */
 export default function RecordForm<T extends RecordType>({
@@ -57,8 +63,11 @@ export default function RecordForm<T extends RecordType>({
   disabled = false,
   defaultValues,
   vaultField,
+  header,
+  footer,
   ref,
 }: RecordFormProps<T>) {
+  const isMobile = useIsMobile();
   const { handleSubmit, control, setValue } = useForm<AnyFormValues>({
     resolver: zodResolver(recordFormSchemas[type] as never),
     defaultValues: defaultValues as Partial<AnyFormValues>,
@@ -73,12 +82,37 @@ export default function RecordForm<T extends RecordType>({
     triggerSubmit: () => formRef.current?.requestSubmit(),
   }));
 
+  const renderField = (spec: FormFieldSpec) => (
+    <div key={spec.key} className={cn("sm:col-span-6", spec.width && WIDTH_CLASSES[spec.width])}>
+      <RecordFormField spec={spec} control={control} setValue={setValue} compact={isMobile} />
+    </div>
+  );
+
+  // A phone row dissolves into the six-column grid on wider screens.
   const renderFields = (specs: readonly FormFieldSpec[]) =>
-    specs.map((spec) => (
-      <div key={spec.key} className={cn("sm:col-span-6", spec.width && WIDTH_CLASSES[spec.width])}>
-        <RecordFormField spec={spec} control={control} setValue={setValue} />
-      </div>
-    ));
+    phoneRows(specs).map((row) =>
+      row.length === 1 ? (
+        renderField(row[0] as FormFieldSpec)
+      ) : (
+        <div
+          key={row.map((spec) => spec.key).join()}
+          className="grid gap-2 sm:contents"
+          style={{
+            gridTemplateColumns: row.map((spec) => `minmax(0, ${spec.phoneShare}fr)`).join(" "),
+          }}
+        >
+          {row.map(renderField)}
+        </div>
+      ),
+    );
+
+  const sshKeyActions = layout.actions === "sshKey" && (
+    <SshKeyActions
+      control={control as unknown as Control<RecordFormValues<"ssh_key">>}
+      setValue={setValue as unknown as UseFormSetValue<RecordFormValues<"ssh_key">>}
+      block={isMobile}
+    />
+  );
 
   const noteField = (
     <ControlledCodeBlock
@@ -98,21 +132,15 @@ export default function RecordForm<T extends RecordType>({
       ref={formRef}
       onSubmit={handleSubmit((data) => onSubmit(data as RecordFormValues<T>))}
       autoComplete="off"
-      className="px-5 py-6 sm:px-7"
+      className="px-4 pb-6 sm:px-7 sm:pt-6"
     >
       <FormLock locked={disabled}>
         <div className="flex flex-col gap-8">
+          {header}
           <DetailSection
             title={RECORD_TYPE_LABELS[type].fields}
             icon={<TypeIcon />}
-            actions={
-              layout.actions === "sshKey" && (
-                <SshKeyActions
-                  control={control as unknown as Control<RecordFormValues<"ssh_key">>}
-                  setValue={setValue as unknown as UseFormSetValue<RecordFormValues<"ssh_key">>}
-                />
-              )
-            }
+            actions={!isMobile && sshKeyActions}
           >
             <div className={gridClassName}>
               <ControlledBoxedInput
@@ -128,6 +156,7 @@ export default function RecordForm<T extends RecordType>({
                 className={vaultField ? "sm:col-span-3" : "sm:col-span-6"}
               />
               {layout.noteFirst && <div className="sm:col-span-6">{noteField}</div>}
+              {isMobile && sshKeyActions}
               {renderFields(fields.filter((spec) => !spec.section))}
             </div>
           </DetailSection>
@@ -160,6 +189,7 @@ export default function RecordForm<T extends RecordType>({
           )}
 
           {serverError && <FieldError variant="box">{serverError}</FieldError>}
+          {footer}
         </div>
       </FormLock>
     </form>
