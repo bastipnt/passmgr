@@ -1,3 +1,4 @@
+export { default as GeneratePasswordButton } from "./GeneratePasswordButton";
 export { default as NewPasswordLabelAction } from "./NewPasswordLabelAction";
 export { default as PassphraseOptionsForm } from "./PassphraseOptionsForm";
 export { default as PasswordField } from "./PasswordField";

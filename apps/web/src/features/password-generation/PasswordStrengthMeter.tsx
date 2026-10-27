@@ -32,7 +32,7 @@ type PasswordStrengthMeterProps = (
 ) & {
   /** Right-aligned hint on the label row, e.g. a character count. */
   aside?: ReactNode;
-  /** Short segments with the label beside them in one line; no `aside` or warning. */
+  /** Short segments with the label beside them in one line, `aside` at its end; no warning. */
   inline?: boolean;
   className?: string;
 };
@@ -80,6 +80,7 @@ export default function PasswordStrengthMeter({
           <span className="sr-only">Strength: </span>
           {strength ? strength.label : "Checking…"}
         </span>
+        {aside && <span className="ml-auto text-muted-foreground">{aside}</span>}
       </div>
     );
   }

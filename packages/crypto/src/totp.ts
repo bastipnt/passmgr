@@ -6,7 +6,36 @@ const guardrails = createGuardrails({
 });
 
 export async function getToken(secret: string | Uint8Array) {
-  return await generate({ secret: secret, guardrails });
+  const key = typeof secret === "string" ? (totpSecretFromUri(secret) ?? secret) : secret;
+  return await generate({ secret: key, guardrails });
+}
+
+const TOTP_URI_DEFAULTS: Record<string, string> = { algorithm: "sha1", digits: "6", period: "30" };
+
+/**
+ * The `secret` of an `otpauth://totp/…` URI, or undefined for anything else.
+ * A URI with a non-default algorithm, digits or period gives undefined too:
+ * its secret alone would produce wrong codes.
+ * Parsed by hand: React Native's `URL` doesn't implement `searchParams`.
+ */
+export function totpSecretFromUri(value: string): string | undefined {
+  const query = /^otpauth:\/\/totp\/[^?#]*\?([^#]*)/i.exec(value.trim())?.[1];
+  if (query === undefined) return undefined;
+  try {
+    const params = new Map(
+      query.split("&").map((part) => {
+        const [key = "", ...rest] = part.split("=");
+        return [key.toLowerCase(), decodeURIComponent(rest.join("="))] as const;
+      }),
+    );
+    for (const [key, expected] of Object.entries(TOTP_URI_DEFAULTS)) {
+      const given = params.get(key);
+      if (given !== undefined && given.toLowerCase() !== expected) return undefined;
+    }
+    return params.get("secret") || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 export { getRemainingTime } from "@otplib/totp";

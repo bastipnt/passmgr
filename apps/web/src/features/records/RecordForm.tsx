@@ -58,7 +58,7 @@ export default function RecordForm<T extends RecordType>({
   vaultField,
   ref,
 }: RecordFormProps<T>) {
-  const { register, handleSubmit, formState, control, setValue } = useForm<AnyFormValues>({
+  const { handleSubmit, control, setValue } = useForm<AnyFormValues>({
     resolver: zodResolver(recordFormSchemas[type] as never),
     defaultValues: defaultValues as Partial<AnyFormValues>,
   });
@@ -90,9 +90,7 @@ export default function RecordForm<T extends RecordType>({
       capped
     />
   );
-  const extraFields = (
-    <ExtraFormFields control={control} register={register} errors={formState.errors} />
-  );
+  const extraFields = <ExtraFormFields control={control} setValue={setValue} />;
 
   return (
     <form

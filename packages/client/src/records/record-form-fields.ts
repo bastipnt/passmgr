@@ -45,6 +45,8 @@ export type FormFieldSpec<T extends RecordType = RecordType> = {
   width?: "half" | "third";
   /** Monospaced input (secrets, ids). */
   mono?: boolean;
+  /** A `secret` the password generator can fill, with the password's defaults. */
+  generator?: boolean;
   /** A line under the label (a toggle's meaning). */
   description?: string;
   /** Starts or continues a section of its own after the type's first one. */
@@ -83,7 +85,7 @@ export const RECORD_FORM_FIELDS: {
     {
       key: "totp",
       kind: "totp",
-      label: "2FA token secret (TOTP)",
+      label: "One-time code",
       placeholder: "Paste a secret or otpauth:// link",
     },
   ],
@@ -128,7 +130,7 @@ export const RECORD_FORM_FIELDS: {
   ssh_key: [
     { key: "privateKey", kind: "secretMultiline", label: "Private key", mono: true },
     { key: "publicKey", kind: "multiline", label: "Public key", mono: true },
-    { key: "passphrase", kind: "secret", label: "Passphrase" },
+    { key: "passphrase", kind: "secret", label: "Passphrase", generator: true },
   ],
   api_key: [
     { key: "keyId", kind: "text", label: "Key ID", mono: true, width: "half" },

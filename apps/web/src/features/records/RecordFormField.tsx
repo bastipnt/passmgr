@@ -1,4 +1,5 @@
 import type { FormFieldSpec } from "@repo/client";
+import { totpSecretFromUri } from "@repo/crypto";
 import type { CustomField, RecordFormValues } from "@repo/schema";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
 import { ControlledBoxedSelect } from "@repo/ui/components/form/ControlledBoxedSelect";
@@ -7,7 +8,7 @@ import { ControlledTextarea } from "@repo/ui/components/form/ControlledTextarea"
 import { maskedTextClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
 import type { Control, UseFormSetValue } from "react-hook-form";
-import { PasswordField } from "@/features/password-generation";
+import { GeneratePasswordButton, PasswordField } from "@/features/password-generation";
 import { CardExpiryField, CardNumberField } from "./card/CardFields";
 import { SshFingerprintHint } from "./ssh/SshKeyActions";
 
@@ -51,6 +52,17 @@ export default function RecordFormField({ spec, control, setValue }: FieldProps)
           spellCheck={false}
           mono={spec.mono}
           secret={spec.kind === "secret"}
+          trailing={
+            spec.generator && (
+              <GeneratePasswordButton
+                size="icon"
+                fieldLabel={spec.label}
+                onUse={(value) =>
+                  setValue(name, value, { shouldDirty: true, shouldValidate: true })
+                }
+              />
+            )
+          }
         />
       );
 
@@ -64,11 +76,17 @@ export default function RecordFormField({ spec, control, setValue }: FieldProps)
           autoComplete="off"
           spellCheck={false}
           mono
+          onPaste={(event) => {
+            const secret = totpSecretFromUri(event.clipboardData.getData("text"));
+            if (!secret) return;
+            event.preventDefault();
+            setValue(name, secret, { shouldDirty: true, shouldValidate: true });
+          }}
         />
       );
 
     case "password":
-      return <PasswordField control={control} setValue={setValue} />;
+      return <PasswordField control={control} setValue={setValue} label={spec.label} />;
 
     case "multiline":
     case "secretMultiline":

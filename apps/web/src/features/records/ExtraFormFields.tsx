@@ -11,31 +11,27 @@ import {
 import { FieldGroup } from "@repo/ui/components/Field";
 import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraField";
 import { ListPlusIcon, LockIcon, MinusIcon, PlusIcon, TextIcon } from "lucide-react";
-import {
-  type Control,
-  type FieldErrors,
-  type UseFormRegister,
-  useFieldArray,
-} from "react-hook-form";
+import { type Control, type UseFormSetValue, useFieldArray, useWatch } from "react-hook-form";
+import { GeneratePasswordButton } from "@/features/password-generation";
 
 /** Every record form has extra fields. */
 type ExtraFieldsFormValues = { customFields?: CustomField[] };
 
 type ExtraFormFieldsProps<T extends ExtraFieldsFormValues> = {
   control: Control<T>;
-  register: UseFormRegister<T>;
-  errors: FieldErrors<T>;
+  setValue: UseFormSetValue<T>;
 };
 
 export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
   props: ExtraFormFieldsProps<T>,
 ) {
   // Paths don't narrow through a generic: pin the form to `customFields`.
-  const { control } = props as unknown as ExtraFormFieldsProps<ExtraFieldsFormValues>;
+  const { control, setValue } = props as unknown as ExtraFormFieldsProps<ExtraFieldsFormValues>;
   const { fields, append, remove } = useFieldArray({
     control,
     name: "customFields",
   });
+  const values = useWatch({ control, name: "customFields" });
 
   return (
     <DetailSection title="Extra fields" icon={<ListPlusIcon />} count={fields.length}>
@@ -51,6 +47,20 @@ export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
                 icon={field.type === "secret" ? <LockIcon /> : <TextIcon />}
               />
             </div>
+
+            {field.type === "secret" && (
+              <GeneratePasswordButton
+                size="icon"
+                fieldLabel={values?.[index]?.title || "value"}
+                className="mt-4"
+                onUse={(value) =>
+                  setValue(`customFields.${index}.value`, value, {
+                    shouldDirty: true,
+                    shouldValidate: true,
+                  })
+                }
+              />
+            )}
 
             <RemoveDialog
               title="Delete field"

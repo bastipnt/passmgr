@@ -1,6 +1,13 @@
 import { fromString } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { generateTotpSecret, getRemainingTime, getToken, totpUri, verifyToken } from "../src/totp";
+import {
+  generateTotpSecret,
+  getRemainingTime,
+  getToken,
+  totpSecretFromUri,
+  totpUri,
+  verifyToken,
+} from "../src/totp";
 
 // RFC 6238 Appendix B test vectors, SHA-1, 30s period, 6-digit:
 // Secret (ASCII): "12345678901234567890" (20 bytes)
@@ -56,6 +63,11 @@ describe("getToken — input handling", () => {
     expect(token).toBe("287082");
   });
 
+  it("accepts an otpauth URI", async () => {
+    const token = await getToken("otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
+    expect(token).toBe("287082");
+  });
+
   it("returns a 6-digit string", async () => {
     const token = await getToken(rfcSecret);
     expect(token).toMatch(/^[0-9]{6}$/);
@@ -75,6 +87,31 @@ describe("getToken — input handling", () => {
     vi.setSystemTime(new Date(90 * 1000));
     const b = await getToken(rfcSecret);
     expect(a).not.toBe(b);
+  });
+});
+
+describe("totpSecretFromUri", () => {
+  it("takes the secret of an otpauth URI", () => {
+    expect(
+      totpSecretFromUri(
+        "otpauth://totp/GitHub:me%40example.com?issuer=GitHub&secret=JBSWY3DPEHPK3PXP",
+      ),
+    ).toBe("JBSWY3DPEHPK3PXP");
+    expect(totpSecretFromUri(" OTPAUTH://TOTP/x?Secret=ABC%3D%3D&digits=6 ")).toBe("ABC==");
+  });
+
+  it("ignores anything else", () => {
+    expect(totpSecretFromUri("JBSWY3DPEHPK3PXP")).toBeUndefined();
+    expect(totpSecretFromUri("otpauth://hotp/x?secret=ABC")).toBeUndefined();
+    expect(totpSecretFromUri("otpauth://totp/x?issuer=GitHub")).toBeUndefined();
+    expect(totpSecretFromUri("otpauth://totp/x?secret=%E0%A4%A")).toBeUndefined();
+  });
+
+  it("refuses a URI whose codes the secret alone can't produce", () => {
+    expect(totpSecretFromUri("otpauth://totp/x?secret=ABC&algorithm=SHA1&digits=6")).toBe("ABC");
+    expect(totpSecretFromUri("otpauth://totp/x?secret=ABC&digits=8")).toBeUndefined();
+    expect(totpSecretFromUri("otpauth://totp/x?secret=ABC&period=60")).toBeUndefined();
+    expect(totpSecretFromUri("otpauth://totp/x?secret=ABC&algorithm=SHA256")).toBeUndefined();
   });
 });
 

@@ -34,7 +34,7 @@ describe("RecordForm", () => {
     await userEvent.type(screen.getByLabelText("Username"), "octocat");
     await userEvent.type(screen.getByLabelText("Email"), "octo@example.com");
     await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await userEvent.type(screen.getByLabelText("2FA token secret (TOTP)"), "JBSWY3DPEHPK3PXP");
+    await userEvent.type(screen.getByLabelText("One-time code"), "JBSWY3DPEHPK3PXP");
     await userEvent.type(screen.getByPlaceholderText("example.com"), "github.com");
     await userEvent.click(screen.getByRole("button", { name: "Add field" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Text" }));
@@ -92,6 +92,68 @@ describe("RecordForm", () => {
     const pw = screen.getByLabelText("Password") as HTMLInputElement;
     expect(pw.className).toContain("[-webkit-text-security:disc]");
     expect(pw.type).toBe("text");
+  });
+
+  it("takes the secret out of a pasted otpauth link", async () => {
+    renderWithProviders(<RecordForm type="login" onSubmit={vi.fn()} />);
+
+    const totp = screen.getByLabelText("One-time code") as HTMLInputElement;
+    await userEvent.click(totp);
+    await userEvent.paste("otpauth://totp/GitHub:octocat?secret=JBSWY3DPEHPK3PXP&issuer=GitHub");
+
+    expect(totp.value).toBe("JBSWY3DPEHPK3PXP");
+  });
+
+  it("fills a hidden extra field from the generator, without a strength line", async () => {
+    const onSubmit = vi.fn();
+    const ref = createRef<RecordFormHandle>();
+    renderWithProviders(
+      <RecordForm
+        type="login"
+        onSubmit={onSubmit}
+        ref={ref}
+        defaultValues={{
+          title: "GitHub",
+          customFields: [{ title: "Recovery PIN", type: "secret", value: "" }],
+        }}
+      />,
+    );
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate recovery pin" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Use" }));
+
+    ref.current?.triggerSubmit();
+    await waitFor(() =>
+      expect(onSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({
+          customFields: [
+            expect.objectContaining({
+              title: "Recovery PIN",
+              value: expect.stringMatching(/.{8}/),
+            }),
+          ],
+        }),
+      ),
+    );
+    expect(screen.queryByText(/characters$/)).not.toBeInTheDocument();
+  });
+
+  it("shows the strength line under the password", async () => {
+    renderWithProviders(<RecordForm type="wifi" onSubmit={vi.fn()} />);
+
+    await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
+
+    expect(screen.getByText("14 characters")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Generate password" })).toBeInTheDocument();
+  });
+
+  it("generates the SSH key passphrase", async () => {
+    renderWithProviders(<RecordForm type="ssh_key" onSubmit={vi.fn()} />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Generate passphrase" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Use" }));
+
+    expect(screen.getByRole("textbox", { name: "Passphrase" })).not.toHaveValue("");
   });
 
   it("keeps browser autofill off on the form and every input", () => {
