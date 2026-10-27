@@ -31,6 +31,6 @@ Look at kanbot. The task in Review is done; do the next task at the top of the B
    their place.
    Apply every finding's fix automatically, without asking, then re-run the relevant
    typecheck/lint/tests. Then commit on the current branch (`claude`) with a Conventional Commits
-   message.
+   message and push it (`git push -u origin claude`).
 6. Move the task to **Review** and add a short comment summarizing what changed, including the
    review findings and how each was fixed (or why it was skipped).
