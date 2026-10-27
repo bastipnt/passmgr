@@ -63,7 +63,11 @@ export function LoginRecordFields({ record, extra }: LoginRecordFieldsProps) {
       )}
       {note?.value && (
         <DetailSection title="Note" icon={<FileTextIcon />}>
-          <DetailCodeBlock copyLabel="note" onCopy={() => copyField(note.value, "Note")}>
+          <DetailCodeBlock
+            key={record.recordId}
+            copyLabel="note"
+            onCopy={() => copyField(note.value, "Note")}
+          >
             {note.value}
           </DetailCodeBlock>
         </DetailSection>

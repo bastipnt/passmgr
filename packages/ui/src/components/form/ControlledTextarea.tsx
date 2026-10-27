@@ -17,7 +17,7 @@ export type ControlledTextareaParams<
   icon?: ReactNode;
   hideLabel?: boolean;
 } & Omit<ControllerProps<TFieldValues, TName, TTransformedValues>, "render"> &
-  React.ComponentProps<"textarea">;
+  React.ComponentProps<typeof Textarea>;
 
 export function ControlledTextarea<TFieldValues extends FieldValues = FieldValues>({
   name,

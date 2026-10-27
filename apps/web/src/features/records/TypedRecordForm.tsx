@@ -234,6 +234,7 @@ export default function TypedRecordForm<T extends OtherRecordType>({
       label={isNote ? "Note" : "Notes"}
       autoComplete="off"
       rows={isNote ? 10 : undefined}
+      capped
     />
   );
 

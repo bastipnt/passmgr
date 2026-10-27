@@ -2,8 +2,16 @@ import { Button } from "@repo/ui/components/Button";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { cn } from "@repo/ui/lib/utils";
-import { CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
-import { type ComponentProps, type ReactNode, useEffect, useState } from "react";
+import { ChevronDownIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
+import {
+  type ComponentProps,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 
 const HIDDEN_VALUE = "••••••••••••";
 
@@ -189,12 +197,76 @@ type DetailCodeBlockProps = {
   copyLabel?: string;
 };
 
+/**
+ * Preformatted text (a note). A long one is capped at `max-h-80`: it scrolls inside,
+ * fades out at the bottom until scrolled to the end, and a footer shows it in full.
+ * Remount it (`key`) to collapse it again for another record.
+ */
 function DetailCodeBlock({ children, onCopy, copyLabel = "text" }: DetailCodeBlockProps) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflows, setOverflows] = useState(false);
+  const [atEnd, setAtEnd] = useState(false);
+  const clipped = overflows && !expanded;
+
+  const measure = useCallback(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    setAtEnd(el.scrollTop + el.clientHeight >= el.scrollHeight - 1);
+  }, []);
+
+  useLayoutEffect(() => {
+    const el = scrollRef.current;
+    // Expanded, nothing overflows; keep the last answer so "Show less" stays.
+    if (!el || expanded) return;
+    const update = () => {
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+      measure();
+    };
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(el);
+    if (el.firstElementChild) observer.observe(el.firstElementChild);
+    return () => observer.disconnect();
+  }, [expanded, measure]);
+
+  const toggle = () => {
+    if (expanded && scrollRef.current) scrollRef.current.scrollTop = 0;
+    setExpanded(!expanded);
+  };
+
   return (
-    <div className="relative rounded-xl border border-foreground/10 bg-foreground/[0.025] py-3 pr-12 pl-3.5 dark:border-white/10 dark:bg-white/[0.03]">
-      <pre className="wrap-break-word whitespace-pre-wrap font-mono text-[0.84rem] leading-[1.65]">
-        {children}
-      </pre>
+    <div className="relative overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.025] dark:border-white/10 dark:bg-white/[0.03]">
+      <div
+        ref={scrollRef}
+        onScroll={clipped ? measure : undefined}
+        // A scrolling region must be reachable by keyboard.
+        {...(clipped && { role: "region", "aria-label": copyLabel, tabIndex: 0 })}
+        className={cn(
+          "py-3 pr-12 pl-3.5 outline-none focus-visible:ring-4 focus-visible:ring-ring/15 focus-visible:ring-inset",
+          !expanded && "max-h-80 overflow-y-auto overscroll-contain",
+          clipped &&
+            !atEnd &&
+            "[mask-image:linear-gradient(to_bottom,black_calc(100%-4rem),transparent)]",
+        )}
+      >
+        <pre className="wrap-break-word whitespace-pre-wrap font-mono text-[0.84rem] leading-[1.65]">
+          {children}
+        </pre>
+      </div>
+      {(overflows || expanded) && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={toggle}
+          className="flex w-full items-center justify-center gap-1 border-foreground/8 border-t py-2 font-medium text-muted-foreground text-xs outline-none transition-colors hover:bg-foreground/[0.03] hover:text-foreground focus-visible:bg-foreground/[0.04] focus-visible:text-foreground dark:border-white/8"
+        >
+          {expanded ? "Show less" : `Show full ${copyLabel}`}
+          <ChevronDownIcon
+            className={cn("size-3.5 transition-transform", expanded && "rotate-180")}
+          />
+        </button>
+      )}
       {onCopy && (
         <CopyButton
           label={copyLabel}

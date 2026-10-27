@@ -109,7 +109,13 @@ export default function LoginRecordForm({
             <ExtraFormFields control={control} register={register} errors={errors} />
           </div>
 
-          <ControlledTextarea control={control} name="note" label="Notes" autoComplete="off" />
+          <ControlledTextarea
+            control={control}
+            name="note"
+            label="Notes"
+            autoComplete="off"
+            capped
+          />
 
           <RecordTagsField control={control} />
 
