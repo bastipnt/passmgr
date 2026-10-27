@@ -3,20 +3,14 @@ import {
   RECORD_TYPE_LABELS,
   recordErrorMessage,
   recordFromForm,
-  ShortcutLayer,
   useCreateRecord,
   useDuplicateSource,
   useTargetVault,
 } from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
 import { toast } from "@repo/ui";
-import {
-  ResponsiveSheet,
-  SheetFormBar,
-  SheetMediaHeader,
-} from "@repo/ui/complex-components/ResponsiveSheet";
+import { SheetMediaHeader } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
-import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { ChevronLeftIcon, PlusIcon } from "lucide-react";
 import { useRef } from "react";
@@ -25,6 +19,7 @@ import { recordPaths } from "@/app/route-paths";
 import { VaultPicker } from "@/features/vaults";
 import { RecordTypeTile } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
+import RecordFormSheet from "./RecordFormSheet";
 import { RecordTypePicker } from "./RecordTypePicker";
 
 /**
@@ -104,7 +99,6 @@ export default function CreateRecordSheet() {
       variant="ghost"
       size="lg"
       type="button"
-      className="sm:mr-auto"
       disabled={createPending}
       onClick={() => navigate(createSheetSearch(initialTitle), { replace: true })}
     >
@@ -113,84 +107,66 @@ export default function CreateRecordSheet() {
     </Button>
   );
 
-  const createButton = (label: string, className?: string) => (
-    <Button
-      size="lg"
-      className={className}
-      disabled={createPending}
-      onClick={() => formRef.current?.triggerSubmit()}
-    >
-      {label}
-      {createPending && <Spinner data-icon="inline-end" />}
-    </Button>
-  );
-
-  const formActions = isMobile ? (
-    <SheetFormBar title={title} action={type && createButton("Create", "rounded-full px-5")} />
-  ) : (
-    <div className="flex w-full flex-row items-center justify-end gap-3">
-      {backToPicker}
-      <Button variant="outline" size="lg" type="button" onClick={close}>
-        Cancel
-      </Button>
-      {type && createButton(`Create ${typeLabel}`)}
-    </div>
-  );
-
   return (
-    <ShortcutLayer active={open}>
-      <ResponsiveSheet
-        open={open}
-        onOpenChange={(nextOpen) => {
-          if (!nextOpen) close();
-        }}
-        title={title}
-        description={type ? description : "What would you like to save?"}
-        media={
-          type ? (
-            <RecordTypeTile type={type} />
-          ) : (
-            <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-primary text-primary-foreground">
-              <PlusIcon className="size-5" aria-hidden />
-            </span>
-          )
+    <RecordFormSheet
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) close();
+      }}
+      onCancel={close}
+      title={title}
+      description={type ? description : "What would you like to save?"}
+      media={
+        type ? (
+          <RecordTypeTile type={type} size="header" />
+        ) : (
+          <span className="grid size-13 shrink-0 place-items-center rounded-[14px] bg-primary text-primary-foreground">
+            <PlusIcon className="size-[1.625rem]" aria-hidden />
+          </span>
+        )
+      }
+      submit={
+        type && {
+          label: `Create ${typeLabel}`,
+          phoneLabel: "Create",
+          pending: createPending,
+          onClick: () => formRef.current?.triggerSubmit(),
         }
-        actions={formActions}
-        sheetClassName="sm:max-w-3xl!"
-      >
-        {type ? (
-          <RecordForm
-            // Remount on a new type or prefill so the form starts over.
-            key={`${type}:${initialTitle ?? ""}:${duplicateId ?? ""}`}
-            type={type}
-            onSubmit={(values) => handleSubmit(type, values)}
-            serverError={createRecordError?.message}
-            disabled={createPending}
-            vaultField={
-              canPick &&
-              vaultId && (
-                <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
-              )
-            }
-            defaultValues={
-              source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
-            }
-            header={
-              isMobile && (
-                <SheetMediaHeader
-                  media={<RecordTypeTile type={type} size="ml" />}
-                  description={description}
-                >
-                  {backToPicker}
-                </SheetMediaHeader>
-              )
-            }
-            ref={formRef}
-          />
-        ) : duplicateId ? null : (
-          <RecordTypePicker hrefFor={(pick) => createSheetSearch(initialTitle, pick)} />
-        )}
-      </ResponsiveSheet>
-    </ShortcutLayer>
+      }
+      leading={backToPicker}
+    >
+      {type ? (
+        <RecordForm
+          // Remount on a new type or prefill so the form starts over.
+          key={`${type}:${initialTitle ?? ""}:${duplicateId ?? ""}`}
+          type={type}
+          onSubmit={(values) => handleSubmit(type, values)}
+          serverError={createRecordError?.message}
+          disabled={createPending}
+          vaultField={
+            canPick &&
+            vaultId && (
+              <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
+            )
+          }
+          defaultValues={
+            source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
+          }
+          header={
+            isMobile && (
+              <SheetMediaHeader
+                media={<RecordTypeTile type={type} size="ml" />}
+                description={description}
+              >
+                {backToPicker}
+              </SheetMediaHeader>
+            )
+          }
+          ref={formRef}
+        />
+      ) : duplicateId ? null : (
+        <RecordTypePicker hrefFor={(pick) => createSheetSearch(initialTitle, pick)} />
+      )}
+    </RecordFormSheet>
   );
 }

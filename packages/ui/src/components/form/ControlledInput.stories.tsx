@@ -10,7 +10,7 @@ const meta = preview.meta({
   tags: ["autodocs"],
 });
 
-function Wrapper(args: { label: string; defaultValue?: string; icon?: React.ReactNode }) {
+function Wrapper(args: { label: string; defaultValue?: string; leadingIcon?: React.ReactNode }) {
   const { control } = useForm({ defaultValues: { field: args.defaultValue ?? "" } });
   return (
     <div className="w-72">
@@ -18,7 +18,7 @@ function Wrapper(args: { label: string; defaultValue?: string; icon?: React.Reac
         name="field"
         control={control}
         label={args.label}
-        icon={args.icon}
+        leadingIcon={args.leadingIcon}
         placeholder="Type here..."
       />
     </div>
@@ -30,7 +30,7 @@ export const Default = meta.story({
 });
 
 export const WithIcon = meta.story({
-  render: () => <Wrapper label="Email" icon={<MailIcon />} />,
+  render: () => <Wrapper label="Email" leadingIcon={<MailIcon />} />,
 });
 
 export const WithValue = meta.story({

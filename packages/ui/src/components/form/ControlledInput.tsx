@@ -17,8 +17,6 @@ export type ControlledInputParams<
   TTransformedValues = TFieldValues,
 > = {
   label: string;
-  /** Rendered outside the field, left of it. */
-  icon?: ReactNode;
   /** Rendered inside the input, before the text. */
   leadingIcon?: ReactNode;
   addon?: ReactNode;
@@ -34,7 +32,6 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
   name,
   control,
   label,
-  icon,
   leadingIcon,
   addon,
   labelAction,
@@ -53,7 +50,7 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
         const inputRef = mergeRefs(field.ref, ref);
         // An optional field starts `undefined`: render it as empty, so the
         // input stays controlled from the start (no React warning on typing).
-        const fieldContent = (
+        return (
           <Field data-invalid={fieldState.invalid}>
             {!hideLabel &&
               (isDefined(labelAction) ? (
@@ -94,17 +91,6 @@ export function ControlledInput<TFieldValues extends FieldValues = FieldValues>(
             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
           </Field>
         );
-
-        if (icon) {
-          return (
-            <div className="flex items-start gap-2">
-              <span className="shrink-0 pt-0.5 text-muted-foreground [&>svg]:size-4">{icon}</span>
-              {fieldContent}
-            </div>
-          );
-        }
-
-        return fieldContent;
       }}
     />
   );

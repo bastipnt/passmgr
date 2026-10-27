@@ -33,6 +33,7 @@ type ResponsiveSheetProps = {
   description?: ReactNode;
   /** Leading slot in the sheet header, e.g. the record's avatar or a back button (desktop). */
   media?: ReactNode;
+  titleClassName?: string;
   children: ReactNode;
   actions?: ReactNode;
   drawerClassName?: string;
@@ -65,6 +66,7 @@ function ResponsiveSheet({
   title,
   description,
   media,
+  titleClassName,
   actions,
   drawerClassName,
   sheetClassName,
@@ -99,7 +101,7 @@ function ResponsiveSheet({
           >
             {media}
             <div className="flex min-w-0 flex-col gap-0.5">
-              <SheetTitle>{title}</SheetTitle>
+              <SheetTitle className={titleClassName}>{title}</SheetTitle>
               {description && <SheetDescription>{description}</SheetDescription>}
             </div>
           </SheetHeader>

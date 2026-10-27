@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { saveRecoveryKey, skipBiometricIfShown, startCreateVault } from "./auth";
 
 /**
@@ -19,10 +19,10 @@ export type LoginFields = {
   tags?: string[];
 };
 
-/** Resolves once the vault is open on the record list (or a record). */
+/** Resolves once the vault is open on the record list (or a record); phones name the button "New item". */
 export async function expectInApp(page: Page): Promise<void> {
   await skipBiometricIfShown(page);
-  await expect(page.getByRole("button", { name: "New record", exact: true })).toBeVisible({
+  await expect(page.getByRole("button", { name: /^New (record|item)$/ })).toBeVisible({
     timeout: 30_000,
   });
 }
@@ -53,14 +53,26 @@ export async function reloadAndUnlock(page: Page, password: string): Promise<voi
   await expectInApp(page);
 }
 
-async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
-  const sheet = page.getByRole("dialog");
-  const { website, tags = [], ...inputs } = fields;
-  for (const [name, value] of Object.entries(inputs)) {
+/** Form values by input name (`title`, `number`, `customFields.0.value`, …). */
+export type RecordFields = Record<string, string | undefined>;
+
+/** The open create / edit sheet (a drawer on phones). */
+export function recordSheet(page: Page): Locator {
+  return page.getByRole("dialog");
+}
+
+export async function fillRecordForm(page: Page, fields: RecordFields): Promise<void> {
+  const sheet = recordSheet(page);
+  for (const [name, value] of Object.entries(fields)) {
     if (value === undefined) continue;
-    const input = sheet.locator(`[name="${name}"]`);
-    await input.fill(value);
+    await sheet.locator(`[name="${name}"]`).fill(value);
   }
+}
+
+async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
+  const sheet = recordSheet(page);
+  const { website, tags = [], ...inputs } = fields;
+  await fillRecordForm(page, inputs);
   if (website !== undefined) {
     await sheet.getByRole("button", { name: "Add website" }).click();
     await sheet.locator('[name^="websites."][name$=".value"]').last().fill(website);
@@ -73,17 +85,40 @@ async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
   }
 }
 
-/** Create a login record through the create sheet; returns its record id. */
-export async function createLogin(page: Page, fields: LoginFields): Promise<string> {
-  await page.getByRole("button", { name: "New record", exact: true }).click();
+/** Open the create sheet on `type` (the picker's label, e.g. "Credit card"). */
+export async function openCreateForm(page: Page, type: string): Promise<void> {
+  await page.getByRole("button", { name: /^New (record|item)$/ }).click();
   // The create sheet opens on the type picker.
-  await page.getByRole("dialog").getByRole("link", { name: "Login", exact: true }).click();
-  await fillLoginForm(page, fields);
-  await page.getByRole("dialog").getByRole("button", { name: "Create login" }).click();
+  await recordSheet(page).getByRole("link", { name: type, exact: true }).click();
+}
+
+/** Submit the create sheet; resolves the new record's id once it is open. */
+export async function submitCreateForm(page: Page): Promise<string> {
+  await recordSheet(page)
+    .getByRole("button", { name: /^Create( [\w -]+)?$/ })
+    .click();
   await page.waitForURL(/\/record\/[^/?]+$/);
   const recordId = new URL(page.url()).pathname.split("/").at(-1);
   if (!recordId) throw new Error(`no record id in ${page.url()}`);
   return recordId;
+}
+
+/** Create a record of `type` through the create sheet; returns its record id. */
+export async function createRecord(
+  page: Page,
+  type: string,
+  fields: RecordFields,
+): Promise<string> {
+  await openCreateForm(page, type);
+  await fillRecordForm(page, fields);
+  return submitCreateForm(page);
+}
+
+/** Create a login record through the create sheet; returns its record id. */
+export async function createLogin(page: Page, fields: LoginFields): Promise<string> {
+  await openCreateForm(page, "Login");
+  await fillLoginForm(page, fields);
+  return submitCreateForm(page);
 }
 
 /** The record ids the list shows, in its order. */
@@ -130,35 +165,57 @@ export async function expectListed(
     .toEqual(ordered ? ids : [...ids].sort());
 }
 
-async function openRecord(page: Page, recordId: string): Promise<void> {
+export async function openRecord(page: Page, recordId: string): Promise<void> {
   await page.locator(`a[href="/record/${recordId}"]`).first().click();
   await expect(page).toHaveURL(new RegExp(`/record/${recordId}$`));
 }
 
-/** Change fields of a login record through the edit sheet. */
-export async function editLogin(page: Page, recordId: string, fields: LoginFields): Promise<void> {
+/** Open the record's edit sheet. */
+export async function openEditForm(page: Page, recordId: string): Promise<void> {
   await openRecord(page, recordId);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
+}
+
+/** Save the edit sheet; resolves once it closed. */
+export async function submitEditForm(page: Page): Promise<void> {
+  await recordSheet(page)
+    .getByRole("button", { name: /^Save( changes)?$/ })
+    .click();
+  await expect(recordSheet(page)).toHaveCount(0);
+}
+
+/** Change fields of a record through the edit sheet. */
+export async function editRecord(
+  page: Page,
+  recordId: string,
+  fields: RecordFields,
+): Promise<void> {
+  await openEditForm(page, recordId);
+  await fillRecordForm(page, fields);
+  await submitEditForm(page);
+}
+
+/** Change fields of a login record through the edit sheet. */
+export async function editLogin(page: Page, recordId: string, fields: LoginFields): Promise<void> {
+  await openEditForm(page, recordId);
   await fillLoginForm(page, fields);
-  await page.getByRole("dialog").getByRole("button", { name: "Save changes" }).click();
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await submitEditForm(page);
 }
 
 /**
- * Wait until the record's fields read as expected, reopening it on each try:
+ * Wait until the record's form values read as expected, reopening it on each try:
  * the edit form snapshots the record when it opens, so a sync that lands
  * later only shows on the next open.
  */
-export async function expectLogin(
+export async function expectRecord(
   page: Page,
   recordId: string,
-  fields: Omit<LoginFields, "tags">,
+  fields: RecordFields,
   timeout = 30_000,
 ): Promise<void> {
   await expect(async () => {
-    await openRecord(page, recordId);
-    await page.getByRole("button", { name: "Edit", exact: true }).click();
-    const sheet = page.getByRole("dialog");
+    await openEditForm(page, recordId);
+    const sheet = recordSheet(page);
     try {
       for (const [name, value] of Object.entries(fields)) {
         if (value === undefined) continue;
@@ -170,6 +227,15 @@ export async function expectLogin(
       await expect(sheet).toHaveCount(0);
     }
   }).toPass({ timeout });
+}
+
+export async function expectLogin(
+  page: Page,
+  recordId: string,
+  fields: Omit<LoginFields, "tags" | "website">,
+  timeout = 30_000,
+): Promise<void> {
+  await expectRecord(page, recordId, fields, timeout);
 }
 
 /**

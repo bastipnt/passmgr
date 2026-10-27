@@ -7,7 +7,7 @@ type Website = { value: string };
 type WebsiteAvatarProps = {
   title: string;
   websites: Website[] | undefined;
-  size?: "default" | "md" | "ml" | "lg" | "xl";
+  size?: "default" | "md" | "ml" | "header" | "lg" | "xl";
 };
 
 const SIZES = {
@@ -22,6 +22,10 @@ const SIZES = {
   ml: {
     tile: "size-12 rounded-[13px] bg-white p-2 after:rounded-[13px]",
     fallback: "-m-2 size-12 rounded-[13px] font-bold font-display text-xl",
+  },
+  header: {
+    tile: "size-13 rounded-[14px] bg-white p-2.5 after:rounded-[14px]",
+    fallback: "-m-2.5 size-13 rounded-[14px] font-bold font-display text-2xl",
   },
   lg: {
     tile: "size-14 rounded-2xl bg-white p-2.5 after:rounded-2xl",

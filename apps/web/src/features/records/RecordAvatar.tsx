@@ -29,6 +29,7 @@ const SIZES = {
   default: { tile: "size-9 rounded-[10px]", icon: "size-[1.125rem]" },
   md: { tile: "size-[2.625rem] rounded-xl", icon: "size-5" },
   ml: { tile: "size-12 rounded-[13px]", icon: "size-6" },
+  header: { tile: "size-13 rounded-[14px]", icon: "size-[1.625rem]" },
   lg: { tile: "size-14 rounded-2xl", icon: "size-7" },
   xl: { tile: "size-16 rounded-[1.125rem]", icon: "size-8" },
 } as const;

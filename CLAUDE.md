@@ -62,7 +62,8 @@ starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE 
 after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
 clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
 offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
-(local vault, create / edit / read a login, the listed records, desktop search + its options, password issues,
+(local vault, create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login
+shortcuts with websites and tags), the listed records, desktop search + its options, password issues,
 Lock from the sidebar, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
 
 ## Architecture
@@ -139,6 +140,14 @@ Rules:
   `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
+- **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
+  `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
+  and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
+  spec's `kind` to a boxed control (`ControlledBoxedInput` & co., `@repo/ui/components/form`). `width` pairs fields on
+  wide screens, `phoneShare` keeps a row on phones (`phoneRows`). Websites and extra fields reorder by a row's handle
+  (drag or ↑ / ↓, `SortableList`). Both sheets wrap it in `RecordFormSheet` (desktop: avatar + "Edit login" header,
+  Delete / Back left, Cancel + submit right; phone: `SheetFormBar`, the record header and Delete in the content). The
+  create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead.
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
   `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
   one wins). Picked in Settings → General (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,
