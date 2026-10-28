@@ -80,15 +80,22 @@ drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHead
 Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
 while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
 records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves); the
-highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: the dock's pill opens
-`MobileSearch` (full screen: field + Cancel, scope chips, tag rows "+ Filter" and records from `useSearchOptions`; a tag
-pill bar above the keyboard, `pillTags` order: selected, matching the text, then by use, standing in for the top tags;
-the picked tags as tokens in the field (✕, or Backspace on an empty field, removes the last), and with nothing typed
-their records (`useSearchOptions({ listTagged })`, "Tagged #a" / "Logins tagged #a") instead of recently opened; `#`:
-tags with checkboxes and a bar "N tags · M items", Clear, Show M items (the done key too) back to the records;
-the search key opens a lone match; its own history entry, so Back from a record lands on the same search, field focused; Clear all drops tags and
-category; Cancel / Back
-clears the query and restores the filters (tags, category) and scroll it opened with), `FilterSheet` (category grid + tags), the
-ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
+highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all;
+web phone: the list keeps `FilterSheet` (category grid + tags; the non-search way to filter), the ones on as
+`ActiveFilterChips` under the title, and the dock's search pill opens `MobileSearchOverlay` (`MobileSearch.tsx`), a
+full-screen layer with its own history entry (`search-history.ts`). The field sits on top (Cancel next to it), the
+scope chips under it (Clear all drops tags and category), then tag rows "+ Filter" and records from
+`useSearchOptions`. Empty, it lists recent searches (`recentSearches`, session only; a tap reruns text + tags) and
+recently opened; with tags picked and nothing typed, their records instead (`useSearchOptions({ listTagged })`,
+"Tagged #a" / "Logins tagged #a"). Picked tags sit as tokens in the field (✕, or Backspace on an empty field, removes
+the last). A tag pill bar rides on the keyboard (`pillTags`: selected, matching the text, then by use; it stands in
+for the top tags); tapping a pill that matches the typed text turns the text into that tag filter. `#` is tag mode as
+on desktop: tags with checkboxes and a bar "N tags · M items", Clear, Show M items (the done key too) back to the
+records. Taps never take focus from the field, so typing goes on; dragging the results drops the keyboard; in
+landscape the results get the scope row's and pill bar's space. The search key opens a lone match. Back from a record
+opened in it (also once moved, or created from it) lands on the same search with the results' scroll, field focused;
+Cancel / Back clears the query and restores the filters (tags, category) and the list's scroll it opened with.
+Keyboard mechanics (focus in the tap, `--kb-inset`, holding the keyboard over Back): `apps/web/CLAUDE.md`. Mobile app:
+the filters sit in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.

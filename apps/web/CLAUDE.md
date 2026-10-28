@@ -61,8 +61,8 @@ Rules:
   `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new). The dock's search pill opens
-  `MobileSearch`: a full-screen layer portaled to `<body>` (no z-index, so sheets opened from it cover it), always
-  mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
+  `MobileSearchOverlay` (`MobileSearch.tsx`): a full-screen layer portaled to `<body>` (no z-index, so sheets opened
+  from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
   history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
   reopens it with the field focused (the record's Back tap holds the keyboard, `@repo/ui` `holdKeyboard` /
   `handOffKeyboard`). Clear all drops tags and category; Cancel / Back restores the filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. A tag pill bar

@@ -122,7 +122,7 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await lockFromSidebar(page);
 });
 
-test("phone: filter sheet, vault sheet, account sheet → Lock", async ({ page }) => {
+test("phone: filter sheet, search, vault sheet, account sheet → Lock", async ({ page }) => {
   const { alpha, beta, gamma } = await seed(page);
   await page.setViewportSize(PHONE);
   // A record is its own page on phones; back to the list.
@@ -150,6 +150,22 @@ test("phone: filter sheet, vault sheet, account sheet → Lock", async ({ page }
   await expectListed(page, [alpha, beta, gamma]);
   await chips.getByRole("button", { name: "Remove tag work" }).click();
   await expect(chips).toHaveCount(0);
+
+  // Through the real routes: Back from a record opened in the search lands on the same search.
+  await page.getByRole("button", { name: "Search", exact: true }).click();
+  const field = page.getByRole("combobox", { name: "Search vault" });
+  await page
+    .getByRole("toolbar", { name: "Filter by tag" })
+    .getByRole("button", { name: "finance (1)" })
+    .click();
+  await field.fill("al");
+  await page.getByRole("option", { name: /Alpha/ }).click();
+  await expect(page).toHaveURL(new RegExp(`/record/${alpha}$`));
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(field).toHaveValue("al");
+  await expect(page.getByRole("button", { name: "Remove finance from search" })).toBeVisible();
+  await page.getByRole("button", { name: "Cancel" }).click();
+  await expectListed(page, [alpha, beta, gamma]);
 
   await page.getByRole("button", { name: "Vault: All vaults" }).click();
   await vaults.getByRole("button", { name: /^Personal/ }).click();

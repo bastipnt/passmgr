@@ -142,7 +142,7 @@ export function useMobileSearch() {
   return { open: entry !== undefined, openSearch, closeSearch, inputRef, resultsRef };
 }
 
-export type MobileSearchState = ReturnType<typeof useMobileSearch>;
+type MobileSearchState = ReturnType<typeof useMobileSearch>;
 
 /** The dock's search pill: looks like a field, opens the search. */
 export function MobileSearchButton({ onOpen }: { onOpen: () => void }) {
