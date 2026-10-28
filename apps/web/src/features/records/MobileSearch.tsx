@@ -1,6 +1,11 @@
-import { type SearchOption, useSearchOptions } from "@repo/client";
+import {
+  type RecentSearch,
+  recentSearchKey,
+  type SearchOption,
+  TAG_SEARCH_PREFIX,
+  useSearchOptions,
+} from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
-import { tagKey } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import {
   InputGroup,
@@ -9,8 +14,9 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import { cn } from "@repo/ui/lib/utils";
-import { PlusIcon, SearchIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { counted } from "@repo/util";
+import { HistoryIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
@@ -34,7 +40,7 @@ function currentSearchEntry(): SearchEntry | undefined {
  * tag filters and the list's scroll back the way they were when it opened.
  */
 export function useMobileSearch() {
-  const { query, tagFilters, setQuery, toggleTag, clearTags } = useSortedRecords();
+  const { query, tagFilters, setQuery, setTags } = useSortedRecords();
   const [entry, setEntry] = useState(currentSearchEntry);
   const entryRef = useRef(entry);
   entryRef.current = entry;
@@ -47,11 +53,9 @@ export function useMobileSearch() {
       setQuery("");
       // The list behind filtered along with the search; once it's whole again.
       requestAnimationFrame(() => window.scrollTo(0, scrollY));
-      if (tagsNow.current.map(tagKey).join("\0") === tagsBefore.map(tagKey).join("\0")) return;
-      clearTags();
-      for (const tag of tagsBefore) toggleTag(tag);
+      setTags(tagsBefore);
     },
-    [setQuery, clearTags, toggleTag],
+    [setQuery, setTags],
   );
 
   // A query left over from elsewhere (the desktop search before a resize, or a
@@ -137,6 +141,84 @@ function SearchResultRow({
   );
 }
 
+function recentSearchLabel({ text, tags }: RecentSearch): string {
+  return [text, ...tags.map((tag) => `${TAG_SEARCH_PREFIX}${tag}`)].filter(Boolean).join(" + ");
+}
+
+/** Tapping one runs it again: its text and its tag filters, keyboard kept up. */
+function RecentSearches() {
+  const { recentSearches, forgetSearch, clearRecentSearches, countSearch, setQuery, setTags } =
+    useSortedRecords();
+  const headingId = useId();
+  const counts = useMemo(() => recentSearches.map(countSearch), [recentSearches, countSearch]);
+  if (recentSearches.length === 0) return null;
+
+  return (
+    <section aria-labelledby={headingId}>
+      <div className="flex items-center justify-between px-5 pt-4 pb-1">
+        <h2
+          id={headingId}
+          className="font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]"
+        >
+          Recent searches
+        </h2>
+        <button
+          type="button"
+          onPointerDown={(e) => e.preventDefault()}
+          onClick={clearRecentSearches}
+          className="-my-2 px-1 py-2 font-semibold text-primary-text text-sm"
+        >
+          Clear
+        </button>
+      </div>
+      <ul>
+        {recentSearches.map((recent, index) => {
+          const label = recentSearchLabel(recent);
+          const count = counts[index] ?? 0;
+          return (
+            <li
+              key={recentSearchKey(recent)}
+              className="flex min-h-14 items-center pr-2 active:bg-foreground/5"
+            >
+              <button
+                type="button"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => {
+                  setQuery(recent.text);
+                  setTags(recent.tags);
+                }}
+                className="flex min-w-0 flex-1 items-center gap-3 self-stretch pl-4 text-left"
+              >
+                <span className="flex size-9 shrink-0 items-center justify-center text-muted-foreground">
+                  <HistoryIcon className="size-5" aria-hidden />
+                </span>
+                <span className="flex min-w-0 flex-col">
+                  <span className="truncate font-semibold text-[0.95rem]">{label}</span>
+                  <span className="text-muted-foreground text-xs">
+                    {recent.text
+                      ? counted(count, "result", "results")
+                      : `Tag filter · ${counted(count, "item", "items")}`}
+                  </span>
+                </span>
+              </button>
+              <Button
+                variant="ghost"
+                size="icon-lg"
+                className="shrink-0 text-muted-foreground"
+                onPointerDown={(e) => e.preventDefault()}
+                onClick={() => forgetSearch(recent)}
+                aria-label={`Remove ${label}`}
+              >
+                <XIcon />
+              </Button>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 /**
  * Full-screen phone search: field and Cancel on top, results under it.
  * Portaled to <body>: `DrawerProvider`'s `contain: layout` would make
@@ -144,7 +226,8 @@ function SearchResultRow({
  */
 export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const { open, closeSearch, inputRef } = state;
-  const { query, setQuery, toggleTag, noteOpened } = useSortedRecords();
+  const { query, setQuery, tagFilters, toggleTag, noteOpened, noteSearched, searchAll } =
+    useSortedRecords();
   const { search, sections, options } = useSearchOptions();
   const [, navigate] = useLocation();
   const listboxId = useId();
@@ -163,10 +246,14 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
 
   const choose = (option: SearchOption) => {
     if (option.kind === "tag") {
+      if (!search.tagMode && !option.on && option.count > 0)
+        noteSearched({ text: "", tags: [...tagFilters, option.tag] });
       toggleTag(option.tag);
       if (!search.tagMode) setQuery("");
       return;
     }
+    // "Search all items" ran past the tags; saved with them it would find less next time.
+    if (typed) noteSearched({ text: search.text, tags: searchAll ? [] : tagFilters });
     noteOpened(option.record.recordId);
     navigate(recordPaths.record(option.record.recordId));
   };
@@ -252,46 +339,49 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             <NoSearchResults />
           </div>
         ) : (
-          <div
-            id={listboxId}
-            // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup; <select> can't hold rows
-            role="listbox"
-            aria-label={search.tagMode ? "Tags" : "Search results"}
-            aria-multiselectable={search.tagMode || undefined}
-          >
-            {sections.map((section) =>
-              !open || section.options.length === 0 ? null : (
-                // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
-                <div key={section.id} role="group" aria-label={section.label}>
-                  <div className="px-5 pt-4 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
-                    {section.label}
-                  </div>
-                  {section.options.map((option) => (
-                    // oxlint-disable-next-line jsx_a11y/click-events-have-key-events -- tapped; the field keeps the keyboard
-                    <div
-                      key={option.id}
-                      // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- rows of a combobox's popup
-                      role="option"
-                      aria-selected={option.kind === "tag" ? (option.on ?? false) : false}
-                      tabIndex={-1}
-                      onPointerDown={(e) => e.preventDefault()}
-                      onClick={() => choose(option)}
-                      className={cn(
-                        "flex min-h-14 cursor-pointer items-center gap-3 px-4 active:bg-foreground/5",
-                        option.kind === "tag" && option.dimmed && "opacity-50",
-                      )}
-                    >
-                      <SearchResultRow
-                        option={option}
-                        text={search.text}
-                        tagMode={search.tagMode}
-                      />
+          <>
+            {open && !search.tagMode && !search.text && <RecentSearches />}
+            <div
+              id={listboxId}
+              // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup; <select> can't hold rows
+              role="listbox"
+              aria-label={search.tagMode ? "Tags" : "Search results"}
+              aria-multiselectable={search.tagMode || undefined}
+            >
+              {sections.map((section) =>
+                !open || section.options.length === 0 ? null : (
+                  // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
+                  <div key={section.id} role="group" aria-label={section.label}>
+                    <div className="px-5 pt-4 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
+                      {section.label}
                     </div>
-                  ))}
-                </div>
-              ),
-            )}
-          </div>
+                    {section.options.map((option) => (
+                      // oxlint-disable-next-line jsx_a11y/click-events-have-key-events -- tapped; the field keeps the keyboard
+                      <div
+                        key={option.id}
+                        // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- rows of a combobox's popup
+                        role="option"
+                        aria-selected={option.kind === "tag" ? (option.on ?? false) : false}
+                        tabIndex={-1}
+                        onPointerDown={(e) => e.preventDefault()}
+                        onClick={() => choose(option)}
+                        className={cn(
+                          "flex min-h-14 cursor-pointer items-center gap-3 px-4 active:bg-foreground/5",
+                          option.kind === "tag" && option.dimmed && "opacity-50",
+                        )}
+                      >
+                        <SearchResultRow
+                          option={option}
+                          text={search.text}
+                          tagMode={search.tagMode}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                ),
+              )}
+            </div>
+          </>
         )}
         {typed && options.length > 0 && <OutsideScope className="mx-4 mt-4" />}
       </div>

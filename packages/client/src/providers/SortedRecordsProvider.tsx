@@ -17,10 +17,13 @@ import { useVaults } from "../hooks/use-vaults";
 import { PREF_KEYS } from "../preferences/preference-keys";
 import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
 import {
+  addRecentSearch,
   filterByTagText,
   matchRecords,
   parseSearch,
+  type RecentSearch,
   type RecordMatch,
+  sameSearch,
   TAG_SEARCH_PREFIX,
 } from "../records/record-search";
 import { collectTags, filterByTags, type TagCount } from "../records/tags";
@@ -413,6 +416,7 @@ type SortedRecordsContextValue = {
   toggleTag: (tag: string) => void;
   removeTag: (tag: string) => void;
   clearTags: () => void;
+  setTags: (tags: readonly string[]) => void;
   /** Back to the whole vault in view: category "all", no tags. */
   clearFilters: () => void;
   /** The list's search field, so others can focus it. */
@@ -445,6 +449,16 @@ type SortedRecordsContextValue = {
   /** Session only. */
   recentRecords: DecryptedRecord[];
   noteOpened: (recordId: string) => void;
+  /**
+   * Session only, in memory: a query can tell which accounts someone has, so
+   * it's never written to storage.
+   */
+  recentSearches: RecentSearch[];
+  noteSearched: (search: RecentSearch) => void;
+  forgetSearch: (search: RecentSearch) => void;
+  clearRecentSearches: () => void;
+  /** How many records a search finds in the vault and category in view, under its own tags. */
+  countSearch: (search: RecentSearch) => number;
 };
 
 const SortedRecordsContext = createContext<SortedRecordsContextValue | null>(null);
@@ -521,6 +535,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const [query, setStoredQuery] = useState("");
   const [searchAllFor, setSearchAllFor] = useState<string | null>(null);
   const [recentIds, setRecentIds] = useState<string[]>([]);
+  const [storedSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>("all");
   const [vaultFilter, setStoredVaultFilter] = useVaultFilter();
   const vaultTags = useTags(vaultFilter);
@@ -631,6 +646,29 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       ),
     [],
   );
+  const noteSearched = useCallback(
+    (search: RecentSearch) => setRecentSearches((searches) => addRecentSearch(searches, search)),
+    [],
+  );
+  const forgetSearch = useCallback(
+    (search: RecentSearch) =>
+      setRecentSearches((searches) => searches.filter((own) => !sameSearch(own, search))),
+    [],
+  );
+  const clearRecentSearches = useCallback(() => setRecentSearches([]), []);
+  // One whose tag the vault in view doesn't have would run without it.
+  const recentSearches = useMemo(() => {
+    const known = new Set(vaultTags.map(({ tag }) => tagKey(tag)));
+    return storedSearches.filter(({ tags }) => tags.every((tag) => known.has(tagKey(tag))));
+  }, [storedSearches, vaultTags]);
+  const countSearch = useCallback(
+    ({ text, tags }: RecentSearch) => {
+      const scope = filterRecords(vaultRecords, { category: categoryFilter, tags });
+      return text.trim() ? matchRecords(scope, text.trim()).length : scope.length;
+    },
+    [vaultRecords, categoryFilter],
+  );
+
   const recentRecords = useMemo(() => {
     const byId = new Map(vaultRecords.map((record) => [record.recordId, record]));
     return recentIds.flatMap((id) => byId.get(id) ?? []);
@@ -658,7 +696,14 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       setTagFilters((selected) => selected.filter((own) => tagKey(own) !== tagKey(tag))),
     [setTagFilters],
   );
-  const clearTags = useCallback(() => setTagFilters(() => []), [setTagFilters]);
+  const setTags = useCallback(
+    (tags: readonly string[]) =>
+      setTagFilters((selected) =>
+        selected.map(tagKey).join("\0") === tags.map(tagKey).join("\0") ? selected : [...tags],
+      ),
+    [setTagFilters],
+  );
+  const clearTags = useCallback(() => setTags([]), [setTags]);
   const clearFilters = useCallback(() => {
     setCategoryFilter("all");
     clearTags();
@@ -676,9 +721,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     (tag: string) => {
       setQuery("");
       setVaultFilter("all");
-      setTagFilters(() => [tag]);
+      setTags([tag]);
     },
-    [setQuery, setVaultFilter, setTagFilters],
+    [setQuery, setVaultFilter, setTags],
   );
 
   const handleSortChange = useCallback(
@@ -706,6 +751,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       toggleTag,
       removeTag,
       clearTags,
+      setTags,
       clearFilters,
       searchInputRef,
       searchTags,
@@ -720,6 +766,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       searchAllItems,
       recentRecords,
       noteOpened,
+      recentSearches,
+      noteSearched,
+      forgetSearch,
+      clearRecentSearches,
+      countSearch,
     }),
     [
       query,
@@ -739,6 +790,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       toggleTag,
       removeTag,
       clearTags,
+      setTags,
       clearFilters,
       searchTags,
       tags,
@@ -752,6 +804,11 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       searchAllItems,
       recentRecords,
       noteOpened,
+      recentSearches,
+      noteSearched,
+      forgetSearch,
+      clearRecentSearches,
+      countSearch,
     ],
   );
 

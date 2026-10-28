@@ -72,7 +72,9 @@ records left if added; a detail chip's `showTag` clears the other filters first)
 (`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle (a login's email too) → tag with why each matched; a query starting
 with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
 `searchAllItems` widens past category and tags until the query or the filters change (`OutsideScope`, also on phones);
-`recentRecords` (session only, search previews excluded); `searchSections` builds the groups and `useSearchOptions` turns
+`recentRecords` (session only, search previews excluded); `recentSearches` (text + tags, newest first, once each,
+kept when a search opens a record or adds a tag; in memory only and gone on lock, since a query tells which accounts
+exist; only those whose tags the vault in view has, `countSearch` counts each there); `searchSections` builds the groups and `useSearchOptions` turns
 them into ids + selected state for any search UI; `clearFilters`
 drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
 Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);

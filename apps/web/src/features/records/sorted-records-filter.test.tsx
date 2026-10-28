@@ -420,3 +420,59 @@ describe("useSearchOptions", () => {
     expect(on).toContain("tag:code:false");
   });
 });
+
+describe("recent searches", () => {
+  it("notes, forgets and clears searches, counting each in the view under its own tags", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => {
+      result.current.noteSearched({ text: "git", tags: [] });
+      result.current.noteSearched({ text: "", tags: ["work"] });
+      result.current.noteSearched({ text: "GIT", tags: [] });
+    });
+    expect(result.current.recentSearches).toEqual([
+      { text: "GIT", tags: [] },
+      { text: "", tags: ["work"] },
+    ]);
+    expect(result.current.countSearch({ text: "", tags: ["work"] })).toBe(2);
+    expect(result.current.countSearch({ text: "git", tags: ["code"] })).toBe(1);
+    act(() => result.current.setCategoryFilter("card"));
+    expect(result.current.countSearch({ text: "", tags: ["work"] })).toBe(0);
+
+    act(() => result.current.forgetSearch({ text: "git", tags: [] }));
+    expect(result.current.recentSearches).toEqual([{ text: "", tags: ["work"] }]);
+    act(() => result.current.clearRecentSearches());
+    expect(result.current.recentSearches).toEqual([]);
+  });
+
+  it("lives in memory only: gone with the provider (lock unmounts it), nothing stored", () => {
+    const first = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    act(() => first.result.current.noteSearched({ text: "bank", tags: ["finance"] }));
+    first.unmount();
+    expect(JSON.stringify({ ...localStorage })).not.toContain("bank");
+
+    const second = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    expect(second.result.current.recentSearches).toEqual([]);
+  });
+
+  it("offers only the searches whose tags the vault in view has", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    act(() => {
+      result.current.noteSearched({ text: "visa", tags: ["bank"] });
+      result.current.noteSearched({ text: "jira", tags: ["work"] });
+    });
+    act(() => result.current.setVaultFilter("v2"));
+    expect(result.current.recentSearches).toEqual([{ text: "jira", tags: ["work"] }]);
+  });
+
+  it("setTags replaces the selected tags, keeping the same list when nothing changes", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    act(() => result.current.toggleTag("code"));
+    act(() => result.current.setTags(["bank", "work"]));
+    expect(result.current.tagFilters).toEqual(["bank", "work"]);
+
+    const before = result.current.tagFilters;
+    act(() => result.current.setTags(["BANK", "work"]));
+    expect(result.current.tagFilters).toBe(before);
+  });
+});

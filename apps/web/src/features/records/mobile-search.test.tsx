@@ -111,6 +111,37 @@ describe("MobileSearch", () => {
     expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("");
   });
 
+  it("a search that opened a record comes back as a recent search, restoring its text and tags", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
+    await userEvent.type(field(), "fin");
+    await userEvent.click(screen.getByRole("option", { name: /Fineco/ }));
+
+    history.back();
+    await waitFor(() => expect(location.pathname).toBe("/"));
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(dialog()).toHaveAttribute("aria-hidden", "true"));
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+    const recent = screen.getByRole("region", { name: "Recent searches" });
+    expect(recent).toHaveTextContent("fin + #finance1 result");
+    expect(recent).toHaveTextContent("#financeTag filter · 1 item");
+
+    await userEvent.click(screen.getByRole("button", { name: /^fin \+ #finance/ }));
+    expect(field()).toHaveValue("fin");
+    expect(field()).toHaveFocus();
+    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
+
+    await userEvent.clear(field());
+    await userEvent.click(screen.getByRole("button", { name: "Remove #finance" }));
+    expect(screen.getByRole("region", { name: "Recent searches" })).not.toHaveTextContent(
+      "Tag filter",
+    );
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(screen.queryByRole("region", { name: "Recent searches" })).toBeNull();
+  });
+
   it("the search key opens the only matching record, never a recent one on an empty field", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));

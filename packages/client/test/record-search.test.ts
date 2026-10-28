@@ -1,6 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { describe, expect, it } from "vitest";
 import {
+  addRecentSearch,
   filterByTagText,
   matchRange,
   matchRecords,
@@ -152,5 +153,25 @@ describe("searchOptionSections", () => {
       ["tag:docs", false],
       ["record:Vercel", undefined],
     ]);
+  });
+});
+
+describe("addRecentSearch", () => {
+  it("keeps newest first, once each (text without case, tags in any order)", () => {
+    let searches = addRecentSearch([], { text: " aws ", tags: [] });
+    searches = addRecentSearch(searches, { text: "", tags: ["work", "finance"] });
+    searches = addRecentSearch(searches, { text: "AWS", tags: [] });
+    searches = addRecentSearch(searches, { text: "", tags: ["Finance", "work"] });
+    expect(searches).toEqual([
+      { text: "", tags: ["Finance", "work"] },
+      { text: "AWS", tags: [] },
+    ]);
+  });
+
+  it("skips an empty search and keeps only the newest few", () => {
+    expect(addRecentSearch([], { text: "  ", tags: [] })).toEqual([]);
+    let searches = addRecentSearch([], { text: "a", tags: [] });
+    for (const text of ["b", "c"]) searches = addRecentSearch(searches, { text, tags: [] }, 2);
+    expect(searches.map(({ text }) => text)).toEqual(["c", "b"]);
   });
 });

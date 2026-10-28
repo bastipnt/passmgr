@@ -104,6 +104,31 @@ export type SearchItem =
 
 export type SearchSection = { id: string; label: string; aside?: string; items: SearchItem[] };
 
+/** A search to offer again: its text and the tag filters it ran with. */
+export type RecentSearch = { text: string; tags: string[] };
+
+export const RECENT_SEARCH_LIMIT = 5;
+
+/** Identifies a search: text without case, tags in any order. */
+export function recentSearchKey({ text, tags }: RecentSearch): string {
+  return [text.trim().toLocaleLowerCase(), ...tags.map(tagKey).sort()].join("\0");
+}
+
+export function sameSearch(a: RecentSearch, b: RecentSearch): boolean {
+  return recentSearchKey(a) === recentSearchKey(b);
+}
+
+/** Newest first, once each (text without case, tags in any order); an empty search isn't kept. */
+export function addRecentSearch(
+  searches: readonly RecentSearch[],
+  search: RecentSearch,
+  limit = RECENT_SEARCH_LIMIT,
+): RecentSearch[] {
+  const entry = { text: search.text.trim(), tags: [...search.tags] };
+  if (!entry.text && entry.tags.length === 0) return [...searches];
+  return [entry, ...searches.filter((own) => !sameSearch(own, entry))].slice(0, limit);
+}
+
 /** A listed item with a stable `id`; a tag's `on` says whether it is one of the selected filters. */
 export type SearchOption = SearchItem & { id: string; on?: boolean };
 

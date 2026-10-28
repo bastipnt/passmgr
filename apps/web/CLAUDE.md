@@ -64,7 +64,7 @@ Rules:
   `MobileSearch`: a full-screen layer portaled to `<body>` (no z-index, so sheets opened from it cover it), always
   mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
   history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
-  reopens it.
+  reopens it. Empty, it lists recent searches (tap reruns text + tags), then top tags and recently opened.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
   `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
   and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
