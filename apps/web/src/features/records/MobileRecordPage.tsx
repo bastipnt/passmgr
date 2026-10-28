@@ -1,4 +1,5 @@
 import { getPrimaryWebsite, useRecordVault } from "@repo/client";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
@@ -6,7 +7,7 @@ import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
-import { useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
@@ -167,6 +168,13 @@ function MobileRecordLoader({ recordId }: { recordId: string }) {
   useRecordShortcuts({ recordId });
   const { record, ready, deleteRecord } = useRecordActions({ recordId });
   const goBack = usePageBack(recordPaths.index);
+  const { noteOpened } = useSortedRecords();
+  const found = record !== undefined;
+
+  // Desktop's RecordList notes the open record; on phones it isn't mounted here.
+  useEffect(() => {
+    if (found) noteOpened(recordId);
+  }, [found, recordId, noteOpened]);
 
   if (!ready) return <RecordFallback />;
   if (!record) return <Redirect to={recordPaths.index} replace />;

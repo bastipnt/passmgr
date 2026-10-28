@@ -39,6 +39,16 @@ function TagFilters() {
   return <output aria-label="Tag filters">{useSortedRecords().tagFilters.join(",")}</output>;
 }
 
+/** Stands in for the record page, which notes the record it shows (`MobileRecordPage`). */
+function OpenFineco() {
+  const { noteOpened } = useSortedRecords();
+  return (
+    <button type="button" onClick={() => noteOpened("fineco")}>
+      Note Fineco opened
+    </button>
+  );
+}
+
 function Harness() {
   const search = useMobileSearch();
   return (
@@ -46,6 +56,7 @@ function Harness() {
       <MobileSearchButton onOpen={search.openSearch} />
       <MobileSearchOverlay state={search} />
       <TagFilters />
+      <OpenFineco />
     </>
   );
 }
@@ -150,6 +161,7 @@ describe("MobileSearch", () => {
 
     history.back();
     await waitFor(() => expect(location.pathname).toBe("/"));
+    await userEvent.click(screen.getByRole("button", { name: "Note Fineco opened", hidden: true }));
     await userEvent.clear(field());
     expect(screen.getByRole("group", { name: "Recently opened" })).toBeInTheDocument();
     await userEvent.type(field(), "{Enter}");

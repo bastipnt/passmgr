@@ -226,8 +226,7 @@ function RecentSearches() {
  */
 export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const { open, closeSearch, inputRef } = state;
-  const { query, setQuery, tagFilters, toggleTag, noteOpened, noteSearched, searchAll } =
-    useSortedRecords();
+  const { query, setQuery, tagFilters, toggleTag, noteSearched, searchAll } = useSortedRecords();
   const { search, sections, options } = useSearchOptions();
   const [, navigate] = useLocation();
   const listboxId = useId();
@@ -254,7 +253,6 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     }
     // "Search all items" ran past the tags; saved with them it would find less next time.
     if (typed) noteSearched({ text: search.text, tags: searchAll ? [] : tagFilters });
-    noteOpened(option.record.recordId);
     navigate(recordPaths.record(option.record.recordId));
   };
 
