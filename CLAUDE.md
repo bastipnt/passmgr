@@ -29,42 +29,10 @@ pnpm --filter server dev       # Bun watch server
 pnpm --filter mobile start     # Expo dev server
 ```
 
-### DB package (run from `packages/db/`)
-
-```bash
-bun ./devResetDB.ts   # Reset dev database (truncate data, keep schema)
-```
-
-`pnpm db:reset:hard` drops all tables and the migration log, then migrates from scratch (localhost
-only). Needed after migrations were squashed into a new baseline; follow with `pnpm db:seed`.
-
-### Local (on-device) DB (`packages/store`)
-
-```bash
-pnpm --filter @repo/store migrations:generate   # after editing src/schema/tables.ts
-```
-
-One SQLite database **per profile** (`Vault`) plus a device-level profile registry (`ProfileStore`,
-`src/profiles.ts`; ADR 0001 D2, amended 2026-10-07). Drizzle (sqlite) schema in `src/schema/tables.ts`
-(profile DB) and `src/schema/registry-tables.ts` (registry); drizzle-kit writes `drizzle/` and
-`drizzle-registry/`, bundled into `src/migrations.generated.ts` / `src/registry-migrations.generated.ts`
-(never edit either by hand; a test fails if they drift). Our own runner (`src/migrations.ts`,
-`PRAGMA user_version`) applies them. Queries go through
-`drizzle-orm/sqlite-proxy` over `SqlDriver` (array rows). **Never use Drizzle's `db.transaction()`**:
-it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.transaction`).
-
 ### Testing
 
 Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`, `ui-shared`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
-
-Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and
-starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE secrets) and tears it down
-after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
-clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
-offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
-(local vault, create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login
-shortcuts with websites and tags), the listed records, desktop search + its options, password issues,
-Lock from the sidebar, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+Web E2E (Playwright): `pnpm --filter web e2e`, see `apps/web/CLAUDE.md`.
 
 ## Architecture
 
@@ -80,6 +48,7 @@ packages/
   crypto/    All cryptographic primitives (@noble/hashes, @noble/ciphers)
   db/        Drizzle ORM schema + migrations (PostgreSQL)
   schema/    Zod schemas shared between client and server
+  store/     On-device SQLite (one DB per profile) + secretsStore
   ui/        Shared React web component library (shadcn-based), re-exports react-hook-form
   ui-native/ Shared React Native component library (Uniwind + cva + cn), re-exports react-hook-form
   ui-shared/ Design tokens (colors/spacing/radius) shared by web + native
@@ -87,316 +56,30 @@ packages/
   typescript-config/  Shared tsconfig base files
 ```
 
-### Web app structure (`apps/web/src`)
+### Where the details live
 
-```
-app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
-features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/
-components/  App-wide, feature-agnostic components only
-hooks/ lib/ test/ types/
-```
+Nested `CLAUDE.md` files load when you work in their directory:
 
-Rules:
+- `apps/web/CLAUDE.md` — folder / import rules, record list + form layout, theme presets, phone pages, E2E, served-code trust
+- `apps/mobile/CLAUDE.md` — Uniwind styling, fonts, autofill, share extension
+- `apps/server/CLAUDE.md` — request signing, tRPC routers, ops routes, env vars
+- `packages/store/CLAUDE.md` — on-device SQLite, migrations, transactions
+- `packages/db/CLAUDE.md` — Postgres dev reset, Drizzle beta
+- `packages/crypto/CLAUDE.md` — password KEK params, Argon2, wrap AADs
 
-- **Feature folders are flat.** Files sit directly in the feature. Nest only for a
-  sub-domain (`records/login/` = the login record type, `records/versions/` = version
-  history), **never** by file kind — no `components/`, `hooks/`, `pages/`, `forms/`,
-  or `providers/` inside a feature.
-- **Sub-domain vs. top-level feature: dependency direction decides, not file count.**
-  A sub-domain stays *inside* its parent when it can't stand alone — no top-level route
-  of its own, or it needs the parent's internals. Lifting it out would make the parent's
-  `routes.tsx` import it while it imports back through the parent barrel: a cycle. It
-  graduates to a top-level feature only once nothing in it imports the parent.
-- **Sub-domain folders have no `index.ts`.** Import them by path (`./versions/VersionsSheet`).
-  A barrel inside a feature hides the dependency graph and invites cycles.
-- **Sub-domain files may climb exactly one level** (`../use-route-sheet`,
-  `../login/TotpField`) to reach their parent feature; two or more is banned by
-  `no-restricted-imports` — use `@/` for anything further.
-- **Screens live in their feature** (`features/auth/LoginPage.tsx`). There is no
-  top-level `pages/`. Only app-shell screens (`NotFound`, `ErrorFallback`) live in `app/`.
-- **Every route string is in `app/route-paths.ts`** (`authPaths`, `recordPaths`).
-  Never hardcode a path in a component.
-- **Cross-feature imports go through the barrel**: `@/features/password-generation`,
-  never `@/features/password-generation/PasswordField`. Enforced by
-  `no-restricted-imports` in `apps/web/.oxlintrc.json`.
-- **Inside a feature, use relative `./` imports.** Importing your own feature via `@/features/...`
-  creates a cycle through the barrel.
-- **One alias: `@/` → `src/`.** (`@pages`, `@components`, `@features`, `@utils` were removed.)
-  Declared in three places that must stay in sync: `vite.config.ts`, `vitest.config.ts`,
-  `tsconfig.app.json`.
-- Web `features/records/` matches mobile's `features/records/` naming.
-- **Phone pages are real routes that scroll the document**, never drawers. The push/pop slide is
-  `app/page-transitions.ts` (View Transitions, driven by the router's location hook). A new page
-  gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
-  `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
-- **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar
-  sits on the ground (`ShellPanel surface="ground"`): `SidebarHeader` (`VaultSwitcher`, collapse toggle, New record),
-  `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
-  `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
-  Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
-  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all; `SearchPanel` while searching);
-  the record sits on the ground, one column (`RecordDetail`: the form at rest, `@repo/client` `recordDetailLayout`
-  builds it from `RECORD_FORM_FIELDS` / `RECORD_FORM_LAYOUT`: the same sections in the same order, fields paired where
-  the form pairs them (`DetailFieldRow`), empty ones left out, then websites, extra fields (two per row), note, Version
-  history; a secure note starts with its note. Machine values mono, card number masked to first / last 4 + network,
-  expiry chip (`cardExpiryStatus`), identity address as one block (Copy address), SSH key Type · Fingerprint, private
-  key blurred (`DetailCodeBlock concealable`, nothing of it in the DOM until shown) + download, API secret keeps its
-  prefix (`apiSecretPrefix`), Wi-Fi QR full screen only while the page is in view; previous secrets fold into one
-  row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
-  `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
-  Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
-  the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
-- **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
-  `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
-  and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
-  spec's `kind` to a boxed control (`ControlledBoxedInput` & co., `@repo/ui/components/form`). `width` pairs fields on
-  wide screens, `phoneShare` keeps a row on phones (`phoneRows`). Websites and extra fields reorder by a row's handle
-  (drag or ↑ / ↓, `SortableList`). Both sheets wrap it in `RecordFormSheet` (desktop: avatar + "Edit login" header,
-  Delete / Back left, Cancel + submit right; phone: `SheetFormBar`, the record header and Delete in the content). The
-  create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead.
-- **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
-  `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
-  one wins). Picked in Settings → General (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,
-  `<themeKey>-accent`; `applyStoredAccent` in `main.tsx` sets it before React renders). List: `@repo/ui-shared` `ACCENT_PRESETS`. Accent as text is `text-primary-text`, never `text-primary`
-  (that's the fill: buttons, the TOTP ring). Meaning colors (strength, warnings, destructive) never take the accent.
-  The light field is for auth screens only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`,
-  `data-ground="flat"` on `<html>`), which gives the flat ground and turns `glass` / `glass-popover` solid without blur.
-  The logo (`BrandMark`) is a `bg-primary` tile, so it follows the accent (auth screens too).
-- **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
-  `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
-  floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
-  sticky-title math (`MobileVault` `--list-top`, `MobileListTitle`, `MobileRecordPage` h1) assumes 48px.
+Cross-cutting flows (client + store + server + UI) are in `docs/architecture/`. **Read the matching file before
+changing one of these flows:**
 
-### Mobile styling (Uniwind)
+- `auth.md` — OPAQUE, registration, login + second factor, web biometric / device login, session modes
+  (`local` / `online` / `offline`, `networkOffline`), recovery (server, local, linked), password change, two-factor
+  enrollment, account deletion, emergency kit
+- `local-vaults.md` — local vaults, durability, export / import, import from other managers (CSV, Bitwarden, 1PUX,
+  KeePass), linking a local vault to an account
+- `vaults-and-sync.md` — vault model, membership access, `record.sync` / `record.push`, limits and storage quota, conflict
+  merge, trash / purge, key rotation, sharing, vault UI
+- `records.md` — Pass Monitor, security score, breach check, login email, favorites, duplicate, tags and search
 
-`apps/mobile` + `packages/ui-native` style with **Uniwind** (Tailwind v4 for React
-Native, `className` API) — the same mental model as web. No babel preset; classes
-compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.config.js`).
-
-- Theme tokens live in `apps/mobile/src/global.css` as Uniwind `@variant light/dark`
-  blocks, transcribed from `@repo/ui-shared` colors (web kebab-case names, e.g.
-  `bg-primary`, `text-primary-foreground`). The spacing scale (`p-md`, `gap-lg`)
-  maps to the values the old Tamagui config rendered.
-- `@source "../../../packages/ui-native/src"` in `global.css` makes Tailwind scan the
-  sibling package (v4 only auto-detects the app itself).
-- Compose variants with `cva` + `cn()` from `@repo/ui-native/lib/utils`, mirroring
-  `packages/ui`.
-- Accent presets: `global.css` holds one palette; the picked preset (Settings → General `AccentPicker`,
-  `PREF_KEYS.accent`, device-level) overrides it in both modes at runtime (`applyAccent` in
-  `use-theme-preference.ts`: `Uniwind.updateCSSVariables` with `@repo/ui-shared` `accentVariables`; `ACCENT_COLORS`
-  must equal `presets.css`, a test checks it). Applied in a layout effect on launch, so no flash.
-- Read tokens in JS via `useCSSVariable(name)` (in components) or
-  `Uniwind.getCSSVariable(name)` (outside). Wrap non-core third-party components with
-  `withUniwind` to give them `className`.
-- **Look = web at phone width.** Screens wrap in `Screen` (`@repo/ui-native`; flat ground, `field` on auth
-  renders the `LightField` blob backdrop). Stack `contentStyle`: pages `bg-edge-tint`,
-  formSheets `bg-popover`. Lists and field groups are flush (`Section` / `SectionGroup`,
-  `RecordListItem`, `RecordDetailsItem` — whole row copies), not boxed cards. Prefer native chrome:
-  header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with
-  the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once
-  scrolled). Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one shared frost).
-- **Fonts**: Bricolage Grotesque (display) + JetBrains Mono are vendored in `apps/mobile/assets/fonts`
-  (named by PostScript name so iOS and Android resolve the same family) and embedded via the
-  `expo-font` plugin. Classes `font-display`, `font-display-bold`, `font-mono`; `FONT` constant for
-  native options (`headerLargeTitleStyle`). Body text stays the system font.
-- The generated `apps/mobile/src/uniwind-types.d.ts` (dtsFile) is git-ignored;
-  `className` prop augmentations come from `uniwind/types` (referenced in the
-  `*-env.d.ts` files).
-
-### Authentication Flow (OPAQUE protocol)
-
-OPAQUE is `@cloudflare/opaque-ts` (P-256, scrypt KSF from `@repo/crypto/services/opaque-ksf`). It never gets the
-password: every registration, login, password change and recovery passes `deriveOpaquePassword(password, email)`
-(HKDF, `opaqueInputFor` / `loginWithOpaquePassword` in `packages/client`). That buffer, not the password, is what
-`secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect (and to get online for a pending web
-biometric enrollment); it is never stored.
-
-Web biometric unlock (`useEnrollBiometric`, `biometricUnlock`): the WebAuthn PRF output wraps only the account key.
-A linked profile also registers the credential's public key (`user.registerDeviceCredential`, fresh password login,
-`device_credentials`; `biometricDeviceLogin` in the material), and the same prompt then signs a device login:
-`login.startDeviceLogin` (nonce + server ephemeral X25519, `devicelogin:<attemptId>`, 5 min) → the WebAuthn challenge is
-`deviceLoginChallenge(nonce, serverPub, clientPub)` → `login.finishDeviceLogin` (assertion checked in
-`apps/server/src/auth/webauthn.ts`: origin in `allowedOrigins`, rpId hash, UP + UV, signature, growing counter;
-session key = HKDF of the X25519 secret, `deviceSessionKey`), then two-factor as for a password login. Such a session is
-`passwordless`: never fresh auth and no reset of the password throttle. A credential stops logging in
-`SESSION_MAX_AGE_MS` after its last password login (`passwordVerifiedAt`); `useLinkDeviceCredential` (unlocked tree) links it
-to every session of the device (`user.linkDeviceCredential`, a password session also renews it). Revoking a session deletes
-its device's credential (`Session.deviceCredentialId`), revoke-others every other one, a password change / recovery all of
-them; a credential the server refuses is forgotten on the device (`useDeviceLogin`), so enrollment is offered again.
-`useBiometricUnlock` prepares the login before the click (Safari's gesture window); there is no automatic reconnect after
-a biometric unlock (it needs the prompt): `useReconnect` reconnects through it when no OPAQUE password is kept.
-
-Registration:
-
-1. Client: `OpaqueClient.registerInit` → sends `registrationRequest` to server
-2. Server: `opaqueServer.registerInit` → returns `registrationResponse`
-3. Client: `registerFinish` → generates `registrationRecord` + key hierarchy: a new account key wrapped twice (password KEK, recovery KEK), the personal vault (`createVault`: client-generated `vaultId` + vault key wrapped by the account key) and the X25519 keypair (`createUserKeyPair`: private key wrapped by the account key)
-4. Server: stores `registrationRecord`, the key set, the keypair (`user_key_pairs`) and the personal vault (`vaults` + owner row in `vault_members`) in one transaction
-
-Login:
-
-1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
-2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use, with its `startedAt`: a login started at or before `sessionepoch:<userId>` is refused at finish / second factor, `isLoginRevoked`). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
-3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
-4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`. Two-factor on (`user_totp` row): no keys and no session yet, the
-   challenge goes to Redis (`login2fa:<challengeId>`, 5 min, the derived `authKey` inside) and the answer is `{ secondFactorRequired, challengeId }`;
-   `login.verifySecondFactor` takes a TOTP code (±1 step, step > `lastUsedStep`) or a backup code, a wrong one counts against
-   `loginlock:<emailHash>`, `SECOND_FACTOR_MAX_ATTEMPTS` burn the challenge (`SECOND_FACTOR_INVALID` / `_EXPIRED`), then continues as below
-   (session marked `secondFactor`). Otherwise it creates the session in Redis (24h sliding TTL, hard cap `SESSION_MAX_AGE_MS` = 30 days from `authenticatedAt`; indexed per user in `usersessions:<userId>`, a sorted set by last activity; `deviceName` from the client's `x-device-name` header, `ClientProvider`'s `deviceName`), returns `sessionId` + the wrapped account key + its recovery wrap (`recoveryKeys`, null without a verifier; cached for an offline reset) + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
-   Client: `loginUser`'s `onSecondFactor` prompt (`SecondFactorPrompt`, only called when challenged; `null` → `SecondFactorCancelledError`).
-   Login forms pass their own (`useSecondFactorRequest`: web `LoginPage` inline step, mobile sheets); every other login (reconnect,
-   `freshLogin`) uses `SecondFactorPromptProvider` (web `SecondFactorPromptRoot` dialog; mobile has none, so a background reconnect
-   gives `second_factor` and the user signs in again from Settings). `registerLocalVault` never asks (`noSecondFactor`)
-5. Client: `secretsStore.unlockSession()` derives `sessionSecret` and `authKey` from `sessionKey` via HKDF; `unlockVault()` then unwraps the account key with the Argon2id password KEK (KEK derived in a worker) and the vault keys and the keypair with the account key (`secretsStore.loadVaultKeys` / `loadUserKeyPair`, which checks the private key against the public key; a personal vault key or keypair that doesn't open fails the unlock, any other vault whose key doesn't open is skipped and its records stay hidden). All of it is cached in the account's profile database for offline unlock (`StoreProvider.openAccountProfile`: the profile of that `userId`, or a new one next to the others; never a wipe). Signing in with the email of a profile on the device unlocks it locally like picking it (`useUnlock().unlockByEmail`). Memory only on web; mobile persists the session bundle per profile in Keychain/Keystore (restored behind the OS biometric prompt on launch, `useSessionRestore`, and after a lock by the welcome screen's `BiometricUnlockButton`, `useBiometricRestore`; `hasLoginBundle` reads a prompt-free marker)
-
-Local vault (no server, no account; ADR 0001 D2): `useCreateLocalVault` → `generateKeyring` (same
-keyring as registration) → `Vault.createLocalVault` stores a `local` profile, the password wrap, the
-recovery wrap + verifier (the verifier on local profiles only) and the personal vault atomically, in a new profile
-database next to any others (optional display name). Unlock is password-only (`unlockLocal`), Argon2 rekey happens on the device.
-Durability (ADR 0001 D12): web asks `navigator.storage.persist()` on create (`StorageSettings` shows it);
-a `local` profile gets a backup reminder (`useBackupReminder`, from the registry's `lastExportAt` —
-`ProfileStore.markExported`). Mobile databases are in iCloud / Android Auto Backup
-(`apps/mobile/plugins/with-android-backup.js`), SecureStore values are not.
-Export (`useExport`, ADR 0001 D12 amended): encrypted backup (`ExportEnvelope`: Argon2id over an export
-password + XChaCha20, `decryptExport` reads it back; moves `lastExportAt`) or plain JSON / CSV. Every format
-re-checks the master password. Web: Settings → Security → Export.
-Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`readExportFile` /
-`openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
-`RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
-it came from; an id already there (live or deleted) → skip / overwrite (new version, revives a deleted one; unchanged
-content writes nothing) / keep both. Restore or import (`useRestoreBackup`, web `/restore`; the file opened by
-`useOpenImportFile`): a backup or another manager's export (below) into a new local vault under a new master password,
-every record into its personal vault; a backup's ids kept (`keepIds`: a re-import skips them), a foreign one's all new. Mobile has no export / import UI yet.
-Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
-(Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON; 1Password 1PUX via `fflate`; KeePass XML via an injectable
-`ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
-A KeePass database (KDBX 3.1 / 4) comes back as `kind: "kdbx"`: `openKeePassDatabase` (password + optional key file)
-decrypts it on the device (`@repo/crypto` `openKdbx`, own reader on @noble: AES-KDF via WebCrypto, Argon2d / id through
-`argon2WorkerService`; no Twofish) to its inner XML, then `importKeePassXml`. Fixtures: `packages/crypto/test/fixtures/kdbx`.
-Each parser fills a `ForeignImportBuilder` → an `ExportData` of one vault, imported with `keep-both` into the picked
-vault (every record new). Folders → tags, extra fields → custom fields, history / passkeys / attachments dropped and
-counted in the report. App ids and other `scheme://` addresses stay websites (`parseWebsite` in `@repo/util`:
-`web` / `app` / `uri`; only `web` is linked, favicon'd or matched by host). A failed batch throws `ImportStoppedError` (`written` / `total`).
-
-Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →
-`registerLocalVault` registers the vault's **own** keyring (`localVaultKeyring`: stored wraps, verifier,
-keypair, every vault via `finishRegistration`'s `vaults`; nothing re-encrypted, recovery key stays valid)
-and logs in; the account must hold the vault's public key. Then `saveAccount` makes the profile `linked`
-(keeps the login's recovery wrap, drops the verifier) **before** `linkServer` goes online: the first sync pushes the outbox,
-which already holds every local version, so the upload resumes by itself. Repeating a half-done link is safe.
-
-Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the unlocked
-tree) writes the open profile's `autofillEntries` (logins with a password) through `@repo/store` `writeAutofillEntries`
-while the OS has the app's autofill on (`autofillState`), else drops them; sign out, `signedOut` and profile removal drop
-them too (as does `forgetQuickUnlock`), a lock keeps them. Writes and clears of one profile run in order. Native side `apps/mobile/modules/autofill` (Expo module, `PassmgrAutofill`): encrypts to a
-biometric-gated device key (iOS Secure Enclave ECIES, Android Keystore RSA + AES-GCM), so writes never prompt and only the
-extension / `AutofillAuthActivity` reads them after a biometric match (the app reads only pending logins, see below). iOS extension `apps/mobile/targets/autofill`
-(`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups from `plugins/with-autofill.js`;
-needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state and opens the OS setting.
-"Create login" (Proton-style, both platforms native, no RN in the extension: `doc/mobile-extension.md` option A): the iOS
-extension's list always ends with "Create login for <host>" (SwiftUI form, generated password from the profile's generator
-defaults sent along in the entries payload, "Create & AutoFill"); Android's fill list ends with the same row
-(`AutofillCreateActivity`), and `SaveInfo` (login + sign-up forms, `FLAG_DELAY_SAVE` for multi-step) offers "Save to
-Passmgr?" into the same form. The login fills at once and is written encrypted to the autofill device key as a pending
-login; `useAutofillSync` imports them on the next foreground unlock (`importPendingAutofillLogins`, biometric prompt,
-personal vault, id kept so a repeat skips it) and deletes them. iOS also declares `ProvidesTextToInsert` (AutoFill context
-menu: inserts a username or password; "Create login" there asks for the website, the menu doesn't say, and inserts the
-password).
-
-Mobile share ("save login from other apps"): the iOS share extension (`apps/mobile/targets/share`, no app group, nothing
-stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobile/modules/share`, `ACTION_SEND` text) only
-open `passmgr://share?text=…`. `src/app/+native-intent.tsx` makes it `recordPaths.createLogin(sharedWebsite(text))` (new login,
-website + host title; `@repo/client` `records/shared-login.ts`); while locked `routeSharedLogin` sends it home and holds it
-until the unlocked tree mounts (`useOpenSharedLogin`).
-
-Emergency kit (`createEmergencyKit` / `useEmergencyKit`, `packages/client/src/account/emergency-kit.ts`): a one-page
-PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a local vault), a write-in field for the
-master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
-only where a recovery key is issued (`RecoveryKeyDialog`: register, local vault, restore, recovery): it can't be made
-later, the key isn't kept. Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
-dialog hidden meanwhile on iOS), which counts only on iOS, where a cancelled print rejects. The server is printed
-as a full URL (web may be configured with a path, `/trpc`).
-
-Recovery (forgotten password, `auth/recovery-router.ts`):
-
-1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit` (OPAQUE password of the new one) → `recovery.startRecovery`
-2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped account key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
-3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
-4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
-
-Local recovery (`local` profile, ADR 0001 D10): `useRecovery().recoverLocal` → `recoverLocalVault` unwraps the account key
-with the recovery wrap kept on the device, `generateUserKeys` → `Vault.setLocalKeyMaterial` replaces both wraps
-atomically; no server.
-Linked profile on the device (D10 amended 2026-10-23, always local-first, online too): `useRecovery().recover` →
-`recoverLinkedVault` with the recovery wrap cached from the last login → `Vault.setLinkedRecovery` (new password wrap, new
-recovery wrap and a *pending recovery*: the old key's `recoveryAuthKey` + the new key set, sealed under the account key,
-`sealPendingRecovery`; a second reset keeps the first proof). Online it goes to the server before anything is stored
-(`finishPendingRecovery`; refused: nothing changes, so a stale cached wrap can't diverge); offline or unreachable, the next
-connect with the new password finishes it before the login (`useConnectServer`); throttled / unreachable keeps it, a refusal
-drops it. While pending, `unlockLocal` never falls back to a server login (the old password must not undo it); a login's key
-set drops it. `summarizeSync` shows "Password reset waiting". A key the cached wrap doesn't open goes to the server when online;
-an account without a cached wrap still needs the server (`offline`).
-Web `RecoverPage` (`authPaths.recover` from the account login, `recoverActive` from the unlock card): key step
-(`checkRecoveryKey(key, email?)`: unwrapped when the device has the wrap, else format only and the server checks it with
-the new password), then the new password, the new key (`RecoveryKeyDialog`), then the vault opens with the new password.
-
-Password change (ADR 0001 D10, `useChangePassword`, one hook for both modes): `local` → `changeLocalPassword`
-(current password checked against the stored wrap, account key rewrapped on the device). `linked` → only `online`,
-blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the current password (for `freshAuthProcedure`),
-`user.startPasswordChange` (new OPAQUE registration; the email must be the session user's) and `finishPasswordChange`
-(attempt `passwordchange:<attemptId>` bound to the active `keySetId`; new key set with the recovery wrap carried over,
-new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
-Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay.
-
-Two-factor (TOTP + backup codes, opt-in; `useTwoFactor`, web Settings → Security `TwoFactorSettings`, mobile `TwoFactorSection` /
-`TwoFactorSheet`): `user.startTotpEnrollment` (fresh login; secret in Redis `totpenroll:<userId>` 10 min, returns `otpauth://` URI +
-base32) → `confirmTotp({code})` (stores `user_totp` with the code's step used + 10 `user_backup_codes`, shown once);
-`disableTotp` / `regenerateBackupCodes` need a fresh login that passed a code (session `secondFactor`). Secret encrypted
-with HKDF(server key, `totp-secret`), backup codes HMAC'd with HKDF(server key, `backup-code`) (`apps/server/src/auth/two-factor.ts`).
-Gates the server only: a cached profile still unlocks with the password. Recovery keeps it on; account deletion cascades.
-
-Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account & sync): a fresh OPAQUE login
-(`freshLogin`) then `user.deleteAccount` (`apps/server/src/user/delete-account.ts`), a hard delete in one transaction:
-user row → cascades to key sets, keypair, memberships and every vault it owns (personal + soft-deleted) with their
-records. Shared vaults: nobody else active → deleted; the user is the only active owner of one others are in →
-`PRECONDITION_FAILED` `sole_owner` (the vaults in `data.vaultIds`, `SoleOwnerCause` via the `errorFormatter`), nothing deleted; otherwise the user leaves (`keyRotationNeeded`, `ownerId`
-handed to another owner) and their versions stay with `records.userId` null. Unaccepted invites they sent are dropped.
-All sessions end; the client locks and removes the profile from the device.
-
-### Request Authentication
-
-Authenticated requests use HMAC-signed headers (no cookies):
-
-- `x-session-id` — session identifier
-- `x-timestamp` — Unix timestamp in ms (requests >5 min off are rejected)
-- `x-nonce` — random UUID, claimed once in Redis (replay protection)
-- `x-signature` — HMAC-SHA256 of `(type, path, timestamp, nonce, input)` using the `authKey`
-
-The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
-SSE subscriptions (no headers possible) send the same four values as tRPC `connectionParams`, signed over the fixed
-path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the session TTL. `freshAuthProcedure` additionally
-requires an OPAQUE login ≤ 5 min ago (used for key changes; a device login never counts). Key sets are versioned (`valid_from`/`valid_to`, one active
-per user) — never `UPDATE` key material in place.
-
-Session modes (ADR 0001 D2, `SessionProvider`): unlocking never needs the server; server auth is attached
-separately. `local` = a `local` profile, never talks to the server (no `authKey`, no sync). `online` = a `linked`
-profile with server auth attached: signed requests, `SyncManager` enabled, SSE subscribed. `offline` = `linked`
-without server auth (not attached yet, or a session that expired: `UNAUTHORIZED` only detaches). A session ended
-on purpose (signed out from another device, password changed or recovered elsewhere) is refused with message
-`SESSION_SIGNED_OUT` (`isSignedOut`) or a `signedOut` SSE event: the device locks like Sign out
-(`StoreProvider.signedOut` → `onSignedOut`; web reloads and shows a note), its outbox stays. Web lock (`useLockVault`, `features/records/lock-vault.ts`) ends the server session best-effort
-(`endServerSession`: aborted after `END_SERVER_SESSION_TIMEOUT_MS`; the page goes hidden + inert meanwhile) before the reload: the keys are memory-only, so nothing could reuse it; mobile lock keeps it
-(the persisted bundle restores it). Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
-/ `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
-database + outbox in every mode; the `online` event (or attaching server auth) syncs.
-
-### Web served-code trust
-
-Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bundle is written): SRI on the asset tags
-of `index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs with
-`integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
-(`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS>` checks a deployment against it. What it does and doesn't
-protect against: `docs/security/web-served-code-trust.md`.
+Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`. Sync cursor: `docs/sync-cursor.md`.
 
 ### Key Hierarchy
 
@@ -416,207 +99,8 @@ sessionKey ──HKDF──► sessionSecret ──HKDF(+salt)──► authKey 
 X25519(device login ephemerals) ──HKDF(challenge)──► sessionKey   (web biometric device login)
 ```
 
-Password KEK params (`@repo/crypto` `hash.ts`): each wrap stores its Argon2id params. A new wrap (register, local vault,
-password change, recovery, export) takes this device's set from `PASSWORD_KEK_PARAM_SETS` (strongest that fits
-`PASSWORD_KEK_BUDGET_MS`, measured once per run by `devicePasswordKekParams`, never below the 64 MiB floor). Unlock rekeys
-only a wrap below the floor (`needsPasswordKekRekey`): the wrap is shared by every device, equal-params rekeying would ping-pong.
-Tests pin params with `setPasswordKekParams` (skips calibration).
-Argon2id itself (`util/argon2-impl.ts`): web / Node run hash-wasm (WASM inlined in the bundle, needs
-`'wasm-unsafe-eval'`), falling back to @noble per thread once the WASM fails; mobile `react-native-argon2`. Web derives in the
-worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thread where there's no `Worker` (Node).
-`argon2Async(variant, …)` also does Argon2d (KeePass import only); on mobile Argon2d and binary passwords run on @noble (JS thread).
-
-Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the
-account key's is purpose-only (`passmgr/account-key/v1`, same wrap on every device), a vault key's binds
-`vaultId` + `keyVersion`, the private key's its `keyVersion` (`unwrapUserPrivateKey` also checks it
-against the public key). Password change / rekey / recovery rewrap only the account key; the keypair
-is created once and `generateUserKeys` never touches it. A public key is verified out of band by its
-`publicKeyFingerprint` (30 digits).
-
-### Vaults
-
-Every record lives in one vault (`records.vaultId`, local + server) and is encrypted with that vault's key;
-the AAD binds `cryptoVersion/vaultId/recordId` (`packages/crypto/src/vault-data.ts`), so a record never
-opens in another vault — a move re-encrypts it as a new record and tombstones the source (both
-pushed in one batch), whose history stays behind. Vault name/icon/colour are `encryptedMeta` (vault key, AAD `vaultId`).
-`personal` = the default vault (one per user, `secretsStore.defaultVaultId`); every other vault is `shared`.
-Server access is **membership-based** (`apps/server/src/vault/access.ts`: active `vault_members` row of a
-live vault; roles `owner > manage > write > read`), never `records.userId` (that's the version's author).
-Unknown and forbidden vaults both answer `NOT_FOUND`; a member with too low a role gets `FORBIDDEN`.
-`record.sync` takes one cursor per vault (a vault without one is pulled in full) and returns the full
-vault list plus at most `MAX_SYNC_RECORDS` versions in `(vaultId, seq)` order, `hasMore` when the page is
-full (`SyncManager` pulls and applies page after page); the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`takeVaultSeqs`, row
-lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
-cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`): one transaction,
-vaults locked first (`lockVaults`, `lock_timeout` → `SERVICE_UNAVAILABLE`, the client retries), then
-compare-and-swap per change on `baseVersion`; each change answers `applied` / `stale` / `rejected`,
-a record's changes in a batch apply all or nothing, and `clientChangeId` (unique per record) makes a
-retry return the stored version. `SyncManager` sends each record's chain in one batch (`pushBatches`, bounded by `MAX_PUSH_CHANGES` and `MAX_PUSH_BYTES`).
-Limits (`@repo/schema` `record-limits.ts`): per-field max lengths and list sizes in the record schemas (forms show them; a
-foreign import skips an item over them as `too_large`), the whole payload ≤ `MAX_RECORD_PAYLOAD_BYTES` (`encryptRecord`
-throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps the ciphertext, the server body is
-`MAX_REQUEST_BYTES`. Storage quota: `vaults.usedBytes` (each version's `pushChangeBytes`, tombstones included, kept by
-`takeVaultSeqs` / `dropPurgedHistory`) summed over an owner's live vaults against `STORAGE_QUOTA_MB`; a chain with a put
-past it is `rejected` `quota` (parked, `SyncStatus.storageFull`), and so is a `moved` tombstone in that batch (the move's
-other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
-A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
-`resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
-delete, and the local edits stay in the history below the merged version.
-
-Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`, mobile `settings/trash`): a
-tombstone's `tombstoneKind` is null for a delete (in the trash), `moved` for a move's source, `purged` for
-a record deleted for good. Restore = update with the tombstone's content (`RecordRepository.restore`).
-Purge (`RecordRepository.purge` → `Vault.purgeRecords`) drops every local version + unsent change; a
-record the server has leaves a contentless `purged` tombstone, pushed as `delete` + `tombstoneKind`,
-and the server (and every device that pulls it) drops all versions below it (`dropPurgedHistory`).
-
-Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and
-Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after decryption. Weak = zxcvbn score < 3 (rated
-in chunks, ratings cached per version, never the password). zxcvbn costs 100–500 ms a password: every rating goes through
-`strengthWorkerService` (`@repo/crypto/services`; a Web Worker on web, deferred on the JS thread on mobile), incl.
-`usePasswordStrength`, never `getStrengthFromString` on the main thread, reused = exact match, duplicates = same username on a shared
-website host (the email stands in for a missing username, `loginAccountName`), old = `passwordChangedAt` (fallback `firstCreatedAt`) ≥ 365 days. `passwordChangedAt` is stamped by
-`RecordRepository` only (create / a changed password; forms never carry it; an import keeps the backup's) and follows
-`password` in `mergeRecord`.
-Logins only: insecure websites = a website on `http://` (loopback aside), missing 2FA = a password and no `totp`, the
-host (or a domain above it) is in the bundled 2fa.directory TOTP list (`records/two-factor-directory.json`, lazy-loaded;
-refresh with `pnpm --filter @repo/client two-factor-directory:update`, MIT, keep the credit); record detail links its
-setup docs (`useMissingTwoFactor`). No network request.
-Record detail (web `PasswordHealthLine` under a login's or Wi-Fi's password): one line with strength and "Not breached", plus an
-"N issues" toggle opening `passwordIssues` (breached, weak, reused, old, missing 2FA, most urgent first; each with its fix:
-Change, Show for a single reuse, Set up with the site's 2FA docs, else Add code; Change / Add code only when writable) via `usePasswordHealth`; open state per record until a lock.
-Sidebar badge (web desktop `SidebarFooter`): `usePassMonitorIssueCount`, the overview's counts summed (`passMonitorIssueCount`, duplicates aside) with weak only from ratings the Pass Monitor cached and breaches only from stored results, so it runs no zxcvbn and no request.
-Security score (`securityScore`, `records/security-score.ts`; web `SecurityScoreCard` atop the Pass Monitor): the mean
-per-password health (1 minus the summed `SCORE_PENALTY`s, capped) over `usePassMonitor().monitored`; duplicates don't
-count, a breached password keeps it below good. `undefined` while a counted check runs (the breach check too, until its
-run ends); a check that is off or failed goes to `skipped` and the card names it.
-Breach check (`useBreachCheck`, `records/breach-check.ts`): opt-in per profile + device (`Vault.setBreachCheckEnabled`,
-off deletes every result), while the Pass Monitor is open the HIBP range API is asked directly from the client
-(`pwnedPasswordHash`: only the 5-char SHA-1 prefix, `Add-Padding`; one request per prefix, 4 at a time, 429 backoff)
-for passwords without a result or with one ≥ `BREACH_RECHECK_DAYS`. Results per record version in the profile DB
-(`breach_checks`, never synced, pruned to current versions); record detail reads them only (`useStoredBreachCount`).
-`api.pwnedpasswords.com` is the one third-party host in the `Caddyfile` CSP `connect-src`.
-
-Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
-`keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`
-loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Every record version carries the
-`keyVersion` it is encrypted with; `vault.rotateKey` is a CAS on `vaults.keyVersion`, after which `record.push`
-rejects a put under another key (`key_version`, the client retries it re-encrypted). Before every push
-`SyncManager`'s `prepareOutbox` (`reencryptForPush`, `vaults/rekey.ts`) re-encrypts pending versions under an old
-key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
-resumable). History keeps the old key. The new key is sealed to every other member and invitee (`memberKeys`; exactly
-the server's member set, else `PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the
-current key (`CONFLICT` otherwise). Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
-
-Sharing (ADR 0001 D7, `apps/server/src/vault/sharing.ts`, client `vaults/sharing.ts` + `useVaultSharing`; UI: web
-Settings → Vaults (`VaultMembersDialog`, `InviteMemberDialog`, `VaultInvitations`, `RevokedVaults`), mobile
-`settings/members` page + `member` / `invite` sheets; errors via `sharingErrorMessage`, per-call by tRPC code): `vault.invite` (owners / managers, never above their own role (`canAssignRole`), never the personal vault) stores
-a `pending` `vault_members` row with the vault key sealed to the invitee's current public key from the inviter's
-(`sealVaultKey`: ephemeral + static X25519, so it opens only as from that sender). The invitee lists
-`vault.invitations`, compares the inviter's fingerprint, and `vault.acceptKey` stores their own wrap (row → `active`).
-After someone else's rotation a member's row keeps their old wrap plus the sealed new key; `record.sync` returns it in
-`keyUpdates` (with the links down to the held key) and `SyncManager`'s `onSharingTasks` (`runSharingTasks`) opens it,
-checks the sender (listed active owner / manager with the pinned key, not removed by this device: `markPeerRemoved`)
-and that the chain reaches the held key, and accepts it. Removing a member, leaving or declining sets
-`vaults.keyRotationNeeded`; `record.sync`'s `rotationsDue` lists it to managers holding the current key, whose next
-sync rotates (`removeMember` rotates right away). The last owner can't leave or be demoted (`transferOwnership`).
-Peer public keys are pinned per device on first use (`Vault.pinPeerKey`); a changed one is refused
-(`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
-`revoked_records`, `Vault.getRevokedVaults`) to copy into a writable vault (`copyRevokedRecords`, one transaction) or discard.
-
-Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
-records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search keeps to it; a switch resets the category). Create /
-rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
-first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
-it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
-Settings → Vaults); mobile:
-Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
-
-Login `email` (optional, next to `username`): `loginAccountName` (the username, else the email) is the list subtitle,
-the autofill username and the duplicates key; search matches both; a foreign import takes an "Email" text field as it.
-
-Favorites (`useToggleFavorite`): `favorite` in the encrypted payload, so a star is a new version (synced, in the
-history as "Added to / Removed from favorites", shared with every member of a shared vault; `read` members only see it).
-`SortedRecordsProvider` puts starred records in a `FAVORITES_LABEL` group atop the list in every sort (out of their
-normal group; the A–Z non-letter group then gets `#`), filters apply, a search stays flat; `sortedRecords` is the shown order.
-Web "All vaults" with several vaults (`canGroupByVault`): rows carry a vault letter badge on the avatar (`VaultMark`,
-`showVaultBadges`, search results too); "By vault" in `RecordSortMenu` (`groupByVault`, device pref) groups by vault
-instead (sort inside, starred first per vault, no favorites group, no badges); its headers are sticky like the
-other labels (`sticky-label-interactive`: clickable while pinned, inert once pushed) and fold for the session
-(`toggleVaultFold`; folded rows left out of `sortedRecords`).
-The list's `categoryFilter` is `all`, `favorites` (starred, any type; no extra group) or a record type; `categoryCounts`
-count each for the vault and tags in view (web: desktop `CategorySidebar`, phone `FilterSheet`).
-Web: star in the record header (`FavoriteButton`); mobile: header bar item. Rows show a small star.
-
-Duplicate (web `MoreDropdown`, mobile record "More" menu): opens the create form as a copy, nothing saved until Save.
-The URL carries only the source id (web `?new&duplicate=<id>`, mobile `recordPaths.duplicate`); `duplicateValues`
-(`records/record-edit.ts`) titles it "(copy)" and drops `favorite` / `passwordChangedAt`; the source's vault is the default
-target when writable (`useTargetVault`'s `preferredVaultId`). `read` members may duplicate into a vault of their own
-(`useRecordVault().canDuplicate`). A source gone meanwhile closes the form (`useDuplicateSource`).
-
-Tags (`useTags` / `useTagActions`, `records/tags.ts`; no folders): `tags` in the encrypted payload, the tag list is derived
-from the records (no tag entity, nothing on the server). Normalised by `@repo/schema` `tags.ts` (trim, one space, matched
-without case, a record keeps the first spelling, lists show the most used); forms refuse a comma (the CSV export joins with ", "), over `MAX_TAG_LENGTH` or
-`MAX_TAGS`; stored payloads stay lenient, imports go through `sanitizeTag`. Edited in every record form (`TagInput`:
-web `@repo/ui` on base-ui's Combobox, mobile `@repo/ui-native`). `SortedRecordsProvider`'s `tagFilters` (several, all
-required, in pick order, session only, AND with vault and category; each dropped once no record of the vault in view
-carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault filter, selected first, each counted as the
-records left if added; a detail chip's `showTag` clears the other filters first) and search's third tier. Search
-(`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle (a login's email too) → tag with why each matched; a query starting
-with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
-`searchAllItems` widens past category and tags until the query or the filters change (`OutsideScope`, also on phones);
-`recentRecords` (session only, search previews excluded); `searchSections` builds the panel's groups; `clearFilters`
-drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
-Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
-while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
-records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves); the
-highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: `FilterSheet` (category grid + tags), the
-ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
-version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
-per tag without case.
-
-Email is stored encrypted (XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
-
-### tRPC Router Structure
-
-`appRouter` (in `apps/server/src/router.ts`):
-
-- `appConfig` → `appConfigRouter` (getConfig — public)
-- `login` → `loginRouter` (startLogin, finishLogin, startDeviceLogin, finishDeviceLogin, verifySecondFactor, logout)
-- `register` → `registrationRouter` (startRegistration, finishRegistration)
-- `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
-- `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
-  invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `protectedProcedure`
-- `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
-  a revoked device locks: `signedout:<sessionId>` marker, see Session modes) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
-  mobile Settings (`SessionsSection`)
-- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
-  registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
-  two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)
-
-All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)
-
-Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
-`GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
-(Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call).
-
-### Environment Variables
-
-Server (`apps/server/.env`):
-
-- `DATABASE_URL` — PostgreSQL connection string
-- `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
-- `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
-- `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
-- `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
-- `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see Vaults
-- `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
-- `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
-
-DB package (`packages/db/.env`):
-
-- `DATABASE_URL`
+Every record lives in one vault and is encrypted with that vault's key. Email is stored encrypted
+(XChaCha20-Poly1305) and hashed (HMAC-SHA256 keyed with server key) — never plaintext.
 
 ## Code Conventions
 
@@ -627,10 +111,12 @@ DB package (`packages/db/.env`):
 - **Imports**: Workspace packages use `@repo/` prefix. Use barrel `index.ts` exports.
 - **Vite**: Overridden globally to `rolldown-vite` via pnpm overrides.
 - **Drizzle**: Using a beta version (`1.0.0-beta.15-*`) with `defineRelationsPart` API — this differs from stable Drizzle docs.
+- **Docs**: when you change a flow, update its `docs/architecture/` file or nested `CLAUDE.md`, not this file.
 
 ## Security Invariants
 
 - The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in `packages/client/src/register.ts`).
 - `secretsStore` (singleton in `packages/store/src/secrets-store.ts`) holds all sensitive key material in memory. Call `wipe()` on key buffers when done.
+- Key sets are versioned (`valid_from`/`valid_to`, one active per user) — never `UPDATE` key material in place.
 - `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).
 - What a device copy exposes (local-only vaults, device loss, backups, exports): `docs/security/threat-model-inputs.md`. Keep it current when on-device storage or key caching changes.
