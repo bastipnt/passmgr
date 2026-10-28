@@ -26,6 +26,7 @@ import { counted } from "@repo/util";
 import { HistoryIcon, PlusIcon, SearchIcon, TagIcon, XIcon } from "lucide-react";
 import {
   type CSSProperties,
+  type ReactNode,
   useCallback,
   useEffect,
   useId,
@@ -270,9 +271,34 @@ function RecentSearches({ onRun }: { onRun: () => void }) {
 }
 
 /**
- * Tag pills riding on top of the keyboard (`--kb-inset`). Pressing one must
+ * A toolbar riding on top of the keyboard (`--kb-inset`). Pressing in it must
  * not blur the field, or the keyboard would drop.
  */
+function KeyboardBar({
+  label,
+  className,
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    // oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field (gaps, disabled buttons too), not an action
+    <div
+      role="toolbar"
+      aria-label={label}
+      onPointerDown={keepFocus}
+      className={cn(
+        "absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] flex h-13 items-center border-border border-t bg-background/95 backdrop-blur-md",
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
+
 function TagPillBar({
   pills,
   typing,
@@ -285,13 +311,7 @@ function TagPillBar({
   onShowAll: () => void;
 }) {
   return (
-    // oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field (gaps, disabled pills too), not an action
-    <div
-      role="toolbar"
-      aria-label="Filter by tag"
-      onPointerDown={keepFocus}
-      className="absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] flex h-13 items-center gap-1 border-border border-t bg-background/95 pl-3 backdrop-blur-md"
-    >
+    <KeyboardBar label="Filter by tag" className="gap-1 pl-3">
       <Button
         variant="ghost"
         size="icon"
@@ -326,8 +346,48 @@ function TagPillBar({
           className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background"
         />
       </div>
-    </div>
+    </KeyboardBar>
   );
+}
+
+/** Tag mode's way out: the records the picked tags leave, keyboard kept up. */
+function TagModeBar({
+  tagCount,
+  itemCount,
+  onClear,
+  onShow,
+}: {
+  tagCount: number;
+  itemCount: number;
+  onClear: () => void;
+  onShow: () => void;
+}) {
+  const items = counted(itemCount, "item", "items");
+  return (
+    <KeyboardBar label="Picked tags" className="justify-between gap-2 pr-2 pl-4">
+      <span className="min-w-0 truncate text-muted-foreground text-sm">
+        <strong className="font-semibold text-foreground">
+          {counted(tagCount, "tag", "tags")}
+        </strong>{" "}
+        · {items}
+      </span>
+      <span className="flex shrink-0 items-center gap-1">
+        {tagCount > 0 && (
+          <Button variant="ghost" size="lg" className="px-3 text-primary-text" onClick={onClear}>
+            Clear
+          </Button>
+        )}
+        <Button size="lg" className="rounded-full px-4" onClick={onShow}>
+          Show {items}
+        </Button>
+      </span>
+    </KeyboardBar>
+  );
+}
+
+function fieldPlaceholder(tagCount: number): string {
+  if (tagCount === 0) return "Search logins, notes, #tags";
+  return tagCount === 1 ? "Search in tag" : `Search in ${tagCount} tags`;
 }
 
 /**
@@ -343,6 +403,8 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     tags,
     tagFilters,
     toggleTag,
+    removeTag,
+    clearTags,
     noteSearched,
     countSearch,
     searchAll,
@@ -351,13 +413,20 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   } = useSortedRecords();
   // "Search all items" runs past the filters and the scope doesn't show them.
   const filtered = !searchAll && (categoryFilter !== "all" || tagFilters.length > 0);
-  const { search, sections, options } = useSearchOptions();
+  const { search, sections, options } = useSearchOptions({ listTagged: true });
   const keyboardInset = useKeyboardInset(open);
   const pills = useMemo(
     () => pillTags(tags, tagFilters.length, search.tagMode ? "" : search.text),
     [tags, tagFilters.length, search],
   );
   const showPills = open && !search.tagMode && pills.length > 0;
+  const showTagModeBar = open && search.tagMode;
+  // Hidden while "Search all items" runs past them, as in the scope.
+  const fieldTags = searchAll ? [] : tagFilters;
+  const itemCount = useMemo(
+    () => countSearch({ text: "", tags: tagFilters }),
+    [countSearch, tagFilters],
+  );
   const [, navigate] = useLocation();
   const listboxId = useId();
   const records = options.filter((option) => option.kind === "record");
@@ -387,6 +456,11 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     if (!on && countSearch(next) > 0) noteSearched(next);
     toggleTag(tag);
     if (clearText) setQuery("");
+    keepTyping();
+  };
+
+  const leaveTagMode = () => {
+    setQuery("");
     keepTyping();
   };
 
@@ -423,14 +497,36 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     >
       <div className="flex shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2.5">
         <InputGroup className="h-12 min-w-0 flex-1 rounded-full bg-card">
-          <InputGroupAddon align="inline-start" className="pl-4">
-            <SearchIcon className="size-5!" />
-          </InputGroupAddon>
+          {fieldTags.length > 0 ? (
+            <InputGroupAddon
+              align="inline-start"
+              className="min-w-0 max-w-[60%] shrink justify-start gap-1 overflow-x-auto pl-1.5 [scrollbar-width:none]"
+            >
+              {fieldTags.map((tag) => (
+                <TagPill
+                  key={tag}
+                  tag={tag}
+                  selected
+                  aria-label={`Remove ${tag} from search`}
+                  onPointerDown={keepFocus}
+                  onClick={() => {
+                    removeTag(tag);
+                    keepTyping();
+                  }}
+                  className="h-8 shrink-0"
+                />
+              ))}
+            </InputGroupAddon>
+          ) : (
+            <InputGroupAddon align="inline-start" className="pl-4">
+              <SearchIcon className="size-5!" />
+            </InputGroupAddon>
+          )}
           {/* oxlint-disable-next-line jsx_a11y/interactive-supports-focus -- an <input> already */}
           <InputGroupInput
             ref={inputRef}
             type="search"
-            enterKeyHint="search"
+            enterKeyHint={search.tagMode ? "done" : "search"}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -441,13 +537,23 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             aria-controls={listboxId}
             aria-autocomplete="list"
             aria-label="Search vault"
-            placeholder="Search logins, notes, #tags"
+            placeholder={fieldPlaceholder(fieldTags.length)}
             className="text-base [&::-webkit-search-cancel-button]:hidden"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => {
+              // Not on a repeat: holding Backspace to erase the text would go on through the tags.
+              if (e.key === "Backspace" && e.currentTarget.value === "") {
+                const last = fieldTags.at(-1);
+                if (last && !e.repeat) {
+                  e.preventDefault();
+                  removeTag(last);
+                }
+                return;
+              }
               if (e.key !== "Enter") return;
               e.preventDefault();
+              if (search.tagMode) return leaveTagMode();
               const [only, ...rest] = records;
               if (typed && only && rest.length === 0) choose(only);
               else e.currentTarget.blur();
@@ -491,9 +597,11 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             Clear all
           </button>
         )}
-        {typed && (
+        {(typed || (!search.tagMode && fieldTags.length > 0)) && (
           <span className="shrink-0 pr-1.5 text-muted-foreground text-xs">
-            {records.length === 1 ? "1 result" : `${records.length} results`}
+            {typed
+              ? counted(records.length, "result", "results")
+              : counted(itemCount, "item", "items")}
           </span>
         )}
       </div>
@@ -501,7 +609,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
       <div
         className={cn(
           "min-h-0 flex-1 overflow-y-auto overscroll-contain",
-          showPills
+          showPills || showTagModeBar
             ? "pb-[calc(max(var(--kb-inset),env(safe-area-inset-bottom))+4.25rem)]"
             : "pb-[max(var(--kb-inset),env(safe-area-inset-bottom),1rem)]",
         )}
@@ -569,6 +677,17 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             setQuery(TAG_SEARCH_PREFIX);
             keepTyping();
           }}
+        />
+      )}
+      {showTagModeBar && (
+        <TagModeBar
+          tagCount={tagFilters.length}
+          itemCount={itemCount}
+          onClear={() => {
+            clearTags();
+            keepTyping();
+          }}
+          onShow={leaveTagMode}
         />
       )}
     </div>,

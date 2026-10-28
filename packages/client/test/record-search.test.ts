@@ -102,13 +102,32 @@ describe("searchSections", () => {
     { tag: "deploy", count: 1 },
     { tag: "docs", count: 1 },
   ];
-  const base = { tags, selectedCount: 0, recentRecords: records.slice(3), recordsLabel: "Logins" };
+  const base = {
+    tags,
+    selectedCount: 0,
+    recentRecords: records.slice(3),
+    recordsLabel: "Logins",
+  };
 
   it("nothing typed: top tags, then recently opened", () => {
     const sections = searchSections({ ...base, search: parseSearch(""), recordMatches: [] });
     expect(sections.map(({ label, items }) => [label, items.length])).toEqual([
       ["Top tags", 2],
       ["Recently opened", 1],
+    ]);
+  });
+
+  it("nothing typed under selected tags: top tags, then the tagged records", () => {
+    const sections = searchSections({
+      ...base,
+      selectedCount: 2,
+      search: parseSearch(""),
+      recordMatches: [],
+      tagged: { records: records.slice(0, 1), category: "Logins" },
+    });
+    expect(sections.map(({ label, items }) => [label, items.length])).toEqual([
+      ["Top tags", 2],
+      ["Logins tagged #deploy + #docs", 1],
     ]);
   });
 

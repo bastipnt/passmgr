@@ -178,9 +178,18 @@ export function searchOptionSections(
 
 const TOP_TAGS = 4;
 
+/** "Tagged #a + #b", or "Logins tagged #a" when a category narrows it too. */
+export function taggedLabel(tags: readonly string[], category?: string): string {
+  const named = tags.map((tag) => `${TAG_SEARCH_PREFIX}${tag}`).join(" + ");
+  return category ? `${category} tagged ${named}` : `Tagged ${named}`;
+}
+
+/** The records the selected tags leave in view, listed instead of the recent ones. */
+export type TaggedRecords = { records: readonly DecryptedRecord[]; category?: string };
+
 /**
- * What a search lists, in order. Nothing typed: the top tags and the recent
- * records. Typed: the matching tags, then the records. Tag mode: the tags
+ * What a search lists, in order. Nothing typed: the top tags, then the
+ * records the selected tags leave (when `tagged` is given), else the recent records. Typed: the matching tags, then the records. Tag mode: the tags
  * that narrow the view, then the rest (dimmed).
  */
 export function searchSections({
@@ -189,6 +198,7 @@ export function searchSections({
   selectedCount,
   recordMatches,
   recentRecords,
+  tagged,
   recordsLabel,
 }: {
   search: ParsedSearch;
@@ -197,6 +207,7 @@ export function searchSections({
   selectedCount: number;
   recordMatches: readonly RecordMatch[];
   recentRecords: readonly DecryptedRecord[];
+  tagged?: TaggedRecords;
   recordsLabel: string;
 }): SearchSection[] {
   const tagItem = ({ tag, count }: TagCount, dimmed?: boolean): SearchItem => ({
@@ -224,11 +235,20 @@ export function searchSections({
   if (!search.text)
     return [
       { id: "top", label: "Top tags", items: topTags(tags, TOP_TAGS).map((e) => tagItem(e)) },
-      {
-        id: "recent",
-        label: "Recently opened",
-        items: recentRecords.map((record) => recordItem(record)),
-      },
+      tagged && selectedCount > 0
+        ? {
+            id: "tagged",
+            label: taggedLabel(
+              tags.slice(0, selectedCount).map(({ tag }) => tag),
+              tagged.category,
+            ),
+            items: tagged.records.map((record) => recordItem(record)),
+          }
+        : {
+            id: "recent",
+            label: "Recently opened",
+            items: recentRecords.map((record) => recordItem(record)),
+          },
     ];
   return [
     {

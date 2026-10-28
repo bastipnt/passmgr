@@ -316,3 +316,66 @@ describe("MobileSearch focus and filters", () => {
     expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
   });
 });
+
+describe("MobileSearch tag tokens and tag mode", () => {
+  const filters = () => screen.getByRole("status", { name: "Tag filters" });
+
+  it("picked tags sit in the field: ✕ or Backspace on an empty field removes one", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
+
+    expect(field()).toHaveAttribute("placeholder", "Search in tag");
+    expect(screen.getByRole("group", { name: "Tagged #finance" })).toHaveTextContent("Fineco");
+
+    await userEvent.click(screen.getByRole("button", { name: "Remove finance from search" }));
+    expect(filters()).toHaveTextContent("");
+    expect(field()).toHaveFocus();
+
+    await userEvent.click(screen.getByRole("button", { name: "work (1)" }));
+    await userEvent.type(field(), "g{Backspace}");
+    fireEvent.keyDown(field(), { key: "Backspace", repeat: true });
+    expect(filters()).toHaveTextContent("work");
+    await userEvent.type(field(), "{Backspace}");
+    expect(filters()).toHaveTextContent("");
+    expect(field()).toHaveAttribute("placeholder", "Search logins, notes, #tags");
+  });
+
+  it("# lists the tags to tick; Show N items goes back to the records under them", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(field(), "#fin");
+
+    const bar = () => screen.getByRole("toolbar", { name: "Picked tags" });
+    expect(bar()).toHaveTextContent("0 tags · 2 items");
+    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
+    expect(filters()).toHaveTextContent("finance");
+    expect(screen.getByRole("option", { name: /^finance/ })).toHaveAttribute(
+      "aria-selected",
+      "true",
+    );
+    expect(field()).toHaveValue("#fin");
+    expect(bar()).toHaveTextContent("1 tag · 1 item");
+
+    await userEvent.click(within(bar()).getByRole("button", { name: "Show 1 item" }));
+    expect(field()).toHaveValue("");
+    expect(field()).toHaveFocus();
+    expect(filters()).toHaveTextContent("finance");
+    expect(screen.queryByRole("toolbar", { name: "Picked tags" })).toBeNull();
+    expect(screen.getByRole("group", { name: "Tagged #finance" })).toHaveTextContent("Fineco");
+  });
+
+  it("in tag mode the done key shows the records, Clear drops the picked tags", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(field(), "#");
+    await userEvent.click(screen.getByRole("option", { name: /^work/ }));
+    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
+    expect(filters()).toHaveTextContent("");
+
+    await userEvent.click(screen.getByRole("option", { name: /^work/ }));
+    await userEvent.type(field(), "{Enter}");
+    expect(field()).toHaveValue("");
+    expect(filters()).toHaveTextContent("work");
+  });
+});

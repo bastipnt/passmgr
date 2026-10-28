@@ -71,7 +71,7 @@ carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault fil
 records left if added; a detail chip's `showTag` clears the other filters first) and search's third tier. Search
 (`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle (a login's email too) → tag with why each matched; a query starting
 with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
-`searchAllItems` widens past category and tags until the query or the filters change (`OutsideScope`, also on phones);
+`searchAllItems` widens past category and tags until the query or the filters change or tag mode starts (`OutsideScope`, also on phones);
 `recentRecords` (session only, search previews excluded); `recentSearches` (text + tags, newest first, once each,
 kept when a search opens a record or adds a tag; in memory only and gone on lock, since a query tells which accounts
 exist; only those whose tags the vault in view has, `countSearch` counts each there); `searchSections` builds the groups and `useSearchOptions` turns
@@ -83,6 +83,9 @@ records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter togg
 highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: the dock's pill opens
 `MobileSearch` (full screen: field + Cancel, scope chips, tag rows "+ Filter" and records from `useSearchOptions`; a tag
 pill bar above the keyboard, `pillTags` order: selected, matching the text, then by use, standing in for the top tags;
+the picked tags as tokens in the field (✕, or Backspace on an empty field, removes the last), and with nothing typed
+their records (`useSearchOptions({ listTagged })`, "Tagged #a" / "Logins tagged #a") instead of recently opened; `#`:
+tags with checkboxes and a bar "N tags · M items", Clear, Show M items (the done key too) back to the records;
 the search key opens a lone match; its own history entry, so Back from a record lands on the same search, field focused; Clear all drops tags and
 category; Cancel / Back
 clears the query and restores the filters (tags, category) and scroll it opened with), `FilterSheet` (category grid + tags), the

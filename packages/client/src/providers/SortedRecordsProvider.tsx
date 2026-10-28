@@ -633,7 +633,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
 
   const setQuery = useCallback((next: string) => {
     setStoredQuery(next);
-    if (!next.trim()) setSearchAllFor(null);
+    // Tag mode lists tags, not past the filters.
+    if (!next.trim() || parseSearch(next).tagMode) setSearchAllFor(null);
   }, []);
   const searchAllItems = useCallback(() => setSearchAllFor(filtersKey), [filtersKey]);
 

@@ -69,7 +69,10 @@ Rules:
   (`TagPillBar`, `@repo/client` `pillTags`: selected, then matching the text, then by use) rides on the keyboard at
   `--kb-inset` (`@repo/ui` `useKeyboardInset`: `visualViewport`, 0 on Android where `interactive-widget` resizes the
   layout); its `pointerdown` is prevented so a tap never blurs the field, and a tap
-  that blurred it anyway (iOS) focuses it again. A pill matching the text replaces it.
+  that blurred it anyway (iOS) focuses it again. A pill matching the text replaces it. Picked tags show as `TagPill`
+  tokens in the field (✕ removes one, Backspace on an empty field the last; not on key repeat), the placeholder
+  "Search in tag" / "Search in N tags", and with nothing typed their records under "Tagged #a". In `#` tag mode the
+  pill bar gives way to `TagModeBar` (same `KeyboardBar` slot): "N tags · M items", Clear, Show M items / done key.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
   `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
   and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
