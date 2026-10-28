@@ -78,7 +78,10 @@ drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHead
 Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
 while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
 records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves); the
-highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: `FilterSheet` (category grid + tags), the
+highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: the dock's pill opens
+`MobileSearch` (full screen: field + Cancel, scope chips, tag rows "+ Filter" and records from `useSearchOptions`;
+the search key opens a lone match; its own history entry, so Back from a record lands on the same search; Cancel / Back
+clears the query and restores the tag filters and scroll it opened with), `FilterSheet` (category grid + tags), the
 ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.

@@ -27,7 +27,7 @@ function ScopeChip({ children }: { children: ReactNode }) {
   );
 }
 
-function SearchScope({ tagMode }: { tagMode: boolean }) {
+export function SearchScope({ tagMode }: { tagMode: boolean }) {
   const { vaultFilter, categoryFilter, tagFilters, searchAll } = useSortedRecords();
   const { getVault } = useVaults();
   const vault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
@@ -64,7 +64,7 @@ function EnterHint({ label }: { label: string }) {
   );
 }
 
-function TagRow({
+export function TagRow({
   option,
   text,
   tagMode,
@@ -131,7 +131,7 @@ function RecordMatchLine({
   return getRecordSubtitle(record) || "—";
 }
 
-function RecordOptionRow({
+export function RecordOptionRow({
   option,
   text,
   active,

@@ -394,7 +394,7 @@ export default function RecordList() {
         </div>
       )}
       {noResults ? (
-        // Phones show the full "no results" state in the layout instead.
+        // Phones search in `MobileSearch`, which has its own "no results" state.
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : listedCount === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">

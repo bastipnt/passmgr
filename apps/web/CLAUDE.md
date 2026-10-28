@@ -60,7 +60,11 @@ Rules:
   row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
   `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
-  the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new).
+  the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new). The dock's search pill opens
+  `MobileSearch`: a full-screen layer portaled to `<body>` (no z-index, so sheets opened from it cover it), always
+  mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
+  history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
+  reopens it.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
   `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
   and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
