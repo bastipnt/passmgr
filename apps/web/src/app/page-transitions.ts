@@ -1,4 +1,5 @@
 import { isMobile } from "@repo/ui/hooks/use-is-mobile";
+import { restoreScroll } from "@repo/ui/lib/restore-scroll";
 import { useLayoutEffect, useSyncExternalStore } from "react";
 import { flushSync } from "react-dom";
 import { matchRoute, useRouter } from "wouter";
@@ -27,8 +28,6 @@ export type PageDepths = readonly (readonly [pattern: string, depth: number])[];
 type Parser = ReturnType<typeof useRouter>["parser"];
 
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-/** How long a pop keeps trying to reach its saved offset while the page loads in. */
-const RESTORE_TIMEOUT_MS = 1000;
 
 let depths: PageDepths = [];
 let parser: Parser | undefined;
@@ -143,29 +142,6 @@ if (typeof window !== "undefined") {
  * fallback) may be too short to get there yet: keep retrying as it grows,
  * until it fits, the user takes over, or it times out.
  */
-function restoreScroll(top: number) {
-  window.scrollTo(0, top);
-  if (window.scrollY >= top - 1 || typeof ResizeObserver === "undefined") return;
-
-  const retry = () => {
-    window.scrollTo(0, top);
-    if (window.scrollY >= top - 1) stop();
-  };
-  const observer = new ResizeObserver(retry);
-  const timer = setTimeout(() => stop(), RESTORE_TIMEOUT_MS);
-  const stop = () => {
-    observer.disconnect();
-    clearTimeout(timer);
-    removeEventListener("wheel", stop);
-    removeEventListener("touchstart", stop);
-    cancelRestore = undefined;
-  };
-  observer.observe(document.body);
-  addEventListener("wheel", stop, { passive: true });
-  addEventListener("touchstart", stop, { passive: true });
-  cancelRestore = stop;
-}
-
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
@@ -204,7 +180,7 @@ export function PageTransitions({ pageDepths }: { pageDepths: PageDepths }) {
 
   useLayoutEffect(() => {
     if (pendingScroll === undefined) return;
-    restoreScroll(pendingScroll);
+    cancelRestore = restoreScroll(window, pendingScroll);
     pendingScroll = undefined;
   }, [path]);
 

@@ -38,6 +38,7 @@ import { shortcutHint } from "@/lib/formatShortcut";
 import { duplicateSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSubtitle } from "./RecordSubtitle";
+import { searchReturnState } from "./search-history";
 import { RECORD_SHORTCUTS } from "./use-record-actions";
 
 type MoreDropdownProps = {
@@ -57,7 +58,7 @@ export function MoreDropdown({ record, onDelete, variant = "outline" }: MoreDrop
     onSuccess: (movedId, targetVaultId) => {
       // The list showed the vault it left: show every vault, so it stays in view.
       if (vaultFilter !== "all") setVaultFilter("all");
-      navigate(recordPaths.record(movedId), { replace: true });
+      navigate(recordPaths.record(movedId), { replace: true, state: searchReturnState() });
       const target = moveTargets.find((vault) => vault.vaultId === targetVaultId);
       toast.success(target ? `Moved to ${target.name}` : "Moved");
     },

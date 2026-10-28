@@ -12,13 +12,13 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
-import { openedFromSearch } from "./MobileSearch";
 import Record from "./Record";
 import { FavoriteButton, MoreDropdown } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordFallback } from "./RecordFallback";
 import { RecordSubtitle } from "./RecordSubtitle";
 import { useCopyField } from "./record-utils";
+import { openedFromSearch } from "./search-history";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 
 type MobileRecordScreenProps = {

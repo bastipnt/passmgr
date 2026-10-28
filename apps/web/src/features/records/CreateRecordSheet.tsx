@@ -21,6 +21,7 @@ import { RecordTypeTile } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import RecordFormSheet from "./RecordFormSheet";
 import { RecordTypePicker } from "./RecordTypePicker";
+import { searchReturnState } from "./search-history";
 
 /**
  * Href that opens the create sheet over whatever is currently in view,
@@ -46,7 +47,7 @@ function parseType(value: string | null): RecordType | undefined {
 /** Imperative form of {@link createSheetSearch}, for entry points that also do other work. */
 export function useOpenCreateSheet() {
   const [, navigate] = useLocation();
-  return (title?: string) => navigate(createSheetSearch(title));
+  return (title?: string) => navigate(createSheetSearch(title), { state: searchReturnState() });
 }
 
 export default function CreateRecordSheet() {
@@ -80,7 +81,7 @@ export default function CreateRecordSheet() {
   const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: (recordId) => {
       // Straight to the new record — this also drops the `?new` param.
-      navigate(recordPaths.record(recordId), { replace: true });
+      navigate(recordPaths.record(recordId), { replace: true, state: searchReturnState() });
       toast.success("Record created");
     },
     onError: (error) => toast.error(recordErrorMessage(error, "The item couldn't be saved")),
@@ -100,7 +101,9 @@ export default function CreateRecordSheet() {
       size="lg"
       type="button"
       disabled={createPending}
-      onClick={() => navigate(createSheetSearch(initialTitle), { replace: true })}
+      onClick={() =>
+        navigate(createSheetSearch(initialTitle), { replace: true, state: searchReturnState() })
+      }
     >
       <ChevronLeftIcon />
       Type

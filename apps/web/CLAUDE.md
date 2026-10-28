@@ -73,6 +73,11 @@ Rules:
   tokens in the field (✕ removes one, Backspace on an empty field the last; not on key repeat), the placeholder
   "Search in tag" / "Search in N tags", and with nothing typed their records under "Tagged #a". In `#` tag mode the
   pill bar gives way to `TagModeBar` (same `KeyboardBar` slot): "N tags · M items", Clear, Show M items / done key.
+  Dragging the results drops the keyboard (`@repo/ui` `useBlurOnDrag`; a tap's jitter doesn't), the bar sliding to the
+  safe area (only the drop slides). In landscape (layout under 500px high) the scope row (unless filtered) and pill bar
+  give way to the results. `search-history.ts` holds the history helpers and, in memory, the results' scroll for Back
+  from a record (`@repo/ui` `restoreScroll`, shared with `page-transitions`); `searchReturnState` keeps the `fromSearch` marker on entries that replace a record (move) or are pushed over the
+  search (create), so Back from them still raises the keyboard.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
   `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
   and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a

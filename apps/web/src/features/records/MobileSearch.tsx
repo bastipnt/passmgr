@@ -7,10 +7,7 @@ import {
   TAG_SEARCH_PREFIX,
   useSearchOptions,
 } from "@repo/client";
-import {
-  type CategoryFilter,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
   InputGroup,
@@ -19,8 +16,11 @@ import {
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
 import { TagPill } from "@repo/ui/components/TagPill";
+import { useBlurOnDrag } from "@repo/ui/hooks/use-blur-on-drag";
 import { useKeyboardInset } from "@repo/ui/hooks/use-keyboard-inset";
+import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { handOffKeyboard, releaseKeyboard } from "@repo/ui/lib/keyboard-handoff";
+import { restoreScroll } from "@repo/ui/lib/restore-scroll";
 import { cn } from "@repo/ui/lib/utils";
 import { counted } from "@repo/util";
 import { HistoryIcon, PlusIcon, SearchIcon, TagIcon, XIcon } from "lucide-react";
@@ -40,33 +40,23 @@ import { recordPaths } from "@/app/route-paths";
 import { NoSearchResults } from "./NoSearchResults";
 import { OutsideScope } from "./OutsideScope";
 import { RecordOptionRow, SearchScope, TagRow } from "./SearchPanel";
+import {
+  currentSearchEntry,
+  OPENED_FROM_SEARCH,
+  pushSearchEntry,
+  type SearchEntry,
+  saveResultsScroll,
+  takeResultsScroll,
+} from "./search-history";
 
 const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault();
 
-/** Kept in the history entry the search pushes, so Back from a record lands on it again. */
-type SearchEntry = { tagsBefore: string[]; categoryBefore: CategoryFilter; scrollY: number };
-
-function historyState(): Record<string, unknown> | undefined {
-  const state: unknown = history.state;
-  return typeof state === "object" && state !== null
-    ? (state as Record<string, unknown>)
-    : undefined;
-}
-
-function currentSearchEntry(): SearchEntry | undefined {
-  const entry = historyState()?.mobileSearch;
-  if (typeof entry !== "object" || entry === null) return undefined;
-  // Entries pushed by an older build lack the newer fields.
-  return { tagsBefore: [], categoryBefore: "all", scrollY: 0, ...entry };
-}
-
-/** The history state a record opened from the search is pushed with. */
-const OPENED_FROM_SEARCH = { fromSearch: true };
-
-/** Whether the record page in view was opened from the search, which Back returns to. */
-export function openedFromSearch(): boolean {
-  return historyState()?.fromSearch === true;
-}
+/**
+ * Phones in landscape: with the keyboard up, the scope row and pill bar would
+ * leave the results no room. By the layout, not the keyboard, so dropping the
+ * keyboard mid-drag doesn't shift the list.
+ */
+const SHORT_QUERY = "(max-height: 499px)";
 
 /**
  * The phone search's open state. It lives in a history entry over the vault
@@ -81,6 +71,7 @@ export function useMobileSearch() {
   const entryRef = useRef(entry);
   entryRef.current = entry;
   const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
   const filtersNow = useRef({ tagFilters, categoryFilter });
   filtersNow.current = { tagFilters, categoryFilter };
 
@@ -106,8 +97,14 @@ export function useMobileSearch() {
   // holds the keyboard in its Back tap; elsewhere (swipe, system Back) focus alone.
   // Landing on the plain list instead, a held keyboard has nowhere to go.
   useEffect(() => {
-    if (!entryRef.current) releaseKeyboard();
-    else if (!handOffKeyboard(inputRef.current)) inputRef.current?.focus({ preventScroll: true });
+    const entry = entryRef.current;
+    if (!entry) {
+      releaseKeyboard();
+      return;
+    }
+    if (!handOffKeyboard(inputRef.current)) inputRef.current?.focus({ preventScroll: true });
+    const top = takeResultsScroll();
+    if (top > 0 && resultsRef.current) return restoreScroll(resultsRef.current, top);
   }, []);
 
   useEffect(() => {
@@ -131,7 +128,7 @@ export function useMobileSearch() {
     };
     flushSync(() => setEntry(next));
     inputRef.current?.focus();
-    history.pushState({ mobileSearch: next }, "");
+    pushSearchEntry(next);
   }, []);
 
   const closeSearch = useCallback(() => {
@@ -142,7 +139,7 @@ export function useMobileSearch() {
     }
   }, [entry, reset]);
 
-  return { open: entry !== undefined, openSearch, closeSearch, inputRef };
+  return { open: entry !== undefined, openSearch, closeSearch, inputRef, resultsRef };
 }
 
 export type MobileSearchState = ReturnType<typeof useMobileSearch>;
@@ -290,7 +287,7 @@ function KeyboardBar({
       aria-label={label}
       onPointerDown={keepFocus}
       className={cn(
-        "absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] flex h-13 items-center border-border border-t bg-background/95 backdrop-blur-md",
+        "absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] flex h-13 items-center border-border border-t bg-background/95 backdrop-blur-md group-data-[keyboard=down]/search:transition-[bottom] group-data-[keyboard=down]/search:duration-200 group-data-[keyboard=down]/search:ease-out motion-reduce:transition-none!",
         className,
       )}
     >
@@ -396,7 +393,7 @@ function fieldPlaceholder(tagCount: number): string {
  * `position: fixed` relative to the page instead of the viewport.
  */
 export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
-  const { open, closeSearch, inputRef } = state;
+  const { open, closeSearch, inputRef, resultsRef } = state;
   const {
     query,
     setQuery,
@@ -415,11 +412,13 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const filtered = !searchAll && (categoryFilter !== "all" || tagFilters.length > 0);
   const { search, sections, options } = useSearchOptions({ listTagged: true });
   const keyboardInset = useKeyboardInset(open);
+  const short = useMediaQuery(SHORT_QUERY);
+  const blurOnDrag = useBlurOnDrag(inputRef);
   const pills = useMemo(
     () => pillTags(tags, tagFilters.length, search.tagMode ? "" : search.text),
     [tags, tagFilters.length, search],
   );
-  const showPills = open && !search.tagMode && pills.length > 0;
+  const showPills = open && !short && !search.tagMode && pills.length > 0;
   const showTagModeBar = open && search.tagMode;
   // Hidden while "Search all items" runs past them, as in the scope.
   const fieldTags = searchAll ? [] : tagFilters;
@@ -474,6 +473,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     }
     // "Search all items" ran past the tags; saved with them it would find less next time.
     if (typed) noteSearched({ text: search.text, tags: searchAll ? [] : tagFilters });
+    saveResultsScroll(resultsRef.current?.scrollTop ?? 0);
     navigate(recordPaths.record(option.record.recordId), { state: OPENED_FROM_SEARCH });
   };
 
@@ -486,16 +486,26 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
       aria-hidden={!open}
       inert={!open}
       style={{ "--kb-inset": `${keyboardInset}px` } as CSSProperties}
+      // Only the drop slides: rising, the bar has to be on the keyboard as it lands.
+      data-keyboard={keyboardInset > 0 ? "up" : "down"}
       onPointerDownCapture={() => {
         typing.current = document.activeElement === inputRef.current;
       }}
       className={cn(
         // No z-index: sheets opened from the search (Create) portal in after it and must cover it.
-        "fixed inset-0 flex flex-col bg-background",
+        "group/search fixed inset-0 flex flex-col bg-background transition-opacity duration-150 ease-out motion-reduce:transition-none",
         !open && "pointer-events-none opacity-0",
       )}
     >
-      <div className="flex shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2.5">
+      <div
+        className={cn(
+          "flex shrink-0 items-center gap-2 px-4 transition-transform duration-150 ease-out motion-reduce:transition-none",
+          short
+            ? "pt-[max(env(safe-area-inset-top),0.5rem)] pb-1.5"
+            : "pt-[max(env(safe-area-inset-top),0.75rem)] pb-2.5",
+          !open && "translate-y-3",
+        )}
+      >
         <InputGroup className="h-12 min-w-0 flex-1 rounded-full bg-card">
           {fieldTags.length > 0 ? (
             <InputGroupAddon
@@ -580,33 +590,37 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
           Cancel
         </Button>
       </div>
-      <div className="flex shrink-0 items-center gap-2 px-2.5 pb-1">
-        <div className="min-w-0 flex-1">
-          <SearchScope tagMode={search.tagMode} />
+      {(!short || filtered) && (
+        <div className="flex shrink-0 items-center gap-2 px-2.5 pb-1">
+          <div className="min-w-0 flex-1">
+            <SearchScope tagMode={search.tagMode} />
+          </div>
+          {filtered && (
+            <button
+              type="button"
+              onPointerDown={keepFocus}
+              onClick={() => {
+                clearFilters();
+                keepTyping();
+              }}
+              className="-my-2 shrink-0 px-1.5 py-2 font-semibold text-primary-text text-xs"
+            >
+              Clear all
+            </button>
+          )}
+          {(typed || (!search.tagMode && fieldTags.length > 0)) && (
+            <span className="shrink-0 pr-1.5 text-muted-foreground text-xs">
+              {typed
+                ? counted(records.length, "result", "results")
+                : counted(itemCount, "item", "items")}
+            </span>
+          )}
         </div>
-        {filtered && (
-          <button
-            type="button"
-            onPointerDown={keepFocus}
-            onClick={() => {
-              clearFilters();
-              keepTyping();
-            }}
-            className="-my-2 shrink-0 px-1.5 py-2 font-semibold text-primary-text text-xs"
-          >
-            Clear all
-          </button>
-        )}
-        {(typed || (!search.tagMode && fieldTags.length > 0)) && (
-          <span className="shrink-0 pr-1.5 text-muted-foreground text-xs">
-            {typed
-              ? counted(records.length, "result", "results")
-              : counted(itemCount, "item", "items")}
-          </span>
-        )}
-      </div>
+      )}
 
       <div
+        ref={resultsRef}
+        {...blurOnDrag}
         className={cn(
           "min-h-0 flex-1 overflow-y-auto overscroll-contain",
           showPills || showTagModeBar

@@ -72,7 +72,7 @@ function Harness() {
 }
 
 function renderSearch() {
-  renderWithProviders(
+  return renderWithProviders(
     <SortedRecordsProvider>
       <Harness />
     </SortedRecordsProvider>,
@@ -377,5 +377,58 @@ describe("MobileSearch tag tokens and tag mode", () => {
     await userEvent.type(field(), "{Enter}");
     expect(field()).toHaveValue("");
     expect(filters()).toHaveTextContent("work");
+  });
+});
+
+describe("MobileSearch keyboard behaviour", () => {
+  const results = () => screen.getByRole("listbox", { hidden: true }).parentElement as HTMLElement;
+  const drag = (el: HTMLElement, by: number) => {
+    fireEvent.touchStart(el, { touches: [{ clientY: 300 }] });
+    fireEvent.touchMove(el, { touches: [{ clientY: 300 - by }] });
+  };
+
+  it("dragging the results drops the keyboard; a tap's jitter doesn't", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    drag(results(), 4);
+    expect(field()).toHaveFocus();
+    drag(results(), 40);
+    expect(field()).not.toHaveFocus();
+    expect(screen.getByRole("toolbar", { name: "Filter by tag" })).toBeInTheDocument();
+  });
+
+  it("back from a record restores how far the results were scrolled", async () => {
+    const { unmount } = renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(field(), "i");
+    results().scrollTop = 120;
+    await userEvent.click(screen.getByRole("option", { name: /GitHub/ }));
+    unmount();
+
+    history.back();
+    await waitFor(() => expect(location.pathname).toBe("/"));
+    renderSearch();
+    expect(results().scrollTop).toBe(120);
+    expect(field()).toHaveFocus();
+  });
+
+  it("in landscape the results get the scope row's and the pills' space, the row coming back for Clear all", async () => {
+    vi.spyOn(window, "matchMedia").mockImplementation(
+      (query: string) =>
+        ({
+          matches: query === "(max-height: 499px)",
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList,
+    );
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(screen.queryByRole("toolbar", { name: "Filter by tag" })).toBeNull();
+    expect(screen.queryByRole("list", { name: "Search scope" })).toBeNull();
+
+    await userEvent.type(field(), "fin");
+    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
+    expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
   });
 });
