@@ -83,8 +83,9 @@ records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter togg
 highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all; web phone: the dock's pill opens
 `MobileSearch` (full screen: field + Cancel, scope chips, tag rows "+ Filter" and records from `useSearchOptions`; a tag
 pill bar above the keyboard, `pillTags` order: selected, matching the text, then by use, standing in for the top tags;
-the search key opens a lone match; its own history entry, so Back from a record lands on the same search; Cancel / Back
-clears the query and restores the tag filters and scroll it opened with), `FilterSheet` (category grid + tags), the
+the search key opens a lone match; its own history entry, so Back from a record lands on the same search, field focused; Clear all drops tags and
+category; Cancel / Back
+clears the query and restores the filters (tags, category) and scroll it opened with), `FilterSheet` (category grid + tags), the
 ones on as `ActiveFilterChips` under the title; mobile: in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.

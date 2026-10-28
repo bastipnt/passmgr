@@ -3,10 +3,11 @@ import {
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
+import { holdKeyboard } from "@repo/ui/lib/keyboard-handoff";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
-import { renderWithProviders, screen, waitFor, within } from "@/test/render";
+import { fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { MobileSearchButton, MobileSearchOverlay, useMobileSearch } from "./MobileSearch";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -36,7 +37,16 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
 }));
 
 function TagFilters() {
-  return <output aria-label="Tag filters">{useSortedRecords().tagFilters.join(",")}</output>;
+  const { tagFilters, categoryFilter, setCategoryFilter } = useSortedRecords();
+  return (
+    <>
+      <output aria-label="Tag filters">{tagFilters.join(",")}</output>
+      <output aria-label="Category">{categoryFilter}</output>
+      <button type="button" onClick={() => setCategoryFilter("login")}>
+        Show logins
+      </button>
+    </>
+  );
 }
 
 /** Stands in for the record page, which notes the record it shows (`MobileRecordPage`). */
@@ -243,5 +253,66 @@ describe("MobileSearch tag pills", () => {
     } finally {
       vi.unstubAllGlobals();
     }
+  });
+});
+
+describe("MobileSearch focus and filters", () => {
+  it("Clear all drops the tags and the category, keeping the field focused; Cancel brings them back", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Show logins" }));
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("");
+    expect(screen.getByRole("status", { name: "Category" })).toHaveTextContent("all");
+    expect(field()).toHaveFocus();
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(dialog()).toHaveAttribute("aria-hidden", "true"));
+    expect(screen.getByRole("status", { name: "Category" })).toHaveTextContent("login");
+  });
+
+  it("a tap that loses the field anyway (iOS) focuses it again", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    const pill = screen.getByRole("button", { name: "work (1)" });
+
+    fireEvent.pointerDown(pill);
+    field().blur();
+    fireEvent.click(pill);
+    expect(field()).toHaveFocus();
+  });
+
+  it("back on the search from a record focuses the field, taking over a keyboard held in the Back tap", () => {
+    history.replaceState(
+      { mobileSearch: { tagsBefore: [], categoryBefore: "all", scrollY: 0 } },
+      "",
+      "/",
+    );
+    holdKeyboard();
+    expect(document.activeElement).not.toBe(document.body);
+
+    renderSearch();
+    expect(field()).toHaveFocus();
+  });
+
+  it("landing on the plain list instead lets a held keyboard go", () => {
+    holdKeyboard();
+    const standIn = document.activeElement;
+    renderSearch();
+    expect(standIn?.isConnected).toBe(false);
+    expect(document.activeElement).toBe(document.body);
+  });
+
+  it("Clear all isn't offered while Search all items runs past the filters", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("button", { name: "work (1)" }));
+    await userEvent.type(field(), "fin");
+    expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: /Search all items/ }));
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
   });
 });

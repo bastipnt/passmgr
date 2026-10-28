@@ -5,12 +5,14 @@ import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";
 import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
+import { holdKeyboard } from "@repo/ui/lib/keyboard-handoff";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronLeftIcon, CopyIcon, ExternalLinkIcon, PencilLineIcon } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
+import { openedFromSearch } from "./MobileSearch";
 import Record from "./Record";
 import { FavoriteButton, MoreDropdown } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
@@ -168,6 +170,11 @@ function MobileRecordLoader({ recordId }: { recordId: string }) {
   useRecordShortcuts({ recordId });
   const { record, ready, deleteRecord } = useRecordActions({ recordId });
   const goBack = usePageBack(recordPaths.index);
+  // Opened from the search (`MobileSearch`), which takes the keyboard back on return.
+  const back = () => {
+    if (openedFromSearch()) holdKeyboard();
+    goBack();
+  };
   const { noteOpened } = useSortedRecords();
   const found = record !== undefined;
 
@@ -180,6 +187,6 @@ function MobileRecordLoader({ recordId }: { recordId: string }) {
   if (!record) return <Redirect to={recordPaths.index} replace />;
 
   return (
-    <MobileRecordScreen record={record} onBack={goBack} onDelete={() => deleteRecord(recordId)} />
+    <MobileRecordScreen record={record} onBack={back} onDelete={() => deleteRecord(recordId)} />
   );
 }

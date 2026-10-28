@@ -7,7 +7,10 @@ import {
   TAG_SEARCH_PREFIX,
   useSearchOptions,
 } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import {
+  type CategoryFilter,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
   InputGroup,
@@ -17,6 +20,7 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { TagPill } from "@repo/ui/components/TagPill";
 import { useKeyboardInset } from "@repo/ui/hooks/use-keyboard-inset";
+import { handOffKeyboard, releaseKeyboard } from "@repo/ui/lib/keyboard-handoff";
 import { cn } from "@repo/ui/lib/utils";
 import { counted } from "@repo/util";
 import { HistoryIcon, PlusIcon, SearchIcon, TagIcon, XIcon } from "lucide-react";
@@ -39,37 +43,55 @@ import { RecordOptionRow, SearchScope, TagRow } from "./SearchPanel";
 const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault();
 
 /** Kept in the history entry the search pushes, so Back from a record lands on it again. */
-type SearchEntry = { tagsBefore: string[]; scrollY: number };
+type SearchEntry = { tagsBefore: string[]; categoryBefore: CategoryFilter; scrollY: number };
+
+function historyState(): Record<string, unknown> | undefined {
+  const state: unknown = history.state;
+  return typeof state === "object" && state !== null
+    ? (state as Record<string, unknown>)
+    : undefined;
+}
 
 function currentSearchEntry(): SearchEntry | undefined {
-  const state: unknown = history.state;
-  if (typeof state !== "object" || state === null || !("mobileSearch" in state)) return undefined;
-  return state.mobileSearch as SearchEntry;
+  const entry = historyState()?.mobileSearch;
+  if (typeof entry !== "object" || entry === null) return undefined;
+  // Entries pushed by an older build lack the newer fields.
+  return { tagsBefore: [], categoryBefore: "all", scrollY: 0, ...entry };
+}
+
+/** The history state a record opened from the search is pushed with. */
+const OPENED_FROM_SEARCH = { fromSearch: true };
+
+/** Whether the record page in view was opened from the search, which Back returns to. */
+export function openedFromSearch(): boolean {
+  return historyState()?.fromSearch === true;
 }
 
 /**
  * The phone search's open state. It lives in a history entry over the vault
  * list: Back closes it, and Back from a record opened from it reopens it with
  * the same query. Closing it (Cancel or Back) clears the query and puts the
- * tag filters and the list's scroll back the way they were when it opened.
+ * filters (tags, category) and the list's scroll back the way they were when it opened.
  */
 export function useMobileSearch() {
-  const { query, tagFilters, setQuery, setTags } = useSortedRecords();
+  const { query, tagFilters, categoryFilter, setQuery, setTags, setCategoryFilter } =
+    useSortedRecords();
   const [entry, setEntry] = useState(currentSearchEntry);
   const entryRef = useRef(entry);
   entryRef.current = entry;
   const inputRef = useRef<HTMLInputElement>(null);
-  const tagsNow = useRef(tagFilters);
-  tagsNow.current = tagFilters;
+  const filtersNow = useRef({ tagFilters, categoryFilter });
+  filtersNow.current = { tagFilters, categoryFilter };
 
   const reset = useCallback(
-    ({ tagsBefore, scrollY }: SearchEntry) => {
+    ({ tagsBefore, categoryBefore, scrollY }: SearchEntry) => {
       setQuery("");
+      setCategoryFilter(categoryBefore);
       // The list behind filtered along with the search; once it's whole again.
       requestAnimationFrame(() => window.scrollTo(0, scrollY));
       setTags(tagsBefore);
     },
-    [setQuery, setTags],
+    [setQuery, setTags, setCategoryFilter],
   );
 
   // A query left over from elsewhere (the desktop search before a resize, or a
@@ -78,6 +100,14 @@ export function useMobileSearch() {
   useEffect(() => {
     if (leftoverQuery.current) setQuery("");
   }, [setQuery]);
+
+  // Back from a record opened in the search: carry on typing. `MobileRecordPage`
+  // holds the keyboard in its Back tap; elsewhere (swipe, system Back) focus alone.
+  // Landing on the plain list instead, a held keyboard has nowhere to go.
+  useEffect(() => {
+    if (!entryRef.current) releaseKeyboard();
+    else if (!handOffKeyboard(inputRef.current)) inputRef.current?.focus({ preventScroll: true });
+  }, []);
 
   useEffect(() => {
     const onPopState = () => {
@@ -92,7 +122,12 @@ export function useMobileSearch() {
   // iOS only raises the keyboard for a focus() inside the tap itself, so the
   // overlay is always mounted and made focusable synchronously here.
   const openSearch = useCallback(() => {
-    const next = { tagsBefore: [...tagsNow.current], scrollY: window.scrollY };
+    const { tagFilters, categoryFilter } = filtersNow.current;
+    const next = {
+      tagsBefore: [...tagFilters],
+      categoryBefore: categoryFilter,
+      scrollY: window.scrollY,
+    };
     flushSync(() => setEntry(next));
     inputRef.current?.focus();
     history.pushState({ mobileSearch: next }, "");
@@ -160,7 +195,7 @@ function recentSearchLabel({ text, tags }: RecentSearch): string {
 }
 
 /** Tapping one runs it again: its text and its tag filters, keyboard kept up. */
-function RecentSearches() {
+function RecentSearches({ onRun }: { onRun: () => void }) {
   const { recentSearches, forgetSearch, clearRecentSearches, countSearch, setQuery, setTags } =
     useSortedRecords();
   const headingId = useId();
@@ -200,6 +235,7 @@ function RecentSearches() {
                 onClick={() => {
                   setQuery(recent.text);
                   setTags(recent.tags);
+                  onRun();
                 }}
                 className="flex min-w-0 flex-1 items-center gap-3 self-stretch pl-4 text-left"
               >
@@ -249,45 +285,47 @@ function TagPillBar({
   onShowAll: () => void;
 }) {
   return (
-    <div className="absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] border-border border-t bg-background/95 backdrop-blur-md">
-      {/* oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field (gaps, disabled pills too), not an action */}
-      <div
-        role="toolbar"
-        aria-label="Filter by tag"
-        onPointerDown={keepFocus}
-        className="flex h-13 snap-x items-center gap-2 overflow-x-auto overscroll-x-contain px-3 [scrollbar-width:none]"
+    // oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field (gaps, disabled pills too), not an action
+    <div
+      role="toolbar"
+      aria-label="Filter by tag"
+      onPointerDown={keepFocus}
+      className="absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] flex h-13 items-center gap-1 border-border border-t bg-background/95 pl-3 backdrop-blur-md"
+    >
+      <Button
+        variant="ghost"
+        size="icon"
+        className="shrink-0 rounded-full bg-muted text-muted-foreground"
+        aria-label="All tags"
+        onClick={onShowAll}
       >
-        <Button
-          variant="ghost"
-          size="icon"
-          className="shrink-0 rounded-full bg-muted text-muted-foreground"
-          aria-label="All tags"
-          onClick={onShowAll}
-        >
-          <TagIcon />
-        </Button>
-        {pills.map((pill) => (
-          <TagPill
-            key={pill.tag}
-            tag={pill.tag}
-            selected={pill.on}
-            count={pill.on ? undefined : pill.count}
-            disabled={!pill.on && pill.count === 0}
-            aria-pressed={pill.on}
-            onClick={() => onToggle(pill)}
-            className={cn(
-              "h-9 shrink-0 snap-start",
-              pill.matching && "border-primary",
-              typing && !pill.on && !pill.matching && "opacity-50",
-            )}
-          />
-        ))}
-        <span aria-hidden className="w-1 shrink-0" />
+        <TagIcon />
+      </Button>
+      <div className="relative flex h-full min-w-0 flex-1 items-center">
+        <div className="flex h-full min-w-0 flex-1 snap-x scroll-px-1 items-center gap-2 overflow-x-auto overscroll-x-contain px-1 [scrollbar-width:none]">
+          {pills.map((pill) => (
+            <TagPill
+              key={pill.tag}
+              tag={pill.tag}
+              selected={pill.on}
+              count={pill.on ? undefined : pill.count}
+              disabled={!pill.on && pill.count === 0}
+              aria-pressed={pill.on}
+              onClick={() => onToggle(pill)}
+              className={cn(
+                "h-9 shrink-0 snap-start",
+                pill.matching && "border-primary",
+                typing && !pill.on && !pill.matching && "opacity-50",
+              )}
+            />
+          ))}
+          <span aria-hidden className="w-8 shrink-0" />
+        </div>
+        <div
+          aria-hidden
+          className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background"
+        />
       </div>
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background"
-      />
     </div>
   );
 }
@@ -299,8 +337,20 @@ function TagPillBar({
  */
 export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const { open, closeSearch, inputRef } = state;
-  const { query, setQuery, tags, tagFilters, toggleTag, noteSearched, countSearch, searchAll } =
-    useSortedRecords();
+  const {
+    query,
+    setQuery,
+    tags,
+    tagFilters,
+    toggleTag,
+    noteSearched,
+    countSearch,
+    searchAll,
+    categoryFilter,
+    clearFilters,
+  } = useSortedRecords();
+  // "Search all items" runs past the filters and the scope doesn't show them.
+  const filtered = !searchAll && (categoryFilter !== "all" || tagFilters.length > 0);
   const { search, sections, options } = useSearchOptions();
   const keyboardInset = useKeyboardInset(open);
   const pills = useMemo(
@@ -323,22 +373,34 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     };
   }, [open]);
 
+  // `keepFocus` should already keep the field focused through a tap on the
+  // results or pills, but iOS Safari was seen dropping the keyboard anyway: a
+  // focus() in the same tap brings it straight back.
+  const typing = useRef(false);
+  const keepTyping = () => {
+    if (typing.current && document.activeElement !== inputRef.current) inputRef.current?.focus();
+    typing.current = false;
+  };
+
   const toggleFilter = (tag: string, on: boolean, clearText: boolean) => {
     const next = { text: clearText ? "" : search.text, tags: [...tagFilters, tag] };
     if (!on && countSearch(next) > 0) noteSearched(next);
     toggleTag(tag);
     if (clearText) setQuery("");
+    keepTyping();
   };
 
   const choose = (option: SearchOption) => {
     if (option.kind === "tag") {
-      if (search.tagMode) toggleTag(option.tag);
-      else toggleFilter(option.tag, option.on ?? false, true);
+      if (search.tagMode) {
+        toggleTag(option.tag);
+        keepTyping();
+      } else toggleFilter(option.tag, option.on ?? false, true);
       return;
     }
     // "Search all items" ran past the tags; saved with them it would find less next time.
     if (typed) noteSearched({ text: search.text, tags: searchAll ? [] : tagFilters });
-    navigate(recordPaths.record(option.record.recordId));
+    navigate(recordPaths.record(option.record.recordId), { state: OPENED_FROM_SEARCH });
   };
 
   return createPortal(
@@ -350,6 +412,9 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
       aria-hidden={!open}
       inert={!open}
       style={{ "--kb-inset": `${keyboardInset}px` } as CSSProperties}
+      onPointerDownCapture={() => {
+        typing.current = document.activeElement === inputRef.current;
+      }}
       className={cn(
         // No z-index: sheets opened from the search (Create) portal in after it and must cover it.
         "fixed inset-0 flex flex-col bg-background",
@@ -394,7 +459,10 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
                 size="icon-sm"
                 className="rounded-full"
                 onPointerDown={keepFocus}
-                onClick={() => setQuery("")}
+                onClick={() => {
+                  setQuery("");
+                  keepTyping();
+                }}
                 aria-label="Clear search"
               >
                 <XIcon />
@@ -410,6 +478,19 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
         <div className="min-w-0 flex-1">
           <SearchScope tagMode={search.tagMode} />
         </div>
+        {filtered && (
+          <button
+            type="button"
+            onPointerDown={keepFocus}
+            onClick={() => {
+              clearFilters();
+              keepTyping();
+            }}
+            className="-my-2 shrink-0 px-1.5 py-2 font-semibold text-primary-text text-xs"
+          >
+            Clear all
+          </button>
+        )}
         {typed && (
           <span className="shrink-0 pr-1.5 text-muted-foreground text-xs">
             {records.length === 1 ? "1 result" : `${records.length} results`}
@@ -431,7 +512,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
           </div>
         ) : (
           <>
-            {open && !search.tagMode && !search.text && <RecentSearches />}
+            {open && !search.tagMode && !search.text && <RecentSearches onRun={keepTyping} />}
             <div
               id={listboxId}
               // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup; <select> can't hold rows
@@ -484,7 +565,10 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
           pills={pills}
           typing={typed}
           onToggle={(pill) => toggleFilter(pill.tag, pill.on, pill.matching && !pill.on)}
-          onShowAll={() => setQuery(TAG_SEARCH_PREFIX)}
+          onShowAll={() => {
+            setQuery(TAG_SEARCH_PREFIX);
+            keepTyping();
+          }}
         />
       )}
     </div>,
