@@ -1,0 +1,395 @@
+<!doctype html>
+<!--
+  Throwaway spike for "Mobile search 1/8": keyboard, focus and visualViewport behaviour on real phones.
+  Not part of the app build (Vite only builds index.html); served by the dev server only.
+  Run `pnpm --filter web dev:host`, then open https://<lan-ip>:5173/spikes/mobile-search-keyboard.html
+  on the phone. `?iw=0` drops `interactive-widget=resizes-content` from the viewport meta.
+-->
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <script>
+      const iw = new URLSearchParams(location.search).get("iw") !== "0";
+      document.write(
+        `<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover${
+          iw ? ", interactive-widget=resizes-content" : ""
+        }" />`,
+      );
+    </script>
+    <title>Spike: mobile search keyboard</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+      }
+      :root {
+        --bg: #f5f1f3;
+        --fg: #1e141a;
+        --card: #fff;
+        --muted: #6e5e67;
+        --primary: #b4307a;
+        --border: rgb(30 20 26 / 0.1);
+        font-family: system-ui, sans-serif;
+        color: var(--fg);
+        background: var(--bg);
+      }
+      body {
+        min-height: 100dvh;
+        padding: max(env(safe-area-inset-top), 12px) 16px 120px;
+      }
+      h1 {
+        margin: 8px 0 12px;
+        font-size: 22px;
+      }
+      fieldset {
+        padding: 8px 12px 12px;
+        margin-bottom: 12px;
+        font-size: 14px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+      }
+      legend {
+        padding: 0 4px;
+        font-weight: 600;
+      }
+      label {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        padding: 4px 0;
+      }
+      .row {
+        padding: 14px 0;
+        border-bottom: 1px solid var(--border);
+      }
+      .dock {
+        position: fixed;
+        right: 16px;
+        bottom: max(env(safe-area-inset-bottom), 16px);
+        left: 16px;
+      }
+      .dock button {
+        width: 100%;
+        height: 56px;
+        padding: 0 20px;
+        font-size: 16px;
+        color: var(--muted);
+        text-align: left;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
+      #proxy {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 1px;
+        height: 1px;
+        font-size: 16px;
+        opacity: 0;
+      }
+      .overlay {
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        background: var(--bg);
+      }
+      .overlay.closed {
+        pointer-events: none;
+        opacity: 0;
+      }
+      .overlay header {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: max(env(safe-area-inset-top), 12px) 16px 10px;
+      }
+      .overlay input[type="search"] {
+        flex: 1;
+        height: 48px;
+        padding: 0 16px;
+        font-size: 16px;
+        background: var(--card);
+        border: 1.5px solid var(--primary);
+        border-radius: 999px;
+      }
+      .overlay header button {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary);
+        background: none;
+        border: 0;
+      }
+      .results {
+        flex: 1;
+        padding: 0 16px 80px;
+        overflow-y: auto;
+        overscroll-behavior: contain;
+      }
+      .pills {
+        position: fixed;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 11;
+        display: flex;
+        gap: 8px;
+        padding: 9px 12px;
+        overflow-x: auto;
+        scroll-snap-type: x proximity;
+        background: rgb(245 241 243 / 0.95);
+        border-top: 1px solid var(--border);
+      }
+      .pills button {
+        flex: none;
+        height: 34px;
+        padding: 0 12px;
+        font-size: 14px;
+        font-weight: 600;
+        scroll-snap-align: start;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 999px;
+      }
+      .pills button[aria-pressed="true"] {
+        color: #fff;
+        background: var(--primary);
+        border-color: var(--primary);
+      }
+      .overlay.closed + .pills {
+        display: none;
+      }
+      #hud {
+        position: fixed;
+        top: max(env(safe-area-inset-top), 4px);
+        right: 4px;
+        z-index: 20;
+        max-width: 60vw;
+        padding: 6px 8px;
+        font: 10px/1.35 ui-monospace, monospace;
+        color: #fff;
+        white-space: pre-wrap;
+        pointer-events: none;
+        background: rgb(0 0 0 / 0.78);
+        border-radius: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Mobile search spike</h1>
+
+    <fieldset>
+      <legend>Focus approach</legend>
+      <label><input type="radio" name="focus" value="mounted" checked /> a · overlay always mounted, focus in the tap</label>
+      <label><input type="radio" name="focus" value="proxy" /> b · focus a proxy input, move focus after mount</label>
+      <label><input type="radio" name="focus" value="async" /> c · control: focus after a timeout (expect no keyboard on iOS)</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Options</legend>
+      <label><input type="checkbox" id="opt-vv" checked /> Pin pill bar with visualViewport (off = plain bottom: 0)</label>
+      <label><input type="checkbox" id="opt-lock" checked /> Lock body scroll while open</label>
+      <label><input type="checkbox" id="opt-keep" checked /> Pills: preventDefault on pointerdown</label>
+      <label><input type="checkbox" id="opt-attrs" checked /> Input: autocomplete/autocorrect/autocapitalize/spellcheck off</label>
+      <label><input type="checkbox" id="opt-blur" checked /> Scrolling results blurs the input</label>
+      <label><input type="checkbox" id="opt-history" checked /> Push a history entry (Back closes)</label>
+      <p style="margin-top: 6px; color: var(--muted)">
+        interactive-widget=resizes-content: <b id="iw-state"></b> (<a id="iw-toggle" href="#">toggle</a>)
+      </p>
+    </fieldset>
+
+    <fieldset>
+      <legend>datalist</legend>
+      <input
+        list="tags"
+        type="search"
+        placeholder="Type #… (suggestions in the keyboard bar?)"
+        style="width: 100%; height: 44px; font-size: 16px; padding: 0 12px"
+      />
+      <datalist id="tags"></datalist>
+    </fieldset>
+
+    <div id="list"></div>
+
+    <div class="dock"><button type="button" id="open">Search</button></div>
+    <input id="proxy" type="text" aria-hidden="true" tabindex="-1" />
+
+    <div id="hud"></div>
+
+    <script>
+      const TAGS = ["work", "finance", "personal", "servers", "security-keys", "household", "tax", "family", "travel", "shopping", "dev", "selfhosted"];
+      const RECORDS = ["GitHub", "AWS root account", "Sparkasse Online", "Fineco Bank", "Revolut", "Docker Hub", "Cloudflare", "Sentry", "ING DiBa", "N26", "Wise", "PayPal", "Trade Republic", "Hetzner", "Proton Mail", "Posteo", "Netflix", "Spotify", "Deutsche Bahn", "Lufthansa"];
+
+      const $ = (id) => document.getElementById(id);
+      const opt = (id) => $(`opt-${id}`).checked;
+      const log = [];
+      let overlay;
+      let input;
+      let pills;
+      let lockedScrollY = 0;
+      let openedAt = 0;
+      let baseVvHeight = window.visualViewport?.height ?? innerHeight;
+
+      $("list").innerHTML = RECORDS.concat(RECORDS).map((r) => `<div class="row">${r}</div>`).join("");
+      $("tags").innerHTML = TAGS.map((t) => `<option value="#${t}"></option>`).join("");
+      $("iw-state").textContent = iw ? "on" : "off";
+      $("iw-toggle").addEventListener("click", (e) => {
+        e.preventDefault();
+        const url = new URL(location.href);
+        url.searchParams.set("iw", iw ? "0" : "1");
+        location.href = url.href;
+      });
+
+      function note(event) {
+        log.unshift(`${(performance.now() / 1000).toFixed(2)} ${event}`);
+        log.length = Math.min(log.length, 8);
+        render();
+      }
+
+      function keyboardInset() {
+        const vv = window.visualViewport;
+        if (!vv) return 0;
+        return Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
+      }
+
+      function render() {
+        const vv = window.visualViewport;
+        const inset = keyboardInset();
+        if (pills) pills.style.bottom = opt("vv") ? `${inset}px` : "0px";
+        $("hud").textContent = [
+          `innerHeight ${innerHeight}`,
+          `vv.height ${vv ? Math.round(vv.height) : "n/a"} offsetTop ${vv ? Math.round(vv.offsetTop) : "n/a"}`,
+          `inset ${inset}  scrollY ${Math.round(scrollY)}`,
+          `active ${document.activeElement?.id || document.activeElement?.tagName}`,
+          "",
+          ...log,
+        ].join("\n");
+      }
+
+      function buildOverlay() {
+        overlay = document.createElement("div");
+        overlay.className = "overlay closed";
+        overlay.setAttribute("role", "dialog");
+        overlay.setAttribute("aria-modal", "true");
+        overlay.innerHTML = `
+          <header>
+            <input id="q" type="search" enterkeyhint="search" placeholder="Search logins, notes, #tags" />
+            <button type="button" id="cancel">Cancel</button>
+          </header>
+          <div class="results">${RECORDS.map((r) => `<div class="row">${r}</div>`).join("")}</div>`;
+        pills = document.createElement("div");
+        pills.className = "pills";
+        pills.setAttribute("role", "toolbar");
+        pills.innerHTML = TAGS.map((t) => `<button type="button" aria-pressed="false">#${t}</button>`).join("");
+        document.body.append(overlay, pills);
+        input = overlay.querySelector("#q");
+        applyInputAttrs();
+
+        overlay.querySelector("#cancel").addEventListener("click", () => {
+          if (opt("history") && history.state?.spikeSearch) history.back();
+          else close();
+        });
+        input.addEventListener("focus", () => note("input focus"));
+        input.addEventListener("blur", () => note("input blur"));
+        overlay.querySelector(".results").addEventListener(
+          "touchmove",
+          () => {
+            if (opt("blur") && document.activeElement === input) input.blur();
+          },
+          { passive: true },
+        );
+        pills.addEventListener("pointerdown", (e) => {
+          if (opt("keep") && e.target.closest("button")) e.preventDefault();
+        });
+        pills.addEventListener("click", (e) => {
+          const pill = e.target.closest("button");
+          if (!pill) return;
+          pill.setAttribute("aria-pressed", String(pill.getAttribute("aria-pressed") !== "true"));
+          note(`pill ${pill.textContent}, input focused: ${document.activeElement === input}`);
+        });
+      }
+
+      function applyInputAttrs() {
+        const off = opt("attrs");
+        for (const [name, value] of [
+          ["autocomplete", "off"],
+          ["autocorrect", "off"],
+          ["autocapitalize", "off"],
+          ["spellcheck", "false"],
+        ]) {
+          if (off) input.setAttribute(name, value);
+          else input.removeAttribute(name);
+        }
+      }
+
+      function lockScroll() {
+        lockedScrollY = scrollY;
+        Object.assign(document.body.style, { position: "fixed", top: `-${lockedScrollY}px`, left: "0", right: "0" });
+      }
+
+      function unlockScroll() {
+        Object.assign(document.body.style, { position: "", top: "", left: "", right: "" });
+        scrollTo(0, lockedScrollY);
+      }
+
+      function show() {
+        overlay.classList.remove("closed");
+        if (opt("lock")) lockScroll();
+        if (opt("history")) history.pushState({ spikeSearch: true }, "");
+        openedAt = performance.now();
+        baseVvHeight = window.visualViewport?.height ?? innerHeight;
+        setTimeout(() => {
+          const shrunk = (window.visualViewport?.height ?? innerHeight) < baseVvHeight - 100;
+          note(`after 800ms: focused ${document.activeElement === input}, keyboard ${shrunk ? "OPEN" : "not detected"}`);
+        }, 800);
+      }
+
+      function close() {
+        if (!overlay || overlay.classList.contains("closed")) return;
+        input.blur();
+        input.value = "";
+        overlay.classList.add("closed");
+        if (document.body.style.position === "fixed") unlockScroll();
+        note("closed");
+      }
+
+      $("open").addEventListener("click", () => {
+        const approach = document.querySelector('input[name="focus"]:checked').value;
+        note(`open (${approach})`);
+        if (approach === "mounted") {
+          if (!overlay) buildOverlay();
+          applyInputAttrs();
+          show();
+          input.focus();
+        } else if (approach === "proxy") {
+          $("proxy").focus();
+          overlay?.remove();
+          pills?.remove();
+          setTimeout(() => {
+            buildOverlay();
+            show();
+            input.focus();
+          }, 50);
+        } else {
+          if (!overlay) buildOverlay();
+          applyInputAttrs();
+          show();
+          setTimeout(() => input.focus(), 50);
+        }
+      });
+
+      addEventListener("popstate", () => {
+        note("popstate");
+        close();
+      });
+      window.visualViewport?.addEventListener("resize", () => note(`vv resize ${Math.round(visualViewport.height)}`));
+      window.visualViewport?.addEventListener("scroll", render);
+      addEventListener("scroll", render, { passive: true });
+      document.addEventListener("focusin", render);
+      render();
+    </script>
+  </body>
+</html>
