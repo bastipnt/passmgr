@@ -98,6 +98,33 @@ export function tagModeGroups(
   return { matching, other };
 }
 
+export type PillTag = TagCount & { on: boolean; matching: boolean };
+
+/**
+ * The phone search's tag pills: the selected tags, then those matching `text`,
+ * then the rest by use. `tags` comes as `useSortedRecords().tags`: selected first.
+ */
+export function pillTags(
+  tags: readonly TagCount[],
+  selectedCount: number,
+  text: string,
+): PillTag[] {
+  const selected = tags
+    .slice(0, selectedCount)
+    .map((entry) => ({ ...entry, on: true, matching: false }));
+  const rest = tags.slice(selectedCount).map((entry) => ({
+    ...entry,
+    on: false,
+    matching: text !== "" && matchRange(entry.tag, text) !== undefined,
+  }));
+  const byUse = (entries: PillTag[]) => topTags(entries, entries.length) as PillTag[];
+  return [
+    ...selected,
+    ...byUse(rest.filter(({ matching }) => matching)),
+    ...byUse(rest.filter(({ matching }) => !matching)),
+  ];
+}
+
 export type SearchItem =
   | { kind: "tag"; tag: string; count: number; dimmed?: boolean }
   | { kind: "record"; record: DecryptedRecord; match?: RecordMatch };

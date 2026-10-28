@@ -6,7 +6,7 @@ import type { DecryptedRecord, RecordData } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { MobileSearchButton, MobileSearchOverlay, useMobileSearch } from "./MobileSearch";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -71,7 +71,7 @@ function renderSearch() {
 
 const field = () => screen.getByRole("combobox", { name: "Search vault", hidden: true });
 // Closed, the dialog is inert, which hides it from role queries.
-const dialog = () => document.querySelector('[role="dialog"][aria-label="Search"]');
+const dialog = () => document.querySelector<HTMLElement>('[role="dialog"][aria-label="Search"]');
 
 beforeEach(() => {
   vi.spyOn(window, "scrollTo").mockImplementation(() => {});
@@ -125,7 +125,7 @@ describe("MobileSearch", () => {
   it("a search that opened a record comes back as a recent search, restoring its text and tags", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
+    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
     await userEvent.type(field(), "fin");
     await userEvent.click(screen.getByRole("option", { name: /Fineco/ }));
 
@@ -166,5 +166,82 @@ describe("MobileSearch", () => {
     expect(screen.getByRole("group", { name: "Recently opened" })).toBeInTheDocument();
     await userEvent.type(field(), "{Enter}");
     expect(location.pathname).toBe("/");
+  });
+});
+
+describe("MobileSearch tag pills", () => {
+  const pills = () =>
+    within(screen.getByRole("toolbar", { name: "Filter by tag" }))
+      .getAllByRole("button")
+      .slice(1)
+      .map((pill) => pill.textContent);
+
+  it("ranks selected, then matching the text, then the rest; a pill toggles without blurring", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(pills()).toEqual(["#finance1", "#work1"]);
+
+    await userEvent.type(field(), "wo");
+    expect(pills()).toEqual(["#work1", "#finance1"]);
+
+    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
+    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
+    expect(field()).toHaveValue("wo");
+    expect(field()).toHaveFocus();
+    expect(screen.getByRole("button", { name: "Remove tag finance" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(pills()[0]).toBe("#finance");
+
+    // "wo" finds nothing under #finance, so it isn't kept as a recent search.
+    await userEvent.clear(field());
+    expect(screen.queryByRole("region", { name: "Recent searches" })).toBeNull();
+  });
+
+  it("a pill matching the typed text replaces it", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(field(), "fin");
+    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
+
+    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
+    expect(field()).toHaveValue("");
+    expect(field()).toHaveFocus();
+  });
+
+  it("All tags switches to # tag mode, where the bar gives way to the list", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("button", { name: "All tags" }));
+
+    expect(field()).toHaveValue("#");
+    expect(field()).toHaveFocus();
+    expect(screen.queryByRole("toolbar", { name: "Filter by tag" })).toBeNull();
+  });
+
+  it("rides on the keyboard: the inset follows the visual viewport, not a pinch-zoom", async () => {
+    const viewport = Object.assign(new EventTarget(), { height: 844, offsetTop: 0, scale: 1 });
+    vi.stubGlobal("visualViewport", viewport);
+    vi.stubGlobal("innerHeight", 844);
+    try {
+      renderSearch();
+      await userEvent.click(screen.getByRole("button", { name: "Search" }));
+
+      viewport.height = 541;
+      viewport.dispatchEvent(new Event("resize"));
+      await waitFor(() => expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("303px"));
+
+      viewport.height = 844;
+      viewport.dispatchEvent(new Event("resize"));
+      await waitFor(() => expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("0px"));
+
+      Object.assign(viewport, { height: 422, scale: 2 });
+      viewport.dispatchEvent(new Event("resize"));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("0px");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

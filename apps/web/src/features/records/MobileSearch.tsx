@@ -1,4 +1,6 @@
 import {
+  type PillTag,
+  pillTags,
   type RecentSearch,
   recentSearchKey,
   type SearchOption,
@@ -13,16 +15,28 @@ import {
   InputGroupButton,
   InputGroupInput,
 } from "@repo/ui/components/InputGroup";
+import { TagPill } from "@repo/ui/components/TagPill";
+import { useKeyboardInset } from "@repo/ui/hooks/use-keyboard-inset";
 import { cn } from "@repo/ui/lib/utils";
 import { counted } from "@repo/util";
-import { HistoryIcon, PlusIcon, SearchIcon, XIcon } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { HistoryIcon, PlusIcon, SearchIcon, TagIcon, XIcon } from "lucide-react";
+import {
+  type CSSProperties,
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal, flushSync } from "react-dom";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { NoSearchResults } from "./NoSearchResults";
 import { OutsideScope } from "./OutsideScope";
 import { RecordOptionRow, SearchScope, TagRow } from "./SearchPanel";
+
+const keepFocus = (e: { preventDefault: () => void }) => e.preventDefault();
 
 /** Kept in the history entry the search pushes, so Back from a record lands on it again. */
 type SearchEntry = { tagsBefore: string[]; scrollY: number };
@@ -164,7 +178,7 @@ function RecentSearches() {
         </h2>
         <button
           type="button"
-          onPointerDown={(e) => e.preventDefault()}
+          onPointerDown={keepFocus}
           onClick={clearRecentSearches}
           className="-my-2 px-1 py-2 font-semibold text-primary-text text-sm"
         >
@@ -182,7 +196,7 @@ function RecentSearches() {
             >
               <button
                 type="button"
-                onPointerDown={(e) => e.preventDefault()}
+                onPointerDown={keepFocus}
                 onClick={() => {
                   setQuery(recent.text);
                   setTags(recent.tags);
@@ -205,7 +219,7 @@ function RecentSearches() {
                 variant="ghost"
                 size="icon-lg"
                 className="shrink-0 text-muted-foreground"
-                onPointerDown={(e) => e.preventDefault()}
+                onPointerDown={keepFocus}
                 onClick={() => forgetSearch(recent)}
                 aria-label={`Remove ${label}`}
               >
@@ -220,14 +234,80 @@ function RecentSearches() {
 }
 
 /**
+ * Tag pills riding on top of the keyboard (`--kb-inset`). Pressing one must
+ * not blur the field, or the keyboard would drop.
+ */
+function TagPillBar({
+  pills,
+  typing,
+  onToggle,
+  onShowAll,
+}: {
+  pills: PillTag[];
+  typing: boolean;
+  onToggle: (pill: PillTag) => void;
+  onShowAll: () => void;
+}) {
+  return (
+    <div className="absolute inset-x-0 bottom-[max(var(--kb-inset),env(safe-area-inset-bottom))] border-border border-t bg-background/95 backdrop-blur-md">
+      {/* oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field (gaps, disabled pills too), not an action */}
+      <div
+        role="toolbar"
+        aria-label="Filter by tag"
+        onPointerDown={keepFocus}
+        className="flex h-13 snap-x items-center gap-2 overflow-x-auto overscroll-x-contain px-3 [scrollbar-width:none]"
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="shrink-0 rounded-full bg-muted text-muted-foreground"
+          aria-label="All tags"
+          onClick={onShowAll}
+        >
+          <TagIcon />
+        </Button>
+        {pills.map((pill) => (
+          <TagPill
+            key={pill.tag}
+            tag={pill.tag}
+            selected={pill.on}
+            count={pill.on ? undefined : pill.count}
+            disabled={!pill.on && pill.count === 0}
+            aria-pressed={pill.on}
+            onClick={() => onToggle(pill)}
+            className={cn(
+              "h-9 shrink-0 snap-start",
+              pill.matching && "border-primary",
+              typing && !pill.on && !pill.matching && "opacity-50",
+            )}
+          />
+        ))}
+        <span aria-hidden className="w-1 shrink-0" />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 right-0 w-10 bg-linear-to-l from-background"
+      />
+    </div>
+  );
+}
+
+/**
  * Full-screen phone search: field and Cancel on top, results under it.
  * Portaled to <body>: `DrawerProvider`'s `contain: layout` would make
  * `position: fixed` relative to the page instead of the viewport.
  */
 export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const { open, closeSearch, inputRef } = state;
-  const { query, setQuery, tagFilters, toggleTag, noteSearched, searchAll } = useSortedRecords();
+  const { query, setQuery, tags, tagFilters, toggleTag, noteSearched, countSearch, searchAll } =
+    useSortedRecords();
   const { search, sections, options } = useSearchOptions();
+  const keyboardInset = useKeyboardInset(open);
+  const pills = useMemo(
+    () => pillTags(tags, tagFilters.length, search.tagMode ? "" : search.text),
+    [tags, tagFilters.length, search],
+  );
+  const showPills = open && !search.tagMode && pills.length > 0;
   const [, navigate] = useLocation();
   const listboxId = useId();
   const records = options.filter((option) => option.kind === "record");
@@ -243,12 +323,17 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     };
   }, [open]);
 
+  const toggleFilter = (tag: string, on: boolean, clearText: boolean) => {
+    const next = { text: clearText ? "" : search.text, tags: [...tagFilters, tag] };
+    if (!on && countSearch(next) > 0) noteSearched(next);
+    toggleTag(tag);
+    if (clearText) setQuery("");
+  };
+
   const choose = (option: SearchOption) => {
     if (option.kind === "tag") {
-      if (!search.tagMode && !option.on && option.count > 0)
-        noteSearched({ text: "", tags: [...tagFilters, option.tag] });
-      toggleTag(option.tag);
-      if (!search.tagMode) setQuery("");
+      if (search.tagMode) toggleTag(option.tag);
+      else toggleFilter(option.tag, option.on ?? false, true);
       return;
     }
     // "Search all items" ran past the tags; saved with them it would find less next time.
@@ -264,6 +349,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
       aria-label="Search"
       aria-hidden={!open}
       inert={!open}
+      style={{ "--kb-inset": `${keyboardInset}px` } as CSSProperties}
       className={cn(
         // No z-index: sheets opened from the search (Create) portal in after it and must cover it.
         "fixed inset-0 flex flex-col bg-background",
@@ -307,7 +393,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
               <InputGroupButton
                 size="icon-sm"
                 className="rounded-full"
-                onPointerDown={(e) => e.preventDefault()}
+                onPointerDown={keepFocus}
                 onClick={() => setQuery("")}
                 aria-label="Clear search"
               >
@@ -331,7 +417,14 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
         )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pb-[max(env(safe-area-inset-bottom),1rem)]">
+      <div
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          showPills
+            ? "pb-[calc(max(var(--kb-inset),env(safe-area-inset-bottom))+4.25rem)]"
+            : "pb-[max(var(--kb-inset),env(safe-area-inset-bottom),1rem)]",
+        )}
+      >
         {typed && options.length === 0 ? (
           <div className="pt-6">
             <NoSearchResults />
@@ -347,7 +440,10 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
               aria-multiselectable={search.tagMode || undefined}
             >
               {sections.map((section) =>
-                !open || section.options.length === 0 ? null : (
+                // The pill bar already offers the top tags.
+                !open ||
+                section.options.length === 0 ||
+                (showPills && section.id === "top") ? null : (
                   // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
                   <div key={section.id} role="group" aria-label={section.label}>
                     <div className="px-5 pt-4 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
@@ -361,7 +457,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
                         role="option"
                         aria-selected={option.kind === "tag" ? (option.on ?? false) : false}
                         tabIndex={-1}
-                        onPointerDown={(e) => e.preventDefault()}
+                        onPointerDown={keepFocus}
                         onClick={() => choose(option)}
                         className={cn(
                           "flex min-h-14 cursor-pointer items-center gap-3 px-4 active:bg-foreground/5",
@@ -383,6 +479,14 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
         )}
         {typed && options.length > 0 && <OutsideScope className="mx-4 mt-4" />}
       </div>
+      {showPills && (
+        <TagPillBar
+          pills={pills}
+          typing={typed}
+          onToggle={(pill) => toggleFilter(pill.tag, pill.on, pill.matching && !pill.on)}
+          onShowAll={() => setQuery(TAG_SEARCH_PREFIX)}
+        />
+      )}
     </div>,
     document.body,
   );
