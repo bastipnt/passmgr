@@ -34,6 +34,11 @@ pnpm --filter mobile start     # Expo dev server
 Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`, `ui-shared`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
 Web E2E (Playwright): `pnpm --filter web e2e`, see `apps/web/CLAUDE.md`.
 
+**Keep E2E tests few.** E2E covers only the most important flows of the app (e.g. one for searching, not one per
+search feature). Add a new E2E test only when it is really necessary, i.e. the flow can't be covered any other way;
+cover details and edge cases with unit or integration (component) tests instead. Prefer extending an existing
+E2E flow over adding a new spec.
+
 ## Architecture
 
 ### Monorepo Structure
