@@ -1,3 +1,4 @@
+import { useSearchOptions } from "@repo/client/src/hooks/use-search-options";
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
   listHeading,
@@ -374,5 +375,48 @@ describe("listHeading", () => {
     expect(listHeading("all", false)).toBe("All items");
     expect(listHeading("ssh_key", false)).toBe("SSH keys");
     expect(listHeading("favorites", true)).toBe("Results");
+  });
+});
+
+describe("useSearchOptions", () => {
+  const render = () =>
+    renderHook(() => ({ sorted: useSortedRecords(), options: useSearchOptions() }), {
+      wrapper: Providers,
+    });
+  const labels = (sections: { label: string; options: { id: string }[] }[]) =>
+    sections.map(({ label, options }) => [label, options.map(({ id }) => id)]);
+
+  it("lists top tags and recently opened when nothing is typed", () => {
+    const { result } = render();
+    act(() => result.current.sorted.noteOpened("card"));
+    expect(labels(result.current.options.sections)).toEqual([
+      ["Top tags", ["tag:work", "tag:bank", "tag:code"]],
+      ["Recently opened", ["record:card"]],
+    ]);
+  });
+
+  it("lists matching tags, then records under the category's label", () => {
+    const { result } = render();
+    act(() => result.current.sorted.setQuery("o"));
+    expect(labels(result.current.options.sections)).toEqual([
+      ["Tags", ["tag:code", "tag:work"]],
+      ["Records", ["record:wifi", "record:login", "record:work"]],
+    ]);
+    expect(result.current.options.options).toHaveLength(5);
+
+    act(() => result.current.sorted.setCategoryFilter("login"));
+    expect(result.current.options.sections[1]?.label).toBe("Logins");
+  });
+
+  it("switches to tag mode on #, marking the selected tags on", () => {
+    const { result } = render();
+    act(() => {
+      result.current.sorted.toggleTag("work");
+      result.current.sorted.setQuery("#");
+    });
+    expect(result.current.options.search).toEqual({ tagMode: true, text: "" });
+    const on = result.current.options.options.map(({ id, on }) => `${id}:${on}`);
+    expect(on).toContain("tag:work:true");
+    expect(on).toContain("tag:code:false");
   });
 });

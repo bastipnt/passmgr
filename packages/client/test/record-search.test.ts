@@ -6,6 +6,7 @@ import {
   matchRecords,
   matchTags,
   parseSearch,
+  searchOptionSections,
   searchSections,
   tagModeGroups,
   topTags,
@@ -126,5 +127,30 @@ describe("searchSections", () => {
     });
     expect(matching).toMatchObject({ label: "Tags matching “de”", items: [{ tag: "deploy" }] });
     expect(other?.items).toEqual([{ kind: "tag", tag: "docs", count: 1, dimmed: true }]);
+  });
+});
+
+describe("searchOptionSections", () => {
+  it("gives each item a stable id and marks the selected tags on, matched without case", () => {
+    const [section] = searchOptionSections(
+      [
+        {
+          id: "mixed",
+          label: "Mixed",
+          items: [
+            { kind: "tag", tag: "Deploy", count: 1 },
+            { kind: "tag", tag: "docs", count: 1 },
+            { kind: "record", record: records[0] as DecryptedRecord },
+          ],
+        },
+      ],
+      ["deploy"],
+    );
+    expect(section).toMatchObject({ id: "mixed", label: "Mixed" });
+    expect(section?.options.map(({ id, on }) => [id, on])).toEqual([
+      ["tag:deploy", true],
+      ["tag:docs", false],
+      ["record:Vercel", undefined],
+    ]);
   });
 });

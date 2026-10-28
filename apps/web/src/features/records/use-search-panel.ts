@@ -1,15 +1,10 @@
-import { parseSearch, type SearchItem, type SearchSection, searchSections } from "@repo/client";
-import { categoryLabel, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
-import { tagKey } from "@repo/schema";
-import { type KeyboardEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type SearchOption, useSearchOptions } from "@repo/client";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { type KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 
 export const PREVIEW_DELAY_MS = 150;
-
-export type SearchOption = SearchItem & { id: string; on?: boolean };
-
-type SearchOptionSection = Omit<SearchSection, "items"> & { options: SearchOption[] };
 
 /**
  * The desktop list's search: open while the field has focus, when its results
@@ -18,24 +13,12 @@ type SearchOptionSection = Omit<SearchSection, "items"> & { options: SearchOptio
  * toggles a tag), Esc leaves and brings back the record open before.
  */
 export function useSearchPanel(enabled: boolean) {
-  const {
-    query,
-    setQuery,
-    categoryFilter,
-    tagFilters,
-    tags,
-    toggleTag,
-    recordMatches,
-    recentRecords,
-    noteOpened,
-    searchAll,
-    searchInputRef,
-  } = useSortedRecords();
+  const { query, setQuery, toggleTag, noteOpened, searchInputRef } = useSortedRecords();
   const [, navigate] = useLocation();
   const [, params] = useRoute(recordPaths.detailAny);
   const [focused, setFocused] = useState(false);
   const [activeId, setActiveId] = useState<string>();
-  const search = useMemo(() => parseSearch(query), [query]);
+  const { search, sections, options } = useSearchOptions();
   const open = enabled && focused;
 
   const routeRecordId = useRef(params?.recordId);
@@ -43,27 +26,6 @@ export function useSearchPanel(enabled: boolean) {
   const originRecordId = useRef<string | undefined>(undefined);
   const previewed = useRef(false);
 
-  const sections = useMemo((): SearchOptionSection[] => {
-    const selected = new Set(tagFilters.map(tagKey));
-    return searchSections({
-      search,
-      tags,
-      selectedCount: tagFilters.length,
-      recordMatches,
-      recentRecords,
-      recordsLabel:
-        searchAll || categoryFilter === "all" ? "Records" : categoryLabel(categoryFilter),
-    }).map(({ items, ...section }) => ({
-      ...section,
-      options: items.map((item) =>
-        item.kind === "tag"
-          ? { ...item, id: `tag:${tagKey(item.tag)}`, on: selected.has(tagKey(item.tag)) }
-          : { ...item, id: `record:${item.record.recordId}` },
-      ),
-    }));
-  }, [search, tags, tagFilters, recordMatches, recentRecords, searchAll, categoryFilter]);
-
-  const options = useMemo(() => sections.flatMap((section) => section.options), [sections]);
   const typed = search.text !== "" && !search.tagMode;
   // A typed query highlights its first record, not the tags above it.
   const active =

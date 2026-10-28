@@ -1,4 +1,4 @@
-import { type DecryptedRecord, isRecordType } from "@repo/schema";
+import { type DecryptedRecord, isRecordType, tagKey } from "@repo/schema";
 import { getRecordSubtitle } from "./record-summary";
 import type { TagCount } from "./tags";
 
@@ -103,6 +103,26 @@ export type SearchItem =
   | { kind: "record"; record: DecryptedRecord; match?: RecordMatch };
 
 export type SearchSection = { id: string; label: string; aside?: string; items: SearchItem[] };
+
+/** A listed item with a stable `id`; a tag's `on` says whether it is one of the selected filters. */
+export type SearchOption = SearchItem & { id: string; on?: boolean };
+
+export type SearchOptionSection = Omit<SearchSection, "items"> & { options: SearchOption[] };
+
+export function searchOptionSections(
+  sections: readonly SearchSection[],
+  selectedTags: readonly string[],
+): SearchOptionSection[] {
+  const selected = new Set(selectedTags.map(tagKey));
+  return sections.map(({ items, ...section }) => ({
+    ...section,
+    options: items.map((item) =>
+      item.kind === "tag"
+        ? { ...item, id: `tag:${tagKey(item.tag)}`, on: selected.has(tagKey(item.tag)) }
+        : { ...item, id: `record:${item.record.recordId}` },
+    ),
+  }));
+}
 
 const TOP_TAGS = 4;
 

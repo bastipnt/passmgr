@@ -2,6 +2,7 @@ import {
   categoryCountLabel,
   getRecordSubtitle,
   matchRange,
+  type SearchOption,
   TAG_SEARCH_PREFIX,
   useVaults,
 } from "@repo/client";
@@ -16,7 +17,7 @@ import { VaultBadge } from "@/features/vaults";
 import { OutsideScope } from "./OutsideScope";
 import { RecordAvatar } from "./RecordAvatar";
 import { optionDomId } from "./RecordSearch";
-import type { SearchOption, SearchPanelState } from "./use-search-panel";
+import type { SearchPanelState } from "./use-search-panel";
 
 function ScopeChip({ children }: { children: ReactNode }) {
   return (

@@ -45,6 +45,7 @@ export * from "./src/hooks/use-records";
 export * from "./src/hooks/use-recovery";
 export * from "./src/hooks/use-register";
 export * from "./src/hooks/use-restore-backup";
+export * from "./src/hooks/use-search-options";
 export * from "./src/hooks/use-second-factor-request";
 export * from "./src/hooks/use-session-restore";
 export * from "./src/hooks/use-sessions";
