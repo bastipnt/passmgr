@@ -1,5 +1,6 @@
 import { Avatar, AvatarFallback, AvatarImage } from "@repo/ui/components/Avatar";
 import { hueTint } from "@repo/ui/lib/hue-tint";
+import { cn } from "@repo/ui/lib/utils";
 import { useWebsiteAvatar } from "@repo/ui-shared";
 
 type Website = { value: string };
@@ -7,6 +8,7 @@ type Website = { value: string };
 type WebsiteAvatarProps = {
   title: string;
   websites: Website[] | undefined;
+  className?: string;
   size?: "default" | "md" | "ml" | "header" | "lg" | "xl";
 };
 
@@ -38,12 +40,17 @@ const SIZES = {
 } as const;
 
 /** Site favicon on a white rounded tile, or a hue-tinted initial. */
-export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvatarProps) {
+export function WebsiteAvatar({
+  title,
+  websites,
+  className,
+  size = "default",
+}: WebsiteAvatarProps) {
   const { hue, src, status } = useWebsiteAvatar({ title, websites });
   const { tile, fallback } = SIZES[size];
 
   return (
-    <Avatar className={tile}>
+    <Avatar className={cn(tile, className)}>
       {status === "ok" && src && <AvatarImage src={src} className="rounded-sm" />}
       <AvatarFallback style={hueTint(hue)} className={fallback}>
         {title.charAt(0)}

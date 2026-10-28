@@ -59,18 +59,24 @@ export function RecordTypeTile({ type, size = "default", className }: RecordType
 
 type RecordAvatarProps = {
   record: RecordData;
+  className?: string;
   size?: keyof typeof SIZES;
   /** Marked in the bottom-right corner (a list mixing several vaults). */
   vault?: VaultInfo;
 };
 
 /** A login's site icon (or initial); every other type shows its type icon. */
-export function RecordAvatar({ record, size = "default", vault }: RecordAvatarProps) {
+export function RecordAvatar({ record, className, size = "default", vault }: RecordAvatarProps) {
   const avatar =
     record.type === "login" ? (
-      <WebsiteAvatar title={record.title} websites={getRecordWebsites(record)} size={size} />
+      <WebsiteAvatar
+        title={record.title}
+        websites={getRecordWebsites(record)}
+        size={size}
+        className={className}
+      />
     ) : (
-      <RecordTypeTile type={record.type} size={size} />
+      <RecordTypeTile type={record.type} size={size} className={className} />
     );
   if (!vault) return avatar;
   return (

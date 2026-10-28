@@ -96,13 +96,8 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       </h1>
 
       {/* Laid out under the title: the spacer takes the title's place. */}
-      <div
-        className={cn(
-          "relative flex items-center gap-3.5 px-5 pb-2",
-          primaryWebsite ? "-mt-9" : "-mt-[2.875rem]",
-        )}
-      >
-        <RecordAvatar record={record} size="lg" />
+      <div className={cn("relative -mt-9 flex items-start gap-3.5 px-5 pb-2")}>
+        <RecordAvatar record={record} size="lg" className="mt-1" />
         <div className="flex min-w-0 flex-col pt-9">
           {primaryWebsite && (
             <a

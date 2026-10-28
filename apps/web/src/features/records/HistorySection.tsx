@@ -24,9 +24,14 @@ export function HistorySection({ record }: { record: DecryptedRecord }) {
         <span className="font-bold font-display text-[1.0625rem] tracking-[-0.015em]">
           Version history
         </span>
-        <span className="text-muted-foreground text-sm">
-          {versionCount} {versionCount === 1 ? "version" : "versions"} · last change{" "}
-          {toLocalDateStr(record.clientUpdatedAt)} · created {toLocalDateStr(record.firstCreatedAt)}
+        <span className="flex flex-row flex-wrap items-start gap-x-2 text-muted-foreground text-sm">
+          <span>
+            {versionCount} {versionCount === 1 ? "version" : "versions"}
+          </span>
+          <span>·</span>
+          <span> last change {toLocalDateStr(record.clientUpdatedAt)}</span>
+          <span>·</span>
+          <span>created {toLocalDateStr(record.firstCreatedAt)}</span>
         </span>
       </span>
       <span

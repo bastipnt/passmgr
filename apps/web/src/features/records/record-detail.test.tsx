@@ -80,7 +80,7 @@ describe("record detail", () => {
     await userEvent.click(previous);
     expect(screen.getByText("Used until 12 Aug 2025")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /Version history/ })).toHaveTextContent(
-      "12 versions · last change",
+      "12 versions· last change",
     );
   });
 

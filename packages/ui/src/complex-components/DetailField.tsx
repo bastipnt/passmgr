@@ -200,7 +200,7 @@ function DetailFieldGroup({ children, variant = "flush", className }: DetailFiel
       className={cn(
         variant === "flush"
           ? "border-foreground/8 border-t dark:border-white/8"
-          : "rounded-2xl border border-foreground/10 px-4 dark:border-white/10 [&>[data-slot=detail-field]]:last:border-b-0",
+          : "rounded-2xl border border-foreground/10 px-4 *:data-[slot=detail-field]:last:border-b-0 dark:border-white/10",
         className,
       )}
     >
@@ -221,9 +221,9 @@ function DetailFieldRow({ children, keepOnPhone = false }: DetailFieldRowProps) 
     <div
       data-slot="detail-field-row"
       className={cn(
-        "grid auto-cols-fr divide-foreground/8 border-foreground/8 border-b dark:divide-white/8 dark:border-white/8 [&>[data-slot=detail-field]]:border-b-0",
+        "grid auto-cols-fr divide-foreground/8 border-foreground/8 border-b *:data-[slot=detail-field]:last:border-b-0 sm:*:data-[slot=detail-field]:border-b-0 dark:divide-white/8 dark:border-white/8",
         keepOnPhone
-          ? "grid-flow-col divide-x [&>*+*]:pl-3 [&>:not(:last-child)]:pr-2"
+          ? "grid-flow-col divide-x *:data-[slot=detail-field]:border-b-0 [&>*+*]:pl-3 [&>:not(:last-child)]:pr-2"
           : "max-sm:divide-y sm:grid-flow-col sm:divide-x sm:[&>*+*]:pl-4 sm:[&>:not(:last-child)]:pr-3",
       )}
     >

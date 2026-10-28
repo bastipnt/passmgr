@@ -28,8 +28,8 @@ import {
 import { Fragment, type ReactNode, useMemo } from "react";
 import { downloadFile } from "@/lib/download";
 import FieldDisplay, { OpenLink, WebsiteRow } from "./FieldDisplay";
-import { HistorySection } from "./login/HistorySection";
-import { PasswordHealthLine } from "./login/PasswordHealthLine";
+import { HistorySection } from "./HistorySection";
+import { PasswordHealthLine } from "./PasswordHealthLine";
 import { PreviousSecretsRow } from "./PreviousSecretsRow";
 import { RECORD_TYPE_ICONS } from "./RecordAvatar";
 import { useCopyField } from "./record-utils";
