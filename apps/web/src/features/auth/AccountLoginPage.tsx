@@ -65,7 +65,7 @@ export default function AccountLoginPage() {
         description="Log in to your passmgr account. Zero-knowledge OPAQUE login — your password never leaves this device."
         canonicalPath={authPaths.accountLogin}
       />
-      <div className="flex w-full flex-col gap-4 lg:col-span-full lg:mx-auto lg:max-w-md">
+      <div className="flex w-full flex-col gap-4 sm:col-span-full sm:mx-auto sm:max-w-md">
         <Card variant="glass" flatOnPhone>
           <StepBar onBack={() => navigate(home)} disabled={loading} />
           <AuthCardHeader

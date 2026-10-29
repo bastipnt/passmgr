@@ -79,46 +79,48 @@ export default function WelcomePage() {
         description="Start a passmgr vault on this device, or log in to your account. Zero-knowledge, end-to-end encrypted."
         canonicalPath={authPaths.welcome}
       />
-      <AuthHero
-        title={
-          <>
-            <span className="block">One password</span>
-            <span className="block">unlocks</span>
-            <span className="block">all the rest.</span>
-          </>
-        }
-        lead="passmgr encrypts your vault on this device before anything leaves it. Start without an account and turn on sync whenever you want."
-      >
-        <div className="max-sm:hidden">
-          <HeroChips items={CHIPS} />
+      <div className="flex flex-col justify-center gap-8 sm:items-center lg:grid lg:grid-cols-[minmax(0,1fr)_26rem] lg:gap-16 lg:py-12">
+        <AuthHero
+          title={
+            <>
+              <span className="block">One password</span>
+              <span className="block">unlocks</span>
+              <span className="block">all the rest.</span>
+            </>
+          }
+          lead="passmgr encrypts your vault on this device before anything leaves it. Start without an account and turn on sync whenever you want."
+        >
+          <div className="max-sm:hidden">
+            <HeroChips items={CHIPS} />
+          </div>
+        </AuthHero>
+
+        <Card variant="glass" className="sm:max-w-md" flatOnPhone>
+          <CardHeader>
+            <CardTitle className="max-sm:sr-only">Welcome to passmgr</CardTitle>
+            <CardDescription>New here, or bringing an existing account?</CardDescription>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-6">
+            <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
+              <Choice href={createHref} icon={ShieldPlusIcon} title="Create a new vault" primary />
+              <Choice
+                href={authPaths.accountLogin}
+                icon={LogInIcon}
+                title="Log in to an existing account"
+              />
+            </nav>
+            <p className="text-center text-muted-foreground text-sm">
+              Have a backup or another app&apos;s export?{" "}
+              <AuthTextLink href={authPaths.restore}>Import it</AuthTextLink>
+            </p>
+            <PasswordNote className="max-sm:hidden" />
+          </CardContent>
+        </Card>
+
+        <div className="mt-auto flex flex-col items-center gap-3 sm:hidden">
+          <HeroChips items={PHONE_CHIPS} compact />
+          <PasswordNote className="order-last" />
         </div>
-      </AuthHero>
-
-      <Card variant="glass" flatOnPhone>
-        <CardHeader>
-          <CardTitle className="max-sm:sr-only">Welcome to passmgr</CardTitle>
-          <CardDescription>New here, or bringing an existing account?</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-6">
-          <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
-            <Choice href={createHref} icon={ShieldPlusIcon} title="Create a new vault" primary />
-            <Choice
-              href={authPaths.accountLogin}
-              icon={LogInIcon}
-              title="Log in to an existing account"
-            />
-          </nav>
-          <p className="text-center text-muted-foreground text-sm">
-            Have a backup or another app&apos;s export?{" "}
-            <AuthTextLink href={authPaths.restore}>Import it</AuthTextLink>
-          </p>
-          <PasswordNote className="max-sm:hidden" />
-        </CardContent>
-      </Card>
-
-      <div className="mt-auto flex flex-col items-center gap-3 sm:hidden">
-        <HeroChips items={PHONE_CHIPS} compact />
-        <PasswordNote className="order-last" />
       </div>
     </>
   );

@@ -91,7 +91,7 @@ export default function LoginPage() {
         description="Unlock your passmgr vault. Your password never leaves this device."
         canonicalPath={authPaths.login}
       />
-      <div className="flex w-full flex-col gap-4 lg:col-span-full lg:mx-auto lg:max-w-md">
+      <div className="flex w-full flex-col gap-4 sm:col-span-full sm:mx-auto sm:max-w-md">
         {unlockable && active && (
           <UnlockCard
             // A picked profile starts over: password closed again if it has biometrics.

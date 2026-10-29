@@ -205,7 +205,7 @@ function RecoverFlow() {
         }}
       />
 
-      <div className="flex w-full flex-col lg:col-span-full lg:mx-auto lg:max-w-md">
+      <div className="flex w-full flex-col sm:col-span-full sm:mx-auto sm:max-w-md">
         <Card variant="glass" flatOnPhone>
           <StepBar
             onBack={step === "key" ? () => navigate(loginPath) : () => goTo("key")}
