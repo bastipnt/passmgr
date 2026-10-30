@@ -1,6 +1,6 @@
 ---
 name: do
-description: Close the kanbot task in Review as done, then pick up and implement the next task at the top of the Backlog. Use when the user invokes /do.
+description: Close the kanbot task in Review as done, then pick up and implement the next task at the top of the Backlog. For local use: leaves the changes uncommitted. Use when the user invokes /do.
 ---
 
 Look at kanbot. The task in Review is done; do the next task at the top of the Backlog.
@@ -25,12 +25,12 @@ Look at kanbot. The task in Review is done; do the next task at the top of the B
    non-obvious: a hidden constraint, a security invariant, a workaround for a specific bug, behavior
    that would surprise a reader. Never comment what the code already says (restating the function
    or variable name, narrating steps, "added for X" / task references). Good names over comments.
-5. Run the `/code-review` skill on the changes (no PR).
+5. Run the `/code-review:code-review` skill on the uncommitted changes (no PR).
    Also check the diff yourself for duplicated logic between web and mobile, and for reusable
    components placed in an app instead of a UI package, and remove comments that don't earn
    their place.
    Apply every finding's fix automatically, without asking, then re-run the relevant
-   typecheck/lint/tests. Then commit on the current branch (`claude`) with a Conventional Commits
-   message and push it (`git push -u origin claude`).
+   typecheck/lint/tests. **Do not commit or push**: leave the changes uncommitted in the working
+   tree, the user commits them.
 6. Move the task to **Review** and add a short comment summarizing what changed, including the
    review findings and how each was fixed (or why it was skipped).
