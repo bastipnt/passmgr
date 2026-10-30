@@ -10,7 +10,7 @@
   },
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "test": "vitest run"
   },
   "dependencies": {

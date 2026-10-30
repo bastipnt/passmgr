@@ -5,5 +5,11 @@
   "license": "PROPRIETARY",
   "publishConfig": {
     "access": "public"
+  },
+  "bin": {
+    "tsc7": "./tsc7.mjs"
+  },
+  "dependencies": {
+    "typescript7": "npm:typescript@7.0.2"
   }
 }

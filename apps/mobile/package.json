@@ -4,7 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "start": "expo start --dev-client",
     "prebuild": "expo prebuild",
     "android": "expo run:android",
@@ -64,6 +64,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@types/react": "catalog:",
     "oxlint": "catalog:",
     "typescript": "catalog:"

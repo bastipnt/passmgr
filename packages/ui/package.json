@@ -6,7 +6,7 @@
   "scripts": {
     "lint": "oxlint --type-aware",
     "typegen:css": "tcm src",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build:storybook": "storybook build"
   },

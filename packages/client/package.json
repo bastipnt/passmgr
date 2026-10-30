@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
     "two-factor-directory:update": "bun ./scripts/update-two-factor-directory.ts"
@@ -32,6 +32,7 @@
   },
   "devDependencies": {
     "@repo/db": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "@types/jsdom": "^30.0.0",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",

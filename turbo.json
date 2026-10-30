@@ -11,9 +11,13 @@
     "lint": {
       "dependsOn": ["^lint"]
     },
+    "transit": {
+      "dependsOn": ["^transit"]
+    },
     "typecheck": {
-      "dependsOn": ["^typecheck"],
-      "cache": false
+      "dependsOn": ["transit"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/types.d.ts"],
+      "outputs": []
     },
     "test": {},
     "test:coverage": {},

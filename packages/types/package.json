@@ -6,12 +6,13 @@
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc7 --noEmit"
   },
   "dependencies": {
     "server": "workspace:*"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "oxlint": "catalog:",
     "typescript": "catalog:"
   }

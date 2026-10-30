@@ -5,10 +5,11 @@
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "test": "echo \"(no tests)\""
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "oxlint": "catalog:"
   }
 }

@@ -5,7 +5,7 @@
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage"
   },
@@ -13,6 +13,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@repo/util": "workspace:*",
     "@vitest/coverage-v8": "catalog:",
     "oxlint": "catalog:",

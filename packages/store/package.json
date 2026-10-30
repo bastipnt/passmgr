@@ -10,7 +10,7 @@
     "./testing": "./test/node-sqlite-driver.ts"
   },
   "scripts": {
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "migrations:generate": "drizzle-kit generate --config drizzle.config.ts && drizzle-kit generate --config drizzle.registry.config.ts && node scripts/bundle-migrations.ts"
@@ -42,6 +42,7 @@
     }
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@vitest/coverage-v8": "catalog:",
     "drizzle-kit": "catalog:",
     "vitest": "catalog:"

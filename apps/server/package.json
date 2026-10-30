@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "bun run --watch index.ts",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc7 --noEmit",
     "lint": "oxlint --type-aware",
     "invite": "bun scripts/create-invite.ts",
     "test": "vitest run",
@@ -33,6 +33,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
     "@vitest/coverage-v8": "catalog:",

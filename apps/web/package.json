@@ -9,7 +9,7 @@
     "build": "tsc -b && vite build",
     "lint": "oxlint --type-aware",
     "preview": "vite preview",
-    "typecheck": "tsc -b --force --noEmit",
+    "typecheck": "tsc7 -b --noEmit",
     "typegen:css": "tcm src",
     "brand:render": "bun scripts/render-brand.ts",
     "verify:deployment": "bun scripts/verify-deployment.ts",
@@ -42,6 +42,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.61.1",
+    "@repo/typescript-config": "workspace:*",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
