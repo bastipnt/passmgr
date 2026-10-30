@@ -20,7 +20,7 @@ type AuthLayoutProps = {
  */
 export default function AuthLayout({ children, phoneHeader = true }: AuthLayoutProps) {
   return (
-    <div className="relative isolate flex min-h-screen flex-col">
+    <div className="relative isolate flex min-h-dvh flex-col">
       <div className="light-field" />
       <header
         className={cn(

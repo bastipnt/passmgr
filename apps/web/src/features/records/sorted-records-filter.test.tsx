@@ -45,6 +45,7 @@ const vaultIds = vi.hoisted(() => ["v1", "v2"]);
 vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({
     getVault: (vaultId: string) => (vaultIds.includes(vaultId) ? { vaultId } : undefined),
+    hasSeveralVaults: true,
   }),
 }));
 
@@ -141,6 +142,24 @@ describe("vault filter", () => {
 
     act(() => result.current.setVaultFilter("all"));
     expect(ids(result.current.sortedRecords)).toEqual(["work"]);
+  });
+
+  it("Search all items runs past the vault too, and revealing a record shows its vault", () => {
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+
+    act(() => result.current.setVaultFilter("v1"));
+    expect(result.current.canSearchAll).toBe(true);
+    act(() => result.current.setQuery("jira"));
+    expect(ids(result.current.outsideScope)).toEqual(["work"]);
+
+    act(() => result.current.searchAllItems());
+    expect(ids(result.current.sortedRecords)).toEqual(["work"]);
+    expect(result.current.canSearchAll).toBe(false);
+    expect(result.current.vaultFilter).toBe("v1");
+
+    const [jira] = result.current.sortedRecords;
+    act(() => result.current.revealRecord(jira as DecryptedRecord));
+    expect(result.current.vaultFilter).toBe("all");
   });
 
   it("resets the category on a switch", () => {

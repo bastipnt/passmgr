@@ -71,7 +71,8 @@ carries it; `toggleTag` / `removeTag` / `clearTags`; `tags` follow the vault fil
 records left if added; a detail chip's `showTag` clears the other filters first) and search's third tier. Search
 (`records/record-search.ts`: `parseSearch`, `matchRecords` title → subtitle (a login's email too) → tag with why each matched; a query starting
 with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
-`searchAllItems` widens past category and tags until the query or the filters change or tag mode starts (`OutsideScope`, also on phones);
+`searchAllItems` widens past vault, category and tags (`canSearchAll`: one of them narrows it, a vault only with several)
+until the query or the filters change or tag mode starts (`OutsideScope`, also on phones); result rows then mark their vault;
 `recentRecords` (session only, search previews excluded); `recentSearches` (text + tags, newest first, once each,
 kept when a search opens a record or adds a tag; in memory only and gone on lock, since a query tells which accounts
 exist; only those whose tags the vault in view has, `countSearch` counts each there); `searchSections` builds the groups and `useSearchOptions` turns
@@ -82,9 +83,9 @@ while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces
 records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves,
 Esc or the field's "Show N esc" pill back to the list); the highlighted record previews once typed or moved by
 keys (debounced; never on focus; hovering highlights without previewing, only on a real pointer move), Enter opens it
-(`revealRecord`: one the category or tags hide drops them, so the list shows it), Esc or the ✕ in the field's esc chip
-restores the record open before; "Search all items" ($mod+Shift+F) sits at the end of the scope row while category or
-tags narrow it; the key hints float over the results' foot. Closing the search scrolls the list to the open record; a
+(`revealRecord`: one the vault, category or tags hide drops them, so the list shows it), Esc or the ✕ in the field's esc chip
+restores the record open before; "Search all items" ($mod+Shift+F) sits at the end of the scope row while vault,
+category or tags narrow it; the key hints float over the results' foot. Closing the search scrolls the list to the open record; a
 filter change that leaves the open record out opens the list's first (none: the empty page, which then says the
 filters left nothing and offers Clear filters); list rows show no focus ring, as the results don't (the active fill
 marks them); the chips under the list heading remove one or Clear all;
@@ -99,7 +100,9 @@ is dropped and the rest searched as usual (`parseSearch(query, false)`). Empty, 
 their records instead (`useSearchOptions({ listTagged })`, "Tagged #a" / "Logins tagged #a"). Picked tags show in
 the scope row as `#tag` chips (as on desktop, `SearchScope`), with "Search all items" beside them to run past the
 filters (`searchAllItems`); the field holds only the text. Taps never take focus from the field, so
-typing goes on; dragging the results drops the keyboard; in landscape the results get the scope row's space. The search key opens a lone match. Back from a record
+typing goes on; dragging the results drops the keyboard; in landscape the results get the scope row's space. The search
+key only drops the keyboard over the results (a tap opens a record). The layer follows the visual viewport and keeps
+drags off the list behind (`@repo/ui` `useViewportLayer`), its ground carried on behind the (translucent) keyboard. Back from a record
 opened in it (also once moved, or created from it) lands on the same search with the results' scroll, field focused;
 Cancel / Back clears the query and restores the filters (tags, category) and the list's scroll it opened with.
 Keyboard mechanics (focus in the tap, holding the keyboard over Back): `apps/web/CLAUDE.md`. Mobile app:

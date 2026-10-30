@@ -62,14 +62,15 @@ Rules:
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
   the list's large title over `ActiveFilterChips` (a `ChipLane` from `@repo/ui`: one scrolling row, edges fade where chips are cut off, Clear all pinned from two filters on), and a bottom dock (`FilterButton` → `FilterSheet`, its Show N button pinned to the drawer bottom; search, sort, new). The dock's search pill opens
   `MobileSearchOverlay` (`MobileSearch.tsx`): a full-screen layer portaled to `<body>` (no z-index, so sheets opened
-  from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
+  from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`;
+  `useViewportLayer` pins it to the visual viewport (iOS pans that under the keyboard) and drops drags that scroll nothing in it, which would scroll the list behind. Its open state is a
   history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
   reopens it with the field focused (the record's Back tap holds the keyboard, `@repo/ui` `holdKeyboard` /
   `handOffKeyboard`). Cancel / Back restores the filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. Kept simple for
   a phone keyboard: records only (no tag rows, no tag pill bar), no `#` tag mode (the overlay sets the provider's
   `tagSearch` off while mounted; tags still match as part of a record). Taps in it prevent `pointerdown` so they never
   blur the field, and a tap that blurred it anyway (iOS) focuses it again. Tags picked in `FilterSheet` show in the scope row as
-  `#tag` chips like desktop (`SearchScope`), never in the field; `SearchScope lane` puts them in a `ChipLane` under "Searching in" + the count; filtered, Search all (`SearchAllButton
+  `#tag` chips like desktop (`SearchScope`), never in the field; `SearchScope lane` puts them in a `ChipLane` under "Searching in" + the count; filtered (a vault counts too), Search all (`SearchAllButton
   shortcut={false}`) is pinned at its end runs past them for the query, the filters staying picked (no Clear all in the search: the list's chips have it); with nothing typed their records list under "Tagged #a".
   Dragging the results drops the keyboard (`@repo/ui` `useBlurOnDrag`; a tap's jitter doesn't). In landscape (layout
   under 500px high) the scope row (unless filtered) gives way to the results. `search-history.ts` holds the history helpers and, in memory, the results' scroll for Back
@@ -91,6 +92,8 @@ Rules:
   The light field is for auth screens only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`,
   `data-ground="flat"` on `<html>`), which gives the flat ground and turns `glass` / `glass-popover` solid without blur.
   The logo (`BrandMark`) is a `bg-primary` tile, so it follows the accent (auth screens too).
+- **Full-height phone layouts use `dvh`, never `100vh` / `min-h-screen`**: on iOS Safari `vh` is the large viewport
+  (toolbar hidden), so a `min-h-screen` box makes every page scroll by the toolbar's height (`#root` in `index.html` too).
 - **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'

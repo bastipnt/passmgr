@@ -15,6 +15,7 @@ import {
 } from "@repo/ui/components/InputGroup";
 import { useBlurOnDrag } from "@repo/ui/hooks/use-blur-on-drag";
 import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
+import { useViewportLayer } from "@repo/ui/hooks/use-viewport-layer";
 import { handOffKeyboard, releaseKeyboard } from "@repo/ui/lib/keyboard-handoff";
 import { restoreScroll } from "@repo/ui/lib/restore-scroll";
 import { cn } from "@repo/ui/lib/utils";
@@ -238,13 +239,11 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
     noteSearched,
     countSearch,
     searchAll,
-    categoryFilter,
     searchAllItems,
+    canSearchAll: filtered,
     setTagSearch,
     recentSearches,
   } = useSortedRecords();
-  // "Search all items" runs past the filters and the scope doesn't show them.
-  const filtered = !searchAll && (categoryFilter !== "all" || tagFilters.length > 0);
   const { search, sections, options } = useSearchOptions({ listTagged: true, withTags: false });
   const short = useMediaQuery(SHORT_QUERY);
   const blurOnDrag = useBlurOnDrag(inputRef);
@@ -255,6 +254,8 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
   const [, navigate] = useLocation();
   const listboxId = useId();
   const typed = search.text !== "";
+  const layerRef = useRef<HTMLDivElement>(null);
+  useViewportLayer(layerRef, open);
 
   // No `#` tag mode on a phone: tags still match as part of a record, typed `#` or not.
   useEffect(() => {
@@ -291,6 +292,7 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
 
   return createPortal(
     <div
+      ref={layerRef}
       // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- stays mounted while closed, see openSearch
       role="dialog"
       aria-modal="true"
@@ -302,7 +304,9 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
       }}
       className={cn(
         // No z-index: sheets opened from the search (Create) portal in after it and must cover it.
-        "fixed inset-0 flex flex-col bg-background transition-opacity duration-150 ease-out motion-reduce:transition-none",
+        // The ::after carries the ground on below the layer (sized to the visual viewport, so to the
+        // keyboard's top) down to the bottom of the screen: the keyboard is translucent.
+        "fixed inset-x-0 top-0 flex h-dvh flex-col bg-background transition-opacity duration-150 ease-out after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-lvh after:bg-background motion-reduce:transition-none",
         !open && "pointer-events-none opacity-0",
       )}
     >
@@ -338,12 +342,11 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             className="text-base [&::-webkit-search-cancel-button]:hidden"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            // The search key drops the keyboard to show the whole list; a tap opens a record.
             onKeyDown={(e) => {
               if (e.key !== "Enter") return;
               e.preventDefault();
-              const [only, ...rest] = options;
-              if (typed && only && rest.length === 0) choose(only);
-              else e.currentTarget.blur();
+              e.currentTarget.blur();
             }}
           />
           {query && (

@@ -81,6 +81,7 @@ storybook-static
 .claude/settings.local.json
 .fallow/
 .playwright-mcp
+.playwright-cli
 .playwright
 .tamagui
 

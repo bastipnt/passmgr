@@ -16,7 +16,7 @@ export default function ErrorFallback({ resetErrorBoundary, error }: FallbackPro
       ? (error as { message: string }).message
       : "";
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center">
+    <main className="flex min-h-dvh flex-col items-center justify-center">
       <section role="alert" className="w-lg">
         <Card>
           <CardHeader>

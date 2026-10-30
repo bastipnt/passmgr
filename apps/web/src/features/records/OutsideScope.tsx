@@ -1,12 +1,15 @@
-import { RECORD_TYPE_LABELS, TAG_SEARCH_PREFIX } from "@repo/client";
+import { RECORD_TYPE_LABELS, TAG_SEARCH_PREFIX, useVaults } from "@repo/client";
 import { categoryLabel, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { cn } from "@repo/ui/lib/utils";
 
-/** The search's matches the category and tags hide, with a way to widen it past them. */
+/** The search's matches the vault, category and tags hide, with a way to widen it past them. */
 export function OutsideScope({ className }: { className?: string }) {
-  const { outsideScope, categoryFilter, tagFilters, searchAllItems } = useSortedRecords();
+  const { outsideScope, vaultFilter, categoryFilter, tagFilters, searchAllItems } =
+    useSortedRecords();
+  const { getVault } = useVaults();
   if (outsideScope.length === 0) return null;
   const scope = [
+    vaultFilter === "all" ? undefined : getVault(vaultFilter)?.name,
     categoryFilter === "all" ? undefined : categoryLabel(categoryFilter),
     ...tagFilters.map((tag) => `${TAG_SEARCH_PREFIX}${tag}`),
   ]

@@ -1,8 +1,5 @@
 import { type SearchOption, useSearchOptions } from "@repo/client";
-import {
-  activeFilterCount,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -16,7 +13,7 @@ import { recordPaths } from "@/app/route-paths";
 
 export const PREVIEW_DELAY_MS = 150;
 
-/** Widens the search past the category and tags (`searchAllItems`). */
+/** Widens the search past the vault, category and tags (`searchAllItems`). */
 export const SEARCH_ALL_KEY = "$mod+Shift+f";
 
 /**
@@ -35,9 +32,7 @@ export function useSearchPanel(enabled: boolean) {
     toggleTag,
     noteOpened,
     searchInputRef,
-    categoryFilter,
-    tagFilters,
-    searchAll,
+    canSearchAll: filtersNarrow,
     searchAllItems,
     revealRecord,
   } = useSortedRecords();
@@ -50,8 +45,7 @@ export function useSearchPanel(enabled: boolean) {
   const pointer = useRef<{ x: number; y: number }>(undefined);
   const { search, sections, options } = useSearchOptions();
   const open = enabled && focused;
-  const canSearchAll =
-    !search.tagMode && !searchAll && activeFilterCount(categoryFilter, tagFilters) > 0;
+  const canSearchAll = !search.tagMode && filtersNarrow;
 
   const routeRecordId = useRef(params?.recordId);
   routeRecordId.current = params?.recordId;

@@ -57,7 +57,7 @@ export function SearchScope({
 }) {
   const { vaultFilter, categoryFilter, tagFilters, searchAll } = useSortedRecords();
   const { getVault } = useVaults();
-  const vault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
+  const vault = vaultFilter === "all" || searchAll ? undefined : getVault(vaultFilter);
 
   const chips = (
     <>
@@ -228,14 +228,13 @@ export function RecordOptionRow({
   tagMark?: boolean;
 }) {
   const { record, match } = option;
-  const { canGroupByVault } = useSortedRecords();
-  const { getVault } = useVaults();
+  const { canGroupByVault, searchAll } = useSortedRecords();
+  const { getVault, hasSeveralVaults } = useVaults();
+  // "Search all" runs past the vault in view: the rows may come from any.
+  const showVault = canGroupByVault || (searchAll && hasSeveralVaults);
   return (
     <>
-      <RecordAvatar
-        record={record}
-        vault={canGroupByVault ? getVault(record.vaultId) : undefined}
-      />
+      <RecordAvatar record={record} vault={showVault ? getVault(record.vaultId) : undefined} />
       <span className="flex min-w-0 flex-1 flex-col">
         <span
           className={cn("truncate font-semibold text-[0.95rem]", active && "text-primary-text")}

@@ -189,19 +189,13 @@ describe("MobileSearch", () => {
     expect(screen.queryByRole("region", { name: "Recent searches" })).toBeNull();
   });
 
-  it("the search key opens the only matching record, never a recent one on an empty field", async () => {
+  it("the search key drops the keyboard over the results, opening nothing", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
     await userEvent.type(field(), "fineco{Enter}");
-    expect(location.pathname).toBe(recordPaths.record("fineco"));
-
-    history.back();
-    await waitFor(() => expect(location.pathname).toBe("/"));
-    await userEvent.click(screen.getByRole("button", { name: "Note Fineco opened", hidden: true }));
-    await userEvent.clear(field());
-    expect(screen.getByRole("group", { name: "Recently opened" })).toBeInTheDocument();
-    await userEvent.type(field(), "{Enter}");
     expect(location.pathname).toBe("/");
+    expect(field()).not.toHaveFocus();
+    expect(screen.getByRole("option", { name: /Fineco Bank/ })).toBeInTheDocument();
   });
 });
 
