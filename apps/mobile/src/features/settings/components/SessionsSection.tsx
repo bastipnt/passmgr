@@ -38,7 +38,7 @@ export function SessionsSection() {
 
   function confirmRevoke(session: SessionInfo) {
     const name = sessionLabel(session);
-    Alert.alert(`Sign out ${name}?`, "It locks and needs the master password to sign in again.", [
+    Alert.alert(`Sign out ${name}?`, "It locks and needs the password to sign in again.", [
       { text: "Cancel", style: "cancel" },
       { text: "Sign out", style: "destructive", onPress: () => void run(() => revoke(session.id)) },
     ]);
@@ -47,7 +47,7 @@ export function SessionsSection() {
   function confirmRevokeOthers() {
     Alert.alert(
       "Sign out all other devices?",
-      "Every other device locks and needs the master password to sign in again. This phone stays signed in.",
+      "Every other device locks and needs the password to sign in again. This phone stays signed in.",
       [
         { text: "Cancel", style: "cancel" },
         { text: "Sign out others", style: "destructive", onPress: () => void run(revokeOthers) },
@@ -69,7 +69,7 @@ export function SessionsSection() {
     <SettingsSection
       flush
       title="Signed-in devices"
-      description="A signed-out device locks and needs the master password again. Its unsynced changes stay on it."
+      description="A signed-out device locks and needs the password again. Its unsynced changes stay on it."
     >
       {isPending ? (
         <View className="gap-2 px-5">

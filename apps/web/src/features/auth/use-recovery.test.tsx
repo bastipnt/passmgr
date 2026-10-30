@@ -149,7 +149,7 @@ describe("useRecovery — offline", () => {
 
 describe("useRecovery — local vault", () => {
   const PASSWORD = "hunter2hunter2";
-  const NEW_PASSWORD = "a brand new master password";
+  const NEW_PASSWORD = "a brand new password";
 
   const previous = getPasswordKekParams();
   beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
@@ -286,7 +286,7 @@ describe("useRecovery — local vault", () => {
 
 describe("useRecovery — account vault on this device", () => {
   const PASSWORD = "hunter2hunter2";
-  const NEW_PASSWORD = "a brand new master password";
+  const NEW_PASSWORD = "a brand new password";
 
   const previous = getPasswordKekParams();
   const bounds = getArgonBounds();

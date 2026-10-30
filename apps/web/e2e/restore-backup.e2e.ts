@@ -14,7 +14,7 @@ test("restores an encrypted backup next to an existing vault", async ({ page }) 
   await page.getByRole("link", { name: "Security", exact: true }).click();
   await page.getByRole("button", { name: "Export", exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Master password").fill(password);
+  await dialog.getByLabel("passmgr password").fill(password);
   await dialog.getByLabel("Backup password", { exact: true }).fill(backupPassword);
   await dialog.getByLabel("Confirm backup password").fill(backupPassword);
   const download = page.waitForEvent("download");

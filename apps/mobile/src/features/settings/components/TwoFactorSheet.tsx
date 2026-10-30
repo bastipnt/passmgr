@@ -49,9 +49,9 @@ const TITLES: Record<TwoFactorAction, string> = {
 
 const DESCRIPTIONS: Record<TwoFactorAction, string> = {
   enable:
-    "Signing in to your account will also ask for a code from an authenticator app. Enter your master password to start.",
+    "Signing in to your account will also ask for a code from an authenticator app. Enter your password to start.",
   disable:
-    "Signing in to your account will need only your master password again. Your backup codes stop working.",
+    "Signing in to your account will need only your password again. Your backup codes stop working.",
   regenerate: "Your current backup codes stop working and you get ten new ones.",
 };
 
@@ -194,7 +194,7 @@ export function TwoFactorSheet({ ref }: { ref: Ref<TwoFactorSheetRef> }) {
               <ControlledPasswordInput
                 control={passwordForm.control}
                 name="password"
-                label="Master password"
+                label="Password"
                 textContentType="password"
               />
             </FormLock>

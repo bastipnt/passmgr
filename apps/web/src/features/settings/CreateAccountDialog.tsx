@@ -66,8 +66,8 @@ export default function CreateAccountDialog({ children }: { children: ReactEleme
             <DialogHeader>
               <DialogTitle>Create online account</DialogTitle>
               <DialogDescription>
-                Your vault keeps its master password and recovery key. Once the account exists,
-                everything in it syncs, end-to-end encrypted.
+                Your vault keeps its password and recovery key. Once the account exists, everything
+                in it syncs, end-to-end encrypted.
               </DialogDescription>
             </DialogHeader>
 
@@ -83,7 +83,7 @@ export default function CreateAccountDialog({ children }: { children: ReactEleme
               <ControlledPasswordInput
                 control={control}
                 name="password"
-                label="Master password"
+                label="Password"
                 autoComplete="current-password"
                 leadingIcon={<LockIcon />}
               />

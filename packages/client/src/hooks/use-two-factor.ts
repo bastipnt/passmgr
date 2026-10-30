@@ -39,7 +39,7 @@ export type TwoFactorError =
 
 /** User-facing text for each two-factor error (web + mobile). */
 export const TWO_FACTOR_ERROR_MESSAGES: Record<TwoFactorError, string> = {
-  wrong_password: "That's not your master password.",
+  wrong_password: "That's not your password.",
   offline: "Two-factor settings need a connection to the server. Try again once you're online.",
   throttled: "Too many attempts. Please wait and try again.",
   second_factor: "The two-factor step of the sign-in didn't finish. Try again.",

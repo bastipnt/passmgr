@@ -5,7 +5,12 @@ import {
   type ExportRequest,
   useExport,
 } from "@repo/client";
-import { type ExportPasswordFormValues, exportPasswordFormSchema } from "@repo/schema";
+import {
+  type ExportPasswordFormValues,
+  exportPasswordFormSchema,
+  type PlainExportFormValues,
+  plainExportFormSchema,
+} from "@repo/schema";
 import { toast, useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -33,7 +38,6 @@ import { Spinner } from "@repo/ui/components/Spinner";
 import { DownloadIcon, KeyRoundIcon, LockIcon } from "lucide-react";
 import { type ReactElement, type ReactNode, useState } from "react";
 import { type Control, type Path, useWatch } from "react-hook-form";
-import z from "zod";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 import { downloadFile } from "@/lib/download";
 
@@ -50,12 +54,9 @@ const DESCRIPTIONS: Record<ExportFormat, string> = {
   csv: "Every record in this vault as a CSV spreadsheet, for moving to another app.",
 };
 
-const plainSchema = z.object({ masterPassword: z.string().min(1, "Enter your master password") });
-type PlainFormValues = z.infer<typeof plainSchema>;
-
 /**
  * Export the vault (ADR 0001 D12): an encrypted backup (the backup a local
- * vault relies on), or plain JSON / CSV behind the master password and a
+ * vault relies on), or plain JSON / CSV behind the password and a
  * warning.
  */
 export default function ExportDialog({ children }: { children: ReactElement }) {
@@ -155,7 +156,7 @@ function MasterPasswordInput<T extends { masterPassword: string }>({
     <ControlledPasswordInput
       control={control}
       name={"masterPassword" as Path<T>}
-      label="Master password"
+      label="passmgr password"
       autoComplete="current-password"
       leadingIcon={<LockIcon />}
     />
@@ -204,8 +205,8 @@ function EncryptedExportForm({
 }
 
 function PlainExportForm({ exporting, error, onExport }: FormProps<[masterPassword: string]>) {
-  const { handleSubmit, control } = useForm<PlainFormValues>({
-    resolver: zodResolver(plainSchema),
+  const { handleSubmit, control } = useForm<PlainExportFormValues>({
+    resolver: zodResolver(plainExportFormSchema),
     defaultValues: { masterPassword: "" },
   });
 

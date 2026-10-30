@@ -39,7 +39,7 @@ export default function TwoFactorPasswordForm({
           <ControlledPasswordInput
             control={control}
             name="password"
-            label="Master password"
+            label="Password"
             autoComplete="current-password"
             leadingIcon={<LockIcon />}
           />

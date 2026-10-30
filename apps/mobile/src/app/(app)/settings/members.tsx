@@ -107,7 +107,7 @@ function Members({ vault }: { vault: VaultInfo }) {
         {mode === "local" && (
           <SettingsSection
             title="Share"
-            description="Sharing goes through the server: create an online account for this vault first. Your master password and recovery key stay the same."
+            description="Sharing goes through the server: create an online account for this vault first. Your password and recovery key stay the same."
           >
             <Button size="lg" onPress={() => createAccountRef.current?.triggerShowHide(true)}>
               Create online account

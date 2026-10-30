@@ -38,7 +38,7 @@ export default function SessionsSettings() {
           <ItemDescription>
             {mode !== "online"
               ? "Connect to your account to see where you are signed in."
-              : "A signed-out device locks and needs the master password again. Its unsynced changes stay on it."}
+              : "A signed-out device locks and needs the password again. Its unsynced changes stay on it."}
           </ItemDescription>
         </div>
         {isPending && <Spinner aria-label="Loading devices" />}
@@ -57,7 +57,7 @@ export default function SessionsSettings() {
                 {!session.current && (
                   <RemoveDialog
                     title="Sign this device out?"
-                    description={`${sessionLabel(session)} locks and needs the master password to sign in again. Its unsynced changes stay on it.`}
+                    description={`${sessionLabel(session)} locks and needs the password to sign in again. Its unsynced changes stay on it.`}
                     removeTitle="Sign out"
                     onRemove={() => void revoke(session.id).catch(failed)}
                   >
@@ -81,7 +81,7 @@ export default function SessionsSettings() {
         <ItemActions>
           <RemoveDialog
             title="Sign out all other devices?"
-            description="Every other device locks and needs the master password to sign in again. This device stays signed in."
+            description="Every other device locks and needs the password to sign in again. This device stays signed in."
             removeTitle="Sign out others"
             onRemove={() => void revokeOthers().catch(failed)}
           >

@@ -66,7 +66,7 @@ export default function ChangePasswordDialog({
         <form onSubmit={handleSubmit(onSubmit)}>
           <FormLock locked={changing}>
             <DialogHeader>
-              <DialogTitle>Change master password</DialogTitle>
+              <DialogTitle>Change password</DialogTitle>
               <DialogDescription>
                 {linked
                   ? "Your other devices are signed out and unlock with the new password. Your recovery key stays the same."

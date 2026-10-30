@@ -39,7 +39,7 @@ export type LinkAccountError =
 
 /** User-facing text for each link error (web + mobile). */
 export const LINK_ACCOUNT_ERROR_MESSAGES: Record<LinkAccountError, string> = {
-  wrong_password: "That isn't this vault's master password.",
+  wrong_password: "That isn't this vault's password.",
   registration_failed:
     "The server didn't create the account. Registration may need an invite, or the invite is invalid or for another email.",
   rejected: "This email belongs to another account. Use another email.",

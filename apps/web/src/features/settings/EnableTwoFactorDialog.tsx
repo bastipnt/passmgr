@@ -180,7 +180,7 @@ export default function EnableTwoFactorDialog({
           </DialogTitle>
           <DialogDescription>
             {step.kind === "password" &&
-              "Signing in to your account will also ask for a code from an authenticator app. Enter your master password to start."}
+              "Signing in to your account will also ask for a code from an authenticator app. Enter your password to start."}
             {step.kind === "scan" &&
               "Scan the QR code with your authenticator app, then enter the code it shows. Keep this account's codes in an app outside this vault: they're needed to get back in."}
             {step.kind === "codes" &&

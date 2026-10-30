@@ -119,7 +119,7 @@ describe("useExport", () => {
     expect(store.markExported).toHaveBeenCalledWith(local.profile.profileId);
   });
 
-  it("writes plain JSON behind the master password, without counting it as a backup", async () => {
+  it("writes plain JSON behind the password, without counting it as a backup", async () => {
     const { result } = renderHook(() => useExport());
 
     let file: Awaited<ReturnType<typeof result.current.createExport>> = null;
@@ -136,7 +136,7 @@ describe("useExport", () => {
   it.each([
     { format: "csv", masterPassword: "not it" },
     { format: "encrypted", masterPassword: "not it", exportPassword: BACKUP_PASSWORD },
-  ] as const)("refuses a $format export with a wrong master password", async (request) => {
+  ] as const)("refuses a $format export with a wrong password", async (request) => {
     const { result } = renderHook(() => useExport());
 
     await act(async () => {

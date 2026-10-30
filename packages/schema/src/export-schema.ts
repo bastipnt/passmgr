@@ -84,10 +84,17 @@ export const exportEnvelopeSchema = z.object({
 export type ExportKdf = z.infer<typeof exportKdfSchema>;
 export type ExportEnvelope = z.infer<typeof exportEnvelopeSchema>;
 
-/** The export dialog for an encrypted backup: the master password (re-checked) and the backup's own. */
+const exportMasterPassword = z.string().min(1, "Enter your passmgr password");
+
+/** The export dialog for a plain JSON / CSV export: the password (re-checked). */
+export const plainExportFormSchema = z.object({ masterPassword: exportMasterPassword });
+
+export type PlainExportFormValues = z.infer<typeof plainExportFormSchema>;
+
+/** The export dialog for an encrypted backup: the password (re-checked) and the backup's own. */
 export const exportPasswordFormSchema = z
   .object({
-    masterPassword: z.string().min(1, "Enter your master password"),
+    masterPassword: exportMasterPassword,
     password: z.string().min(8),
     confirmPassword: z.string(),
   })

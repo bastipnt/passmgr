@@ -12,7 +12,7 @@ export type ExportError = "wrong_password" | "failed";
 
 /** User-facing text for each export error (web + mobile). */
 export const EXPORT_ERROR_MESSAGES: Record<ExportError, string> = {
-  wrong_password: "That's not your master password.",
+  wrong_password: "That's not your passmgr password.",
   failed: "The export couldn't be created. Please try again.",
 };
 
@@ -54,7 +54,7 @@ export function useExport() {
     setExporting(true);
     try {
       const material = active.accountKeyMaterial;
-      if (!material) throw new Error("No password wrap to check the master password against");
+      if (!material) throw new Error("No password wrap to check the password against");
       if (!(await opensPasswordWrap(request.masterPassword, material))) {
         setExportError("wrong_password");
         return null;

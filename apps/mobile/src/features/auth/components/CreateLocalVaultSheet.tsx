@@ -116,7 +116,7 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
           <ControlledPasswordInput
             control={control}
             name="password"
-            label="Master password"
+            label="Password"
             textContentType="newPassword"
             note={
               strength && (

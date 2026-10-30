@@ -56,7 +56,7 @@ export type SecondFactorFormValues = z.infer<typeof secondFactorFormSchema>;
 
 /** Form: the master password a two-factor change starts with (a fresh login). */
 export const twoFactorPasswordFormSchema = z.object({
-  password: z.string().min(1, "Enter your master password"),
+  password: z.string().min(1, "Enter your password"),
 });
 
 export type TwoFactorPasswordFormValues = z.infer<typeof twoFactorPasswordFormSchema>;

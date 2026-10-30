@@ -131,7 +131,7 @@ export async function createEmergencyKit(input: EmergencyKitInput): Promise<Emer
   y -= 6;
   text(
     "Print this page or keep it offline, somewhere safe: a drawer at home, a safe deposit box. " +
-      "It holds what you need to get back into your vault if you forget your master password.",
+      "It holds what you need to get back into your vault if you forget your password.",
   );
 
   heading(input.account ? "Account" : "Vault");
@@ -144,7 +144,7 @@ export async function createEmergencyKit(input: EmergencyKitInput): Promise<Emer
   if (input.appUrl) field("Open passmgr at", input.appUrl);
   if (input.name) field("Name", input.name);
 
-  heading("Master password");
+  heading("Password");
   text("Write it here by hand if you want to. Never type it into a file or a photo.", {
     muted: true,
   });
@@ -161,9 +161,9 @@ export async function createEmergencyKit(input: EmergencyKitInput): Promise<Emer
   heading("Recovery key");
   text(
     input.account
-      ? "Resets your master password. Anyone who has it (with your email) can take over your " +
+      ? "Resets your password. Anyone who has it (with your email) can take over your " +
           "vault: keep it as safe as the password itself."
-      : "Resets your master password. Anyone who has it (with the device) can open your " +
+      : "Resets your password. Anyone who has it (with the device) can open your " +
           "vault: keep it as safe as the password itself.",
     { muted: true },
   );
@@ -193,7 +193,7 @@ export async function createEmergencyKit(input: EmergencyKitInput): Promise<Emer
     muted: true,
   });
 
-  heading("Forgot your master password?");
+  heading("Forgot your password?");
   text(
     input.account
       ? '1. Open passmgr and choose "Forgot password?" on the sign-in page.'
@@ -201,8 +201,8 @@ export async function createEmergencyKit(input: EmergencyKitInput): Promise<Emer
   );
   text(
     input.account
-      ? "2. Enter your email and the recovery key above, then a new master password."
-      : "2. Enter the recovery key above, then a new master password.",
+      ? "2. Enter your email and the recovery key above, then a new password."
+      : "2. Enter the recovery key above, then a new password.",
   );
   text(
     "3. You get a new recovery key and this one stops working: print a new emergency kit " +

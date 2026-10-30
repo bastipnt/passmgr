@@ -49,7 +49,7 @@ vi.mock("@repo/client/src/hooks/use-connect-server", async (importActual) => ({
 }));
 
 const PASSWORD = "hunter2hunter2";
-const NEW_PASSWORD = "a brand new master password";
+const NEW_PASSWORD = "a brand new password";
 const attachServer = vi.fn(async () => undefined);
 const detachServer = vi.fn();
 

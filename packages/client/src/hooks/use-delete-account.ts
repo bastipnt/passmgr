@@ -41,7 +41,7 @@ export type DeleteAccountError =
 
 /** User-facing text for each account deletion error (web + mobile). */
 export const DELETE_ACCOUNT_ERROR_MESSAGES: Record<DeleteAccountError, string> = {
-  wrong_password: "That's not your master password.",
+  wrong_password: "That's not your password.",
   offline: "Deleting your account needs a connection to the server. Try again once you're online.",
   throttled: "Too many attempts. Please wait and try again.",
   second_factor: "The two-factor step of the sign-in didn't finish. Nothing was deleted.",

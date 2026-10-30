@@ -93,7 +93,7 @@ export default function DeleteAccountDialog({
               <ControlledPasswordInput
                 control={control}
                 name="password"
-                label="Master password"
+                label="Password"
                 autoComplete="current-password"
                 leadingIcon={<LockIcon />}
               />

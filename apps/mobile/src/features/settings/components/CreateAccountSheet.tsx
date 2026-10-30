@@ -69,8 +69,8 @@ export function CreateAccountSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
           Create online account
         </Text>
         <Text className="text-muted-foreground text-sm">
-          Your vault keeps its master password and recovery key. Once the account exists, everything
-          in it syncs, end-to-end encrypted.
+          Your vault keeps its password and recovery key. Once the account exists, everything in it
+          syncs, end-to-end encrypted.
         </Text>
       </View>
 
@@ -87,7 +87,7 @@ export function CreateAccountSheet({ ref }: { ref: Ref<BottomSheetRef> }) {
         <ControlledPasswordInput
           control={control}
           name="password"
-          label="Master password"
+          label="Password"
           textContentType="password"
         />
         {!registrationEnabled && (

@@ -57,7 +57,7 @@ describe("ExportDialog", () => {
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await fill(user, "Master password", "master");
+    await fill(user, "passmgr password", "master");
     await fill(user, "Backup password", "backup password");
     await fill(user, "Confirm backup password", "backup password");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
@@ -72,7 +72,7 @@ describe("ExportDialog", () => {
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
   });
 
-  it("doesn't export an encrypted backup without the master password", async () => {
+  it("doesn't export an encrypted backup without the password", async () => {
     const user = userEvent.setup();
     renderDialog();
 
@@ -81,7 +81,7 @@ describe("ExportDialog", () => {
     await fill(user, "Confirm backup password", "backup password");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
 
-    expect(await screen.findByText("Enter your master password")).toBeTruthy();
+    expect(await screen.findByText("Enter your passmgr password")).toBeTruthy();
     expect(exportHook.createExport).not.toHaveBeenCalled();
   });
 
@@ -90,7 +90,7 @@ describe("ExportDialog", () => {
     renderDialog();
 
     await user.click(screen.getByRole("button", { name: "Export" }));
-    await fill(user, "Master password", "master");
+    await fill(user, "passmgr password", "master");
     await fill(user, "Backup password", "backup password");
     await fill(user, "Confirm backup password", "something else");
     await user.click(screen.getByRole("button", { name: "Export backup" }));
@@ -99,7 +99,7 @@ describe("ExportDialog", () => {
     expect(exportHook.createExport).not.toHaveBeenCalled();
   });
 
-  it("warns before a plain export and asks for the master password", async () => {
+  it("warns before a plain export and asks for the password", async () => {
     exportHook.createExport.mockResolvedValue(null);
     exportHook.exportError = "wrong_password";
     const user = userEvent.setup();
@@ -110,8 +110,8 @@ describe("ExportDialog", () => {
     await user.click(await screen.findByRole("option", { name: "Unencrypted CSV" }));
 
     expect(screen.getByText(/This file is not encrypted/)).toBeTruthy();
-    expect(screen.getByText("That's not your master password.")).toBeTruthy();
-    await fill(user, "Master password", "master");
+    expect(screen.getByText("That's not your passmgr password.")).toBeTruthy();
+    await fill(user, "passmgr password", "master");
     await user.click(screen.getByRole("button", { name: "Export unencrypted" }));
 
     await waitFor(() =>

@@ -41,8 +41,8 @@ function DisableTwoFactorDialog({ children }: { children: ReactElement }) {
         <DialogHeader>
           <DialogTitle>Turn off two-factor?</DialogTitle>
           <DialogDescription>
-            Signing in to your account will need only your master password again. Your backup codes
-            stop working.
+            Signing in to your account will need only your password again. Your backup codes stop
+            working.
           </DialogDescription>
         </DialogHeader>
         <TwoFactorPasswordForm
@@ -142,7 +142,7 @@ export default function TwoFactorSettings() {
               ? "Checking your account…"
               : enabled
                 ? `Signing in to your account asks for a code from your authenticator app. ${left === 1 ? "1 backup code" : `${left} backup codes`} left.`
-                : "Ask for a code from an authenticator app when signing in to your account, on top of your master password. Unlocking this device stays password-only."}
+                : "Ask for a code from an authenticator app when signing in to your account, on top of your password. Unlocking this device stays password-only."}
         </ItemDescription>
       </ItemContent>
       <ItemActions className="flex-wrap">
