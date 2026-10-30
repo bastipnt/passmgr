@@ -95,9 +95,9 @@ export default function GeneralSettingsPage() {
         <ItemGroup>
           <Item variant="outline">
             <ItemContent className="gap-2">
-              <ItemTitle>Language (coming soon)</ItemTitle>
+              <ItemTitle id="language-label">Language (coming soon)</ItemTitle>
               <Select items={languages} defaultValue={languages[0].value} disabled>
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-labelledby="language-label">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -116,13 +116,13 @@ export default function GeneralSettingsPage() {
 
           <Item variant="outline">
             <ItemContent className="gap-2">
-              <ItemTitle>Default sort order</ItemTitle>
+              <ItemTitle id="sort-label">Default sort order</ItemTitle>
               <Select
                 items={sortOptions}
                 value={sort}
                 onValueChange={(value) => setSort(value as SortOption)}
               >
-                <SelectTrigger className="w-full">
+                <SelectTrigger className="w-full" aria-labelledby="sort-label">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>

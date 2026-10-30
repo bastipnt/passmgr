@@ -3,6 +3,7 @@ import { Field, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Slider } from "@repo/ui/components/Slider";
 import { clampInt } from "@repo/util";
+import { useId } from "react";
 import OptionToggle from "./OptionToggle";
 
 type PasswordOptionsFormProps = {
@@ -11,15 +12,16 @@ type PasswordOptionsFormProps = {
 };
 
 export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptionsFormProps) {
+  const lengthLabelId = useId();
   return (
     <div className="flex flex-col gap-3">
       <Field>
         <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="pwgen-length">Length</FieldLabel>
+          <FieldLabel id={lengthLabelId}>Length</FieldLabel>
           <span className="text-muted-foreground text-xs tabular-nums">{pwOpts.length}</span>
         </div>
         <Slider
-          id="pwgen-length"
+          aria-labelledby={lengthLabelId}
           min={8}
           max={128}
           step={1}

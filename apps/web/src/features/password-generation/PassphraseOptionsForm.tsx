@@ -9,6 +9,7 @@ import {
   SelectValue,
 } from "@repo/ui/components/Select";
 import { Slider } from "@repo/ui/components/Slider";
+import { useId } from "react";
 import OptionToggle from "./OptionToggle";
 
 type PassphraseOptionsFormProps = {
@@ -17,15 +18,16 @@ type PassphraseOptionsFormProps = {
 };
 
 export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseOptionsFormProps) {
+  const wordsLabelId = useId();
   return (
     <div className="flex flex-col gap-3">
       <Field>
         <div className="flex items-center justify-between">
-          <FieldLabel htmlFor="pwgen-words">Words</FieldLabel>
+          <FieldLabel id={wordsLabelId}>Words</FieldLabel>
           <span className="text-muted-foreground text-xs tabular-nums">{phOpts.wordCount}</span>
         </div>
         <Slider
-          id="pwgen-words"
+          aria-labelledby={wordsLabelId}
           min={3}
           max={10}
           step={1}

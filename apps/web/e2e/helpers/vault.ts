@@ -89,7 +89,9 @@ async function fillLoginForm(page: Page, fields: LoginFields): Promise<void> {
 export async function openCreateForm(page: Page, type: string): Promise<void> {
   await page.getByRole("button", { name: /^New (record|item)$/ }).click();
   // The create sheet opens on the type picker.
-  await recordSheet(page).getByRole("link", { name: type, exact: true }).click();
+  await recordSheet(page)
+    .getByRole("link", { name: new RegExp(`^${type} `) })
+    .click();
 }
 
 /** Submit the create sheet; resolves the new record's id once it is open. */
@@ -284,10 +286,15 @@ export function syncStatus(page: Page) {
   return page.getByRole("button", { name: /^(Account & sync, )?sync status:/i });
 }
 
+/**
+ * `title` is the state as phones and the rail name it ("Synced"); the desktop card is named by its
+ * two visible lines, which start with it or follow "Online" ("Online Synced just now").
+ */
 export async function expectSyncStatus(page: Page, title: string, timeout?: number) {
-  await expect(syncStatus(page)).toHaveAccessibleName(new RegExp(`sync status: ${title}$`, "i"), {
-    timeout,
-  });
+  await expect(syncStatus(page)).toHaveAccessibleName(
+    new RegExp(`sync status: (Online )?${title}\\b`, "i"),
+    { timeout },
+  );
 }
 
 export async function expectSynced(page: Page, timeout = 30_000): Promise<void> {

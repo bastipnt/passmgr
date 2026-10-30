@@ -108,7 +108,8 @@ clicking, never `page.goto` (it reloads → locked). A second / third device = t
 offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
 (local vault, create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login
 shortcuts with websites and tags), the listed records, desktop search + its options, password issues,
-Lock from the sidebar, sync status). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+Lock from the sidebar, sync status), `e2e/helpers/a11y.ts` (`expectAccessible`: axe, WCAG 2.1 A / AA, in the
+current theme; called inside existing flows, not a spec of its own). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
 
 ## Web served-code trust
 

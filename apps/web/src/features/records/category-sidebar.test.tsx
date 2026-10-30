@@ -155,41 +155,41 @@ describe("CategorySidebar", () => {
         .filter((button) => button.hasAttribute("aria-pressed"))
         .map((button) => button.getAttribute("aria-label")),
     ).toEqual([
-      "All items (3)",
-      "Favorites (1)",
-      "Logins (2)",
-      "Credit cards (1)",
-      "Identities (0)",
-      "Secure notes (0)",
-      "SSH keys (0)",
-      "API keys (0)",
-      "Wi-Fi networks (0)",
+      "All items 3",
+      "Favorites 1",
+      "Logins 2",
+      "Credit cards 1",
+      "Identities 0",
+      "Secure notes 0",
+      "SSH keys 0",
+      "API keys 0",
+      "Wi-Fi networks 0",
     ]);
-    expect(category("All items (3)")).toHaveAttribute("aria-pressed", "true");
+    expect(category("All items 3")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("narrows the list to the picked type", async () => {
     const user = renderSidebar();
 
-    await user.click(category("Logins (2)"));
+    await user.click(category("Logins 2"));
 
-    expect(category("Logins (2)")).toHaveAttribute("aria-pressed", "true");
-    expect(category("All items (3)")).toHaveAttribute("aria-pressed", "false");
+    expect(category("Logins 2")).toHaveAttribute("aria-pressed", "true");
+    expect(category("All items 3")).toHaveAttribute("aria-pressed", "false");
     expect(listed()).toEqual(["GitHub", "Jira"]);
   });
 
   it("shows the starred records under Favorites", async () => {
     const user = renderSidebar();
 
-    await user.click(category("Favorites (1)"));
+    await user.click(category("Favorites 1"));
 
     expect(listed()).toEqual(["GitHub"]);
   });
 
   it("dims an empty category but keeps it clickable", async () => {
     const user = renderSidebar();
-    const empty = category("SSH keys (0)");
-    expect(empty).toHaveClass("text-muted-foreground/70");
+    const empty = category("SSH keys 0");
+    expect(empty).toHaveClass("text-muted-foreground");
     expect(empty).toBeEnabled();
 
     await user.click(empty);
@@ -225,7 +225,7 @@ describe("CategorySidebar collapsed", () => {
     expect(toggle()).toHaveAttribute("aria-expanded", "false");
     expect(toggle()).toHaveFocus();
     expect(sidebar()).toHaveAccessibleName("Categories");
-    expect(category("Logins (2)")).toHaveAttribute("aria-pressed", "false");
+    expect(category("Logins 2")).toHaveAttribute("aria-pressed", "false");
     expect(within(sidebar()).getByText("Logins")).toHaveClass("sr-only");
     expect(localStorage.getItem(PREF_KEYS.sidebarCollapsed)).toBe("true");
 
@@ -248,8 +248,8 @@ describe("CategorySidebar collapsed", () => {
     expect(screen.getByRole("button", { name: "New record" })).toHaveFocus();
     await user.tab();
 
-    expect(category("All items (3)")).toHaveFocus();
-    expect(await screen.findByText("All items (3)")).toBeInTheDocument();
+    expect(category("All items 3")).toHaveFocus();
+    expect(await screen.findByText("All items 3")).toBeInTheDocument();
   });
 });
 
@@ -296,7 +296,7 @@ describe("RecordList header", () => {
     expect(header()).toHaveTextContent("All items3");
     expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
 
-    await user.click(category("Logins (2)"));
+    await user.click(category("Logins 2"));
     await user.click(screen.getByRole("button", { name: "pick work" }));
     await user.click(screen.getByRole("button", { name: "pick infra" }));
 
@@ -346,7 +346,7 @@ describe("RecordList header", () => {
     await user.click(screen.getByRole("button", { name: "pick work" }));
 
     expect(tagIcon()).toHaveAccessibleName("Search tags (1 on)");
-    expect(tagIcon()).toHaveTextContent(/^Tags1$/);
+    expect(tagIcon()).toHaveTextContent(/^Tags 1$/);
     expect(tagIcon()).toHaveClass("bg-primary/10");
   });
 });
@@ -449,7 +449,7 @@ describe("search panel", () => {
 
   it("opening a record the filters hide drops them, so the list shows it", async () => {
     const { user, location } = renderList();
-    await user.click(category("Credit cards (1)"));
+    await user.click(category("Credit cards 1"));
     await user.click(field());
     await user.keyboard("git{Control>}{Shift>}F{/Shift}{/Control}{Enter}");
 
@@ -460,7 +460,7 @@ describe("search panel", () => {
 
   it("opening a record the filters keep leaves them", async () => {
     const { user } = renderList();
-    await user.click(category("Logins (2)"));
+    await user.click(category("Logins 2"));
     await user.click(field());
     await user.keyboard("jir{Enter}");
 
@@ -506,7 +506,7 @@ describe("search panel", () => {
 
   it("keeps to the filters, counts what they hide and widens on Search all items", async () => {
     const { user } = renderList();
-    await user.click(category("Credit cards (1)"));
+    await user.click(category("Credit cards 1"));
     await user.click(field());
     await user.keyboard("git");
 
@@ -529,7 +529,7 @@ describe("filters", () => {
     const { user, location } = renderList();
     await user.click(screen.getByRole("link", { name: /Jira/ }));
 
-    await user.click(category("Credit cards (1)"));
+    await user.click(category("Credit cards 1"));
     expect(location.history?.at(-1)).toBe("/record/visa");
 
     await user.click(screen.getByRole("button", { name: "pick work" }));
@@ -553,19 +553,19 @@ describe("filters", () => {
     expect(screen.getByText("Your vault is empty")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Import" })).toBeInTheDocument();
 
-    await user.click(category("SSH keys (0)"));
+    await user.click(category("SSH keys 0"));
     expect(screen.getByText("No SSH keys yet")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "New SSH key" })).toHaveAttribute(
       "href",
       expect.stringContaining("type=ssh_key"),
     );
 
-    await user.click(category("Credit cards (1)"));
+    await user.click(category("Credit cards 1"));
     await user.click(screen.getByRole("button", { name: "pick work" }));
     expect(screen.getByText("Nothing matches these filters")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Clear filters" }));
-    expect(category("All items (3)")).toHaveAttribute("aria-pressed", "true");
+    expect(category("All items 3")).toHaveAttribute("aria-pressed", "true");
   });
 
   it("keep a record they still list open", async () => {

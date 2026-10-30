@@ -76,7 +76,7 @@ function FieldBoxLabel({ className, ...props }: ComponentProps<"span">) {
     <span
       data-slot="field-box-label"
       className={cn(
-        "mb-0.5 truncate font-medium text-muted-foreground/70 text-xs transition-colors group-focus-visible/field-box:text-primary-text group-has-[[data-slot=field-box-control]:focus-visible]/field-box:text-primary-text group-aria-expanded/field-box:text-primary-text group-data-[invalid=true]/field-box:text-destructive!",
+        "mb-0.5 truncate font-medium text-muted-foreground text-xs transition-colors group-focus-visible/field-box:text-primary-text group-has-[[data-slot=field-box-control]:focus-visible]/field-box:text-primary-text group-aria-expanded/field-box:text-primary-text group-data-[invalid=true]/field-box:text-destructive!",
         className,
       )}
       {...props}

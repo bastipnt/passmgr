@@ -18,6 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/Select";
+import { useId } from "react";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 import ExportSettings from "./ExportSettings";
 import TwoFactorSettings from "./TwoFactorSettings";
@@ -31,17 +32,18 @@ type ChoiceSettingProps = {
 };
 
 function ChoiceSetting({ title, description, choices, value, onValueChange }: ChoiceSettingProps) {
+  const titleId = useId();
   return (
     <Item variant="outline">
       <ItemContent className="gap-2">
-        <ItemTitle>{title}</ItemTitle>
+        <ItemTitle id={titleId}>{title}</ItemTitle>
         <ItemDescription>{description}</ItemDescription>
         <Select
           items={choices}
           value={value}
           onValueChange={(next) => onValueChange(next as number)}
         >
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" aria-labelledby={titleId}>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>

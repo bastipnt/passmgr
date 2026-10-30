@@ -127,7 +127,7 @@ export function PasswordHealthLine({ record }: { record: DecryptedRecord }) {
       <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 pt-0.5 pb-2.5 text-[0.8rem] text-muted-foreground">
         <PasswordStrengthMeter strength={strength} inline />
         {breachCount === 0 && (
-          <span className="inline-flex items-center gap-1 text-muted-foreground/80">
+          <span className="inline-flex items-center gap-1 text-muted-foreground">
             <CheckIcon className="size-3.5 text-success" aria-hidden />
             Not breached
           </span>

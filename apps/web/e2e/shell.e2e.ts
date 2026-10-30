@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { expectAccessible } from "./helpers/a11y";
 import { randomPassword } from "./helpers/auth";
 import {
   createLocalVault,
@@ -31,6 +32,7 @@ test("accent: picked in Settings → General, kept over a reload, used by the au
     .getByRole("radio", { name: "Pine" })
     .click();
   await expect(page.locator("html")).toHaveAttribute("data-accent", "pine");
+  await expectAccessible(page);
 
   // Web lock reloads the page: the unlock screen shows the stored accent.
   await page.getByRole("button", { name: "Back" }).click();
@@ -38,6 +40,7 @@ test("accent: picked in Settings → General, kept over a reload, used by the au
   await expect(page.locator("html")).toHaveAttribute("data-accent", "pine");
   const logo = page.locator('[data-slot="brand-mark"]').first();
   await expect(logo).toBeVisible();
+  await expectAccessible(page);
   // Resolved through a probe: computed colours compare in one format, the token doesn't.
   const logoUsesAccent = await logo.evaluate((mark) => {
     const probe = document.createElement("div");

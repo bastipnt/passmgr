@@ -40,6 +40,17 @@ function contrast(a: string, b: string): number {
   return ((hi ?? 0) + 0.05) / ((lo ?? 0) + 0.05);
 }
 
+function mix(a: string, b: string, weight: number): string {
+  const channel = (hex: string, i: number) => Number.parseInt(hex.slice(i, i + 2), 16);
+  return `#${[1, 3, 5]
+    .map((i) =>
+      Math.round(channel(a, i) * weight + channel(b, i) * (1 - weight))
+        .toString(16)
+        .padStart(2, "0"),
+    )
+    .join("")}`;
+}
+
 describe.each(ACCENT_PRESETS)("preset %s", (preset) => {
   it.each(MODES)("%s: native colors match presets.css", (mode) => {
     expect(ACCENT_COLORS[preset][mode]).toEqual(presetTokens(preset, mode));
@@ -55,6 +66,12 @@ describe.each(ACCENT_PRESETS)("preset %s", (preset) => {
       expect(contrast(t["primary-text"] ?? "", surface)).toBeGreaterThanOrEqual(4.5);
     }
     expect(contrast(t["primary-foreground"] ?? "", t.primary ?? "")).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it("light: the default button's 92% fill keeps its label readable on white", () => {
+    const t = presetTokens(preset, "light");
+    const fill = mix(t.primary ?? "", "#ffffff", 0.92);
+    expect(contrast(t["primary-foreground"] ?? "", fill)).toBeGreaterThanOrEqual(4.5);
   });
 });
 

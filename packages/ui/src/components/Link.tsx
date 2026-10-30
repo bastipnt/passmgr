@@ -12,8 +12,6 @@ type LinkProps = {
   Omit<WouterLinkProps, "href" | "to" | "asChild"> &
   VariantProps<typeof buttonVariants>;
 
-// TODO: focus-visible border-ring is not showing correctly on DisplayItems page
-
 export default function Link({
   className,
   href,

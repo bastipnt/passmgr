@@ -15,10 +15,10 @@ const SEGMENT_COLOR: Record<PasswordStrengthLevel, string> = {
 
 // Label takes the highest filled hue, darkened in light mode for contrast.
 const LABEL_COLOR: Record<PasswordStrengthLevel, string> = {
-  weak: "text-[#e11d48] dark:text-strength-weak",
-  fair: "text-[#ea580c] dark:text-strength-fair",
-  strong: "text-[#b07f00] dark:text-strength-strong",
-  "very-strong": "text-[#059669] dark:text-strength-very-strong",
+  weak: "text-[#be123c] dark:text-strength-weak",
+  fair: "text-[#c2410c] dark:text-strength-fair",
+  strong: "text-[#8a6300] dark:text-strength-strong",
+  "very-strong": "text-[#047857] dark:text-strength-very-strong",
 };
 
 type PasswordStrengthMeterProps = (

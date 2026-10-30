@@ -153,7 +153,6 @@ export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
         trigger={
           <button
             type="button"
-            aria-label={`Sync status: ${summary.title}`}
             className={cn(
               CARD_TRIGGER_CLASS,
               "flex min-w-0 flex-1 items-center gap-2.5 px-2 py-1.5 text-left",
@@ -161,7 +160,8 @@ export function SyncStatusCard({ collapsed = false }: { collapsed?: boolean }) {
           >
             <SyncDot state={summary.state} />
             <span className="flex min-w-0 flex-col">
-              <span className="truncate font-semibold text-sm">{title}</span>
+              <span className="sr-only">Sync status:</span>{" "}
+              <span className="truncate font-semibold text-sm">{title}</span>{" "}
               <span className="truncate text-muted-foreground text-xs">{detail}</span>
             </span>
           </button>

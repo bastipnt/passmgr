@@ -36,7 +36,7 @@ export function DetailSection({
       )}
       {title}
       {count !== undefined && (
-        <span className="font-medium font-sans text-[0.8125rem] text-muted-foreground/70 tracking-normal">
+        <span className="font-medium font-sans text-[0.8125rem] text-muted-foreground tracking-normal">
           {count}
         </span>
       )}

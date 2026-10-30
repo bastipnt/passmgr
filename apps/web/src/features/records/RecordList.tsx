@@ -69,10 +69,7 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
         active
           ? "[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_10%,var(--sticky-bar-fill))] hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_15%,var(--sticky-bar-fill))] dark:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_20%,var(--sticky-bar-fill))]"
           : "hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_5%,var(--sticky-bar-fill))]",
-        "focus-visible:ring-0",
-        active
-          ? "focus-visible:border-primary/45"
-          : "focus-visible:border-transparent focus-visible:bg-foreground/5",
+        "focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
         "group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)",
       )}
       render={

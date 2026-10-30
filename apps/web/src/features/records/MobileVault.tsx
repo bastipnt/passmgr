@@ -35,7 +35,7 @@ export default function MobileVault() {
     // down under them (they have none of their own): one blur for bar and label.
     // --list-label-h sits here, not in RecordList, so the bar can read it.
     // Inert under the search, or iOS Safari's ▲ ▼ form bar steps into it.
-    <div
+    <main
       inert={search.open}
       className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.75rem)]"
     >
@@ -65,6 +65,6 @@ export default function MobileVault() {
         </Link>
       </div>
       <MobileSearchOverlay state={search} />
-    </div>
+    </main>
   );
 }

@@ -55,8 +55,8 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await expect(row(page, gamma)).toContainText("In Work");
 
   const sidebar = page.getByRole("navigation", { name: "Categories" });
-  await sidebar.getByRole("button", { name: "Favorites (1)" }).click();
-  await expect(sidebar.getByRole("button", { name: "Favorites (1)" })).toHaveAttribute(
+  await sidebar.getByRole("button", { name: "Favorites 1" }).click();
+  await expect(sidebar.getByRole("button", { name: "Favorites 1" })).toHaveAttribute(
     "aria-pressed",
     "true",
   );
@@ -107,7 +107,7 @@ test("desktop: vault switcher, category, search, sort, collapsed sidebar", async
   await expect(toggle).toHaveAttribute("aria-expanded", "true");
   await toggle.click();
   await expect(toggle).toHaveAttribute("aria-expanded", "false");
-  await sidebar.getByRole("button", { name: "Favorites (1)" }).click();
+  await sidebar.getByRole("button", { name: "Favorites 1" }).click();
   await expectListed(page, [beta]);
   await expect(page.getByRole("link", { name: "Settings" })).toBeVisible();
   await expect(page.getByRole("button", { name: /^Account & sync, sync status: / })).toBeVisible();

@@ -40,7 +40,7 @@ test.describe("offline-first", () => {
 
     // A vault without an account; its records survive a reload (OPFS).
     await createLocalVault(page, "Laptop", password);
-    await expectSyncStatus(page, "On this device only");
+    await expectSyncStatus(page, "On this device");
     const recordId = await createLogin(page, {
       title: "Mail",
       username: "first-user",

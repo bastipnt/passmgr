@@ -449,7 +449,7 @@ function PasswordsMatch({ control }: { control: Control<RecoverFormValues> }) {
   if (!confirmPassword || password !== confirmPassword) return null;
 
   return (
-    <p className="flex items-center gap-1.5 text-[#059669] text-xs dark:text-strength-very-strong">
+    <p className="flex items-center gap-1.5 text-[#047857] text-xs dark:text-strength-very-strong">
       <CheckIcon className="size-3.5" aria-hidden />
       Passwords match
     </p>

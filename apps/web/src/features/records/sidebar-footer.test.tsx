@@ -145,7 +145,7 @@ describe("SidebarFooter", () => {
   it("links the Pass Monitor with its issue count, Account & sync and Settings", () => {
     mocks.issueCount = 3;
     renderFooter();
-    expect(screen.getByRole("link", { name: "Pass Monitor (3)" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Pass Monitor 3" })).toHaveAttribute(
       "href",
       passMonitorPaths.index,
     );
@@ -171,7 +171,7 @@ describe("SidebarFooter", () => {
   it("collapsed: icons keep their names, the Pass Monitor a dot, Account the sync status", () => {
     mocks.issueCount = 3;
     renderFooter(true);
-    const passMonitor = screen.getByRole("link", { name: "Pass Monitor (3)" });
+    const passMonitor = screen.getByRole("link", { name: "Pass Monitor 3" });
     expect(passMonitor).toHaveTextContent(/^Pass Monitor$/);
     expect(passMonitor.querySelector(".bg-warning")).not.toBeNull();
     expect(screen.getByText("Pass Monitor")).toHaveClass("sr-only");

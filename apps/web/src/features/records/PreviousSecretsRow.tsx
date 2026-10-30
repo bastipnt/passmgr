@@ -29,7 +29,7 @@ export function PreviousSecretsRow({
         className="flex min-h-11.5 w-full cursor-pointer items-center gap-2 border-foreground/8 border-b py-2.5 text-left text-sm outline-none focus-visible:ring-4 focus-visible:ring-ring/15 dark:border-white/8"
       >
         <span className="font-medium text-muted-foreground">{title}</span>
-        <span className="min-w-0 truncate text-muted-foreground/70 text-xs">
+        <span className="min-w-0 truncate text-muted-foreground text-xs">
           {previous.length} · last used until {latest.usedUntil}
         </span>
         <ChevronDownIcon

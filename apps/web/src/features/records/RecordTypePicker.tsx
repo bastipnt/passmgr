@@ -19,17 +19,12 @@ export function RecordTypePicker({ hrefFor }: RecordTypePickerProps) {
             <Link
               href={hrefFor(type)}
               replace
-              aria-label={RECORD_TYPE_LABELS[type].type}
-              aria-describedby={`record-type-hint-${type}`}
               className="group flex items-center gap-3 rounded-2xl px-3 py-2.5 outline-none hover:bg-foreground/5 focus-visible:ring-3 focus-visible:ring-ring/50 dark:hover:bg-white/5"
             >
               <RecordTypeTile type={type} size="md" />
               <span className="flex min-w-0 flex-1 flex-col">
-                <span className="font-semibold">{RECORD_TYPE_LABELS[type].type}</span>
-                <span
-                  id={`record-type-hint-${type}`}
-                  className="truncate text-muted-foreground text-sm"
-                >
+                <span className="font-semibold">{RECORD_TYPE_LABELS[type].type}</span>{" "}
+                <span className="truncate text-muted-foreground text-sm">
                   {RECORD_TYPE_LABELS[type].hint}
                 </span>
               </span>

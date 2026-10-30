@@ -132,7 +132,7 @@ function DetailField({
           : {})}
       >
         {label && (
-          <p className="mb-0.5 flex min-w-0 items-center gap-1.5 font-medium text-muted-foreground/70 text-xs">
+          <p className="mb-0.5 flex min-w-0 items-center gap-1.5 font-medium text-muted-foreground text-xs">
             <span className="truncate">{label}</span>
             {labelSuffix}
           </p>
@@ -150,7 +150,7 @@ function DetailField({
         >
           {showDots ? (maskedValue ?? HIDDEN_VALUE) : value || "–"}
           {hint && !showDots && (
-            <span className="ml-1.5 font-normal font-sans text-muted-foreground/70 text-xs tracking-normal">
+            <span className="ml-1.5 font-normal font-sans text-muted-foreground text-xs tracking-normal">
               {hint}
             </span>
           )}
@@ -348,7 +348,7 @@ function DetailCodeBlock({
   return (
     <div className="relative overflow-hidden rounded-xl border border-foreground/10 bg-foreground/[0.025] dark:border-white/10 dark:bg-white/[0.03]">
       {label && (
-        <p className="flex items-center gap-1.5 px-3.5 pt-2.5 pr-12 font-medium text-muted-foreground/70 text-xs">
+        <p className="flex items-center gap-1.5 px-3.5 pt-2.5 pr-12 font-medium text-muted-foreground text-xs">
           {label}
           {labelSuffix}
         </p>
@@ -397,7 +397,7 @@ function DetailCodeBlock({
       {(summary || expandToggle) && (
         <div className="flex items-center border-foreground/8 border-t dark:border-white/8">
           {summary && (
-            <span className="min-w-0 truncate px-3.5 py-2 text-muted-foreground/80 text-xs">
+            <span className="min-w-0 truncate px-3.5 py-2 text-muted-foreground text-xs">
               {summary}
             </span>
           )}

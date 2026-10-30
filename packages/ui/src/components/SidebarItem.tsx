@@ -38,7 +38,7 @@ export function SidebarItem({
   render,
   ...props
 }: SidebarItemProps) {
-  const name = props["aria-label"] ?? (count === undefined ? label : `${label} (${count})`);
+  const name = props["aria-label"] ?? (count === undefined ? label : `${label} ${count}`);
 
   const item = useRender({
     defaultTagName: "button",
@@ -50,7 +50,7 @@ export function SidebarItem({
         className: cn(
           "flex h-9 w-full items-center gap-2.5 rounded-xl px-2.5 text-left font-medium text-sm outline-none transition-colors hover:bg-foreground/5 focus-visible:ring-4 focus-visible:ring-ring/25 [&_svg]:size-4 [&_svg]:shrink-0",
           collapsed && "relative size-9 justify-center px-0",
-          dimmed && "text-muted-foreground/70",
+          dimmed && "text-muted-foreground",
           // Neutral: the accent marks the selection one level down (the list).
           active && "bg-foreground/6 font-semibold hover:bg-foreground/8 dark:bg-white/8",
           className,
@@ -58,7 +58,7 @@ export function SidebarItem({
         children: (
           <>
             <Icon aria-hidden />
-            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>{label}</span>
+            <span className={collapsed ? "sr-only" : "min-w-0 flex-1 truncate"}>{label}</span>{" "}
             {count !== undefined &&
               countTone !== "plain" &&
               (collapsed && countTone === "warning" ? (
@@ -79,7 +79,6 @@ export function SidebarItem({
                 className={cn(
                   "text-xs tabular-nums",
                   active ? "font-semibold" : "text-muted-foreground",
-                  dimmed && "opacity-70",
                 )}
               >
                 {count}

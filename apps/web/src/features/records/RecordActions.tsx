@@ -203,7 +203,6 @@ export function RecordActions({ record, onDelete, className }: RecordActionsProp
             variant="outline"
             size="lg"
             className="h-10 gap-1.5 pr-2.5 pl-3.5 font-medium text-sm"
-            aria-label="Edit"
             href={recordPaths.editRecord(record.recordId)}
           >
             <PencilLineIcon />

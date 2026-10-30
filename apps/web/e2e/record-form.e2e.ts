@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expectAccessible } from "./helpers/a11y";
 import { randomPassword } from "./helpers/auth";
 import {
   createLocalVault,
@@ -94,6 +95,7 @@ test("creates and edits a record of every type", async ({ page }) => {
 test("the edit sheet shows the record's header and footer", async ({ page }) => {
   await createLocalVault(page, "Chrome", randomPassword());
   const recordId = await createLogin(page, { title: "Steam", username: "gabe" });
+  await expectAccessible(page);
 
   await openEditForm(page, recordId);
   const sheet = recordSheet(page);
@@ -101,6 +103,7 @@ test("the edit sheet shows the record's header and footer", async ({ page }) => 
   await expect(sheet.getByText(/^Steam · last changed /)).toBeVisible();
   await expect(sheet.getByRole("button", { name: "Delete", exact: true })).toBeVisible();
   await expect(sheet.getByText("Every save keeps a version")).toBeVisible();
+  await expectAccessible(page);
   await sheet.getByRole("button", { name: "Cancel" }).click();
   await expect(sheet).toHaveCount(0);
 });
@@ -158,6 +161,8 @@ test("phone: the form stacks in the 16px gutter and tags wrap onto more lines", 
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
+  // Before the first load: the theme reads the color scheme once, on mount.
+  await page.emulateMedia({ colorScheme: "dark" });
   await createLocalVault(page, "Phone", randomPassword());
   await openCreateForm(page, "Login");
   await fillRecordForm(page, { title: "Steam" });
@@ -183,6 +188,7 @@ test("phone: the form stacks in the 16px gutter and tags wrap onto more lines", 
     return scroller.scrollWidth > scroller.clientWidth;
   });
   expect(overflows).toBe(false);
+  await expectAccessible(page);
 
   await submitCreateForm(page);
 });

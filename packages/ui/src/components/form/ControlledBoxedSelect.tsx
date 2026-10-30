@@ -69,7 +69,7 @@ export function BoxedSelect({
             <FieldBoxLabel id={labelId}>{label}</FieldBoxLabel>
             <SelectPrimitive.Value
               placeholder={placeholder}
-              className="flex min-w-0 items-center gap-2 truncate font-medium text-base data-placeholder:font-normal data-placeholder:text-muted-foreground/70 md:text-[0.97rem]"
+              className="flex min-w-0 items-center gap-2 truncate font-medium text-base data-placeholder:font-normal data-placeholder:text-muted-foreground md:text-[0.97rem]"
             >
               {selected ? () => renderOption(selected) : undefined}
             </SelectPrimitive.Value>

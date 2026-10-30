@@ -61,7 +61,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
   }, []);
 
   return (
-    <div className="relative isolate flex min-h-dvh flex-col">
+    <main className="relative isolate flex min-h-dvh flex-col">
       <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
         <Button variant="floating" size="icon-xl" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
@@ -155,7 +155,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
           )}
         </div>
       )}
-    </div>
+    </main>
   );
 }
 
