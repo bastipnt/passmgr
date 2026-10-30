@@ -151,20 +151,27 @@ test("phone: filter sheet, search, vault sheet, account sheet → Lock", async (
   await chips.getByRole("button", { name: "Remove tag work" }).click();
   await expect(chips).toHaveCount(0);
 
-  // Through the real routes: Back from a record opened in the search lands on the same search.
+  // Through the real routes: Back from a record opened in the search lands on the same search,
+  // under the tags the filter sheet picked; the search lists records only (no tag pills).
+  await page.getByRole("button", { name: "Filter", exact: true }).click();
+  await filters.getByRole("button", { name: "finance (1)" }).click();
+  await filters.getByRole("button", { name: "Show 1 item" }).click();
+  await expectListed(page, [alpha]);
   await page.getByRole("button", { name: "Search", exact: true }).click();
   const field = page.getByRole("combobox", { name: "Search vault" });
-  await page
-    .getByRole("toolbar", { name: "Filter by tag" })
-    .getByRole("button", { name: "finance (1)" })
-    .click();
+  await expect(page.getByRole("list", { name: "Search scope" })).toContainText("#finance");
+  await expect(page.getByRole("toolbar")).toHaveCount(0);
   await field.fill("al");
   await page.getByRole("option", { name: /Alpha/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${alpha}$`));
   await page.getByRole("button", { name: "Back" }).click();
   await expect(field).toHaveValue("al");
-  await expect(page.getByRole("button", { name: "Remove finance from search" })).toBeVisible();
   await page.getByRole("button", { name: "Cancel" }).click();
+  await expectListed(page, [alpha]);
+  await page
+    .getByRole("list", { name: "Active filters" })
+    .getByRole("button", { name: "Remove tag finance" })
+    .click();
   await expectListed(page, [alpha, beta, gamma]);
 
   await page.getByRole("button", { name: "Vault: All vaults" }).click();

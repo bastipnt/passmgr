@@ -7,9 +7,16 @@ export const TAG_SEARCH_PREFIX = "#";
 
 export type ParsedSearch = { tagMode: boolean; text: string };
 
-export function parseSearch(query: string): ParsedSearch {
+/** `tagSearch: false` (the phone search) has no tag mode: a leading `#` is dropped, the rest searched as usual. */
+export function parseSearch(query: string, tagSearch = true): ParsedSearch {
   const trimmed = query.trimStart();
-  const tagMode = trimmed.startsWith(TAG_SEARCH_PREFIX);
+  const prefixed = trimmed.startsWith(TAG_SEARCH_PREFIX);
+  if (!tagSearch)
+    return {
+      tagMode: false,
+      text: (prefixed ? trimmed.slice(TAG_SEARCH_PREFIX.length) : trimmed).trim(),
+    };
+  const tagMode = prefixed;
   return {
     tagMode,
     text: (tagMode ? trimmed.slice(TAG_SEARCH_PREFIX.length) : trimmed).trim(),
@@ -96,33 +103,6 @@ export function tagModeGroups(
     (index < selectedCount || narrows ? matching : other).push(entry);
   });
   return { matching, other };
-}
-
-export type PillTag = TagCount & { on: boolean; matching: boolean };
-
-/**
- * The phone search's tag pills: the selected tags, then those matching `text`,
- * then the rest by use. `tags` comes as `useSortedRecords().tags`: selected first.
- */
-export function pillTags(
-  tags: readonly TagCount[],
-  selectedCount: number,
-  text: string,
-): PillTag[] {
-  const selected = tags
-    .slice(0, selectedCount)
-    .map((entry) => ({ ...entry, on: true, matching: false }));
-  const rest = tags.slice(selectedCount).map((entry) => ({
-    ...entry,
-    on: false,
-    matching: text !== "" && matchRange(entry.tag, text) !== undefined,
-  }));
-  const byUse = (entries: PillTag[]) => topTags(entries, entries.length) as PillTag[];
-  return [
-    ...selected,
-    ...byUse(rest.filter(({ matching }) => matching)),
-    ...byUse(rest.filter(({ matching }) => !matching)),
-  ];
 }
 
 export type SearchItem =

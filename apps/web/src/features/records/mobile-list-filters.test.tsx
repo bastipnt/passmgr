@@ -47,10 +47,18 @@ describe("ActiveFilterChips", () => {
     expect(list.setCategoryFilter).toHaveBeenCalledWith("all");
   });
 
-  it("phone: no Clear all, the filter sheet resets", () => {
+  it("phone: no Clear all for a single filter, its chip's × does it", () => {
     Object.assign(list, { tagFilters: ["work"] });
     renderWithProviders(<ActiveFilterChips />);
     expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+  });
+
+  it("phone: Clear all next to several filters takes every one off", async () => {
+    Object.assign(list, { categoryFilter: "login", tagFilters: ["work"] });
+    renderWithProviders(<ActiveFilterChips />);
+
+    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
+    expect(list.clearFilters).toHaveBeenCalledOnce();
   });
 
   it("desktop: Clear all takes every filter off, by keyboard too", async () => {

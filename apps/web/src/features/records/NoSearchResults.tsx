@@ -1,3 +1,4 @@
+import { parseSearch } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -12,8 +13,10 @@ import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useOpenCreateSheet } from "./CreateRecordSheet";
 
 export function NoSearchResults() {
-  const { query, setQuery, outsideScope, searchAllItems } = useSortedRecords();
+  const { query, setQuery, outsideScope, searchAllItems, tagSearch } = useSortedRecords();
   const openCreateSheet = useOpenCreateSheet();
+  // A `#` typed on a phone isn't part of the title.
+  const title = parseSearch(query, tagSearch).text;
 
   return (
     <div className="flex h-full flex-col items-center justify-center">
@@ -26,7 +29,7 @@ export function NoSearchResults() {
           <EmptyDescription>
             {outsideScope.length > 0
               ? `Nothing in this view matches, ${outsideScope.length} more outside it.`
-              : "Nothing in your vault matches. Search looks at titles, usernames and websites."}
+              : "Nothing in your vault matches. Search looks at titles, usernames, websites and tags."}
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="flex-row flex-wrap justify-center">
@@ -43,12 +46,12 @@ export function NoSearchResults() {
           <Button
             variant="default"
             onClick={() => {
-              openCreateSheet(query.trim());
+              openCreateSheet(title);
               setQuery("");
             }}
           >
             <PlusIcon data-icon="inline-start" />
-            Create &ldquo;{query.trim()}&rdquo;
+            Create &ldquo;{title}&rdquo;
           </Button>
         </EmptyContent>
       </Empty>

@@ -426,6 +426,12 @@ type SortedRecordsContextValue = {
   /** Focuses the search with the tag prefix typed. */
   searchTags: () => void;
   /**
+   * Whether a query starting with `#` searches tags only (tag mode). The phone
+   * search turns it off while mounted: there a `#` is dropped and the rest searched.
+   */
+  tagSearch: boolean;
+  setTagSearch: (on: boolean) => void;
+  /**
    * The tags of the vault in view (of every vault for "All vaults"), the
    * selected ones first, then A–Z. `count`: the records left with the tag
    * added to the category and tags in view (0 for a tag that would empty it).
@@ -535,6 +541,7 @@ type SortedRecordsProviderProps = {
 export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) {
   const { records } = useGetRecords();
   const [query, setStoredQuery] = useState("");
+  const [tagSearch, setTagSearch] = useState(true);
   const [searchAllFor, setSearchAllFor] = useState<string | null>(null);
   const [recentIds, setRecentIds] = useState<string[]>([]);
   const [storedSearches, setRecentSearches] = useState<RecentSearch[]>([]);
@@ -553,7 +560,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   // localStorage is user-editable and older builds wrote unvalidated values.
   const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
 
-  const hasQuery = query.trim().length > 0;
+  const search = useMemo(() => parseSearch(query, tagSearch), [query, tagSearch]);
+  // A lone `#` with tag search off searches nothing yet.
+  const hasQuery = search.tagMode || search.text !== "";
   const canGroupByVault = vaultFilter === "all" && hasSeveralVaults;
   const groupedByVault = groupByVault && canGroupByVault && !hasQuery;
   const vaultRecords = useMemo(() => filterByVault(records, vaultFilter), [records, vaultFilter]);
@@ -573,7 +582,6 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
 
   const filtersKey = [vaultFilter, categoryFilter, ...tagFilters.map(tagKey)].join("\u0000");
   const searchAll = searchAllFor === filtersKey;
-  const search = useMemo(() => parseSearch(query), [query]);
   const searchScope = searchAll ? vaultRecords : browsed;
   const recordMatches = useMemo(
     () => (hasQuery && !search.tagMode ? matchRecords(searchScope, search.text) : []),
@@ -633,11 +641,14 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
 
   const hasGroupLabels = recordGroups.some((recordGroup) => recordGroup.label);
 
-  const setQuery = useCallback((next: string) => {
-    setStoredQuery(next);
-    // Tag mode lists tags, not past the filters.
-    if (!next.trim() || parseSearch(next).tagMode) setSearchAllFor(null);
-  }, []);
+  const setQuery = useCallback(
+    (next: string) => {
+      setStoredQuery(next);
+      // Tag mode lists tags, not past the filters.
+      if (!next.trim() || parseSearch(next, tagSearch).tagMode) setSearchAllFor(null);
+    },
+    [tagSearch],
+  );
   const searchAllItems = useCallback(() => setSearchAllFor(filtersKey), [filtersKey]);
 
   const noteOpened = useCallback(
@@ -766,6 +777,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       revealRecord,
       searchInputRef,
       searchTags,
+      tagSearch,
+      setTagSearch,
       tags,
       showTag,
       sortedRecords,
@@ -805,6 +818,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       clearFilters,
       revealRecord,
       searchTags,
+      tagSearch,
+      setTagSearch,
       tags,
       showTag,
       sortedRecords,

@@ -7,7 +7,6 @@ import {
   matchRecords,
   matchTags,
   parseSearch,
-  pillTags,
   searchOptionSections,
   searchSections,
   tagModeGroups,
@@ -30,6 +29,12 @@ describe("parseSearch", () => {
     expect(parseSearch(" #in ")).toEqual({ tagMode: true, text: "in" });
     expect(parseSearch("#")).toEqual({ tagMode: true, text: "" });
     expect(parseSearch("a#b")).toEqual({ tagMode: false, text: "a#b" });
+  });
+
+  it("without tag search, drops a leading # and searches the rest", () => {
+    expect(parseSearch(" #in ", false)).toEqual({ tagMode: false, text: "in" });
+    expect(parseSearch("#", false)).toEqual({ tagMode: false, text: "" });
+    expect(parseSearch("a#b", false)).toEqual({ tagMode: false, text: "a#b" });
   });
 });
 
@@ -193,32 +198,5 @@ describe("addRecentSearch", () => {
     let searches = addRecentSearch([], { text: "a", tags: [] });
     for (const text of ["b", "c"]) searches = addRecentSearch(searches, { text, tags: [] }, 2);
     expect(searches.map(({ text }) => text)).toEqual(["c", "b"]);
-  });
-});
-
-describe("pillTags", () => {
-  const tags = [
-    { tag: "work", count: 3 },
-    { tag: "docs", count: 1 },
-    { tag: "deploy", count: 2 },
-    { tag: "finance", count: 4 },
-  ];
-
-  it("selected first, then the tags matching the text, then the rest by use", () => {
-    expect(pillTags(tags, 1, "d").map(({ tag, on, matching }) => [tag, on, matching])).toEqual([
-      ["work", true, false],
-      ["deploy", false, true],
-      ["docs", false, true],
-      ["finance", false, false],
-    ]);
-  });
-
-  it("nothing typed: nothing matches, the rest by use", () => {
-    expect(pillTags(tags, 0, "").map(({ tag }) => tag)).toEqual([
-      "finance",
-      "work",
-      "deploy",
-      "docs",
-    ]);
   });
 });

@@ -78,7 +78,7 @@ exist; only those whose tags the vault in view has, `countSearch` counts each th
 them into ids + selected state for any search UI; `clearFilters`
 drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
 Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
-while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
+while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips (a scrolling `ChipLane`, Search all items pinned at its end), tags then
 records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves,
 Esc or the field's "Show N esc" pill back to the list); the highlighted record previews once typed or moved by
 keys (debounced; never on focus; hovering highlights without previewing, only on a real pointer move), Enter opens it
@@ -91,18 +91,18 @@ marks them); the chips under the list heading remove one or Clear all;
 web phone: the list keeps `FilterSheet` (category grid + tags; the non-search way to filter), the ones on as
 `ActiveFilterChips` under the title, and the dock's search pill opens `MobileSearchOverlay` (`MobileSearch.tsx`), a
 full-screen layer with its own history entry (`search-history.ts`). The field sits on top (Cancel next to it), the
-scope chips under it (Clear all drops tags and category), then tag rows "+ Filter" and records from
-`useSearchOptions`. Empty, it lists recent searches (`recentSearches`, session only; a tap reruns text + tags) and
-recently opened; with tags picked and nothing typed, their records instead (`useSearchOptions({ listTagged })`,
-"Tagged #a" / "Logins tagged #a"). Picked tags sit as tokens in the field (✕, or Backspace on an empty field, removes
-the last). A tag pill bar rides on the keyboard (`pillTags`: selected, matching the text, then by use; it stands in
-for the top tags); tapping a pill that matches the typed text turns the text into that tag filter. `#` is tag mode as
-on desktop: tags with checkboxes and a bar "N tags · M items", Clear, Show M items (the done key too) back to the
-records. Taps never take focus from the field, so typing goes on; dragging the results drops the keyboard; in
-landscape the results get the scope row's and pill bar's space. The search key opens a lone match. Back from a record
+scope chips under it in a scrolling `ChipLane` (filtered: Search all pinned at its end, which runs past the filters for the query; no Clear all), then records only (`useSearchOptions({ withTags: false })`:
+no tag rows; a record whose tag matches still shows, marked by the tag). Tags are picked in `FilterSheet`, not in the
+search. No `#` tag mode on phones: while mounted the overlay turns the provider's `tagSearch` off, so a leading `#`
+is dropped and the rest searched as usual (`parseSearch(query, false)`). Empty, it lists recent searches
+(`recentSearches`, session only; a tap reruns text + tags) and recently opened; with tags picked and nothing typed,
+their records instead (`useSearchOptions({ listTagged })`, "Tagged #a" / "Logins tagged #a"). Picked tags show in
+the scope row as `#tag` chips (as on desktop, `SearchScope`), with "Search all items" beside them to run past the
+filters (`searchAllItems`); the field holds only the text. Taps never take focus from the field, so
+typing goes on; dragging the results drops the keyboard; in landscape the results get the scope row's space. The search key opens a lone match. Back from a record
 opened in it (also once moved, or created from it) lands on the same search with the results' scroll, field focused;
 Cancel / Back clears the query and restores the filters (tags, category) and the list's scroll it opened with.
-Keyboard mechanics (focus in the tap, `--kb-inset`, holding the keyboard over Back): `apps/web/CLAUDE.md`. Mobile app:
+Keyboard mechanics (focus in the tap, holding the keyboard over Back): `apps/web/CLAUDE.md`. Mobile app:
 the filters sit in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.
