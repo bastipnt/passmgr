@@ -168,6 +168,9 @@ overrides:
   # @azure/msal-node <7.1.0 (GHSA-xcx6-jx8p-x3h5), via drizzle-orm's optional
   # mssql driver (tedious > @azure/identity, which still asks ^6). We never load it.
   "@azure/identity>@azure/msal-node": "^7.1.0"
+  # decode-uri-component <=0.5.0 (GHSA-qr28-fpjm-wq7f, quadratic-time DoS), via
+  # expo-router > query-string (pins ^0.2). 0.5.1 keeps the default decode API.
+  decode-uri-component: "^0.5.1"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
