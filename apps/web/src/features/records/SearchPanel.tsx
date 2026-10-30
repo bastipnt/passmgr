@@ -7,12 +7,13 @@ import {
   useVaults,
 } from "@repo/client";
 import { categoryLabel, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { ChipLane } from "@repo/ui/components/ChipLane";
 import { Highlight } from "@repo/ui/components/Highlight";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { cn } from "@repo/ui/lib/utils";
 import { counted } from "@repo/util";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, CornerDownLeftIcon } from "lucide-react";
-import { type ReactNode, useEffect } from "react";
+import { type ComponentProps, type ReactNode, useEffect } from "react";
 import { VaultBadge } from "@/features/vaults";
 import { shortcutHint } from "@/lib/formatShortcut";
 import { OutsideScope } from "./OutsideScope";
@@ -20,37 +21,91 @@ import { RecordAvatar } from "./RecordAvatar";
 import { optionDomId } from "./RecordSearch";
 import { SEARCH_ALL_KEY, type SearchPanelState } from "./use-search-panel";
 
-function ScopeChip({ children }: { children: ReactNode }) {
+type Lane = false | "phone" | "desktop";
+
+function ScopeChip({ children, lane = false }: { children: ReactNode; lane?: Lane }) {
   return (
-    <li className="inline-flex h-6 max-w-40 items-center whitespace-nowrap rounded-md bg-foreground/6 px-1.5 font-medium text-foreground text-xs dark:bg-white/8">
+    <li
+      className={cn(
+        "inline-flex max-w-40 shrink-0 items-center whitespace-nowrap bg-foreground/6 font-medium text-foreground dark:bg-white/8",
+        lane === "phone" && "h-9 rounded-full px-3.5 text-[0.9rem]",
+        lane === "desktop" && "h-7 rounded-full px-3 text-xs",
+        !lane && "h-6 rounded-md px-1.5 text-xs",
+      )}
+    >
       {children}
     </li>
   );
 }
 
-export function SearchScope({ tagMode, action }: { tagMode: boolean; action?: ReactNode }) {
+export function SearchScope({
+  tagMode = false,
+  withTags = true,
+  lane = false,
+  action,
+  laneAction,
+}: {
+  tagMode?: boolean;
+  /** `false`: the tags are shown elsewhere. */
+  withTags?: boolean;
+  /** The chips scroll in their own lane instead of wrapping. */
+  lane?: Lane;
+  /** Beside the "Searching in" label, e.g. the result count. */
+  action?: ReactNode;
+  /** Pinned at the end of the lane, e.g. "Search all". */
+  laneAction?: ReactNode;
+}) {
   const { vaultFilter, categoryFilter, tagFilters, searchAll } = useSortedRecords();
   const { getVault } = useVaults();
   const vault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
+
+  const chips = (
+    <>
+      <ScopeChip lane={lane}>{vault ? <VaultBadge vault={vault} /> : "All vaults"}</ScopeChip>
+      <ScopeChip lane={lane}>
+        {searchAll ? categoryLabel("all") : categoryLabel(categoryFilter)}
+      </ScopeChip>
+      {!searchAll &&
+        !tagMode &&
+        withTags &&
+        tagFilters.map((tag) => (
+          <ScopeChip key={tag} lane={lane}>
+            <span className="truncate">
+              {TAG_SEARCH_PREFIX}
+              {tag}
+            </span>
+          </ScopeChip>
+        ))}
+    </>
+  );
+  const heading = tagMode ? "Tags in" : "Searching in";
+
+  if (lane) {
+    return (
+      <div className="flex flex-col gap-1.5">
+        <div
+          className={cn(
+            "flex min-h-6 items-center justify-between gap-2 text-muted-foreground text-xs",
+            lane === "phone" ? "px-3.5" : "px-1.5",
+          )}
+        >
+          <span>{heading}</span>
+          {action}
+        </div>
+        <ChipLane label="Search scope" action={laneAction}>
+          {chips}
+        </ChipLane>
+      </div>
+    );
+  }
 
   return (
     // Wraps: a narrow list panel puts the action on a line of its own, right-aligned.
     <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 text-muted-foreground text-xs">
       <div className="flex min-w-48 flex-1 items-center gap-2">
-        <span className="shrink-0">{tagMode ? "Tags in" : "Searching in"}</span>
+        <span className="shrink-0">{heading}</span>
         <ul aria-label="Search scope" className="flex min-w-0 flex-wrap gap-1">
-          <ScopeChip>{vault ? <VaultBadge vault={vault} /> : "All vaults"}</ScopeChip>
-          <ScopeChip>{searchAll ? categoryLabel("all") : categoryLabel(categoryFilter)}</ScopeChip>
-          {!searchAll &&
-            !tagMode &&
-            tagFilters.map((tag) => (
-              <ScopeChip key={tag}>
-                <span className="truncate">
-                  {TAG_SEARCH_PREFIX}
-                  {tag}
-                </span>
-              </ScopeChip>
-            ))}
+          {chips}
         </ul>
       </div>
       {action}
@@ -58,15 +113,26 @@ export function SearchScope({ tagMode, action }: { tagMode: boolean; action?: Re
   );
 }
 
-function SearchAllButton({ onClick }: { onClick: () => void }) {
+/** `shortcut: false` on phones, which have no keyboard shortcut to show. */
+export function SearchAllButton({
+  onClick,
+  shortcut = true,
+  className,
+  children = "Search all",
+  ...props
+}: Omit<ComponentProps<"button">, "onClick"> & { onClick: () => void; shortcut?: boolean }) {
   return (
     <button
       type="button"
+      {...props}
       onClick={onClick}
-      className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full pr-1 pl-2.5 font-semibold text-primary-text outline-none hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-primary/15"
+      className={cn(
+        "ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full pr-1 pl-2.5 font-semibold text-primary-text outline-none hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-primary/15",
+        className,
+      )}
     >
-      Search all items
-      <Kbd aria-hidden>{shortcutHint(SEARCH_ALL_KEY)}</Kbd>
+      {children}
+      {shortcut && <Kbd aria-hidden>{shortcutHint(SEARCH_ALL_KEY)}</Kbd>}
     </button>
   );
 }
@@ -153,10 +219,13 @@ export function RecordOptionRow({
   option,
   text,
   active,
+  tagMark = true,
 }: {
   option: Extract<SearchOption, { kind: "record" }>;
   text: string;
   active: boolean;
+  /** The "tag" aside on a tag match; the phone has no room for it, its line says "tagged #a" already. */
+  tagMark?: boolean;
 }) {
   const { record, match } = option;
   const { canGroupByVault } = useSortedRecords();
@@ -183,6 +252,7 @@ export function RecordOptionRow({
       {active ? (
         <EnterHint label="Open" />
       ) : (
+        tagMark &&
         match?.field === "tag" && <span className="text-muted-foreground text-xs">tag</span>
       )}
     </>
@@ -257,7 +327,8 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
       <div className="px-3 pt-2">
         <SearchScope
           tagMode={search.tagMode}
-          action={canSearchAll && <SearchAllButton onClick={panel.searchAllItems} />}
+          lane="desktop"
+          laneAction={canSearchAll && <SearchAllButton onClick={panel.searchAllItems} />}
         />
       </div>
       {empty && (

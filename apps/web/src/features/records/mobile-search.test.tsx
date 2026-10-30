@@ -7,7 +7,7 @@ import { holdKeyboard } from "@repo/ui/lib/keyboard-handoff";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
-import { fireEvent, renderWithProviders, screen, waitFor, within } from "@/test/render";
+import { fireEvent, renderWithProviders, screen, waitFor } from "@/test/render";
 import { MobileSearchButton, MobileSearchOverlay, useMobileSearch } from "./MobileSearch";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -36,14 +36,21 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({ getVault: () => ({ vaultId: "v1" }), vaults: [] }),
 }));
 
+/** Stands in for the filter sheet (`FilterSheet`), where a phone picks its tags. */
 function TagFilters() {
-  const { tagFilters, categoryFilter, setCategoryFilter } = useSortedRecords();
+  const { tagFilters, categoryFilter, setCategoryFilter, toggleTag } = useSortedRecords();
   return (
     <>
       <output aria-label="Tag filters">{tagFilters.join(",")}</output>
       <output aria-label="Category">{categoryFilter}</output>
       <button type="button" onClick={() => setCategoryFilter("login")}>
         Show logins
+      </button>
+      <button type="button" onClick={() => toggleTag("finance")}>
+        Filter finance
+      </button>
+      <button type="button" onClick={() => toggleTag("work")}>
+        Filter work
       </button>
     </>
   );
@@ -115,15 +122,39 @@ describe("MobileSearch", () => {
     expect(field()).toHaveValue("git");
   });
 
-  it("a tag row adds the filter; Cancel clears the query and puts the filters back", async () => {
+  it("lists records only: a record whose tag matches, no tag rows or pills", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.type(field(), "fin");
-    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
+    expect(screen.queryByRole("toolbar")).toBeNull();
+    expect(screen.queryByRole("group", { name: "Top tags" })).toBeNull();
 
+    await userEvent.type(field(), "work");
+    expect(screen.queryByRole("group", { name: "Tags" })).toBeNull();
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      expect.stringContaining("GitHub"),
+    ]);
+    expect(screen.getByText("1 result")).toBeInTheDocument();
+  });
+
+  it("no # tag mode: a leading # is dropped and the rest searched as usual", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.type(field(), "#");
+    expect(screen.queryByRole("group", { name: "Narrow further" })).toBeNull();
+
+    await userEvent.type(field(), "fin");
+    expect(field()).toHaveValue("#fin");
+    expect(screen.getAllByRole("option").map((option) => option.textContent)).toEqual([
+      expect.stringContaining("Fineco"),
+    ]);
+    expect(field()).toHaveAttribute("enterkeyhint", "search");
+  });
+
+  it("Cancel clears the query and puts the filters back", async () => {
+    renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    await userEvent.click(screen.getByRole("button", { name: "Filter finance", hidden: true }));
     expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
-    expect(field()).toHaveValue("");
-    expect(field()).toHaveFocus();
 
     await userEvent.type(field(), "bank");
     await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
@@ -135,7 +166,7 @@ describe("MobileSearch", () => {
   it("a search that opened a record comes back as a recent search, restoring its text and tags", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
+    await userEvent.click(screen.getByRole("button", { name: "Filter finance", hidden: true }));
     await userEvent.type(field(), "fin");
     await userEvent.click(screen.getByRole("option", { name: /Fineco/ }));
 
@@ -147,7 +178,6 @@ describe("MobileSearch", () => {
 
     const recent = screen.getByRole("region", { name: "Recent searches" });
     expect(recent).toHaveTextContent("fin + #finance1 result");
-    expect(recent).toHaveTextContent("#financeTag filter · 1 item");
 
     await userEvent.click(screen.getByRole("button", { name: /^fin \+ #finance/ }));
     expect(field()).toHaveValue("fin");
@@ -155,10 +185,6 @@ describe("MobileSearch", () => {
     expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
 
     await userEvent.clear(field());
-    await userEvent.click(screen.getByRole("button", { name: "Remove #finance" }));
-    expect(screen.getByRole("region", { name: "Recent searches" })).not.toHaveTextContent(
-      "Tag filter",
-    );
     await userEvent.click(screen.getByRole("button", { name: "Clear" }));
     expect(screen.queryByRole("region", { name: "Recent searches" })).toBeNull();
   });
@@ -179,109 +205,16 @@ describe("MobileSearch", () => {
   });
 });
 
-describe("MobileSearch tag pills", () => {
-  const pills = () =>
-    within(screen.getByRole("toolbar", { name: "Filter by tag" }))
-      .getAllByRole("button")
-      .slice(1)
-      .map((pill) => pill.textContent);
-
-  it("ranks selected, then matching the text, then the rest; a pill toggles without blurring", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(pills()).toEqual(["#finance1", "#work1"]);
-
-    await userEvent.type(field(), "wo");
-    expect(pills()).toEqual(["#work1", "#finance1"]);
-
-    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
-    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
-    expect(field()).toHaveValue("wo");
-    expect(field()).toHaveFocus();
-    expect(screen.getByRole("button", { name: "Remove tag finance" })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
-    expect(pills()[0]).toBe("#finance");
-
-    // "wo" finds nothing under #finance, so it isn't kept as a recent search.
-    await userEvent.clear(field());
-    expect(screen.queryByRole("region", { name: "Recent searches" })).toBeNull();
-  });
-
-  it("a pill matching the typed text replaces it", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.type(field(), "fin");
-    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
-
-    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
-    expect(field()).toHaveValue("");
-    expect(field()).toHaveFocus();
-  });
-
-  it("All tags switches to # tag mode, where the bar gives way to the list", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("button", { name: "All tags" }));
-
-    expect(field()).toHaveValue("#");
-    expect(field()).toHaveFocus();
-    expect(screen.queryByRole("toolbar", { name: "Filter by tag" })).toBeNull();
-  });
-
-  it("rides on the keyboard: the inset follows the visual viewport, not a pinch-zoom", async () => {
-    const viewport = Object.assign(new EventTarget(), { height: 844, offsetTop: 0, scale: 1 });
-    vi.stubGlobal("visualViewport", viewport);
-    vi.stubGlobal("innerHeight", 844);
-    try {
-      renderSearch();
-      await userEvent.click(screen.getByRole("button", { name: "Search" }));
-
-      viewport.height = 541;
-      viewport.dispatchEvent(new Event("resize"));
-      await waitFor(() => expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("303px"));
-
-      viewport.height = 844;
-      viewport.dispatchEvent(new Event("resize"));
-      await waitFor(() => expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("0px"));
-
-      Object.assign(viewport, { height: 422, scale: 2 });
-      viewport.dispatchEvent(new Event("resize"));
-      await new Promise((resolve) => requestAnimationFrame(resolve));
-      expect(dialog()?.style.getPropertyValue("--kb-inset")).toBe("0px");
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-});
-
 describe("MobileSearch focus and filters", () => {
-  it("Clear all drops the tags and the category, keeping the field focused; Cancel brings them back", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Show logins" }));
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
-
-    await userEvent.click(screen.getByRole("button", { name: "Clear all" }));
-    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("");
-    expect(screen.getByRole("status", { name: "Category" })).toHaveTextContent("all");
-    expect(field()).toHaveFocus();
-    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
-
-    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
-    await waitFor(() => expect(dialog()).toHaveAttribute("aria-hidden", "true"));
-    expect(screen.getByRole("status", { name: "Category" })).toHaveTextContent("login");
-  });
-
   it("a tap that loses the field anyway (iOS) focuses it again", async () => {
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    const pill = screen.getByRole("button", { name: "work (1)" });
+    await userEvent.type(field(), "git");
+    const clear = screen.getByRole("button", { name: "Clear search" });
 
-    fireEvent.pointerDown(pill);
+    fireEvent.pointerDown(clear);
     field().blur();
-    fireEvent.click(pill);
+    fireEvent.click(clear);
     expect(field()).toHaveFocus();
   });
 
@@ -305,78 +238,42 @@ describe("MobileSearch focus and filters", () => {
     expect(standIn?.isConnected).toBe(false);
     expect(document.activeElement).toBe(document.body);
   });
-
-  it("Clear all isn't offered while Search all items runs past the filters", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("button", { name: "work (1)" }));
-    await userEvent.type(field(), "fin");
-    expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
-    await userEvent.click(screen.getByRole("button", { name: /Search all items/ }));
-    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
-  });
 });
 
-describe("MobileSearch tag tokens and tag mode", () => {
-  const filters = () => screen.getByRole("status", { name: "Tag filters" });
+describe("MobileSearch tag filters", () => {
+  const scope = () => screen.getByRole("list", { name: "Search scope" });
 
-  it("picked tags sit in the field: ✕ or Backspace on an empty field removes one", async () => {
+  it("picked tags show in the scope, not in the field, with their records listed", async () => {
     renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Filter finance" }));
+    await userEvent.click(screen.getByRole("button", { name: "Filter work" }));
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.click(screen.getByRole("button", { name: "finance (1)" }));
 
-    expect(field()).toHaveAttribute("placeholder", "Search in tag");
-    expect(screen.getByRole("group", { name: "Tagged #finance" })).toHaveTextContent("Fineco");
-
-    await userEvent.click(screen.getByRole("button", { name: "Remove finance from search" }));
-    expect(filters()).toHaveTextContent("");
-    expect(field()).toHaveFocus();
-
-    await userEvent.click(screen.getByRole("button", { name: "work (1)" }));
-    await userEvent.type(field(), "g{Backspace}");
-    fireEvent.keyDown(field(), { key: "Backspace", repeat: true });
-    expect(filters()).toHaveTextContent("work");
-    await userEvent.type(field(), "{Backspace}");
-    expect(filters()).toHaveTextContent("");
-    expect(field()).toHaveAttribute("placeholder", "Search logins, notes, #tags");
+    expect(scope()).toHaveTextContent("#finance");
+    expect(scope()).toHaveTextContent("#work");
+    expect(field()).toHaveAttribute("placeholder", "Search logins, notes, tags");
+    expect(screen.queryByRole("button", { name: /from search/ })).toBeNull();
   });
 
-  it("# lists the tags to tick; Show N items goes back to the records under them", async () => {
+  it("Search all items runs past the tags and category for the query, keeping them picked", async () => {
     renderSearch();
+    await userEvent.click(screen.getByRole("button", { name: "Show logins" }));
+    await userEvent.click(screen.getByRole("button", { name: "Filter finance" }));
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.type(field(), "#fin");
+    expect(screen.queryByRole("button", { name: "Clear all" })).toBeNull();
+    await userEvent.type(field(), "fin");
 
-    const bar = () => screen.getByRole("toolbar", { name: "Picked tags" });
-    expect(bar()).toHaveTextContent("0 tags · 2 items");
-    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
-    expect(filters()).toHaveTextContent("finance");
-    expect(screen.getByRole("option", { name: /^finance/ })).toHaveAttribute(
-      "aria-selected",
-      "true",
-    );
-    expect(field()).toHaveValue("#fin");
-    expect(bar()).toHaveTextContent("1 tag · 1 item");
-
-    await userEvent.click(within(bar()).getByRole("button", { name: "Show 1 item" }));
-    expect(field()).toHaveValue("");
+    const [scopeSearchAll] = screen.getAllByRole("button", { name: "Search all items" });
+    if (scopeSearchAll) await userEvent.click(scopeSearchAll);
+    expect(scope()).toHaveTextContent("All items");
+    expect(scope()).not.toHaveTextContent("#finance");
     expect(field()).toHaveFocus();
-    expect(filters()).toHaveTextContent("finance");
-    expect(screen.queryByRole("toolbar", { name: "Picked tags" })).toBeNull();
-    expect(screen.getByRole("group", { name: "Tagged #finance" })).toHaveTextContent("Fineco");
-  });
+    expect(screen.getByRole("status", { name: "Tag filters" })).toHaveTextContent("finance");
+    expect(screen.getByRole("status", { name: "Category" })).toHaveTextContent("login");
 
-  it("in tag mode the done key shows the records, Clear drops the picked tags", async () => {
-    renderSearch();
-    await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    await userEvent.type(field(), "#");
-    await userEvent.click(screen.getByRole("option", { name: /^work/ }));
-    await userEvent.click(screen.getByRole("button", { name: "Clear" }));
-    expect(filters()).toHaveTextContent("");
-
-    await userEvent.click(screen.getByRole("option", { name: /^work/ }));
-    await userEvent.type(field(), "{Enter}");
-    expect(field()).toHaveValue("");
-    expect(filters()).toHaveTextContent("work");
+    // Only for this query: an empty field searches under the filters again.
+    await userEvent.clear(field());
+    expect(scope()).toHaveTextContent("#finance");
   });
 });
 
@@ -394,7 +291,6 @@ describe("MobileSearch keyboard behaviour", () => {
     expect(field()).toHaveFocus();
     drag(results(), 40);
     expect(field()).not.toHaveFocus();
-    expect(screen.getByRole("toolbar", { name: "Filter by tag" })).toBeInTheDocument();
   });
 
   it("back from a record restores how far the results were scrolled", async () => {
@@ -412,7 +308,7 @@ describe("MobileSearch keyboard behaviour", () => {
     expect(field()).toHaveFocus();
   });
 
-  it("in landscape the results get the scope row's and the pills' space, the row coming back for Clear all", async () => {
+  it("in landscape the results get the scope row's space, the row coming back for Search all items", async () => {
     vi.spyOn(window, "matchMedia").mockImplementation(
       (query: string) =>
         ({
@@ -424,11 +320,9 @@ describe("MobileSearch keyboard behaviour", () => {
     );
     renderSearch();
     await userEvent.click(screen.getByRole("button", { name: "Search" }));
-    expect(screen.queryByRole("toolbar", { name: "Filter by tag" })).toBeNull();
     expect(screen.queryByRole("list", { name: "Search scope" })).toBeNull();
 
-    await userEvent.type(field(), "fin");
-    await userEvent.click(screen.getByRole("option", { name: /^finance/ }));
-    expect(screen.getByRole("button", { name: "Clear all" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Filter finance", hidden: true }));
+    expect(screen.getByRole("button", { name: "Search all items" })).toBeInTheDocument();
   });
 });

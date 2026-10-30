@@ -510,12 +510,12 @@ describe("search panel", () => {
     expect(screen.getByText("1 more outside Credit cards")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /^GitHub/ })).toBeNull();
 
-    // The scope row's button and the count's, both widening.
-    expect(screen.getAllByRole("button", { name: /^Search all items/ })).toHaveLength(2);
+    // The scope row's button ("Search all") and the count's ("Search all items"), both widening.
+    expect(screen.getAllByRole("button", { name: /^Search all/ })).toHaveLength(2);
     await user.keyboard("{Control>}{Shift>}F{/Shift}{/Control}");
     expect(screen.getByRole("list", { name: "Search scope" })).toHaveTextContent("All items");
     expect(options("Search results")).toEqual(["GitHub"]);
-    expect(screen.queryByRole("button", { name: /^Search all items/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Search all/ })).toBeNull();
     expect(field()).toHaveFocus();
   });
 });

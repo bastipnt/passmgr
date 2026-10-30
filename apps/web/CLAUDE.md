@@ -49,7 +49,7 @@ Rules:
   `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
   `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
   Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
-  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all; `SearchPanel` while searching);
+  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all in a `ChipLane`; `SearchPanel` while searching);
   the record sits on the ground, one column (`RecordDetail`: the form at rest, `@repo/client` `recordDetailLayout`
   builds it from `RECORD_FORM_FIELDS` / `RECORD_FORM_LAYOUT`: the same sections in the same order, fields paired where
   the form pairs them (`DetailFieldRow`), empty ones left out, then websites, extra fields (two per row), note, Version
@@ -60,22 +60,19 @@ Rules:
   row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
   `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
   Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
-  the list's large title over `ActiveFilterChips`, and a bottom dock (`FilterButton` → `FilterSheet`, search, sort, new). The dock's search pill opens
+  the list's large title over `ActiveFilterChips` (a `ChipLane` from `@repo/ui`: one scrolling row, edges fade where chips are cut off, Clear all pinned from two filters on), and a bottom dock (`FilterButton` → `FilterSheet`, its Show N button pinned to the drawer bottom; search, sort, new). The dock's search pill opens
   `MobileSearchOverlay` (`MobileSearch.tsx`): a full-screen layer portaled to `<body>` (no z-index, so sheets opened
   from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`. Its open state is a
   history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
   reopens it with the field focused (the record's Back tap holds the keyboard, `@repo/ui` `holdKeyboard` /
-  `handOffKeyboard`). Clear all drops tags and category; Cancel / Back restores the filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. A tag pill bar
-  (`TagPillBar`, `@repo/client` `pillTags`: selected, then matching the text, then by use) rides on the keyboard at
-  `--kb-inset` (`@repo/ui` `useKeyboardInset`: `visualViewport`, 0 on Android where `interactive-widget` resizes the
-  layout); its `pointerdown` is prevented so a tap never blurs the field, and a tap
-  that blurred it anyway (iOS) focuses it again. A pill matching the text replaces it. Picked tags show as `TagPill`
-  tokens in the field (✕ removes one, Backspace on an empty field the last; not on key repeat), the placeholder
-  "Search in tag" / "Search in N tags", and with nothing typed their records under "Tagged #a". In `#` tag mode the
-  pill bar gives way to `TagModeBar` (same `KeyboardBar` slot): "N tags · M items", Clear, Show M items / done key.
-  Dragging the results drops the keyboard (`@repo/ui` `useBlurOnDrag`; a tap's jitter doesn't), the bar sliding to the
-  safe area (only the drop slides). In landscape (layout under 500px high) the scope row (unless filtered) and pill bar
-  give way to the results. `search-history.ts` holds the history helpers and, in memory, the results' scroll for Back
+  `handOffKeyboard`). Cancel / Back restores the filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. Kept simple for
+  a phone keyboard: records only (no tag rows, no tag pill bar), no `#` tag mode (the overlay sets the provider's
+  `tagSearch` off while mounted; tags still match as part of a record). Taps in it prevent `pointerdown` so they never
+  blur the field, and a tap that blurred it anyway (iOS) focuses it again. Tags picked in `FilterSheet` show in the scope row as
+  `#tag` chips like desktop (`SearchScope`), never in the field; `SearchScope lane` puts them in a `ChipLane` under "Searching in" + the count; filtered, Search all (`SearchAllButton
+  shortcut={false}`) is pinned at its end runs past them for the query, the filters staying picked (no Clear all in the search: the list's chips have it); with nothing typed their records list under "Tagged #a".
+  Dragging the results drops the keyboard (`@repo/ui` `useBlurOnDrag`; a tap's jitter doesn't). In landscape (layout
+  under 500px high) the scope row (unless filtered) gives way to the results. `search-history.ts` holds the history helpers and, in memory, the results' scroll for Back
   from a record (`@repo/ui` `restoreScroll`, shared with `page-transitions`); `searchReturnState` keeps the `fromSearch` marker on entries that replace a record (move) or are pushed over the
   search (create), so Back from them still raises the keyboard.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`

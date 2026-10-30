@@ -12,6 +12,7 @@ import { CountBadge } from "@repo/ui/components/CountBadge";
 import { FilterTile } from "@repo/ui/components/FilterTile";
 import { TagPill } from "@repo/ui/components/TagPill";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { cn } from "@repo/ui/lib/utils";
 import { ListFilterIcon } from "lucide-react";
 import { useState } from "react";
 import { CATEGORY_ICONS } from "./CategorySidebar";
@@ -125,7 +126,16 @@ export function FilterSheet({
           </section>
         )}
 
-        <Button size="lg" className="w-full rounded-full" onClick={() => onOpenChange(false)}>
+        {/* Pinned to the drawer's bottom on phones, so a long tag list never hides it.
+            Not on desktop: the sheet's sticky footer (Reset) is there. */}
+        <Button
+          size="lg"
+          className={cn(
+            "w-full rounded-full",
+            isMobile && "sticky bottom-4 z-10 shadow-lg shadow-primary/30",
+          )}
+          onClick={() => onOpenChange(false)}
+        >
           Show {categoryCountLabel(categoryFilter, categoryCounts[categoryFilter])}
         </Button>
       </div>
