@@ -1,7 +1,10 @@
+import { IMPORT_SOURCE_LIST, RECORD_TYPE_LABELS } from "@repo/client";
 import {
   activeFilterCount,
+  emptyCategoryCreateType,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
+import type { RecordType } from "@repo/schema";
 import { BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -13,7 +16,15 @@ import {
   EmptyTitle,
 } from "@repo/ui/components/Empty";
 import Link from "@repo/ui/components/Link";
-import { FilterXIcon, LockIcon, PlusIcon, RefreshCwIcon, WifiOffIcon } from "lucide-react";
+import {
+  FilterXIcon,
+  LockIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  UploadIcon,
+  WifiOffIcon,
+} from "lucide-react";
+import { ImportDialog } from "@/features/import";
 import { createSheetSearch } from "./CreateRecordSheet";
 
 const FEATURES = [
@@ -36,7 +47,14 @@ function VaultIllustration() {
 }
 
 /** The category and tags in view leave nothing: the vault itself has records. */
-function FilteredEmptyState({ onClear }: { onClear: () => void }) {
+function FilteredEmptyState({
+  createType,
+  onClear,
+}: {
+  createType: RecordType | undefined;
+  onClear: () => void;
+}) {
+  const labels = createType && RECORD_TYPE_LABELS[createType];
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
       <Empty className="gap-6">
@@ -44,12 +62,22 @@ function FilteredEmptyState({ onClear }: { onClear: () => void }) {
           <EmptyMedia variant="icon">
             <FilterXIcon />
           </EmptyMedia>
-          <EmptyTitle className="text-2xl">Nothing matches these filters</EmptyTitle>
+          <EmptyTitle className="text-2xl">
+            {labels ? `No ${labels.nouns} yet` : "Nothing matches these filters"}
+          </EmptyTitle>
           <EmptyDescription className="text-base">
-            The category or tags picked leave no item in this vault.
+            {labels
+              ? `Add your first ${labels.noun}, or clear the filter to see everything.`
+              : "The category or tags picked leave no item in this vault."}
           </EmptyDescription>
         </EmptyHeader>
-        <EmptyContent>
+        <EmptyContent className="flex-row flex-wrap justify-center">
+          {labels && (
+            <Link variant="default" href={createSheetSearch(undefined, createType)}>
+              <PlusIcon />
+              New {labels.noun}
+            </Link>
+          )}
           <Button variant="secondary" onClick={onClear}>
             Clear filters
           </Button>
@@ -62,7 +90,12 @@ function FilteredEmptyState({ onClear }: { onClear: () => void }) {
 export default function RecordsEmptyState() {
   const { categoryFilter, tagFilters, sortedRecords, clearFilters } = useSortedRecords();
   if (activeFilterCount(categoryFilter, tagFilters) > 0 && sortedRecords.length === 0)
-    return <FilteredEmptyState onClear={clearFilters} />;
+    return (
+      <FilteredEmptyState
+        createType={emptyCategoryCreateType(categoryFilter, tagFilters)}
+        onClear={clearFilters}
+      />
+    );
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
       <Empty className="gap-6">
@@ -77,10 +110,22 @@ export default function RecordsEmptyState() {
           </EmptyDescription>
         </EmptyHeader>
         <EmptyContent className="max-w-md gap-6">
-          <Link variant="default" size="lg" href={createSheetSearch()}>
-            <PlusIcon />
-            Create record
-          </Link>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link variant="default" size="lg" href={createSheetSearch()}>
+              <PlusIcon />
+              Create record
+            </Link>
+            <ImportDialog>
+              <Button variant="outline" size="lg">
+                <UploadIcon />
+                Import
+              </Button>
+            </ImportDialog>
+          </div>
+          <p className="text-muted-foreground text-sm">
+            Moving from another password manager? Import its export from {IMPORT_SOURCE_LIST}, or a
+            backup of this app.
+          </p>
           <ul className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-muted-foreground text-sm">
             {FEATURES.map(({ icon: Icon, label }) => (
               <li key={label} className="flex items-center gap-1.5">

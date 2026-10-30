@@ -38,6 +38,12 @@ export const IMPORT_SOURCE_LABELS: Record<ImportSource, string> = {
   keepass: "KeePass",
 };
 
+/** "Chrome / Edge, Firefox, … or KeePass", for help text. */
+export const IMPORT_SOURCE_LIST = (() => {
+  const labels = Object.values(IMPORT_SOURCE_LABELS);
+  return `${labels.slice(0, -1).join(", ")} or ${labels.at(-1)}`;
+})();
+
 /**
  * - `unsupported_type`: an item kind with no record type here (a 1Password document)
  * - `invalid`: no valid record even after cleanup

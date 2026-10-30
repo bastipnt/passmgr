@@ -6,7 +6,7 @@ Web-specific guidance. Cross-cutting rules are in the root `CLAUDE.md`; feature 
 
 ```
 app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
-features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/
+features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/ · import/
 components/  App-wide, feature-agnostic components only
 hooks/ lib/ test/ types/
 ```

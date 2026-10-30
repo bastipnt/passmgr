@@ -8,8 +8,8 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { DownloadIcon, FileDownIcon, UploadIcon } from "lucide-react";
+import { ImportDialog } from "@/features/import";
 import ExportDialog from "./ExportDialog";
-import ImportDialog from "./ImportDialog";
 
 const dateFormat = new Intl.DateTimeFormat("en", { dateStyle: "medium" });
 

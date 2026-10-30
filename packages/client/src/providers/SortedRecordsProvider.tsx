@@ -71,6 +71,15 @@ export function emptyCategoryHint(
   return `No ${RECORD_TYPE_LABELS[category].nouns} yet.`;
 }
 
+/** The record type an empty list offers to create: only a type category, with no tags picked. */
+export function emptyCategoryCreateType(
+  category: CategoryFilter,
+  tags: readonly string[] = [],
+): RecordType | undefined {
+  if (tags.length > 0 || category === "all" || category === "favorites") return undefined;
+  return category;
+}
+
 export const DEFAULT_SORT: SortOption = "most-recent";
 
 export const SORT_LABELS: Record<SortOption, string> = {

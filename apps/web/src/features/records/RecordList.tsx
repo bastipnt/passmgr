@@ -1,7 +1,9 @@
 import {
+  emptyCategoryCreateType,
   emptyCategoryHint,
   getRecordSubtitle,
   listHeading,
+  RECORD_TYPE_LABELS,
   useGetRecords,
   useShortcut,
   useVaults,
@@ -14,6 +16,7 @@ import {
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
+import { Button } from "@repo/ui/components/Button";
 import {
   Item,
   ItemContent,
@@ -22,17 +25,20 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@repo/ui/components/Item";
+import UiLink from "@repo/ui/components/Link";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
-import { ChevronDownIcon, ChevronRightIcon, StarIcon } from "lucide-react";
+import { ChevronDownIcon, ChevronRightIcon, PlusIcon, StarIcon, UploadIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { ImportDialog } from "@/features/import";
 import { VaultTile } from "@/features/vaults";
 import { ActiveFilterChips } from "./ActiveFilterChips";
+import { createSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
 import { RecordSearch } from "./RecordSearch";
 import { RecordSortMenu } from "./RecordSortMenu";
@@ -158,14 +164,21 @@ function RecordListSkeleton() {
   );
 }
 
-/** Ghost rows standing in for the first items. */
+/**
+ * Ghost rows standing in for the first items. On phones, where no empty page
+ * sits beside the list, they also offer a way to fill it.
+ */
 function EmptyRecordList({
   categoryFilter,
   tagFilters,
+  isMobile,
 }: {
   categoryFilter: CategoryFilter;
   tagFilters: readonly string[];
+  isMobile: boolean;
 }) {
+  const hint = emptyCategoryHint(categoryFilter, tagFilters);
+  const createType = emptyCategoryCreateType(categoryFilter, tagFilters);
   return (
     <div className="flex flex-col gap-2">
       {[1, 0.7, 0.4].map((opacity) => (
@@ -183,9 +196,27 @@ function EmptyRecordList({
         </div>
       ))}
       <p className="px-1.5 pt-2 text-muted-foreground text-sm">
-        {emptyCategoryHint(categoryFilter, tagFilters) ??
-          "Your items will show up here, grouped by when you last used them."}
+        {hint ?? "Your items will show up here, grouped by when you last used them."}
       </p>
+      {isMobile && createType && (
+        <UiLink
+          variant="outline"
+          size="lg"
+          className="self-start"
+          href={createSheetSearch(undefined, createType)}
+        >
+          <PlusIcon />
+          New {RECORD_TYPE_LABELS[createType].noun}
+        </UiLink>
+      )}
+      {isMobile && !hint && (
+        <ImportDialog>
+          <Button variant="outline" size="lg" className="self-start">
+            <UploadIcon />
+            Import from another app
+          </Button>
+        </ImportDialog>
+      )}
     </div>
   );
 }
@@ -444,7 +475,11 @@ export default function RecordList() {
         !isMobile && <p className="px-4 py-4 text-muted-foreground text-sm">No results</p>
       ) : listedCount === 0 ? (
         <div className="px-3 max-sm:px-4 max-sm:pt-4">
-          <EmptyRecordList categoryFilter={categoryFilter} tagFilters={tagFilters} />
+          <EmptyRecordList
+            categoryFilter={categoryFilter}
+            tagFilters={tagFilters}
+            isMobile={isMobile}
+          />
         </div>
       ) : (
         <div

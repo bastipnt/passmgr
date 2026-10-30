@@ -58,6 +58,10 @@ vi.mock("@/features/vaults", async (importActual) => ({
   VaultSwitcher: () => null,
 }));
 
+vi.mock("@/features/import", () => ({
+  ImportDialog: ({ children }: { children: ReactNode }) => children,
+}));
+
 // jsdom has no `CSS.supports`; the scroll effects are out of scope here.
 vi.mock("@repo/ui/hooks/use-sticky-label-fade", () => ({ useStickyLabelFade: () => {} }));
 vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
@@ -547,6 +551,14 @@ describe("filters", () => {
     );
     const user = userEvent.setup();
     expect(screen.getByText("Your vault is empty")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Import" })).toBeInTheDocument();
+
+    await user.click(category("SSH keys (0)"));
+    expect(screen.getByText("No SSH keys yet")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "New SSH key" })).toHaveAttribute(
+      "href",
+      expect.stringContaining("type=ssh_key"),
+    );
 
     await user.click(category("Credit cards (1)"));
     await user.click(screen.getByRole("button", { name: "pick work" }));
