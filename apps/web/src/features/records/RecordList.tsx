@@ -63,6 +63,10 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
         active
           ? "[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_10%,var(--sticky-bar-fill))] hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_15%,var(--sticky-bar-fill))] dark:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_20%,var(--sticky-bar-fill))]"
           : "hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_5%,var(--sticky-bar-fill))]",
+        "focus-visible:ring-0",
+        active
+          ? "focus-visible:border-primary/45"
+          : "focus-visible:border-transparent focus-visible:bg-foreground/5",
         "group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)",
       )}
       render={
@@ -228,6 +232,7 @@ export default function RecordList() {
   const { ready } = useGetRecords();
   const {
     query,
+    vaultFilter,
     categoryFilter,
     tagFilters,
     sortedRecords,
@@ -298,6 +303,47 @@ export default function RecordList() {
       shouldFocusRef.current = false;
     }
   }, [highlightedId]);
+
+  // The list comes back when the search closes: bring the record it opened (or kept) into view.
+  const searchWasOpen = useRef(false);
+  useEffect(() => {
+    if (panel.open) {
+      searchWasOpen.current = true;
+      return;
+    }
+    if (!searchWasOpen.current) return;
+    searchWasOpen.current = false;
+    if (highlightedId) recordRefs.current.get(highlightedId)?.scrollIntoView({ block: "center" });
+  }, [panel.open, highlightedId]);
+
+  // A filter that leaves the open record out of the list opens its first record
+  // instead, or the empty page. Only on a filter change: a record opened from
+  // "Search all items" may sit outside the filters on purpose.
+  const filtersKey = [vaultFilter, categoryFilter, ...tagFilters].join("\u0000");
+  const checkedFiltersKey = useRef(filtersKey);
+  useEffect(() => {
+    if (isMobile || !ready || panel.open || query.trim()) return;
+    if (checkedFiltersKey.current === filtersKey) return;
+    checkedFiltersKey.current = filtersKey;
+    const openId = params?.recordId;
+    // Folded "By vault" groups still list theirs.
+    const listed = recordGroups.some((group) =>
+      group.records.some((record) => record.recordId === openId),
+    );
+    if (!openId || listed) return;
+    const first = sortedRecords[0];
+    navigate(first ? recordPaths.record(first.recordId) : recordPaths.index, { replace: true });
+  }, [
+    isMobile,
+    ready,
+    panel.open,
+    query,
+    filtersKey,
+    params?.recordId,
+    recordGroups,
+    sortedRecords,
+    navigate,
+  ]);
 
   // Search previews don't count as opened.
   useEffect(() => {

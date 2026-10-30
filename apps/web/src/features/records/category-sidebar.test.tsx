@@ -14,7 +14,9 @@ import { memoryLocation } from "wouter/memory-location";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import RecordList from "./RecordList";
+import RecordsEmptyState from "./RecordsEmptyState";
 import { SidebarHeader, SidebarToggle } from "./SidebarHeader";
+import { PREVIEW_DELAY_MS } from "./use-search-panel";
 import { useSidebarCollapsed } from "./use-sidebar-collapsed";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
@@ -380,19 +382,85 @@ describe("search panel", () => {
     expect(location.history?.at(-1)).toBe("/record/jira");
   });
 
-  it("previews only once ↑↓ settle, and not on hover", async () => {
+  it("previews only once ↑↓ settle; hover highlights with the hint but previews nothing", async () => {
     const { user, location } = renderList();
     await user.click(field());
     await user.keyboard("o");
     await waitFor(() => expect(location.history?.at(-1)).toBe("/record/github"));
-    const activeBefore = field().getAttribute("aria-activedescendant");
 
-    await user.hover(screen.getByRole("option", { name: /Jira/ }));
-    expect(field()).toHaveAttribute("aria-activedescendant", activeBefore);
+    const jira = screen.getByRole("option", { name: /Jira/ });
+    await user.hover(jira);
+    expect(field()).toHaveAttribute("aria-activedescendant", jira.id);
+    expect(jira).toHaveTextContent(/Open$/);
+    await new Promise((resolve) => setTimeout(resolve, PREVIEW_DELAY_MS + 50));
+    expect(location.history?.at(-1)).toBe("/record/github");
 
-    await user.keyboard("{ArrowDown}{ArrowUp}{ArrowDown}");
+    const work = screen.getByRole("option", { name: /^work/ });
+    // A move: the pointer resting while the rows scroll under it highlights nothing.
+    await user.pointer({ target: work, coords: { clientX: 0, clientY: 0 } });
+    expect(work).not.toHaveTextContent(/Add filter$/);
+    await user.pointer({ target: work, coords: { clientX: 20, clientY: 40 } });
+    expect(work).toHaveTextContent(/Add filter$/);
+
+    // From the hovered #work: GitHub, Jira, back, Jira again — only the last previews.
+    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowUp}{ArrowDown}");
     expect(location.history?.at(-1)).toBe("/record/github");
     await waitFor(() => expect(location.history?.at(-1)).toBe("/record/jira"));
+  });
+
+  it("the ✕ next to esc closes the search", async () => {
+    const { user } = renderList();
+    await user.click(field());
+    await user.keyboard("jir");
+
+    await user.click(screen.getByRole("button", { name: "Close search" }));
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(field()).toHaveValue("");
+  });
+
+  it("brings the record it opened into view in the list", async () => {
+    const { user } = renderList();
+    await user.click(field());
+    await user.keyboard("vis");
+    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+
+    await user.click(screen.getByRole("option", { name: /Visa/ }));
+    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1)).toBe(
+      screen.getByRole("link", { name: /Visa/ }),
+    );
+  });
+
+  it("tag mode's one pill shows its records, as Esc does", async () => {
+    const { user } = renderList();
+    await user.click(field());
+    await user.keyboard("#inf{Enter}");
+    expect(screen.getByRole("button", { name: "Show 1 record" })).toHaveTextContent(/^Show 1esc$/);
+    expect(screen.queryByRole("button", { name: "Close search" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Show 1 record" }));
+    expect(screen.queryByRole("listbox")).toBeNull();
+    expect(screen.getByRole("list", { name: "Active filters" })).toHaveTextContent("infra");
+  });
+
+  it("opening a record the filters hide drops them, so the list shows it", async () => {
+    const { user, location } = renderList();
+    await user.click(category("Credit cards (1)"));
+    await user.click(field());
+    await user.keyboard("git{Control>}{Shift>}F{/Shift}{/Control}{Enter}");
+
+    expect(location.history?.at(-1)).toBe("/record/github");
+    expect(screen.queryByRole("list", { name: "Active filters" })).toBeNull();
+    expect(screen.getByRole("link", { name: /GitHub/ })).toBeInTheDocument();
+  });
+
+  it("opening a record the filters keep leaves them", async () => {
+    const { user } = renderList();
+    await user.click(category("Logins (2)"));
+    await user.click(field());
+    await user.keyboard("jir{Enter}");
+
+    expect(screen.getByRole("list", { name: "Active filters" })).toHaveTextContent("Logins");
   });
 
   it("focusing alone keeps the open record; Esc brings it back after a preview", async () => {
@@ -442,10 +510,58 @@ describe("search panel", () => {
     expect(screen.getByText("1 more outside Credit cards")).toBeInTheDocument();
     expect(screen.queryByRole("option", { name: /^GitHub/ })).toBeNull();
 
-    await user.click(screen.getByRole("button", { name: "Search all items" }));
+    // The scope row's button and the count's, both widening.
+    expect(screen.getAllByRole("button", { name: /^Search all items/ })).toHaveLength(2);
+    await user.keyboard("{Control>}{Shift>}F{/Shift}{/Control}");
     expect(screen.getByRole("list", { name: "Search scope" })).toHaveTextContent("All items");
     expect(options("Search results")).toEqual(["GitHub"]);
+    expect(screen.queryByRole("button", { name: /^Search all items/ })).toBeNull();
     expect(field()).toHaveFocus();
+  });
+});
+
+describe("filters", () => {
+  it("open the list's first record when they leave the open one out, else the empty page", async () => {
+    const { user, location } = renderList();
+    await user.click(screen.getByRole("link", { name: /Jira/ }));
+
+    await user.click(category("Credit cards (1)"));
+    expect(location.history?.at(-1)).toBe("/record/visa");
+
+    await user.click(screen.getByRole("button", { name: "pick work" }));
+    expect(location.history?.at(-1)).toBe("/");
+  });
+
+  it("the empty page says the filters left nothing, and clears them", async () => {
+    const location = memoryLocation({ path: "/", record: true });
+    render(
+      <Router hook={location.hook}>
+        <ShortcutProvider>
+          <Providers>
+            <Sidebar />
+            <TagPicks />
+            <RecordsEmptyState />
+          </Providers>
+        </ShortcutProvider>
+      </Router>,
+    );
+    const user = userEvent.setup();
+    expect(screen.getByText("Your vault is empty")).toBeInTheDocument();
+
+    await user.click(category("Credit cards (1)"));
+    await user.click(screen.getByRole("button", { name: "pick work" }));
+    expect(screen.getByText("Nothing matches these filters")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear filters" }));
+    expect(category("All items (3)")).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("keep a record they still list open", async () => {
+    const { user, location } = renderList();
+    await user.click(screen.getByRole("link", { name: /GitHub/ }));
+
+    await user.click(screen.getByRole("button", { name: "pick work" }));
+    expect(location.history?.at(-1)).toBe("/record/github");
   });
 });
 

@@ -14,42 +14,60 @@ import { counted } from "@repo/util";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, CornerDownLeftIcon } from "lucide-react";
 import { type ReactNode, useEffect } from "react";
 import { VaultBadge } from "@/features/vaults";
+import { shortcutHint } from "@/lib/formatShortcut";
 import { OutsideScope } from "./OutsideScope";
 import { RecordAvatar } from "./RecordAvatar";
 import { optionDomId } from "./RecordSearch";
-import type { SearchPanelState } from "./use-search-panel";
+import { SEARCH_ALL_KEY, type SearchPanelState } from "./use-search-panel";
 
 function ScopeChip({ children }: { children: ReactNode }) {
   return (
-    <li className="inline-flex h-6 max-w-40 items-center rounded-md bg-foreground/6 px-1.5 font-medium text-foreground text-xs dark:bg-white/8">
+    <li className="inline-flex h-6 max-w-40 items-center whitespace-nowrap rounded-md bg-foreground/6 px-1.5 font-medium text-foreground text-xs dark:bg-white/8">
       {children}
     </li>
   );
 }
 
-export function SearchScope({ tagMode }: { tagMode: boolean }) {
+export function SearchScope({ tagMode, action }: { tagMode: boolean; action?: ReactNode }) {
   const { vaultFilter, categoryFilter, tagFilters, searchAll } = useSortedRecords();
   const { getVault } = useVaults();
   const vault = vaultFilter === "all" ? undefined : getVault(vaultFilter);
 
   return (
-    <div className="flex items-center gap-2 px-1.5 text-muted-foreground text-xs">
-      <span className="shrink-0">{tagMode ? "Tags in" : "Searching in"}</span>
-      <ul aria-label="Search scope" className="flex min-w-0 flex-wrap gap-1">
-        <ScopeChip>{vault ? <VaultBadge vault={vault} /> : "All vaults"}</ScopeChip>
-        <ScopeChip>{searchAll ? categoryLabel("all") : categoryLabel(categoryFilter)}</ScopeChip>
-        {!searchAll &&
-          !tagMode &&
-          tagFilters.map((tag) => (
-            <ScopeChip key={tag}>
-              <span className="truncate">
-                {TAG_SEARCH_PREFIX}
-                {tag}
-              </span>
-            </ScopeChip>
-          ))}
-      </ul>
+    // Wraps: a narrow list panel puts the action on a line of its own, right-aligned.
+    <div className="flex min-h-7 flex-wrap items-center gap-x-2 gap-y-1 px-1.5 text-muted-foreground text-xs">
+      <div className="flex min-w-48 flex-1 items-center gap-2">
+        <span className="shrink-0">{tagMode ? "Tags in" : "Searching in"}</span>
+        <ul aria-label="Search scope" className="flex min-w-0 flex-wrap gap-1">
+          <ScopeChip>{vault ? <VaultBadge vault={vault} /> : "All vaults"}</ScopeChip>
+          <ScopeChip>{searchAll ? categoryLabel("all") : categoryLabel(categoryFilter)}</ScopeChip>
+          {!searchAll &&
+            !tagMode &&
+            tagFilters.map((tag) => (
+              <ScopeChip key={tag}>
+                <span className="truncate">
+                  {TAG_SEARCH_PREFIX}
+                  {tag}
+                </span>
+              </ScopeChip>
+            ))}
+        </ul>
+      </div>
+      {action}
     </div>
+  );
+}
+
+function SearchAllButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="ml-auto flex h-7 shrink-0 items-center gap-1.5 rounded-full pr-1 pl-2.5 font-semibold text-primary-text outline-none hover:bg-primary/8 focus-visible:ring-2 focus-visible:ring-ring/50 dark:hover:bg-primary/15"
+    >
+      Search all items
+      <Kbd aria-hidden>{shortcutHint(SEARCH_ALL_KEY)}</Kbd>
+    </button>
   );
 }
 
@@ -171,7 +189,11 @@ export function RecordOptionRow({
   );
 }
 
-function KeyHints({ tagMode }: { tagMode: boolean }) {
+/**
+ * Floats over the bottom of the results (the listbox leaves room for it to
+ * scroll the last row clear), over a fade.
+ */
+function KeyHints({ tagMode, canSearchAll }: { tagMode: boolean; canSearchAll: boolean }) {
   const hint = (keys: ReactNode, label: string) => (
     <span className="flex items-center gap-1">
       {keys}
@@ -179,31 +201,32 @@ function KeyHints({ tagMode }: { tagMode: boolean }) {
     </span>
   );
   return (
-    <div
-      aria-hidden
-      className="sticky bottom-0 mx-3 mt-auto mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-muted px-3 py-2 text-muted-foreground text-xs"
-    >
-      {hint(
-        <>
+    <div aria-hidden className="pointer-events-none sticky bottom-0 mt-auto h-0">
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-linear-to-t from-(--sticky-bar-fill) from-35% to-transparent" />
+      <div className="absolute inset-x-3 bottom-3 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl bg-muted/90 px-3 py-2 text-muted-foreground text-xs shadow-[0_4px_18px_rgb(30_20_26/0.12)] ring-1 ring-foreground/8 backdrop-blur-md dark:ring-white/8">
+        {hint(
+          <>
+            <Kbd>
+              <ArrowUpIcon />
+            </Kbd>
+            <Kbd>
+              <ArrowDownIcon />
+            </Kbd>
+          </>,
+          "move",
+        )}
+        {hint(
           <Kbd>
-            <ArrowUpIcon />
-          </Kbd>
-          <Kbd>
-            <ArrowDownIcon />
-          </Kbd>
-        </>,
-        "move",
-      )}
-      {hint(
-        <Kbd>
-          <CornerDownLeftIcon />
-        </Kbd>,
-        tagMode ? "toggle" : "open",
-      )}
-      {tagMode
-        ? hint(<Kbd>backspace</Kbd>, "on # = search all")
-        : hint(<Kbd>{TAG_SEARCH_PREFIX}</Kbd>, "tags only")}
-      {hint(<Kbd>esc</Kbd>, tagMode ? "done" : "close")}
+            <CornerDownLeftIcon />
+          </Kbd>,
+          tagMode ? "toggle" : "open",
+        )}
+        {tagMode
+          ? hint(<Kbd>backspace</Kbd>, "on # = search all")
+          : hint(<Kbd>{TAG_SEARCH_PREFIX}</Kbd>, "tags only")}
+        {canSearchAll && hint(<Kbd>{shortcutHint(SEARCH_ALL_KEY)}</Kbd>, "all items")}
+        {hint(<Kbd>esc</Kbd>, tagMode ? "show records" : "close")}
+      </div>
     </div>
   );
 }
@@ -214,7 +237,7 @@ function KeyHints({ tagMode }: { tagMode: boolean }) {
  * `preventDefault` on mouse down.
  */
 export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; listboxId: string }) {
-  const { search, sections, options, active, choose } = panel;
+  const { search, sections, options, active, choose, point, canSearchAll } = panel;
   const activeIndex = active ? options.indexOf(active) : -1;
 
   useEffect(() => {
@@ -229,9 +252,13 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
 
   return (
     // oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field, not an action
-    <div className="flex min-h-full flex-col" onMouseDown={(e) => e.preventDefault()}>
+    // flex-1, not min-h-full: the list's column only has a min height, so % wouldn't resolve.
+    <div className="flex flex-1 flex-col" onMouseDown={(e) => e.preventDefault()}>
       <div className="px-3 pt-2">
-        <SearchScope tagMode={search.tagMode} />
+        <SearchScope
+          tagMode={search.tagMode}
+          action={canSearchAll && <SearchAllButton onClick={panel.searchAllItems} />}
+        />
       </div>
       {empty && (
         <dl className="mx-3 mt-3 grid grid-cols-[auto_1fr] items-center gap-x-2.5 gap-y-1.5 rounded-2xl bg-muted px-3.5 py-3 text-muted-foreground text-sm">
@@ -287,6 +314,7 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
                       aria-selected={option.kind === "tag" && search.tagMode ? option.on : isActive}
                       tabIndex={-1}
                       onClick={() => choose(option)}
+                      onPointerMove={(e) => point(option, e)}
                       className={cn(
                         "flex cursor-pointer items-center gap-3 rounded-2xl border border-transparent px-2.5 py-2 hover:bg-foreground/4 dark:hover:bg-white/6 hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_4%,var(--sticky-bar-fill))] dark:hover:[--vault-mark-ring:color-mix(in_oklab,white_6%,var(--sticky-bar-fill))]",
                         isActive &&
@@ -314,7 +342,9 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
       </div>
       {noResults && <p className="px-5 pt-3 text-muted-foreground text-sm">No results</p>}
       {!search.tagMode && search.text && <OutsideScope className="mx-3 mt-3" />}
-      <KeyHints tagMode={search.tagMode} />
+      {/* Room to scroll the last row clear of the hints. */}
+      <div aria-hidden className="h-16 shrink-0" />
+      <KeyHints tagMode={search.tagMode} canSearchAll={canSearchAll} />
     </div>
   );
 }

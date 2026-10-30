@@ -419,6 +419,8 @@ type SortedRecordsContextValue = {
   setTags: (tags: readonly string[]) => void;
   /** Back to the whole vault in view: category "all", no tags. */
   clearFilters: () => void;
+  /** Clears the filters when they hide `record`, so the list shows it (opened from "Search all items"). */
+  revealRecord: (record: DecryptedRecord) => void;
   /** The list's search field, so others can focus it. */
   searchInputRef: RefObject<{ focus: () => void; blur: () => void } | null>;
   /** Focuses the search with the tag prefix typed. */
@@ -709,6 +711,13 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     setCategoryFilter("all");
     clearTags();
   }, [clearTags]);
+  const revealRecord = useCallback(
+    (record: DecryptedRecord) => {
+      if (filterRecords([record], { category: categoryFilter, tags: tagFilters }).length === 0)
+        clearFilters();
+    },
+    [categoryFilter, tagFilters, clearFilters],
+  );
 
   const searchInputRef = useRef<{ focus: () => void; blur: () => void } | null>(null);
   const searchTags = useCallback(() => {
@@ -754,6 +763,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       clearTags,
       setTags,
       clearFilters,
+      revealRecord,
       searchInputRef,
       searchTags,
       tags,
@@ -793,6 +803,7 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
       clearTags,
       setTags,
       clearFilters,
+      revealRecord,
       searchTags,
       tags,
       showTag,

@@ -1,4 +1,9 @@
+import {
+  activeFilterCount,
+  useSortedRecords,
+} from "@repo/client/src/providers/SortedRecordsProvider";
 import { BrandMark } from "@repo/ui/components/BrandMark";
+import { Button } from "@repo/ui/components/Button";
 import {
   Empty,
   EmptyContent,
@@ -8,7 +13,7 @@ import {
   EmptyTitle,
 } from "@repo/ui/components/Empty";
 import Link from "@repo/ui/components/Link";
-import { LockIcon, PlusIcon, RefreshCwIcon, WifiOffIcon } from "lucide-react";
+import { FilterXIcon, LockIcon, PlusIcon, RefreshCwIcon, WifiOffIcon } from "lucide-react";
 import { createSheetSearch } from "./CreateRecordSheet";
 
 const FEATURES = [
@@ -30,7 +35,34 @@ function VaultIllustration() {
   );
 }
 
+/** The category and tags in view leave nothing: the vault itself has records. */
+function FilteredEmptyState({ onClear }: { onClear: () => void }) {
+  return (
+    <div className="flex h-full flex-col items-center justify-center p-6">
+      <Empty className="gap-6">
+        <EmptyHeader className="max-w-md gap-3">
+          <EmptyMedia variant="icon">
+            <FilterXIcon />
+          </EmptyMedia>
+          <EmptyTitle className="text-2xl">Nothing matches these filters</EmptyTitle>
+          <EmptyDescription className="text-base">
+            The category or tags picked leave no item in this vault.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent>
+          <Button variant="secondary" onClick={onClear}>
+            Clear filters
+          </Button>
+        </EmptyContent>
+      </Empty>
+    </div>
+  );
+}
+
 export default function RecordsEmptyState() {
+  const { categoryFilter, tagFilters, sortedRecords, clearFilters } = useSortedRecords();
+  if (activeFilterCount(categoryFilter, tagFilters) > 0 && sortedRecords.length === 0)
+    return <FilteredEmptyState onClear={clearFilters} />;
   return (
     <div className="flex h-full flex-col items-center justify-center p-6">
       <Empty className="gap-6">

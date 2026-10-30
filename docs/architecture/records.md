@@ -79,8 +79,15 @@ them into ids + selected state for any search UI; `clearFilters`
 drops category and tags, keeping the vault; `listTitle` (mobile app) / `listHeading` (web; the filters show as chips) are shared.
 Web desktop: a detail chip sets one, the sidebar's Tags row focuses the search with `#` (`searchTags` via `searchInputRef`);
 while the field has focus, `SearchPanel` (`useSearchPanel`, a combobox) replaces the list: scope chips, tags then
-records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves); the
-highlighted record previews once typed or moved by keys (debounced; never on focus or hover), Enter opens it, Esc restores the record open before; the chips under the list heading remove one or Clear all;
+records (empty: top tags, recently opened; `#`: tags with checkboxes, Enter toggles, Backspace on the token leaves,
+Esc or the field's "Show N esc" pill back to the list); the highlighted record previews once typed or moved by
+keys (debounced; never on focus; hovering highlights without previewing, only on a real pointer move), Enter opens it
+(`revealRecord`: one the category or tags hide drops them, so the list shows it), Esc or the ✕ in the field's esc chip
+restores the record open before; "Search all items" ($mod+Shift+F) sits at the end of the scope row while category or
+tags narrow it; the key hints float over the results' foot. Closing the search scrolls the list to the open record; a
+filter change that leaves the open record out opens the list's first (none: the empty page, which then says the
+filters left nothing and offers Clear filters); list rows show no focus ring, as the results don't (the active fill
+marks them); the chips under the list heading remove one or Clear all;
 web phone: the list keeps `FilterSheet` (category grid + tags; the non-search way to filter), the ones on as
 `ActiveFilterChips` under the title, and the dock's search pill opens `MobileSearchOverlay` (`MobileSearch.tsx`), a
 full-screen layer with its own history entry (`search-history.ts`). The field sits on top (Cancel next to it), the
