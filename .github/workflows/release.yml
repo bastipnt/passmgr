@@ -62,9 +62,10 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.name }}
           cache-to: type=gha,scope=${{ matrix.name }},mode=max
           platforms: linux/amd64
-          # Only Dockerfile.web declares it; the server build ignores the arg.
+          # Only Dockerfile.web declares them; the server build ignores the args.
           build-args: |
             VITE_SITE_URL=${{ vars.SITE_URL }}
+            VITE_APP_VERSION=${{ github.ref_name }}
 
   # The web build's checksums, published outside the web host so anyone can check what it
   # serves (`pnpm --filter web verify:deployment`).
