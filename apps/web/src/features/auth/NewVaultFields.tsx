@@ -1,3 +1,4 @@
+import { passwordSchema } from "@repo/schema";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { LockIcon, ShieldIcon } from "lucide-react";
@@ -8,7 +9,7 @@ import { NewPasswordLabelAction, PasswordStrengthMeter } from "@/features/passwo
 export const newVaultSchema = z
   .object({
     name: z.string().max(60),
-    password: z.string().min(8),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, {

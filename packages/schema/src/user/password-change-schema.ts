@@ -2,6 +2,7 @@ import z from "zod";
 import { emailSchema } from "./email-schema";
 import { passwordKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
+import { passwordSchema } from "./password-schema";
 
 /**
  * Start a password change (linked account, fresh OPAQUE login required): a new
@@ -32,7 +33,7 @@ export const finishPasswordChangeInputSchema = z.object({
 export const changePasswordFormSchema = z
   .object({
     currentPassword: z.string().min(1, "Enter your current password"),
-    password: z.string().min(8),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, {

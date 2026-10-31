@@ -1,8 +1,10 @@
 "use client";
 
 import { cva, type VariantProps } from "class-variance-authority";
+import { TimerIcon } from "lucide-react-native";
 import { useMemo } from "react";
 import { FlatList, Text, TextProps, View, ViewProps } from "react-native";
+import { useCSSVariable } from "uniwind";
 import { cn } from "../../lib/utils";
 import { Separator } from "../Separator";
 
@@ -222,6 +224,24 @@ function FieldError({
   );
 }
 
+function FieldWarning({ className, children, ...props }: ViewProps) {
+  const color = useCSSVariable("--color-warning") as string;
+  return (
+    <View
+      role="status"
+      data-slot="field-warning"
+      className={cn(
+        "flex-row items-start gap-2.5 rounded-xl border border-warning/40 bg-warning/12 px-3.5 py-3 dark:border-warning/30 dark:bg-warning/10",
+        className,
+      )}
+      {...props}
+    >
+      <TimerIcon size={16} color={color} />
+      <Text className="flex-1 text-[#92400e] text-sm dark:text-[#ffb23f]">{children}</Text>
+    </View>
+  );
+}
+
 export {
   Field,
   FieldContent,
@@ -233,4 +253,5 @@ export {
   FieldSeparator,
   FieldSet,
   FieldTitle,
+  FieldWarning,
 };

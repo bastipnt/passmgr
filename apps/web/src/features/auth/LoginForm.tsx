@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { SignInErrorMessage } from "@repo/client";
+import { passwordSchema } from "@repo/schema";
 import { useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import { FieldGroup } from "@repo/ui/components/Field";
@@ -19,7 +20,7 @@ import SignInError from "./SignInError";
 
 const userCredentialsSchema = z.object({
   email: z.email(),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 export type LoginFormValues = z.infer<typeof userCredentialsSchema>;

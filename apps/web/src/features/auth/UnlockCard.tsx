@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { SignInErrorMessage } from "@repo/client";
+import { passwordSchema } from "@repo/schema";
 import { useForm } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
@@ -20,7 +21,7 @@ import SignInError from "./SignInError";
 import StoredAccountRow from "./StoredAccountRow";
 import { SignedOutNote } from "./signed-out";
 
-const unlockSchema = z.object({ password: z.string().min(8) });
+const unlockSchema = z.object({ password: passwordSchema });
 type UnlockFormValues = z.infer<typeof unlockSchema>;
 
 type UnlockCardProps = {

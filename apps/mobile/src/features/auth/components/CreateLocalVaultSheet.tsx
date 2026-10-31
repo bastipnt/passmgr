@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useCreateLocalVault, usePasswordStrength } from "@repo/client";
+import { passwordSchema } from "@repo/schema";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -19,7 +20,7 @@ import { RecoveryKeyDialog } from "./RecoveryKeyDialog";
 const localVaultSchema = z
   .object({
     name: z.string().max(60),
-    password: z.string().min(8),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, {

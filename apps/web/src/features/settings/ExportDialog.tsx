@@ -8,6 +8,7 @@ import {
 import {
   type ExportPasswordFormValues,
   exportPasswordFormSchema,
+  PASSWORD_MIN_LENGTH,
   type PlainExportFormValues,
   plainExportFormSchema,
 } from "@repo/schema";
@@ -186,7 +187,11 @@ function EncryptedExportForm({
             label="Backup password"
             autoComplete="new-password"
             leadingIcon={<KeyRoundIcon />}
-            labelAction={<span className="text-muted-foreground text-xs">min. 8 characters</span>}
+            labelAction={
+              <span className="text-muted-foreground text-xs">
+                min. {PASSWORD_MIN_LENGTH} characters
+              </span>
+            }
             hint={<StrengthHint control={control} />}
           />
           <ControlledPasswordInput

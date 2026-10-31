@@ -2,6 +2,7 @@ import z from "zod";
 import { emailSchema } from "./email-schema";
 import { recoveryWrapSchema, userKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
+import { passwordSchema } from "./password-schema";
 
 /**
  * Start recovery: prove possession of the recovery key and begin a new OPAQUE
@@ -50,7 +51,7 @@ export type PendingRecovery = z.infer<typeof pendingRecoverySchema>;
 export type SealedPendingRecovery = z.infer<typeof sealedPendingRecoverySchema>;
 
 const passwordFields = {
-  password: z.string().min(8),
+  password: passwordSchema,
   confirmPassword: z.string(),
 };
 

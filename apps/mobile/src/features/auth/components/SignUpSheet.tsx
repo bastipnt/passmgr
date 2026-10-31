@@ -1,5 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { usePasswordStrength, useRegistration } from "@repo/client";
+import { passwordSchema } from "@repo/schema";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -20,7 +21,7 @@ import { RecoveryKeyDialog } from "./RecoveryKeyDialog";
 const credentialsSchema = z
   .object({
     email: z.email(),
-    password: z.string().min(8),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, {

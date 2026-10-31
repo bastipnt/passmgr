@@ -5,6 +5,7 @@ import {
   useSecondFactorRequest,
   useStore,
 } from "@repo/client";
+import { passwordSchema } from "@repo/schema";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -19,9 +20,9 @@ import { Text, View } from "react-native";
 import z from "zod";
 import { SecondFactorStep } from "./SecondFactorStep";
 
-const passwordSchema = z.object({ password: z.string().min(8) });
+const reconnectSchema = z.object({ password: passwordSchema });
 
-type FormValues = z.infer<typeof passwordSchema>;
+type FormValues = z.infer<typeof reconnectSchema>;
 
 const FAILURE_MESSAGES: Record<Exclude<ConnectResult, "online" | "cancelled">, string> = {
   rejected: "The server didn't accept this password for your account.",
@@ -56,7 +57,7 @@ export function ReconnectSheet({ ref }: ReconnectSheetProps) {
   }));
 
   const { handleSubmit, control, watch, reset } = useForm<FormValues>({
-    resolver: zodResolver(passwordSchema),
+    resolver: zodResolver(reconnectSchema),
     defaultValues: { password: "" },
   });
 

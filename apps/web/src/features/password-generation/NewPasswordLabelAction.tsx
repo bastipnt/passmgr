@@ -1,3 +1,4 @@
+import { PASSWORD_MIN_LENGTH } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
 import { WandSparklesIcon } from "lucide-react";
 import { useMemo } from "react";
@@ -27,7 +28,7 @@ export default function NewPasswordLabelAction<T extends NewPasswordFormValues>(
 
   return (
     <span className="flex items-baseline gap-3">
-      <span className="text-muted-foreground text-xs">min. 8 characters</span>
+      <span className="text-muted-foreground text-xs">min. {PASSWORD_MIN_LENGTH} characters</span>
       <DialogTrigger
         handle={handle}
         render={

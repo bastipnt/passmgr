@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CURRENT_SCHEMA_VERSION } from "./record-payload";
 import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
+import { passwordSchema } from "./user/password-schema";
 import { vaultKindSchema } from "./vault-schema";
 
 /*
@@ -95,7 +96,7 @@ export type PlainExportFormValues = z.infer<typeof plainExportFormSchema>;
 export const exportPasswordFormSchema = z
   .object({
     masterPassword: exportMasterPassword,
-    password: z.string().min(8),
+    password: passwordSchema,
     confirmPassword: z.string(),
   })
   .refine((v) => v.password === v.confirmPassword, {

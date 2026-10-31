@@ -9,6 +9,7 @@ import {
   useUnlock,
 } from "@repo/client";
 import { timed } from "@repo/client/src/util/perf";
+import { passwordSchema } from "@repo/schema";
 import {
   BottomSheet,
   type BottomSheetRef,
@@ -16,6 +17,7 @@ import {
   ControlledInput,
   ControlledPasswordInput,
   FieldError,
+  FieldWarning,
   FormLock,
 } from "@repo/ui-native";
 import { type Ref, useEffect, useImperativeHandle, useRef, useState } from "react";
@@ -26,13 +28,13 @@ import { SecondFactorStep } from "./SecondFactorStep";
 
 const credentialsSchema = z.object({
   email: z.email(),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 // A local vault opens with the password alone: the email isn't checked.
 const localUnlockSchema = z.object({
   email: z.string(),
-  password: z.string().min(8),
+  password: passwordSchema,
 });
 
 type FormValues = z.infer<typeof credentialsSchema>;
@@ -216,9 +218,14 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
           </Pressable>
         )}
 
-        {error && (
-          <FieldError variant="box" errors={[{ message: `${error.title} ${error.detail}` }]} />
-        )}
+        {error &&
+          (error.warning ? (
+            <FieldWarning>
+              <Text className="font-semibold">{error.title}</Text> {error.detail}
+            </FieldWarning>
+          ) : (
+            <FieldError variant="box" errors={[{ message: `${error.title} ${error.detail}` }]} />
+          ))}
       </View>
     </BottomSheet>
   );
