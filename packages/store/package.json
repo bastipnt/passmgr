@@ -12,6 +12,7 @@
   "scripts": {
     "typecheck": "tsc7 --noEmit",
     "test": "vitest run",
+    "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:coverage": "vitest run --coverage",
     "migrations:generate": "drizzle-kit generate --config drizzle.config.ts && drizzle-kit generate --config drizzle.registry.config.ts && node scripts/bundle-migrations.ts"
   },
@@ -43,8 +44,11 @@
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
+    "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "catalog:",
     "drizzle-kit": "catalog:",
+    "playwright": "^1.61.1",
+    "sqlocal": "^0.18.0",
     "vitest": "catalog:"
   }
 }

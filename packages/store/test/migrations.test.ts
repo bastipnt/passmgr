@@ -3,7 +3,13 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { BUNDLES, collectMigrations, renderModule } from "../scripts/bundle-migrations";
 import type { SqlDriver } from "../src/driver";
-import { MIGRATIONS, type Migration, migrate, SchemaTooNewError } from "../src/migrations";
+import {
+  MIGRATIONS,
+  type Migration,
+  migrate,
+  REGISTRY_MIGRATIONS,
+  SchemaTooNewError,
+} from "../src/migrations";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
@@ -162,6 +168,36 @@ describe("migrate", () => {
       'Migration "create c" has version 3, expected 2',
     );
     expect(await userVersion()).toBe(0);
+  });
+});
+
+/**
+ * A migration's schema version is its position in the timestamp-sorted list, so
+ * one merged from an older branch would slide in before already applied steps
+ * and be skipped on every existing database. Append new names; never reorder.
+ */
+const APPLIED_MIGRATIONS = {
+  profile: [
+    "20261001152327_baseline",
+    "20261001173233_vault_keys",
+    "20261002210015_vault_data",
+    "20261003205432_device_profile",
+    "20261005202254_outbox",
+    "20261007173648_outbox_parked",
+    "20261010093022_vault_key_rotation",
+    "20261010124307_revoked_vaults",
+    "20261011195948_trash",
+    "20261012143643_breach_checks",
+  ],
+  registry: ["20261008060745_profile_registry", "20261008185230_last_export"],
+};
+
+describe("migration order", () => {
+  it.each([
+    { db: "profile", migrations: MIGRATIONS, applied: APPLIED_MIGRATIONS.profile },
+    { db: "registry", migrations: REGISTRY_MIGRATIONS, applied: APPLIED_MIGRATIONS.registry },
+  ])("keeps the $db migrations append-only", ({ migrations, applied }) => {
+    expect(migrations.map((m) => m.name)).toEqual(applied);
   });
 });
 

@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 
 export default defineConfig({
   // Pin to this package so `include` resolves correctly when the config
@@ -7,6 +7,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+    exclude: [...configDefaults.exclude, "test/browser/**"],
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
