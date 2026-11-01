@@ -108,6 +108,8 @@ minimumReleaseAge: 10080
 minimumReleaseAgeExclude:
   - expo-font@56.0.7
   - source-map-js@1.2.2
+  # node-forge security fix (see overrides), younger than minimumReleaseAge.
+  - node-forge@1.4.2
 
 nodeLinker: hoisted
 
@@ -171,16 +173,16 @@ overrides:
   # decode-uri-component <=0.5.0 (GHSA-qr28-fpjm-wq7f, quadratic-time DoS), via
   # expo-router > query-string (pins ^0.2). 0.5.1 keeps the default decode API.
   decode-uri-component: "^0.5.1"
+  # node-forge <=1.4.0 (GHSA-86w9-cpqp-85rv, -7wch-p9px-956x, -jc66-7q78-782g,
+  # -8hrf-8g6f-7xwp, -hqq3-7jhf-c5jx, -5x38-2vff-x55p), via @expo/cli and
+  # @expo/code-signing-certificates (both ask ^1.x). Build tooling only.
+  node-forge: "^1.4.2"
 
 patchedDependencies:
   react-native-argon2: patches/react-native-argon2.patch
 
 auditConfig:
   ignoreGhsas:
-    # node-forge <=1.4.0 (RSA PKCS#1 v1.5 signature check), only via @expo/cli
-    # build tooling, not shipped in any app. No patched release (1.4.1) on npm
-    # yet; drop this once Expo pulls in a fixed node-forge.
-    - GHSA-86w9-cpqp-85rv
     # braces <=3.0.3 (stack-exhaustion DoS on deeply nested patterns), only via
     # micromatch/chokidar in metro and dev tooling, never fed untrusted globs.
     # Advisory names 3.0.4 as patched but it isn't on npm (latest 3.0.3); drop
