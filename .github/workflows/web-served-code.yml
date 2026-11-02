@@ -1,0 +1,122 @@
+name: Web served code
+
+# Compares what production serves against the release's published SHA256SUMS (see
+# docs/security/web-served-code-trust.md). Only catches untargeted swaps: a host serving bad code
+# to chosen victims passes a check from CI.
+
+on:
+  schedule:
+    - cron: "17 * * * *"
+  workflow_dispatch:
+  # release.yml, right after deploy: only that tag counts, no previous-release fallback.
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          sparse-checkout: apps/web/scripts/verify-deployment.ts
+          sparse-checkout-cone-mode: false
+
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: latest
+
+      # The sums always come from the GitHub release, never from the site being checked.
+      - name: Verify served files
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SITE_URL: ${{ vars.SITE_URL }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if [ -z "$SITE_URL" ]; then
+            echo "::error::vars.SITE_URL is not set"
+            exit 1
+          fi
+
+          if [ -n "$TAG" ]; then
+            candidates=("$TAG")
+          else
+            release_tags=$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=20" --jq \
+              '[.[] | select((.draft | not) and any(.assets[]; .name == "passmgr-web.SHA256SUMS")) | .tag_name] | .[0:2] | .[]')
+            if [ -z "$release_tags" ]; then
+              echo "::error::No release has passmgr-web.SHA256SUMS"
+              exit 1
+            fi
+            mapfile -t releases <<< "$release_tags"
+            candidates=("${releases[0]}")
+            # While the latest release's run is deploying, production still serves the previous
+            # release; after a failed run (rolled back) too, but only for a day, so a host can't
+            # silently downgrade production for good.
+            release_run=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow release.yml --event push \
+              --branch "${releases[0]}" --limit 1 --json status,conclusion,updatedAt --jq '.[0] |
+                if . == null then "none"
+                elif .status != "completed" then "running"
+                elif .conclusion == "success" then "success"
+                elif now - (.updatedAt | fromdateiso8601) < 86400 then "failed"
+                else "failed long ago" end')
+            if { [ "$release_run" = "running" ] || [ "$release_run" = "failed" ]; } && [ "${#releases[@]}" -gt 1 ]; then
+              candidates+=("${releases[1]}")
+            fi
+          fi
+
+          for tag in "${candidates[@]}"; do
+            gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern passmgr-web.SHA256SUMS --dir "sums/$tag"
+          done
+
+          # Two attempts so one network hiccup doesn't page anyone.
+          for attempt in 1 2; do
+            for tag in "${candidates[@]}"; do
+              echo "Checking ${SITE_URL} against ${tag}"
+              if bun apps/web/scripts/verify-deployment.ts "$SITE_URL" "sums/$tag/passmgr-web.SHA256SUMS"; then
+                if [ "$tag" != "${candidates[0]}" ]; then
+                  echo "::warning::${SITE_URL} serves ${tag}; ${candidates[0]} is not deployed yet (release run: ${release_run:-none})"
+                fi
+                echo "${SITE_URL} serves ${tag}" >> "$GITHUB_STEP_SUMMARY"
+                exit 0
+              fi
+            done
+            [ "$attempt" -eq 1 ] && sleep 60
+          done
+
+          echo "::error::${SITE_URL} matches none of: ${candidates[*]}"
+          exit 1
+
+  # A failed scheduled run alone only notifies whoever last edited the cron, so keep an open issue.
+  alert:
+    needs: verify
+    if: failure() && github.event_name != 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Open or update the alert issue
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TITLE: "Served web code does not match the release"
+        run: |
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions \
+            --search "\"${TITLE}\" in:title" --json number --jq '.[0].number // ""')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "Still failing: ${run_url}"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$(cat <<EOF
+          The files served by production don't match the published SHA256SUMS: ${run_url}
+
+          Treat it as a possible web-host compromise until explained. See docs/security/web-served-code-trust.md.
+          EOF
+          )"
+          fi

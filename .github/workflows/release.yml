@@ -104,8 +104,9 @@ jobs:
             || gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --verify-tag --generate-notes
           gh release upload "$GITHUB_REF_NAME" passmgr-web.SHA256SUMS --repo "$GITHUB_REPOSITORY" --clobber
 
+  # After web-checksums, so a release's sums are published before the site serves it.
   deploy:
-    needs: build
+    needs: [build, web-checksums]
     runs-on: ubuntu-latest
     environment: production
     permissions:
@@ -175,3 +176,15 @@ jobs:
               exit 1
             fi
           done
+
+  # A deploy is only green once the served files match the published checksums.
+  verify-served-code:
+    needs: deploy
+    uses: ./.github/workflows/web-served-code.yml
+    # The called workflow's alert job asks for issues: write; it is skipped on push.
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+    with:
+      tag: ${{ github.ref_name }}

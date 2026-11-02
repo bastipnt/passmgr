@@ -116,8 +116,9 @@ current theme; called inside existing flows, not a spec of its own). The styled 
 Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bundle is written): SRI on the asset tags
 of `index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs with
 `integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
-(`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS>` checks a deployment against it. What it does and doesn't
-protect against: `docs/security/web-served-code-trust.md`.
+(`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS>` checks a deployment against it, hourly
+and after each deploy (`.github/workflows/web-served-code.yml`). What it does and doesn't protect against:
+`docs/security/web-served-code-trust.md`.
 
 Updates (`src/register-sw.ts`): navigations are served cache-first, so a release found during a visit installs in the
 background and is offered by a "New version available" toast (Reload locks the vault); never activated mid-session

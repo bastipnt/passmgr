@@ -25,19 +25,23 @@ const expected = (await readFile(sumsPath, "utf8"))
     return { digest: match[1], file: match[2] };
   });
 
+const index = expected.find(({ file }) => file === "index.html");
+// Browsers load the app from "/", not "/index.html"; a host could serve another document there.
+if (index) expected.push({ digest: index.digest, file: "" });
+
 const site = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
 const failures: string[] = [];
 
 async function check({ digest, file }: { digest: string; file: string }) {
   const response = await fetch(new URL(file, site), { cache: "no-store" });
   if (!response.ok) {
-    failures.push(`${file}: HTTP ${response.status}`);
+    failures.push(`${file || "/"}: HTTP ${response.status}`);
     return;
   }
   const actual = createHash("sha256")
     .update(Buffer.from(await response.arrayBuffer()))
     .digest("hex");
-  if (actual !== digest) failures.push(`${file}: sha256 ${actual}, expected ${digest}`);
+  if (actual !== digest) failures.push(`${file || "/"}: sha256 ${actual}, expected ${digest}`);
 }
 
 for (let i = 0; i < expected.length; i += CONCURRENCY) {
