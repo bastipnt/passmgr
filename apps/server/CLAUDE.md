@@ -43,7 +43,6 @@ in `docs/architecture/auth.md`)
 Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
 `GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
 (Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call).
-With `MAIL_DEV=true` also `POST /dev/mail` `{ email }` → the latest mail kept for it (`src/mail/dev-mail-route.ts`).
 
 ## Environment Variables
 
@@ -55,8 +54,8 @@ Server (`apps/server/.env`):
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
 - `SMTP_URL` (e.g. `smtps://user:pass@smtp.example.com`), `MAIL_FROM` — mail for email verification codes; unset = no
-  verification (every account counts as verified). `MAIL_DEV=true` instead keeps mail in memory, readable on `/dev/mail`
-  (dev and the E2E stack only: anyone reaching the server port can read the codes)
+  verification (every account counts as verified). Dev: Mailpit from `pnpm db:up`, `SMTP_URL=smtp://localhost:1025`
+  (UI on :8025); prod: Stalwart or any SMTP relay, see `docs/ops/email.md`
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see `docs/architecture/vaults-and-sync.md`
 - `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
 - `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`

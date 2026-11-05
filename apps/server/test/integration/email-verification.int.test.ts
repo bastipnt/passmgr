@@ -4,7 +4,7 @@ import { EMAIL_CODE_EXPIRED, EMAIL_CODE_INVALID, EMAIL_UNVERIFIED } from "@repo/
 import { toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { DevMailer, setMailer } from "../../src/mail/mailer";
+import { type Mail, type Mailer, setMailer } from "../../src/mail/mailer";
 import { serverKey } from "../../src/opaque";
 import { redis } from "../../src/redis";
 import {
@@ -17,12 +17,25 @@ import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpe
 
 const password = "correct horse battery staple";
 const email = "alice@example.com";
-let mailer: DevMailer;
+
+class OutboxMailer implements Mailer {
+  private readonly outbox = new Map<string, Mail>();
+
+  async send(mail: Mail): Promise<void> {
+    this.outbox.set(mail.to, mail);
+  }
+
+  latest(to: string): Mail | undefined {
+    return this.outbox.get(to);
+  }
+}
+
+let mailer: OutboxMailer;
 
 beforeEach(async () => {
   await truncateAll();
   await redis.flushall();
-  mailer = new DevMailer();
+  mailer = new OutboxMailer();
   setMailer(mailer);
 });
 

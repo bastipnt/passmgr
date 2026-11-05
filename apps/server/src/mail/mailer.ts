@@ -6,19 +6,6 @@ export interface Mailer {
   send(mail: Mail): Promise<void>;
 }
 
-/** Keeps every mail in memory (latest per recipient) instead of sending it. */
-export class DevMailer implements Mailer {
-  private readonly outbox = new Map<string, Mail>();
-
-  async send(mail: Mail): Promise<void> {
-    this.outbox.set(mail.to, mail);
-  }
-
-  latest(to: string): Mail | undefined {
-    return this.outbox.get(to);
-  }
-}
-
 class SmtpMailer implements Mailer {
   private readonly transport;
   private readonly from: string;
@@ -39,17 +26,12 @@ class SmtpMailer implements Mailer {
   }
 }
 
-/**
- * `SMTP_URL` (+ `MAIL_FROM`) sends real mail; `MAIL_DEV=true` keeps it in
- * memory for development and E2E, readable on the ops route `/dev/mail`;
- * neither turns email verification off.
- */
+/** Unset `SMTP_URL`: no mailer, so email verification is off. */
 function mailerFromEnv(env: NodeJS.ProcessEnv): Mailer | null {
   if (env.SMTP_URL) {
     if (!env.MAIL_FROM) throw new Error("MAIL_FROM is required with SMTP_URL");
     return new SmtpMailer(env.SMTP_URL, env.MAIL_FROM);
   }
-  if (env.MAIL_DEV === "true") return new DevMailer();
   return null;
 }
 

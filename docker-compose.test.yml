@@ -29,7 +29,8 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
       RATE_LIMIT_DISABLED: "true"
-      MAIL_DEV: "true"
+      SMTP_URL: smtp://mailpit:1025
+      MAIL_FROM: passmgr <noreply@passmgr.test>
       PREFIX: /trpc
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)})\""]
@@ -41,6 +42,13 @@ services:
         condition: service_healthy
       redis:
         condition: service_started
+      mailpit:
+        condition: service_started
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "${MAILPIT_PORT:-8025}:8025"
 
   postgres:
     image: postgres:17-alpine

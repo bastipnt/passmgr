@@ -28,6 +28,9 @@ services:
       - CORS_ORIGIN=${CORS_ORIGIN:-https://${PUBLIC_HOSTNAME}}
       - REGISTRATION_DISABLED=${REGISTRATION_DISABLED:-true}
       - LOG_LEVEL=${LOG_LEVEL:-info}
+      # Any SMTP server works; with the bundled Stalwart (profile "mail") see docs/ops/email.md.
+      - SMTP_URL=${SMTP_URL:-}
+      - MAIL_FROM=${MAIL_FROM:-}
       # Proxies in front of the server (web Caddy + host Caddy) sit on Docker
       # bridge networks, i.e. private ranges.
       - TRUST_PROXY=${TRUST_PROXY:-loopback,uniquelocal}
@@ -83,6 +86,23 @@ services:
       - passmgr_network
     restart: unless-stopped
 
+  # Outgoing mail (verification codes), opt-in: COMPOSE_PROFILES=mail. Setup + DNS: docs/ops/email.md.
+  # OPTIONAL: use Stalwart as email server
+  # stalwart:
+  #   image: stalwartlabs/stalwart:${STALWART_TAG:-latest}
+  #   profiles: ["mail"]
+  #   hostname: ${MAIL_HOSTNAME:-mail.${PUBLIC_HOSTNAME}}
+  #   ports:
+  #     - "25:25"
+  #     - "465:465"
+  #     # Admin UI: reach it through an SSH tunnel, never publicly.
+  #     - "127.0.0.1:8081:8080"
+  #   volumes:
+  #     - stalwart_data:/opt/stalwart
+  #   networks:
+  #     - passmgr_network
+  #   restart: unless-stopped
+
 networks:
   caddy_network:
     external: true
@@ -91,3 +111,5 @@ networks:
 volumes:
   postgres_data:
   redis_data:
+  # Comment in when using stalwart
+  # stalwart_data:
