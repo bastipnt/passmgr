@@ -77,7 +77,7 @@ You need: Node 18+, pnpm 10, Docker (for Postgres + Redis), and optionally Bun (
 ```bash
 pnpm install
 
-# Start Postgres + Redis
+# Start Postgres + Redis + Mailpit (catches mail, UI on http://localhost:8025)
 pnpm db:up
 
 # Run migrations
@@ -98,6 +98,8 @@ Server (`apps/server/.env`):
 | `REDIS_PORT`          | e.g. `6379`                                                                        |
 | `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production.                      |
 | `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Must stay stable** — rotating invalidates all users. |
+| `SMTP_URL`            | Mail for email verification; dev: `smtp://localhost:1025` (Mailpit). [docs/ops/email.md](./docs/ops/email.md) |
+| `MAIL_FROM`           | Sender address, required with `SMTP_URL`                                           |
 
 DB package (`packages/db/.env`):
 

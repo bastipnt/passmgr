@@ -104,8 +104,8 @@ Both modes drop the biometric enrollment (the server deletes its credential); re
 
 ## Email verification
 
-Only on a server with a mailer (`SMTP_URL` + `MAIL_FROM`, or `MAIL_DEV=true` for dev / E2E: kept in memory, read
-with `POST /dev/mail`; `appConfig.emailVerification`). Without one, `users.emailVerifiedAt` is set at registration and
+Only on a server with a mailer (`SMTP_URL` + `MAIL_FROM`; `appConfig.emailVerification`; Mailpit in dev / E2E,
+Stalwart in prod: `docs/ops/email.md`). Without one, `users.emailVerifiedAt` is set at registration and
 nothing below applies (also for accounts left unverified when the mailer is turned off later). `finishRegistration` mails a 6-digit code (`apps/server/src/user/email-verification.ts`):
 only its hash in Redis (`emailcode:<userId>`, 15 min, `EMAIL_CODE_MAX_ATTEMPTS` 5 wrong tries burn it, a new one replaces
 it); `user.sendVerificationCode` sends another (once a minute, five an hour: TOO_MANY_REQUESTS), `user.verifyEmail({code})`

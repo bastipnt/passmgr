@@ -11,7 +11,6 @@ import { sql } from "drizzle-orm";
 import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
 import { stripQuery } from "./logger";
-import { registerDevMailRoute } from "./mail/dev-mail-route";
 import { metricsRegistry } from "./metrics";
 import { redis } from "./redis";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
@@ -114,8 +113,6 @@ registerHealthRoutes(server, {
   },
   registry: metricsRegistry,
 });
-
-registerDevMailRoute(server);
 
 await server.register(fastifyTRPCPlugin, {
   prefix: process.env.PREFIX,

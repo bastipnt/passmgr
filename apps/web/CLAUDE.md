@@ -102,7 +102,8 @@ Rules:
 ## E2E tests
 
 Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and
-starts `docker-compose.test.yml` (web + server + Postgres + Redis, fresh OPAQUE secrets) and tears it down
+starts `docker-compose.test.yml` (web + server + Postgres + Redis + Mailpit, fresh OPAQUE secrets; mailed codes are read from
+the Mailpit API, `verifyEmail`) and tears it down
 after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
 clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
 offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`

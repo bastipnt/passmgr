@@ -53,20 +53,29 @@ export async function registerUser(page: Page, email: string, password: string):
   return recoveryKey;
 }
 
-/**
- * Enter the code a new account was mailed into the dialog that asks for it.
- * The test stack's server keeps mail in memory (`MAIL_DEV`, `POST /dev/mail`).
- */
+const mailpitApi = `http://localhost:${process.env.MAILPIT_PORT ?? "8025"}/api/v1`;
+
+/** The 6-digit code in the newest mail Mailpit caught for `email`. */
+async function mailedCode(page: Page, email: string): Promise<string | undefined> {
+  const search = await page.request.get(`${mailpitApi}/search`, {
+    params: { query: `to:"${email}"`, limit: 1 },
+  });
+  if (!search.ok()) return undefined;
+  const id = ((await search.json()) as { messages: { ID: string }[] }).messages[0]?.ID;
+  if (!id) return undefined;
+  const message = await page.request.get(`${mailpitApi}/message/${id}`);
+  if (!message.ok()) return undefined;
+  return ((await message.json()) as { Text: string }).Text.match(/\b\d{6}\b/)?.[0];
+}
+
+/** Enter the code a new account was mailed (to the test stack's Mailpit) into the dialog that asks for it. */
 export async function verifyEmail(page: Page, email: string): Promise<void> {
   const dialog = page.getByRole("dialog", { name: "Verify your email" });
   await expect(dialog).toBeVisible({ timeout: 15_000 });
-  const response = await page.request.post(
-    `http://localhost:${process.env.SERVER_PORT ?? "3000"}/dev/mail`,
-    { data: { email } },
-  );
-  expect(response.ok()).toBe(true);
-  const code = ((await response.json()) as { text: string }).text.match(/\b\d{6}\b/)?.[0];
-  expect(code).toBeDefined();
+  let code: string | undefined;
+  await expect
+    .poll(async () => (code = await mailedCode(page, email)), { timeout: 15_000 })
+    .toBeDefined();
   await dialog.getByLabel("Code from the email").fill(code ?? "");
   await dialog.getByRole("button", { name: "Verify" }).click();
   await expect(dialog).toHaveCount(0, { timeout: 15_000 });
