@@ -12,6 +12,7 @@ const NO_PROFILE: SyncStatus = {
   error: null,
   lastSyncedAt: null,
   enabled: false,
+  paused: false,
 };
 
 /** Where syncing the active profile with the server stands (ADR 0001 D8), live. */

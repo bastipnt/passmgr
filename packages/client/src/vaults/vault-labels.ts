@@ -3,7 +3,7 @@ import { canAssignRole, type VaultRole } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import { VaultsOfflineError } from "../hooks/use-vaults";
-import { isServerAnswer } from "../util/trpc-errors";
+import { isEmailUnverified, isServerAnswer } from "../util/trpc-errors";
 import {
   PeerKeyChangedError,
   VaultKeyRotatedElsewhereError,
@@ -47,6 +47,8 @@ export function ownFingerprint(): string | undefined {
 
 /** A failed vault change, for the user: why when it's offline or not possible now, else `fallback`. */
 export function vaultErrorMessage(error: unknown, fallback: string): string {
+  if (isEmailUnverified(error))
+    return "Verify your email address first: until then your vaults can't change on the server.";
   return error instanceof VaultsOfflineError ||
     error instanceof VaultMembersChangedError ||
     error instanceof VaultKeyRotatedElsewhereError ||

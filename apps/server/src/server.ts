@@ -11,8 +11,10 @@ import { sql } from "drizzle-orm";
 import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
 import { stripQuery } from "./logger";
+import { registerDevMailRoute } from "./mail/dev-mail-route";
 import { metricsRegistry } from "./metrics";
 import { redis } from "./redis";
+import { purgeUnverifiedAccounts } from "./user/email-verification";
 import { allowedOrigins } from "./util/allowed-origins";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -113,6 +115,8 @@ registerHealthRoutes(server, {
   registry: metricsRegistry,
 });
 
+registerDevMailRoute(server);
+
 await server.register(fastifyTRPCPlugin, {
   prefix: process.env.PREFIX,
   trpcOptions: {
@@ -125,3 +129,18 @@ await server.register(fastifyTRPCPlugin, {
     },
   } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
 });
+
+const PURGE_INTERVAL_MS = 60 * 60_000;
+
+async function runPurge() {
+  try {
+    const { purged, failed } = await purgeUnverifiedAccounts();
+    if (purged > 0 || failed > 0) server.log.info({ purged, failed }, "auth.unverified.purged");
+  } catch (err) {
+    server.log.error({ err }, "auth.unverified.purge_failed");
+  }
+}
+
+// Every instance runs it; a second deletion of the same account just fails and is skipped.
+setInterval(() => void runPurge(), PURGE_INTERVAL_MS).unref();
+setTimeout(() => void runPurge(), 60_000).unref();

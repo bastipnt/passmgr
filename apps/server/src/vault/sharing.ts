@@ -17,9 +17,9 @@ import {
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNull, ne } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, ne } from "drizzle-orm";
 import z from "zod";
-import { protectedProcedure } from "../auth/auth-middleware";
+import { verifiedProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged } from "../events/record-events";
 import { serverKey } from "../opaque";
 import { isUniqueViolation } from "../util/general";
@@ -128,7 +128,7 @@ export const sharingProcedures = {
    * key was sealed. PRECONDITION_FAILED when either keypair isn't the current
    * one any more, or the vault is full.
    */
-  invite: protectedProcedure.input(inviteMemberInputSchema).mutation(async ({ ctx, input }) => {
+  invite: verifiedProcedure.input(inviteMemberInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId, role } = input;
     const emailHash = toBase64(await hashEmail(serverKey, input.email));
 
@@ -153,7 +153,13 @@ export const sharingProcedures = {
         const [invitee] = await tx
           .select({ userId: usersTable.userId })
           .from(usersTable)
-          .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deleted_at)));
+          .where(
+            and(
+              eq(usersTable.emailHash, emailHash),
+              isNull(usersTable.deleted_at),
+              isNotNull(usersTable.emailVerifiedAt),
+            ),
+          );
         if (!invitee) throw new TRPCError({ code: "NOT_FOUND" });
         if (invitee.userId === ctx.userId) throw new TRPCError({ code: "BAD_REQUEST" });
 
@@ -202,7 +208,7 @@ export const sharingProcedures = {
    * (their public key and email: the invitee compares the fingerprint out of
    * band before accepting) and the vault's metadata (it opens with the key).
    */
-  invitations: protectedProcedure.output(z.array(vaultInvitationSchema)).query(async ({ ctx }) => {
+  invitations: verifiedProcedure.output(z.array(vaultInvitationSchema)).query(async ({ ctx }) => {
     const rows = await db
       .select({
         vaultId: vaultMembersTable.vaultId,
@@ -267,52 +273,50 @@ export const sharingProcedures = {
    * brought. CONFLICT when the key sealed to them is another version by now
    * (rotated again): they open the newer one instead.
    */
-  acceptKey: protectedProcedure
-    .input(acceptVaultKeyInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce } = input;
+  acceptKey: verifiedProcedure.input(acceptVaultKeyInputSchema).mutation(async ({ ctx, input }) => {
+    const { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce } = input;
 
-      await db
-        .transaction(async (tx) => {
-          await ownMembership(tx, ctx.userId, vaultId);
-          const [accepted] = await tx
-            .update(vaultMembersTable)
-            .set({
-              status: "active",
-              keyVersion,
-              encryptedVaultKey,
-              vaultKeyEncryptionNonce,
-              sealedVaultKey: null,
-              sealedKeyVersion: null,
-              sealedToKeyVersion: null,
-              sealedByUserId: null,
-              sealedByKeyVersion: null,
-              updated_at: new Date(),
-            })
-            .where(
-              and(
-                eq(vaultMembersTable.vaultId, vaultId),
-                eq(vaultMembersTable.userId, ctx.userId),
-                // Not this version (resealed meanwhile, or nothing sealed): nothing to accept.
-                eq(vaultMembersTable.sealedKeyVersion, keyVersion),
-              ),
-            )
-            .returning({ vaultId: vaultMembersTable.vaultId });
-          if (!accepted) throw new TRPCError({ code: "CONFLICT" });
-        })
-        .catch((error: unknown) => {
-          if (!isUniqueViolation(error)) throw error;
-          throw new TRPCError({ code: "CONFLICT" });
-        });
+    await db
+      .transaction(async (tx) => {
+        await ownMembership(tx, ctx.userId, vaultId);
+        const [accepted] = await tx
+          .update(vaultMembersTable)
+          .set({
+            status: "active",
+            keyVersion,
+            encryptedVaultKey,
+            vaultKeyEncryptionNonce,
+            sealedVaultKey: null,
+            sealedKeyVersion: null,
+            sealedToKeyVersion: null,
+            sealedByUserId: null,
+            sealedByKeyVersion: null,
+            updated_at: new Date(),
+          })
+          .where(
+            and(
+              eq(vaultMembersTable.vaultId, vaultId),
+              eq(vaultMembersTable.userId, ctx.userId),
+              // Not this version (resealed meanwhile, or nothing sealed): nothing to accept.
+              eq(vaultMembersTable.sealedKeyVersion, keyVersion),
+            ),
+          )
+          .returning({ vaultId: vaultMembersTable.vaultId });
+        if (!accepted) throw new TRPCError({ code: "CONFLICT" });
+      })
+      .catch((error: unknown) => {
+        if (!isUniqueViolation(error)) throw error;
+        throw new TRPCError({ code: "CONFLICT" });
+      });
 
-      await notifyVaultMembers(vaultId);
-    }),
+    await notifyVaultMembers(vaultId);
+  }),
 
   /**
    * Turn down an invite. The invitee could have opened the key, so the vault
    * is marked for a rotation like after a removal.
    */
-  declineInvite: protectedProcedure.input(vaultIdInputSchema).mutation(async ({ ctx, input }) => {
+  declineInvite: verifiedProcedure.input(vaultIdInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId } = input;
     await db.transaction(async (tx) => {
       const own = await ownMembership(tx, ctx.userId, vaultId);
@@ -332,7 +336,7 @@ export const sharingProcedures = {
    * one's current public key: a rotation seals the new key to every one of
    * them, and members compare fingerprints out of band.
    */
-  members: protectedProcedure
+  members: verifiedProcedure
     .input(vaultIdInputSchema)
     .output(z.array(vaultMemberSchema))
     .query(async ({ ctx, input }) => {
@@ -374,7 +378,7 @@ export const sharingProcedures = {
    * between roles they could give (`canAssignRole`): a manager can't touch an
    * owner or make one. PRECONDITION_FAILED when it would leave no owner.
    */
-  setMemberRole: protectedProcedure
+  setMemberRole: verifiedProcedure
     .input(setMemberRoleInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { vaultId, userId, role } = input;
@@ -407,34 +411,32 @@ export const sharingProcedures = {
    * can't remove an owner). To leave, a member uses `leave`. Marks the vault
    * for a key rotation: the removed member knows the current key.
    */
-  removeMember: protectedProcedure
-    .input(vaultMemberInputSchema)
-    .mutation(async ({ ctx, input }) => {
-      const { vaultId, userId } = input;
-      if (userId === ctx.userId) throw new TRPCError({ code: "BAD_REQUEST" });
+  removeMember: verifiedProcedure.input(vaultMemberInputSchema).mutation(async ({ ctx, input }) => {
+    const { vaultId, userId } = input;
+    if (userId === ctx.userId) throw new TRPCError({ code: "BAD_REQUEST" });
 
-      await db.transaction(async (tx) => {
-        const actor = await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
-        await lockVaults(tx, [vaultId]);
-        const target = await memberRow(tx, vaultId, userId);
-        if (!canAssignRole(actor, target.role)) throw new TRPCError({ code: "FORBIDDEN" });
-        await tx
-          .delete(vaultMembersTable)
-          .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, userId)));
-        await requireRotation(tx, vaultId);
-      });
+    await db.transaction(async (tx) => {
+      const actor = await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
+      await lockVaults(tx, [vaultId]);
+      const target = await memberRow(tx, vaultId, userId);
+      if (!canAssignRole(actor, target.role)) throw new TRPCError({ code: "FORBIDDEN" });
+      await tx
+        .delete(vaultMembersTable)
+        .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, userId)));
+      await requireRotation(tx, vaultId);
+    });
 
-      // Their next sync drops the vault from their devices.
-      emitRecordsChanged(userId);
-      await notifyVaultMembers(vaultId);
-    }),
+    // Their next sync drops the vault from their devices.
+    emitRecordsChanged(userId);
+    await notifyVaultMembers(vaultId);
+  }),
 
   /**
    * Leave a shared vault. The last owner can't (PRECONDITION_FAILED): they
    * hand the vault over first (`transferOwnership`) or delete it. Marks the
    * vault for a key rotation by the members who stay.
    */
-  leave: protectedProcedure.input(vaultIdInputSchema).mutation(async ({ ctx, input }) => {
+  leave: verifiedProcedure.input(vaultIdInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId } = input;
     await db.transaction(async (tx) => {
       const own = await ownMembership(tx, ctx.userId, vaultId);
@@ -460,7 +462,7 @@ export const sharingProcedures = {
    * Hand the vault to another active member (owners only): they become an
    * owner (and the vault's `ownerId`), the caller a manager.
    */
-  transferOwnership: protectedProcedure
+  transferOwnership: verifiedProcedure
     .input(vaultMemberInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { vaultId, userId } = input;

@@ -1,4 +1,5 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
 import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 
@@ -591,4 +592,92 @@ export async function consumeInvite(code: string): Promise<Invite | undefined> {
   if (rawInvite === null) return undefined;
 
   return JSON.parse(rawInvite);
+}
+
+const EMAIL_CODE_TTL_SECONDS = 15 * 60;
+const EMAIL_CODES_PER_HOUR = 5;
+
+function emailCodeKey(userId: string) {
+  return `emailcode:${userId}`;
+}
+
+function emailCodeCooldownKey(userId: string) {
+  return `emailcode:cooldown:${userId}`;
+}
+
+function emailCodeHourlyKey(userId: string) {
+  return `emailcode:hourly:${userId}`;
+}
+
+function hashEmailCode(userId: string, code: string) {
+  return createHash("sha256").update(`${userId}:${code}`).digest("base64url");
+}
+
+/**
+ * Claim one email code send: false within EMAIL_CODE_RESEND_SECONDS of the
+ * last one, or past EMAIL_CODES_PER_HOUR (the hour runs from the first send).
+ */
+export async function claimEmailCodeSend(userId: string): Promise<boolean> {
+  const hourly = emailCodeHourlyKey(userId);
+  const [[, count]] = (await redis
+    .multi()
+    .incr(hourly)
+    .expire(hourly, 60 * 60, "NX")
+    .exec()) as [[Error | null, number], [Error | null, number]];
+  if (count > EMAIL_CODES_PER_HOUR) return false;
+
+  const cooldown = await redis.set(
+    emailCodeCooldownKey(userId),
+    "1",
+    "EX",
+    EMAIL_CODE_RESEND_SECONDS,
+    "NX",
+  );
+  if (cooldown === "OK") return true;
+  await redis.decr(hourly);
+  return false;
+}
+
+/** Store a new code for the user, replacing any earlier one; only its hash is kept. */
+export async function setEmailCode(userId: string, code: string): Promise<void> {
+  const key = emailCodeKey(userId);
+  await redis
+    .multi()
+    .del(key)
+    .hset(key, { hash: hashEmailCode(userId, code), attempts: 0 })
+    .expire(key, EMAIL_CODE_TTL_SECONDS)
+    .exec();
+}
+
+/**
+ * Check a code. The attempt is counted before the comparison, so concurrent
+ * guesses can't exceed EMAIL_CODE_MAX_ATTEMPTS; the code is gone after a
+ * match or the last wrong guess.
+ */
+export async function checkEmailCode(
+  userId: string,
+  code: string,
+): Promise<"ok" | "invalid" | "expired"> {
+  const key = emailCodeKey(userId);
+  const [[, attempts], [, stored]] = (await redis
+    .multi()
+    .hincrby(key, "attempts", 1)
+    .hget(key, "hash")
+    .exec()) as [[Error | null, number], [Error | null, string | null]];
+  if (stored === null || attempts > EMAIL_CODE_MAX_ATTEMPTS) {
+    await redis.del(key);
+    return "expired";
+  }
+
+  const given = Buffer.from(hashEmailCode(userId, code));
+  if (timingSafeEqual(given, Buffer.from(stored))) {
+    await redis.del(key);
+    return "ok";
+  }
+  if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) await redis.del(key);
+  return "invalid";
+}
+
+export async function deleteEmailCodes(userId: string): Promise<void> {
+  await redis.del(emailCodeKey(userId), emailCodeCooldownKey(userId), emailCodeHourlyKey(userId));
 }

@@ -10,7 +10,7 @@ import {
 import { TRPCError, tracked } from "@trpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 import z from "zod";
-import { protectedProcedure, protectedSubscriptionProcedure } from "../auth/auth-middleware";
+import { verifiedProcedure, verifiedSubscriptionProcedure } from "../auth/auth-middleware";
 import { onRecordsChanged, onSessionSignedOut } from "../events/record-events";
 import { router } from "../trpc";
 import {
@@ -44,7 +44,7 @@ async function latestAccessibleVersion(userId: string, recordId: string): Promis
 }
 
 export const recordRouter = router({
-  sync: protectedProcedure
+  sync: verifiedProcedure
     .input(syncInputSchema)
     .output(syncOutputSchema)
     .query(async ({ ctx, input }) => {
@@ -99,7 +99,7 @@ export const recordRouter = router({
       };
     }),
 
-  history: protectedProcedure
+  history: verifiedProcedure
     .input(z.uuid())
     .output(z.array(encryptedRecordSchema))
     .query(async ({ ctx, input }) => {
@@ -116,7 +116,7 @@ export const recordRouter = router({
    * Upload local changes (ADR 0001 D8), the only record write. Each change gets
    * its own answer (applied / stale / rejected); see `pushChanges`.
    */
-  push: protectedProcedure
+  push: verifiedProcedure
     .input(pushInputSchema)
     .output(pushOutputSchema)
     .mutation(async ({ ctx, input }) => {
@@ -125,7 +125,7 @@ export const recordRouter = router({
       return { results };
     }),
 
-  onRecordChange: protectedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
+  onRecordChange: verifiedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
     // Listening starts before "connected" is sent: a sign-out right after the
     // connect must not slip through while the generator is paused.
     let resolve: (() => void) | null = null;

@@ -9,6 +9,7 @@ import { useRoute } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { passMonitorPaths, recordPaths, settingsPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
+import { VerifyEmailPrompt } from "@/components/VerifyEmailDialog";
 import SettingsOverview from "./SettingsOverview";
 
 type SettingsLayoutProps = {
@@ -56,6 +57,7 @@ export default function SettingsLayout({ children }: SettingsLayoutProps) {
         <SettingsOverview />
       </ShellPanel>
       <ShellPanel className={cn(isIndex && "hidden sm:block")}>{children}</ShellPanel>
+      <VerifyEmailPrompt />
     </AppShell>
   );
 }

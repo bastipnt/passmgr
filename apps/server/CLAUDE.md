@@ -26,21 +26,24 @@ per user) — never `UPDATE` key material in place.
 - `login` → `loginRouter` (startLogin, finishLogin, startDeviceLogin, finishDeviceLogin, verifySecondFactor, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `protectedProcedure`, the SSE `protectedSubscriptionProcedure`
+- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `verifiedProcedure`, the SSE `verifiedSubscriptionProcedure`
 - `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
-  invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `protectedProcedure`
+  invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `verifiedProcedure`
 - `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
   a revoked device locks: `signedout:<sessionId>` marker, see Session modes in `docs/architecture/auth.md`) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
   mobile Settings (`SessionsSection`)
-- `user` → `userRouter` (heartbeat, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
+- `user` → `userRouter` (heartbeat, emailVerificationStatus, sendVerificationCode, verifyEmail, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
   registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
   two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)
 
-All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes)
+All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes,
+→ `verifiedProcedure` for sync and sharing: FORBIDDEN `email_unverified` until the email is verified, see Email verification
+in `docs/architecture/auth.md`)
 
 Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
 `GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
 (Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call).
+With `MAIL_DEV=true` also `POST /dev/mail` `{ email }` → the latest mail kept for it (`src/mail/dev-mail-route.ts`).
 
 ## Environment Variables
 
@@ -51,6 +54,9 @@ Server (`apps/server/.env`):
 - `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
 - `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
+- `SMTP_URL` (e.g. `smtps://user:pass@smtp.example.com`), `MAIL_FROM` — mail for email verification codes; unset = no
+  verification (every account counts as verified). `MAIL_DEV=true` instead keeps mail in memory, readable on `/dev/mail`
+  (dev and the E2E stack only: anyone reaching the server port can read the codes)
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see `docs/architecture/vaults-and-sync.md`
 - `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
 - `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`

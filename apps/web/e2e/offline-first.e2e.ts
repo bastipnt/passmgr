@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { loginUser, randomEmail, randomPassword, registerUser } from "./helpers/auth";
+import { loginUser, randomEmail, randomPassword, registerUser, verifyEmail } from "./helpers/auth";
 import { test } from "./helpers/devices";
 import {
   createLocalVault,
@@ -57,7 +57,10 @@ test.describe("offline-first", () => {
     await dialog.locator('input[name="email"]').fill(email);
     await dialog.locator('input[name="password"]').fill(password);
     await dialog.getByRole("button", { name: "Create account" }).click();
-    await expect(dialog).toHaveCount(0, { timeout: 30_000 });
+    await expect(page.getByRole("dialog", { name: "Create online account" })).toHaveCount(0, {
+      timeout: 30_000,
+    });
+    await verifyEmail(page, email);
     await expect(page.getByText(/changes sync with your account/i)).toBeVisible();
     await backToVault(page);
     await expectSynced(page);

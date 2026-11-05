@@ -5,6 +5,7 @@ import {
   backupCodesOutputSchema,
   confirmTotpInputSchema,
   deviceCredentialInputSchema,
+  emailVerificationStatusSchema,
   finishPasswordChangeInputSchema,
   type PasswordKeySchema,
   passwordKeySchema,
@@ -16,10 +17,11 @@ import {
   twoFactorStatusSchema,
   userPublicKeyInputSchema,
   userPublicKeySchema,
+  verifyEmailInputSchema,
 } from "@repo/schema";
 import { fromBase64, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
 import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware";
 import {
   deleteDeviceCredential,
@@ -51,6 +53,7 @@ import {
 } from "../util/redis-utils";
 import { notifyVaultMembers } from "../vault/access";
 import { deleteAccount } from "./delete-account";
+import { isEmailVerified, sendVerificationCode, verifyEmail } from "./email-verification";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -115,6 +118,27 @@ export const userRouter = router({
     return { ok: true } as const;
   }),
 
+  // Until verified, the account doesn't sync or share (`verifiedProcedure`).
+  emailVerificationStatus: protectedProcedure
+    .output(emailVerificationStatusSchema)
+    .query(async ({ ctx }) => ({ verified: await isEmailVerified(ctx.userId) })),
+
+  // Mail a new code (finishRegistration sent the first). TOO_MANY_REQUESTS
+  // within a minute of the last one or past five an hour.
+  sendVerificationCode: protectedProcedure
+    .input(twoFactorEmptyInputSchema)
+    .mutation(async ({ ctx }) => {
+      await sendVerificationCode(ctx.userId);
+      return { ok: true } as const;
+    }),
+
+  // BAD_REQUEST: `EMAIL_CODE_INVALID` (try again) or `EMAIL_CODE_EXPIRED` (send a new one).
+  verifyEmail: protectedProcedure.input(verifyEmailInputSchema).mutation(async ({ ctx, input }) => {
+    await verifyEmail(ctx.userId, input.code);
+    ctx.req?.log.info("auth.email.verified");
+    return { ok: true } as const;
+  }),
+
   // Another user's current public key, to seal a vault key to when inviting
   // them (ADR 0001 D7). The client shows its fingerprint for out-of-band
   // verification before trusting it. Reveals to a logged-in user whether an
@@ -131,7 +155,14 @@ export const userRouter = router({
         })
         .from(userKeyPairsTable)
         .innerJoin(usersTable, eq(usersTable.userId, userKeyPairsTable.userId))
-        .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deleted_at)))
+        .where(
+          and(
+            eq(usersTable.emailHash, emailHash),
+            isNull(usersTable.deleted_at),
+            // Not someone squatting an address they never verified.
+            isNotNull(usersTable.emailVerifiedAt),
+          ),
+        )
         .orderBy(desc(userKeyPairsTable.keyVersion))
         .limit(1);
 

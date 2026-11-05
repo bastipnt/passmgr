@@ -661,6 +661,29 @@ describe("SyncManager retries", () => {
     expect(store.queue).toEqual([]);
   });
 
+  it("pauses without retries until synced by hand", async () => {
+    vi.useFakeTimers();
+    const unverified = new Error("email_unverified");
+    const pull = vi
+      .fn<() => Promise<SyncPage>>()
+      .mockRejectedValueOnce(unverified)
+      .mockResolvedValue(batch);
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      pull,
+      isPaused: (e) => e === unverified,
+    });
+    manager.setEnabled(true);
+
+    await manager.sync();
+    expect(manager.getStatus()).toMatchObject({ phase: "offline", paused: true, error: null });
+    manager.requestSync();
+    await vi.advanceTimersByTimeAsync(10 * 60_000);
+    expect(pull).toHaveBeenCalledTimes(1);
+
+    expect(await manager.sync()).toBe(true);
+    expect(manager.getStatus()).toMatchObject({ phase: "idle", paused: false });
+  });
+
   it("doesn't retry once disabled", async () => {
     vi.useFakeTimers();
     const pull = vi.fn(async (): Promise<SyncPage> => {

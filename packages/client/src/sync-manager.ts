@@ -77,6 +77,12 @@ export type SyncStatus = {
    * enabled: a round didn't get through; while not: not started yet, or locked.
    */
   enabled: boolean;
+  /**
+   * The server refuses to sync this account until something is done on it
+   * (`isPaused`: its email isn't verified). No retries and no syncs on
+   * writes; the periodic sync still checks, or a call to `sync`.
+   */
+  paused: boolean;
 };
 
 export type SyncStatusListener = (status: SyncStatus) => void;
@@ -99,6 +105,8 @@ type SyncManagerOptions = {
   stopsRound?: (error: unknown) => boolean;
   /** Whether a failed round means "offline" rather than "error" in the status. */
   isOffline?: (error: unknown) => boolean;
+  /** Whether a failed round means the server won't sync this account for now (`paused`). */
+  isPaused?: (error: unknown) => boolean;
   onVaultsChanged?: VaultsChangedHandler;
   /**
    * Merges a record edited both here and on the server (ADR 0001 D5). Without
@@ -154,12 +162,14 @@ export class SyncManager {
     error: null,
     lastSyncedAt: null,
     enabled: false,
+    paused: false,
   };
   private store: Vault;
   private pull: SyncFetcher;
   private push?: ChangePusher;
   private stopsRound: (error: unknown) => boolean;
   private isOffline: (error: unknown) => boolean;
+  private isPaused: (error: unknown) => boolean;
   private onVaultsChanged?: VaultsChangedHandler;
   private resolveConflict?: ConflictResolver;
   private prepareOutbox?: () => Promise<void>;
@@ -177,6 +187,7 @@ export class SyncManager {
       push,
       stopsRound = () => false,
       isOffline = () => false,
+      isPaused = () => false,
       onVaultsChanged,
       resolveConflict,
       prepareOutbox,
@@ -188,6 +199,7 @@ export class SyncManager {
     this.push = push;
     this.stopsRound = stopsRound;
     this.isOffline = isOffline;
+    this.isPaused = isPaused;
     this.onVaultsChanged = onVaultsChanged;
     this.resolveConflict = resolveConflict;
     this.prepareOutbox = prepareOutbox;
@@ -221,7 +233,7 @@ export class SyncManager {
       this.clearTimers();
       this.failedRounds = 0;
     }
-    this.setStatus({ phase: enabled ? "idle" : "offline", error: null, enabled });
+    this.setStatus({ phase: enabled ? "idle" : "offline", error: null, enabled, paused: false });
     void this.refreshCounts();
   }
 
@@ -231,7 +243,7 @@ export class SyncManager {
    */
   requestSync(): void {
     void this.refreshCounts();
-    if (!this.enabled) return;
+    if (!this.enabled || this.status.paused) return;
     if (this.debounceTimer) clearTimeout(this.debounceTimer);
     this.debounceTimer = setTimeout(() => {
       this.debounceTimer = null;
@@ -283,6 +295,7 @@ export class SyncManager {
     this.setStatus({ phase: "syncing" });
 
     let done = false;
+    let paused = false;
     try {
       let pushed = await this.pushOutbox();
 
@@ -296,20 +309,23 @@ export class SyncManager {
         phase: this.enabled ? "idle" : "offline",
         error: null,
         lastSyncedAt: Date.now(),
+        paused: false,
       });
       await this.runSharingTasks();
       return true;
     } catch (error) {
-      const offline = !this.enabled || this.isOffline(error);
+      paused = this.isPaused(error);
+      const offline = !this.enabled || paused || this.isOffline(error);
       this.setStatus({
         phase: offline ? "offline" : "error",
         error: offline ? null : errorMessage(error),
+        paused,
       });
       return false;
     } finally {
       this.syncing = false;
       await this.refreshCounts();
-      if (done) this.clearRetry();
+      if (done || paused) this.clearRetry();
       else this.scheduleRetry();
       // Not once disabled: locked or offline meanwhile, its pushes could only fail.
       if (this.rerun) {

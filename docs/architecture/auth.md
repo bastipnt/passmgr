@@ -102,6 +102,27 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
 Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay.
 
+## Email verification
+
+Only on a server with a mailer (`SMTP_URL` + `MAIL_FROM`, or `MAIL_DEV=true` for dev / E2E: kept in memory, read
+with `POST /dev/mail`; `appConfig.emailVerification`). Without one, `users.emailVerifiedAt` is set at registration and
+nothing below applies (also for accounts left unverified when the mailer is turned off later). `finishRegistration` mails a 6-digit code (`apps/server/src/user/email-verification.ts`):
+only its hash in Redis (`emailcode:<userId>`, 15 min, `EMAIL_CODE_MAX_ATTEMPTS` 5 wrong tries burn it, a new one replaces
+it); `user.sendVerificationCode` sends another (once a minute, five an hour: TOO_MANY_REQUESTS), `user.verifyEmail({code})`
+sets `emailVerifiedAt` (`email_code_invalid` / `email_code_expired`), `user.emailVerificationStatus` reads it.
+Until then the account is local-only: `verifiedProcedure` (record + vault routers, the SSE stream) answers FORBIDDEN
+`email_unverified` (so vault create / rename / delete fail too, `vaultErrorMessage` says why), and neither
+`user.publicKey` nor `vault.invite` finds it as a share target. Login, password change, two-factor, recovery
+and account deletion stay open. Invite sign-ups verify too. Accounts still unverified 7 days after registering are
+deleted (hourly in `server.ts`, `purgeUnverifiedAccounts`, like `deleteAccount`): the vault stays on the device, and
+signing in again finds no account.
+
+Client: `SyncManager` `isPaused` → `SyncStatus.paused` (no retries, no sync on writes; the periodic sync still checks, so
+a device picks up a verification made elsewhere; the SSE stream waits for the first round that goes through); the sync indicator says "Sync paused". `useEmailVerification` (status, `verify`,
+`resend`; a verify, or the status found verified, syncs at once). Web: `VerifyEmailPrompt` (`components/VerifyEmailDialog.tsx`)
+opens the dialog once per account and page load in the records and settings layouts; Account & sync has "Verify email".
+Mobile has no verify UI yet: an account made there syncs once verified on the web.
+
 ## Two-factor
 
 Two-factor (TOTP + backup codes, opt-in; `useTwoFactor`, web Settings → Security `TwoFactorSettings`, mobile `TwoFactorSection` /

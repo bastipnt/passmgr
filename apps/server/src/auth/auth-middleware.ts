@@ -8,6 +8,7 @@ import { fromBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import type { Context } from "../context";
 import { loggedProcedure, shortHash } from "../logger";
+import { requireVerifiedEmail } from "../user/email-verification";
 import { claimNonce, getSession, isSignedOut, touchSession } from "../util/redis-utils";
 
 // Key changes need an OPAQUE login this recent; a restored or stolen
@@ -168,5 +169,16 @@ export const freshAuthProcedure = protectedProcedure.use(async (opts) => {
     return denyAuth(ctx.req?.log, path, "stale_auth", ctx.sessionId, "FORBIDDEN");
   }
 
+  return opts.next();
+});
+
+/** Sync and sharing: only once the account's email is verified (`EMAIL_UNVERIFIED`). */
+export const verifiedProcedure = protectedProcedure.use(async (opts) => {
+  await requireVerifiedEmail(opts.ctx.userId);
+  return opts.next();
+});
+
+export const verifiedSubscriptionProcedure = protectedSubscriptionProcedure.use(async (opts) => {
+  await requireVerifiedEmail(opts.ctx.userId);
   return opts.next();
 });

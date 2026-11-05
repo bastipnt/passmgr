@@ -1,5 +1,5 @@
 import type { InferSelectModel } from "drizzle-orm";
-import { pgTable, varchar } from "drizzle-orm/pg-core";
+import { pgTable, timestamp, varchar } from "drizzle-orm/pg-core";
 import { timestamps } from "../utils/columns.helpers";
 
 export const usersTable = pgTable("users", {
@@ -12,6 +12,8 @@ export const usersTable = pgTable("users", {
   emailEncryptionKeySalt: varchar().notNull(),
 
   emailHash: varchar().notNull().unique(),
+  // Null until the owner entered a code sent to the address: no sync or sharing until then.
+  emailVerifiedAt: timestamp(),
 
   registrationRecord: varchar().notNull().unique(),
 

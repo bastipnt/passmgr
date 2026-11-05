@@ -1,4 +1,5 @@
 import { SESSION_SIGNED_OUT } from "@repo/crypto";
+import { EMAIL_UNVERIFIED } from "@repo/schema";
 import { TRPCClientError } from "@trpc/client";
 
 /** The server rejected the session (expired, revoked or unknown). */
@@ -15,6 +16,15 @@ export function isUnauthorized(err: unknown): boolean {
  */
 export function isSignedOut(err: unknown): boolean {
   return isUnauthorized(err) && (err as Error).message === SESSION_SIGNED_OUT;
+}
+
+/** The server won't sync or share for this account until its email is verified. */
+export function isEmailUnverified(err: unknown): boolean {
+  return (
+    err instanceof TRPCClientError &&
+    err.data?.code === "FORBIDDEN" &&
+    (err as Error).message === EMAIL_UNVERIFIED
+  );
 }
 
 /** The server can't take the request right now (e.g. a vault is locked); try again later. */

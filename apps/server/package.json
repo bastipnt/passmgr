@@ -30,12 +30,14 @@
     "@trpc/server": "catalog:",
     "fastify": "^5.12.5",
     "ioredis": "^5.11.1",
+    "nodemailer": "^10.2.1",
     "zod": "catalog:"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
+    "@types/nodemailer": "^8.0.2",
     "@vitest/coverage-v8": "catalog:",
     "fast-check": "catalog:",
     "fastify-cli": "^8.0.0",

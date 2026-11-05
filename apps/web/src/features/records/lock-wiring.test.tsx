@@ -35,6 +35,7 @@ vi.mock("./RecordSortMenu", () => ({ RecordSortMenu: () => null }));
 vi.mock("./CategorySidebar", () => ({ CategorySidebar: () => null, SidebarTagsRow: () => null }));
 vi.mock("./SidebarFooter", () => ({ SidebarFooter: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));
+vi.mock("@/components/VerifyEmailDialog", () => ({ VerifyEmailPrompt: () => null }));
 vi.mock("@/features/vaults", () => ({ VaultSwitcher: () => null }));
 
 beforeEach(() => {

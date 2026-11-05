@@ -29,6 +29,7 @@ services:
       CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:8080}
       REGISTRATION_DISABLED: ${REGISTRATION_DISABLED:-false}
       RATE_LIMIT_DISABLED: "true"
+      MAIL_DEV: "true"
       PREFIX: /trpc
     healthcheck:
       test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)})\""]

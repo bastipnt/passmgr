@@ -17,6 +17,7 @@ export function useAppConfig() {
 
   return {
     registrationEnabled: data?.registrationEnabled ?? false,
+    emailVerification: data?.emailVerification ?? false,
     isLoading,
   };
 }

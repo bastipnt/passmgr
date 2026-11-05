@@ -10,6 +10,7 @@ const idle: SyncStatus = {
   error: null,
   lastSyncedAt: null,
   enabled: true,
+  paused: false,
 };
 
 describe("summarizeSync", () => {
@@ -33,6 +34,15 @@ describe("summarizeSync", () => {
   it("a failed round is an error only while there is a server to reach", () => {
     expect(summarizeSync("online", { ...idle, phase: "error" }, false).state).toBe("error");
     expect(summarizeSync("online", { ...idle, phase: "error" }, true).state).toBe("offline");
+  });
+
+  it("paused until the email is verified, unless the device is offline", () => {
+    const paused = { ...idle, phase: "offline" as const, paused: true };
+    expect(summarizeSync("online", paused, false)).toMatchObject({
+      state: "offline",
+      title: "Sync paused",
+    });
+    expect(summarizeSync("online", paused, true).title).toBe("Offline");
   });
 
   it("offline counts the changes waiting on this device", () => {

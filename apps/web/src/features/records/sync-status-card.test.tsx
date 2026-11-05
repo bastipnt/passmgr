@@ -64,6 +64,7 @@ beforeEach(() => {
     error: null,
     lastSyncedAt: null,
     enabled: true,
+    paused: false,
   };
   // The fake only grows what the menu calls.
   Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });

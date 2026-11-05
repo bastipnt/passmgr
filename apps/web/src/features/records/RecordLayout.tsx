@@ -15,6 +15,7 @@ import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
+import { VerifyEmailPrompt } from "@/components/VerifyEmailDialog";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
@@ -113,6 +114,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
       <SortedRecordsProvider>
         {children}
         <BackupReminder />
+        <VerifyEmailPrompt />
       </SortedRecordsProvider>
     );
 
@@ -168,6 +170,7 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
       </AppShell>
       <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
       <BackupReminder />
+      <VerifyEmailPrompt />
     </SortedRecordsProvider>
   );
 }

@@ -35,6 +35,7 @@ import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
 import {
+  isEmailUnverified,
   isRetryLater,
   isServerAnswer,
   isServerError,
@@ -379,10 +380,12 @@ export function StoreProvider({
         stopsRound: (e) =>
           !isServerAnswer(e) ||
           isUnauthorized(e) ||
+          isEmailUnverified(e) ||
           isRetryLater(e) ||
           isThrottled(e) ||
           isServerError(e),
         isOffline: (e) => !isServerAnswer(e),
+        isPaused: isEmailUnverified,
         onVaultsChanged: reloadVaultKeys,
         resolveConflict: resolveRecordConflict,
         // Changes under a rotated-out vault key, and the records of a rotation this device started.
@@ -499,6 +502,12 @@ export function StoreProvider({
     let disposed = false;
 
     let resubscribing = false;
+    let unverified = false;
+    const stopWatchingVerified = syncManager.onStatusChange((status) => {
+      if (!unverified || status.paused || status.phase !== "idle") return;
+      unverified = false;
+      subscribe();
+    });
     function subscribe() {
       // Only this stream's session: a stale event must not sign out its successor.
       const sessionId = secretsStore.sessionId;
@@ -530,6 +539,11 @@ export function StoreProvider({
             signedOutHere();
             return;
           }
+          // Until the email is verified; the sync that goes through after it resubscribes.
+          if (isEmailUnverified(e)) {
+            unverified = true;
+            return;
+          }
           const delay = retryDelay;
           retryDelay = Math.min(retryDelay * 2, 60_000);
           resubscribing = true;
@@ -546,6 +560,7 @@ export function StoreProvider({
 
     return () => {
       disposed = true;
+      stopWatchingVerified();
       currentSubscription?.unsubscribe();
       if (retryTimer) clearTimeout(retryTimer);
       if (typeof window !== "undefined" && typeof window.removeEventListener === "function")

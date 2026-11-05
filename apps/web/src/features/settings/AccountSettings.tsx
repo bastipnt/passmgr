@@ -2,6 +2,7 @@ import {
   removeVaultDescription,
   SessionContext,
   type SessionMode,
+  useEmailVerification,
   usePendingChangeCount,
   useRemoveFromDevice,
   useSignOut,
@@ -16,8 +17,16 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { CloudUploadIcon, KeyRoundIcon, LogOutIcon, TrashIcon, UserRoundXIcon } from "lucide-react";
-import { useContext } from "react";
+import {
+  CloudUploadIcon,
+  KeyRoundIcon,
+  LogOutIcon,
+  MailCheckIcon,
+  TrashIcon,
+  UserRoundXIcon,
+} from "lucide-react";
+import { useContext, useState } from "react";
+import VerifyEmailDialog from "@/components/VerifyEmailDialog";
 import ChangePasswordDialog from "./ChangePasswordDialog";
 import CreateAccountDialog from "./CreateAccountDialog";
 import DeleteAccountDialog from "./DeleteAccountDialog";
@@ -44,6 +53,8 @@ export default function AccountSettings() {
   const { signOut, signingOut } = useSignOut();
   const { removeFromDevice, removing } = useRemoveFromDevice();
   const pendingChanges = usePendingChangeCount();
+  const { required: verifyRequired } = useEmailVerification();
+  const [verifyOpen, setVerifyOpen] = useState(false);
 
   if (!mode || !profile) return null;
   const linked = profile.mode === "linked";
@@ -52,9 +63,22 @@ export default function AccountSettings() {
     <Item variant="outline">
       <ItemContent className="gap-1">
         <ItemTitle>{linked ? profile.email : (active?.entry.name ?? "Local vault")}</ItemTitle>
-        <ItemDescription>{STATUS[mode]}</ItemDescription>
+        <ItemDescription>
+          {verifyRequired
+            ? "Your email isn't verified yet, so nothing syncs. Enter the code we sent you."
+            : STATUS[mode]}
+        </ItemDescription>
       </ItemContent>
       <ItemActions className="flex-wrap">
+        {verifyRequired && (
+          <>
+            <Button onClick={() => setVerifyOpen(true)}>
+              <MailCheckIcon />
+              Verify email
+            </Button>
+            <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
+          </>
+        )}
         {!linked && (
           <CreateAccountDialog>
             <Button variant="outline" disabled={removing}>

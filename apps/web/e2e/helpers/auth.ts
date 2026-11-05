@@ -49,7 +49,27 @@ export async function registerUser(page: Page, email: string, password: string):
   await page.getByRole("button", { name: /create account/i }).click();
   const recoveryKey = await saveRecoveryKey(page);
   await page.waitForURL((url) => !url.pathname.startsWith("/create"), { timeout: 15_000 });
+  await verifyEmail(page, email);
   return recoveryKey;
+}
+
+/**
+ * Enter the code a new account was mailed into the dialog that asks for it.
+ * The test stack's server keeps mail in memory (`MAIL_DEV`, `POST /dev/mail`).
+ */
+export async function verifyEmail(page: Page, email: string): Promise<void> {
+  const dialog = page.getByRole("dialog", { name: "Verify your email" });
+  await expect(dialog).toBeVisible({ timeout: 15_000 });
+  const response = await page.request.post(
+    `http://localhost:${process.env.SERVER_PORT ?? "3000"}/dev/mail`,
+    { data: { email } },
+  );
+  expect(response.ok()).toBe(true);
+  const code = ((await response.json()) as { text: string }).text.match(/\b\d{6}\b/)?.[0];
+  expect(code).toBeDefined();
+  await dialog.getByLabel("Code from the email").fill(code ?? "");
+  await dialog.getByRole("button", { name: "Verify" }).click();
+  await expect(dialog).toHaveCount(0, { timeout: 15_000 });
 }
 
 /** The account login (email + password); a fresh page load, so nothing is unlocked. */

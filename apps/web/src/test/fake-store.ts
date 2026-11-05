@@ -55,18 +55,21 @@ export function profileEntry(profile: LocalProfile, name: string | null = null):
  * `profile`, so tests assert on it and on the method mocks.
  */
 export function createFakeStore() {
+  // One object: `useSyncExternalStore` re-renders whenever it gets a new one.
+  const status = {
+    phase: "idle",
+    pending: 0,
+    parked: 0,
+    storageFull: false,
+    error: null,
+    lastSyncedAt: null,
+    enabled: true,
+    paused: false,
+  };
   const syncManager = {
     onSync: () => () => undefined,
     onStatusChange: () => () => undefined,
-    getStatus: () => ({
-      phase: "idle",
-      pending: 0,
-      parked: 0,
-      storageFull: false,
-      error: null,
-      lastSyncedAt: null,
-      enabled: true,
-    }),
+    getStatus: () => status,
   };
   const records = {
     create: vi.fn(),

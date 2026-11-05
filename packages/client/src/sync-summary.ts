@@ -6,7 +6,8 @@ import type { SyncStatus } from "./sync-manager";
  * - `local`: a vault without an account, nothing to sync with
  * - `error`: the last round failed, or changes are parked
  * - `syncing`: a round is running
- * - `offline`: no server right now; writes keep working and wait in the outbox
+ * - `offline`: no server right now (or it won't sync until the email is
+ *   verified); writes keep working and wait in the outbox
  * - `pending`: changes waiting for the next round
  * - `synced`: the server has everything
  */
@@ -67,6 +68,14 @@ export function summarizeSync(
 
   if (status.phase === "syncing")
     return { state: "syncing", title: "Syncing…", detail: "Exchanging changes with the server." };
+
+  if (status.paused && !networkOffline)
+    return {
+      state: "offline",
+      title: "Sync paused",
+      detail:
+        "Verify your email address to start syncing: enter the code we sent you in Account & sync. Everything you do is saved on this device meanwhile.",
+    };
 
   if (offline && pendingRecovery)
     return {

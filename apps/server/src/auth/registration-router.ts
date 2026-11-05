@@ -19,6 +19,11 @@ import { TRPCError } from "@trpc/server";
 import { loggedProcedure } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
+import {
+  emailVerificationEnabled,
+  initialEmailVerifiedAt,
+  sendVerificationCode,
+} from "../user/email-verification";
 import { isUniqueViolation } from "../util/general";
 import { consumeInvite, getInvite } from "../util/redis-utils";
 
@@ -93,10 +98,11 @@ export const registrationRouter = router({
               emailEncryptionKeySalt,
               emailHash,
               registrationRecord,
+              emailVerifiedAt: initialEmailVerifiedAt(),
             })
             .onConflictDoNothing({ target: usersTable.emailHash })
             .returning({ userId: usersTable.userId });
-          if (!user) return false;
+          if (!user) return undefined;
 
           await tx.insert(keysTable).values({ userId: user.userId, ...userKeys });
           await tx.insert(userKeyPairsTable).values({ userId: user.userId, ...userKeyPair });
@@ -131,7 +137,7 @@ export const registrationRouter = router({
             previousKeys.map((link) => ({ vaultId, ...link })),
           );
           if (links.length > 0) await tx.insert(vaultKeyLinksTable).values(links);
-          return true;
+          return user.userId;
         })
         .catch((error: unknown) => {
           // A client-chosen vaultId (or wrap, or public key) that already exists: reject the
@@ -147,5 +153,12 @@ export const registrationRouter = router({
       }
 
       log?.info({ emailHash, viaInvite: invite !== undefined }, "auth.register.success");
+
+      if (emailVerificationEnabled()) {
+        // The account exists either way; the client offers a resend.
+        await sendVerificationCode(created).catch((err: unknown) => {
+          log?.error({ err, emailHash }, "auth.email.code_failed");
+        });
+      }
     }),
 });
