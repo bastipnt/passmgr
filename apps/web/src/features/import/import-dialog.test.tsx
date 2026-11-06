@@ -180,10 +180,10 @@ describe("ImportDialog", () => {
 
     await user.upload(
       screen.getByLabelText("Export file"),
-      file("folder,favorite,type,name,login_uri,login_username\n", "bitwarden.csv"),
+      file('{"encrypted":true,"data":"…"}', "bitwarden_encrypted_export.json"),
     );
 
-    expect(await screen.findByText(/Export your vault as “.json” instead/)).toBeInTheDocument();
+    expect(await screen.findByText(/Export your vault again as “.json”/)).toBeInTheDocument();
   });
 
   it("imports another app's export as new items into the picked vault, then reports", async () => {
