@@ -40,7 +40,13 @@ export function useSyncSummary(): {
   const { mode, networkOffline } = useContext(SessionContext);
   const { syncManager, active } = useStore();
   const status = useSyncStatus();
-  const summary = summarizeSync(mode, status, networkOffline, active?.pendingRecovery);
+  const summary = summarizeSync(
+    mode,
+    status,
+    networkOffline,
+    active?.pendingRecovery,
+    active?.entry.demo,
+  );
   return {
     status,
     summary,

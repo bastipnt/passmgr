@@ -21,6 +21,7 @@ import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/F
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
+import { Note } from "@repo/ui/components/Note";
 import { Spinner } from "@repo/ui/components/Spinner";
 import {
   ArrowRightIcon,
@@ -43,7 +44,6 @@ import { NewPasswordLabelAction, PasswordStrengthMeter } from "@/features/passwo
 import { useWarnBeforeUnload } from "@/hooks/use-warn-before-unload";
 import AuthCardHeader from "./AuthCardHeader";
 import AuthChip from "./AuthChip";
-import AuthNote from "./AuthNote";
 import PasswordNote from "./PasswordNote";
 import RecoveryKeyDialog from "./RecoveryKeyDialog";
 import RecoveryKeyInput from "./RecoveryKeyInput";
@@ -359,33 +359,33 @@ function RecoverFlow() {
 
                       {local
                         ? store.biometricKeyMaterial && (
-                            <AuthNote icon={<InfoIcon className="text-primary-text" />}>
+                            <Note icon={<InfoIcon className="text-primary-text" />}>
                               <strong className="font-semibold">
                                 Biometric unlock is switched off.
                               </strong>{" "}
                               You can turn it on again once the vault is open.
-                            </AuthNote>
+                            </Note>
                           )
                         : !recoveryError && (
                             <>
-                              <AuthNote tone="warning" icon={<TriangleAlertIcon />}>
+                              <Note tone="warning" icon={<TriangleAlertIcon />}>
                                 You&apos;ll be{" "}
                                 <strong className="font-semibold">
                                   signed out on all your devices
                                 </strong>
                                 . Sign in again there with the new password.
-                              </AuthNote>
-                              <AuthNote icon={<InfoIcon className="text-primary-text" />}>
+                              </Note>
+                              <Note icon={<InfoIcon className="text-primary-text" />}>
                                 <strong className="font-semibold">Two-factor stays on</strong> if
                                 you use it: signing in still asks for a code.
-                              </AuthNote>
+                              </Note>
                             </>
                           )}
 
                       {recoveryError === "throttled" ? (
-                        <AuthNote tone="warning" icon={<ClockIcon />}>
+                        <Note tone="warning" icon={<ClockIcon />}>
                           {RECOVERY_ERROR_MESSAGES.throttled}
-                        </AuthNote>
+                        </Note>
                       ) : keyRejected ? (
                         <FieldError variant="box">
                           <span>
@@ -433,9 +433,9 @@ function SubmitButton({ loading, children }: { loading: boolean; children: strin
 
 function OfflineNote() {
   return (
-    <AuthNote icon={<WifiOffIcon className="text-primary-text" />}>
+    <Note icon={<WifiOffIcon className="text-primary-text" />}>
       <strong className="font-semibold">You&apos;re offline.</strong> {RECOVERY_OFFLINE_NOTE}
-    </AuthNote>
+    </Note>
   );
 }
 

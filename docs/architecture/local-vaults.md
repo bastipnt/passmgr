@@ -35,6 +35,22 @@ vault (every record new). Folders → tags, extra fields → custom fields, hist
 counted in the report. App ids and other `scheme://` addresses stay websites (`parseWebsite` in `@repo/util`:
 `web` / `app` / `uri`; only `web` is linked, favicon'd or matched by host). A failed batch throws `ImportStoppedError` (`written` / `total`).
 
+## Demo vault (web demo build)
+
+Web builds with `VITE_DEMO_MODE=true` (`apps/web/.env.production`, `Dockerfile.web` default) are the public demo
+(`apps/web/src/features/demo`). The welcome offers only **Try the demo**: `useDemoVault().startDemo` creates a `local`
+profile marked `demo` in the registry (`ProfileEntry.demo`, `ProfileStore.create`'s `demo`), named "Demo vault",
+under the public `DEMO_PASSWORD` (Argon2 still runs), wipes its recovery key, unlocks with the account key in memory and
+fills it with `demoSeed()` (`@repo/schema`: the dev seed's example records over `SEED_VAULTS`, shared with
+`packages/db/devSeed.ts`, plus favorites, password history and trash) through `seedDemoVault`: the extra vaults, then
+every version dated back (`RecordRepository.writeImport` / `delete` take an `at`, `Vault.writeLocalChanges` a `now`).
+A new demo replaces the device's old one (removed once the new one is active). A demo profile never links:
+`useLinkAccount` refuses it (`demo`), whatever the browser's demo mode; local profiles never sync anyway. Its sync
+summary is "Demo (local only)" (`summarizeSync`'s `demo`, `DEMO_VAULT_NOTICE`); Settings → Account & sync and the
+phone's account sheet show the notice and offer no account or password change. In demo mode, import (every
+`ImportDialog` trigger), create, account login, restore and recovery are gone (their routes go to the welcome);
+export stays.
+
 ## Linking a local vault to an account
 
 Linking a local vault to an account (ADR 0001 D9, `useLinkAccount`): password checked locally →

@@ -1,6 +1,6 @@
+import { Note } from "@repo/ui/components/Note";
 import { LogOutIcon } from "lucide-react";
 import { useEffect, useState } from "react";
-import AuthNote from "./AuthNote";
 
 const SIGNED_OUT_KEY = "passmgr:signed-out";
 
@@ -51,7 +51,7 @@ export function SignedOutNote() {
   if (!signedOut) return null;
   return (
     <output className="block">
-      <AuthNote icon={<LogOutIcon className="text-[#ffb23f]" />}>{SIGNED_OUT_MESSAGE}</AuthNote>
+      <Note icon={<LogOutIcon className="text-[#ffb23f]" />}>{SIGNED_OUT_MESSAGE}</Note>
     </output>
   );
 }

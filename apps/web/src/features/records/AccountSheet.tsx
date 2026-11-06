@@ -22,6 +22,7 @@ import {
 import { type ReactNode, useState } from "react";
 import { Link } from "wouter";
 import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
+import { DemoVaultNotice } from "@/features/demo";
 import { useLockVault } from "./lock-vault";
 import { SyncDot, SyncStatusCard } from "./SyncStatusCard";
 
@@ -94,6 +95,11 @@ function AccountSheet({
                 {active.entry.mode === "linked" ? "Synced account" : "On this device only"}
               </span>
             </div>
+          </div>
+        )}
+        {active?.entry.demo && (
+          <div className="px-4 sm:px-5">
+            <DemoVaultNotice />
           </div>
         )}
 

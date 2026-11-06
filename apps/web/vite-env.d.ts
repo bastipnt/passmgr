@@ -4,6 +4,8 @@ interface ImportMetaEnv {
   readonly VITE_SITE_URL?: string;
   /** Release tag (e.g. v0.0.27), set by the release build */
   readonly VITE_APP_VERSION?: string;
+  /** "true": the public demo build (`features/demo`) */
+  readonly VITE_DEMO_MODE?: string;
   // more env variables...
 }
 

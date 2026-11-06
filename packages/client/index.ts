@@ -2,6 +2,7 @@
 
 // Account
 export * from "./src/account/account-sign-in";
+export { DEMO_VAULT_NAME } from "./src/account/demo-vault";
 export * from "./src/account/emergency-kit";
 
 // Export
@@ -22,6 +23,7 @@ export * from "./src/hooks/use-create-record";
 export * from "./src/hooks/use-create-vault";
 export * from "./src/hooks/use-delete-account";
 export * from "./src/hooks/use-delete-record";
+export * from "./src/hooks/use-demo-vault";
 export * from "./src/hooks/use-device-login";
 export * from "./src/hooks/use-duplicate-source";
 export * from "./src/hooks/use-email-verification";

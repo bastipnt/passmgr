@@ -46,6 +46,10 @@ ENV VITE_SITE_URL=${VITE_SITE_URL}
 ARG VITE_APP_VERSION=""
 ENV VITE_APP_VERSION=${VITE_APP_VERSION}
 
+# "true" (default, as in apps/web/.env.production): the public demo build. "false": the normal app.
+ARG VITE_DEMO_MODE="true"
+ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
+
 # Build the web app (turborepo handles dependency order)
 # Disable pre-run deps check: mobile pkg (react-native-argon2 patch target)
 # is intentionally absent from this image, which would fail the check.

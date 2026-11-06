@@ -27,6 +27,8 @@ export type ProfileEntry = {
   lastUsedAt: string;
   /** The last export from this device; null if never (ADR 0001 D12). */
   lastExportAt: string | null;
+  /** A demo vault (web demo build): known password, never linked or synced. */
+  demo: boolean;
 };
 
 /** The registry's own database. */
@@ -177,7 +179,7 @@ export class ProfileStore {
   async create(
     profile: LocalProfile,
     init: (vault: Vault) => Promise<void>,
-    { name = null }: { name?: string | null } = {},
+    { name = null, demo = false }: { name?: string | null; demo?: boolean } = {},
   ): Promise<{ entry: ProfileEntry; vault: Vault }> {
     if (await this.get(profile.profileId)) throw new ProfileExistsError();
 
@@ -189,6 +191,7 @@ export class ProfileStore {
       createdAt: now,
       lastUsedAt: now,
       lastExportAt: null,
+      demo,
     };
     const vault = new Vault(this.openDatabase(entry.databaseName));
     try {

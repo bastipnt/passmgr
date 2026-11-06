@@ -1,4 +1,4 @@
-import { index, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 /**
  * The device's profile registry (ADR 0001 D2, amended 2026-10-07): one row per
@@ -25,6 +25,8 @@ export const profiles = sqliteTable(
     lastUsedAt: text().notNull(),
     /** The last export of this profile's data from this device; null if never (backup reminder, ADR 0001 D12). */
     lastExportAt: text(),
+    /** A demo vault: known password, never linked or synced. */
+    demo: integer({ mode: "boolean" }).notNull().default(false),
   },
   (t) => [index("profiles_email_idx").on(t.email)],
 );

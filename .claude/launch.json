@@ -6,6 +6,21 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "web", "dev", "--port", "5173", "--strictPort"],
       "port": 5173
+    },
+    {
+      "name": "web-demo",
+      "runtimeExecutable": "env",
+      "runtimeArgs": [
+        "VITE_DEMO_MODE=true",
+        "pnpm",
+        "--filter",
+        "web",
+        "dev",
+        "--port",
+        "5179",
+        "--strictPort"
+      ],
+      "port": 5179
     }
   ]
 }

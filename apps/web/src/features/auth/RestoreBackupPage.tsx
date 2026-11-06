@@ -25,6 +25,7 @@ import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { FileDropZone, type FileDropZoneHandle } from "@repo/ui/components/FileDropZone";
 import { ControlledPasswordInput } from "@repo/ui/components/form/ControlledPasswordInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
+import { Note } from "@repo/ui/components/Note";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { cn } from "@repo/ui/lib/utils";
 import { formatBytes } from "@repo/util";
@@ -47,7 +48,6 @@ import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
 import AuthCardHeader from "./AuthCardHeader";
 import AuthChip from "./AuthChip";
-import AuthNote from "./AuthNote";
 import { useAuthHome } from "./auth-home";
 import CreateErrorBox from "./CreateErrorBox";
 import NewVaultFields, {
@@ -259,9 +259,9 @@ export default function RestoreBackupPage() {
                 </>
               )}
               {empty && (
-                <AuthNote icon={<InfoIcon className="text-primary-text" />}>
+                <Note icon={<InfoIcon className="text-primary-text" />}>
                   {foreignImportIntro(empty)}
-                </AuthNote>
+                </Note>
               )}
               <PasswordNote>The file is opened on this device only</PasswordNote>
             </CardContent>
@@ -435,10 +435,10 @@ function VaultStep({
                 disabled={loading}
               />
               {isPlaintext(opened) && (
-                <AuthNote icon={<Trash2Icon className="text-muted-foreground" />}>
+                <Note icon={<Trash2Icon className="text-muted-foreground" />}>
                   <strong className="font-semibold">This file isn&apos;t encrypted.</strong> Anyone
                   who can read it can read your passwords: delete it once the vault is set up.
-                </AuthNote>
+                </Note>
               )}
               {note}
               <NewVaultFields control={control} setValue={setValue} />

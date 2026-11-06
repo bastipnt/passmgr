@@ -76,7 +76,7 @@ function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps)
         )}
         <DropdownMenuItem render={<Link href={settingsPaths.account} />}>
           <UserRoundIcon />
-          {summary.state === "local" ? "Create online account" : "Account & sync"}
+          {summary.state === "local" && !summary.demo ? "Create online account" : "Account & sync"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

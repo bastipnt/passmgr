@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import { useContext, useState } from "react";
 import VerifyEmailDialog from "@/components/VerifyEmailDialog";
+import { DemoVaultNotice } from "@/features/demo";
 import ChangePasswordDialog from "./ChangePasswordDialog";
 import CreateAccountDialog from "./CreateAccountDialog";
 import DeleteAccountDialog from "./DeleteAccountDialog";
@@ -58,71 +59,77 @@ export default function AccountSettings() {
 
   if (!mode || !profile) return null;
   const linked = profile.mode === "linked";
+  const demo = active?.entry.demo === true;
 
   return (
-    <Item variant="outline">
-      <ItemContent className="gap-1">
-        <ItemTitle>{linked ? profile.email : (active?.entry.name ?? "Local vault")}</ItemTitle>
-        <ItemDescription>
-          {verifyRequired
-            ? "Your email isn't verified yet, so nothing syncs. Enter the code we sent you."
-            : STATUS[mode]}
-        </ItemDescription>
-      </ItemContent>
-      <ItemActions className="flex-wrap">
-        {verifyRequired && (
-          <>
-            <Button onClick={() => setVerifyOpen(true)}>
-              <MailCheckIcon />
-              Verify email
+    <div className="flex flex-col gap-3">
+      {demo && <DemoVaultNotice />}
+      <Item variant="outline">
+        <ItemContent className="gap-1">
+          <ItemTitle>{linked ? profile.email : (active?.entry.name ?? "Local vault")}</ItemTitle>
+          <ItemDescription>
+            {verifyRequired
+              ? "Your email isn't verified yet, so nothing syncs. Enter the code we sent you."
+              : STATUS[mode]}
+          </ItemDescription>
+        </ItemContent>
+        <ItemActions className="flex-wrap">
+          {verifyRequired && (
+            <>
+              <Button onClick={() => setVerifyOpen(true)}>
+                <MailCheckIcon />
+                Verify email
+              </Button>
+              <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
+            </>
+          )}
+          {!linked && !demo && (
+            <CreateAccountDialog>
+              <Button variant="outline" disabled={removing}>
+                <CloudUploadIcon />
+                Create online account
+              </Button>
+            </CreateAccountDialog>
+          )}
+          {!demo && (
+            <ChangePasswordDialog linked={linked}>
+              <Button variant="outline" disabled={signingOut || removing}>
+                <KeyRoundIcon />
+                Change password
+              </Button>
+            </ChangePasswordDialog>
+          )}
+          {linked && (
+            <Button
+              variant="outline"
+              disabled={signingOut || removing}
+              onClick={() => void signOut().then(reload)}
+            >
+              <LogOutIcon />
+              Sign out
             </Button>
-            <VerifyEmailDialog open={verifyOpen} onOpenChange={setVerifyOpen} />
-          </>
-        )}
-        {!linked && (
-          <CreateAccountDialog>
-            <Button variant="outline" disabled={removing}>
-              <CloudUploadIcon />
-              Create online account
-            </Button>
-          </CreateAccountDialog>
-        )}
-        <ChangePasswordDialog linked={linked}>
-          <Button variant="outline" disabled={signingOut || removing}>
-            <KeyRoundIcon />
-            Change password
-          </Button>
-        </ChangePasswordDialog>
-        {linked && (
-          <Button
-            variant="outline"
-            disabled={signingOut || removing}
-            onClick={() => void signOut().then(reload)}
+          )}
+          <RemoveDialog
+            title="Remove vault from this device?"
+            description={removeVaultDescription(linked, pendingChanges)}
+            removeTitle="Remove vault"
+            onRemove={() => void removeFromDevice().then(reload)}
           >
-            <LogOutIcon />
-            Sign out
-          </Button>
-        )}
-        <RemoveDialog
-          title="Remove vault from this device?"
-          description={removeVaultDescription(linked, pendingChanges)}
-          removeTitle="Remove vault"
-          onRemove={() => void removeFromDevice().then(reload)}
-        >
-          <Button variant="destructive" disabled={signingOut || removing}>
-            <TrashIcon />
-            Remove from device
-          </Button>
-        </RemoveDialog>
-        {linked && (
-          <DeleteAccountDialog onDeleted={reload}>
             <Button variant="destructive" disabled={signingOut || removing}>
-              <UserRoundXIcon />
-              Delete account
+              <TrashIcon />
+              Remove from device
             </Button>
-          </DeleteAccountDialog>
-        )}
-      </ItemActions>
-    </Item>
+          </RemoveDialog>
+          {linked && (
+            <DeleteAccountDialog onDeleted={reload}>
+              <Button variant="destructive" disabled={signingOut || removing}>
+                <UserRoundXIcon />
+                Delete account
+              </Button>
+            </DeleteAccountDialog>
+          )}
+        </ItemActions>
+      </Item>
+    </div>
   );
 }

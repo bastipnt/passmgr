@@ -4,6 +4,7 @@ export * from "./src/record-limits";
 export * from "./src/record-payload";
 export * from "./src/record-types";
 // Seeds
+export * from "./src/seed/demo-seed";
 export * from "./src/seed/login-record-seed";
 export * from "./src/seed/typed-record-seed";
 export * from "./src/sharing-schema";

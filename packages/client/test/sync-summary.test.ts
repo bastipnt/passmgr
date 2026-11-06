@@ -20,6 +20,12 @@ describe("summarizeSync", () => {
     );
   });
 
+  it("a demo vault says it can't sync or get an account", () => {
+    const summary = summarizeSync("local", idle, false, false, true);
+    expect(summary).toMatchObject({ state: "local", title: "Demo (local only)", demo: true });
+    expect(syncCardLines(summary, idle)).toEqual({ title: "Demo", detail: "Local only" });
+  });
+
   it("parked changes win over every other state", () => {
     const summary = summarizeSync("offline", { ...idle, phase: "offline", parked: 1 }, true);
     expect(summary.state).toBe("error");

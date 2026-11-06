@@ -19,6 +19,7 @@ import { ArchiveRestoreIcon, LogInIcon, type LucideIcon, PlusIcon, TrashIcon } f
 import { useState } from "react";
 import { Link } from "wouter";
 import { authPaths } from "@/app/route-paths";
+import { useDemoMode } from "@/features/demo";
 
 const TITLE = "Switch vault";
 const DESCRIPTION = "Vaults on this device, last opened first.";
@@ -65,6 +66,7 @@ export default function SwitchVaultSheet({
 
 function SwitchVaultList({ onPick, pickFailed }: SwitchVaultListProps) {
   const { profiles } = useStore();
+  const demoMode = useDemoMode();
 
   return (
     <div className="flex flex-col gap-6">
@@ -83,23 +85,25 @@ function SwitchVaultList({ onPick, pickFailed }: SwitchVaultListProps) {
           />
         ))}
       </ul>
-      <section aria-labelledby="switch-vault-add" className="-mx-2 flex flex-col gap-1">
-        <h3
-          id="switch-vault-add"
-          className="px-2 font-semibold text-muted-foreground text-xs uppercase tracking-wider"
-        >
-          Add
-        </h3>
-        <AddLink href={authPaths.accountLogin} icon={LogInIcon}>
-          Log in to another account
-        </AddLink>
-        <AddLink href={authPaths.create} icon={PlusIcon}>
-          Create new vault
-        </AddLink>
-        <AddLink href={authPaths.restore} icon={ArchiveRestoreIcon}>
-          Restore or import
-        </AddLink>
-      </section>
+      {!demoMode && (
+        <section aria-labelledby="switch-vault-add" className="-mx-2 flex flex-col gap-1">
+          <h3
+            id="switch-vault-add"
+            className="px-2 font-semibold text-muted-foreground text-xs uppercase tracking-wider"
+          >
+            Add
+          </h3>
+          <AddLink href={authPaths.accountLogin} icon={LogInIcon}>
+            Log in to another account
+          </AddLink>
+          <AddLink href={authPaths.create} icon={PlusIcon}>
+            Create new vault
+          </AddLink>
+          <AddLink href={authPaths.restore} icon={ArchiveRestoreIcon}>
+            Restore or import
+          </AddLink>
+        </section>
+      )}
     </div>
   );
 }

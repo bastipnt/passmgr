@@ -1,8 +1,8 @@
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
 
-/** Glass info note: neutral (only the icon carries color) or an amber warning. */
-export default function AuthNote({
+/** Info note: neutral (only the icon carries color) or an amber warning. */
+export function Note({
   icon,
   tone = "neutral",
   children,

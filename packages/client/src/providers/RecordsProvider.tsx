@@ -149,6 +149,13 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     return syncManager.onSync(() => void decryptAll());
   }, [vaultUnlocked, syncManager, decryptAll]);
 
+  // Flows that switch profiles (create, restore, demo) call it after awaiting: it must reach the vault open now.
+  const latestDecryptAll = useRef(decryptAll);
+  useEffect(() => {
+    latestDecryptAll.current = decryptAll;
+  }, [decryptAll]);
+  const reload = useCallback(() => latestDecryptAll.current(), []);
+
   const refreshRecord = useCallback(
     async (id: string) => {
       if (!vault) return;
@@ -179,7 +186,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     getRecord,
     ready,
     refreshRecord,
-    reload: decryptAll,
+    reload,
     revision,
     vaults,
   };

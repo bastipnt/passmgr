@@ -25,10 +25,11 @@ export function formatStorageUsage(usage: number | null, quota: number | null): 
  * and a warning when a local-only vault may be evicted.
  */
 export default function StorageSettings() {
-  const { profile } = useStore();
+  const { profile, active } = useStore();
   const { loaded, persisted, usage, quota, request, requesting } = useStorageDurability();
   const usageLabel = formatStorageUsage(usage, quota);
-  const localOnly = profile?.mode === "local";
+  // A demo vault has its own notice: no account to suggest.
+  const localOnly = profile?.mode === "local" && !active?.entry.demo;
 
   return (
     <Item variant="outline">

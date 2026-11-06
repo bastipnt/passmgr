@@ -15,5 +15,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "ALTER TABLE `profiles` ADD `lastExportAt` text;"
     ]
+  },
+  {
+    "name": "20261106143851_demo_profile",
+    "statements": [
+      "ALTER TABLE `profiles` ADD `demo` integer DEFAULT false NOT NULL;"
+    ]
   }
 ];

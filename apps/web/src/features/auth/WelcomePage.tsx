@@ -7,10 +7,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@repo/ui/components/Card";
+import { FieldError } from "@repo/ui/components/Field";
+import { Spinner } from "@repo/ui/components/Spinner";
 import { cn } from "@repo/ui/lib/utils";
 import {
   ArrowRightIcon,
   ChevronRightIcon,
+  FlaskConicalIcon,
   LogInIcon,
   type LucideIcon,
   ShieldPlusIcon,
@@ -18,30 +21,32 @@ import {
 import { Link, Redirect, useSearchParams } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { useDemoEscapeHatch, useDemoMode } from "@/features/demo";
 import { AuthHero, HeroChips } from "./AuthHero";
 import AuthTextLink from "./AuthTextLink";
 import PasswordNote from "./PasswordNote";
+import { useStartDemo } from "./use-start-demo";
 
 const CHIPS = ["Works offline", "Zero-knowledge", "End-to-end encrypted"];
 const PHONE_CHIPS = ["Works offline", "Zero-knowledge", "E2E encrypted"];
 
 type ChoiceProps = {
-  href: string;
   icon: LucideIcon;
   title: string;
   primary?: boolean;
-};
+} & (
+  | { href: string; onClick?: never; busy?: never }
+  | { href?: never; onClick: () => void; busy?: boolean }
+);
 
-function Choice({ href, icon: Icon, title, primary = false }: ChoiceProps) {
+function Choice({ href, onClick, busy = false, icon: Icon, title, primary = false }: ChoiceProps) {
   const Chevron = primary ? ArrowRightIcon : ChevronRightIcon;
-  return (
-    <Link
-      href={href}
-      className={cn(
-        buttonVariants({ variant: primary ? "default" : "outline" }),
-        "h-auto min-h-15 w-full justify-start gap-3 rounded-2xl p-3 text-left font-semibold text-[0.95rem] sm:min-h-19 sm:p-4 sm:text-base",
-      )}
-    >
+  const className = cn(
+    buttonVariants({ variant: primary ? "default" : "outline" }),
+    "h-auto min-h-15 w-full justify-start gap-3 rounded-2xl p-3 text-left font-semibold text-[0.95rem] sm:min-h-19 sm:p-4 sm:text-base",
+  );
+  const body = (
+    <>
       <span
         aria-hidden
         className={cn(
@@ -52,8 +57,23 @@ function Choice({ href, icon: Icon, title, primary = false }: ChoiceProps) {
         <Icon className="size-5" />
       </span>
       <span className="min-w-0 flex-1 whitespace-normal">{title}</span>
-      <Chevron className={cn("size-4.5", !primary && "text-muted-foreground")} aria-hidden />
-    </Link>
+      {busy ? (
+        <Spinner className="size-4.5" />
+      ) : (
+        <Chevron className={cn("size-4.5", !primary && "text-muted-foreground")} aria-hidden />
+      )}
+    </>
+  );
+  if (href !== undefined)
+    return (
+      <Link href={href} className={className}>
+        {body}
+      </Link>
+    );
+  return (
+    <button type="button" onClick={onClick} disabled={busy} className={className}>
+      {body}
+    </button>
   );
 }
 
@@ -65,9 +85,12 @@ export default function WelcomePage() {
   const { loaded, profiles } = useStore();
   const [searchParams] = useSearchParams();
   const invite = searchParams.get("invite");
+  const demoMode = useDemoMode();
+  const demo = useStartDemo();
+  useDemoEscapeHatch();
 
   if (!loaded) return null;
-  if (profiles.length > 0) return <Redirect to={authPaths.login} replace />;
+  if (profiles.length > 0 && !demo.preparing) return <Redirect to={authPaths.login} replace />;
 
   const createHref =
     invite === null ? authPaths.create : `${authPaths.create}?${new URLSearchParams({ invite })}`;
@@ -98,21 +121,45 @@ export default function WelcomePage() {
         <Card variant="glass" className="sm:max-w-md" flatOnPhone>
           <CardHeader>
             <CardTitle className="max-sm:sr-only">Welcome to passmgr</CardTitle>
-            <CardDescription>New here, or bringing an existing account?</CardDescription>
+            <CardDescription>
+              {demoMode
+                ? "Explore passmgr with example data. Everything stays in this browser."
+                : "New here, or bringing an existing account?"}
+            </CardDescription>
           </CardHeader>
           <CardContent className="flex flex-col gap-6">
-            <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
-              <Choice href={createHref} icon={ShieldPlusIcon} title="Create a new vault" primary />
-              <Choice
-                href={authPaths.accountLogin}
-                icon={LogInIcon}
-                title="Log in to an existing account"
-              />
-            </nav>
-            <p className="text-center text-muted-foreground text-sm">
-              Have a backup or another app&apos;s export?{" "}
-              <AuthTextLink href={authPaths.restore}>Import it</AuthTextLink>
-            </p>
+            {demoMode ? (
+              <div className="flex flex-col gap-4">
+                <Choice
+                  onClick={() => void demo.start()}
+                  busy={demo.preparing}
+                  icon={FlaskConicalIcon}
+                  title={demo.preparing ? "Preparing your demo…" : "Try the demo"}
+                  primary
+                />
+                {demo.errorMessage && <FieldError variant="box">{demo.errorMessage}</FieldError>}
+              </div>
+            ) : (
+              <>
+                <nav aria-label="Get started" className="flex flex-col gap-4.5 sm:gap-5">
+                  <Choice
+                    href={createHref}
+                    icon={ShieldPlusIcon}
+                    title="Create a new vault"
+                    primary
+                  />
+                  <Choice
+                    href={authPaths.accountLogin}
+                    icon={LogInIcon}
+                    title="Log in to an existing account"
+                  />
+                </nav>
+                <p className="text-center text-muted-foreground text-sm">
+                  Have a backup or another app&apos;s export?{" "}
+                  <AuthTextLink href={authPaths.restore}>Import it</AuthTextLink>
+                </p>
+              </>
+            )}
             <PasswordNote className="max-sm:hidden" />
           </CardContent>
         </Card>

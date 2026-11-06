@@ -147,7 +147,8 @@ type StoreContextValue = {
   clearPendingRecovery: (profileId: string) => Promise<void>;
   /**
    * Add a profile with a vault on this device only (`local`, ADR 0001 D2) next
-   * to the others and make it the active one. Locked only.
+   * to the others and make it the active one. Locked only. `demo` marks a demo
+   * vault (never linked).
    */
   createLocalVault: (
     material: AccountKeyMaterial,
@@ -155,6 +156,7 @@ type StoreContextValue = {
     vaults: readonly MemberVault[],
     profile: Extract<LocalProfile, { mode: "local" }>,
     name?: string,
+    demo?: boolean,
   ) => Promise<void>;
   /**
    * How many changes of a profile haven't reached the server (what removing it
@@ -697,13 +699,14 @@ export function StoreProvider({
     vaults: readonly MemberVault[],
     nextProfile: Extract<LocalProfile, { mode: "local" }>,
     name?: string,
+    demo = false,
   ) {
     await switchLock(async () => {
       assertLocked();
       const { vault } = await profiles.create(
         nextProfile,
         (v) => v.createLocalVault(material, recovery, vaults, nextProfile),
-        { name },
+        { name, demo },
       );
       await activate(nextProfile.profileId, vault);
     });

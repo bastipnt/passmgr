@@ -41,10 +41,14 @@ export function useCreateLocalVault() {
   // Leaving before the unlock (closing the page) must not leave the key behind.
   useEffect(() => () => dropPending(pending), []);
 
-  /** `name` tells this vault apart from other profiles on the device (optional). */
+  /**
+   * `name` tells this vault apart from other profiles on the device (optional);
+   * `demo` marks a demo vault (never linked).
+   */
   async function createLocalVault(
     password: string,
     name?: string,
+    demo?: boolean,
   ): Promise<Uint8Array | undefined> {
     setCreateError(undefined);
 
@@ -59,7 +63,7 @@ export function useCreateLocalVault() {
 
     const { accountKey, recoveryKey, material, recovery, vaults, profile } = created;
     try {
-      await store.createLocalVault(material, recovery, vaults, profile, name);
+      await store.createLocalVault(material, recovery, vaults, profile, name, demo);
     } catch (e) {
       console.error("Storing the local vault failed", e);
       wipe(accountKey);

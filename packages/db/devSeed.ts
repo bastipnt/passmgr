@@ -31,7 +31,8 @@ import {
   pushChangeBytes,
   type RecordData,
   type RecordPayload,
-  type VaultMeta,
+  SEED_VAULTS,
+  seedVaultIndex,
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
@@ -53,31 +54,6 @@ const PASSWORD = "passmgr123";
 // `bun devSeed.ts --edge-cases` also seeds the QA edge-case records.
 const WITH_EDGE_CASES = process.argv.includes("--edge-cases");
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-type SeedVault = {
-  meta: VaultMeta;
-  kind: "personal" | "shared";
-  holds: (record: RecordData) => boolean;
-};
-
-// The first vault whose `holds` matches gets the record; the personal vault takes the rest.
-const SEED_VAULTS: SeedVault[] = [
-  {
-    meta: { name: "Acme Work", icon: "briefcase", color: "blue" },
-    kind: "shared",
-    holds: (record) => hasAnyTag(record, ["work", "client-acme"]),
-  },
-  {
-    meta: { name: "Family", icon: "home", color: "green" },
-    kind: "shared",
-    holds: (record) => hasAnyTag(record, ["family", "home"]),
-  },
-  { meta: { name: "Personal" }, kind: "personal", holds: () => true },
-];
-
-function hasAnyTag(record: RecordData, tags: string[]): boolean {
-  return (record.tags ?? []).some((tag) => tags.includes(tag));
-}
 
 async function seed() {
   const { OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY, OPAQUE_SERVER_SETUP } = process.env;
@@ -176,7 +152,7 @@ async function seed() {
   const now = Date.now();
   const seqs = new Map<string, number>();
   const recordRows = seedRecords.map((seedRecord, i) => {
-    const { vault, vaultKey } = vaults.find(({ holds }) => holds(seedRecord))!;
+    const { vault, vaultKey } = vaults[seedVaultIndex(seedRecord)]!;
     const { vaultId } = vault;
     const seq = (seqs.get(vaultId) ?? 0) + 1;
     seqs.set(vaultId, seq);

@@ -189,7 +189,11 @@ const APPLIED_MIGRATIONS = {
     "20261011195948_trash",
     "20261012143643_breach_checks",
   ],
-  registry: ["20261008060745_profile_registry", "20261008185230_last_export"],
+  registry: [
+    "20261008060745_profile_registry",
+    "20261008185230_last_export",
+    "20261106143851_demo_profile",
+  ],
 };
 
 describe("migration order", () => {

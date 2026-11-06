@@ -219,4 +219,17 @@ describe("useLinkAccount", () => {
     expect(result.current.linkError).toBe("failed");
     expect(registerLocalVault).not.toHaveBeenCalled();
   });
+
+  it("refuses a demo vault, also with demo mode turned off in the browser", async () => {
+    store.profiles = [{ ...profileEntry(local.profile), demo: true }];
+    const { result } = renderLink();
+
+    await act(async () => {
+      expect(await result.current.linkAccount("alice@example.com", PASSWORD)).toBe(false);
+    });
+
+    expect(result.current.linkError).toBe("demo");
+    expect(registerLocalVault).not.toHaveBeenCalled();
+    expect(store.saveAccount).not.toHaveBeenCalled();
+  });
 });

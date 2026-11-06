@@ -26,10 +26,12 @@ import { useTRPCClient } from "../util/trpc";
  * - `throttled`: too many login attempts, retry later
  * - `unreachable`: the login after the registration didn't get through; the
  *   account may exist, linking again finishes it
+ * - `demo`: a demo vault never gets an account (its password is public)
  * - `failed`: no unlocked local vault to link, it was locked meanwhile, or
  *   storing the link failed
  */
 export type LinkAccountError =
+  | "demo"
   | "wrong_password"
   | "registration_failed"
   | "rejected"
@@ -39,6 +41,7 @@ export type LinkAccountError =
 
 /** User-facing text for each link error (web + mobile). */
 export const LINK_ACCOUNT_ERROR_MESSAGES: Record<LinkAccountError, string> = {
+  demo: "A demo vault can't be linked to an account.",
   wrong_password: "That isn't this vault's password.",
   registration_failed:
     "The server didn't create the account. Registration may need an invite, or the invite is invalid or for another email.",
@@ -85,6 +88,7 @@ export function useLinkAccount() {
     const material = active?.accountKeyMaterial;
     if (!secretsStore.isVaultUnlocked || active?.profile?.mode !== "local" || !material)
       return "failed";
+    if (active.entry.demo) return "demo";
     const { profileId } = active.entry;
 
     if (!(await opensAccountKey(password, material))) return "wrong_password";

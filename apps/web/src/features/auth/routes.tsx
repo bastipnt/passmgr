@@ -2,6 +2,7 @@ import { canEnrollBiometric, SessionContext, useStore } from "@repo/client";
 import { Suspense, useContext, useState } from "react";
 import { Redirect, Route, Switch, useRoute } from "wouter";
 import { authPaths } from "@/app/route-paths";
+import { useDemoMode } from "@/features/demo";
 import { lazyPreload } from "@/lib/lazy-preload";
 import AuthLayout from "./AuthLayout";
 import { HoldUnlockRedirectContext } from "./unlock-redirect";
@@ -16,18 +17,22 @@ const WelcomePage = lazyPreload(() => import("./WelcomePage"));
 
 export default function AuthRoutes() {
   const { vaultUnlocked } = useContext(SessionContext);
-  const { needsBiometricEnroll, profile } = useStore();
+  const { needsBiometricEnroll, profile, active } = useStore();
+  const demoMode = useDemoMode();
   const [isEnrollBiometricRoute] = useRoute(authPaths.enrollBiometric);
   const [isCreateRoute] = useRoute(authPaths.create);
   const [isAccountLoginRoute] = useRoute(authPaths.accountLogin);
   const [isRestoreRoute] = useRoute(authPaths.restore);
+  const [isRecoverRoute] = useRoute(authPaths.recover);
   const [redirectHeld, setRedirectHeld] = useState(false);
 
   if (vaultUnlocked && !redirectHeld) {
-    if (needsBiometricEnroll && canEnrollBiometric(profile)) {
+    if (needsBiometricEnroll && !active?.entry.demo && canEnrollBiometric(profile)) {
       if (!isEnrollBiometricRoute) return <Redirect to={authPaths.enrollBiometric} />;
     } else return <Redirect to="/" />;
   }
+  if (demoMode && (isCreateRoute || isAccountLoginRoute || isRestoreRoute || isRecoverRoute))
+    return <Redirect to={authPaths.welcome} replace />;
 
   return (
     <AuthLayout phoneHeader={!isCreateRoute && !isAccountLoginRoute && !isRestoreRoute}>

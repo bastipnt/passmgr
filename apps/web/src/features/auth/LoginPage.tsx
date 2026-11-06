@@ -1,4 +1,5 @@
 import {
+  DEMO_VAULT_NAME,
   profileHue,
   removeVaultDescription,
   signInErrorMessage,
@@ -13,10 +14,13 @@ import { useCallback, useState } from "react";
 import { Redirect } from "wouter";
 import { authPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { useDemoEscapeHatch } from "@/features/demo";
 import { useStoragePersistent } from "@/hooks/use-storage-persistent";
+import DemoUnlockCard from "./DemoUnlockCard";
 import PrivateWindowNote from "./PrivateWindowNote";
 import SwitchVaultSheet from "./SwitchVaultSheet";
 import UnlockCard from "./UnlockCard";
+import { useStartDemo } from "./use-start-demo";
 
 /**
  * Unlock a profile on this device (ADR 0001 D2): the last used one opens as
@@ -34,6 +38,8 @@ export default function LoginPage() {
   const [pickFailed, setPickFailed] = useState(false);
 
   const store = useStore();
+  useDemoEscapeHatch();
+  const demo = useStartDemo();
   const persistent = useStoragePersistent();
   const pendingChanges = usePendingChangeCount();
   const { active } = store;
@@ -75,7 +81,8 @@ export default function LoginPage() {
   }
 
   if (!store.loaded) return null;
-  if (store.profiles.length === 0) return <Redirect to={authPaths.welcome} replace />;
+  if (store.profiles.length === 0 && !demo.preparing)
+    return <Redirect to={authPaths.welcome} replace />;
 
   const privateWindowNote = persistent === false && (
     <PrivateWindowNote>
@@ -92,7 +99,18 @@ export default function LoginPage() {
         canonicalPath={authPaths.login}
       />
       <div className="flex w-full flex-col gap-4 sm:col-span-full sm:mx-auto sm:max-w-md">
-        {unlockable && active && (
+        {((unlockable && active?.entry.demo) || demo.preparing) && (
+          <DemoUnlockCard
+            name={active?.entry.name ?? DEMO_VAULT_NAME}
+            hue={active ? profileHue(active.entry) : undefined}
+            demo={demo}
+            onSwitch={() => {
+              setPickFailed(false);
+              setSwitching(true);
+            }}
+          />
+        )}
+        {unlockable && active && !active.entry.demo && !demo.preparing && (
           <UnlockCard
             // A picked profile starts over: password closed again if it has biometrics.
             key={active.entry.profileId}
@@ -124,7 +142,7 @@ export default function LoginPage() {
           close the sheet or a dialog open in it.
         */}
         <SwitchVaultSheet
-          open={switching || !unlockable}
+          open={switching || (!unlockable && !demo.preparing)}
           onOpenChange={setSwitching}
           onPick={(profileId) => void pickProfile(profileId)}
           pickFailed={pickFailed}

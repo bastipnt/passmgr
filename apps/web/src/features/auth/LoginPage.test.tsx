@@ -81,6 +81,10 @@ vi.mock("@repo/client/src/hooks/use-app-config", () => ({
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
   argon2WorkerService: { derive: vi.fn() },
 }));
+vi.mock("@repo/client/src/hooks/use-demo-vault", async (importActual) => ({
+  ...(await importActual<object>()),
+  useDemoVault: () => ({ startDemo: vi.fn(), continueDemo: vi.fn() }),
+}));
 vi.mock("@/hooks/use-storage-persistent", () => ({ useStoragePersistent: vi.fn(() => true) }));
 vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
   decryptWorkerService: { init: vi.fn() },

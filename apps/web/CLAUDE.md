@@ -6,7 +6,7 @@ Web-specific guidance. Cross-cutting rules are in the root `CLAUDE.md`; feature 
 
 ```
 app/         Composition root: App.tsx, routes.tsx (top Switch), route-paths.ts, ErrorFallback, NotFound
-features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/ · import/
+features/    auth/ · records/ (with records/login/, records/versions/) · password-generation/ · pass-monitor/ · settings/ · vaults/ · import/ · demo/
 components/  App-wide, feature-agnostic components only
 hooks/ lib/ test/ types/
 ```
@@ -98,6 +98,13 @@ Rules:
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
   sticky-title math (`MobileVault` `--list-top`, `MobileListTitle`, `MobileRecordPage` h1) assumes 48px.
+
+## Demo build
+
+`VITE_DEMO_MODE=true` (`.env.production`, `Dockerfile.web`'s default; `docker-compose.test.yml` builds with `false`)
+makes the public demo: `features/demo` (`isDemoBuild`, `isDemoMode`, `useDemoMode`; always check `isDemoMode()`, never
+the env var). `passmgr:demo-override` in `localStorage`, toggled by 7 taps on the welcome or unlock page, turns it off
+in that browser. Run it locally: `.claude/launch.json` `web-demo` (port 5179). Flow: `docs/architecture/local-vaults.md`.
 
 ## E2E tests
 

@@ -13,6 +13,11 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   useStore: () => store,
 }));
 
+vi.mock("@repo/client/src/hooks/use-demo-vault", async (importActual) => ({
+  ...(await importActual<object>()),
+  useDemoVault: () => ({ startDemo: vi.fn(), continueDemo: vi.fn() }),
+}));
+
 const LOCAL: LocalProfile = { profileId: "p-local", mode: "local", email: null, userId: null };
 
 function renderWelcome(path: string = authPaths.welcome) {

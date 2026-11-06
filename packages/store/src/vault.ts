@@ -275,11 +275,13 @@ export class Vault {
    * Write changes as new `pending` record versions and enqueue them for the
    * server, all in one transaction (a move is a create plus a delete). Throws
    * `RecordWriteError`, writing nothing, when a change doesn't fit the record.
-   * Resolves the written rows.
+   * Resolves the written rows. `now` dates them (default: now).
    */
-  async writeLocalChanges(changes: readonly LocalRecordChange[]): Promise<EncryptedRecordSchema[]> {
+  async writeLocalChanges(
+    changes: readonly LocalRecordChange[],
+    now = new Date().toISOString(),
+  ): Promise<EncryptedRecordSchema[]> {
     await this.ready();
-    const now = new Date().toISOString();
     return await this.transaction(async (tx) => {
       const written: EncryptedRecordSchema[] = [];
       for (const change of changes) written.push(await writeLocalChange(change, now, tx));

@@ -67,6 +67,15 @@ on purpose (signed out from another device, password changed or recovered elsewh
 / `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
 database + outbox in every mode; the `online` event (or attaching server auth) syncs.
 
+## Demo vault unlock
+
+On a demo build (`docs/architecture/local-vaults.md`), the unlock of a demo profile (`DemoUnlockCard`) has no password
+field, biometrics or recovery: **Continue demo** unlocks with `DEMO_PASSWORD` (`useDemoVault().continueDemo`, a normal
+`unlockLocal`), **Start a new demo** replaces it with a fresh one. A demo profile is never offered biometric
+enrollment. In demo mode the Switch vault sheet adds no vault or account. Seven taps within 3 s on the welcome or
+unlock page (`useDemoEscapeHatch`) toggle `passmgr:demo-override` in `localStorage`: the normal screens for that
+browser (`isDemoMode`); a demo profile stays a demo profile.
+
 ## Recovery
 
 Recovery (forgotten password, `auth/recovery-router.ts`):

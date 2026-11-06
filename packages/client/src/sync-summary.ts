@@ -17,7 +17,13 @@ export type SyncSummary = {
   state: SyncState;
   title: string;
   detail: string;
+  /** A demo vault (`local`): it can't get an account either. */
+  demo?: boolean;
 };
+
+/** What a demo vault says wherever an account or sync would be offered. */
+export const DEMO_VAULT_NOTICE =
+  "This vault only lives in this browser and can't be synced or linked to an account. Don't store real passwords here.";
 
 function changes(count: number): string {
   return count === 1 ? "1 change" : `${count} changes`;
@@ -27,13 +33,17 @@ function changes(count: number): string {
  * The sync indicator's state and copy for a session and its sync status.
  * `networkOffline`: the device has no network, whatever the sync status says.
  * `pendingRecovery`: a password reset made on this device waits for the server.
+ * `demo`: the profile is a demo vault.
  */
 export function summarizeSync(
   mode: SessionMode | null | undefined,
   status: SyncStatus,
   networkOffline: boolean,
   pendingRecovery = false,
+  demo = false,
 ): SyncSummary {
+  if (demo)
+    return { state: "local", title: "Demo (local only)", detail: DEMO_VAULT_NOTICE, demo: true };
   if (mode === "local" || !mode)
     return {
       state: "local",
@@ -153,7 +163,9 @@ export function syncCardLines(
   const { lastSyncedAt } = status;
   switch (summary.state) {
     case "local":
-      return { title: "On this device", detail: "No sync" };
+      return summary.demo
+        ? { title: "Demo", detail: "Local only" }
+        : { title: "On this device", detail: "No sync" };
     case "synced":
       return {
         title: "Online",

@@ -88,9 +88,9 @@ export class RecordRepository {
     return await this.write(changes);
   }
 
-  /** Tombstone the record (it goes to the trash); its history stays. */
-  async delete(recordId: string): Promise<void> {
-    await this.write([{ kind: "delete", recordId, clientUpdatedAt: now() }]);
+  /** Tombstone the record (it goes to the trash); its history stays. `at` dates it (default: now). */
+  async delete(recordId: string, at = now()): Promise<void> {
+    await this.write([{ kind: "delete", recordId, clientUpdatedAt: at }], at);
   }
 
   /**
@@ -133,9 +133,9 @@ export class RecordRepository {
   /**
    * Records from an export (`importExportData`), encrypted and written in one transaction.
    * A password keeps the date its backup gives it; an overwrite that leaves the password as
-   * it is keeps the stored date.
+   * it is keeps the stored date. `at` dates the written versions (default: now).
    */
-  async writeImport(entries: readonly ImportEntry[]): Promise<EncryptedRecordSchema[]> {
+  async writeImport(entries: readonly ImportEntry[], at = now()): Promise<EncryptedRecordSchema[]> {
     if (entries.length === 0) return [];
     const changes: LocalRecordChange[] = [];
     for (const { kind, data, ...ref } of entries) {
@@ -143,17 +143,17 @@ export class RecordRepository {
       const stamped = head
         ? stampChangedPassword(data, decryptHead(head), (data as PasswordStamp).passwordChangedAt)
         : data;
-      changes.push({ kind, ...this.encrypt(stamped, ref) });
+      changes.push({ kind, ...this.encrypt(stamped, ref, at) });
     }
-    return await this.write(changes);
+    return await this.write(changes, at);
   }
 
-  private encrypt(data: RecordData, ref: RecordRef) {
-    return { ...ref, ...encryptRecord(data, ref), clientUpdatedAt: now() };
+  private encrypt(data: RecordData, ref: RecordRef, at = now()) {
+    return { ...ref, ...encryptRecord(data, ref), clientUpdatedAt: at };
   }
 
-  private async write(changes: LocalRecordChange[]): Promise<EncryptedRecordSchema[]> {
-    const written = await this.vault.writeLocalChanges(changes);
+  private async write(changes: LocalRecordChange[], at?: string): Promise<EncryptedRecordSchema[]> {
+    const written = await this.vault.writeLocalChanges(changes, at);
     this.onWrite();
     return written;
   }

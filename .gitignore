@@ -20,6 +20,8 @@ dist-ssr
 # ---------------------------------------------------------
 .env
 .env.production
+# Web build flags only (public in the bundle anyway): tracked.
+!apps/web/.env.production
 .env.local
 .env.development.local
 .env.test.local
