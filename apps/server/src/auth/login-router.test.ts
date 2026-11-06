@@ -7,6 +7,7 @@ import { clientStartLogin, clientStartRegistration } from "../../test/setup/opaq
 import { deriveAuthKey, signRequest } from "../../test/setup/signed-request";
 import { buildTestContext } from "../../test/setup/test-context";
 import { buildRegistrationKeys } from "../../test/setup/user-keys";
+import { metricsRegistry } from "../metrics";
 import { redis } from "../redis";
 import { appRouter } from "../router";
 import { createCallerFactory } from "../trpc";
@@ -36,6 +37,16 @@ beforeEach(async () => {
   await truncateAll();
   await redis.flushall();
 });
+
+async function counterValue(name: string, labels: Record<string, string>): Promise<number> {
+  const metric = metricsRegistry.getSingleMetric(name);
+  if (!metric) return 0;
+  const { values } = await metric.get();
+  const match = values.find((v) =>
+    Object.entries(labels).every(([key, value]) => v.labels[key] === value),
+  );
+  return match?.value ?? 0;
+}
 
 const AUTH_SALT = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
 
@@ -155,6 +166,8 @@ describe("loginRouter — user enumeration", () => {
     });
     const result = await started.finish(loginResponse);
     if (!result) throw new Error("OPAQUE authFinish failed");
+    const failureLabels = { flow: "login", stage: "finishLogin", reason: "user_not_found" };
+    const failuresBefore = await counterValue("passmgr_auth_failures_total", failureLabels);
     await expect(
       caller.login.finishLogin({
         email: "nobody@example.com",
@@ -163,6 +176,9 @@ describe("loginRouter — user enumeration", () => {
         authSalt: AUTH_SALT,
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect(await counterValue("passmgr_auth_failures_total", failureLabels)).toBe(
+      failuresBefore + 1,
+    );
   });
 });
 
@@ -258,7 +274,11 @@ describe("loginRouter — per-account throttling", () => {
   ])("locks a %s email after the free attempts are used up", async (_label, target) => {
     await register(email, password);
     await startLogins(target, LOGIN_FREE_ATTEMPTS + 1);
+    const throttledBefore = await counterValue("passmgr_rate_limited_total", { limiter: "login" });
     await expect(startLogins(target, 1)).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    expect(await counterValue("passmgr_rate_limited_total", { limiter: "login" })).toBe(
+      throttledBefore + 1,
+    );
   });
 
   it("does not affect other accounts", async () => {

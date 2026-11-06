@@ -10,8 +10,8 @@ import { MAX_REQUEST_BYTES } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
-import { stripQuery } from "./logger";
-import { metricsRegistry } from "./metrics";
+import { logRedact, logSerializers } from "./log-options";
+import { metricsRegistry, recordRateLimited } from "./metrics";
 import { redis } from "./redis";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
 import { allowedOrigins } from "./util/allowed-origins";
@@ -38,35 +38,8 @@ export const server = fastify({
   },
   logger: {
     level: process.env.LOG_LEVEL ?? (isDev ? "debug" : "info"),
-    redact: {
-      paths: [
-        'req.headers["x-signature"]',
-        'req.headers["x-session-id"]',
-        "req.headers.authorization",
-        "req.headers.cookie",
-        "*.email",
-        "*.startLoginRequest",
-        "*.finishLoginRequest",
-        "*.startRegistrationRequest",
-        "*.registrationRecord",
-        "*.recoveryKey",
-        "*.recoveryAuthKey",
-        "*.passwordKekSalt",
-        "*.userKeys",
-      ],
-      censor: "[REDACTED]",
-    },
-    serializers: {
-      // Drop the query string: SSE subscriptions carry session id + signature
-      // in `?connectionParams=…`, which must not end up in logs.
-      req: (req) => ({
-        method: req.method,
-        url: stripQuery(req.url),
-        host: req.host,
-        remoteAddress: req.ip,
-        remotePort: req.socket?.remotePort,
-      }),
-    },
+    redact: logRedact,
+    serializers: logSerializers,
     ...(isDev && { transport: { target: "pino-pretty", options: { colorize: true } } }),
   },
 });
@@ -82,6 +55,7 @@ if (process.env.RATE_LIMIT_DISABLED !== "true") {
     timeWindow: "1 minute",
     max: (req) => (AUTH_PATH_RE.test(req.url) ? 10 : 100),
     keyGenerator: (req) => req.ip,
+    onExceeded: () => recordRateLimited("ip"),
   });
 }
 

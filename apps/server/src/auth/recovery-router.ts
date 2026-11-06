@@ -11,6 +11,7 @@ import { fromBase64, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull } from "drizzle-orm";
 import { loggedProcedure } from "../logger";
+import { recordRecoveryAttempt } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import {
@@ -32,6 +33,7 @@ function denyRecovery(
   emailHash: string,
 ): never {
   log?.warn({ stage, reason, emailHash }, "auth.recovery.failure");
+  recordRecoveryAttempt(stage, reason);
   throw new TRPCError({ code: "UNAUTHORIZED", message: "recovery failed" });
 }
 
@@ -99,6 +101,7 @@ export const recoveryRouter = router({
         keySetId: keys.keySetId,
       });
       log?.info({ emailHash }, "auth.recovery.start");
+      recordRecoveryAttempt("startRecovery", "ok");
 
       return {
         attemptId,
@@ -160,6 +163,7 @@ export const recoveryRouter = router({
       await resetLoginThrottle(emailHash);
 
       log?.info({ emailHash }, "auth.recovery.success");
+      recordRecoveryAttempt("finishRecovery", "ok");
       return { ok: true } as const;
     }),
 });

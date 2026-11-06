@@ -42,7 +42,13 @@ in `docs/architecture/auth.md`)
 
 Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
 `GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
-(Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call).
+(Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call;
+domain counters for auth failures, recovery, rate limits and email verification, labels never a user / vault / email / IP).
+In prod the host's monitoring stack scrapes them over the external `passmgr_metrics_network` (alias `passmgr-server`); dashboards
+and alerts live in that stack's repo, see `docs/ops/monitoring.md`.
+
+Logging: pino options in `src/log-options.ts` (redact paths, request serializer without query string, client IP cut to
+/24 or /48); `log-options.test.ts` checks the redaction. A new secret field in a logged object goes into `SECRET_KEYS`.
 
 ## Environment Variables
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stripQuery } from "../logger";
+import { stripQuery } from "../log-options";
 import { getConnectionParamsSave, isUniqueViolation, sanitizeDeviceName } from "./general";
 
 describe("getConnectionParamsSave", () => {

@@ -25,3 +25,62 @@ export function recordTrpcCall(path: string, type: string, code: string, duratio
   trpcRequests.inc({ path, type, code });
   trpcDuration.observe({ path, type }, durationMs / 1000);
 }
+
+// Domain counters. Labels are fixed strings from the code (stage / reason
+// constants), never a user, vault, email or IP: those would leak identities
+// into the metrics store and blow up the series count.
+
+export type AuthFlow = "login" | "device_login" | "second_factor";
+
+const authFailures = new Counter({
+  name: "passmgr_auth_failures_total",
+  help: "Denied login, device login and second factor steps by stage and reason",
+  labelNames: ["flow", "stage", "reason"] as const,
+  registers: [metricsRegistry],
+});
+
+export function recordAuthFailure(flow: AuthFlow, stage: string, reason: string) {
+  authFailures.inc({ flow, stage, reason });
+}
+
+const recoveryAttempts = new Counter({
+  name: "passmgr_recovery_attempts_total",
+  help: 'Account recovery steps by stage and outcome ("ok" or the denial reason)',
+  labelNames: ["stage", "outcome"] as const,
+  registers: [metricsRegistry],
+});
+
+export function recordRecoveryAttempt(stage: string, outcome: string) {
+  recoveryAttempts.inc({ stage, outcome });
+}
+
+export type RateLimiter = "ip" | "login" | "email_code";
+
+const rateLimited = new Counter({
+  name: "passmgr_rate_limited_total",
+  help: "Requests refused by a rate limit: per-IP request limit, per-account login throttle, email code resend cap",
+  labelNames: ["limiter"] as const,
+  registers: [metricsRegistry],
+});
+
+export function recordRateLimited(limiter: RateLimiter) {
+  rateLimited.inc({ limiter });
+}
+
+export type EmailVerificationEvent =
+  | "code_sent"
+  | "code_send_failed"
+  | "verified"
+  | "code_invalid"
+  | "code_expired";
+
+const emailVerification = new Counter({
+  name: "passmgr_email_verification_total",
+  help: "Email verification codes sent / failed to send and verification results",
+  labelNames: ["event"] as const,
+  registers: [metricsRegistry],
+});
+
+export function recordEmailVerification(event: EmailVerificationEvent) {
+  emailVerification.inc({ event });
+}

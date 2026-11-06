@@ -5,6 +5,7 @@ import { EMAIL_CODE_EXPIRED, EMAIL_CODE_INVALID, EMAIL_UNVERIFIED } from "@repo/
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { getMailer } from "../mail/mailer";
+import { recordEmailVerification, recordRateLimited } from "../metrics";
 import { serverKey } from "../opaque";
 import {
   checkEmailCode,
@@ -69,7 +70,10 @@ export async function sendVerificationCode(userId: string): Promise<void> {
   if (!user) throw new TRPCError({ code: "NOT_FOUND" });
   if (user.emailVerifiedAt) throw new TRPCError({ code: "PRECONDITION_FAILED" });
 
-  if (!(await claimEmailCodeSend(userId))) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+  if (!(await claimEmailCodeSend(userId))) {
+    recordRateLimited("email_code");
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+  }
 
   const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
   await setEmailCode(userId, code);
@@ -79,11 +83,17 @@ export async function sendVerificationCode(userId: string): Promise<void> {
     user.emailNonce,
     user.emailEncryptionKeySalt,
   );
-  await mailer.send({
-    to: email,
-    subject: `${code} is your passmgr verification code`,
-    text: `Enter this code in passmgr to verify your email address:\n\n${code}\n\nIt expires in 15 minutes. If you didn't create a passmgr account, ignore this email: the account is deleted after 7 days.`,
-  });
+  try {
+    await mailer.send({
+      to: email,
+      subject: `${code} is your passmgr verification code`,
+      text: `Enter this code in passmgr to verify your email address:\n\n${code}\n\nIt expires in 15 minutes. If you didn't create a passmgr account, ignore this email: the account is deleted after 7 days.`,
+    });
+  } catch (err) {
+    recordEmailVerification("code_send_failed");
+    throw err;
+  }
+  recordEmailVerification("code_sent");
 }
 
 /** Verify the user's email with a code from `sendVerificationCode`. */
@@ -91,16 +101,21 @@ export async function verifyEmail(userId: string, code: string): Promise<void> {
   if (await isEmailVerified(userId)) return;
 
   const result = await checkEmailCode(userId, code);
-  if (result === "invalid")
+  if (result === "invalid") {
+    recordEmailVerification("code_invalid");
     throw new TRPCError({ code: "BAD_REQUEST", message: EMAIL_CODE_INVALID });
-  if (result === "expired")
+  }
+  if (result === "expired") {
+    recordEmailVerification("code_expired");
     throw new TRPCError({ code: "BAD_REQUEST", message: EMAIL_CODE_EXPIRED });
+  }
 
   await db
     .update(usersTable)
     .set({ emailVerifiedAt: new Date() })
     .where(and(eq(usersTable.userId, userId), isNull(usersTable.emailVerifiedAt)));
   await deleteEmailCodes(userId);
+  recordEmailVerification("verified");
 }
 
 /**

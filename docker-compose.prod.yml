@@ -48,8 +48,12 @@ services:
       redis:
         condition: service_healthy
     networks:
-      - passmgr_network
-      - mail_network
+      passmgr_network:
+      mail_network:
+      # The monitoring stack scrapes /metrics and checks /health here
+      # (docs/ops/monitoring.md); the public proxy never reaches them.
+      passmgr_metrics_network:
+        aliases: [passmgr-server]
     restart: unless-stopped
 
   postgres:
@@ -109,6 +113,8 @@ networks:
     external: true
   passmgr_network:
   mail_network:
+    external: true
+  passmgr_metrics_network:
     external: true
 
 volumes:

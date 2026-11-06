@@ -28,6 +28,7 @@ import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
+import { recordAuthFailure, recordRateLimited } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { allowedOrigins } from "../util/allowed-origins";
@@ -66,6 +67,7 @@ function denyLogin(
   emailHash: string,
 ): never {
   log?.warn({ stage, reason, emailHash }, "auth.login.failure");
+  recordAuthFailure("login", stage, reason);
   throw new TRPCError({
     code: "UNAUTHORIZED",
     message: "invalid user credentials",
@@ -74,6 +76,7 @@ function denyLogin(
 
 function denyDeviceLogin(log: LoginLog | undefined, stage: string, reason: string): never {
   log?.warn({ stage, reason }, "auth.login.failure");
+  recordAuthFailure("device_login", stage, reason);
   throw new TRPCError({ code: "UNAUTHORIZED", message: "invalid device credential" });
 }
 
@@ -84,7 +87,17 @@ function denySecondFactor(
   emailHash?: string,
 ): never {
   log?.warn({ stage: "verifySecondFactor", reason, emailHash }, "auth.login.failure");
+  recordAuthFailure("second_factor", "verifySecondFactor", reason);
   throw new TRPCError({ code: "UNAUTHORIZED", message });
+}
+
+function denyThrottled(log: LoginLog | undefined, emailHash: string, lockMs: number): never {
+  log?.warn({ emailHash, lockMs }, "auth.login.throttled");
+  recordRateLimited("login");
+  throw new TRPCError({
+    code: "TOO_MANY_REQUESTS",
+    message: `too many login attempts, retry in ${Math.ceil(lockMs / 1000)}s`,
+  });
 }
 
 type LoginStage = "finishLogin" | "finishDeviceLogin" | "verifySecondFactor";
@@ -210,13 +223,7 @@ export const loginRouter = router({
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
       const lockMs = await getLoginLockMs(emailHash);
-      if (lockMs > 0) {
-        log?.warn({ emailHash, lockMs }, "auth.login.throttled");
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: `too many login attempts, retry in ${Math.ceil(lockMs / 1000)}s`,
-        });
-      }
+      if (lockMs > 0) denyThrottled(log, emailHash, lockMs);
       await recordLoginStart(emailHash);
 
       // Before the read: a password change committed after it still revokes.
@@ -433,13 +440,7 @@ export const loginRouter = router({
       const { userId, emailHash } = challenge;
 
       const lockMs = await getLoginLockMs(emailHash);
-      if (lockMs > 0) {
-        log?.warn({ emailHash, lockMs }, "auth.login.throttled");
-        throw new TRPCError({
-          code: "TOO_MANY_REQUESTS",
-          message: `too many login attempts, retry in ${Math.ceil(lockMs / 1000)}s`,
-        });
-      }
+      if (lockMs > 0) denyThrottled(log, emailHash, lockMs);
 
       const attempts = await countSecondFactorAttempt(challengeId);
       if (attempts < 0 || attempts > SECOND_FACTOR_MAX_ATTEMPTS) {
