@@ -39,13 +39,11 @@ export const IMPORT_ERROR_MESSAGES: Record<ImportError, string> = {
   wrong_kdbx_key: "That password or key file doesn't open this KeePass database.",
   failed: "The import failed. Records imported before the error were kept.",
   unsupported_format:
-    "This app can't import this file. It reads its own backups, Chrome / Edge, Firefox and Safari CSV, Bitwarden JSON, 1Password 1PUX, KeePass databases and KeePass XML exports.",
+    "This app can't import this file. It reads its own backups, Chrome / Edge, Firefox and Safari CSV, Bitwarden JSON and CSV, 1Password 1PUX and CSV, KeePass databases and KeePass XML exports.",
   unreadable:
     "This export couldn't be read. It may be damaged, or from a newer version of that app.",
   bitwarden_encrypted:
     "This Bitwarden export is encrypted. Export your vault again as “.json”, not “.json (Encrypted)”.",
-  bitwarden_csv: "Bitwarden CSV can't be imported yet. Export your vault as “.json” instead.",
-  onepassword_csv: "1Password CSV can't be imported yet. Export your vault as 1PUX instead.",
   kdbx_unsupported:
     "This KeePass database is in a format this app can't read (KeePass 1.x, or Twofish encryption). In KeePass, use File → Export → KeePass XML.",
   own_csv: "This app's CSV export can't be imported. Use a backup or a JSON export.",

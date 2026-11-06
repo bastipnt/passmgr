@@ -1,4 +1,5 @@
 import { unzipSync } from "fflate";
+import { csvRecords } from "./csv";
 import {
   type ForeignField,
   type ForeignImport,
@@ -8,7 +9,10 @@ import {
   latestDate,
 } from "./foreign-import";
 
-/* 1Password's 1PUX export: a zip whose `export.data` is JSON (accounts → vaults → items). */
+/*
+ * 1Password's 1PUX export: a zip whose `export.data` is JSON (accounts → vaults → items).
+ * Its CSV export (1Password 8) holds logins only.
+ */
 
 type FieldValue = Partial<{
   string: string;
@@ -301,6 +305,33 @@ export function importOnePassword(file: OnePasswordExport): ForeignImport {
         },
       });
     }
+  }
+  return builder.build();
+}
+
+/**
+ * 1Password 8's CSV export: `Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes`.
+ * Archived items are tagged "Archived", like in the 1PUX import.
+ */
+export function importOnePasswordCsv(rows: string[][]): ForeignImport {
+  const builder = new ForeignImportBuilder("1password");
+  const yes = (value: string | undefined) => value?.trim().toLowerCase() === "true";
+  for (const row of csvRecords(rows)) {
+    builder.add({
+      type: "login",
+      title: row.title,
+      fields: { username: row.username, password: row.password, totp: row.otpauth },
+      websites: [row.url ?? ""],
+      note: row.notes,
+      favorite: yes(row.favorite),
+      tags: [
+        ...(row.tags ?? "")
+          .split(/[,;]/)
+          .map((tag) => tag.trim())
+          .filter(Boolean),
+        ...(yes(row.archived) ? ["Archived"] : []),
+      ],
+    });
   }
   return builder.build();
 }

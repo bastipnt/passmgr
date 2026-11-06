@@ -8,12 +8,12 @@ import {
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { EXPORT_FORMAT } from "@repo/schema";
 import { type ExportFileContents, readExportFile } from "../export/export-file";
-import { importBitwarden, isBitwardenExport } from "./bitwarden";
+import { importBitwarden, importBitwardenCsv, isBitwardenExport } from "./bitwarden";
 import { browserCsvSource, importBrowserCsv } from "./browser-csv";
 import { parseCsv } from "./csv";
 import type { ForeignImport } from "./foreign-import";
 import { importKeePassXml, isKeePassXml, type ParseXml } from "./keepass";
-import { importOnePassword, readOnePasswordExport } from "./onepassword";
+import { importOnePassword, importOnePasswordCsv, readOnePasswordExport } from "./onepassword";
 
 /**
  * Files the import recognises but can't read:
@@ -25,8 +25,6 @@ export type UnsupportedFileReason =
   | "unsupported_format"
   | "unreadable"
   | "bitwarden_encrypted"
-  | "bitwarden_csv"
-  | "onepassword_csv"
   | "kdbx_unsupported"
   | "own_csv";
 
@@ -92,8 +90,8 @@ function readJson(text: string): ImportFileContents {
 function readCsv(text: string): ImportFileContents {
   const rows = parseCsv(text);
   const header = (rows[0] ?? []).map((name) => name.trim().toLowerCase());
-  if (header.includes("login_uri")) throw new UnsupportedImportFileError("bitwarden_csv");
-  if (header.includes("archived")) throw new UnsupportedImportFileError("onepassword_csv");
+  if (header.includes("login_uri")) return foreign(() => importBitwardenCsv(rows));
+  if (header.includes("archived")) return foreign(() => importOnePasswordCsv(rows));
   if (header.slice(0, 3).join() === "vault,type,title")
     throw new UnsupportedImportFileError("own_csv");
   const source = browserCsvSource(header);

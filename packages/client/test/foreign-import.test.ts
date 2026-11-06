@@ -378,6 +378,76 @@ describe("Bitwarden JSON", () => {
   });
 });
 
+describe("Bitwarden CSV", () => {
+  const imported = read(fixture("bitwarden.csv"));
+
+  it("maps logins and notes with folder, fields and websites", () => {
+    expect(imported.source).toBe("bitwarden");
+    expect(contents(imported)).toEqual([
+      {
+        type: "login",
+        title: "GitHub",
+        username: "octo",
+        password: "new-pw",
+        totp: "otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP",
+        websites: [
+          { value: "https://github.com/login" },
+          { value: "androidapp://com.github.android" },
+        ],
+        note: "work account",
+        favorite: true,
+        tags: ["Work Personal"],
+        customFields: [
+          { type: "text", title: "Recovery email", value: "ops@example.com" },
+          { type: "text", title: "PIN", value: "1234" },
+        ],
+        createdAt: null,
+      },
+      { type: "note", title: "Door code", note: "4711", createdAt: null },
+    ]);
+  });
+
+  it("skips other item types and reads an organisation's collections as tags", () => {
+    expect(imported.report.skipped).toEqual([{ title: "Visa", reason: "unsupported_type" }]);
+    const org = read(
+      bytes(
+        'collections,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n"Ops,Shared",login,Server,,,0,,root,pw,\n',
+      ),
+    );
+    expect(contents(org)[0]).toMatchObject({ title: "Server", tags: ["Ops", "Shared"] });
+  });
+});
+
+describe("1Password CSV", () => {
+  it("maps logins with favorite, tags and archived state", () => {
+    const imported = read(fixture("1password.csv"));
+    expect(imported.source).toBe("1password");
+    expect(contents(imported)).toEqual([
+      {
+        type: "login",
+        title: "Shop",
+        username: "eve",
+        password: "eve-pw",
+        totp: "otpauth://totp/Shop:eve?secret=JBSWY3DPEHPK3PXP",
+        websites: [{ value: "https://shop.example.com/" }],
+        note: "Gift card\nin note",
+        favorite: true,
+        tags: ["Shopping", "Personal"],
+        createdAt: null,
+      },
+      {
+        type: "login",
+        title: "Old mail",
+        username: "frank",
+        password: "old-pw",
+        websites: [{ value: normalizeWebsite("mail.example.com") }],
+        tags: ["Archived"],
+        createdAt: null,
+      },
+    ]);
+  });
+});
+
 describe("1Password 1PUX", () => {
   const zip = zipSync({
     "export.attributes": strToU8("{}"),
@@ -559,18 +629,6 @@ describe("readImportFile", () => {
       "encrypted Bitwarden",
       bytes('{"encrypted":true,"passwordProtected":true,"data":"x"}'),
       "bitwarden_encrypted",
-    ],
-    [
-      "Bitwarden CSV",
-      bytes(
-        "folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp\n",
-      ),
-      "bitwarden_csv",
-    ],
-    [
-      "1Password CSV",
-      bytes("Title,Url,Username,Password,OTPAuth,Favorite,Archived,Tags,Notes\n"),
-      "onepassword_csv",
     ],
     ["own CSV", bytes("vault,type,title,username,password\n"), "own_csv"],
     [

@@ -1,0 +1,5 @@
+folder,favorite,type,name,notes,fields,reprompt,login_uri,login_username,login_password,login_totp
+"Work, Personal",1,login,GitHub,work account,"Recovery email: ops@example.com
+PIN: 1234",0,"https://github.com/login,androidapp://com.github.android",octo,new-pw,otpauth://totp/GitHub:octo?secret=JBSWY3DPEHPK3PXP
+,,note,Door code,4711,,0,,,,
+,,card,Visa,,,0,,,,

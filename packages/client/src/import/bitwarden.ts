@@ -1,3 +1,4 @@
+import { csvRecords } from "./csv";
 import {
   type ForeignField,
   type ForeignImport,
@@ -7,7 +8,7 @@ import {
   latestDate,
 } from "./foreign-import";
 
-/* Bitwarden's unencrypted JSON export (personal vault or an organisation's). */
+/* Bitwarden's unencrypted JSON or CSV export (personal vault or an organisation's). */
 
 type Named = { id: string; name: string };
 
@@ -183,6 +184,56 @@ export function importBitwarden(file: BitwardenExport): ForeignImport {
         passkeys: item.login?.fido2Credentials?.length ? 1 : 0,
       },
     });
+  }
+  return builder.build();
+}
+
+const commaList = (value: string | undefined) =>
+  (value ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+/** `fields` holds one "name: value" line per field; a line without ": " is all value. */
+function csvFields(value: string | undefined): ForeignField[] {
+  return (value ?? "")
+    .split(/\r?\n/)
+    .filter((line) => line.trim() !== "")
+    .map((line) => {
+      const at = line.indexOf(": ");
+      return at < 0
+        ? { title: "", value: line }
+        : { title: line.slice(0, at), value: line.slice(at + 2) };
+    });
+}
+
+/**
+ * Bitwarden's CSV export: logins and notes only, no dates or history. The
+ * folder (or an organisation's comma-separated collections) become tags.
+ */
+export function importBitwardenCsv(rows: string[][]): ForeignImport {
+  const builder = new ForeignImportBuilder("bitwarden");
+  for (const row of csvRecords(rows)) {
+    const shared = {
+      title: row.name,
+      note: row.notes,
+      favorite: row.favorite === "1",
+      tags: [...(row.folder?.trim() ? [row.folder] : []), ...commaList(row.collections)],
+      customFields: csvFields(row.fields),
+    };
+    if (row.type === "login") {
+      builder.add({
+        ...shared,
+        type: "login",
+        fields: {
+          username: row.login_username,
+          password: row.login_password,
+          totp: row.login_totp,
+        },
+        websites: commaList(row.login_uri),
+      });
+    } else if (row.type === "note") builder.add({ ...shared, type: "note" });
+    else builder.skip(row.name?.trim() || "Untitled", "unsupported_type");
   }
   return builder.build();
 }

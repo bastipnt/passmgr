@@ -24,7 +24,8 @@ content writes nothing) / keep both. Restore or import (`useRestoreBackup`, web 
 `useOpenImportFile`): a backup or another manager's export (below) into a new local vault under a new master password,
 every record into its personal vault; a backup's ids kept (`keepIds`: a re-import skips them), a foreign one's all new. Mobile has no export / import UI yet.
 Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
-(Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON; 1Password 1PUX via `fflate`; KeePass XML via an injectable
+(Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON / CSV, CSV by its `login_uri` column; 1Password 1PUX via `fflate`, or
+1Password 8 CSV by its `archived` column, checked before Safari's; KeePass XML via an injectable
 `ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
 A KeePass database (KDBX 3.1 / 4) comes back as `kind: "kdbx"`: `openKeePassDatabase` (password + optional key file)
 decrypts it on the device (`@repo/crypto` `openKdbx`, own reader on @noble: AES-KDF via WebCrypto, Argon2d / id through
