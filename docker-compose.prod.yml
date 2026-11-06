@@ -49,6 +49,7 @@ services:
         condition: service_healthy
     networks:
       - passmgr_network
+      - mail_network
     restart: unless-stopped
 
   postgres:
@@ -107,6 +108,8 @@ networks:
   caddy_network:
     external: true
   passmgr_network:
+  mail_network:
+    external: true
 
 volumes:
   postgres_data:
