@@ -58,7 +58,13 @@ async function addSubresourceIntegrity(outDir: string, base: string, assetsDir: 
   const html = await readFile(indexPath, "utf8");
   const integrities = new Map<string, string>();
   for (const [tag, , url] of html.matchAll(ASSET_TAG)) {
-    if (url.startsWith(`${base}${assetsDir}/`) && !tag.includes(" integrity=")) {
+    // Not on a font preload: the stylesheet's request for the font has no integrity, and Chrome
+    // won't hand it a preload made with one (it downloads the font twice).
+    if (
+      url.startsWith(`${base}${assetsDir}/`) &&
+      !tag.includes(" integrity=") &&
+      !tag.includes('rel="preload"')
+    ) {
       integrities.set(url, sri(await readFile(path.join(outDir, url.slice(base.length)))));
     }
   }

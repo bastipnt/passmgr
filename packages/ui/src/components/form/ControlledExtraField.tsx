@@ -58,7 +58,7 @@ export function ControlledExtraField<TFieldValues extends FieldValues = FieldVal
                 label={
                   // The label input grows with its text (`field-sizing-content`); without
                   // the containment that width pushes the whole form wider than the screen.
-                  <span className="flex contain-inline-size items-center gap-1.5">
+                  <span className="flex items-center gap-1.5 contain-inline-size">
                     <input
                       {...titleField}
                       value={titleField.value ?? ""}

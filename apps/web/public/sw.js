@@ -17,17 +17,20 @@ const PRECACHED = new Map(
 
 self.addEventListener("install", (event) => {
   // All or nothing: a missing file, or one that doesn't match its hash, fails the install and the
-  // old version stays active.
+  // old version stays active. Everything is fetched before anything is cached.
+  const entries = [...PRECACHED];
   event.waitUntil(
-    caches
-      .open(CACHE_NAME)
-      .then((cache) =>
-        cache.addAll(
-          [...PRECACHED].map(
-            ([url, integrity]) => new Request(url, { cache: "reload", integrity }),
-          ),
-        ),
-      ),
+    Promise.all(entries.map(([url, integrity]) => fetchChecked(url, integrity))).then(
+      async (responses) => {
+        const cache = await caches.open(CACHE_NAME);
+        try {
+          await Promise.all(responses.map((response, i) => cache.put(entries[i][0], response)));
+        } catch (error) {
+          await caches.delete(CACHE_NAME);
+          throw error;
+        }
+      },
+    ),
   );
 });
 
@@ -70,6 +73,19 @@ self.addEventListener("fetch", (event) => {
   if (!PRECACHED.has(url.href)) return;
   event.respondWith(fromCache(url.href).then((cached) => cached ?? fetch(request)));
 });
+
+// A content-hashed file never changes under its URL, so the copy the page just loaded (HTTP cache)
+// will do. One that fails its hash there (a poisoned cache) is fetched again from the network, so it
+// can't block every install for as long as it is cached.
+async function fetchChecked(url, integrity) {
+  if (new URL(url).pathname.startsWith("/assets/")) {
+    const cached = await fetch(new Request(url, { integrity })).catch(() => null);
+    if (cached?.ok) return cached;
+  }
+  const response = await fetch(new Request(url, { cache: "reload", integrity }));
+  if (!response.ok) throw new Error(`precache: ${url} answered ${response.status}`);
+  return response;
+}
 
 function fromCache(url) {
   return caches.open(CACHE_NAME).then((cache) => cache.match(url));

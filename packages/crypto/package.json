@@ -2,6 +2,7 @@
   "name": "@repo/crypto",
   "version": "1.0.0",
   "type": "module",
+  "sideEffects": false,
   "description": "End-to-end encryption for passmgr",
   "main": "index.ts",
   "types": "index.ts",

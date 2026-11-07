@@ -23,6 +23,11 @@ export interface SqlDriver {
    * `db.transaction()`, which can't isolate anything over a proxy.
    */
   transaction<T>(fn: (tx: SqlDriver) => Promise<T>): Promise<T>;
+  /**
+   * Whether the database exists, without opening (or creating) it. Optional: left out where
+   * opening is cheap.
+   */
+  exists?(): Promise<boolean>;
   /** Close the underlying connection. */
   destroy(): Promise<void>;
   /** Close the connection and delete the database file. The driver is unusable afterwards. */

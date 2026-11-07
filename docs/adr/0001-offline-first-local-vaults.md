@@ -150,8 +150,9 @@ server, apart from account operations that genuinely need it (registration, logi
 >   name)`); creating one on a device that already holds profiles adds another profile
 >   (`vault_exists` is gone; `VaultExistsError` still guards a new database).
 > - **Migration:** none (no users yet): sign in again. The single pre-profile database
->   (`pass-mgr.sqlite3` / `pass-mgr.db`) is deleted once by `ProfileStore` (marked in the
->   registry's `registry_meta`), so no vault or email lingers where no "remove" reaches.
+>   (`pass-mgr.sqlite3` / `pass-mgr.db`) was deleted once by `ProfileStore` (marked in the
+>   registry's `registry_meta`); that cleanup is gone since 2026-11-07 (it started a second SQLite
+>   worker on every fresh web visit), so a device last used before profiles keeps that file.
 > - Not covered: tabs see the registry as of their own load (a profile added in another tab shows
 >   after a reload); renaming a profile has no UI yet (`ProfileStore.rename` exists).
 >

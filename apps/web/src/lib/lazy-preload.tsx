@@ -49,9 +49,27 @@ async function preloadAll() {
   }
 }
 
-/** `preloadAll` once the browser is idle after the first render. */
+const SW_READY_TIMEOUT_MS = 15_000;
+
+/**
+ * `preloadAll` once the service worker has precached the build (it downloads every chunk anyway,
+ * `public/sw.js`), so the chunks come from there instead of competing with the first load.
+ * Skipped with Save-Data on: a chunk then loads when its page opens.
+ */
 export function preloadAllWhenIdle() {
+  if ((navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData) {
+    return;
+  }
   const run = () => void preloadAll();
-  if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
-  else setTimeout(run, 2000);
+  const whenIdle = () => {
+    if ("requestIdleCallback" in window) requestIdleCallback(run, { timeout: 5000 });
+    else setTimeout(run, 2000);
+  };
+  if (import.meta.env.PROD && "serviceWorker" in navigator) {
+    // `ready` never settles where registering fails (some private windows): don't wait forever.
+    const timeout = new Promise((resolve) => setTimeout(resolve, SW_READY_TIMEOUT_MS));
+    void Promise.race([navigator.serviceWorker.ready, timeout]).then(whenIdle);
+  } else {
+    whenIdle();
+  }
 }

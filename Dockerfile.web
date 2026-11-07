@@ -54,6 +54,7 @@ ENV VITE_DEMO_MODE=${VITE_DEMO_MODE}
 # Disable pre-run deps check: mobile pkg (react-native-argon2 patch target)
 # is intentionally absent from this image, which would fail the check.
 RUN pnpm --config.verify-deps-before-run=false --filter web build
+RUN node apps/web/scripts/precompress.ts apps/web/dist
 
 # ---- Stage 2: Serve with Caddy ----
 FROM caddy:2-alpine AS production

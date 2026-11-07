@@ -2,6 +2,7 @@
   "name": "@repo/util",
   "version": "0.0.1",
   "type": "module",
+  "sideEffects": false,
   "main": "index.ts",
   "scripts": {
     "lint": "oxlint --type-aware",

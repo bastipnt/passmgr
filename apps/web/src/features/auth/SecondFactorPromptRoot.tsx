@@ -6,8 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@repo/ui/components/Dialog";
-import type { ReactNode } from "react";
-import SecondFactorForm from "./SecondFactorForm";
+import { type ReactNode, Suspense } from "react";
+import { lazyPreload } from "@/lib/lazy-preload";
+
+const SecondFactorForm = lazyPreload(() => import("./SecondFactorForm"));
 
 /**
  * Asks for the two-factor code of logins outside the login form: reconnecting
@@ -34,7 +36,11 @@ export function SecondFactorPromptRoot({ children }: { children: ReactNode }) {
               authenticator app.
             </DialogDescription>
           </DialogHeader>
-          {request && <SecondFactorForm request={request} onSubmit={submit} onCancel={cancel} />}
+          {request && (
+            <Suspense fallback={null}>
+              <SecondFactorForm request={request} onSubmit={submit} onCancel={cancel} />
+            </Suspense>
+          )}
         </DialogContent>
       </Dialog>
     </SecondFactorPromptProvider>

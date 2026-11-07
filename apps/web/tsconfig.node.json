@@ -22,5 +22,11 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["vite.config.ts", "vite-plugin-seo.ts", "vite-plugin-build-integrity.ts", "scripts"]
+  "include": [
+    "vite.config.ts",
+    "vite-plugin-seo.ts",
+    "vite-plugin-build-integrity.ts",
+    "vite-plugin-preload-fonts.ts",
+    "scripts"
+  ]
 }

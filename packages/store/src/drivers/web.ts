@@ -96,6 +96,18 @@ class SQLocalDriver implements SqlDriver {
     );
   }
 
+  async exists(): Promise<boolean> {
+    if (this.opened) return true;
+    if (!(await isWebStoragePersistent())) return memoryDatabases.has(this.name);
+    const root = await navigator.storage.getDirectory();
+    try {
+      await root.getFileHandle(`${this.name}.sqlite3`);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   async destroy(): Promise<void> {
     if (this.tx || !this.opened) return;
     const { client, inMemory } = await this.opened;

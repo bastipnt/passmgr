@@ -36,8 +36,20 @@
 		@pages not path /assets/*
 		header @pages Cache-Control no-cache
 
+		# Brotli / gzip copies are written at build time (apps/web/scripts/precompress.ts);
+		# encode covers whatever has none. Only static files: API responses carry secrets
+		# (BREACH) and SSE streams.
+		encode zstd gzip
 		root * /srv
-		file_server
-		try_files {path} /index.html
+
+		# A missing /assets/* file is a 404, never the SPA shell served as a font or chunk.
+		@spa {
+			not path /assets/*
+			not file
+		}
+		rewrite @spa /index.html
+		file_server {
+			precompressed br gzip
+		}
 	}
 }

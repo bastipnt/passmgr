@@ -1,5 +1,5 @@
 import { createContext, type ReactNode, useContext } from "react";
-import { noSecondFactor, type SecondFactorPrompt } from "../login";
+import { noSecondFactor, type SecondFactorPrompt } from "../second-factor";
 
 const SecondFactorPromptContext = createContext<SecondFactorPrompt>(noSecondFactor);
 

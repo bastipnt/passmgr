@@ -131,3 +131,17 @@ and after each deploy (`.github/workflows/web-served-code.yml`). What it does an
 Updates (`src/register-sw.ts`): navigations are served cache-first, so a release found during a visit installs in the
 background and is offered by a "New version available" toast (Reload locks the vault); never activated mid-session
 on its own. A version already waiting at startup takes over at once (one auto-reload).
+
+## First load (perf)
+
+The welcome screen loads only the entry path: no SQLite (`ProfileStore` answers reads without opening a registry
+that doesn't exist yet, `SqlDriver.exists`), no route chunks (`preloadAllWhenIdle` waits for the service worker's
+precache, skipped with Save-Data). Keep it that way: the entry graph is everything `App.tsx` imports statically, and
+a chunk is loaded whole, so a tiny shared export (an error class) in a module next to heavy code (OPAQUE in
+`login.ts`) pulls that code in; put such exports in their own module (`second-factor.ts`). Workspace packages are
+`"sideEffects": false` (CSS excepted) so barrel imports tree-shake. Inspect with `pnpm --filter web analyze`
+(treemap at `apps/web/stats.html`). CSS goes through `@tailwindcss/vite` (it rebases the `@fontsource` URLs; the
+PostCSS plugin didn't, and the fonts 404ed). `vite-plugin-preload-fonts.ts` preloads the two latin fonts. Serving:
+`Caddyfile` sends the `.br` / `.gz` copies `scripts/precompress.ts` writes in `Dockerfile.web` (`encode` for the rest,
+static files only), and a missing `/assets/*` is a 404, never `index.html`. `verify:deployment` fetches every file in
+each encoding, so a tampered precompressed copy fails it too.

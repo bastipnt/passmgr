@@ -8,7 +8,7 @@ import type { OpenDatabase, SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate, REGISTRY_MIGRATIONS } from "./migrations";
 import type { LocalProfile, ProfileMode } from "./schema/profile-schema";
-import { profiles, registryMeta } from "./schema/registry-tables";
+import { profiles } from "./schema/registry-tables";
 import { clearLoginBundle } from "./session-persistence";
 import { Vault } from "./vault";
 
@@ -38,13 +38,6 @@ export function profileDatabaseName(profileId: string): string {
   return `pass-mgr-${profileId}`;
 }
 
-/**
- * The database of the app before profiles (ADR 0001 D2, amended 2026-10-07):
- * never opened again, deleted once.
- */
-export const LEGACY_DATABASE = "pass-mgr";
-const LEGACY_REMOVED = "legacyDatabaseRemoved";
-
 /** `ProfileStore.create` for a profile id the registry already lists. */
 export class ProfileExistsError extends Error {
   override message = "A profile with this id already exists on this device";
@@ -70,55 +63,34 @@ export class ProfileStore {
 
   constructor(
     openDatabase: OpenDatabase,
-    {
-      registryName = REGISTRY_DATABASE,
-      legacyDatabase = LEGACY_DATABASE,
-    }: { registryName?: string; legacyDatabase?: string | null } = {},
+    { registryName = REGISTRY_DATABASE }: { registryName?: string } = {},
   ) {
     this.openDatabase = openDatabase;
     this.registryDriver = openDatabase(registryName);
     this.registry = createLocalDb(this.registryDriver);
-    this.legacyDatabase = legacyDatabase;
   }
 
-  private readonly legacyDatabase: string | null;
-
   private ready(): Promise<void> {
-    this.initialized ??= (async () => {
-      await migrate(this.registryDriver, REGISTRY_MIGRATIONS);
-      await this.removeLegacyDatabase();
-    })().catch((error: unknown) => {
-      this.initialized = undefined;
-      throw error;
-    });
+    this.initialized ??= migrate(this.registryDriver, REGISTRY_MIGRATIONS).catch(
+      (error: unknown) => {
+        this.initialized = undefined;
+        throw error;
+      },
+    );
     return this.initialized;
   }
 
   /**
-   * Delete the pre-profile database once (no users had one worth adopting):
-   * it would otherwise keep a vault and an email on the device that no
-   * "remove" reaches. A failure is retried on the next launch.
+   * No registry database yet: a device that never had a profile. Reads answer without opening
+   * it, so the welcome screen doesn't start SQLite (a worker + its wasm) just to list nothing.
    */
-  private async removeLegacyDatabase(): Promise<void> {
-    if (this.legacyDatabase === null) return;
-    const [done] = await this.registry
-      .select()
-      .from(registryMeta)
-      .where(eq(registryMeta.key, LEGACY_REMOVED));
-    if (done) return;
-    try {
-      await this.openDatabase(this.legacyDatabase).deleteDatabase();
-    } catch (e) {
-      console.error("Deleting the pre-profile database failed", e);
-      return;
-    }
-    await this.registry
-      .insert(registryMeta)
-      .values({ key: LEGACY_REMOVED, value: new Date().toISOString() });
+  private async neverCreated(): Promise<boolean> {
+    return !this.initialized && (await this.registryDriver.exists?.()) === false;
   }
 
   /** Every profile, the most recently used first. */
   async list(): Promise<ProfileEntry[]> {
+    if (await this.neverCreated()) return [];
     await this.ready();
     return await this.registry
       .select()
@@ -127,6 +99,7 @@ export class ProfileStore {
   }
 
   async get(profileId: string): Promise<ProfileEntry | null> {
+    if (await this.neverCreated()) return null;
     await this.ready();
     const [row] = await this.registry
       .select()
@@ -137,6 +110,7 @@ export class ProfileStore {
 
   /** The linked profile of this account, if the device has one. */
   async findByUserId(userId: string): Promise<ProfileEntry | null> {
+    if (await this.neverCreated()) return null;
     await this.ready();
     const [row] = await this.registry.select().from(profiles).where(eq(profiles.userId, userId));
     return row ?? null;
@@ -196,6 +170,7 @@ export class ProfileStore {
     const vault = new Vault(this.openDatabase(entry.databaseName));
     try {
       await init(vault);
+      await this.ready();
       await this.registry.insert(profiles).values(entry);
     } catch (e) {
       await vault.deleteDatabase().catch(() => undefined);

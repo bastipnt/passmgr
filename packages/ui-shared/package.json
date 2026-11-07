@@ -2,6 +2,9 @@
   "name": "@repo/ui-shared",
   "version": "0.0.1",
   "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "main": "index.ts",
   "exports": {
     ".": "./index.ts",

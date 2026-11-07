@@ -3,10 +3,15 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "sideEffects": [
+    "**/*.css"
+  ],
   "scripts": {
     "dev": "vite",
     "dev:host": "vite --host --mode lan",
     "build": "tsc -b && vite build",
+    "analyze": "ANALYZE=true vite build",
+    "precompress": "node scripts/precompress.ts",
     "lint": "oxlint --type-aware",
     "preview": "vite preview",
     "typecheck": "tsc7 -b --noEmit",
@@ -30,7 +35,6 @@
     "@repo/ui": "workspace:*",
     "@repo/ui-shared": "workspace:*",
     "@repo/util": "workspace:*",
-    "@tailwindcss/postcss": "catalog:",
     "jsqr": "1.4.0",
     "lucide-react": "catalog:",
     "react": "catalog:",
@@ -60,6 +64,7 @@
     "msw": "^2.15.0",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
+    "rollup-plugin-visualizer": "^7.1.1",
     "typed-css-modules": "^0.9.1",
     "typescript": "catalog:",
     "vite": "catalog:",

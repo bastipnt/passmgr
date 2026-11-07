@@ -2,7 +2,6 @@ import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@re
 import { toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  LEGACY_DATABASE,
   ProfileExistsError,
   ProfileStore,
   profileDatabaseName,
@@ -93,18 +92,31 @@ describe("ProfileStore registry", () => {
     expect(databases.names()).toEqual([REGISTRY_DATABASE]);
   });
 
-  it("deletes the pre-profile database once, never again", async () => {
-    const legacy = databases.open(LEGACY_DATABASE);
-    await legacy.query("CREATE TABLE records (recordId TEXT)", [], "run");
-    await legacy.destroy();
-    const open = vi.fn(databases.open);
+  it("answers reads without opening a registry that was never created", async () => {
+    const opened: string[] = [];
+    const store = new ProfileStore((name) => {
+      const driver = databases.open(name);
+      return {
+        query: (...args) => {
+          opened.push(name);
+          return driver.query(...args);
+        },
+        transaction: (fn) => driver.transaction(fn),
+        destroy: () => driver.destroy(),
+        deleteDatabase: () => driver.deleteDatabase(),
+        exists: async () => opened.includes(name),
+      };
+    });
 
-    await new ProfileStore(open).list();
-    expect(databases.names()).not.toContain(LEGACY_DATABASE);
+    expect(await store.list()).toEqual([]);
+    expect(await store.get(LOCAL.profileId)).toBeNull();
+    expect(await store.findByUserId("u-alice")).toBeNull();
+    expect(opened).toEqual([]);
 
-    open.mockClear();
-    await new ProfileStore(open).list();
-    expect(open.mock.calls.map(([name]) => name)).toEqual([REGISTRY_DATABASE]);
+    await store.create(LOCAL, (vault) =>
+      vault.setAccountKeyMaterial(material, [personal], { profile: LOCAL }),
+    );
+    expect((await store.list()).map((p) => p.profileId)).toEqual([LOCAL.profileId]);
   });
 
   it("creates a profile in its own database and lists it", async () => {
