@@ -12,6 +12,7 @@
     "typecheck": "tsc7 -b --noEmit",
     "typegen:css": "tcm src",
     "brand:render": "bun scripts/render-brand.ts",
+    "screenshot:render": "bun scripts/render-screenshot.ts",
     "verify:deployment": "bun scripts/verify-deployment.ts",
     "test": "vitest run",
     "test:watch": "vitest",

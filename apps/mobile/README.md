@@ -1,30 +1,29 @@
 # @repo/mobile
 
-Mobile client for [passmgr](../../README.md). React Native + Expo.
-
-> ⚠️ **Auth flow only.** Vault, records, and biometric unlock are not implemented yet. The home screen explicitly says "Auth flow works" — that's the honest scope today.
+Mobile client for [passmgr](../../README.md). React Native + Expo (iOS / Android).
 
 ## Stack
 
-- **React Native 0.83** + **Expo 55**
-- **Tamagui** for component styling (migrated from NativeWind-only — see recent commits)
-- **NativeWind** still used in places
+- **React Native** + **Expo** (Expo Router)
+- **Uniwind** (Tailwind v4 for React Native) with components from `@repo/ui-native`
 - **tRPC** client via `@repo/client` (shared with web)
-- Components from `@repo/ui-native`
+- On-device encrypted SQLite (expo-sqlite) via `@repo/store`; native Argon2
+- Native modules: autofill (iOS credential provider, Android `AutofillService`) and a share extension
 
-## Current state
+## Current features
 
-- Registration flow works (OPAQUE)
-- Login flow works (OPAQUE)
-- Home screen after login is a placeholder
+- Local vaults without an account, or an account via OPAQUE login
+- Several vaults, many record types, tags, favorites, search, version history, TOTP, password generator
+- Biometric quick unlock, persistent session in Keychain / Keystore, idle lock
+- Recovery key flow, two-factor
+- Sync and shared vaults
+- Password autofill, with "Create login" from the autofill list
 
-## Not yet implemented
+## Known gaps
 
-- Vault list / view / add / edit / delete
-- Biometric unlock (Face ID / Touch ID / Android Biometric)
-- Logout (current TODO: "for v1 user can kill the app")
-- Record sync
-- Idle lock
+- Hardening such as blocking screenshots on sensitive screens and sensitive-clipboard flags
+
+Styling, fonts and the autofill / share extension design are in [CLAUDE.md](./CLAUDE.md).
 
 ## Dev
 
