@@ -28,7 +28,7 @@ import { fromBase64, fromString, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq } from "drizzle-orm";
 import { loggedProcedure, shortHash } from "../logger";
-import { recordAuthFailure, recordRateLimited } from "../metrics";
+import { recordAuthFailure, recordLogin, recordRateLimited } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { allowedOrigins } from "../util/allowed-origins";
@@ -210,6 +210,7 @@ async function completeLogin(log: LoginLog | undefined, stage: LoginStage, login
   });
 
   log?.info({ emailHash, device: deviceCredentialId !== undefined }, "auth.login.success");
+  recordLogin(deviceCredentialId ? "device" : "password", false);
   return { sessionId, userId, ...keys };
 }
 
@@ -483,6 +484,7 @@ export const loginRouter = router({
       });
 
       log?.info({ emailHash }, "auth.login.success");
+      recordLogin(deviceCredentialId ? "device" : "password", true);
       return { sessionId, userId, ...keys };
     }),
 

@@ -681,3 +681,28 @@ export async function checkEmailCode(
 export async function deleteEmailCodes(userId: string): Promise<void> {
   await redis.del(emailCodeKey(userId), emailCodeCooldownKey(userId), emailCodeHourlyKey(userId));
 }
+
+// Active users: one HyperLogLog per UTC day. It only yields an approximate count
+// (~1 %) of distinct users, never which users, so metrics can show daily /
+// weekly / monthly actives without a per-user last-seen record.
+const ACTIVE_USERS_DAYS = 30;
+const DAY_MS = 24 * 60 * 60_000;
+
+function activeUsersKey(dayMs: number) {
+  return `activeusers:${new Date(dayMs).toISOString().slice(0, 10)}`;
+}
+
+export async function recordActiveUser(userId: string, now = Date.now()): Promise<void> {
+  const key = activeUsersKey(now);
+  await redis
+    .multi()
+    .pfadd(key, userId)
+    .expire(key, (ACTIVE_USERS_DAYS + 1) * 24 * 60 * 60, "NX")
+    .exec();
+}
+
+/** Distinct users active on the last `days` UTC days, today included. */
+export async function countActiveUsers(days: number, now = Date.now()): Promise<number> {
+  const keys = Array.from({ length: days }, (_, i) => activeUsersKey(now - i * DAY_MS));
+  return await redis.pfcount(...keys);
+}

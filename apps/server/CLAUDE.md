@@ -43,7 +43,8 @@ in `docs/architecture/auth.md`)
 Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
 `GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
 (Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call;
-domain counters for auth failures, recovery, rate limits and email verification, labels never a user / vault / email / IP).
+domain counters for logins, auth failures, recovery, rate limits and email verification, plus the `passmgr_active_users`
+gauge from per-day Redis HyperLogLogs (`src/active-users.ts`); labels never a user / vault / email / IP).
 In prod the host's monitoring stack scrapes them over the external `passmgr_metrics_network` (alias `passmgr-server`); dashboards
 and alerts live in that stack's repo, see `docs/ops/monitoring.md`.
 

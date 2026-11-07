@@ -1,9 +1,11 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../redis";
 import {
+  countActiveUsers,
   getSession,
   isSignedOut,
   listUserSessions,
+  recordActiveUser,
   revokeOtherUserSessions,
   revokeUserSession,
   revokeUserSessions,
@@ -194,5 +196,30 @@ describe("recovery attempts", () => {
     const ttl = await redis.ttl(`recovery:${id}`);
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(5 * 60);
+  });
+});
+
+describe("active users", () => {
+  const DAY = 24 * 60 * 60_000;
+  const now = Date.UTC(2026, 10, 7, 12);
+
+  it("counts each user once per window, however often they are active", async () => {
+    await recordActiveUser("alice", now);
+    await recordActiveUser("alice", now);
+    await recordActiveUser("bob", now);
+    await recordActiveUser("alice", now - DAY);
+    await recordActiveUser("carol", now - 3 * DAY);
+    await recordActiveUser("dave", now - 10 * DAY);
+
+    expect(await countActiveUsers(1, now)).toBe(2);
+    expect(await countActiveUsers(7, now)).toBe(3);
+    expect(await countActiveUsers(30, now)).toBe(4);
+  });
+
+  it("splits days at UTC midnight and expires each day after the 30-day window", async () => {
+    await recordActiveUser("alice", Date.UTC(2026, 10, 6, 23, 59));
+    expect(await countActiveUsers(1, Date.UTC(2026, 10, 7, 0, 1))).toBe(0);
+    expect(await countActiveUsers(2, Date.UTC(2026, 10, 7, 0, 1))).toBe(1);
+    expect(await redis.ttl("activeusers:2026-11-06")).toBeGreaterThan(30 * 24 * 60 * 60);
   });
 });

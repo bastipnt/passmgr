@@ -34,10 +34,18 @@ deploy: `curl -i https://<PUBLIC_HOSTNAME>/metrics` must not return Prometheus t
 | `dependency_up`                     | `dependency` (`db`, `redis`)     | health check at scrape time                                      |
 | `auth_failures_total`               | `flow`, `stage`, `reason`        | denied login, device login and second factor steps              |
 | `recovery_attempts_total`           | `stage`, `outcome`               | recovery steps, `ok` or the denial reason                        |
+| `logins_total`                      | `method` (`password`, `device`), `second_factor` | completed logins (session created)            |
+| `active_users`                      | `window` (`1d`, `7d`, `30d`)     | approx. distinct users with an authenticated request (gauge, see below) |
 | `rate_limited_total`                | `limiter` (`ip`, `login`, `email_code`) | refused by the per-IP limit, the account login throttle or the code resend cap |
 | `email_verification_total`          | `event`                          | codes sent / failed to send, verified, invalid, expired          |
 
 Labels are fixed strings from the code. Never add a user id, vault id, email (or its hash) or IP as a label.
+
+Active users: every authenticated request adds its user id to a Redis HyperLogLog for the UTC day
+(`activeusers:<YYYY-MM-DD>`, kept 31 days, `recordActiveUser` in `util/redis-utils.ts`); the gauge counts the union of
+the last 1 / 7 / 30 days at scrape time. A HyperLogLog yields only an approximate count (~1 %), not the members, so no
+per-user last-seen record exists. Local-only vaults never talk to the server and are not counted. Page visits are not
+counted.
 
 ## Dashboards and alerts
 

@@ -9,7 +9,13 @@ import { TRPCError } from "@trpc/server";
 import type { Context } from "../context";
 import { loggedProcedure, shortHash } from "../logger";
 import { requireVerifiedEmail } from "../user/email-verification";
-import { claimNonce, getSession, isSignedOut, touchSession } from "../util/redis-utils";
+import {
+  claimNonce,
+  getSession,
+  isSignedOut,
+  recordActiveUser,
+  touchSession,
+} from "../util/redis-utils";
 
 // Key changes need an OPAQUE login this recent; a restored or stolen
 // long-lived session can't rewrite key material.
@@ -143,6 +149,9 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
 
   // Sliding expiration: any authenticated activity rolls the 24h TTL forward.
   void touchSession(sessionId, session);
+  void recordActiveUser(session.userId).catch((err: unknown) =>
+    ctx.req?.log?.warn({ err }, "metrics.active_user_failed"),
+  );
 
   return opts.next({
     ctx: {

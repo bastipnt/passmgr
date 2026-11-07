@@ -8,6 +8,7 @@ import fastifyRedis from "@fastify/redis";
 import { db } from "@repo/db";
 import { MAX_REQUEST_BYTES } from "@repo/schema";
 import { sql } from "drizzle-orm";
+import { registerActiveUsersGauge } from "./active-users";
 import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
 import { logRedact, logSerializers } from "./log-options";
@@ -87,6 +88,10 @@ registerHealthRoutes(server, {
   },
   registry: metricsRegistry,
 });
+
+registerActiveUsersGauge(metricsRegistry, (err) =>
+  server.log.warn({ err }, "metrics.active_users_failed"),
+);
 
 await server.register(fastifyTRPCPlugin, {
   prefix: process.env.PREFIX,

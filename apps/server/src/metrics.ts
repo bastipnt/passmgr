@@ -54,6 +54,17 @@ export function recordRecoveryAttempt(stage: string, outcome: string) {
   recoveryAttempts.inc({ stage, outcome });
 }
 
+const logins = new Counter({
+  name: "passmgr_logins_total",
+  help: "Completed logins (session created) by method and whether a second factor was checked",
+  labelNames: ["method", "second_factor"] as const,
+  registers: [metricsRegistry],
+});
+
+export function recordLogin(method: "password" | "device", secondFactor: boolean) {
+  logins.inc({ method, second_factor: String(secondFactor) });
+}
+
 export type RateLimiter = "ip" | "login" | "email_code";
 
 const rateLimited = new Counter({

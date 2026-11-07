@@ -94,7 +94,10 @@ describe("loginRouter — edge cases", () => {
         authSalt: AUTH_SALT,
       }),
     ).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    const loginLabels = { method: "password", second_factor: "false" };
+    const loginsBefore = await counterValue("passmgr_logins_total", loginLabels);
     expect(await login(email, password)).toHaveProperty("sessionId");
+    expect(await counterValue("passmgr_logins_total", loginLabels)).toBe(loginsBefore + 1);
   });
 
   it("finishLogin → UNAUTHORIZED with the wrong password", async () => {
