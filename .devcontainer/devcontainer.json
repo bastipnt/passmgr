@@ -1,0 +1,11 @@
+{
+  // devvm reads this: image, features, forwardPorts, env, lifecycle commands only.
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:24",
+  "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
+  // web, server, postgres, mailpit UI
+  "forwardPorts": [5173, 3000, 5432, 8025],
+  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && corepack enable && pnpm install --frozen-lockfile",
+  "remoteEnv": { "PATH": "${containerEnv:PATH}:/home/node/.bun/bin" },
+  // Postgres + Mailpit from packages/db/docker-compose.yml
+  "postStartCommand": "docker compose -f packages/db/docker-compose.yml up -d"
+}
