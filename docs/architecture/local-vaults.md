@@ -26,7 +26,8 @@ every record into its personal vault; a backup's ids kept (`keepIds`: a re-impor
 Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content
 (Chrome / Edge, Firefox, Safari CSV; Bitwarden JSON / CSV, CSV by its `login_uri` column; 1Password 1PUX via `fflate`, or
 1Password 8 CSV by its `archived` column, checked before Safari's; KeePass XML via an injectable
-`ParseXml`, web `DOMParser`) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
+`ParseXml`, web `DOMParser`; this app's own CSV export by its `vault,type,title` header, `own-csv.ts`: no ids, so all
+new records in the one picked vault, the `vault` column dropped, custom fields come back as text) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
 A KeePass database (KDBX 3.1 / 4) comes back as `kind: "kdbx"`: `openKeePassDatabase` (password + optional key file)
 decrypts it on the device (`@repo/crypto` `openKdbx`, own reader on @noble: AES-KDF via WebCrypto, Argon2d / id through
 `argon2WorkerService`; no Twofish) to its inner XML, then `importKeePassXml`. Fixtures: `packages/crypto/test/fixtures/kdbx`.

@@ -47,7 +47,6 @@ export const IMPORT_ERROR_MESSAGES: Record<ImportError, string> = {
     "This Bitwarden export is encrypted. Export your vault again as “.json”, not “.json (Encrypted)”.",
   kdbx_unsupported:
     "This KeePass database is in a format this app can't read (KeePass 1.x, or Twofish encryption). In KeePass, use File → Export → KeePass XML.",
-  own_csv: "This app's CSV export can't be imported. Use a backup or a JSON export.",
 };
 
 /** The error for a failure while reading or opening a file; `failed` for anything unexpected. */

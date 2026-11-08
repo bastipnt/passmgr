@@ -15,6 +15,7 @@ import { parseCsv } from "./csv";
 import type { ForeignImport } from "./foreign-import";
 import { importKeePassXml, isKeePassXml, type ParseXml } from "./keepass";
 import { importOnePassword, importOnePasswordCsv, readOnePasswordExport } from "./onepassword";
+import { importOwnCsv, isOwnCsv } from "./own-csv";
 
 /**
  * Files the import recognises but can't read:
@@ -26,8 +27,7 @@ export type UnsupportedFileReason =
   | "unsupported_format"
   | "unreadable"
   | "bitwarden_encrypted"
-  | "kdbx_unsupported"
-  | "own_csv";
+  | "kdbx_unsupported";
 
 export class UnsupportedImportFileError extends Error {
   readonly reason: UnsupportedFileReason;
@@ -93,8 +93,7 @@ function readCsv(text: string): ImportFileContents {
   const header = (rows[0] ?? []).map((name) => name.trim().toLowerCase());
   if (header.includes("login_uri")) return foreign(() => importBitwardenCsv(rows));
   if (header.includes("archived")) return foreign(() => importOnePasswordCsv(rows));
-  if (header.slice(0, 3).join() === "vault,type,title")
-    throw new UnsupportedImportFileError("own_csv");
+  if (isOwnCsv(header)) return foreign(() => importOwnCsv(rows));
   const source = browserCsvSource(header);
   if (!source) throw new UnsupportedImportFileError("unsupported_format");
   return foreign(() => importBrowserCsv(rows, source));

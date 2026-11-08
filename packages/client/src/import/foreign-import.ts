@@ -27,7 +27,14 @@ import { RECORD_TYPE_LABELS } from "../records/record-field-specs";
  * record gets a new id; nothing is matched against the vault.
  */
 
-export type ImportSource = "chrome" | "firefox" | "safari" | "bitwarden" | "1password" | "keepass";
+export type ImportSource =
+  | "chrome"
+  | "firefox"
+  | "safari"
+  | "bitwarden"
+  | "1password"
+  | "keepass"
+  | "passmgr";
 
 export const IMPORT_SOURCE_LABELS: Record<ImportSource, string> = {
   chrome: "Chrome / Edge",
@@ -36,11 +43,13 @@ export const IMPORT_SOURCE_LABELS: Record<ImportSource, string> = {
   bitwarden: "Bitwarden",
   "1password": "1Password",
   keepass: "KeePass",
+  passmgr: "passmgr CSV",
 };
 
 /** "Chrome / Edge, Firefox, … or KeePass", for help text. */
 export const IMPORT_SOURCE_LIST = (() => {
-  const labels = Object.values(IMPORT_SOURCE_LABELS);
+  const { passmgr: _, ...others } = IMPORT_SOURCE_LABELS;
+  const labels = Object.values(others);
   return `${labels.slice(0, -1).join(", ")} or ${labels.at(-1)}`;
 })();
 

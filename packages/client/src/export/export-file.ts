@@ -129,7 +129,7 @@ export async function decryptExport(file: string, password: string): Promise<Exp
 // ── CSV ──────────────────────────────────────────────────────────────────────
 
 /** Fields with a column of their own; the rest of a type's fields go into `fields`. */
-const CSV_COLUMNS = [
+export const CSV_COLUMNS = [
   "vault",
   "type",
   "title",
@@ -168,7 +168,7 @@ function csvCell(value: string): string {
  * injection). Credentials (`username`, `password`, `totp`, `websites`) stay as
  * they are: changing them would break the import this file is meant for.
  */
-const FORMULA_ESCAPED = new Set<string>([
+export const FORMULA_ESCAPED = new Set<string>([
   "vault",
   "title",
   "email",
@@ -178,8 +178,15 @@ const FORMULA_ESCAPED = new Set<string>([
   "tags",
 ]);
 
+const FORMULA_START = /^[=+\-@\t\r]/;
+
 function escapeFormula(value: string): string {
-  return /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return FORMULA_START.test(value) ? `'${value}` : value;
+}
+
+/** Undo `escapeFormula` on a cell of a `FORMULA_ESCAPED` column. */
+export function unescapeFormula(value: string): string {
+  return value.startsWith("'") && FORMULA_START.test(value.slice(1)) ? value.slice(1) : value;
 }
 
 /** One line per value: "key: value" for type fields and custom fields. */

@@ -630,7 +630,6 @@ describe("readImportFile", () => {
       bytes('{"encrypted":true,"passwordProtected":true,"data":"x"}'),
       "bitwarden_encrypted",
     ],
-    ["own CSV", bytes("vault,type,title,username,password\n"), "own_csv"],
     [
       "KeePass 1.x",
       new Uint8Array([0x03, 0xd9, 0xa2, 0x9a, 0x65, 0xfb, 0x4b, 0xb5]),
