@@ -30,7 +30,7 @@ export default function SettingsRoutes() {
   return (
     <SettingsLayout>
       <PageMeta title="Settings" noindex />
-      <RouteErrorBoundary>
+      <RouteErrorBoundary area="settings">
         <Switch>
           {/*
            * `/settings` is the overview itself — the layout renders it. On mobile

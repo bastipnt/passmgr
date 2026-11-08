@@ -23,6 +23,7 @@ per user) — never `UPDATE` key material in place.
 `appRouter` (in `apps/server/src/router.ts`):
 
 - `appConfig` → `appConfigRouter` (getConfig — public)
+- `clientError` → `clientErrorRouter` (report — public; a crash counter, input is strict enums, see `docs/ops/monitoring.md`)
 - `login` → `loginRouter` (startLogin, finishLogin, startDeviceLogin, finishDeviceLogin, verifySecondFactor, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)

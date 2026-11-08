@@ -1,8 +1,9 @@
+import type { ClientErrorInput } from "@repo/client";
 import { Button, ErrorState, Screen } from "@repo/ui-native";
 import * as Clipboard from "expo-clipboard";
 import { type ErrorBoundaryProps, router } from "expo-router";
-import { useState } from "react";
-import { describeNativeError } from "@/lib/error-report";
+import { useEffect, useState } from "react";
+import { describeNativeError, reportNativeError } from "@/lib/error-report";
 import { recordPaths } from "@/route-paths";
 
 /**
@@ -10,9 +11,15 @@ import { recordPaths } from "@/route-paths";
  * Exported as `ErrorBoundary` by route files, so it can't rely on providers
  * (the root layout's version sits above them): no toast, the button says "Copied".
  */
-export function RouteErrorFallback({ error, retry }: ErrorBoundaryProps) {
+function RouteErrorFallback({
+  area,
+  error,
+  retry,
+}: ErrorBoundaryProps & { area: ClientErrorInput["area"] }) {
   const { id, message, details } = describeNativeError(error);
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => reportNativeError(error, "render", area), [error, area]);
 
   return (
     <Screen>
@@ -41,4 +48,9 @@ export function RouteErrorFallback({ error, retry }: ErrorBoundaryProps) {
       </ErrorState>
     </Screen>
   );
+}
+
+/** An expo-router `ErrorBoundary` export for screens and layouts of `area`. */
+export function routeErrorFallback(area: ClientErrorInput["area"]) {
+  return (props: ErrorBoundaryProps) => <RouteErrorFallback area={area} {...props} />;
 }

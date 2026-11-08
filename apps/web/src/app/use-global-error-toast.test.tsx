@@ -1,3 +1,4 @@
+import { setClientErrorSender } from "@repo/client";
 import { toast } from "@repo/ui";
 import { renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,7 +11,10 @@ const SECRET = "hunter2-decrypted-password";
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
-afterEach(() => vi.clearAllMocks());
+afterEach(() => {
+  vi.clearAllMocks();
+  setClientErrorSender(null);
+});
 
 function rejection(reason: unknown) {
   return Object.assign(new Event("unhandledrejection"), { reason });
@@ -43,5 +47,19 @@ describe("useGlobalErrorToast", () => {
     renderHook(() => useGlobalErrorToast()).unmount();
     window.dispatchEvent(rejection(new Error("x")));
     expect(toast.error).not.toHaveBeenCalled();
+  });
+
+  it("counts the crash on the server by kind, without the error", () => {
+    const sender = vi.fn().mockResolvedValue(undefined);
+    setClientErrorSender(sender);
+    renderHook(() => useGlobalErrorToast());
+
+    window.dispatchEvent(rejection(new Error(SECRET)));
+    window.dispatchEvent(new ErrorEvent("error", { message: SECRET, error: new Error(SECRET) }));
+
+    expect(sender.mock.calls.map(([report]) => report)).toEqual([
+      { kind: "rejection", area: "app", platform: "web", version: "other" },
+      { kind: "uncaught", area: "app", platform: "web", version: "other" },
+    ]);
   });
 });

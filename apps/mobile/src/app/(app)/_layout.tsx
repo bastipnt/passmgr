@@ -6,6 +6,7 @@ import {
 } from "@repo/client";
 import { NativeTabs } from "expo-router/unstable-native-tabs";
 import { useCSSVariable } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import { useOpenSharedLogin } from "@/features/records/shared-login";
 import { useAppActive } from "@/hooks/use-app-active";
 import { useAutoLock } from "@/hooks/use-auto-lock";
@@ -58,4 +59,4 @@ function AutofillSync() {
   return null;
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("app");

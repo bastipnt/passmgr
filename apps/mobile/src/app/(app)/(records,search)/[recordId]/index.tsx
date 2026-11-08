@@ -19,6 +19,7 @@ import { FileQuestion } from "lucide-react-native";
 import { View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useCSSVariable } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import Record, { useRecordParam } from "@/features/records/components/Record";
 import { useCopyField } from "@/features/records/use-copy-field";
 import { useScrollTitle } from "@/hooks/use-scroll-title";
@@ -195,4 +196,4 @@ export default function RecordScreen() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("records");

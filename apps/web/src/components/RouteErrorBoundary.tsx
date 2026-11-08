@@ -1,10 +1,11 @@
+import type { ClientErrorInput } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { ErrorState } from "@repo/ui/components/ErrorState";
 import type { ReactNode } from "react";
 import { ErrorBoundary, type FallbackProps } from "react-error-boundary";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import { copyErrorDetails, describeWebError } from "@/lib/error-report";
+import { copyErrorDetails, describeWebError, reportWebError } from "@/lib/error-report";
 
 function RouteErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
   const { id, message, details } = describeWebError(error);
@@ -39,10 +40,20 @@ function RouteErrorFallback({ error, resetErrorBoundary }: FallbackProps) {
  * A crash in one view shows the fallback in its place and leaves the rest of
  * the app running. Navigating elsewhere clears it.
  */
-export function RouteErrorBoundary({ children }: { children: ReactNode }) {
+export function RouteErrorBoundary({
+  area,
+  children,
+}: {
+  area: ClientErrorInput["area"];
+  children: ReactNode;
+}) {
   const [location] = useLocation();
   return (
-    <ErrorBoundary FallbackComponent={RouteErrorFallback} resetKeys={[location]}>
+    <ErrorBoundary
+      FallbackComponent={RouteErrorFallback}
+      resetKeys={[location]}
+      onError={(error) => reportWebError(error, "render", area)}
+    >
       {children}
     </ErrorBoundary>
   );

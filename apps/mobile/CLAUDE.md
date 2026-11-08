@@ -78,3 +78,6 @@ Shared logic is in `packages/client/src/errors` (see `apps/web/CLAUDE.md`, "Erro
 - `useGlobalErrorToast` (root layout) sets `ErrorUtils.setGlobalHandler`: a toast with the error ID and
   "Copy error details"; in development the previous handler still runs (red box). Unhandled promise rejections
   are not covered.
+- Crash counts: the fallback calls `reportNativeError` (server counter by kind / area / platform / release, nothing
+  from the error); `routeErrorFallback(area)` takes the area. `ClientErrorReporter` sits in the root layout inside the
+  providers. See `docs/ops/monitoring.md`, "Client crashes".

@@ -16,6 +16,7 @@ import { useEffect, useRef } from "react";
 import { Text, View } from "react-native";
 import Animated from "react-native-reanimated";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import { EmptyRecordList, RecordsList } from "@/features/records/components/RecordsList";
 import { useSyncHeaderItem } from "@/features/records/use-sync-header-item";
 import { useResetStackOnTabBlur } from "@/hooks/use-reset-stack-on-tab-blur";
@@ -227,4 +228,4 @@ export default function RecordsScreen() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("records");

@@ -1,4 +1,5 @@
 import { install } from "react-native-quick-crypto";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 
 install();
 
@@ -6,6 +7,7 @@ import "react-native-get-random-values";
 import "../global.css";
 
 import {
+  ClientErrorReporter,
   ClientProvider,
   PreferencesProvider,
   SessionContext,
@@ -121,6 +123,7 @@ export default function RootLayout() {
                 syncEnabled={appActive}
                 onSignedOut={onSignedOutElsewhere}
               >
+                <ClientErrorReporter />
                 <Routes />
               </StoreProvider>
             </ClientProvider>
@@ -132,4 +135,4 @@ export default function RootLayout() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("app");

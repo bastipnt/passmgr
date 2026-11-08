@@ -1,3 +1,4 @@
+import { setClientErrorSender } from "@repo/client";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
@@ -11,7 +12,10 @@ function Boom(): never {
   throw new Error(`Invalid value ${SECRET}`);
 }
 
-afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.restoreAllMocks();
+  setClientErrorSender(null);
+});
 
 describe("RouteErrorBoundary", () => {
   it("shows the fallback in place of the crashed view and keeps the rest running", () => {
@@ -19,7 +23,7 @@ describe("RouteErrorBoundary", () => {
     render(
       <Router hook={memoryLocation({ path: "/record/1" }).hook}>
         <nav>sidebar</nav>
-        <RouteErrorBoundary>
+        <RouteErrorBoundary area="records">
           <Boom />
         </RouteErrorBoundary>
       </Router>,
@@ -37,7 +41,7 @@ describe("RouteErrorBoundary", () => {
     const writeText = vi.spyOn(navigator.clipboard, "writeText");
     render(
       <Router hook={memoryLocation({ path: "/record/1" }).hook}>
-        <RouteErrorBoundary>
+        <RouteErrorBoundary area="records">
           <Boom />
         </RouteErrorBoundary>
       </Router>,
@@ -65,7 +69,7 @@ describe("RouteErrorBoundary", () => {
     const memory = memoryLocation({ path: "/a" });
     render(
       <Router hook={memory.hook}>
-        <RouteErrorBoundary>
+        <RouteErrorBoundary area="records">
           <Maybe />
         </RouteErrorBoundary>
       </Router>,
@@ -75,5 +79,26 @@ describe("RouteErrorBoundary", () => {
     crash = false;
     memory.navigate("/b");
     expect(await screen.findByText("recovered")).toBeInTheDocument();
+  });
+
+  it("counts the crash on the server with its area only", () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const sender = vi.fn().mockResolvedValue(undefined);
+    setClientErrorSender(sender);
+    render(
+      <Router hook={memoryLocation({ path: "/record/1" }).hook}>
+        <RouteErrorBoundary area="settings">
+          <Boom />
+        </RouteErrorBoundary>
+      </Router>,
+    );
+
+    expect(sender).toHaveBeenCalledExactlyOnceWith({
+      kind: "render",
+      area: "settings",
+      platform: "web",
+      version: "other",
+    });
+    expect(JSON.stringify(sender.mock.calls)).not.toContain(SECRET);
   });
 });

@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { TrashIcon } from "lucide-react-native";
 import { Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { recordPaths } from "@/route-paths";
 
@@ -93,4 +94,4 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("records");

@@ -38,6 +38,7 @@ deploy: `curl -i https://<PUBLIC_HOSTNAME>/metrics` must not return Prometheus t
 | `active_users`                      | `window` (`1d`, `7d`, `30d`)     | approx. distinct users with an authenticated request (gauge, see below) |
 | `rate_limited_total`                | `limiter` (`ip`, `login`, `email_code`) | refused by the per-IP limit, the account login throttle or the code resend cap |
 | `email_verification_total`          | `event`                          | codes sent / failed to send, verified, invalid, expired          |
+| `client_errors_total`               | `kind`, `area`, `platform`, `version` | crashes reported by the apps, see Client crashes             |
 
 Labels are fixed strings from the code. Never add a user id, vault id, email (or its hash) or IP as a label.
 
@@ -47,12 +48,27 @@ the last 1 / 7 / 30 days at scrape time. A HyperLogLog yields only an approximat
 per-user last-seen record exists. Local-only vaults never talk to the server and are not counted. Page visits are not
 counted.
 
+## Client crashes
+
+Crashes in the apps (a route boundary catching, an unhandled rejection, an uncaught error) are counted on the server,
+without any detail: the apps call the public `clientError.report` mutation with `kind` (`render`, `rejection`,
+`uncaught`), `area` (`auth`, `records`, `settings`, `app`), `platform` (`web`, `ios`, `android`) and `version` (release tag,
+else `other`). `clientErrorInputSchema` (`packages/schema`) is strict enums, so no message, stack, error ID, URL or user
+id can arrive. The server keeps at most 20 distinct versions as labels; later ones count as `other`.
+
+Sent only while an account session is attached (`useClientErrorReporting`, `mode === "online"`): a local vault never talks
+to the server, and a crash on the unlock screen isn't counted. At most 5 reports per app run, once per error object. The
+usual per-IP rate limit applies.
+
+What a count can't tell: the stack. For that the user copies the "Copy error details" text (no message, no record data)
+from the error screen or toast and sends it.
+
 ## Dashboards and alerts
 
 Provisioned from files in the monitoring repo (`grafana/provisioning`, `grafana/dashboards/passmgr.json`): datasources
 with fixed uids `prometheus` / `loki`, the `passmgr` dashboard, and Grafana alert rules mailed to `ALERT_EMAIL`:
 metrics target down, 5xx responses, failed-login and recovery spikes, host disk > 85 %, container restart loop, Gatus
-check failing. The dashboard's `project` variable is the compose project name of this deployment (default `passmgr`).
+check failing, more than 10 client crashes in 15 minutes. The dashboard's `project` variable is the compose project name of this deployment (default `passmgr`).
 
 ## Logs
 

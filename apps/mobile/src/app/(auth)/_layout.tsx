@@ -1,4 +1,5 @@
 import { Stack } from "expo-router";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 
 export default function AuthLayout() {
   return (
@@ -8,4 +9,4 @@ export default function AuthLayout() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("auth");

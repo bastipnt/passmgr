@@ -1,4 +1,5 @@
 import {
+  ClientErrorReporter,
   ClientProvider,
   PreferencesProvider,
   RecordsProvider,
@@ -13,6 +14,7 @@ import { onSignedOutElsewhere, SecondFactorPromptRoot } from "@/features/auth";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
 import { deviceNameFromUserAgent } from "@/lib/device-name";
+import { reportWebError } from "@/lib/error-report";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
 import { useGlobalErrorToast } from "./use-global-error-toast";
@@ -30,7 +32,10 @@ function App() {
   useGlobalErrorToast();
 
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      onError={(error) => reportWebError(error, "render", "app")}
+    >
       <ThemeProvider storageKey={THEME_STORAGE_KEY}>
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
@@ -38,6 +43,7 @@ function App() {
               <ClientProvider serverUrl={import.meta.env.VITE_SERVER_URL} deviceName={DEVICE_NAME}>
                 <StoreProvider profiles={profileStore} onSignedOut={onSignedOutElsewhere}>
                   <RecordsProvider>
+                    <ClientErrorReporter />
                     <Toaster mobileOffset={{ bottom: PHONE_TOAST_BOTTOM }} />
                     <SecondFactorPromptRoot>
                       <Routes />

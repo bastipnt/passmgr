@@ -19,20 +19,20 @@ function Routes() {
           <Switch>
             {Object.values(authPaths).map((path) => (
               <Route key={path} path={path}>
-                <RouteErrorBoundary>
+                <RouteErrorBoundary area="auth">
                   <AuthRoutes />
                 </RouteErrorBoundary>
               </Route>
             ))}
 
             <Route path={settingsPaths.any}>
-              <RouteErrorBoundary>
+              <RouteErrorBoundary area="settings">
                 <SettingsRoutes />
               </RouteErrorBoundary>
             </Route>
 
             <Route>
-              <RouteErrorBoundary>
+              <RouteErrorBoundary area="records">
                 <RecordRoutes />
               </RouteErrorBoundary>
             </Route>

@@ -1,6 +1,7 @@
 import { FONT } from "@repo/ui-native";
 import { router, Stack } from "expo-router";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 
 export default function SettingsLayout() {
   const contentStyle = useResolveClassNames("bg-edge-tint");
@@ -59,4 +60,4 @@ export default function SettingsLayout() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("settings");

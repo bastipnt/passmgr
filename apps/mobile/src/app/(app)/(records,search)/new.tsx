@@ -20,6 +20,7 @@ import { OptionList, SettingsSection, toast } from "@repo/ui-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { ScrollView, View } from "react-native";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import RecordFormSheet from "@/features/records/components/RecordFormSheet";
 import { RecordTypePicker } from "@/features/records/components/RecordTypePicker";
 import { recordPaths } from "@/route-paths";
@@ -145,4 +146,4 @@ function NewRecordForm<T extends RecordType>({
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("records");

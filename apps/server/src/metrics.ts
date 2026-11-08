@@ -1,4 +1,5 @@
 import { Counter, collectDefaultMetrics, Histogram, Registry } from "@prometheus-io/client";
+import type { ClientErrorInput } from "@repo/schema";
 
 export const metricsRegistry = new Registry();
 
@@ -94,4 +95,23 @@ const emailVerification = new Counter({
 
 export function recordEmailVerification(event: EmailVerificationEvent) {
   emailVerification.inc({ event });
+}
+
+const MAX_CLIENT_VERSIONS = 20;
+const seenClientVersions = new Set<string>();
+
+const clientErrors = new Counter({
+  name: "passmgr_client_errors_total",
+  help: "Crashes reported by the apps: kind, area, platform and release only, never a message or an identifier",
+  labelNames: ["kind", "area", "platform", "version"] as const,
+  registers: [metricsRegistry],
+});
+
+/** Versions come from unauthenticated clients: past a cap they collapse to `other`, so the series count stays bounded. */
+export function recordClientError({ kind, area, platform, version }: ClientErrorInput) {
+  if (!seenClientVersions.has(version) && seenClientVersions.size >= MAX_CLIENT_VERSIONS) {
+    version = "other";
+  }
+  seenClientVersions.add(version);
+  clientErrors.inc({ kind, area, platform, version });
 }

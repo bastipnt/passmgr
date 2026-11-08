@@ -1,4 +1,5 @@
 export * from "./src/app-config-schema";
+export * from "./src/client-error-schema";
 export * from "./src/export-schema";
 export * from "./src/record-limits";
 export * from "./src/record-payload";

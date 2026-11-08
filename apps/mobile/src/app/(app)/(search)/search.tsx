@@ -14,6 +14,7 @@ import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import type { SearchBarCommands } from "react-native-screens";
 import { useCSSVariable } from "uniwind";
+import { routeErrorFallback } from "@/components/RouteErrorFallback";
 import { RecordsList } from "@/features/records/components/RecordsList";
 import { RecentRecords } from "@/features/search/components/RecentRecords";
 import { useRecentRecords } from "@/features/search/use-recent-records";
@@ -117,4 +118,4 @@ export default function SearchScreen() {
   );
 }
 
-export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";
+export const ErrorBoundary = routeErrorFallback("records");

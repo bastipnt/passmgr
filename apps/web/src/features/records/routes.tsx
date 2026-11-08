@@ -30,7 +30,7 @@ export default function RecordRoutes() {
       <PageMeta title="Vault" noindex />
       {/* Phones get their own pages, imported eagerly: a page that suspends
           mid-transition would slide in blank. */}
-      <RouteErrorBoundary>
+      <RouteErrorBoundary area="records">
         <Switch>
           <Route path={recordPaths.index} component={isMobile ? MobileVault : RecordsEmptyState} />
           {/* Sub-routes are enumerated rather than matched with a wildcard:

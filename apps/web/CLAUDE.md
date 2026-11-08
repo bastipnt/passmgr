@@ -157,3 +157,7 @@ each encoding, so a tampered precompressed copy fails it too.
   `App.tsx` keeps the outermost boundary (`ErrorFallback`, reload only).
 - `useGlobalErrorToast` turns `unhandledrejection` / `error` into a toast with the error ID and "Copy error details".
 - Never render `error.message` in the UI: use `userMessage(error)`.
+- Crash counts: boundaries and the global handler call `reportWebError` → `reportClientError` (`packages/client`):
+  server counter by kind / area / platform / release only, nothing from the error. `ClientErrorReporter` (in
+  `App.tsx`, inside the providers) arms it while an account session is attached. A new `RouteErrorBoundary` needs
+  its `area`. Details and limits: `docs/ops/monitoring.md`, "Client crashes".
