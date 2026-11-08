@@ -7,3 +7,5 @@ export default function AuthLayout() {
     </Stack>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

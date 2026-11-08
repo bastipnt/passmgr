@@ -11,6 +11,7 @@ import type {
 import { canManageVault } from "@repo/schema";
 import { secretsStore, type Vault } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
+import { logError, logWarning } from "../errors/log-error";
 import type { useTRPCClient } from "../util/trpc";
 import {
   isConflict,
@@ -155,7 +156,7 @@ export async function openInvitations(
         senderFingerprint: publicKeyFingerprint(invitation.sender.publicKey),
       });
     } catch (error) {
-      console.warn(`Invite to ${invitation.vaultId} doesn't open`, error);
+      logWarning(`Invite to ${invitation.vaultId} doesn't open`, error);
     }
   }
   return opened;
@@ -245,7 +246,7 @@ export async function removeMember(
   try {
     await rotateVault(deps, vaultId);
   } catch (error) {
-    console.warn(`Rotation after removing a member of ${vaultId} failed; retried on sync`, error);
+    logWarning(`Rotation after removing a member of ${vaultId} failed; retried on sync`, error);
   }
 }
 
@@ -427,7 +428,7 @@ export async function runSharingTasks(
         continue;
       }
       failed.add(task);
-      console.error(`The new key of vault ${update.vaultId} can't be accepted`, error);
+      logError(`The new key of vault ${update.vaultId} can't be accepted`, error);
     }
   }
 
@@ -450,7 +451,7 @@ export async function runSharingTasks(
       }
       if (isRequestFailure(error)) throw error;
       failed.add(task);
-      console.error(`Vault ${vaultId} needs a key rotation, which failed`, error);
+      logError(`Vault ${vaultId} needs a key rotation, which failed`, error);
     }
   }
   return changed;

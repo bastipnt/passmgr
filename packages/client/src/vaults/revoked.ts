@@ -1,5 +1,6 @@
 import { canWriteVault, type RecordPayload, upgradeRecordPayload } from "@repo/schema";
 import { type RevokedVault, secretsStore, type Vault } from "@repo/store";
+import { logWarning } from "../errors/log-error";
 import { encryptRecord } from "../util/encrypt-record";
 
 /*
@@ -52,7 +53,7 @@ export async function getRevokedVaults(vault: Vault): Promise<RevokedVaultInfo[]
     try {
       infos.push(open(revoked));
     } catch (error) {
-      console.warn(`Revoked vault ${revoked.vault.vaultId} doesn't open`, error);
+      logWarning(`Revoked vault ${revoked.vault.vaultId} doesn't open`, error);
     }
   }
   return infos;

@@ -1,3 +1,4 @@
+import { logError } from "@repo/client";
 import { useCallback, useEffect, useState } from "react";
 
 /**
@@ -12,7 +13,7 @@ export async function requestPersistentStorage(): Promise<boolean | null> {
   try {
     return await navigator.storage.persist();
   } catch (e) {
-    console.error("Requesting persistent storage failed", e);
+    logError("Requesting persistent storage failed", e);
     return null;
   }
 }

@@ -57,3 +57,5 @@ function AutofillSync() {
   useAutofillSync(useAppActive());
   return null;
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

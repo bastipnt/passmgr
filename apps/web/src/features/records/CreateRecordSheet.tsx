@@ -5,6 +5,7 @@ import {
   recordFromForm,
   useCreateRecord,
   useDuplicateSource,
+  userMessage,
   useTargetVault,
 } from "@repo/client";
 import { RECORD_TYPES, type RecordFormValues, type RecordType } from "@repo/schema";
@@ -144,7 +145,7 @@ export default function CreateRecordSheet() {
           key={`${type}:${initialTitle ?? ""}:${duplicateId ?? ""}`}
           type={type}
           onSubmit={(values) => handleSubmit(type, values)}
-          serverError={createRecordError?.message}
+          serverError={createRecordError ? userMessage(createRecordError) : undefined}
           disabled={createPending}
           vaultField={
             canPick &&

@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { logError } from "../errors/log-error";
 import { useLock } from "../hooks/use-lock";
 import { backupReminderSnoozedKey, biometricDismissedKey } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";
@@ -202,10 +203,10 @@ export function reloadVaultKeys(vaults: readonly MemberVault[]) {
   try {
     const skipped = secretsStore.loadVaultKeys(vaults);
     if (skipped.length > 0)
-      console.error(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
+      logError(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
     initDecryptWorker();
   } catch (e) {
-    console.error("Vault keys from sync could not be loaded", e);
+    logError("Vault keys from sync could not be loaded", e);
   }
 }
 
@@ -473,7 +474,7 @@ export function StoreProvider({
           if (last && live && !activeRef.current) await activate(last.profileId);
         });
       } catch (e) {
-        console.error("Loading the profiles on this device failed", e);
+        logError("Loading the profiles on this device failed", e);
       } finally {
         if (live) setLoaded(true);
       }

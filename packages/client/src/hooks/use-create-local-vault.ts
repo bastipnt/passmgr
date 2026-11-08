@@ -2,6 +2,7 @@ import { wipe } from "@repo/crypto";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { generateLocalVault } from "../account/create-local-vault";
+import { logError } from "../errors/log-error";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
@@ -56,7 +57,7 @@ export function useCreateLocalVault() {
     try {
       created = await generateLocalVault(password);
     } catch (e) {
-      console.error("Local vault key generation failed", e);
+      logError("Local vault key generation failed", e);
       setCreateError("failed");
       return;
     }
@@ -65,7 +66,7 @@ export function useCreateLocalVault() {
     try {
       await store.createLocalVault(material, recovery, vaults, profile, name, demo);
     } catch (e) {
-      console.error("Storing the local vault failed", e);
+      logError("Storing the local vault failed", e);
       wipe(accountKey);
       wipe(recoveryKey);
       setCreateError("failed");
@@ -92,7 +93,7 @@ export function useCreateLocalVault() {
       // Takes over the account key buffer.
       unlockWithAccountKey("local", next.accountKey, next.vaults, next.userKeyPair);
     } catch (e) {
-      console.error("Unlocking the new local vault failed", e);
+      logError("Unlocking the new local vault failed", e);
       wipe(next.accountKey);
       setCreateError("unlock_failed");
       return false;

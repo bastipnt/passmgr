@@ -1,6 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { previousSecrets } from "../records/previous-secrets";
@@ -44,7 +45,7 @@ export function useRecordHistory(recordId: string | undefined) {
         result.status === "fulfilled" ? [result.value] : [],
       );
       const failed = results.length - versions.length;
-      if (failed > 0) console.error(`${failed} revision(s) could not be decrypted and are hidden`);
+      if (failed > 0) logError(`${failed} revision(s) could not be decrypted and are hidden`);
       return versions;
     },
   });

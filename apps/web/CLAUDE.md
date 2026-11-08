@@ -145,3 +145,15 @@ PostCSS plugin didn't, and the fonts 404ed). `vite-plugin-preload-fonts.ts` prel
 `Caddyfile` sends the `.br` / `.gz` copies `scripts/precompress.ts` writes in `Dockerfile.web` (`encode` for the rest,
 static files only), and a missing `/assets/*` is a 404, never `index.html`. `verify:deployment` fetches every file in
 each encoding, so a tampered precompressed copy fails it too.
+
+## Error handling
+
+- Shared logic lives in `packages/client/src/errors`: `userMessage` (tRPC error code → fixed text, never the
+  error's own message), `describeError` (message + short error ID + copyable details: ID, version, platform,
+  error name, code, stack frames; **no message text, no record data**) and `logError` / `logWarning`. Never call
+  `console.*` directly (a test enforces it): production logs only the error's name, messages can hold secrets.
+- `RouteErrorBoundary` (`components/`) wraps the auth, settings and record route groups in `app/routes.tsx`, and the
+  `Switch` inside the record and settings layouts. A crash shows the fallback in that view only; navigating clears it.
+  `App.tsx` keeps the outermost boundary (`ErrorFallback`, reload only).
+- `useGlobalErrorToast` turns `unhandledrejection` / `error` into a toast with the error ID and "Copy error details".
+- Never render `error.message` in the UI: use `userMessage(error)`.

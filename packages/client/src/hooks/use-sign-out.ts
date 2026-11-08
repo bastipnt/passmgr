@@ -5,6 +5,7 @@ import {
   secretsStore,
 } from "@repo/store";
 import { useState } from "react";
+import { logError } from "../errors/log-error";
 import { useStore } from "../providers/StoreProvider";
 import { endServerSession } from "../util/end-server-session";
 import { useTRPCClient } from "../util/trpc";
@@ -84,7 +85,7 @@ export function useRemoveFromDevice() {
     try {
       await trpc.user.removeDeviceCredential.mutate({ credentialId: material.credentialId });
     } catch (e) {
-      console.error("Removing the device credential failed", e);
+      logError("Removing the device credential failed", e);
     }
   }
 

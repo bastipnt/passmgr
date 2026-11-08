@@ -5,6 +5,7 @@ import {
   secretsStore,
   type Vault,
 } from "@repo/store";
+import { logWarning } from "../errors/log-error";
 
 /**
  * Vault-key rotation, the record side (ADR 0001 D7): once a vault is at a new
@@ -43,7 +44,7 @@ function reencrypt(row: EncryptedRecordSchema) {
     const id = `${row.recordId}/${row.version}`;
     if (!reportedUnreadable.has(id)) {
       reportedUnreadable.add(id);
-      console.warn(`Record ${row.recordId} can't be re-encrypted: its key doesn't open it`, error);
+      logWarning(`Record ${row.recordId} can't be re-encrypted: its key doesn't open it`, error);
     }
     return "unreadable" as const;
   }

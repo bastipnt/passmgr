@@ -1,4 +1,4 @@
-import { useBiometricRestore, useStore } from "@repo/client";
+import { logError, useBiometricRestore, useStore } from "@repo/client";
 import {
   BiometricUnlockButton,
   type BottomSheetRef,
@@ -56,7 +56,7 @@ export default function LoginScreen() {
       if ((await biometric.unlock()) === "unavailable")
         toast.error("Unlock with your password this time.");
     } catch (e) {
-      console.error("Biometric unlock failed", e);
+      logError("Biometric unlock failed", e);
       toast.error("That didn't work. Unlock with your password.");
     }
   }
@@ -65,7 +65,7 @@ export default function LoginScreen() {
     try {
       await selectProfile(profileId);
     } catch (e) {
-      console.error("Opening the profile failed", e);
+      logError("Opening the profile failed", e);
       Alert.alert("That vault couldn't be opened", "Please try again.");
       return;
     }

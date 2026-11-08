@@ -1,6 +1,7 @@
 import { calibratePasswordKekParams, getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { ArgonParams } from "@repo/schema";
+import { logError } from "../errors/log-error";
 
 let calibration: Promise<ArgonParams> | undefined;
 
@@ -13,7 +14,7 @@ export function devicePasswordKekParams(): Promise<ArgonParams> {
     argon2WorkerService.derive("calibration", salt, params),
   ).catch((e: unknown) => {
     calibration = undefined;
-    console.error("Argon2 calibration failed", e);
+    logError("Argon2 calibration failed", e);
     return getPasswordKekParams();
   });
   return calibration;

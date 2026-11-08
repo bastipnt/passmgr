@@ -1,5 +1,6 @@
 import { secretsStore } from "@repo/store";
 import { useRef, useState } from "react";
+import { logError } from "../errors/log-error";
 import {
   type ImportOptions,
   type ImportResult,
@@ -89,7 +90,7 @@ export function useRestoreBackup() {
       );
       return { ok: true, result };
     } catch (error) {
-      console.error("Restoring the records failed", error);
+      logError("Restoring the records failed", error);
       setImportFailed(true);
       return error instanceof ImportStoppedError
         ? { ok: false, stopped: { written: error.written, total: error.total } }

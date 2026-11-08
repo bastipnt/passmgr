@@ -5,6 +5,7 @@ import {
   recordFromForm,
   useDeleteRecord,
   useGetRecord,
+  userMessage,
   useUpdateRecord,
 } from "@repo/client";
 import type { DecryptedRecord, RecordFormValues } from "@repo/schema";
@@ -71,7 +72,7 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
       type={record.type}
       onSubmit={onSubmit}
       defaultValues={defaultValues}
-      serverError={updateRecordError?.message}
+      serverError={updateRecordError ? userMessage(updateRecordError) : undefined}
       pending={updatePending}
       action="Save"
       title={`Edit ${RECORD_TYPE_LABELS[record.type].noun}`}
@@ -91,3 +92,5 @@ function EditRecord({ record }: { record: DecryptedRecord }) {
     </RecordFormSheet>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

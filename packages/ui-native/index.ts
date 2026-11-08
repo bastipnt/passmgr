@@ -21,6 +21,7 @@ export * from "./src/components/blocks/StrengthMeter";
 export * from "./src/components/blocks/TotpRing";
 export * from "./src/components/Card";
 export * from "./src/components/Empty";
+export * from "./src/components/ErrorState";
 export * from "./src/components/forms/ControlledExtraField";
 export * from "./src/components/forms/ControlledInput";
 export * from "./src/components/forms/ControlledPasswordInput";

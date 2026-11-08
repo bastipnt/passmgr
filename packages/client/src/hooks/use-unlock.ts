@@ -3,6 +3,7 @@ import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { rekeyIfBelowFloor, rekeyLocalIfBelowFloor } from "../account/rekey-password-keys";
+import { logError } from "../errors/log-error";
 import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
@@ -53,7 +54,7 @@ export function useUnlock() {
     try {
       passwordKek = await derivePasswordKek(password, userPasswordKeys);
     } catch (e) {
-      console.error("Vault unlock failed", e);
+      logError("Vault unlock failed", e);
       await failUnlock("failed");
       return false;
     }
@@ -68,7 +69,7 @@ export function useUnlock() {
         recoveryKeys,
       );
     } catch (e) {
-      console.error("Opening the account's profile failed", e);
+      logError("Opening the account's profile failed", e);
       wipe(passwordKek);
       await failUnlock("failed");
       return false;
@@ -85,7 +86,7 @@ export function useUnlock() {
       );
     } catch (e) {
       // A vault key or keypair that doesn't open with the account key.
-      console.error("Vault unlock failed", e);
+      logError("Vault unlock failed", e);
       await failUnlock("failed");
       return false;
     }
@@ -178,7 +179,7 @@ export function useUnlock() {
       try {
         await store.selectProfile(existing.profileId);
       } catch (e) {
-        console.error("Opening the profile failed", e);
+        logError("Opening the profile failed", e);
         setUnlockError("failed");
         return false;
       }
@@ -207,7 +208,7 @@ export function useUnlock() {
       );
       return true;
     } catch (e) {
-      console.error("Vault unlock failed", e);
+      logError("Vault unlock failed", e);
       return false;
     }
   }
@@ -219,7 +220,7 @@ export function useUnlock() {
       if (rekeyed)
         await store.saveAccount(active.entry.profileId, rekeyed, await active.vault.getVaults());
     } catch (e) {
-      console.error("Storing the rekeyed password wrap failed", e);
+      logError("Storing the rekeyed password wrap failed", e);
     }
   }
 
@@ -286,7 +287,7 @@ export function useUnlock() {
       );
     } catch (e) {
       // A vault key or keypair that doesn't open (or no personal vault).
-      console.error("Biometric vault unlock failed", e);
+      logError("Biometric vault unlock failed", e);
       login?.discard();
       setUnlockError("failed");
       throw e;

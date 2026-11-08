@@ -1,6 +1,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   accountProfileEntry,
+  logError,
   profileHue,
   RECOVERY_ERROR_MESSAGES,
   RECOVERY_OFFLINE_NOTE,
@@ -162,7 +163,7 @@ function RecoverFlow() {
             secondFactor.prompt,
           );
     } catch (err) {
-      console.error("Opening the vault after the reset failed", err);
+      logError("Opening the vault after the reset failed", err);
     }
     if (opened) {
       toast.success(

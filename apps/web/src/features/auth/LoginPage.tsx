@@ -1,5 +1,6 @@
 import {
   DEMO_VAULT_NAME,
+  logError,
   profileHue,
   removeVaultDescription,
   signInErrorMessage,
@@ -75,7 +76,7 @@ export default function LoginPage() {
       await store.selectProfile(profileId);
       setSwitching(false);
     } catch (e) {
-      console.error("Opening the profile failed", e);
+      logError("Opening the profile failed", e);
       setPickFailed(true);
     }
   }

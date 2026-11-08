@@ -1,5 +1,6 @@
 import type { ProfileEntry } from "@repo/store";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { logError } from "../errors/log-error";
 import { useStore } from "../providers/StoreProvider";
 
 /**
@@ -85,7 +86,7 @@ export function useProfilesPendingChanges() {
         );
         if (run === latest.current) setPending(counts.reduce((sum, n) => sum + n, 0));
       } catch (e) {
-        console.error("Counting unsynced changes failed", e);
+        logError("Counting unsynced changes failed", e);
       }
     },
     [countPendingChanges],

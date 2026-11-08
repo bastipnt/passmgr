@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { opensPasswordWrap } from "../account/change-password";
+import { logError } from "../errors/log-error";
 import { collectExportData } from "../export/collect-export";
 import { type ExportFile, type ExportFormat, exportFile } from "../export/export-file";
 import { useStore } from "../providers/StoreProvider";
@@ -71,7 +72,7 @@ export function useExport() {
         skipped,
       };
     } catch (error) {
-      console.error("Export failed", error);
+      logError("Export failed", error);
       setExportError("failed");
       return null;
     } finally {
@@ -88,7 +89,7 @@ export function useExport() {
     try {
       await markExported(result.profileId);
     } catch (error) {
-      console.error("Could not record the backup date", error);
+      logError("Could not record the backup date", error);
     }
   }
 

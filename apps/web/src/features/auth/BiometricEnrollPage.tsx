@@ -1,4 +1,4 @@
-import { useEnrollBiometric, useStore } from "@repo/client";
+import { logError, useEnrollBiometric, useStore } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   Card,
@@ -34,7 +34,7 @@ export default function BiometricEnrollPage() {
       await enroll();
       navigateNext();
     } catch (e) {
-      console.error("Biometric enrollment failed", e);
+      logError("Biometric enrollment failed", e);
       setError(true);
     } finally {
       store.setBiometricDismissed(false);

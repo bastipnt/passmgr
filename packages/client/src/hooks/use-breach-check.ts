@@ -1,6 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, breachCheckKey, type Vault } from "@repo/store";
 import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
@@ -50,7 +51,7 @@ export function useStoredBreachChecks() {
         vault.getBreachChecks(),
       ]);
       if (!cancelled) setLoaded({ vault, enabled: on, checks: byVersion(stored) });
-    })().catch((error: unknown) => console.error("Failed to read the breach check", error));
+    })().catch((error: unknown) => logError("Failed to read the breach check", error));
     return () => {
       cancelled = true;
     };
@@ -108,7 +109,7 @@ export function useBreachCheck(): BreachCheckState {
       });
       return saving;
     };
-    const logSaveError = (error: unknown) => console.error("Failed to save breach checks", error);
+    const logSaveError = (error: unknown) => logError("Failed to save breach checks", error);
 
     if (due.length === 0) {
       void flush(true).catch(logSaveError);
@@ -140,7 +141,7 @@ export function useBreachCheck(): BreachCheckState {
           void flush().catch(logSaveError);
           return;
         }
-        console.error("Breach check failed", error);
+        logError("Breach check failed", error);
         setFailed(true);
         setChecking(false);
       });
@@ -206,7 +207,7 @@ export function useStoredBreachCount(record: DecryptedRecord): number | null {
       .then((check) => {
         if (!cancelled) setFound({ key, count: check?.count ?? null });
       })
-      .catch((error: unknown) => console.error("Failed to read the breach check", error));
+      .catch((error: unknown) => logError("Failed to read the breach check", error));
     return () => {
       cancelled = true;
     };

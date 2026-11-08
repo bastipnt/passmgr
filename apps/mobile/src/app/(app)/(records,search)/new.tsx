@@ -7,6 +7,7 @@ import {
   sharedWebsite,
   useCreateRecord,
   useDuplicateSource,
+  userMessage,
   useTargetVault,
 } from "@repo/client";
 import {
@@ -122,7 +123,7 @@ function NewRecordForm<T extends RecordType>({
     <RecordFormSheet
       type={type}
       onSubmit={onSubmit}
-      serverError={createRecordError?.message}
+      serverError={createRecordError ? userMessage(createRecordError) : undefined}
       pending={createPending}
       action="Create"
       title={`${source ? "Duplicate" : "New"} ${RECORD_TYPE_LABELS[type].noun}`}
@@ -143,3 +144,5 @@ function NewRecordForm<T extends RecordType>({
     </RecordFormSheet>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

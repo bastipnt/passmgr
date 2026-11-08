@@ -2,6 +2,7 @@ import { strengthWorkerService } from "@repo/crypto/services/strength-worker-ser
 import type { DecryptedRecord } from "@repo/schema";
 import type { PasswordStrength } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
+import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { useStore } from "../providers/StoreProvider";
 import { findBreachedPasswords } from "../records/breach-check";
@@ -118,7 +119,7 @@ export function usePassMonitor(): PassMonitor {
       for (const key of ratings.keys()) if (!current.has(key)) ratings.delete(key);
       if (!cancelled) setRated(sortWeakPasswords(found));
     })().catch((error: unknown) => {
-      console.error("Failed to load the password strength estimator", error);
+      logError("Failed to load the password strength estimator", error);
       if (!cancelled) setWeakFailed(true);
     });
     return () => {

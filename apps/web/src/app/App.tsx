@@ -15,6 +15,7 @@ import { useProfileStore } from "@/hooks/use-profile-store";
 import { deviceNameFromUserAgent } from "@/lib/device-name";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
+import { useGlobalErrorToast } from "./use-global-error-toast";
 
 export const THEME_STORAGE_KEY = "pass-mgr-theme";
 
@@ -26,6 +27,7 @@ const PHONE_TOAST_BOTTOM = "calc(max(env(safe-area-inset-bottom), 1rem) + 56px +
 function App() {
   const profileStore = useProfileStore();
   const preferencesStore = usePreferencesStore();
+  useGlobalErrorToast();
 
   return (
     <ErrorBoundary FallbackComponent={ErrorFallback}>

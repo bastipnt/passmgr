@@ -5,6 +5,7 @@ import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
 import { toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
+import { logError } from "../errors/log-error";
 import { timed } from "../util/perf";
 import { devicePasswordKekParams } from "./password-kek-params";
 
@@ -75,7 +76,7 @@ export async function rekeyIfBelowFloor(
     await trpc.user.rekeyPasswordKeys.mutate(updated);
     return { ...updated, userKeyPair: material.userKeyPair };
   } catch (e) {
-    console.error("Argon2 floor rekey failed (will retry next login)", e);
+    logError("Argon2 floor rekey failed (will retry next login)", e);
   }
 }
 
@@ -94,6 +95,6 @@ export async function rekeyLocalIfBelowFloor(
     const updated = await wrapAccountKeyForPassword(password);
     return { ...updated, userKeyPair: material.userKeyPair };
   } catch (e) {
-    console.error("Argon2 floor rekey failed (will retry next unlock)", e);
+    logError("Argon2 floor rekey failed (will retry next unlock)", e);
   }
 }

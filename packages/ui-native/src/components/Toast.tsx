@@ -11,9 +11,16 @@ export type ToastKind = "success" | "error" | "warning";
 type ToastOptions = {
   description?: string;
   durationMs?: number;
+  action?: { label: string; onPress: () => void };
 };
 
-type ToastItem = { id: number; kind: ToastKind; title: string; description?: string };
+type ToastItem = {
+  id: number;
+  kind: ToastKind;
+  title: string;
+  description?: string;
+  action?: ToastOptions["action"];
+};
 
 const DEFAULT_DURATION_MS: Record<ToastKind, number> = {
   success: 3_000,
@@ -43,7 +50,13 @@ function dismiss() {
 
 function show(kind: ToastKind, title: string, options: ToastOptions = {}) {
   clearTimeout(timer);
-  current = { id: nextId++, kind, title, description: options.description };
+  current = {
+    id: nextId++,
+    kind,
+    title,
+    description: options.description,
+    action: options.action,
+  };
   timer = setTimeout(dismiss, options.durationMs ?? DEFAULT_DURATION_MS[kind]);
   emit();
 }
@@ -131,6 +144,18 @@ function ToastCard({ item }: { item: ToastItem }) {
           <Text className="font-medium text-[15px] text-popover-foreground">{item.title}</Text>
           {item.description && (
             <Text className="text-muted-foreground text-sm">{item.description}</Text>
+          )}
+          {item.action && (
+            <Pressable
+              accessibilityRole="button"
+              hitSlop={8}
+              onPress={() => {
+                item.action?.onPress();
+                dismiss();
+              }}
+            >
+              <Text className="pt-1 font-medium text-primary text-sm">{item.action.label}</Text>
+            </Pressable>
           )}
         </View>
       </Pressable>

@@ -9,6 +9,7 @@ const enroll = vi.fn();
 const dismiss = vi.fn();
 
 vi.mock("@repo/client", () => ({
+  logError: vi.fn(),
   useEnrollBiometric: () => ({ enroll, dismiss }),
   useStore: () => ({ setBiometricDismissed }),
 }));

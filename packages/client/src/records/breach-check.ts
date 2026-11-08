@@ -1,6 +1,7 @@
 import { pwnedPasswordHash } from "@repo/crypto";
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, type BreachCheckVersion, breachCheckKey } from "@repo/store";
+import { logWarning } from "../errors/log-error";
 import { monitoredPassword } from "./password-health";
 
 export const PWNED_RANGE_URL = "https://api.pwnedpasswords.com/range/";
@@ -130,7 +131,7 @@ export async function countBreaches(
         body = await fetchWithRetry(prefix);
       } catch (error) {
         signal?.throwIfAborted();
-        console.warn("Breach check request failed", error);
+        logWarning("Breach check request failed", error);
         continue;
       }
       const counts = parseRangeResponse(body);

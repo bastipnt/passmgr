@@ -1,6 +1,7 @@
 import { DrawerProvider } from "@repo/ui/components/Drawer";
 import { Suspense } from "react";
 import { Route, Router, Switch } from "wouter";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
 import { PageTransitions, usePageLocation, usePageSearch } from "./page-transitions";
 import { authPaths, pageDepths, settingsPaths } from "./route-paths";
@@ -17,12 +18,24 @@ function Routes() {
         <DrawerProvider>
           <Switch>
             {Object.values(authPaths).map((path) => (
-              <Route key={path} path={path} component={AuthRoutes} />
+              <Route key={path} path={path}>
+                <RouteErrorBoundary>
+                  <AuthRoutes />
+                </RouteErrorBoundary>
+              </Route>
             ))}
 
-            <Route path={settingsPaths.any} component={SettingsRoutes} />
+            <Route path={settingsPaths.any}>
+              <RouteErrorBoundary>
+                <SettingsRoutes />
+              </RouteErrorBoundary>
+            </Route>
 
-            <Route component={RecordRoutes} />
+            <Route>
+              <RouteErrorBoundary>
+                <RecordRoutes />
+              </RouteErrorBoundary>
+            </Route>
           </Switch>
         </DrawerProvider>
       </Suspense>

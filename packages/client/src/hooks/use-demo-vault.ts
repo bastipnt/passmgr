@@ -1,5 +1,6 @@
 import { wipe } from "@repo/crypto";
 import { DEMO_PASSWORD, DEMO_VAULT_NAME, seedDemoVault } from "../account/demo-vault";
+import { logError } from "../errors/log-error";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { useCreateLocalVault } from "./use-create-local-vault";
 import { useReloadRecords } from "./use-records";
@@ -42,7 +43,7 @@ export function useDemoVault() {
     try {
       await seedDemoVault(requireActive(store));
     } catch (e) {
-      console.error("Seeding the demo vault failed", e);
+      logError("Seeding the demo vault failed", e);
       return "seed_failed";
     } finally {
       await reload().catch(() => undefined);

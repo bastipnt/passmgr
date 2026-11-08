@@ -1,5 +1,6 @@
 import type { ExportData, ExportEnvelope } from "@repo/schema";
 import { useRef, useState } from "react";
+import { logError } from "../errors/log-error";
 import { openExportEnvelope, readExportFile } from "../export/export-file";
 import { MAX_IMPORT_FILE_BYTES } from "../export/import-export";
 import type { ForeignImport } from "../import/foreign-import";
@@ -89,7 +90,7 @@ export function useOpenImportFile(
     } catch (e) {
       if (pickId !== latestPick.current) return;
       const reason = readFileError(e);
-      if (reason === "failed") console.error("Opening the import file failed", e);
+      if (reason === "failed") logError("Opening the import file failed", e);
       setError(reason);
     } finally {
       setOpening(false);

@@ -8,6 +8,7 @@ import {
   removePendingAutofillLogins,
 } from "@repo/store";
 import { parseWebsite } from "@repo/util";
+import { logError } from "../errors/log-error";
 import type { ImportEntry } from "../export/import-export";
 import { loginHosts } from "./login-hosts";
 import type { RecordRepository } from "./record-repository";
@@ -68,7 +69,7 @@ export async function importPendingAutofillLogins(
   const entries = pending.flatMap((login): ImportEntry[] => {
     const recordId = login.id.toLowerCase();
     const data = pendingLoginData(login);
-    if (!data) console.error("A login created in autofill is invalid and was dropped");
+    if (!data) logError("A login created in autofill is invalid and was dropped");
     return data && !known.has(recordId) ? [{ kind: "create", recordId, vaultId, data }] : [];
   });
   await records.writeImport(entries);

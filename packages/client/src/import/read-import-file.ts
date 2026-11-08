@@ -7,6 +7,7 @@ import {
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { EXPORT_FORMAT } from "@repo/schema";
+import { logError } from "../errors/log-error";
 import { type ExportFileContents, readExportFile } from "../export/export-file";
 import { importBitwarden, importBitwardenCsv, isBitwardenExport } from "./bitwarden";
 import { browserCsvSource, importBrowserCsv } from "./browser-csv";
@@ -63,7 +64,7 @@ function readForeign(read: () => ForeignImport): ForeignImport {
   try {
     return read();
   } catch (error) {
-    console.error("Reading the import file failed", error);
+    logError("Reading the import file failed", error);
     throw new UnsupportedImportFileError("unreadable");
   }
 }
@@ -143,7 +144,7 @@ export async function openKeePassDatabase(
       if (error instanceof KdbxUnsupportedError) {
         throw new UnsupportedImportFileError("kdbx_unsupported");
       }
-      console.error("Opening the KeePass database failed", error);
+      logError("Opening the KeePass database failed", error);
       throw new UnsupportedImportFileError("unreadable");
     }
     return { ...readForeign(() => importKeePassXml(xml, parseXml)), fileEncrypted: true };

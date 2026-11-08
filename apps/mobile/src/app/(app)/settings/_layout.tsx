@@ -58,3 +58,5 @@ export default function SettingsLayout() {
     </Stack>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

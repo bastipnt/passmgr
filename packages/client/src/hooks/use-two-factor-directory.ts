@@ -1,5 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useEffect, useMemo, useState } from "react";
+import { logError } from "../errors/log-error";
 import { missingTwoFactorOf } from "../records/pass-monitor";
 import {
   loadedTwoFactorDirectory,
@@ -28,7 +29,7 @@ export function useTwoFactorDirectory(): TwoFactorDirectoryState {
         if (!cancelled) setState({ directory, failed: false });
       })
       .catch((error: unknown) => {
-        console.error("Failed to load the 2FA directory", error);
+        logError("Failed to load the 2FA directory", error);
         if (!cancelled) setState({ directory: null, failed: true });
       });
     return () => {

@@ -194,3 +194,5 @@ export default function RecordScreen() {
     </Screen>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

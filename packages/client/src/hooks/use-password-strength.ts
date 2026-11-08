@@ -1,6 +1,7 @@
 import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { PasswordStrength } from "@repo/util";
 import { useEffect, useState } from "react";
+import { logError } from "../errors/log-error";
 
 /**
  * Strength of a password; `null` while empty or before its first rating. Rated off the main
@@ -22,7 +23,7 @@ export function usePasswordStrength(
     strengthWorkerService
       .rate(password, inputsKey ? inputsKey.split("\n") : [])
       .then((rated) => active && setStrength(rated))
-      .catch((error: unknown) => console.error("Failed to rate the password strength", error));
+      .catch((error: unknown) => logError("Failed to rate the password strength", error));
     return () => {
       active = false;
     };

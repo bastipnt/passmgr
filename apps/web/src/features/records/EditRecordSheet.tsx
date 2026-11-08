@@ -1,4 +1,4 @@
-import { RECORD_TYPE_LABELS, recordFormDefaults, useRecordVault } from "@repo/client";
+import { RECORD_TYPE_LABELS, recordFormDefaults, useRecordVault, userMessage } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { SheetMediaHeader } from "@repo/ui/complex-components/ResponsiveSheet";
@@ -82,7 +82,7 @@ function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
       <RecordForm
         type={record.type}
         onSubmit={handleSubmit}
-        serverError={updateRecordError?.message}
+        serverError={updateRecordError ? userMessage(updateRecordError) : undefined}
         disabled={updatePending}
         defaultValues={recordFormDefaults(record)}
         header={

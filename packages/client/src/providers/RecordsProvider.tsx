@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { logError } from "../errors/log-error";
 import { decryptRecordRow } from "../util/decrypt-record";
 import { timed } from "../util/perf";
 import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-info";
@@ -103,7 +104,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
         recordsMapRef.current.set(result.value.recordId, result.value);
         fingerprintMapRef.current.set(encryptedRecord.recordId, buildFingerprint(encryptedRecord));
       });
-      if (failed > 0) console.error(`${failed} record(s) could not be decrypted and are hidden`);
+      if (failed > 0) logError(`${failed} record(s) could not be decrypted and are hidden`);
     }
 
     // Remove deleted records

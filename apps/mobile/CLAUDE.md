@@ -66,3 +66,15 @@ stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobi
 open `passmgr://share?text=…`. `src/app/+native-intent.tsx` makes it `recordPaths.createLogin(sharedWebsite(text))` (new login,
 website + host title; `@repo/client` `records/shared-login.ts`); while locked `routeSharedLogin` sends it home and holds it
 until the unlocked tree mounts (`useOpenSharedLogin`).
+
+## Error handling
+
+Shared logic is in `packages/client/src/errors` (see `apps/web/CLAUDE.md`, "Error handling"): `userMessage`,
+`describeError`, `logError`. Never call `console.*` directly, never render `error.message`.
+
+- Route boundaries are expo-router's: route files and layouts re-export
+  `RouteErrorFallback as ErrorBoundary` (`src/components/RouteErrorFallback.tsx`). Add the re-export to a new
+  screen or layout so a crash stays in it. The fallback can't rely on providers (the root one sits above them).
+- `useGlobalErrorToast` (root layout) sets `ErrorUtils.setGlobalHandler`: a toast with the error ID and
+  "Copy error details"; in development the previous handler still runs (red box). Unhandled promise rejections
+  are not covered.

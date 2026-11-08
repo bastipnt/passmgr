@@ -3,6 +3,7 @@ import type { PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
 import { rekeyIfBelowFloor } from "../account/rekey-password-keys";
+import { logError } from "../errors/log-error";
 import {
   type AccountLogin,
   DeviceLoginRejectedError,
@@ -178,7 +179,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     // The email now belongs to another account (e.g. re-registered after a
     // server reset). Its keys and data must never meet this vault's.
     if (info.userId !== profile.userId) {
-      console.error("The server account no longer matches this device's vault");
+      logError("The server account no longer matches this device's vault");
       return { result: "rejected" };
     }
     // Re-check: the vault may have been locked during the login.
@@ -195,7 +196,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
 
       await attachServer(...session);
     } catch (e) {
-      console.error("Connecting to the server failed", e);
+      logError("Connecting to the server failed", e);
       return { result: "unreachable" };
     }
 
@@ -219,7 +220,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
       pending = parsePendingRecovery(secretsStore.openPendingRecovery(sealed));
     } catch (e) {
       if (!secretsStore.isVaultUnlocked) throw e;
-      console.error("The password reset made on this device couldn't be read", e);
+      logError("The password reset made on this device couldn't be read", e);
       await storeRef.current.clearPendingRecovery(active.entry.profileId);
       return;
     }
@@ -227,7 +228,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
       await finishPendingRecovery(trpc, email, opaquePassword, pending);
     } catch (e) {
       if (!(e instanceof RecoveryFailedError)) throw e;
-      console.error("The server refused the password reset made on this device");
+      logError("The server refused the password reset made on this device");
     }
     await storeRef.current.clearPendingRecovery(active.entry.profileId);
   }
@@ -241,7 +242,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
       });
       if (rekeyed) await storeRef.current.saveAccount(profileId, rekeyed, info.vaultKeys);
     } catch (e) {
-      console.error("Storing the rekeyed password wrap failed", e);
+      logError("Storing the rekeyed password wrap failed", e);
     }
   }
 

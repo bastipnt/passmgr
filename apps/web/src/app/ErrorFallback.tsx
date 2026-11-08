@@ -1,35 +1,25 @@
 import { Button } from "@repo/ui/components/Button";
-import {
-  Card,
-  CardAction,
-  CardContent,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@repo/ui/components/Card";
-import { isDefined } from "@repo/util";
+import { ErrorState } from "@repo/ui/components/ErrorState";
 import type { FallbackProps } from "react-error-boundary";
+import { copyErrorDetails, describeWebError } from "@/lib/error-report";
 
-export default function ErrorFallback({ resetErrorBoundary, error }: FallbackProps) {
-  const errorMessage =
-    isDefined(error) && "message" in (error as { message?: string })
-      ? (error as { message: string }).message
-      : "";
+/** The last resort, outside the router and every provider: it can only reload. */
+export default function ErrorFallback({ error }: FallbackProps) {
+  const { id, message, details } = describeWebError(error);
+
   return (
-    <main className="flex min-h-dvh flex-col items-center justify-center">
-      <section role="alert" className="w-lg">
-        <Card>
-          <CardHeader>
-            <CardTitle>Oops! Something went wrong</CardTitle>
-          </CardHeader>
-          <CardContent>{errorMessage}</CardContent>
-          <CardFooter>
-            <CardAction>
-              <Button onClick={resetErrorBoundary}>Try again</Button>
-            </CardAction>
-          </CardFooter>
-        </Card>
-      </section>
+    <main className="flex min-h-dvh items-center justify-center">
+      <ErrorState
+        title="Something went wrong"
+        description={message}
+        errorId={id}
+        className="max-w-lg"
+      >
+        <Button onClick={() => window.location.reload()}>Reload</Button>
+        <Button variant="outline" onClick={() => void copyErrorDetails(details)}>
+          Copy error details
+        </Button>
+      </ErrorState>
     </main>
   );
 }

@@ -8,6 +8,7 @@ import {
   writeAutofillEntries,
 } from "@repo/store";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
@@ -55,7 +56,7 @@ export function useAutofillSync(appActive: boolean) {
       state === "enabled"
         ? writeAutofillEntries(entry.profileId, profileLabel(entry), entries, generator)
         : clearAutofillEntries(entry.profileId);
-    write.catch((e: unknown) => console.error("Autofill entries not updated", e));
+    write.catch((e: unknown) => logError("Autofill entries not updated", e));
   }, [store, vaultUnlocked, ready, state, entries, generator]);
 }
 
@@ -81,7 +82,7 @@ function usePendingAutofillLogins(appActive: boolean) {
       .then((written) => (written > 0 ? reload() : undefined))
       .catch((e: unknown) => {
         failed.current = true;
-        console.error("Logins created in autofill not saved", e);
+        logError("Logins created in autofill not saved", e);
       })
       .finally(() => {
         running.current = false;

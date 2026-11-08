@@ -1,6 +1,7 @@
 import { canWriteVault, type DecryptedRecord } from "@repo/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { decryptRecordRow, recordDataOf } from "../util/decrypt-record";
@@ -48,7 +49,7 @@ export function useTrash() {
         result.status === "fulfilled" ? [result.value] : [],
       );
       const failed = results.length - records.length;
-      if (failed > 0) console.error(`${failed} deleted record(s) could not be decrypted`);
+      if (failed > 0) logError(`${failed} deleted record(s) could not be decrypted`);
       return records.sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
     },
   });

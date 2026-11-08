@@ -9,6 +9,7 @@ import {
   PasswordChangeUnconfirmedError,
   WrongPasswordError,
 } from "../account/change-password";
+import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,
@@ -126,7 +127,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
       if (e instanceof LoginThrottledError) return "throttled";
       if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
         return "second_factor";
-      if (!(e instanceof PasswordChangeFailedError)) console.error("Password change failed", e);
+      if (!(e instanceof PasswordChangeFailedError)) logError("Password change failed", e);
       return "failed";
     }
 
@@ -135,7 +136,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     } catch (e) {
       // Linked: the server has the new password, and the next unlock with it
       // falls back to the server login. Local: the old password still works.
-      console.error("Storing the new password wrap failed", e);
+      logError("Storing the new password wrap failed", e);
       return "failed";
     }
 
@@ -179,7 +180,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     try {
       await store.forgetQuickUnlock(active.entry.profileId);
     } catch (e) {
-      console.error("Removing the biometric unlock failed", e);
+      logError("Removing the biometric unlock failed", e);
     }
   }
 

@@ -1,4 +1,5 @@
 import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
+import { logError } from "../errors/log-error";
 
 /**
  * Persist the unlocked profile's account key (and the server session, if one is attached) to OS
@@ -13,6 +14,6 @@ export async function persistSession(profileId: string | undefined) {
   try {
     await persistLoginBundle(profileId, secretsStore.exportPersistableBundle());
   } catch (e) {
-    console.error("Persisting session for fast unlock failed", e);
+    logError("Persisting session for fast unlock failed", e);
   }
 }

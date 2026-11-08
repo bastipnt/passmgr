@@ -14,6 +14,7 @@ import {
   sameVaults,
   type Vault,
 } from "@repo/store";
+import { logError, logWarning } from "./errors/log-error";
 
 /**
  * One page of a pull; `hasMore`: the server has more changes past its cursors.
@@ -375,7 +376,7 @@ export class SyncManager {
     try {
       if (await this.onSharingTasks(tasks)) this.rerun = true;
     } catch (error) {
-      console.warn("Sharing tasks failed", error);
+      logWarning("Sharing tasks failed", error);
     }
   }
 
@@ -395,7 +396,7 @@ export class SyncManager {
     try {
       await this.prepareOutbox?.();
     } catch (error) {
-      console.warn("Cannot prepare the outbox", error);
+      logWarning("Cannot prepare the outbox", error);
     }
     const changes = await this.store.getPendingChanges();
     const held = new Set(changes.filter((c) => c.parkedAt).map((c) => c.record.recordId));
@@ -510,7 +511,7 @@ export class SyncManager {
       ]);
       this.setStatus({ pending, parked });
     } catch (error) {
-      console.warn("Cannot count the pending changes", error);
+      logWarning("Cannot count the pending changes", error);
     }
   }
 
@@ -526,7 +527,7 @@ export class SyncManager {
   startPeriodicSync(intervalMs = 60_000): void {
     this.stopPeriodicSync();
     this.syncInterval = setInterval(() => {
-      this.sync().catch(console.error);
+      this.sync().catch((error: unknown) => logError("Sync failed", error));
     }, intervalMs);
   }
 

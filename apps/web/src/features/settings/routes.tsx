@@ -4,6 +4,7 @@ import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
 import { authPaths, passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
 import SettingsLayout from "./SettingsLayout";
 
@@ -29,30 +30,32 @@ export default function SettingsRoutes() {
   return (
     <SettingsLayout>
       <PageMeta title="Settings" noindex />
-      <Switch>
-        {/*
-         * `/settings` is the overview itself — the layout renders it. On mobile
-         * that is the whole screen; from `sm` up the detail pane would sit empty,
-         * so send it to the first page instead. `replace` keeps the redirect out
-         * of history (otherwise Back bounces straight forward again).
-         */}
-        <Route path={settingsPaths.index}>
-          {isMobile ? null : <Redirect to={settingsPaths.account} replace />}
-        </Route>
+      <RouteErrorBoundary>
+        <Switch>
+          {/*
+           * `/settings` is the overview itself — the layout renders it. On mobile
+           * that is the whole screen; from `sm` up the detail pane would sit empty,
+           * so send it to the first page instead. `replace` keeps the redirect out
+           * of history (otherwise Back bounces straight forward again).
+           */}
+          <Route path={settingsPaths.index}>
+            {isMobile ? null : <Redirect to={settingsPaths.account} replace />}
+          </Route>
 
-        <Route path={settingsPaths.account} component={AccountSettingsPage} />
-        <Route path={settingsPaths.vaults} component={VaultsSettingsPage} />
-        <Route path={settingsPaths.general} component={GeneralSettingsPage} />
-        <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
-        <Route path={settingsPaths.security} component={SecuritySettingsPage} />
-        <Route path={settingsPaths.trash} component={TrashPage} />
-        <Route path={settingsPaths.tags} component={TagsSettingsPage} />
-        <Route path={passMonitorPaths.any} component={PassMonitorRoutes} />
+          <Route path={settingsPaths.account} component={AccountSettingsPage} />
+          <Route path={settingsPaths.vaults} component={VaultsSettingsPage} />
+          <Route path={settingsPaths.general} component={GeneralSettingsPage} />
+          <Route path={settingsPaths.generator} component={GeneratorSettingsPage} />
+          <Route path={settingsPaths.security} component={SecuritySettingsPage} />
+          <Route path={settingsPaths.trash} component={TrashPage} />
+          <Route path={settingsPaths.tags} component={TagsSettingsPage} />
+          <Route path={passMonitorPaths.any} component={PassMonitorRoutes} />
 
-        <Route>
-          <NotFound />
-        </Route>
-      </Switch>
+          <Route>
+            <NotFound />
+          </Route>
+        </Switch>
+      </RouteErrorBoundary>
     </SettingsLayout>
   );
 }

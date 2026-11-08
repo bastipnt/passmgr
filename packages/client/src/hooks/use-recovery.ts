@@ -2,6 +2,7 @@ import { deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { PendingRecovery } from "@repo/schema";
 import type { ProfileEntry } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
+import { logError } from "../errors/log-error";
 import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
@@ -85,7 +86,7 @@ export function useRecovery() {
       if (err instanceof RecoveryKeyInvalidError) setRecoveryError("invalid_key");
       else if (err instanceof RecoveryFailedError) setRecoveryError("wrong_key");
       else {
-        console.error("Checking the recovery key failed", err);
+        logError("Checking the recovery key failed", err);
         setRecoveryError("failed");
       }
       return false;
@@ -193,7 +194,7 @@ export function useRecovery() {
         if (!networkOffline) return "server";
         setRecoveryError("wrong_key");
       } else {
-        console.error("Resetting the password on this device failed", err);
+        logError("Resetting the password on this device failed", err);
         setRecoveryError("failed");
       }
       return;
@@ -219,7 +220,7 @@ export function useRecovery() {
       );
       if (sent === "done") await store.clearPendingRecovery(active.entry.profileId);
     } catch (err) {
-      console.error("Storing the recovered key material failed", err);
+      logError("Storing the recovered key material failed", err);
       wipe(recovered.recoveryKey);
       setRecoveryError("failed");
       return;
@@ -227,7 +228,7 @@ export function useRecovery() {
     try {
       await store.forgetQuickUnlock(active.entry.profileId);
     } catch (err) {
-      console.error("Removing the quick unlock failed", err);
+      logError("Removing the quick unlock failed", err);
     }
     return recovered.recoveryKey;
   }
@@ -278,7 +279,7 @@ export function useRecovery() {
       if (err instanceof RecoveryKeyInvalidError) setRecoveryError("invalid_key");
       else if (err instanceof RecoveryFailedError) setRecoveryError("wrong_key");
       else {
-        console.error("Local recovery failed", err);
+        logError("Local recovery failed", err);
         setRecoveryError("failed");
       }
       return;
@@ -292,7 +293,7 @@ export function useRecovery() {
       );
     } catch (err) {
       // Nothing changed: the old recovery key still works.
-      console.error("Storing the recovered key material failed", err);
+      logError("Storing the recovered key material failed", err);
       wipe(recovered.recoveryKey);
       setRecoveryError("failed");
       return;
@@ -300,7 +301,7 @@ export function useRecovery() {
     try {
       await store.forgetQuickUnlock(active.entry.profileId);
     } catch (err) {
-      console.error("Removing the biometric unlock failed", err);
+      logError("Removing the biometric unlock failed", err);
     }
     return recovered.recoveryKey;
   }

@@ -1,6 +1,7 @@
 import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { type LoginBundle, type ProfileMode, secretsStore } from "@repo/store";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { logError } from "../errors/log-error";
 
 /**
  * The state of an unlocked session (ADR 0001 D2):
@@ -95,7 +96,7 @@ function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserK
   try {
     const skipped = secretsStore.loadVaultKeys(vaultKeys);
     if (skipped.length > 0)
-      console.error(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
+      logError(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
     secretsStore.loadUserKeyPair(userKeyPair);
   } catch (e) {
     secretsStore.lockVault();

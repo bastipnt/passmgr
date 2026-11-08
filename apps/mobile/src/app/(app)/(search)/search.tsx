@@ -116,3 +116,5 @@ export default function SearchScreen() {
     </Screen>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

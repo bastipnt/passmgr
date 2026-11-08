@@ -9,6 +9,7 @@ import {
   localVaultKeyring,
   registerLocalVault,
 } from "../account/link-local-vault";
+import { logError } from "../errors/log-error";
 import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
@@ -99,7 +100,7 @@ export function useLinkAccount() {
       if (!recovery) return "failed";
       keyring = localVaultKeyring(material, recovery, await active.vault.getVaults());
     } catch (e) {
-      console.error("Reading the local vault's keys failed", e);
+      logError("Reading the local vault's keys failed", e);
       return "failed";
     }
 
@@ -117,7 +118,7 @@ export function useLinkAccount() {
     const { info, session } = linked;
     // Another profile on this device is that account already: the registry holds it once.
     if (store.profiles.some((p) => p.userId === info.userId && p.profileId !== profileId)) {
-      console.error("This device has a profile for the account already");
+      logError("This device has a profile for the account already");
       return "failed";
     }
 
@@ -131,7 +132,7 @@ export function useLinkAccount() {
         { profile, recoveryWrap: info.recoveryKeys },
       );
     } catch (e) {
-      console.error("Linking the local vault failed", e);
+      logError("Linking the local vault failed", e);
       return "failed";
     }
     try {
@@ -139,7 +140,7 @@ export function useLinkAccount() {
       await linkServer(...session);
     } catch (e) {
       // Linked all the same: `offline` until the next sign-in, which uploads it then.
-      console.error("Attaching the new account's session failed", e);
+      logError("Attaching the new account's session failed", e);
     }
     await persistSession(profileId);
     return undefined;
@@ -157,7 +158,7 @@ export function useLinkAccount() {
       await secretsStore.unlockSession(...session);
       await endServerSession(trpc);
     } catch (e) {
-      console.error("Ending the other account's session failed", e);
+      logError("Ending the other account's session failed", e);
     } finally {
       secretsStore.detachServer();
     }
@@ -188,6 +189,6 @@ function linkFailure(e: unknown): LinkAccountError {
   if (e instanceof RegistrationStartFailedError || e instanceof RegistrationFinishFailedError)
     return "registration_failed";
   if (e instanceof LinkRejectedError || e instanceof LinkAccountMismatchError) return "rejected";
-  console.error("Creating the online account failed", e);
+  logError("Creating the online account failed", e);
   return "unreachable";
 }

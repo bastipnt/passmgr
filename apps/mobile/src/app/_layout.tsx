@@ -24,6 +24,7 @@ import { SplashScreen } from "@/components/SplashScreen";
 import "react-native-reanimated";
 import { useContext, useEffect, useLayoutEffect } from "react";
 import { useAppActive } from "@/hooks/use-app-active";
+import { useGlobalErrorToast } from "@/hooks/use-global-error-toast";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
 import {
@@ -94,6 +95,7 @@ export default function RootLayout() {
   const preferencesStore = usePreferencesStore();
   const profileStore = useProfileStore();
   const appActive = useAppActive();
+  useGlobalErrorToast();
 
   // Apply the persisted appearance choice. Uniwind's light/dark themes are
   // adaptive; "system" (the default) re-enables tracking the OS color scheme.
@@ -129,3 +131,5 @@ export default function RootLayout() {
     </SafeAreaProvider>
   );
 }
+
+export { RouteErrorFallback as ErrorBoundary } from "@/components/RouteErrorFallback";

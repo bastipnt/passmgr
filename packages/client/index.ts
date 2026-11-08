@@ -5,6 +5,9 @@ export * from "./src/account/account-sign-in";
 export { DEMO_VAULT_NAME } from "./src/account/demo-vault";
 export * from "./src/account/emergency-kit";
 
+// Errors
+export * from "./src/errors";
+
 // Export
 export * from "./src/export/collect-export";
 export * from "./src/export/export-file";

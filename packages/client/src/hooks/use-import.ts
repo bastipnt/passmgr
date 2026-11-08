@@ -1,5 +1,6 @@
 import type { ExportData } from "@repo/schema";
 import { useState } from "react";
+import { logError } from "../errors/log-error";
 import { InvalidExportFileError, WrongExportPasswordError } from "../export/export-file";
 import {
   type ImportOptions,
@@ -80,7 +81,7 @@ export function useImport() {
     try {
       return await importExportData(requireActive(store).records, data, options);
     } catch (error) {
-      console.error("Import failed", error);
+      logError("Import failed", error);
       setImportError("failed");
       if (error instanceof ImportStoppedError) {
         setStopped({ written: error.written, total: error.total });

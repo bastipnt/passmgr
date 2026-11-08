@@ -7,6 +7,7 @@ import {
   deleteAccount,
   SoleVaultOwnerError,
 } from "../account/delete-account";
+import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,
@@ -113,7 +114,7 @@ export function useDeleteAccount() {
         unconfirmed.current = true;
         return "unconfirmed";
       }
-      if (!(e instanceof AccountDeletionFailedError)) console.error("Account deletion failed", e);
+      if (!(e instanceof AccountDeletionFailedError)) logError("Account deletion failed", e);
       return "failed";
     }
 
@@ -125,7 +126,7 @@ export function useDeleteAccount() {
       await store.removeProfile(profileId);
     } catch (e) {
       // The account is gone either way; the profile can be removed from the list.
-      console.error("Removing the deleted account's profile failed", e);
+      logError("Removing the deleted account's profile failed", e);
     }
     return undefined;
   }

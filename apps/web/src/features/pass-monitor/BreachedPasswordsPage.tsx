@@ -1,4 +1,4 @@
-import { breachCountLabel, formatTimeAgo, useBreachCheck } from "@repo/client";
+import { breachCountLabel, formatTimeAgo, logError, useBreachCheck } from "@repo/client";
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import { ItemGroup } from "@repo/ui/components/Item";
@@ -33,7 +33,7 @@ export default function BreachedPasswordsPage() {
 
   const toggle = (on: boolean) => {
     setEnabled(on).catch((error: unknown) => {
-      console.error("Failed to change the breach check", error);
+      logError("Failed to change the breach check", error);
       toast.error("Couldn't change the breach check. Try again.");
     });
   };

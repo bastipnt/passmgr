@@ -1,6 +1,7 @@
 import { authenticateBiometric, type BiometricKeyMaterial, wipe } from "@repo/crypto";
 import { secretsStore } from "@repo/store";
 import { useContext, useEffect, useRef } from "react";
+import { logError } from "../errors/log-error";
 import { DeviceLoginRejectedError, type PendingDeviceLogin, startDeviceLogin } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
@@ -34,7 +35,7 @@ export function useDeviceLogin() {
   function start(credentialId: string) {
     return startDeviceLogin(trpc, credentialId).catch((e: unknown) => {
       if (e instanceof DeviceLoginRejectedError) void forget();
-      else console.error("Starting the device login failed", e);
+      else logError("Starting the device login failed", e);
       return undefined;
     });
   }
@@ -71,7 +72,7 @@ export function useDeviceLogin() {
     try {
       await store.forgetQuickUnlock();
     } catch (e) {
-      console.error("Removing the biometric unlock failed", e);
+      logError("Removing the biometric unlock failed", e);
     }
   }
 
@@ -125,7 +126,7 @@ export function useLinkDeviceCredential() {
     if (linkedFor === key) return;
     linkedFor = key;
     trpc.user.linkDeviceCredential.mutate({ credentialId }).catch((e: unknown) => {
-      console.error("Linking the device credential failed", e);
+      logError("Linking the device credential failed", e);
     });
   }, [mode, credentialId, trpc]);
 }

@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useContext, useState } from "react";
 import { freshLogin, WrongPasswordError } from "../account/change-password";
+import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,
@@ -150,6 +151,6 @@ function toError(e: unknown): TwoFactorError {
     if (e.data?.code === "BAD_REQUEST") return "wrong_code";
     if (e.data?.code === "NOT_FOUND" || e.data?.code === "FORBIDDEN") return "expired";
   }
-  if (!(e instanceof TwoFactorFailedError)) console.error("Two-factor change failed", e);
+  if (!(e instanceof TwoFactorFailedError)) logError("Two-factor change failed", e);
   return "failed";
 }
