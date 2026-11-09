@@ -188,3 +188,10 @@ auditConfig:
     # Advisory names 3.0.4 as patched but it isn't on npm (latest 3.0.3); drop
     # this once a fixed braces is published.
     - GHSA-vfj7-8cjw-p6xm
+
+# node_modules is shared between the macOS host and the Linux devvm (virtiofs mount),
+# so install native bindings (rolldown, esbuild, lightningcss, …) for both.
+supportedArchitectures:
+  os: [current, darwin, linux]
+  cpu: [current, arm64]
+  libc: [current, glibc]

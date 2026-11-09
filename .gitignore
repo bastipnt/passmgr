@@ -97,3 +97,6 @@ test-results/
 reports/
 .stryker-tmp/
 apps/web/stats.html
+
+# pnpm puts its store at the project root when $HOME is on another filesystem (devvm virtiofs mount)
+.pnpm-store/
