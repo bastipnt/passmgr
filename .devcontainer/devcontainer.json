@@ -3,10 +3,11 @@
   // No "image": javascript-node:24 converted to a VM disk but never answered over ssh
   // (Lima, 2026-11-09). devvm's own base boots; node comes from .node-version/package.json.
   "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
-  // web, server, postgres, mailpit UI
-  "forwardPorts": [5173, 3000, 5432, 8025],
+  // web, server, postgres, redis, mailpit UI
+  "forwardPorts": [5173, 3000, 5432, 6379, 8025],
   "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && corepack enable && pnpm install --frozen-lockfile",
   "remoteEnv": { "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.bun/bin" },
   // Postgres + Mailpit from packages/db/docker-compose.yml
-  "postStartCommand": "docker compose -f packages/db/docker-compose.yml up -d"
+  // + Redis from infra/redis (the server fails at startup without it)
+  "postStartCommand": "docker compose -f packages/db/docker-compose.yml up -d && docker compose -f infra/redis/docker-compose.yml up -d"
 }
