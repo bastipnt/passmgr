@@ -36,10 +36,10 @@ function importOptions(source: OpenedImportFile, vaultId: string): ImportOptions
   return {
     vaultMap: {},
     fallbackVaultId: vaultId,
-    // The vault is new: nothing to collide with. Kept ids make a second
+    // The vault is new: nothing to collide with. The remembered file ids make a second
     // import of the file (after a failure here) skip what is already in.
     duplicates: "skip",
-    keepIds: true,
+    trackOrigin: true,
   };
 }
 
@@ -52,8 +52,8 @@ function importOptions(source: OpenedImportFile, vaultId: string): ImportOptions
  * 1. `restore(source, password, name)` creates the vault under a new master
  *    password and resolves its recovery key, to be shown once.
  * 2. `finishRestore()` unlocks it and imports every record of the file into
- *    its personal vault (a local vault has no other): a backup's keep their
- *    ids, another app's are all new.
+ *    its personal vault (a local vault has no other): every record is new, a backup's
+ *    remember their file id.
  */
 export function useRestoreBackup() {
   const { createLocalVault, finishLocalVault, createError } = useCreateLocalVault();

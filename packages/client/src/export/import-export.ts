@@ -33,12 +33,11 @@ export type ImportOptions = {
   fallbackVaultId: string;
   duplicates: DuplicateStrategy;
   /**
-   * Keep the file's record ids in any vault, not only in the one a record was
-   * exported from. For a restore into a new vault: importing the file there
-   * again then finds every record already in it (`duplicates`), instead of
-   * adding it a second time.
+   * A record that gets a new id remembers the file's id (`importedFrom`), so importing
+   * the file again finds it (`duplicates`) instead of adding it a second time. For
+   * backups; another manager's export has fresh ids on every read, nothing to find.
    */
-  keepIds?: boolean;
+  trackOrigin?: boolean;
 };
 
 /** One record to write: a new one, or the next version of one already on the device. */
@@ -67,6 +66,9 @@ export class ImportStoppedError extends Error {
 
 /** What the device holds under a record id: its vault, and whether it's a tombstone. */
 type LocalHead = { vaultId: string; deleted: boolean };
+
+/** A record on the device that an import created: the file's record id → where it lives now. */
+type ImportedHead = LocalHead & { recordId: string };
 
 /** Records per transaction: a large file doesn't hold the database in one long write. */
 export const IMPORT_BATCH_SIZE = 100;
@@ -112,52 +114,102 @@ export function defaultVaultMap(
 
 /**
  * Decide what each record of the file becomes. A record keeps its id only in
- * the vault it was exported from (or anywhere with `keepIds`): elsewhere it is
- * a new record (the AAD binds the ciphertext to vault and record, and the id
- * may still be taken in its old vault on the server). An id the device holds
- * in another vault always gets a new one.
+ * the vault it was exported from: elsewhere it is a new record (the AAD binds
+ * the ciphertext to vault and record, and the id may still be taken in its old
+ * vault on the server). An id the device holds in another vault always gets a
+ * new one. A record found again by its id, or by the id an earlier import
+ * remembered (`imported`), is a duplicate.
  */
 export function planImport(
   data: ExportData,
   existing: ReadonlyMap<string, LocalHead>,
   options: ImportOptions,
+  imported: ReadonlyMap<string, ImportedHead> = new Map(),
 ): ImportPlan {
   const heads = new Map(existing);
+  const seen = new Map(imported);
   const entries: ImportEntry[] = [];
   let skipped = 0;
 
   for (const record of data.records) {
     const vaultId = options.vaultMap[record.vaultId] ?? options.fallbackVaultId;
     const recordData = importRecordData(record);
-    const head = heads.get(record.id);
+    const origin = originId(record);
+    const sameId = heads.get(record.id);
+    const originHead = heads.get(origin);
+    const found = (head: LocalHead | undefined, recordId: string) =>
+      head?.vaultId === vaultId ? { ...head, recordId } : undefined;
+    const match =
+      found(sameId, record.id) ??
+      found(originHead, origin) ??
+      (seen.get(origin)?.vaultId === vaultId ? seen.get(origin) : undefined);
+    const withOrigin = (recordId: string): RecordData =>
+      options.trackOrigin && recordId !== origin
+        ? ({ ...recordData, importedFrom: { recordId: origin } } as RecordData)
+        : recordData;
     let entry: ImportEntry | undefined;
 
-    if (head?.vaultId === vaultId && options.duplicates === "overwrite") {
-      entry = { kind: "update", recordId: record.id, vaultId, data: recordData };
-    } else if (head?.vaultId === vaultId && options.duplicates === "skip") {
+    if (match && options.duplicates === "overwrite") {
+      const { recordId } = match;
+      entry = { kind: "update", recordId, vaultId, data: withOrigin(recordId) };
+    } else if (match && options.duplicates === "skip") {
       skipped++;
     } else {
-      const keepId = !head && (options.keepIds === true || vaultId === record.vaultId);
-      entry = {
-        kind: "create",
-        recordId: keepId ? record.id : crypto.randomUUID(),
-        vaultId,
-        data: recordData,
-      };
+      const recordId = !sameId && vaultId === record.vaultId ? record.id : crypto.randomUUID();
+      entry = { kind: "create", recordId, vaultId, data: withOrigin(recordId) };
     }
 
     if (entry) {
       entries.push(entry);
-      // A file holding the same id twice: the second one is a duplicate of the first.
-      heads.set(entry.recordId, { vaultId, deleted: false });
+      // A file holding the same record twice: the second one is a duplicate of the first.
+      const head = { vaultId, deleted: false };
+      heads.set(entry.recordId, head);
+      seen.set(origin, { ...head, recordId: entry.recordId });
     }
   }
   return { entries, skipped };
 }
 
-// Not content: an older backup without the date still matches.
-function withoutPasswordDate(data: RecordData): RecordData {
-  const { passwordChangedAt: _, ...rest } = data as RecordData & { passwordChangedAt?: string };
+/** The id a record had where it was first written: its own, or the one an import remembered. */
+function originId(record: ExportRecord): string {
+  return (record as { importedFrom?: { recordId: string } }).importedFrom?.recordId ?? record.id;
+}
+
+/**
+ * The records an earlier import created in `vaultIds`, by the file id they came from. Decrypted
+ * here, in memory: the origin is only in the ciphertext. A record that doesn't open is left out.
+ */
+async function importedHeads(
+  records: RecordRepository,
+  vaultIds: ReadonlySet<string>,
+  decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload>,
+): Promise<Map<string, ImportedHead>> {
+  const found = new Map<string, ImportedHead>();
+  for (const vaultId of vaultIds) {
+    const rows = [
+      ...(await records.getAll(vaultId)).map((row) => ({ row, deleted: false })),
+      ...(await records.getDeleted(vaultId)).map((row) => ({ row, deleted: true })),
+    ];
+    for (const { row, deleted } of rows) {
+      try {
+        const { importedFrom } = await decrypt(row);
+        if (importedFrom)
+          found.set(importedFrom.recordId, { vaultId, deleted, recordId: row.recordId });
+      } catch {
+        // Counts as no match: the record is imported again.
+      }
+    }
+  }
+  return found;
+}
+
+// Not content: an older backup without the date, or an import's origin, still matches.
+function withoutBookkeeping(data: RecordData): RecordData {
+  const {
+    passwordChangedAt: _date,
+    importedFrom: _origin,
+    ...rest
+  } = data as RecordData & { passwordChangedAt?: string };
   return rest as RecordData;
 }
 
@@ -186,10 +238,23 @@ async function holdsSameContent(
   if (!row || row.deleted_at) return false;
   try {
     const { schemaVersion: _, ...current } = await decrypt(row);
-    return sameContent(withoutPasswordDate(current), withoutPasswordDate(entry.data));
+    return sameContent(withoutBookkeeping(current), withoutBookkeeping(entry.data));
   } catch {
     return false;
   }
+}
+
+/** The vaults the file writes to that already hold records: the only places an earlier import can be. */
+function targetVaultsWithRecords(
+  data: ExportData,
+  existing: ReadonlyMap<string, LocalHead>,
+  options: ImportOptions,
+): Set<string> {
+  const occupied = new Set([...existing.values()].map((head) => head.vaultId));
+  const targets = new Set(
+    data.records.map((r) => options.vaultMap[r.vaultId] ?? options.fallbackVaultId),
+  );
+  return new Set([...targets].filter((vaultId) => occupied.has(vaultId)));
 }
 
 /**
@@ -205,7 +270,10 @@ export async function importExportData(
   decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload> = decryptRecordWithWorker,
 ): Promise<ImportResult> {
   const existing = new Map((await records.heads()).map((head) => [head.recordId, head]));
-  const plan = planImport(data, existing, options);
+  const imported = options.trackOrigin
+    ? await importedHeads(records, targetVaultsWithRecords(data, existing, options), decrypt)
+    : undefined;
+  const plan = planImport(data, existing, options, imported);
   let skipped = plan.skipped;
   const entries: ImportEntry[] = [];
   for (const entry of plan.entries) {

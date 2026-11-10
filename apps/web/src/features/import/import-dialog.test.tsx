@@ -103,6 +103,7 @@ describe("ImportDialog", () => {
         vaultMap: { [OLD_VAULT]: PERSONAL },
         fallbackVaultId: PERSONAL,
         duplicates: "skip",
+        trackOrigin: true,
       }),
     );
     await waitFor(() => expect(screen.queryByText(/1 record\(s\)/)).not.toBeInTheDocument());
@@ -151,6 +152,7 @@ describe("ImportDialog", () => {
         vaultMap: { [OLD_VAULT]: WORK },
         fallbackVaultId: PERSONAL,
         duplicates: "keep-both",
+        trackOrigin: true,
       }),
     );
   });

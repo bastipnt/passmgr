@@ -28,6 +28,7 @@ const BASE_KEYS = new Set([
   "tags",
   "customFields",
   "attachments",
+  "importedFrom",
 ]);
 
 const isRecordType = (type: string): type is RecordType =>

@@ -238,6 +238,89 @@ describe("importExportData", () => {
     });
   });
 
+  describe("origin marker", () => {
+    const restoreInto = (data: ExportData, extra: Partial<ImportOptions> = {}) =>
+      runImport(data, options({ vaultMap: { [personalId]: workId }, trackOrigin: true, ...extra }));
+    const importedFrom = async (vaultId: string) =>
+      (await repository.getAll(vaultId)).map(
+        (row) => (decryptRecord(row) as { importedFrom?: { recordId: string } }).importedFrom,
+      );
+
+    it("finds a record again by its file id, so a second import adds nothing", async () => {
+      const mail = await repository.create(login("Mail"));
+      const data = await exported();
+
+      expect(await restoreInto(data)).toEqual({ created: 1, updated: 0, skipped: 0 });
+      expect(await restoreInto(data)).toEqual({ created: 0, updated: 0, skipped: 1 });
+
+      expect(await contents(workId)).toEqual(["Mail:secret"]);
+      expect(await importedFrom(workId)).toEqual([{ recordId: mail.recordId }]);
+      const [copy] = await repository.getAll(workId);
+      expect(copy!.recordId).not.toBe(mail.recordId);
+    });
+
+    it("still finds it after the record was edited, and overwrites it keeping the marker", async () => {
+      const mail = await repository.create(login("Mail"));
+      const data = await exported();
+      await restoreInto(data);
+      const [copy] = await repository.getAll(workId);
+      await repository.update(copy!, {
+        ...(decryptRecord(copy!) as RecordData),
+        password: "edited",
+      } as RecordData);
+
+      expect(await restoreInto(data, { duplicates: "skip" })).toMatchObject({ skipped: 1 });
+      expect(await restoreInto(data, { duplicates: "overwrite" })).toMatchObject({ updated: 1 });
+
+      expect(await contents(workId)).toEqual(["Mail:secret"]);
+      expect(await importedFrom(workId)).toEqual([{ recordId: mail.recordId }]);
+    });
+
+    it("matches a copy exported from an imported record to the original through its origin", async () => {
+      await repository.create(login("Mail"));
+      await restoreInto(await exported());
+      const copied = await exported();
+      const fromWork = { ...copied, records: copied.records.filter((r) => r.vaultId === workId) };
+
+      const result = await runImport(fromWork, options({ vaultMap: { [workId]: personalId } }));
+
+      expect(result).toMatchObject({ created: 0, skipped: 1 });
+      expect(await contents(personalId)).toEqual(["Mail:secret"]);
+    });
+
+    it("lists a record deleted since as already there", async () => {
+      await repository.create(login("Mail"));
+      const data = await exported();
+      await restoreInto(data);
+      const [copy] = await repository.getAll(workId);
+      await repository.delete(copy!.recordId);
+
+      expect(await restoreInto(data)).toMatchObject({ created: 0, skipped: 1 });
+      expect(await contents(workId)).toEqual([]);
+    });
+
+    it("keeps both when asked", async () => {
+      await repository.create(login("Mail"));
+      const data = await exported();
+      await restoreInto(data);
+
+      expect(await restoreInto(data, { duplicates: "keep-both" })).toMatchObject({ created: 1 });
+      expect(await contents(workId)).toEqual(["Mail:secret", "Mail:secret"]);
+    });
+
+    it("never reuses a file id, so a restored vault can link next to the original records", async () => {
+      const mail = await repository.create(login("Mail"));
+      const data = await exported();
+      await vault.destroy();
+      vault = new Vault(createTestDriver());
+      repository = new RecordRepository(vault);
+
+      await restoreInto(data);
+
+      expect((await repository.heads()).map((h) => h.recordId)).not.toContain(mail.recordId);
+    });
+  });
+
   it("writes large files in batches", async () => {
     const data = await exported();
     const count = IMPORT_BATCH_SIZE * 2 + 1;
@@ -318,16 +401,20 @@ describe("planImport", () => {
     expect(plan.entries[0]!.recordId).not.toBe(id);
   });
 
-  it("keeps the file's ids in another vault with keepIds", () => {
+  it("gives a new id to a record imported into another vault, and remembers the file's id", () => {
     const id = crypto.randomUUID();
     const elsewhere = crypto.randomUUID();
     const plain = planImport(data([record(id, elsewhere)]), new Map(), options());
     expect(plain.entries[0]!.recordId).not.toBe(id);
+    expect(plain.entries[0]!.data).not.toHaveProperty("importedFrom");
 
-    const plan = planImport(data([record(id, elsewhere)]), new Map(), options({ keepIds: true }));
-    expect(plan.entries).toEqual([
-      expect.objectContaining({ kind: "create", recordId: id, vaultId: personalId }),
-    ]);
+    const tracked = planImport(
+      data([record(id, elsewhere)]),
+      new Map(),
+      options({ trackOrigin: true }),
+    );
+    expect(tracked.entries[0]!.recordId).not.toBe(id);
+    expect(tracked.entries[0]!.data).toMatchObject({ importedFrom: { recordId: id } });
   });
 
   it("treats an id the file holds twice as a duplicate", () => {

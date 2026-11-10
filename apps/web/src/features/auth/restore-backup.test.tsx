@@ -106,10 +106,15 @@ describe("useRestoreBackup", () => {
     expect(entries).toEqual([
       {
         kind: "create",
-        // Kept: importing the file again after a failure finds it.
-        recordId: RECORD_ID,
+        recordId: expect.not.stringMatching(RECORD_ID),
         vaultId: personal,
-        data: { type: "login", title: "Mail", password: "mail-secret" },
+        // The file's id travels in the payload: importing the file again finds it.
+        data: {
+          type: "login",
+          title: "Mail",
+          password: "mail-secret",
+          importedFrom: { recordId: RECORD_ID },
+        },
       },
     ]);
     expect(reload).toHaveBeenCalled();

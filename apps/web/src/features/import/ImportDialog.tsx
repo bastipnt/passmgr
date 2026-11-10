@@ -210,7 +210,12 @@ function ImportOptionsForm({ data, importer, onDone }: ImportOptionsFormProps) {
   async function run(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!fallbackVaultId) return;
-    const result = await importData(data, { vaultMap, fallbackVaultId, duplicates });
+    const result = await importData(data, {
+      vaultMap,
+      fallbackVaultId,
+      duplicates,
+      trackOrigin: true,
+    });
     if (!result) return;
     toast.success(summary(result));
     onDone();

@@ -71,6 +71,7 @@ export function recordFromForm<T extends RecordType>(
   return {
     favorite: current?.favorite,
     attachments: current?.attachments,
+    importedFrom: current?.importedFrom,
     ...fields,
     ...(tags?.length ? { tags } : {}),
     type,
@@ -85,6 +86,7 @@ export function recordFormDefaults<T extends RecordType>(
     type: _type,
     favorite: _favorite,
     attachments: _attachments,
+    importedFrom: _importedFrom,
     passwordChangedAt: _passwordChangedAt,
     ...values
   } = record as RecordOfType<T> & { passwordChangedAt?: string };

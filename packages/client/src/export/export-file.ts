@@ -152,6 +152,7 @@ const OWN_COLUMN = new Set<string>([
   "id",
   "vaultId",
   "attachments",
+  "importedFrom",
   "schemaVersion",
   "passwordChangedAt",
 ]);
