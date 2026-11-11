@@ -41,7 +41,9 @@ Served at the server root, outside `PREFIX`, so the public proxy (which forwards
 
 ## Env vars
 
-Create `.env` in this directory:
+`.env` in this directory is committed, with the `OPAQUE_*` secrets encrypted by [dotenvx](https://dotenvx.com).
+`pnpm dev` decrypts them with `.env.keys` (gitignored, ask a teammate for it). Edit a secret with
+`pnpm exec dotenvx set KEY value`. Details: `CLAUDE.md` in this directory.
 
 | Var                   | Purpose                                                                                                                     |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------- |

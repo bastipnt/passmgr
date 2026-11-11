@@ -30,6 +30,7 @@
     "drizzle-orm": "catalog:"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "catalog:",
     "@testcontainers/postgresql": "catalog:",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "catalog:",

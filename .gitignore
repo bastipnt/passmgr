@@ -22,6 +22,9 @@ dist-ssr
 .env.production
 # Web build flags only (public in the bundle anyway): tracked.
 !apps/web/.env.production
+# Server dev env: secrets encrypted with dotenvx, tracked. The private key is not.
+!apps/server/.env
+.env.keys
 .env.local
 .env.development.local
 .env.test.local

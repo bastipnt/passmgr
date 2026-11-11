@@ -1,4 +1,10 @@
-import "dotenv/config";
+import { fileURLToPath } from "node:url";
+import { config } from "dotenv";
+
+// DATABASE_URL comes from the server's env file (resolved from this file, not the cwd: the server imports this
+// package from apps/server). Never overrides vars already set, e.g. by `dotenvx run` or the test setup; the file is
+// absent in the Docker image, where compose sets the env.
+config({ path: fileURLToPath(new URL("../../apps/server/.env", import.meta.url)), quiet: true });
 import { drizzle } from "drizzle-orm/node-postgres";
 import { relations, schema } from "./src/relations";
 

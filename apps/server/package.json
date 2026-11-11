@@ -5,10 +5,10 @@
   "main": "index.ts",
   "type": "module",
   "scripts": {
-    "dev": "bun run --watch index.ts",
+    "dev": "dotenvx run -- bun run --watch index.ts",
     "typecheck": "tsc7 --noEmit",
     "lint": "oxlint --type-aware",
-    "invite": "bun scripts/create-invite.ts",
+    "invite": "dotenvx run -- bun scripts/create-invite.ts",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:integration": "vitest run --config vitest.integration.config.ts",
@@ -34,6 +34,7 @@
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@dotenvx/dotenvx": "catalog:",
     "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "catalog:",
     "@types/node": "catalog:",
