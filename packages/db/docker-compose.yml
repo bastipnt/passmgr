@@ -5,10 +5,11 @@ services:
     shm_size: 128mb
     ports:
       - 5432:5432
+    # Dev only. Defaults match DATABASE_URL in apps/server/.env; override from the shell if needed.
     environment:
-      - POSTGRES_USER
-      - POSTGRES_PASSWORD
-      - POSTGRES_DB
+      - POSTGRES_USER=${POSTGRES_USER:-passmgr}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-passmgr123}
+      - POSTGRES_DB=${POSTGRES_DB:-passmgr}
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 3s

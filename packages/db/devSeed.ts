@@ -1,8 +1,8 @@
-import { config } from "dotenv";
+import { config } from "@dotenvx/dotenvx";
 
-// Load DB env (DATABASE_URL) and server env (OPAQUE_* vars).
-config();
-config({ path: "../../apps/server/.env" });
+// Load the server env (DATABASE_URL, OPAQUE_* vars). dotenvx decrypts the encrypted
+// secrets with apps/server/.env.keys.
+config({ path: "../../apps/server/.env", quiet: true });
 
 import {
   type AKEExportKeyPair,

@@ -106,7 +106,8 @@ pnpm dev
 
 ### Required env vars
 
-Server (`apps/server/.env`):
+Server (`apps/server/.env`, committed; the `OPAQUE_*` secrets are encrypted with [dotenvx](https://dotenvx.com) and
+need `apps/server/.env.keys`, which is gitignored, see `apps/server/CLAUDE.md`):
 
 | Var                   | Notes                                                                              |
 | --------------------- | ---------------------------------------------------------------------------------- |
@@ -118,11 +119,10 @@ Server (`apps/server/.env`):
 | `SMTP_URL`            | Mail for email verification; dev: `smtp://localhost:1025` (Mailpit). [docs/ops/email.md](./docs/ops/email.md) |
 | `MAIL_FROM`           | Sender address, required with `SMTP_URL`                                           |
 
-DB package (`packages/db/.env`):
+The DB package (Drizzle, migrations, seed) reads `DATABASE_URL` from `apps/server/.env` too.
 
-| Var            | Notes                          |
-| -------------- | ------------------------------ |
-| `DATABASE_URL` | Same as above, used by Drizzle |
+Web (`apps/web/.env.development`, committed, public values): `VITE_SERVER_URL`, the server's tRPC URL
+(`http://localhost:3000/trpc`).
 
 ### Common scripts
 

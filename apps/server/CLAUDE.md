@@ -54,7 +54,13 @@ Logging: pino options in `src/log-options.ts` (redact paths, request serializer 
 
 ## Environment Variables
 
-Server (`apps/server/.env`):
+Server (`apps/server/.env`, committed): dev config, with the `OPAQUE_*` secrets encrypted by
+[dotenvx](https://dotenvx.com). `dev` / `invite` run under `dotenvx run`, which decrypts them with
+`apps/server/.env.keys` (gitignored; get it from a teammate, or regenerate: delete `.env.keys`, put fresh values from
+`scripts/opaque-cf-bootstrap.ts` in `.env`, `pnpm exec dotenvx encrypt -k "OPAQUE_*"`, then `pnpm db:reset:hard`, since
+new OPAQUE keys invalidate every registration). Instead of the file, `DOTENV_PRIVATE_KEY` in the env works too. Change a secret with
+`pnpm exec dotenvx set KEY value`; add a plain value by editing `.env`. Tests don't need the key (`global-setup.ts`
+sets the secrets). Production uses `.env.production` on the deploy host, not this file.
 
 - `DATABASE_URL` — PostgreSQL connection string
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)

@@ -1,4 +1,7 @@
-import "dotenv/config";
+import { config } from "dotenv";
+
+// DATABASE_URL from the server's env file. drizzle-kit runs from packages/db (package scripts, Dockerfile).
+config({ path: "../../apps/server/.env", quiet: true });
 import { defineConfig } from "drizzle-kit";
 
 export default defineConfig({

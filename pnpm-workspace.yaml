@@ -13,6 +13,7 @@ allowBuilds:
 
 catalog:
   "@cloudflare/opaque-ts": ^0.7.5
+  "@dotenvx/dotenvx": ^2.38.2
   "@expo/vector-icons": ^15.1.1
   "@hookform/resolvers": ^5.4.0
   "@tailwindcss/postcss": ^4.3.2
