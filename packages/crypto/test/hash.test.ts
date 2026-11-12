@@ -6,6 +6,7 @@ import {
   deriveRecoveryAuthKey,
   genPasswordKek,
   getPasswordKekParams,
+  hashDeviceName,
   hashEmail,
   hashRecoveryAuthKey,
   hkdf,
@@ -125,6 +126,23 @@ describe("hashEmail", () => {
   it("returns a 32-byte digest", async () => {
     const out = await hashEmail(new Uint8Array(32).fill(80), "x@y.z");
     expect(out.length).toBe(32);
+  });
+});
+
+describe("hashDeviceName", () => {
+  const serverKey = new Uint8Array(32).fill(90);
+
+  it("is stable for the same user and name", async () => {
+    expect(await hashDeviceName(serverKey, "u1", "Firefox")).toEqual(
+      await hashDeviceName(serverKey, "u1", "Firefox"),
+    );
+  });
+
+  it("differs across users, names and server keys", async () => {
+    const base = await hashDeviceName(serverKey, "u1", "Firefox");
+    expect(await hashDeviceName(serverKey, "u2", "Firefox")).not.toEqual(base);
+    expect(await hashDeviceName(serverKey, "u1", "Safari")).not.toEqual(base);
+    expect(await hashDeviceName(new Uint8Array(32).fill(91), "u1", "Firefox")).not.toEqual(base);
   });
 });
 

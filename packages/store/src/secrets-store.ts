@@ -1,10 +1,12 @@
 import {
+  ACCOUNT_EVENT_DEVICE_AAD,
   createVault,
   decryptRecordData,
   decryptVaultMeta,
   encryptRecordData,
   encryptVaultMeta,
   hkdf,
+  openAnonymousSeal,
   openPendingRecovery,
   openSealedVaultKey,
   type RecordCipherContext,
@@ -582,6 +584,21 @@ class SecretsStore {
       vaultId,
       keyVersion,
     );
+  }
+
+  /**
+   * The device name of an account event, sealed to this user's keypair by the
+   * server. Null when it is sealed to another keypair version or doesn't open.
+   */
+  async openAccountEventDeviceName(sealed: string, keyVersion: number): Promise<string | null> {
+    if (!this.userPrivateKey) throw new SessionLockedError();
+    if (keyVersion !== this.userKeyPairVersion) return null;
+    try {
+      const name = await openAnonymousSeal(this.userPrivateKey, sealed, ACCOUNT_EVENT_DEVICE_AAD);
+      return new TextDecoder().decode(name);
+    } catch {
+      return null;
+    }
   }
 
   /**

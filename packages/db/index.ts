@@ -5,11 +5,13 @@ import { config } from "dotenv";
 // package from apps/server). Never overrides vars already set, e.g. by `dotenvx run` or the test setup; the file is
 // absent in the Docker image, where compose sets the env.
 config({ path: fileURLToPath(new URL("../../apps/server/.env", import.meta.url)), quiet: true });
+
 import { drizzle } from "drizzle-orm/node-postgres";
 import { relations, schema } from "./src/relations";
 
 export const db = drizzle(process.env.DATABASE_URL!, { relations });
 
+export * from "./src/schema/account-events";
 export * from "./src/schema/device-credentials";
 export * from "./src/schema/keys";
 export * from "./src/schema/records";

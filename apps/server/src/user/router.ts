@@ -52,6 +52,7 @@ import {
   takePasswordChangeAttempt,
 } from "../util/redis-utils";
 import { notifyVaultMembers } from "../vault/access";
+import { recordAction } from "./account-events";
 import { deleteAccount } from "./delete-account";
 import { isEmailVerified, sendVerificationCode, verifyEmail } from "./email-verification";
 
@@ -136,6 +137,7 @@ export const userRouter = router({
   verifyEmail: protectedProcedure.input(verifyEmailInputSchema).mutation(async ({ ctx, input }) => {
     await verifyEmail(ctx.userId, input.code);
     ctx.req?.log.info("auth.email.verified");
+    await recordAction(ctx, "email_verified");
     return { ok: true } as const;
   }),
 
@@ -195,6 +197,7 @@ export const userRouter = router({
       if (!inserted) throw new TRPCError({ code: "CONFLICT", message: "credential exists" });
       await linkSessionCredential(ctx.sessionId, credentialId);
       ctx.req?.log.info({ algorithm }, "auth.device_credential.registered");
+      await recordAction(ctx, "device_credential_added");
       return { ok: true } as const;
     }),
 
@@ -216,7 +219,10 @@ export const userRouter = router({
     .input(deviceCredentialInputSchema)
     .mutation(async ({ ctx, input }) => {
       const removed = await deleteDeviceCredential(ctx.userId, input.credentialId);
-      if (removed) ctx.req?.log.info({}, "auth.device_credential.removed");
+      if (removed) {
+        ctx.req?.log.info({}, "auth.device_credential.removed");
+        await recordAction(ctx, "device_credential_removed");
+      }
       return { ok: true } as const;
     }),
 
@@ -236,6 +242,7 @@ export const userRouter = router({
         if (!active) throw new TRPCError({ code: "NOT_FOUND" });
         await replacePasswordWrap(tx, active, input, new Date());
       });
+      await recordAction(ctx, "password_keys_updated");
     }),
 
   // Change the master password of an account (ADR 0001 D10, linked mode).
@@ -315,6 +322,7 @@ export const userRouter = router({
       await revokeUserSessions(ctx.userId, ctx.sessionId);
       await resetLoginThrottle(emailHash);
       ctx.req?.log.info({ emailHash }, "auth.password_change.success");
+      await recordAction(ctx, "password_changed");
       return { ok: true } as const;
     }),
 
@@ -387,6 +395,7 @@ export const userRouter = router({
       }
       await deleteTotpEnrollment(ctx.userId);
       ctx.req?.log.info({}, "auth.two_factor.enabled");
+      await recordAction(ctx, "two_factor_enabled");
       return { backupCodes };
     }),
 
@@ -394,6 +403,7 @@ export const userRouter = router({
   disableTotp: secondFactorProcedure.input(twoFactorEmptyInputSchema).mutation(async ({ ctx }) => {
     await disableTotp(ctx.userId);
     ctx.req?.log.info({}, "auth.two_factor.disabled");
+    await recordAction(ctx, "two_factor_disabled");
     return { ok: true } as const;
   }),
 
@@ -404,6 +414,7 @@ export const userRouter = router({
     .mutation(async ({ ctx }) => {
       const backupCodes = await regenerateBackupCodes(ctx.userId);
       if (!backupCodes) throw new TRPCError({ code: "NOT_FOUND", message: "two-factor is off" });
+      await recordAction(ctx, "backup_codes_regenerated");
       return { backupCodes };
     }),
 });

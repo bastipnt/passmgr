@@ -4,8 +4,10 @@ import { describe, expect, it } from "vitest";
 import { encryptXChaChaWithAAD } from "../src/encryption";
 import {
   createUserKeyPair,
+  openAnonymousSeal,
   openSealedVaultKey,
   publicKeyFingerprint,
+  sealAnonymous,
   sealToPublicKey,
   sealVaultKey,
   unsealFromPublicKey,
@@ -230,5 +232,34 @@ describe("publicKeyFingerprint", () => {
     expect(publicKeyFingerprint(toBase64(new Uint8Array(32).fill(9)))).toMatchInlineSnapshot(
       `"31097 39042 64238 79004 16333 83159"`,
     );
+  });
+});
+
+describe("sealAnonymous / openAnonymousSeal", () => {
+  function party() {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    return { keyPair, privateKey: unwrapUserPrivateKey(accountKey, keyPair) };
+  }
+  const name = fromString("Firefox on Linux");
+
+  it("round-trips to the recipient's private key, fresh each time", async () => {
+    const { keyPair, privateKey } = party();
+    const a = await sealAnonymous(keyPair.publicKey, name, AAD);
+    const b = await sealAnonymous(keyPair.publicKey, name, AAD);
+
+    expect(a).not.toBe(b);
+    expect(await openAnonymousSeal(privateKey, a, AAD)).toEqual(name);
+  });
+
+  it("doesn't open with another private key, another AAD or tampered", async () => {
+    const { keyPair, privateKey } = party();
+    const sealed = await sealAnonymous(keyPair.publicKey, name, AAD);
+    const tampered = fromBase64(sealed);
+    tampered[tampered.length - 1]! ^= 1;
+
+    await expect(openAnonymousSeal(party().privateKey, sealed, AAD)).rejects.toThrow();
+    await expect(openAnonymousSeal(privateKey, sealed, fromString("other"))).rejects.toThrow();
+    await expect(openAnonymousSeal(privateKey, toBase64(tampered), AAD)).rejects.toThrow();
   });
 });

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext } from "react";
 import { SessionContext } from "../providers/SessionProvider";
 import { useTRPCClient } from "../util/trpc";
+import { ACCOUNT_ACTIVITY_KEY } from "./use-account-activity";
 
 const SESSIONS_KEY = "account-sessions";
 
@@ -29,7 +30,11 @@ export function useSessions() {
   const mutation = useMutation({
     networkMode: "always",
     mutationFn: async (run: () => Promise<unknown>) => await run(),
-    onSettled: () => queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] }),
+    onSettled: () =>
+      Promise.all([
+        queryClient.invalidateQueries({ queryKey: [SESSIONS_KEY] }),
+        queryClient.invalidateQueries({ queryKey: [ACCOUNT_ACTIVITY_KEY] }),
+      ]),
   });
 
   return {

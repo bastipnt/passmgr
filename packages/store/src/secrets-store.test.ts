@@ -1,4 +1,5 @@
 import {
+  ACCOUNT_EVENT_DEVICE_AAD,
   createUserKeyPair,
   decryptRecordData,
   encryptRecordData,
@@ -7,6 +8,7 @@ import {
   hkdf,
   openSealedVaultKey,
   rotateVaultKey,
+  sealAnonymous,
   sealVaultKey,
   unwrapAccountKey,
   unwrapUserPrivateKey,
@@ -218,6 +220,23 @@ describe("loadUserKeyPair", () => {
 
     expect(privateKey.every((b) => b === 0)).toBe(true);
     expect(secretsStore.userPublicKey).toBeUndefined();
+  });
+});
+
+describe("openAccountEventDeviceName", () => {
+  it("opens a name sealed to the loaded keypair, null for another version or key", async () => {
+    const accountKey = genKey();
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.unlockWithAccountKey(accountKey);
+    secretsStore.loadUserKeyPair(keyPair);
+    const seal = (publicKey: string) =>
+      sealAnonymous(publicKey, fromString("Firefox on Linux"), ACCOUNT_EVENT_DEVICE_AAD);
+    const sealed = await seal(keyPair.publicKey);
+
+    expect(await secretsStore.openAccountEventDeviceName(sealed, 1)).toBe("Firefox on Linux");
+    expect(await secretsStore.openAccountEventDeviceName(sealed, 2)).toBeNull();
+    const other = await seal(createUserKeyPair(genKey()).publicKey);
+    expect(await secretsStore.openAccountEventDeviceName(other, 1)).toBeNull();
   });
 });
 

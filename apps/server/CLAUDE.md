@@ -33,6 +33,8 @@ per user) — never `UPDATE` key material in place.
 - `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
   a revoked device locks: `signedout:<sessionId>` marker, see Session modes in `docs/architecture/auth.md`) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
   mobile Settings (`SessionsSection`)
+- `activity` → `activityRouter` (list — the account's security log, `account_events`, see Account activity in
+  `docs/architecture/auth.md`) — `protectedProcedure`. Record a new event type with `recordAccountEvent` / `recordAction`
 - `user` → `userRouter` (heartbeat, emailVerificationStatus, sendVerificationCode, verifyEmail, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
   registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
   two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)

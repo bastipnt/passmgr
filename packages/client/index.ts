@@ -13,6 +13,7 @@ export * from "./src/export/collect-export";
 export * from "./src/export/export-file";
 export * from "./src/export/import-export";
 // Hooks
+export * from "./src/hooks/use-account-activity";
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
 export * from "./src/hooks/use-autofill";
@@ -126,6 +127,7 @@ export * from "./src/records/version-changes";
 export * from "./src/records/wifi";
 export type { SyncStatus } from "./src/sync-manager";
 export * from "./src/sync-summary";
+export * from "./src/util/account-event-label";
 export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";
 export { endServerSession } from "./src/util/end-server-session";

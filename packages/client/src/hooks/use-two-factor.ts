@@ -16,6 +16,7 @@ import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
+import { ACCOUNT_ACTIVITY_KEY } from "./use-account-activity";
 
 const TWO_FACTOR_KEY = "account-two-factor";
 
@@ -106,6 +107,7 @@ export function useTwoFactor(onSecondFactor?: SecondFactorPrompt) {
     } finally {
       setPending(false);
       void queryClient.invalidateQueries({ queryKey: [TWO_FACTOR_KEY] });
+      void queryClient.invalidateQueries({ queryKey: [ACCOUNT_ACTIVITY_KEY] });
     }
   }
 

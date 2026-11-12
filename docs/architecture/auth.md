@@ -141,6 +141,27 @@ base32) → `confirmTotp({code})` (stores `user_totp` with the code's step used 
 with HKDF(server key, `totp-secret`), backup codes HMAC'd with HKDF(server key, `backup-code`) (`apps/server/src/auth/two-factor.ts`).
 Gates the server only: a cached profile still unlocks with the password. Recovery keeps it on; account deletion cascades.
 
+## Account activity
+
+A security log the account owner sees (`useAccountActivity`, `linked` + `online` only; web Settings → Account & sync
+`ActivitySettings`, mobile `ActivitySection`; labels in `packages/client/src/util/account-event-label.ts`). Server:
+`account_events` (`apps/server/src/user/account-events.ts`), written best-effort after the action it records
+(`recordAccountEvent`, never throws), read by `activity.list` (newest first, `ACCOUNT_EVENTS_PAGE_SIZE` per page, cursor
+`before` = the last id). Events: `account_created`, `login` / `device_login` (flag `newDevice`: a device name the owner
+hasn't signed in, registered or recovered from; only a hint, the name is the client's own `x-device-name` header),
+`login_failed` (wrong password for an existing account, `finishLogin`), `second_factor_failed` (wrong code: the password
+was right); both failures are written without awaiting, so the answer takes as long as for an unknown email, `password_changed`, `password_keys_updated` (rekey), `account_recovered`,
+`email_verified`, two-factor on / off / new backup codes, biometric device credential added / removed, `session_revoked`
+(the device is the one signed out) and `other_sessions_revoked`. Each row holds only type, device name and time: no
+IP, nothing secret. The device name is sealed to the user's current X25519 public key (`sealAnonymous`, no sender key,
+`deviceKeyVersion`), so the server writes it but can't read it back, and a copy of the database doesn't show which
+devices someone uses; the client opens it in `useAccountActivity` (`secretsStore.openAccountEventDeviceName`; another
+keypair version shows as an unknown device). `newDevice` compares `deviceNameHash` (`hashDeviceName`: HMAC under the
+server key, scoped to the user). Type, time and the flag stay readable: pruning needs them, and the server sees them when
+it records the event anyway (as it sees the device name then, and keeps it in the Redis session). Kept: the newest `ACCOUNT_EVENTS_MAX` (500) per user plus, counted apart since anyone who knows the
+email can cause them, the newest `ACCOUNT_FAILURES_MAX` (50) failures; none older than a year (pruned on write);
+account deletion cascades.
+
 ## Account deletion
 
 Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account & sync): a fresh OPAQUE login
