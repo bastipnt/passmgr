@@ -394,11 +394,19 @@ export async function takeDeviceLoginAttempt(
   return JSON.parse(raw);
 }
 
-/** The device credential of a session (see Session.deviceCredentialId). */
-export async function sessionCredentialId(sessionId: string): Promise<string | undefined> {
+/** A session's device: its credential (see Session.deviceCredentialId) and name. Live or not. */
+export async function sessionDevice(
+  sessionId: string,
+): Promise<Pick<Session, "deviceCredentialId" | "deviceName"> | undefined> {
   const raw = await redis.get(sessionKey(sessionId));
   if (raw === null) return undefined;
-  return (JSON.parse(raw) as Session).deviceCredentialId;
+  const { deviceCredentialId, deviceName } = JSON.parse(raw) as Session;
+  return { deviceCredentialId, deviceName };
+}
+
+/** The device credential of a session (see Session.deviceCredentialId). */
+export async function sessionCredentialId(sessionId: string): Promise<string | undefined> {
+  return (await sessionDevice(sessionId))?.deviceCredentialId;
 }
 
 /** Note the credential this session's device registered (see Session.deviceCredentialId). */

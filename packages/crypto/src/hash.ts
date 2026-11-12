@@ -97,6 +97,24 @@ export async function hashEmail(serverKey: Uint8Array, email: string): Promise<U
 }
 
 /**
+ * A device name as the server can compare it (is this a device the user has
+ * signed in from?) without storing the name: keyed with the server key and
+ * scoped to the user, so equal names of two users don't match.
+ */
+export async function hashDeviceName(
+  serverKey: Uint8Array,
+  userId: string,
+  deviceName: string,
+): Promise<Uint8Array> {
+  const key = await hkdf(serverKey, "deviceNameHashKey");
+  try {
+    return await signHmac(key, `${userId}\0${deviceName}`);
+  } finally {
+    wipe(key);
+  }
+}
+
+/**
  * Recovery auth key: proves possession of the recovery key to the server
  * without revealing it. Independent of the recovery KEK (different HKDF info),
  * so the server can't unwrap the recovery copy of the vault key with it.

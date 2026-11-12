@@ -177,6 +177,63 @@ export async function unsealFromPublicKey(
   }
 }
 
+/**
+ * Encrypt to a public key without a sender key (a sealed box): ephemeral
+ * X25519 → HKDF → XChaCha20-Poly1305. Anyone can seal, only the recipient's
+ * private key opens it. For what the server writes for a user but must not
+ * read back.
+ *
+ * @returns base64 of `ephemeralPublicKey ‖ nonce ‖ ciphertext`
+ */
+export async function sealAnonymous(
+  recipientPublicKeyB64: string,
+  plaintext: Uint8Array,
+  aad: Uint8Array,
+): Promise<string> {
+  const recipientPk = fromBase64(recipientPublicKeyB64);
+  const esk = genKey();
+  const secrets: Uint8Array[] = [esk];
+  try {
+    const epk = x25519.getPublicKey(esk);
+    const shared = x25519.getSharedSecret(esk, recipientPk);
+    secrets.push(shared);
+    const key = await hkdf(shared, "anonymousSealKey", concatBytes(epk, recipientPk));
+    secrets.push(key);
+    const nonce = randomBytes(NONCE_BYTES);
+    const ciphertext = xchacha20poly1305(key, nonce, aad).encrypt(plaintext);
+    return toBase64(concatBytes(epk, nonce, ciphertext));
+  } finally {
+    for (const secret of secrets) wipe(secret);
+  }
+}
+
+/** Open a `sealAnonymous` box. Throws on the wrong key, the wrong AAD or tampering. */
+export async function openAnonymousSeal(
+  privateKey: Uint8Array,
+  sealedB64: string,
+  aad: Uint8Array,
+): Promise<Uint8Array> {
+  const sealed = fromBase64(sealedB64);
+  if (sealed.length < KEY_BYTES + NONCE_BYTES) throw new Error("Sealed box too short");
+  const epk = sealed.subarray(0, KEY_BYTES);
+  const nonce = sealed.subarray(KEY_BYTES, KEY_BYTES + NONCE_BYTES);
+  const ciphertext = sealed.subarray(KEY_BYTES + NONCE_BYTES);
+
+  const secrets: Uint8Array[] = [];
+  try {
+    const shared = x25519.getSharedSecret(privateKey, epk);
+    secrets.push(shared);
+    const recipientPk = x25519.getPublicKey(privateKey);
+    const key = await hkdf(shared, "anonymousSealKey", concatBytes(epk, recipientPk));
+    secrets.push(key);
+    return xchacha20poly1305(key, nonce, aad).decrypt(ciphertext);
+  } finally {
+    for (const secret of secrets) wipe(secret);
+  }
+}
+
+export const ACCOUNT_EVENT_DEVICE_AAD = fromString("passmgr/account-event-device/v1");
+
 function vaultKeySealAad(vaultId: string, keyVersion: number): Uint8Array {
   return fromString(`passmgr/vault-key-seal/v1/${vaultId}/${keyVersion}`);
 }

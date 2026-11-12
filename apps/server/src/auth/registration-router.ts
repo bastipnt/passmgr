@@ -19,6 +19,7 @@ import { TRPCError } from "@trpc/server";
 import { loggedProcedure } from "../logger";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
+import { recordAccountEvent } from "../user/account-events";
 import {
   emailVerificationEnabled,
   initialEmailVerifiedAt,
@@ -153,6 +154,7 @@ export const registrationRouter = router({
       }
 
       log?.info({ emailHash, viaInvite: invite !== undefined }, "auth.register.success");
+      await recordAccountEvent(created, "account_created", { deviceName: ctx.deviceName, log });
 
       if (emailVerificationEnabled()) {
         // The account exists either way; the client offers a resend.

@@ -7,11 +7,13 @@ import {
 import { TRPCError } from "@trpc/server";
 import { shortHash } from "../logger";
 import { router } from "../trpc";
+import { recordAccountEvent, recordAction } from "../user/account-events";
 import {
   listUserSessions,
   revokeOtherUserSessions,
   revokeUserSession,
   sessionCredentialId,
+  sessionDevice,
   userSessionIds,
 } from "../util/redis-utils";
 import { protectedProcedure } from "./auth-middleware";
@@ -45,13 +47,20 @@ export const sessionRouter = router({
   revoke: protectedProcedure.input(revokeSessionInputSchema).mutation(async ({ ctx, input }) => {
     const ids = await userSessionIds(ctx.userId);
     const target = ids.find((id) => publicSessionId(id) === input.id);
-    const credentialId = target && (await sessionCredentialId(target));
-    if (!target || !(await revokeUserSession(ctx.userId, target))) {
+    if (!target) throw new TRPCError({ code: "NOT_FOUND" });
+    const device = await sessionDevice(target);
+    if (!(await revokeUserSession(ctx.userId, target))) {
       throw new TRPCError({ code: "NOT_FOUND" });
     }
     // The device's biometric unlock would log it straight back in.
-    if (credentialId) await deleteDeviceCredential(ctx.userId, credentialId);
+    if (device?.deviceCredentialId) {
+      await deleteDeviceCredential(ctx.userId, device.deviceCredentialId);
+    }
     ctx.req?.log?.info({ sidHash: await shortHash(target) }, "auth.session.revoked");
+    await recordAccountEvent(ctx.userId, "session_revoked", {
+      deviceName: device?.deviceName,
+      log: ctx.req?.log,
+    });
     return { ok: true } as const;
   }),
 
@@ -62,6 +71,7 @@ export const sessionRouter = router({
       // Including devices whose session already expired: none may log back in.
       await deleteDeviceCredentials(ctx.userId, await sessionCredentialId(ctx.sessionId));
       ctx.req?.log?.info({ revoked }, "auth.session.revoked_others");
+      await recordAction(ctx, "other_sessions_revoked");
       return { revoked };
     }),
 });

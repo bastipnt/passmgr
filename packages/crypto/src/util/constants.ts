@@ -16,6 +16,8 @@ export const hkdfInfo = {
   backupCode: fromString("backup-code"),
   opaquePassword: fromString("passmgr/opaque-password/v1"),
   deviceSessionKey: fromString("passmgr/device-session/v1"),
+  anonymousSealKey: fromString("passmgr/seal/anonymous/v1"),
+  deviceNameHashKey: fromString("passmgr/device-name-hash/v1"),
 };
 
 // OPAQUE binds it into every registration envelope: a different value breaks

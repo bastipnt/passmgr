@@ -14,6 +14,7 @@ import { loggedProcedure } from "../logger";
 import { recordRecoveryAttempt } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
+import { recordAccountEvent } from "../user/account-events";
 import {
   resetLoginThrottle,
   revokeUserSessions,
@@ -163,6 +164,7 @@ export const recoveryRouter = router({
       await resetLoginThrottle(emailHash);
 
       log?.info({ emailHash }, "auth.recovery.success");
+      await recordAccountEvent(userId, "account_recovered", { deviceName: ctx.deviceName, log });
       recordRecoveryAttempt("finishRecovery", "ok");
       return { ok: true } as const;
     }),

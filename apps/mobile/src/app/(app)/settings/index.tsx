@@ -23,6 +23,7 @@ import { useContext, useRef } from "react";
 import { ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { ReconnectSheet } from "@/features/auth/components/ReconnectSheet";
+import { ActivitySection } from "@/features/settings/components/ActivitySection";
 import { ChangePasswordSheet } from "@/features/settings/components/ChangePasswordSheet";
 import { CreateAccountSheet } from "@/features/settings/components/CreateAccountSheet";
 import { SessionsSection } from "@/features/settings/components/SessionsSection";
@@ -133,6 +134,7 @@ export default function SettingsScreen() {
 
         {linked && <SyncSection />}
         {linked && <SessionsSection />}
+        {linked && <ActivitySection />}
 
         <RemoveDialog
           title="Remove vault from this device?"

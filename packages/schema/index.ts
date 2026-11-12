@@ -10,6 +10,7 @@ export * from "./src/seed/login-record-seed";
 export * from "./src/seed/typed-record-seed";
 export * from "./src/sharing-schema";
 export * from "./src/tags";
+export * from "./src/user/account-event-schema";
 export * from "./src/user/delete-account-schema";
 export * from "./src/user/device-login-schema";
 export * from "./src/user/email-schema";

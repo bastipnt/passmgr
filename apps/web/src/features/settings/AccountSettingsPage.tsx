@@ -1,13 +1,14 @@
 import { ItemGroup } from "@repo/ui/components/Item";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 import AccountSettings from "./AccountSettings";
+import ActivitySettings from "./ActivitySettings";
 import SessionsSettings from "./SessionsSettings";
 import StorageSettings from "./StorageSettings";
 import SyncSettings from "./SyncSettings";
 
 /**
  * The vault on this device and its account (ADR 0001 D2): create an online
- * account or sign out, sync, signed-in devices, password, storage, removal.
+ * account or sign out, sync, signed-in devices, account activity, password, storage, removal.
  */
 export default function AccountSettingsPage() {
   return (
@@ -20,6 +21,7 @@ export default function AccountSettingsPage() {
           <AccountSettings />
           <SyncSettings />
           <SessionsSettings />
+          <ActivitySettings />
           <StorageSettings />
         </ItemGroup>
       </div>

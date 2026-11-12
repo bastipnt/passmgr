@@ -31,6 +31,7 @@ import { loggedProcedure, shortHash } from "../logger";
 import { recordAuthFailure, recordLogin, recordRateLimited } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
+import { recordAccountEvent } from "../user/account-events";
 import { allowedOrigins } from "../util/allowed-origins";
 import {
   countSecondFactorAttempt,
@@ -56,6 +57,7 @@ import { checkSecondFactor, hasTotp } from "./two-factor";
 import { verifyAssertion } from "./webauthn";
 
 type LoginLog = {
+  error: (obj: object, msg: string) => void;
   warn: (obj: object, msg: string) => void;
   info: (obj: object, msg: string) => void;
 };
@@ -211,6 +213,10 @@ async function completeLogin(log: LoginLog | undefined, stage: LoginStage, login
 
   log?.info({ emailHash, device: deviceCredentialId !== undefined }, "auth.login.success");
   recordLogin(deviceCredentialId ? "device" : "password", false);
+  await recordAccountEvent(userId, deviceCredentialId ? "device_login" : "login", {
+    deviceName,
+    log,
+  });
   return { sessionId, userId, ...keys };
 }
 
@@ -297,6 +303,8 @@ export const loginRouter = router({
 
       const finResult = opaqueServer.authFinish(ke3, expected);
       if (finResult instanceof Error) {
+        // Not awaited: a slower answer than for an unknown email would reveal the account.
+        void recordAccountEvent(userId, "login_failed", { deviceName: ctx.deviceName, log });
         denyLogin(log, "finishLogin", "opaque_finish_failed", emailHash);
       }
 
@@ -460,6 +468,10 @@ export const loginRouter = router({
 
       if (!(await checkSecondFactor(userId, code))) {
         await recordLoginStart(emailHash);
+        void recordAccountEvent(userId, "second_factor_failed", {
+          deviceName: challenge.deviceName,
+          log,
+        });
         if (attempts >= SECOND_FACTOR_MAX_ATTEMPTS) {
           await takeSecondFactorChallenge(challengeId);
           denySecondFactor(log, "wrong_code", SECOND_FACTOR_EXPIRED, emailHash);
@@ -485,6 +497,10 @@ export const loginRouter = router({
 
       log?.info({ emailHash }, "auth.login.success");
       recordLogin(deviceCredentialId ? "device" : "password", true);
+      await recordAccountEvent(userId, deviceCredentialId ? "device_login" : "login", {
+        deviceName: challenge.deviceName,
+        log,
+      });
       return { sessionId, userId, ...keys };
     }),
 
