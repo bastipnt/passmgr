@@ -5,7 +5,7 @@
   "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": {} },
   // web, server, postgres, redis, mailpit UI
   "forwardPorts": [5173, 3000, 5432, 6379, 8025],
-  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && corepack enable && pnpm install --frozen-lockfile",
+  "postCreateCommand": "curl -fsSL https://bun.sh/install | bash && corepack enable && pnpm install --frozen-lockfile && bash .devcontainer/setup-shell.sh",
   "remoteEnv": { "PATH": "${containerEnv:PATH}:${containerEnv:HOME}/.bun/bin" },
   // Postgres + Mailpit from packages/db/docker-compose.yml
   // + Redis from infra/redis (the server fails at startup without it)
