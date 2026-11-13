@@ -835,6 +835,17 @@ describe("sharing (ADR 0001 D7)", () => {
     expect(opened).toEqual(unwrapVaultKey(accountKey, rotated));
   });
 
+  it("rotateVaultKey refuses to seal the personal vault's key to anyone", async () => {
+    const { wraps } = unlockAsMember();
+
+    const bob = [{ userId: "bob", publicKey: otherUser().keyPair }];
+
+    await expect(secretsStore.rotateVaultKey(wraps[0]!, bob)).rejects.toThrow("personal vault");
+    await expect(
+      secretsStore.rotateVaultKey({ ...wraps[0]!, kind: "shared" }, bob),
+    ).rejects.toThrow("personal vault");
+  });
+
   describe("openInvitation", () => {
     async function invitation(sender = otherUser(), vaultKey = genKey()) {
       const vaultId = "0199a3c4-0000-7000-8000-0000000000cc";

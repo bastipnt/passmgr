@@ -6,6 +6,7 @@ import { VaultsOfflineError } from "../hooks/use-vaults";
 import { isEmailUnverified, isServerAnswer } from "../util/trpc-errors";
 import {
   PeerKeyChangedError,
+  UnverifiedMembersError,
   VaultKeyRotatedElsewhereError,
   VaultMembersChangedError,
 } from "./sharing";
@@ -52,7 +53,8 @@ export function vaultErrorMessage(error: unknown, fallback: string): string {
   return error instanceof VaultsOfflineError ||
     error instanceof VaultMembersChangedError ||
     error instanceof VaultKeyRotatedElsewhereError ||
-    error instanceof PeerKeyChangedError
+    error instanceof PeerKeyChangedError ||
+    error instanceof UnverifiedMembersError
     ? error.message
     : fallback;
 }
@@ -86,6 +88,12 @@ export function sharingErrorMessage(
   }
   return vaultErrorMessage(error, fallback);
 }
+
+/** For managers: rotations seal only to verified members (`UnverifiedMembersError`). */
+export const UNVERIFIED_MEMBERS_NOTICE =
+  "Until you verify every member, this device can't give the vault a new key, so someone you remove could still read new changes.";
+
+export const VERIFY_FAILED_MESSAGE = "They couldn't be marked verified. Try again.";
 
 /** The server's word for "a vault always keeps an owner" (`setMemberRole`, `leave`). */
 export const LAST_OWNER_MESSAGE =

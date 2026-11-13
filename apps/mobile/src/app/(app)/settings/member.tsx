@@ -11,6 +11,7 @@ import {
   VAULT_ROLE_DESCRIPTIONS,
   VAULT_ROLE_LABELS,
   type VaultInfo,
+  VERIFY_FAILED_MESSAGE,
 } from "@repo/client";
 import type { VaultRole } from "@repo/schema";
 import { Button, FieldError, OptionList, SettingsSection } from "@repo/ui-native";
@@ -18,6 +19,7 @@ import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
 import { Alert, ScrollView, Text, View } from "react-native";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
+import { confirmVerify } from "@/features/vaults/confirm-verify";
 import { Fingerprint } from "@/features/vaults/Fingerprint";
 
 /**
@@ -74,6 +76,15 @@ function MemberForm({ vault, member }: { vault: VaultInfo; member: MemberInfo })
       "The role couldn't be changed. Try again.",
       { byCode: { PRECONDITION_FAILED: LAST_OWNER_MESSAGE } },
     );
+  }
+
+  function verify() {
+    confirmVerify(member, () => {
+      void run(
+        () => sharing.verifyMember(vault.vaultId, member.userId, member.publicKey),
+        VERIFY_FAILED_MESSAGE,
+      );
+    });
   }
 
   function confirmTransfer() {
@@ -147,6 +158,11 @@ function MemberForm({ vault, member }: { vault: VaultInfo; member: MemberInfo })
           }
         >
           <Fingerprint value={member.fingerprint} />
+          {!member.keyVerified && (
+            <Button variant="outline" disabled={pending} onPress={verify}>
+              Verify…
+            </Button>
+          )}
         </SettingsSection>
 
         <SettingsSection flush title="Role" description={VAULT_ROLE_DESCRIPTIONS[member.role]}>

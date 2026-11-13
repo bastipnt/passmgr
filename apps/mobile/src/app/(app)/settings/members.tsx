@@ -1,13 +1,16 @@
 import {
   LAST_OWNER_MESSAGE,
+  type MemberInfo,
   SessionContext,
   sharingErrorMessage,
+  UNVERIFIED_MEMBERS_NOTICE,
   useVaultActions,
   useVaultMembers,
   useVaultSharing,
   useVaults,
   VAULT_ROLE_LABELS,
   type VaultInfo,
+  VERIFY_FAILED_MESSAGE,
 } from "@repo/client";
 import { canAssignRole, canManageVault } from "@repo/schema";
 import {
@@ -26,6 +29,7 @@ import { useContext, useRef, useState } from "react";
 import { Alert, Pressable, ScrollView, Text, View } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { CreateAccountSheet } from "@/features/settings/components/CreateAccountSheet";
+import { confirmVerify } from "@/features/vaults/confirm-verify";
 import { VaultTile } from "@/features/vaults/VaultTile";
 import { settingsPaths } from "@/route-paths";
 
@@ -130,7 +134,7 @@ function Members({ vault }: { vault: VaultInfo }) {
 function MemberList({ vault }: { vault: VaultInfo }) {
   const router = useRouter();
   const { members, isPending, error: loadError } = useVaultMembers(vault.vaultId);
-  const { leaveVault, pending } = useVaultSharing();
+  const { leaveVault, verifyMember, pending } = useVaultSharing();
   const [error, setError] = useState<string>();
   const muted = useCSSVariable("--color-muted-foreground") as string;
 
@@ -152,6 +156,15 @@ function MemberList({ vault }: { vault: VaultInfo }) {
     }
   }
 
+  function verify(member: MemberInfo) {
+    confirmVerify(member, () => {
+      setError(undefined);
+      verifyMember(vault.vaultId, member.userId, member.publicKey).catch((e: unknown) =>
+        setError(sharingErrorMessage(e, VERIFY_FAILED_MESSAGE)),
+      );
+    });
+  }
+
   function confirmLeave() {
     Alert.alert(
       `Leave “${vault.name}”?`,
@@ -168,7 +181,11 @@ function MemberList({ vault }: { vault: VaultInfo }) {
       <SettingsSection
         flush
         title="Members"
-        description="Compare a security code with its person before you trust it."
+        description={
+          canManageVault(vault.role) && members.some((m) => !m.isSelf && !m.keyVerified)
+            ? `Compare a security code with its person before you trust it. ${UNVERIFIED_MEMBERS_NOTICE}`
+            : "Compare a security code with its person before you trust it."
+        }
       >
         {isPending ? (
           <View className="gap-2 px-5">
@@ -183,14 +200,20 @@ function MemberList({ vault }: { vault: VaultInfo }) {
           <SectionGroup>
             {members.map((member) => {
               const manageable = !member.isSelf && canAssignRole(vault.role, member.role);
+              const unverified = !member.isSelf && !member.keyVerified;
               return (
                 <Pressable
                   key={member.userId}
                   accessibilityRole="button"
-                  accessibilityLabel={`${member.email}, ${VAULT_ROLE_LABELS[member.role]}`}
-                  disabled={!manageable}
+                  accessibilityLabel={`${member.email}, ${VAULT_ROLE_LABELS[member.role]}${unverified ? ", not verified" : ""}`}
+                  accessibilityHint={
+                    !manageable && unverified ? "Compare and verify their security code" : undefined
+                  }
+                  disabled={!manageable && (!unverified || pending)}
                   onPress={() =>
-                    router.navigate(settingsPaths.vaultMember(vault.vaultId, member.userId))
+                    manageable
+                      ? router.navigate(settingsPaths.vaultMember(vault.vaultId, member.userId))
+                      : verify(member)
                   }
                   className="min-h-16 flex-row items-center gap-3 px-5 py-2.5 active:bg-foreground/5"
                 >
@@ -202,6 +225,9 @@ function MemberList({ vault }: { vault: VaultInfo }) {
                       {member.isSelf && <Badge variant="secondary">You</Badge>}
                       {member.status === "pending" && <Badge variant="outline">Invited</Badge>}
                       {!member.keyTrusted && <Badge variant="warning">Key changed</Badge>}
+                      {unverified && member.keyTrusted && (
+                        <Badge variant="outline">Not verified</Badge>
+                      )}
                     </View>
                     <Text selectable className="font-mono text-muted-foreground text-xs">
                       {member.fingerprint}

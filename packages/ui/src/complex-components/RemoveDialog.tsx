@@ -16,6 +16,8 @@ type RemoveDialogBaseProps = {
   description: string;
   removeTitle: string;
   onRemove: () => void;
+  /** `default` for a confirmation that removes nothing. */
+  removeVariant?: "destructive" | "default";
 };
 
 type UncontrolledRemoveDialogProps = RemoveDialogBaseProps & {
@@ -38,6 +40,7 @@ export default function RemoveDialog({
   children,
   removeTitle,
   onRemove,
+  removeVariant = "destructive",
   open,
   onOpenChange,
 }: RemoveDialogProps) {
@@ -52,7 +55,7 @@ export default function RemoveDialog({
         </DialogHeader>
         <DialogFooter>
           <DialogClose render={<Button variant="secondary">Close</Button>} />
-          <Button variant="destructive" onClick={onRemove}>
+          <Button variant={removeVariant} onClick={onRemove}>
             {removeTitle}
           </Button>
         </DialogFooter>

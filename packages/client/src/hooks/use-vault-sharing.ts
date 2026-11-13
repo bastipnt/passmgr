@@ -1,4 +1,4 @@
-import type { VaultInvitation, VaultRole } from "@repo/schema";
+import type { UserPublicKey, VaultInvitation, VaultRole } from "@repo/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext } from "react";
 import { useRecordsContext } from "../providers/RecordsProvider";
@@ -22,8 +22,10 @@ import {
   lookupInvitee,
   openInvitations,
   removeMember,
+  resetSharingTasks,
   setMemberRole,
   transferOwnership,
+  verifyMember,
 } from "../vaults/sharing";
 import { VaultsOfflineError } from "./use-vaults";
 
@@ -160,14 +162,30 @@ export function useVaultSharing() {
         // The user's own role may have changed.
         await resync(active);
       }),
-    /** Removes the member, then rotates the vault's key (`removeMember`). */
+    /**
+     * Mark a member verified once the user compared `publicKey`'s fingerprint
+     * with them: rotations seal to it and key updates from them are accepted.
+     */
+    verifyMember: (vaultId: string, userId: string, publicKey: UserPublicKey) =>
+      act(async () => {
+        const active = requireActive(store);
+        await verifyMember(active.vault, userId, publicKey);
+        resetSharingTasks(active.vault);
+        await refreshMembers(vaultId);
+        active.syncManager.requestSync();
+      }),
+    /**
+     * Removes the member, then rotates the vault's key (`removeMember`). Throws
+     * the rotation's failure the user can fix after the removal went through.
+     */
     removeMember: (vaultId: string, userId: string) =>
       act(async () => {
         const active = online();
-        await removeMember({ vault: active.vault, trpc }, vaultId, userId);
+        const rotationError = await removeMember({ vault: active.vault, trpc }, vaultId, userId);
         reloadVaultKeys(await active.vault.getVaults());
         await refreshMembers(vaultId);
         await resync(active);
+        if (rotationError) throw rotationError;
       }),
     leaveVault: (vaultId: string) =>
       act(async () => {
