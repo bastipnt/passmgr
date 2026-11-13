@@ -5,10 +5,12 @@ import {
   NOT_JOINED_MESSAGE,
   type SharingRefusals,
   sharingErrorMessage,
+  UNVERIFIED_MEMBERS_NOTICE,
   useVaultMembers,
   useVaultSharing,
   VAULT_ROLE_LABELS,
   type VaultInfo,
+  VERIFY_FAILED_MESSAGE,
 } from "@repo/client";
 import { canAssignRole, canManageVault, type VaultRole } from "@repo/schema";
 import { toast } from "@repo/ui";
@@ -39,7 +41,14 @@ import {
   ItemTitle,
 } from "@repo/ui/components/Item";
 import { Skeleton } from "@repo/ui/components/Skeleton";
-import { CrownIcon, EllipsisIcon, LogOutIcon, UserMinusIcon, UserPlusIcon } from "lucide-react";
+import {
+  CrownIcon,
+  EllipsisIcon,
+  LogOutIcon,
+  ShieldCheckIcon,
+  UserMinusIcon,
+  UserPlusIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { InviteMemberDialog } from "./InviteMemberDialog";
 import { RoleSelect } from "./RoleSelect";
@@ -57,6 +66,7 @@ type VaultMembersDialogProps = {
 type Pending =
   | { kind: "remove"; member: MemberInfo }
   | { kind: "transfer"; member: MemberInfo }
+  | { kind: "verify"; member: MemberInfo }
   | { kind: "leave" };
 
 /**
@@ -79,6 +89,7 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const manages = canManageVault(vault.role);
+  const someUnverified = members.some((m) => !m.isSelf && !m.keyVerified);
   const owners = members.filter((m) => m.role === "owner" && m.status === "active").length;
   // Unknown while the list didn't load: the server refuses the last owner anyway.
   const lastOwner = vault.role === "owner" && !loadError && owners <= 1;
@@ -132,6 +143,13 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
         member.status === "pending"
           ? `Invite for ${member.email} withdrawn`
           : `${member.email} removed. The vault gets a new key.`,
+      );
+    } else if (confirm.kind === "verify") {
+      const { member } = confirm;
+      await run(
+        () => sharing.verifyMember(vault.vaultId, member.userId, member.publicKey),
+        VERIFY_FAILED_MESSAGE,
+        `${member.email} verified`,
       );
     } else if (confirm.kind === "transfer") {
       const { member } = confirm;
@@ -195,11 +213,15 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
                     actorRole={vault.role}
                     disabled={pending}
                     onRoleChange={(role) => changeRole(member, role)}
+                    onVerify={() => ask({ kind: "verify", member })}
                     onRemove={() => ask({ kind: "remove", member })}
                     onTransfer={() => ask({ kind: "transfer", member })}
                   />
                 ))}
               </ItemGroup>
+            )}
+            {manages && someUnverified && !isPending && !loadError && (
+              <p className="text-muted-foreground text-xs">{UNVERIFIED_MEMBERS_NOTICE}</p>
             )}
             {error && <FieldError variant="box">{error}</FieldError>}
           </div>
@@ -257,6 +279,13 @@ function confirmText(confirm: Pending, vault: VaultInfo) {
               "They lose the vault on their devices. The vault gets a new key, so they can't open anything changed from now on. What they've already seen, they may have kept.",
             removeTitle: "Remove",
           };
+    case "verify":
+      return {
+        title: `Verify ${confirm.member.email}?`,
+        description: `${confirm.member.keyTrusted ? "" : "Their key changed since this device last used it. "}Does their security code read ${confirm.member.fingerprint}? Compare it with them, by phone or in person.`,
+        removeTitle: "Codes match",
+        removeVariant: "default" as const,
+      };
     case "transfer":
       return {
         title: `Make ${confirm.member.email} the owner?`,
@@ -279,6 +308,7 @@ type MemberRowProps = {
   actorRole: VaultRole;
   disabled: boolean;
   onRoleChange: (role: VaultRole) => void;
+  onVerify: () => void;
   onRemove: () => void;
   onTransfer: () => void;
 };
@@ -288,6 +318,7 @@ function MemberRow({
   actorRole,
   disabled,
   onRoleChange,
+  onVerify,
   onRemove,
   onTransfer,
 }: MemberRowProps) {
@@ -298,6 +329,7 @@ function MemberRow({
     member.status === "active" &&
     member.role !== "owner";
   const invited = member.status === "pending";
+  const unverified = !member.isSelf && !member.keyVerified;
 
   return (
     <Item variant="outline" size="sm" className="flex-nowrap">
@@ -307,6 +339,7 @@ function MemberRow({
           {member.isSelf && <Badge variant="secondary">You</Badge>}
           {invited && <Badge variant="outline">Invited</Badge>}
           {!member.keyTrusted && <Badge variant="warning">Key changed</Badge>}
+          {unverified && member.keyTrusted && <Badge variant="outline">Not verified</Badge>}
         </ItemTitle>
         <ItemDescription className="font-mono text-xs tracking-wide">
           {member.fingerprint}
@@ -316,6 +349,18 @@ function MemberRow({
             Their key differs from the one this device used before. Compare the code with them
             before sharing anything new.
           </ItemDescription>
+        )}
+        {unverified && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="mt-1 self-start"
+            disabled={disabled}
+            onClick={onVerify}
+          >
+            <ShieldCheckIcon />
+            Verify…
+          </Button>
         )}
       </ItemContent>
       <ItemActions>

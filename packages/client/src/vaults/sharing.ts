@@ -28,11 +28,12 @@ import {
  * the member opens it, checks who sealed it and stores their own wrap.
  *
  * Public keys come from the server, which could hand out its own in place of a
- * member's. Each device pins the keys it has used for every other user
- * (`Vault.pinPeerKey`): the invitee's when inviting (after the user compared
- * its fingerprint), the inviter's when accepting, any other member's on first
- * use. A key that differs from the pin later is refused, both for sealing to
- * and for opening from (`PeerKeyChangedError`).
+ * member's, or list a member of its own. Each device pins the keys the user
+ * verified (`Vault.pinPeerKey`): the invitee's when inviting and the inviter's
+ * when accepting (after comparing fingerprints), any other member's when the
+ * user marks them verified (`verifyMember`). Only pinned keys are sealed to or
+ * opened from: an unpinned one is refused (`UnverifiedMembersError`), as is a
+ * key that differs from its pin (`PeerKeyChangedError`).
  */
 
 type TrpcClient = ReturnType<typeof useTRPCClient>;
@@ -50,6 +51,18 @@ export class PeerKeyChangedError extends Error {
   }
 }
 
+/** Members whose key this device hasn't verified: nothing is sealed to (or opened from) them. */
+export class UnverifiedMembersError extends Error {
+  readonly emails: readonly string[];
+
+  constructor(emails: readonly string[]) {
+    super(
+      `The vault's key wasn't rotated: first compare the security code with ${emails.join(", ")} and mark them verified.`,
+    );
+    this.emails = emails;
+  }
+}
+
 /** The vault's members changed while it was being rotated, again and again. */
 export class VaultMembersChangedError extends Error {
   override message = "The vault's members changed during the key rotation. Try again.";
@@ -60,16 +73,26 @@ export class VaultKeyRotatedElsewhereError extends Error {
   override message = "This vault's key was just rotated on another device";
 }
 
-/** Refuse a key that differs from the one pinned for `userId`; pin it when none is. */
-async function checkPeerKey(vault: Vault, userId: string, key: UserPublicKey): Promise<void> {
+function sameKey(a: UserPublicKey, b: UserPublicKey): boolean {
+  return a.publicKey === b.publicKey && a.keyVersion === b.keyVersion;
+}
+
+/** Pin a key the user just verified; refuse one that differs from an earlier pin. */
+async function pinVerifiedKey(vault: Vault, userId: string, key: UserPublicKey): Promise<void> {
   const pinned = await vault.getPeerKey(userId);
   if (!pinned) {
     await vault.pinPeerKey(userId, key);
     return;
   }
-  if (pinned.publicKey !== key.publicKey || pinned.keyVersion !== key.keyVersion) {
-    throw new PeerKeyChangedError(userId);
-  }
+  if (!sameKey(pinned, key)) throw new PeerKeyChangedError(userId);
+}
+
+/** Whether `key` is the one pinned for `userId`; throws when another key is pinned. */
+async function isPinnedKey(vault: Vault, userId: string, key: UserPublicKey): Promise<boolean> {
+  const pinned = await vault.getPeerKey(userId);
+  if (!pinned) return false;
+  if (!sameKey(pinned, key)) throw new PeerKeyChangedError(userId);
+  return true;
 }
 
 /** The signed-in user's id; sharing needs a linked profile. */
@@ -120,7 +143,7 @@ export async function inviteMember(
     (m) => m.email === invitee.email && m.publicKey.publicKey === invitee.publicKey.publicKey,
   );
   if (listed) {
-    await checkPeerKey(vault, listed.userId, listed.publicKey);
+    await pinVerifiedKey(vault, listed.userId, listed.publicKey);
     // Invited back: their key updates count again.
     await vault.markPeerRemoved(vaultId, listed.userId, false);
   }
@@ -172,7 +195,7 @@ export async function acceptInvitation(
   invitation: VaultInvitation,
 ): Promise<void> {
   const { sender } = invitation;
-  await checkPeerKey(vault, sender.userId, sender);
+  await pinVerifiedKey(vault, sender.userId, sender);
   const { wrap } = await secretsStore.openInvitation(invitation);
   await trpc.vault.acceptKey.mutate(wrap);
 }
@@ -190,6 +213,8 @@ export type MemberInfo = VaultMember & {
   fingerprint: string;
   /** `false`: the server lists another key than the one pinned for them (`PeerKeyChangedError`). */
   keyTrusted: boolean;
+  /** The listed key is the one pinned for them: rotations seal to it (`verifyMember`). */
+  keyVerified: boolean;
   isSelf: boolean;
 };
 
@@ -205,11 +230,28 @@ export async function getMembers(
       return {
         ...member,
         fingerprint: publicKeyFingerprint(member.publicKey.publicKey),
-        keyTrusted: !pinned || pinned.publicKey === member.publicKey.publicKey,
+        keyTrusted: !pinned || sameKey(pinned, member.publicKey),
+        keyVerified: !!pinned && sameKey(pinned, member.publicKey),
         isSelf: member.userId === self,
       };
     }),
   );
+}
+
+/**
+ * Pin `publicKey` for `userId` after the user compared its fingerprint with
+ * them: rotations seal to it, key updates from them are accepted. Replaces a
+ * key pinned before (the user verified the changed one).
+ */
+export async function verifyMember(
+  vault: Vault,
+  userId: string,
+  publicKey: UserPublicKey,
+): Promise<void> {
+  await vault.pinPeerKey(userId, {
+    keyVersion: publicKey.keyVersion,
+    publicKey: publicKey.publicKey,
+  });
 }
 
 export async function setMemberRole(
@@ -233,21 +275,27 @@ export async function transferOwnership(
  * Remove a member (or withdraw an invite), then rotate the vault's key right
  * away so they can't read what's written from now on. Should the rotation
  * fail, the server keeps the vault marked and the next sync of a manager
- * retries it (`rotationsDue`).
+ * retries it (`rotationsDue`). Resolves the rotation's failure when the user
+ * can fix it (`UnverifiedMembersError`, `PeerKeyChangedError`): the removal
+ * itself went through.
  */
 export async function removeMember(
   deps: SharingDeps,
   vaultId: string,
   userId: string,
-): Promise<void> {
+): Promise<Error | undefined> {
   await deps.trpc.vault.removeMember.mutate({ vaultId, userId });
   // They still know the current key: no key update sealed by them is taken for this vault.
   await deps.vault.markPeerRemoved(vaultId, userId);
   try {
     await rotateVault(deps, vaultId);
   } catch (error) {
+    if (error instanceof UnverifiedMembersError || error instanceof PeerKeyChangedError) {
+      return error;
+    }
     logWarning(`Rotation after removing a member of ${vaultId} failed; retried on sync`, error);
   }
+  return undefined;
 }
 
 /**
@@ -266,9 +314,11 @@ export async function leaveVault({ vault, trpc }: SharingDeps, vaultId: string):
 /**
  * Rotate a vault's key (ADR 0001 D7; owners and managers): a new key for
  * everything written from now on, the old one kept under it for the history,
- * and, for a linked profile, the new key sealed to every other member. The
- * device notes the rotation before the server sees it, so the re-encryption of
- * the live records carries on with a later sync should this stop halfway.
+ * and, for a linked profile, the new key sealed to every other member, each
+ * one's key verified on this device (`UnverifiedMembersError` else); the
+ * personal vault's is sealed to nobody. The device notes the rotation before
+ * the server sees it, so the re-encryption of the live records carries on with
+ * a later sync should this stop halfway.
  * Doesn't sync: the caller does (`syncFresh`), or the round that called it
  * runs again, after loading the new key (`reloadVaultKeys`); a local vault then
  * re-encrypts its records (`reencryptForPush`). Resolves the vault as rotated.
@@ -285,7 +335,8 @@ export async function rotateVault(
   if (!vault) throw new Error(`No vault ${vaultId}`);
 
   for (let attempt = 0; ; attempt++) {
-    const members = trpc ? await otherMembers({ vault: store, trpc }, vaultId) : [];
+    const members =
+      trpc && vault.kind !== "personal" ? await otherMembers({ vault: store, trpc }, vaultId) : [];
     const { previousKey, memberKeys, ...rotated } = await secretsStore.rotateVaultKey(
       vault,
       members,
@@ -324,13 +375,20 @@ export async function rotateVault(
   }
 }
 
-/** Every other member and invitee with their public key, each checked against its pin. */
+/**
+ * Every other member and invitee with their public key. Throws unless each key
+ * is the one pinned for them: the server could list a member of its own.
+ */
 async function otherMembers(deps: SharingDeps, vaultId: string) {
   const self = await ownUserId(deps.vault);
   const others = (await deps.trpc.vault.members.query({ vaultId })).filter(
     (m) => m.userId !== self,
   );
-  for (const member of others) await checkPeerKey(deps.vault, member.userId, member.publicKey);
+  const pinned = await Promise.all(
+    others.map((m) => isPinnedKey(deps.vault, m.userId, m.publicKey)),
+  );
+  const unverified = others.filter((_, i) => !pinned[i]).map((m) => m.email);
+  if (unverified.length > 0) throw new UnverifiedMembersError(unverified);
   return others;
 }
 
@@ -355,7 +413,7 @@ function failedTasksOf(vault: Vault): Set<string> {
 
 /** The sender of a key update isn't someone who may hand out this vault's keys. */
 export class UntrustedKeySenderError extends Error {
-  override message = "The new vault key wasn't sealed by a current owner or manager";
+  override message = "The new vault key wasn't sealed by a verified current owner or manager";
 }
 
 /**
@@ -369,10 +427,10 @@ function isRequestFailure(error: unknown): boolean {
 /**
  * Whether `sender` may hand out the vault's keys: not removed by this device
  * (they'd still know the key before the rotation and could chain a forged one
- * to it), and listed by the server as an active owner or manager with this
- * public key. The listing is the server's word; together with the pins it
- * means a server forging a rotation with a former member must also lie about
- * the membership to every device that didn't see the removal.
+ * to it), their key verified here, and listed by the server as an active owner
+ * or manager with this public key. The listing is the server's word; together
+ * with the pins it means a server forging a rotation with a former member must
+ * also lie about the membership to every device that didn't see the removal.
  */
 async function trustedSender(
   deps: SharingDeps,
@@ -381,6 +439,7 @@ async function trustedSender(
 ): Promise<boolean> {
   const { vaultId, sender } = update;
   if (await deps.vault.isPeerRemoved(vaultId, sender.userId)) return false;
+  if (!(await isPinnedKey(deps.vault, sender.userId, sender))) return false;
   let listed = members.get(vaultId);
   if (!listed) {
     listed = await deps.trpc.vault.members.query({ vaultId });
@@ -416,7 +475,6 @@ export async function runSharingTasks(
     if (failed.has(task)) continue;
     try {
       if (!(await trustedSender(deps, update, members))) throw new UntrustedKeySenderError();
-      await checkPeerKey(deps.vault, update.sender.userId, update.sender);
       const wrap = await secretsStore.openKeyUpdate(update);
       await deps.trpc.vault.acceptKey.mutate(wrap);
       changed = true;
@@ -438,6 +496,11 @@ export async function runSharingTasks(
     if (!vault) continue;
     const task = `${vaultId}/${vault.keyVersion}`;
     if (failed.has(task)) continue;
+    if (vault.kind === "personal") {
+      failed.add(task);
+      logWarning(`The server asked to rotate the personal vault ${vaultId}; refused`);
+      continue;
+    }
     try {
       await rotateVault(deps, vaultId);
       // The push of the next round re-encrypts the records under the new key.

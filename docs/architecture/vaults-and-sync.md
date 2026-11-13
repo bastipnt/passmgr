@@ -68,9 +68,14 @@ After someone else's rotation a member's row keeps their old wrap plus the seale
 checks the sender (listed active owner / manager with the pinned key, not removed by this device: `markPeerRemoved`)
 and that the chain reaches the held key, and accepts it. Removing a member, leaving or declining sets
 `vaults.keyRotationNeeded`; `record.sync`'s `rotationsDue` lists it to managers holding the current key, whose next
-sync rotates (`removeMember` rotates right away). The last owner can't leave or be demoted (`transferOwnership`).
-Peer public keys are pinned per device on first use (`Vault.pinPeerKey`); a changed one is refused
-(`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
+sync rotates (`removeMember` rotates right away; the personal vault is never rotated for `rotationsDue` and its key is
+never sealed to anyone, `secretsStore.rotateVaultKey` refuses). The last owner can't leave or be demoted (`transferOwnership`).
+Peer public keys are pinned per device only on an explicit check: the invitee's on invite, the inviter's on accept,
+anyone else's when the user marks them verified after comparing codes (`verifyMember`; members list: "Not verified" +
+"Verify…", which asks to compare the code first; mobile's row does it for non-managers, its member sheet for managers;
+managers see `UNVERIFIED_MEMBERS_NOTICE`). A rotation seals only to pinned keys: any unpinned member aborts it
+(`UnverifiedMembersError`, shown to the user; `removeMember` resolves it after the removal went through, a `rotationsDue`
+rotation only logs it) and a key update is only taken from a pinned sender. A changed key is refused (`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
 `revoked_records`, `Vault.getRevokedVaults`) to copy into a writable vault (`copyRevokedRecords`, one transaction) or discard.
 
 ## Vault UI

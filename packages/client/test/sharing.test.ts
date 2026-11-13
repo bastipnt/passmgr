@@ -16,7 +16,16 @@ import { generateLocalVault } from "../src/account/create-local-vault";
 import { RecordRepository } from "../src/records/record-repository";
 import { decryptRecord } from "../src/util/decrypt-record";
 import { copyRevokedRecords, getRevokedVaults } from "../src/vaults/revoked";
-import { runSharingTasks, type SharingDeps } from "../src/vaults/sharing";
+import {
+  getMembers,
+  PeerKeyChangedError,
+  removeMember,
+  rotateVault,
+  runSharingTasks,
+  type SharingDeps,
+  UnverifiedMembersError,
+  verifyMember,
+} from "../src/vaults/sharing";
 
 // The client side of sharing (ADR 0001 D7): what a pull's sharing tasks do,
 // and rescuing unsent changes from a vault the user lost.
@@ -64,6 +73,7 @@ function fakeTrpc(members: unknown[] = []) {
     vault: {
       acceptKey: { mutate: vi.fn(async () => undefined) },
       rotateKey: { mutate: vi.fn(async () => undefined) },
+      removeMember: { mutate: vi.fn(async () => undefined) },
       members: { query: vi.fn(async () => members) },
     },
   };
@@ -104,12 +114,19 @@ async function rotatedByAlice(alice = otherUser(), sealer = alice) {
 
 /** The server's member list with Alice as an active manager holding `key`. */
 function aliceManages(key: { keyVersion: number; publicKey: string }, role = "manage") {
-  return [{ userId: ALICE, role, status: "active", publicKey: key }];
+  return [{ userId: ALICE, email: "alice@example.com", role, status: "active", publicKey: key }];
 }
 
+const selfListed = () => ({
+  userId: SELF,
+  email: "me@example.com",
+  publicKey: { keyVersion: 1, publicKey: local.material.userKeyPair.publicKey },
+});
+
 describe("runSharingTasks", () => {
-  it("accepts a newer key sealed by a member, pinning their key", async () => {
+  it("accepts a newer key sealed by a verified member", async () => {
     const alice = otherUser();
+    await vault.pinPeerKey(ALICE, alice.keyPair);
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     const { update, newKey } = await rotatedByAlice(alice);
 
@@ -120,10 +137,19 @@ describe("runSharingTasks", () => {
     const [wrap] = trpc.vault.acceptKey.mutate.mock.calls[0] as unknown as [MemberVault];
     expect(wrap).toMatchObject({ vaultId: work.vaultId, keyVersion: 2 });
     expect(unwrapVaultKey(local.accountKey, wrap)).toEqual(newKey);
-    expect(await vault.getPeerKey(ALICE)).toEqual({
-      keyVersion: 1,
-      publicKey: alice.keyPair.publicKey,
-    });
+  });
+
+  it("refuses a key from a manager this device never verified, without pinning them", async () => {
+    // A server listing a manager of its own, handing out a key it knows.
+    const ghost = otherUser();
+    const trpc = fakeTrpc(aliceManages(ghost.keyPair));
+    const { update } = await rotatedByAlice(ghost);
+
+    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
+      false,
+    );
+    expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
+    expect(await vault.getPeerKey(ALICE)).toBeNull();
   });
 
   it("refuses a key from a sender whose key differs from the pinned one", async () => {
@@ -141,6 +167,7 @@ describe("runSharingTasks", () => {
 
   it("refuses a key not sealed by the named sender", async () => {
     const alice = otherUser();
+    await vault.pinPeerKey(ALICE, alice.keyPair);
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     const { update } = await rotatedByAlice(alice, otherUser());
 
@@ -162,6 +189,7 @@ describe("runSharingTasks", () => {
     ],
   ])("refuses a key from a sender who %s", async (_label, listing) => {
     const alice = otherUser();
+    await vault.pinPeerKey(ALICE, alice.keyPair);
     const trpc = fakeTrpc(listing(alice.keyPair));
     const { update } = await rotatedByAlice(alice);
 
@@ -187,6 +215,7 @@ describe("runSharingTasks", () => {
 
   it("ends the tasks on a request that didn't get through, without counting it as failed", async () => {
     const alice = otherUser();
+    await vault.pinPeerKey(ALICE, alice.keyPair);
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     trpc.vault.acceptKey.mutate.mockRejectedValueOnce(new TRPCClientError("fetch failed"));
     const { update } = await rotatedByAlice(alice);
@@ -201,12 +230,10 @@ describe("runSharingTasks", () => {
 
   it("rotates a vault that lost a member, sealing the new key to the members left", async () => {
     const bob = otherUser();
+    await vault.pinPeerKey(ALICE, bob.keyPair);
     const trpc = fakeTrpc([
-      {
-        userId: SELF,
-        publicKey: { keyVersion: 1, publicKey: local.material.userKeyPair.publicKey },
-      },
-      { userId: ALICE, publicKey: bob.keyPair },
+      selfListed(),
+      { userId: ALICE, email: "a@x.org", publicKey: bob.keyPair },
     ]);
     const d = deps(trpc);
 
@@ -221,6 +248,98 @@ describe("runSharingTasks", () => {
     expect(await vault.getRekeyTargets()).toEqual({ [work.vaultId]: 2 });
     expect(d.reloadVaultKeys).toHaveBeenCalled();
     expect(secretsStore.currentKeyVersion(work.vaultId)).toBe(2);
+  });
+});
+
+describe("rotating to verified members only", () => {
+  const ghostListed = (key: { keyVersion: number; publicKey: string }) => ({
+    userId: ALICE,
+    email: "ghost@example.com",
+    role: "read",
+    status: "active",
+    publicKey: key,
+  });
+
+  it("aborts on a member this device never verified, sealing nothing and pinning nothing", async () => {
+    const ghost = otherUser();
+    const trpc = fakeTrpc([selfListed(), ghostListed(ghost.keyPair)]);
+
+    await expect(rotateVault(deps(trpc), work.vaultId)).rejects.toBeInstanceOf(
+      UnverifiedMembersError,
+    );
+    expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+    expect(await vault.getPeerKey(ALICE)).toBeNull();
+    expect(await vault.getRekeyTargets()).toEqual({});
+  });
+
+  it("aborts on a member listed with another key than the verified one", async () => {
+    await vault.pinPeerKey(ALICE, otherUser().keyPair);
+    const trpc = fakeTrpc([selfListed(), ghostListed(otherUser().keyPair)]);
+
+    await expect(rotateVault(deps(trpc), work.vaultId)).rejects.toBeInstanceOf(PeerKeyChangedError);
+    expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+  });
+
+  it("leaves a ghost member in rotationsDue without a rotation", async () => {
+    const trpc = fakeTrpc([selfListed(), ghostListed(otherUser().keyPair)]);
+
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [], rotationsDue: [work.vaultId] }),
+    ).toBe(false);
+    expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+  });
+
+  it("refuses the personal vault in rotationsDue", async () => {
+    const trpc = fakeTrpc([selfListed(), ghostListed(otherUser().keyPair)]);
+    const personal = local.vaults.find((v) => v.kind === "personal")!;
+
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [], rotationsDue: [personal.vaultId] }),
+    ).toBe(false);
+    expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+  });
+
+  it("seals the personal vault's rotated key to nobody, whatever members the server lists", async () => {
+    const ghost = otherUser();
+    await vault.pinPeerKey(ALICE, ghost.keyPair);
+    const trpc = fakeTrpc([selfListed(), ghostListed(ghost.keyPair)]);
+    const personal = local.vaults.find((v) => v.kind === "personal")!;
+
+    await rotateVault(deps(trpc), personal.vaultId);
+
+    expect(trpc.vault.members.query).not.toHaveBeenCalled();
+    const [input] = trpc.vault.rotateKey.mutate.mock.calls[0] as unknown as [
+      { memberKeys: unknown[] },
+    ];
+    expect(input.memberKeys).toEqual([]);
+  });
+
+  it("surfaces an unverified member when removing someone, after the removal", async () => {
+    const trpc = fakeTrpc([selfListed(), ghostListed(otherUser().keyPair)]);
+
+    expect(await removeMember(deps(trpc), work.vaultId, "someone")).toBeInstanceOf(
+      UnverifiedMembersError,
+    );
+    expect(trpc.vault.removeMember.mutate).toHaveBeenCalled();
+    expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+  });
+
+  it("rotates once the user verified the member", async () => {
+    const bob = otherUser();
+    const trpc = fakeTrpc([selfListed(), ghostListed(bob.keyPair)]);
+    const [listed] = (await getMembers(deps(trpc), work.vaultId)).filter((m) => !m.isSelf);
+    expect(listed).toMatchObject({ keyTrusted: true, keyVerified: false });
+
+    await verifyMember(vault, listed!.userId, listed!.publicKey);
+
+    expect((await getMembers(deps(trpc), work.vaultId)).find((m) => !m.isSelf)).toMatchObject({
+      keyVerified: true,
+    });
+    await rotateVault(deps(trpc), work.vaultId);
+    const [input] = trpc.vault.rotateKey.mutate.mock.calls[0] as unknown as [
+      { memberKeys: { userId: string }[] },
+    ];
+    expect(input.memberKeys.map((m) => m.userId)).toEqual([ALICE]);
   });
 });
 

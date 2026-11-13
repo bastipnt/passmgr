@@ -403,11 +403,15 @@ class SecretsStore {
    * key is loaded with the vault list it ends up in (`loadVaultKeys`).
    */
   async rotateVaultKey(
-    vault: Pick<MemberVault, "vaultId"> & EncryptedVaultMeta,
+    vault: Pick<MemberVault, "vaultId" | "kind"> & EncryptedVaultMeta,
     members: readonly { userId: string; publicKey: UserPublicKey }[] = [],
   ) {
     const accountKey = this.accountKey;
     if (!accountKey) throw new SessionLockedError();
+    const personal = vault.kind === "personal" || vault.vaultId === this.personalVaultId;
+    if (personal && members.length > 0) {
+      throw new Error("The personal vault's key is never sealed to anyone else");
+    }
     const keyVersion = this.currentKeyVersion(vault.vaultId);
     const rotated = rotateVaultKey(
       accountKey,

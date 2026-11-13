@@ -265,11 +265,12 @@ describe("useVaultActions", () => {
         result: { error: { code: -32_000, message: "x", data: { code: "PRECONDITION_FAILED" } } },
       });
 
-    it("online: seals the new key to the other members (pinning their keys)", async () => {
+    it("online: seals the new key to the other members whose keys are pinned", async () => {
       mocks.trpc.vault.members.query.mockResolvedValueOnce([
         { ...bob, userId: "u-me", email: "me@x.y" },
         bob,
       ]);
+      vault.getPeerKey.mockResolvedValueOnce(bob.publicKey as never);
       vi.mocked(secretsStore.rotateVaultKey).mockResolvedValue({
         ...rotation,
         memberKeys: [sealed],
@@ -281,7 +282,7 @@ describe("useVaultActions", () => {
       });
 
       expect(secretsStore.rotateVaultKey).toHaveBeenCalledWith(work, [bob]);
-      expect(vault.pinPeerKey).toHaveBeenCalledWith("u-bob", bob.publicKey);
+      expect(vault.pinPeerKey).not.toHaveBeenCalled();
       expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith(
         expect.objectContaining({ memberKeys: [sealed] }),
       );

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   removeMember: vi.fn(),
   leaveVault: vi.fn(),
   transferOwnership: vi.fn(),
+  verifyMember: vi.fn(),
   members: [] as MemberInfo[],
 }));
 
@@ -34,6 +35,7 @@ function member(over: Partial<MemberInfo>): MemberInfo {
     publicKey: { publicKey: "pk", keyVersion: 1 },
     fingerprint: FINGERPRINT,
     keyTrusted: true,
+    keyVerified: true,
     isSelf: false,
     ...over,
   };
@@ -89,6 +91,22 @@ describe("VaultMembersDialog", () => {
     expect(screen.getByText("Invited")).toBeInTheDocument();
     expect(screen.getByText("Key changed")).toBeInTheDocument();
     expect(screen.getAllByText(FINGERPRINT)).toHaveLength(2);
+  });
+
+  it("lets anyone mark a member verified once the codes match", async () => {
+    const bob = member({ keyVerified: false });
+    mocks.members = [{ ...self, role: "read" }, bob];
+    renderWithProviders(
+      <VaultMembersDialog vault={{ ...work, role: "read" }} open onOpenChange={vi.fn()} />,
+    );
+
+    expect(screen.getByText("Not verified")).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "Verify…" }));
+    const confirm = await screen.findByRole("dialog", { name: "Verify bob@example.com?" });
+    expect(within(confirm).getByText(new RegExp(FINGERPRINT))).toBeInTheDocument();
+    await userEvent.click(within(confirm).getByRole("button", { name: "Codes match" }));
+
+    expect(mocks.verifyMember).toHaveBeenCalledWith("v-work", "u-bob", bob.publicKey);
   });
 
   it("removes a member after confirming", async () => {
