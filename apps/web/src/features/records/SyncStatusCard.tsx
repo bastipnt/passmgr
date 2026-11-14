@@ -21,6 +21,7 @@ import {
   LogInIcon,
   RefreshCwIcon,
   RotateCcwIcon,
+  Trash2Icon,
   UserRoundIcon,
 } from "lucide-react";
 import { type ComponentProps, type ReactElement, useState } from "react";
@@ -38,7 +39,7 @@ type SyncStatusPopupProps = {
  * wait on the device.
  */
 function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps) {
-  const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
+  const { status, summary, canSync, syncNow, retryParked, confirmVaultLoss } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
   const { canReconnect, reconnect } = useReconnect();
   // Controlled, so opening re-renders and reads `canReconnect()` afresh.
@@ -56,6 +57,12 @@ function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps)
           )}
         </output>
         <DropdownMenuSeparator />
+        {status.vaultsMissing.length > 0 && (
+          <DropdownMenuItem variant="destructive" onClick={() => void confirmVaultLoss()}>
+            <Trash2Icon />
+            Remove missing vaults
+          </DropdownMenuItem>
+        )}
         {status.parked > 0 && summary.state !== "local" && (
           <DropdownMenuItem onClick={() => void retryParked()}>
             <RotateCcwIcon />

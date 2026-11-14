@@ -13,6 +13,8 @@ import {
   type SyncBatch,
   sameVaults,
   type Vault,
+  VaultListRejectedError,
+  VaultsMissingError,
 } from "@repo/store";
 import { logError, logWarning } from "./errors/log-error";
 
@@ -46,7 +48,8 @@ export type ChangePusher = (changes: PushChange[]) => Promise<PushResult[]>;
 
 /**
  * Runs when a pulled vault list differs from the device's, before the page is
- * applied (its merges may need a key it brings) and before the listeners.
+ * applied (its merges may need a key it brings) and before the listeners. A
+ * throw fails the round without applying the page.
  */
 export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
 
@@ -84,6 +87,13 @@ export type SyncStatus = {
    * writes; the periodic sync still checks, or a call to `sync`.
    */
   paused: boolean;
+  /**
+   * Vaults the server stopped listing, several at once (`VaultsMissingError`):
+   * kept on the device until the user confirms dropping them (`confirmVaultLoss`).
+   */
+  vaultsMissing: readonly string[];
+  /** The server's vault list broke continuity (`VaultListRejectedError`): nothing of it was applied. */
+  vaultListRejected: boolean;
 };
 
 export type SyncStatusListener = (status: SyncStatus) => void;
@@ -164,7 +174,11 @@ export class SyncManager {
     lastSyncedAt: null,
     enabled: false,
     paused: false,
+    vaultsMissing: [],
+    vaultListRejected: false,
   };
+  /** Vaults the user agreed to drop (`confirmVaultLoss`), until a round goes through. */
+  private allowedVaultLoss: readonly string[] = [];
   private store: Vault;
   private pull: SyncFetcher;
   private push?: ChangePusher;
@@ -233,8 +247,16 @@ export class SyncManager {
     if (!enabled) {
       this.clearTimers();
       this.failedRounds = 0;
+      this.allowedVaultLoss = [];
     }
-    this.setStatus({ phase: enabled ? "idle" : "offline", error: null, enabled, paused: false });
+    this.setStatus({
+      phase: enabled ? "idle" : "offline",
+      error: null,
+      enabled,
+      paused: false,
+      vaultsMissing: [],
+      vaultListRejected: false,
+    });
     void this.refreshCounts();
   }
 
@@ -258,6 +280,13 @@ export class SyncManager {
     this.setStatus({ storageFull: false });
     await this.refreshCounts();
     if (this.enabled) void this.sync();
+  }
+
+  /** Drop the vaults the server stopped listing (`vaultsMissing`) with the next round. */
+  async confirmVaultLoss(): Promise<boolean> {
+    this.allowedVaultLoss = this.status.vaultsMissing;
+    this.setStatus({ vaultsMissing: [] });
+    return await this.syncFresh();
   }
 
   /**
@@ -305,22 +334,29 @@ export class SyncManager {
       if (!pushed) pushed = await this.pushOutbox();
       done = pushed;
 
+      this.allowedVaultLoss = [];
       this.notify(vaultsChanged);
       this.setStatus({
         phase: this.enabled ? "idle" : "offline",
         error: null,
         lastSyncedAt: Date.now(),
         paused: false,
+        vaultsMissing: [],
+        vaultListRejected: false,
       });
       await this.runSharingTasks();
       return true;
     } catch (error) {
       paused = this.isPaused(error);
-      const offline = !this.enabled || paused || this.isOffline(error);
+      const refused =
+        error instanceof VaultsMissingError || error instanceof VaultListRejectedError;
+      const offline = !this.enabled || paused || (!refused && this.isOffline(error));
       this.setStatus({
         phase: offline ? "offline" : "error",
         error: offline ? null : errorMessage(error),
         paused,
+        vaultsMissing: error instanceof VaultsMissingError ? error.vaultIds : [],
+        vaultListRejected: error instanceof VaultListRejectedError,
       });
       return false;
     } finally {
@@ -347,12 +383,9 @@ export class SyncManager {
   private async pullAll(): Promise<boolean> {
     let cursors = await this.store.getSyncCursors();
     for (;;) {
+      const before = await this.store.getVaults();
       const page = await this.pull(cursors);
-      // Keys first: this page's merges may need one it brings (a new vault, a rotated key).
-      if (this.onVaultsChanged && !sameVaults(await this.store.getVaults(), page.vaults)) {
-        await this.onVaultsChanged(page.vaults);
-      }
-      const vaultsChanged = await this.store.applySync(page, this.resolveConflict);
+      const vaultsChanged = await this.applyPage(page, before);
       this.sharingTasks = {
         keyUpdates: page.keyUpdates ?? [],
         rotationsDue: page.rotationsDue ?? [],
@@ -365,6 +398,40 @@ export class SyncManager {
       if (!advanced(cursors, next)) throw new Error("the pull made no progress");
       cursors = next;
       this.notify(vaultsChanged);
+    }
+  }
+
+  /**
+   * Check the page's vault list, load its keys (when it changed) and apply it.
+   * A list refused because this device moved a vault on during the pull (a
+   * rotation raised its key version) is a stale page, not a hostile server:
+   * the round fails quietly and runs again. Keys loaded for a page that then
+   * didn't apply are swapped back for the stored list's.
+   */
+  private async applyPage(page: SyncPage, before: MemberVault[]): Promise<boolean> {
+    const allowVaultLoss = this.allowedVaultLoss;
+    const onVaultsChanged = sameVaults(await this.store.getVaults(), page.vaults)
+      ? undefined
+      : this.onVaultsChanged;
+    let keysLoaded = false;
+    try {
+      // Keys first: this page's merges may need one it brings (a new vault, a rotated key).
+      if (onVaultsChanged) {
+        await this.store.checkVaultList(page.vaults, { allowVaultLoss });
+        await onVaultsChanged(page.vaults);
+        keysLoaded = true;
+      }
+      return await this.store.applySync(page, this.resolveConflict, { allowVaultLoss });
+    } catch (error) {
+      const stored = await this.store.getVaults();
+      if (onVaultsChanged && keysLoaded) {
+        await Promise.resolve(onVaultsChanged(stored)).catch(() => undefined);
+      }
+      if (error instanceof VaultListRejectedError && !sameVaults(before, stored)) {
+        this.rerun = true;
+        throw new Error("the vault list changed on this device during the pull");
+      }
+      throw error;
     }
   }
 

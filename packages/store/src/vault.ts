@@ -50,6 +50,11 @@ import {
   upsertRecoveryKey,
 } from "./schema/keys-schema";
 import {
+  clearKnownVaultsTable,
+  getKnownVaults,
+  rememberVaults,
+} from "./schema/known-vaults-schema";
+import {
   ackPendingChange,
   type ConflictResolver,
   clearOutboxTable,
@@ -145,6 +150,92 @@ async function dropVaults(vaultIds: readonly string[], db: LocalDb) {
 async function dropPurgedBreachChecks(pulled: readonly EncryptedRecordSchema[], db: LocalDb) {
   const purged = pulled.filter((r) => r.tombstoneKind === "purged").map((r) => r.recordId);
   await deleteBreachChecksOf(purged, db);
+}
+
+/**
+ * The server's vault list breaks what this device saw before (`checkVaultList`):
+ * a vault's key version went down, or the personal vault moved. Nothing of it
+ * is applied.
+ */
+export class VaultListRejectedError extends Error {
+  readonly reason: "key-rollback" | "personal-vault";
+
+  constructor(reason: "key-rollback" | "personal-vault") {
+    super(
+      reason === "key-rollback"
+        ? "The server's vault list lowers a vault's key version"
+        : "The server's vault list changes or omits the personal vault",
+    );
+    this.name = "VaultListRejectedError";
+    this.reason = reason;
+  }
+}
+
+/**
+ * The server's vault list leaves out `vaultIds`, at least `MASS_VAULT_LOSS` of
+ * the device's vaults at once. Nothing is applied until the user confirms
+ * dropping them (`applySync`'s `allowVaultLoss`).
+ */
+export class VaultsMissingError extends Error {
+  readonly vaultIds: readonly string[];
+
+  constructor(vaultIds: readonly string[]) {
+    super(`The server no longer lists ${vaultIds.length} of this device's vaults`);
+    this.name = "VaultsMissingError";
+    this.vaultIds = vaultIds;
+  }
+}
+
+/** Losing this many vaults in one pull needs the user's confirmation; a single removal doesn't. */
+export const MASS_VAULT_LOSS = 2;
+
+/**
+ * Refuse a vault list from the server that breaks continuity with what the
+ * device saw before (`knownVaults`, and the cached list for devices from before
+ * it): a key version below the highest seen, a personal vault other than the
+ * one known (or none, or two), and, with `loss`, `MASS_VAULT_LOSS` or more
+ * cached vaults missing unless all of them were confirmed.
+ */
+async function checkVaultList(
+  incoming: readonly MemberVault[],
+  db: LocalDb,
+  loss?: { allowed: ReadonlySet<string> },
+) {
+  const cached = await getVaults(db);
+  const known = await getKnownVaults(db);
+
+  const personal = incoming.filter((v) => v.kind === "personal");
+  const knownPersonal =
+    known.find((v) => v.kind === "personal") ?? cached.find((v) => v.kind === "personal");
+  if (personal.length !== 1 || (knownPersonal && personal[0]!.vaultId !== knownPersonal.vaultId)) {
+    throw new VaultListRejectedError("personal-vault");
+  }
+
+  const floors = new Map<string, number>();
+  for (const v of [...cached, ...known]) {
+    floors.set(v.vaultId, Math.max(floors.get(v.vaultId) ?? 0, v.keyVersion));
+  }
+  if (incoming.some((v) => v.keyVersion < (floors.get(v.vaultId) ?? 0))) {
+    throw new VaultListRejectedError("key-rollback");
+  }
+
+  if (loss) {
+    const listed = new Set(incoming.map((v) => v.vaultId));
+    const missing = cached.map((v) => v.vaultId).filter((id) => !listed.has(id));
+    if (missing.length >= MASS_VAULT_LOSS && missing.some((id) => !loss.allowed.has(id))) {
+      throw new VaultsMissingError(missing);
+    }
+  }
+}
+
+async function acceptVaultList(
+  incoming: readonly MemberVault[],
+  db: LocalDb,
+  loss?: { allowed: ReadonlySet<string> },
+) {
+  await checkVaultList(incoming, db, loss);
+  // The cached list too: on a device from before `knownVaults`, a vault dropped now would lose its floor.
+  await rememberVaults([...(await getVaults(db)), ...incoming], db);
 }
 
 /** One pull from the server: changed records plus the full list of the user's vaults. */
@@ -459,10 +550,13 @@ export class Vault {
    * 0001 D9: the server holds it now). `recoveryWrap` (a login's): the server's
    * recovery wrap replaces what is stored, and a pending recovery is dropped:
    * the login's key set supersedes it.
+   *
+   * `vaults` null keeps the stored list. A cached vault the list leaves out
+   * stays: only a sync drops vaults, behind its loss check (`applySync`).
    */
   async setAccountKeyMaterial(
     material: AccountKeyMaterial,
-    vaults: readonly MemberVault[],
+    vaults: readonly MemberVault[] | null,
     {
       profile,
       recoveryWrap,
@@ -476,7 +570,11 @@ export class Vault {
         await clearPendingRecovery(tx);
       } else if (profile?.mode === "linked") await clearRecoveryKey(tx);
       await upsertAccountKey(material, tx);
-      await replaceVaults(vaults, tx);
+      if (!vaults) return;
+      await acceptVaultList(vaults, tx);
+      const listed = new Set(vaults.map((v) => v.vaultId));
+      const kept = (await getVaults(tx)).filter((v) => !listed.has(v.vaultId));
+      await replaceVaults([...vaults, ...kept], tx);
     });
   }
 
@@ -499,6 +597,7 @@ export class Vault {
       await replaceProfile(profile, tx);
       await upsertAccountKey(material, tx);
       await upsertRecoveryKey(recovery, tx);
+      await rememberVaults(vaults, tx);
       await replaceVaults(vaults, tx);
     });
   }
@@ -567,6 +666,18 @@ export class Vault {
     return await getAccountKey(this.db);
   }
 
+  /**
+   * Throw as `applySync` would for this vault list, without applying it: for
+   * checking a pulled list before its keys are loaded into memory.
+   */
+  async checkVaultList(
+    vaults: readonly MemberVault[],
+    { allowVaultLoss = [] }: { allowVaultLoss?: readonly string[] } = {},
+  ): Promise<void> {
+    await this.ready();
+    await checkVaultList(vaults, this.db, { allowed: new Set(allowVaultLoss) });
+  }
+
   async getVaults(): Promise<MemberVault[]> {
     await this.ready();
     return await getVaults(this.db);
@@ -578,7 +689,10 @@ export class Vault {
    */
   async saveVault(vault: MemberVault): Promise<void> {
     await this.ready();
-    await upsertVault(vault, this.db);
+    await this.transaction(async (tx) => {
+      await rememberVaults([vault], tx);
+      await upsertVault(vault, tx);
+    });
   }
 
   /** Replace a vault's encrypted name / icon / colour. Throws for a vault that isn't here. */
@@ -643,13 +757,19 @@ export class Vault {
    * `resolve`, get merged with them, ADR 0001 D5), records are upserted and
    * every vault's cursor advanced. Resolves whether the vault list changed (the
    * keys in memory then need reloading).
+   *
+   * Throws, applying nothing, for a vault list that breaks continuity
+   * (`VaultListRejectedError`) or drops several vaults at once
+   * (`VaultsMissingError`) unless `allowVaultLoss` holds them.
    */
   async applySync(
     { records, vaults, cursors, serverTimestamp }: SyncBatch,
     resolve?: ConflictResolver,
+    { allowVaultLoss = [] }: { allowVaultLoss?: readonly string[] } = {},
   ): Promise<boolean> {
     await this.ready();
     return await this.transaction(async (tx) => {
+      await acceptVaultList(vaults, tx, { allowed: new Set(allowVaultLoss) });
       const cached = await getVaults(tx);
       const current = new Set(vaults.map((v) => v.vaultId));
       const lost = cached.filter((v) => !current.has(v.vaultId));
@@ -795,6 +915,7 @@ export class Vault {
       await clearKeysTable(tx);
       await clearSyncTable(tx);
       await clearVaultsTable(tx);
+      await clearKnownVaultsTable(tx);
       await clearRevokedTables(tx);
       await clearProfileTable(tx);
       await clearBreachChecks(tx);

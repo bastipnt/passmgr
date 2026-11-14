@@ -188,6 +188,7 @@ const APPLIED_MIGRATIONS = {
     "20261010124307_revoked_vaults",
     "20261011195948_trash",
     "20261012143643_breach_checks",
+    "20261114085615_known_vaults",
   ],
   registry: [
     "20261008060745_profile_registry",
@@ -213,6 +214,7 @@ describe("MIGRATIONS", () => {
     expect(await tableNames()).toEqual([
       "breach_checks",
       "key_material",
+      "known_vaults",
       "outbox",
       "profile",
       "profile_settings",
@@ -269,13 +271,6 @@ describe("MIGRATIONS", () => {
 describe("Vault", () => {
   it("migrates on construction before serving queries", async () => {
     const vault = new Vault(db);
-
-    await vault.applySync({
-      records: [],
-      vaults: [],
-      cursors: {},
-      serverTimestamp: "2026-10-01T00:00:00.000Z",
-    });
 
     expect(await vault.getSyncCursors()).toEqual({});
     expect(await userVersion()).toBe(MIGRATIONS.length);

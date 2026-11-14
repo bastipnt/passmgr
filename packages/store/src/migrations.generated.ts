@@ -76,5 +76,11 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
       "CREATE TABLE `profile_settings` (\n\t`key` text PRIMARY KEY,\n\t`value` text NOT NULL\n);",
       "CREATE INDEX `breach_checks_vault_idx` ON `breach_checks` (`vaultId`);"
     ]
+  },
+  {
+    "name": "20261114085615_known_vaults",
+    "statements": [
+      "CREATE TABLE `known_vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`keyVersion` integer NOT NULL\n);"
+    ]
   }
 ];

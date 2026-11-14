@@ -13,6 +13,8 @@ const NO_PROFILE: SyncStatus = {
   lastSyncedAt: null,
   enabled: false,
   paused: false,
+  vaultsMissing: [],
+  vaultListRejected: false,
 };
 
 /** Where syncing the active profile with the server stands (ADR 0001 D8), live. */
@@ -28,7 +30,8 @@ export function useSyncStatus(): SyncStatus {
  * The sync indicator's data: the status, its summary (`summarizeSync`) and the
  * user's actions. `canSync`: a manual sync can reach the server (online, also
  * after a failed round); `retryParked` queues the parked changes again (and
- * syncs if it can).
+ * syncs if it can); `confirmVaultLoss` drops the vaults the server stopped
+ * listing (`vaultsMissing`) and syncs.
  */
 export function useSyncSummary(): {
   status: SyncStatus;
@@ -36,6 +39,7 @@ export function useSyncSummary(): {
   canSync: boolean;
   syncNow: () => void;
   retryParked: () => Promise<void>;
+  confirmVaultLoss: () => Promise<void>;
 } {
   const { mode, networkOffline } = useContext(SessionContext);
   const { syncManager, active } = useStore();
@@ -57,6 +61,9 @@ export function useSyncSummary(): {
     syncNow: () => void syncManager?.sync(),
     retryParked: async () => {
       await syncManager?.retryParked();
+    },
+    confirmVaultLoss: async () => {
+      await syncManager?.confirmVaultLoss();
     },
   };
 }
