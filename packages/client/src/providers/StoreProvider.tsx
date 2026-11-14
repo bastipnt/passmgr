@@ -117,12 +117,12 @@ type StoreContextValue = {
    * profile row, or a login's recovery wrap, which ends a pending recovery) in
    * a profile, atomically, and update the state to match. The profile is
    * named: a background write (a rekey) lands in the profile it was made for,
-   * even when another one was opened meanwhile.
+   * even when another one was opened meanwhile. `vaults` null keeps the stored list.
    */
   saveAccount: (
     profileId: string,
     material: AccountKeyMaterial,
-    vaults: readonly MemberVault[],
+    vaults: readonly MemberVault[] | null,
     options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
   ) => Promise<void>;
   /**
@@ -193,20 +193,25 @@ type StoreContextValue = {
 const StoreContext = createContext<StoreContextValue | null>(null);
 
 /**
- * A sync brought a changed vault list (a vault added, removed, renamed, rekeyed):
- * load its keys into memory and the decrypt worker. A vault whose wrap doesn't
- * open is skipped (its records stay hidden); a broken personal vault keeps the
- * keys loaded before.
+ * The vault list changed (a vault added, removed, renamed, rekeyed): load its
+ * keys into memory and the decrypt worker. A vault whose wrap doesn't open is
+ * skipped (its records stay hidden); a broken personal vault throws and keeps
+ * the keys loaded before.
  */
-export function reloadVaultKeys(vaults: readonly MemberVault[]) {
+function loadChangedVaultKeys(vaults: readonly MemberVault[]) {
   if (!secretsStore.isVaultUnlocked) return;
+  const skipped = secretsStore.loadVaultKeys(vaults);
+  if (skipped.length > 0)
+    logError(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
+  initDecryptWorker();
+}
+
+/** `loadChangedVaultKeys` for a list already stored: a failure is only logged. */
+export function reloadVaultKeys(vaults: readonly MemberVault[]) {
   try {
-    const skipped = secretsStore.loadVaultKeys(vaults);
-    if (skipped.length > 0)
-      logError(`Vault keys that don't open were skipped: ${skipped.join(", ")}`);
-    initDecryptWorker();
+    loadChangedVaultKeys(vaults);
   } catch (e) {
-    logError("Vault keys from sync could not be loaded", e);
+    logError("Vault keys could not be loaded", e);
   }
 }
 
@@ -389,7 +394,8 @@ export function StoreProvider({
           isServerError(e),
         isOffline: (e) => !isServerAnswer(e),
         isPaused: isEmailUnverified,
-        onVaultsChanged: reloadVaultKeys,
+        // Throws, so a pulled list whose personal vault doesn't open is never stored.
+        onVaultsChanged: loadChangedVaultKeys,
         resolveConflict: resolveRecordConflict,
         // Changes under a rotated-out vault key, and the records of a rotation this device started.
         prepareOutbox: () => reencryptForPush(vault),
@@ -630,7 +636,7 @@ export function StoreProvider({
   async function saveAccount(
     profileId: string,
     material: AccountKeyMaterial,
-    vaults: readonly MemberVault[],
+    vaults: readonly MemberVault[] | null,
     {
       profile: nextProfile,
       recoveryWrap,

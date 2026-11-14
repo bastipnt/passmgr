@@ -54,6 +54,7 @@ vi.mock("@repo/crypto", async (importActual) => ({
 let status: SyncStatus;
 const sync = vi.fn(async () => true);
 const retryParked = vi.fn(async () => undefined);
+const confirmVaultLoss = vi.fn(async () => true);
 
 beforeEach(() => {
   status = {
@@ -65,9 +66,16 @@ beforeEach(() => {
     lastSyncedAt: null,
     enabled: true,
     paused: false,
+    vaultsMissing: [],
+    vaultListRejected: false,
   };
   // The fake only grows what the menu calls.
-  Object.assign(store.syncManager, { getStatus: () => status, sync, retryParked });
+  Object.assign(store.syncManager, {
+    getStatus: () => status,
+    sync,
+    retryParked,
+    confirmVaultLoss,
+  });
   vi.clearAllMocks();
   secretsStore.clearOpaquePassword();
   store.biometricKeyMaterial = null;
@@ -128,6 +136,16 @@ describe("SyncStatusPopup", () => {
     await userEvent.click(screen.getByRole("button", { name: /^Sync status:/ }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Retry failed changes" }));
     expect(retryParked).toHaveBeenCalledOnce();
+  });
+
+  it("vaults the server stopped listing are removed only on request", async () => {
+    status = { ...status, phase: "error", vaultsMissing: ["v1", "v2"] };
+    renderMenu("online");
+    await userEvent.click(screen.getByRole("button", { name: /^Sync status:/ }));
+    const remove = await screen.findByRole("menuitem", { name: "Remove missing vaults" });
+    expect(confirmVaultLoss).not.toHaveBeenCalled();
+    await userEvent.click(remove);
+    expect(confirmVaultLoss).toHaveBeenCalledOnce();
   });
 
   it("not connected with the unlock's OPAQUE password at hand: connect by hand", async () => {

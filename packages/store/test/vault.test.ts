@@ -8,7 +8,13 @@ import type {
 import { toBase64 } from "@repo/util";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { LocalProfile } from "../src/schema/profile-schema";
-import { sameVaults, Vault, VaultExistsError } from "../src/vault";
+import {
+  sameVaults,
+  Vault,
+  VaultExistsError,
+  VaultListRejectedError,
+  VaultsMissingError,
+} from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
 let vault: Vault;
@@ -202,17 +208,18 @@ describe("key material", () => {
     expect(await vault.getAccountKeyMaterial()).toBeNull();
   });
 
-  it("a second set overwrites the account key and replaces the vault key list", async () => {
-    await vault.setAccountKeyMaterial(accountKey, [personal, vaultKey("v-left")]);
-    await vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "rekeyed" }, [
-      personal,
-    ]);
+  it("a second set overwrites the account key and updates the vaults it lists", async () => {
+    const left = vaultKey("v-left");
+    await vault.setAccountKeyMaterial(accountKey, [personal, left]);
+    const renamed = { ...personal, encryptedMeta: "renamed" };
+    await vault.setAccountKeyMaterial({ ...accountKey, encryptedAccountKey: "rekeyed" }, [renamed]);
 
     expect(await vault.getAccountKeyMaterial()).toEqual({
       ...accountKey,
       encryptedAccountKey: "rekeyed",
     });
-    expect(await vault.getVaults()).toEqual([personal]);
+    // Dropping `left` is the next sync's call, behind its loss check.
+    expect(await vault.getVaults()).toEqual(expect.arrayContaining([renamed, left]));
   });
 
   it("writes nothing when the vault key list is invalid", async () => {
@@ -646,6 +653,96 @@ describe("applySync", () => {
     );
     expect(legacy.rows).toEqual([]);
     await store.destroy();
+  });
+});
+
+describe("vault list continuity", () => {
+  const work = vaultKey("v-work");
+  const team = vaultKey("v-team");
+  const T1 = "2026-10-01T00:00:00.000Z";
+  const sync = (vaults: MemberVault[], allowVaultLoss?: string[]) =>
+    vault.applySync({ records: [], vaults, cursors: {}, serverTimestamp: T1 }, undefined, {
+      allowVaultLoss,
+    });
+
+  beforeEach(async () => {
+    await vault.applySync({
+      records: [record("r1", 1), record("r2", 1, { vaultId: "v-work" })],
+      vaults: [personal, work, team],
+      cursors: { "v-personal": 1, "v-work": 1 },
+      serverTimestamp: T1,
+    });
+  });
+
+  it("refuses a lowered key version, even after the vault was dropped and listed again", async () => {
+    const rotated = { ...work, keyVersion: 2 };
+    await vault.saveVault(rotated);
+
+    await expect(sync([personal, work, team])).rejects.toThrow(VaultListRejectedError);
+    expect(await vault.getVaults()).toContainEqual(rotated);
+
+    await sync([personal, team]);
+    await expect(sync([personal, work, team])).rejects.toThrow(VaultListRejectedError);
+    await sync([personal, rotated, team]);
+  });
+
+  it("refuses a list that relabels a shared vault as personal, or omits the personal vault", async () => {
+    await expect(
+      sync([{ ...personal, kind: "shared" }, { ...work, kind: "personal" }, team]),
+    ).rejects.toThrow(VaultListRejectedError);
+    await expect(sync([work, team])).rejects.toThrow(VaultListRejectedError);
+    await expect(sync([])).rejects.toThrow(VaultListRejectedError);
+
+    expect(await vault.getVaults()).toHaveLength(3);
+    expect((await vault.getAllLatest()).map((r) => r.recordId).sort()).toEqual(["r1", "r2"]);
+  });
+
+  it("keeps the personal vault on a login's list too", async () => {
+    await expect(
+      vault.setAccountKeyMaterial(accountKey, [vaultKey("v-other", "personal")]),
+    ).rejects.toThrow(VaultListRejectedError);
+    expect(await vault.getVaults()).toHaveLength(3);
+  });
+
+  it("drops several vaults at once only once the user confirmed each", async () => {
+    const missing = sync([personal]);
+    await expect(missing).rejects.toThrow(VaultsMissingError);
+    await expect(missing).rejects.toMatchObject({ vaultIds: ["v-work", "v-team"] });
+    expect(await vault.getVaults()).toHaveLength(3);
+    expect(await vault.getSyncCursors()).toEqual({ "v-personal": 1, "v-work": 1 });
+
+    await expect(sync([personal], ["v-work"])).rejects.toThrow(VaultsMissingError);
+    await sync([personal], ["v-work", "v-team"]);
+    expect(await vault.getVaults()).toEqual([personal]);
+  });
+
+  it("leaves a login's list no way around the loss check, and keeps the list without one", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    expect(await vault.getVaults()).toHaveLength(3);
+    await expect(sync([personal])).rejects.toThrow(VaultsMissingError);
+
+    await vault.setAccountKeyMaterial(accountKey, null);
+    expect(await vault.getVaults()).toHaveLength(3);
+  });
+
+  it("keeps the floor of a vault cached before the device remembered vaults", async () => {
+    const driver = createTestDriver();
+    const upgraded = new Vault(driver);
+    await upgraded.saveVault(personal);
+    await upgraded.saveVault({ ...work, keyVersion: 3 });
+    await driver.query("DELETE FROM known_vaults", [], "run");
+    const pull = (vaults: MemberVault[]) =>
+      upgraded.applySync({ records: [], vaults, cursors: {}, serverTimestamp: T1 });
+
+    await pull([personal]);
+    await expect(pull([personal, work])).rejects.toThrow(VaultListRejectedError);
+    await upgraded.destroy();
+  });
+
+  it("checks a list without applying it", async () => {
+    await expect(vault.checkVaultList([personal])).rejects.toThrow(VaultsMissingError);
+    await expect(vault.checkVaultList([personal, work])).resolves.toBeUndefined();
+    expect(await vault.getVaults()).toHaveLength(3);
   });
 });
 

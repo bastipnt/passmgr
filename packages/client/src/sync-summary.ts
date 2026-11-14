@@ -52,6 +52,21 @@ export function summarizeSync(
         "This vault has no account, so nothing syncs. Create an online account to back it up and use it on other devices.",
     };
 
+  if (status.vaultsMissing.length > 0)
+    return {
+      state: "error",
+      title: "Vaults missing on the server",
+      detail: `The server no longer lists ${status.vaultsMissing.length} vaults this device holds, so nothing was synced or removed. Remove them from this device only if you expect it (you were removed from them, or they were deleted).`,
+    };
+
+  if (status.vaultListRejected)
+    return {
+      state: "error",
+      title: "Sync stopped",
+      detail:
+        "The server sent a vault list that doesn't match this device's (an older vault key, or another personal vault), so nothing of it was applied. It retries by itself; if this keeps happening, don't trust the server.",
+    };
+
   if (status.parked > 0 && status.storageFull)
     return {
       state: "error",

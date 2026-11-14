@@ -29,6 +29,19 @@ throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps
 `takeVaultSeqs` / `dropPurgedHistory`) summed over an owner's live vaults against `STORAGE_QUOTA_MB`; a chain with a put
 past it is `rejected` `quota` (parked, `SyncStatus.storageFull`), and so is a `moved` tombstone in that batch (the move's
 other half). Deletes and purges always apply; a rewrite of a record still under a rotated-out key is exempt. Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+**Vault list continuity** (`checkVaultList` in `packages/store/src/vault.ts`): the server's list is plaintext and
+untrusted, so a pulled page (checked before its keys are loaded, `Vault.checkVaultList`, and again inside
+`applySync`'s transaction) and a login's list (`setAccountKeyMaterial`) are refused whole (`VaultListRejectedError`,
+`SyncStatus.vaultListRejected`, "Sync stopped") when a vault's `keyVersion` is below the highest this device saw
+(`known_vaults`, kept after the vault goes, raised by `saveVault` on a rotation or key update), or the list holds no,
+two, or another personal vault than the known one (a relabelled `kind` would make `defaultVaultId` a shared vault).
+A page dropping `MASS_VAULT_LOSS` (2) or more vaults at once throws `VaultsMissingError`: nothing is dropped until
+the user confirms ("Remove missing vaults", `SyncManager.confirmVaultLoss` → `allowVaultLoss`); a single vault lost is
+applied as before (a server dropping one per pull is indistinguishable from removals; unsent changes stay for rescue).
+A login's list never drops a cached vault (only a sync does, behind that check); a rekey saves keep the stored list
+(`saveAccount(…, null)`). `onVaultsChanged` throws when the keys don't load (no single personal vault, its wrap doesn't
+open), so that page isn't stored either; keys loaded for a page that then fails are swapped back for the stored
+list's. A refusal caused by this device moving a vault on during the pull (its own rotation) reruns the round quietly.
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
 delete, and the local edits stay in the history below the merged version.

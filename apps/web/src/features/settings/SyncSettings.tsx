@@ -7,15 +7,16 @@ import {
   ItemDescription,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { RefreshCwIcon, RotateCcwIcon } from "lucide-react";
+import { RefreshCwIcon, RotateCcwIcon, Trash2Icon } from "lucide-react";
 
 /**
  * Sync with the account (ADR 0001 D8), linked profiles only: where it stands,
- * when it last went through, and the manual nudges (sync now, retry parked).
+ * when it last went through, and the manual nudges (sync now, retry parked,
+ * drop the vaults the server stopped listing).
  */
 export default function SyncSettings() {
   const { profile } = useStore();
-  const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
+  const { status, summary, canSync, syncNow, retryParked, confirmVaultLoss } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
   if (profile?.mode !== "linked") return null;
 
@@ -31,6 +32,12 @@ export default function SyncSettings() {
         </ItemDescription>
       </ItemContent>
       <ItemActions className="flex-wrap">
+        {status.vaultsMissing.length > 0 && (
+          <Button variant="destructive" onClick={() => void confirmVaultLoss()}>
+            <Trash2Icon />
+            Remove missing vaults
+          </Button>
+        )}
         {status.parked > 0 && (
           <Button variant="outline" onClick={() => void retryParked()}>
             <RotateCcwIcon />

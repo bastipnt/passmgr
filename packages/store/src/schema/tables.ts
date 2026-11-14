@@ -161,3 +161,15 @@ export const breachChecks = sqliteTable(
     index("breach_checks_vault_idx").on(t.vaultId),
   ],
 );
+
+/**
+ * Every vault this device has accepted from a vault list, kept after the vault
+ * goes: the highest key version seen and its kind. Never lowered or relabelled,
+ * so a server can't hand back a key a removed member still knows, or move the
+ * personal vault (`checkVaultList`).
+ */
+export const knownVaults = sqliteTable("known_vaults", {
+  vaultId: text().primaryKey(),
+  kind: text({ enum: ["personal", "shared"] }).notNull(),
+  keyVersion: integer().notNull(),
+});

@@ -240,7 +240,8 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
         ...info.userPasswordKeys,
         userKeyPair: info.userKeyPair,
       });
-      if (rekeyed) await storeRef.current.saveAccount(profileId, rekeyed, info.vaultKeys);
+      // Not the login's vault list: a sync may have moved a vault's key on meanwhile.
+      if (rekeyed) await storeRef.current.saveAccount(profileId, rekeyed, null);
     } catch (e) {
       logError("Storing the rekeyed password wrap failed", e);
     }

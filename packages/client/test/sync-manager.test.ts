@@ -6,7 +6,12 @@ import {
   type PushResult,
   pushChangeBytes,
 } from "@repo/schema";
-import type { PendingChange, Vault } from "@repo/store";
+import {
+  type PendingChange,
+  type Vault,
+  VaultListRejectedError,
+  VaultsMissingError,
+} from "@repo/store";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PUSH_ATTEMPTS,
@@ -34,6 +39,7 @@ function fakeStore(vaultsChanged: boolean, outbox: PendingChange[] = []) {
     getSyncCursors: vi.fn(async () => ({ v1: 3 })),
     getVaults: vi.fn(async () => (vaultsChanged ? [] : vaults)),
     applySync: vi.fn(async () => vaultsChanged),
+    checkVaultList: vi.fn(async () => {}),
     getPendingChanges: vi.fn(async () => queue.map((c) => ({ ...c }))),
     countPendingChanges: vi.fn(async () => queue.length),
     countParkedChanges: vi.fn(async () => queue.filter((c) => c.parkedAt).length),
@@ -108,7 +114,7 @@ describe("SyncManager pull", () => {
     expect(await manager.sync()).toBe(true);
 
     expect(pull).toHaveBeenCalledWith({ v1: 3 });
-    expect(store.applySync).toHaveBeenCalledWith(batch, undefined);
+    expect(store.applySync).toHaveBeenCalledWith(batch, undefined, { allowVaultLoss: [] });
   });
 
   it("syncFresh waits out a running round and pulls again after it", async () => {
@@ -157,6 +163,97 @@ describe("SyncManager pull", () => {
     expect(calls).toEqual(["keys", "apply", "listener"]);
   });
 
+  it("loads no keys and applies nothing from a refused vault list", async () => {
+    const store = fakeStore(true);
+    store.checkVaultList.mockRejectedValue(new VaultListRejectedError("key-rollback"));
+    const onVaultsChanged = vi.fn();
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      onVaultsChanged,
+      isOffline: () => true,
+    });
+    manager.setEnabled(true);
+
+    expect(await manager.sync()).toBe(false);
+
+    expect(onVaultsChanged).not.toHaveBeenCalled();
+    expect(store.applySync).not.toHaveBeenCalled();
+    expect(manager.getStatus()).toMatchObject({ phase: "error", vaultListRejected: true });
+    await manager.dispose();
+  });
+
+  it("pulls again, without a warning, when this device rotated a vault during the pull", async () => {
+    const store = fakeStore(true);
+    const rotated = [{ vaultId: "v1" }, { vaultId: "v2" }] as MemberVault[];
+    store.getVaults.mockResolvedValueOnce([]).mockResolvedValue(rotated);
+    store.checkVaultList
+      .mockRejectedValueOnce(new VaultListRejectedError("key-rollback"))
+      .mockResolvedValue(undefined);
+    const onVaultsChanged = vi.fn();
+    const pull = vi.fn(async () => batch);
+    const manager = new SyncManager(store as unknown as Vault, { pull, onVaultsChanged });
+    manager.setEnabled(true);
+
+    expect(await manager.sync()).toBe(false);
+    expect(manager.getStatus().vaultListRejected).toBe(false);
+    await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(2));
+    await manager.dispose();
+  });
+
+  it("puts the stored keys back when a page whose keys were loaded doesn't apply", async () => {
+    const store = fakeStore(true);
+    store.applySync.mockRejectedValue(new Error("disk full"));
+    const onVaultsChanged = vi.fn();
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      onVaultsChanged,
+    });
+
+    expect(await manager.sync()).toBe(false);
+    expect(onVaultsChanged.mock.calls).toEqual([[vaults], [[]]]);
+    await manager.dispose();
+  });
+
+  it("applies nothing when loading the pulled keys fails", async () => {
+    const store = fakeStore(true);
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      onVaultsChanged: () => {
+        throw new Error("Expected exactly one personal vault");
+      },
+    });
+
+    expect(await manager.sync()).toBe(false);
+    expect(store.applySync).not.toHaveBeenCalled();
+    await manager.dispose();
+  });
+
+  it("drops the vaults the server stopped listing once the user confirms", async () => {
+    const store = fakeStore(true);
+    store.checkVaultList
+      .mockRejectedValueOnce(new VaultsMissingError(["v2", "v3"]))
+      .mockResolvedValue(undefined);
+    const manager = new SyncManager(store as unknown as Vault, {
+      pull: async () => batch,
+      onVaultsChanged: vi.fn(),
+    });
+    manager.setEnabled(true);
+
+    expect(await manager.sync()).toBe(false);
+    expect(manager.getStatus().vaultsMissing).toEqual(["v2", "v3"]);
+
+    expect(await manager.confirmVaultLoss()).toBe(true);
+    expect(store.checkVaultList).toHaveBeenLastCalledWith(vaults, { allowVaultLoss: ["v2", "v3"] });
+    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, {
+      allowVaultLoss: ["v2", "v3"],
+    });
+    expect(manager.getStatus()).toMatchObject({ phase: "idle", vaultsMissing: [] });
+
+    await manager.sync();
+    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, { allowVaultLoss: [] });
+    await manager.dispose();
+  });
+
   it("leaves the keys alone when the vault list is unchanged", async () => {
     const onVaultsChanged = vi.fn();
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
@@ -185,14 +282,14 @@ describe("SyncManager pull", () => {
     expect(await manager.sync()).toBe(true);
 
     expect(pull.mock.calls).toEqual([[{ v1: 3 }], [{ v1: 5 }]]);
-    expect(store.applySync).toHaveBeenNthCalledWith(1, first, undefined);
-    expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined);
+    expect(store.applySync).toHaveBeenNthCalledWith(1, first, undefined, { allowVaultLoss: [] });
+    expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined, { allowVaultLoss: [] });
   });
 
   it("tells listeners of each page, reloading keys before the page that changes them", async () => {
     const calls: string[] = [];
     const store = fakeStore(false);
-    store.getVaults.mockResolvedValueOnce([]);
+    store.getVaults.mockResolvedValueOnce(vaults).mockResolvedValueOnce([]);
     store.getSyncCursors.mockResolvedValueOnce({ v1: 3 }).mockResolvedValueOnce({ v1: 5 });
     store.applySync.mockImplementation(async () => {
       calls.push("apply");
@@ -238,7 +335,7 @@ describe("SyncManager pull", () => {
 
     expect(await manager.sync()).toBe(false);
     expect(store.applySync).toHaveBeenCalledTimes(1);
-    expect(store.applySync).toHaveBeenCalledWith(first, undefined);
+    expect(store.applySync).toHaveBeenCalledWith(first, undefined, { allowVaultLoss: [] });
   });
 
   it("reports a failed pull without applying anything", async () => {

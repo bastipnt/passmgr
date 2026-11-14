@@ -95,9 +95,13 @@ export function useUnlock() {
     await persistSession(opened.entry.profileId);
 
     // Raise a wrap below the Argon2 floor. Best-effort; failures don't block login.
-    void rekeyIfBelowFloor(trpc, password, material).then(async (rekeyed) => {
-      if (rekeyed) await store.saveAccount(opened.entry.profileId, rekeyed, vaultKeys);
-    });
+    void rekeyIfBelowFloor(trpc, password, material).then(
+      async (rekeyed) => {
+        // Not the login's vault list: a sync may have moved a vault's key on meanwhile.
+        if (rekeyed) await store.saveAccount(opened.entry.profileId, rekeyed, null);
+      },
+      (e: unknown) => logError("Storing the rekeyed password wrap failed", e),
+    );
     return true;
   }
 

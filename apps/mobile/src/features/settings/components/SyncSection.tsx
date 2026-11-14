@@ -4,10 +4,11 @@ import { Text, View } from "react-native";
 
 /**
  * Sync with the account (ADR 0001 D8), for a linked profile: where it stands,
- * when it last went through, and the manual nudges (sync now, retry parked).
+ * when it last went through, and the manual nudges (sync now, retry parked,
+ * drop the vaults the server stopped listing).
  */
 export function SyncSection() {
-  const { status, summary, canSync, syncNow, retryParked } = useSyncSummary();
+  const { status, summary, canSync, syncNow, retryParked, confirmVaultLoss } = useSyncSummary();
   const lastSynced = useLastSyncedLabel(status.lastSyncedAt);
 
   return (
@@ -17,6 +18,11 @@ export function SyncSection() {
           <Text className="text-[16px] text-foreground">{summary.title}</Text>
           <Text className="text-muted-foreground text-sm">{summary.detail}</Text>
         </View>
+        {status.vaultsMissing.length > 0 && (
+          <Button size="lg" variant="destructive" onPress={() => void confirmVaultLoss()}>
+            Remove missing vaults
+          </Button>
+        )}
         {status.parked > 0 && (
           <Button
             size="lg"

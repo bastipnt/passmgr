@@ -66,6 +66,8 @@ export function createFakeStore() {
     lastSyncedAt: null,
     enabled: true,
     paused: false,
+    vaultsMissing: [],
+    vaultListRejected: false,
   };
   const syncManager = {
     onSync: () => () => undefined,

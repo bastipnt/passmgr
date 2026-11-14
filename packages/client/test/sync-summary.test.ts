@@ -11,6 +11,8 @@ const idle: SyncStatus = {
   lastSyncedAt: null,
   enabled: true,
   paused: false,
+  vaultsMissing: [],
+  vaultListRejected: false,
 };
 
 describe("summarizeSync", () => {
@@ -30,6 +32,17 @@ describe("summarizeSync", () => {
     const summary = summarizeSync("offline", { ...idle, phase: "offline", parked: 1 }, true);
     expect(summary.state).toBe("error");
     expect(summary.detail).toContain("1 change couldn't");
+  });
+
+  it("a refused vault list wins over parked changes", () => {
+    const missing = { ...idle, phase: "error" as const, parked: 1, vaultsMissing: ["a", "b"] };
+    expect(summarizeSync("online", missing, false)).toMatchObject({
+      state: "error",
+      title: "Vaults missing on the server",
+    });
+    expect(
+      summarizeSync("online", { ...idle, phase: "error", vaultListRejected: true }, false),
+    ).toMatchObject({ state: "error", title: "Sync stopped" });
   });
 
   it("names a full storage as the reason changes are parked", () => {
