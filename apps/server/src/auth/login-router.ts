@@ -34,12 +34,12 @@ import { router } from "../trpc";
 import { recordAccountEvent } from "../user/account-events";
 import { allowedOrigins } from "../util/allowed-origins";
 import {
+  claimLoginAttempt,
   countSecondFactorAttempt,
   deleteSession,
   getLoginLockMs,
   getSecondFactorChallenge,
   isLoginRevoked,
-  recordLoginStart,
   resetLoginThrottle,
   SESSION_MAX_AGE_MS,
   setDeviceLoginAttempt,
@@ -229,9 +229,8 @@ export const loginRouter = router({
       const { startLoginRequest, email } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const lockMs = await getLoginLockMs(emailHash);
+      const lockMs = await claimLoginAttempt(emailHash);
       if (lockMs > 0) denyThrottled(log, emailHash, lockMs);
-      await recordLoginStart(emailHash);
 
       // Before the read: a password change committed after it still revokes.
       const startedAt = Date.now();
@@ -434,9 +433,11 @@ export const loginRouter = router({
     }),
 
   // The second login step of an account with two-factor on: a TOTP code or a
-  // backup code for the challenge finishLogin handed out. A wrong code counts
-  // against the account's login throttle; SECOND_FACTOR_MAX_ATTEMPTS of them
-  // burn the challenge (the login starts over with the password).
+  // backup code for the challenge finishLogin handed out. Every code is
+  // claimed against the login throttle right before it is checked, so parallel
+  // guesses can't pass the lock; a right one resets it. A device login's codes
+  // use their own throttle, never the password's. SECOND_FACTOR_MAX_ATTEMPTS
+  // wrong ones burn the challenge (the login starts over).
   verifySecondFactor: loggedProcedure
     .input(verifySecondFactorInputSchema)
     .output(verifySecondFactorOutputSchema)
@@ -446,10 +447,11 @@ export const loginRouter = router({
 
       const challenge = await getSecondFactorChallenge(challengeId);
       if (!challenge) denySecondFactor(log, "no_challenge", SECOND_FACTOR_EXPIRED);
-      const { userId, emailHash } = challenge;
+      const { userId, emailHash, deviceCredentialId } = challenge;
+      const throttle = deviceCredentialId ? "device" : "password";
 
-      const lockMs = await getLoginLockMs(emailHash);
-      if (lockMs > 0) denyThrottled(log, emailHash, lockMs);
+      const lockedMs = await getLoginLockMs(emailHash, throttle);
+      if (lockedMs > 0) denyThrottled(log, emailHash, lockedMs);
 
       const attempts = await countSecondFactorAttempt(challengeId);
       if (attempts < 0 || attempts > SECOND_FACTOR_MAX_ATTEMPTS) {
@@ -466,8 +468,9 @@ export const loginRouter = router({
       }
       const keys = await loginKeys(log, "verifySecondFactor", userId, emailHash);
 
+      const lockMs = await claimLoginAttempt(emailHash, throttle);
+      if (lockMs > 0) denyThrottled(log, emailHash, lockMs);
       if (!(await checkSecondFactor(userId, code))) {
-        await recordLoginStart(emailHash);
         void recordAccountEvent(userId, "second_factor_failed", {
           deviceName: challenge.deviceName,
           log,
@@ -484,8 +487,7 @@ export const loginRouter = router({
         denySecondFactor(log, "challenge_taken", SECOND_FACTOR_EXPIRED, emailHash);
       }
 
-      const { deviceCredentialId } = challenge;
-      if (!deviceCredentialId) await resetLoginThrottle(emailHash);
+      await resetLoginThrottle(emailHash, throttle);
       const sessionId = await setSession({
         userId,
         rawAuthKey: challenge.rawAuthKey,

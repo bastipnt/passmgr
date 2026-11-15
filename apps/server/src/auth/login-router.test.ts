@@ -284,6 +284,19 @@ describe("loginRouter — per-account throttling", () => {
     );
   });
 
+  it("parallel starts can't slip past the lock", async () => {
+    const caller = createCaller(buildTestContext(undefined));
+    const { startLoginRequest } = await clientStartLogin(password, email);
+    const results = await Promise.allSettled(
+      Array.from({ length: 50 }, () => caller.login.startLogin({ email, startLoginRequest })),
+    );
+    const answered = results.filter((r) => r.status === "fulfilled");
+    expect(answered).toHaveLength(LOGIN_FREE_ATTEMPTS + 1);
+    for (const r of results) {
+      if (r.status === "rejected") expect(r.reason).toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    }
+  });
+
   it("does not affect other accounts", async () => {
     await register(email, password);
     await startLogins("mallory@example.com", LOGIN_FREE_ATTEMPTS + 1);

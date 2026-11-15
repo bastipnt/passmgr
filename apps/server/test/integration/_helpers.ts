@@ -1,6 +1,7 @@
-import { genKey } from "@repo/crypto";
+import { genKey, getToken } from "@repo/crypto";
 import type { MemberVault, PasswordKeySchema, RecoveryWrapSchema, UserKeyPair } from "@repo/schema";
 import { toBase64 } from "@repo/util";
+import { expect } from "vitest";
 import { appRouter } from "../../src/router";
 import { createCallerFactory } from "../../src/trpc";
 import { clientStartLogin, clientStartRegistration } from "../setup/opaque-client";
@@ -93,6 +94,20 @@ export async function callSigned(
 ) {
   const headers = await signRequest({ authKey, sessionId, type, path, input });
   return createCaller(buildTestContext(headers));
+}
+
+/** Turn two-factor on from a fresh session; returns the secret and the backup codes. */
+export async function enableTwoFactor(session: { sessionId: string; authKey: Uint8Array }) {
+  const { sessionId, authKey } = session;
+  const { secret, uri } = await (
+    await callSigned(sessionId, authKey, "mutation", "user.startTotpEnrollment", {})
+  ).user.startTotpEnrollment({});
+  expect(uri).toContain(`secret=${secret}`);
+  const input = { code: await getToken(secret) };
+  const { backupCodes } = await (
+    await callSigned(sessionId, authKey, "mutation", "user.confirmTotp", input)
+  ).user.confirmTotp(input);
+  return { secret, backupCodes };
 }
 
 /** A `record.push` change writing new ciphertext on top of `baseVersion` (0: a new record). */

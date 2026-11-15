@@ -8,12 +8,22 @@ import { db, deviceCredentialsTable, usersTable } from "@repo/db";
 import { fromBase64, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
-import { recordLoginStart, SESSION_MAX_AGE_MS } from "../../src/util/redis-utils";
+import {
+  claimLoginAttempt,
+  LOGIN_FREE_ATTEMPTS,
+  SESSION_MAX_AGE_MS,
+} from "../../src/util/redis-utils";
 import { truncateAll } from "../setup/db-helpers";
 import { fakeAuthenticator } from "../setup/fake-authenticator";
 import { deriveAuthKey } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
-import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
+import {
+  callSigned,
+  createCaller,
+  enableTwoFactor,
+  loginAndGetAuthKey,
+  register,
+} from "./_helpers";
 
 // Device login (web biometric unlock): a WebAuthn credential registered by a
 // fresh password login logs in without the password; nothing that logs in is
@@ -57,6 +67,22 @@ async function deviceLogin(
   assert: (challenge: Uint8Array) => ReturnType<Authenticator["assert"]> = (c) =>
     authenticator.assert(c),
 ) {
+  const { caller, input, finished, client, serverPublicKey, challenge, authSalt } =
+    await finishDeviceLogin(authenticator, assert);
+  if ("secondFactorRequired" in finished) throw new Error("second factor required");
+  const sessionKey = await deviceSessionKey(client.privateKey, serverPublicKey, challenge);
+  return {
+    session: { sessionId: finished.sessionId, authKey: await deriveAuthKey(sessionKey, authSalt) },
+    finished,
+    retry: () => caller.login.finishDeviceLogin(input),
+  };
+}
+
+async function finishDeviceLogin(
+  authenticator: Authenticator,
+  assert: (challenge: Uint8Array) => ReturnType<Authenticator["assert"]> = (c) =>
+    authenticator.assert(c),
+) {
   const caller = createCaller(buildTestContext(undefined, "Laptop"));
   const started = await caller.login.startDeviceLogin({
     credentialId: authenticator.credentialId,
@@ -76,13 +102,7 @@ async function deviceLogin(
     authSalt: toBase64(authSalt),
   };
   const finished = await caller.login.finishDeviceLogin(input);
-  if ("secondFactorRequired" in finished) throw new Error("second factor required");
-  const sessionKey = await deviceSessionKey(client.privateKey, serverPublicKey, challenge);
-  return {
-    session: { sessionId: finished.sessionId, authKey: await deriveAuthKey(sessionKey, authSalt) },
-    finished,
-    retry: () => caller.login.finishDeviceLogin(input),
-  };
+  return { caller, input, finished, client, serverPublicKey, challenge, authSalt };
 }
 
 describe("device login (real Postgres + Redis)", () => {
@@ -248,10 +268,34 @@ describe("device login (real Postgres + Redis)", () => {
     await register(email, password);
     const authenticator = await enroll(await loginAndGetAuthKey(email, password));
     const [user] = await db.select({ emailHash: usersTable.emailHash }).from(usersTable);
-    await recordLoginStart(user!.emailHash);
+    await claimLoginAttempt(user!.emailHash);
 
     await deviceLogin(authenticator);
 
     expect(await redis.exists(`loginthrottle:${user!.emailHash}`)).toBe(1);
+  });
+
+  it("a device login's second factor leaves the password throttle alone", async () => {
+    await register(email, password);
+    const session = await loginAndGetAuthKey(email, password);
+    const authenticator = await enroll(session);
+    const { backupCodes } = await enableTwoFactor(session);
+    const [user] = await db.select({ emailHash: usersTable.emailHash }).from(usersTable);
+    const hash = user!.emailHash;
+    for (let i = 0; i < LOGIN_FREE_ATTEMPTS; i++) await claimLoginAttempt(hash);
+
+    const { finished } = await finishDeviceLogin(authenticator);
+    if (!("secondFactorRequired" in finished)) throw new Error("expected a challenge");
+    const verify = (code: string) =>
+      createCaller(buildTestContext(undefined)).login.verifySecondFactor({
+        challengeId: finished.challengeId,
+        code,
+      });
+    await expect(verify("000000")).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await verify(backupCodes[0]!);
+
+    expect(await redis.get(`loginthrottle:${hash}`)).toBe(String(LOGIN_FREE_ATTEMPTS));
+    expect(await redis.exists(`loginlock:${hash}`)).toBe(0);
+    expect(await redis.exists(`loginthrottle:device:${hash}`)).toBe(0);
   });
 });
