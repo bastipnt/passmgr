@@ -172,7 +172,8 @@ describe("RecoverPage from the account login", () => {
     await userEvent.click(use);
 
     const password = (screen.getByLabelText("New password") as HTMLInputElement).value;
-    expect(password).toMatch(/^\w+(-\w+){3}$/);
+    // Four words joined by "-"; a few EFF words contain a hyphen themselves ("felt-tip", "t-shirt").
+    expect(password).toMatch(/^[a-z]+(-[a-z]+){3,7}$/);
     expect(screen.getByLabelText("Confirm new password")).toHaveValue(password);
     await userEvent.click(screen.getByRole("button", { name: /^reset password$/i }));
     await waitFor(() => {
