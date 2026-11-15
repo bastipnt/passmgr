@@ -39,6 +39,9 @@ per user) — never `UPDATE` key material in place.
   registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
   two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)
 
+tRPC batching is off (`allowBatching: false`, `src/trpc-options.ts`): the per-IP rate limit counts HTTP requests, and a
+batch would run many calls in one. Clients use `httpLink`, never `httpBatchLink`.
+
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes,
 → `verifiedProcedure` for sync and sharing: FORBIDDEN `email_unverified` until the email is verified, see Email verification
 in `docs/architecture/auth.md`)

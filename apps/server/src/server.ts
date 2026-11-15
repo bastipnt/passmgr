@@ -1,7 +1,6 @@
 import cors from "@fastify/cors";
-import { type FastifyTRPCPluginOptions, fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
+import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import fastify from "fastify";
-import { type AppRouter, appRouter } from "./router";
 import "./opaque";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
@@ -9,11 +8,11 @@ import { db } from "@repo/db";
 import { MAX_REQUEST_BYTES } from "@repo/schema";
 import { sql } from "drizzle-orm";
 import { registerActiveUsersGauge } from "./active-users";
-import { createContext } from "./context";
 import { registerHealthRoutes } from "./health";
 import { logRedact, logSerializers } from "./log-options";
 import { metricsRegistry, recordRateLimited } from "./metrics";
 import { redis } from "./redis";
+import { createTrpcOptions } from "./trpc-options";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
 import { allowedOrigins } from "./util/allowed-origins";
 
@@ -95,15 +94,7 @@ registerActiveUsersGauge(metricsRegistry, (err) =>
 
 await server.register(fastifyTRPCPlugin, {
   prefix: process.env.PREFIX,
-  trpcOptions: {
-    router: appRouter,
-    createContext,
-    onError({ path, error, ctx }) {
-      if (path === "favicon.ico") return;
-      const log = ctx?.req?.log ?? server.log;
-      log.error({ path, code: error.code, err: error }, "trpc.error");
-    },
-  } satisfies FastifyTRPCPluginOptions<AppRouter>["trpcOptions"],
+  trpcOptions: createTrpcOptions(server.log),
 });
 
 const PURGE_INTERVAL_MS = 60 * 60_000;

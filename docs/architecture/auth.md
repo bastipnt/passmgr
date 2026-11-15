@@ -40,12 +40,13 @@ Registration:
 Login:
 
 1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
-2. Server: per-account throttle check (`loginlock:<emailHash>`; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use, with its `startedAt`: a login started at or before `sessionepoch:<userId>` is refused at finish / second factor, `isLoginRevoked`). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
+2. Server: per-account throttle (`claimLoginAttempt`: one Lua script checks `loginlock:<emailHash>` and counts the start, so parallel starts can't all pass the check; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use, with its `startedAt`: a login started at or before `sessionepoch:<userId>` is refused at finish / second factor, `isLoginRevoked`). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
 4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`. Two-factor on (`user_totp` row): no keys and no session yet, the
    challenge goes to Redis (`login2fa:<challengeId>`, 5 min, the derived `authKey` inside) and the answer is `{ secondFactorRequired, challengeId }`;
-   `login.verifySecondFactor` takes a TOTP code (±1 step, step > `lastUsedStep`) or a backup code, a wrong one counts against
-   `loginlock:<emailHash>`, `SECOND_FACTOR_MAX_ATTEMPTS` burn the challenge (`SECOND_FACTOR_INVALID` / `_EXPIRED`), then continues as below
+   `login.verifySecondFactor` takes a TOTP code (±1 step, step > `lastUsedStep`) or a backup code, each code claims a
+   throttle attempt right before it is checked (`claimLoginAttempt`, a right one resets it; a device login's codes count
+   on their own `loginthrottle:device:` / `loginlock:device:` keys, never the password throttle), `SECOND_FACTOR_MAX_ATTEMPTS` burn the challenge (`SECOND_FACTOR_INVALID` / `_EXPIRED`), then continues as below
    (session marked `secondFactor`). Otherwise it creates the session in Redis (24h sliding TTL, hard cap `SESSION_MAX_AGE_MS` = 30 days from `authenticatedAt`; indexed per user in `usersessions:<userId>`, a sorted set by last activity; `deviceName` from the client's `x-device-name` header, `ClientProvider`'s `deviceName`), returns `sessionId` + the wrapped account key + its recovery wrap (`recoveryKeys`, null without a verifier; cached for an offline reset) + `vaultKeys` (one wrap per live vault membership) + the current `userKeyPair`
    Client: `loginUser`'s `onSecondFactor` prompt (`SecondFactorPrompt`, only called when challenged; `null` → `SecondFactorCancelledError`).
    Login forms pass their own (`useSecondFactorRequest`: web `LoginPage` inline step, mobile sheets); every other login (reconnect,

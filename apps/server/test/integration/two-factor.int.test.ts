@@ -1,5 +1,5 @@
 import { genKey, getToken } from "@repo/crypto";
-import { db, userBackupCodesTable, usersTable, userTotpTable } from "@repo/db";
+import { accountEventsTable, db, userBackupCodesTable, usersTable, userTotpTable } from "@repo/db";
 import { SECOND_FACTOR_EXPIRED, SECOND_FACTOR_INVALID } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
@@ -9,7 +9,13 @@ import { LOGIN_FREE_ATTEMPTS, revokeUserSessions } from "../../src/util/redis-ut
 import { truncateAll } from "../setup/db-helpers";
 import { clientStartLogin } from "../setup/opaque-client";
 import { buildTestContext } from "../setup/test-context";
-import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
+import {
+  callSigned,
+  createCaller,
+  enableTwoFactor,
+  loginAndGetAuthKey,
+  register,
+} from "./_helpers";
 
 // Two-factor (TOTP + backup codes) for the server login: opt-in, checked only
 // after a successful OPAQUE finish, and no session or keys before the code.
@@ -43,19 +49,6 @@ async function call(session: Session, type: "mutation" | "query", path: string, 
     path,
     input as Record<string, unknown> | undefined,
   );
-}
-
-/** Turn two-factor on from a fresh session; returns the secret and the backup codes. */
-async function enable(session: Session) {
-  const { secret, uri } = await (
-    await call(session, "mutation", "user.startTotpEnrollment", {})
-  ).user.startTotpEnrollment({});
-  expect(uri).toContain(`secret=${secret}`);
-  const input = { code: await getToken(secret) };
-  const { backupCodes } = await (
-    await call(session, "mutation", "user.confirmTotp", input)
-  ).user.confirmTotp(input);
-  return { secret, backupCodes };
 }
 
 /** startLogin + finishLogin with the right password; the raw finishLogin answer. */
@@ -110,7 +103,7 @@ describe("two-factor login", () => {
 
   it("with TOTP on, finishLogin hands out no session and no keys, only a challenge", async () => {
     await register(email, password);
-    await enable(await loginAndGetAuthKey(email, password));
+    await enableTwoFactor(await loginAndGetAuthKey(email, password));
     await redis.flushall();
 
     const finished = await finishLogin();
@@ -120,7 +113,7 @@ describe("two-factor login", () => {
 
   it("a TOTP code finishes the login: session, keys, the device name", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
 
     const challengeId = await challenge("Firefox on macOS");
@@ -134,7 +127,7 @@ describe("two-factor login", () => {
 
   it("a replayed code is refused, also for a new challenge", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
     const code = await getToken(secret);
 
@@ -147,7 +140,7 @@ describe("two-factor login", () => {
 
   it("the enrollment code itself can't log in (its step counts as used)", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     await expect(verify(await challenge(), await getToken(secret))).rejects.toMatchObject({
       message: SECOND_FACTOR_INVALID,
     });
@@ -155,7 +148,7 @@ describe("two-factor login", () => {
 
   it("a wrong code counts against the login throttle", async () => {
     await register(email, password);
-    await enable(await loginAndGetAuthKey(email, password));
+    await enableTwoFactor(await loginAndGetAuthKey(email, password));
     const hash = await emailHash();
 
     const challengeId = await challenge();
@@ -166,9 +159,33 @@ describe("two-factor login", () => {
     expect(Number(await redis.get(`loginthrottle:${hash}`))).toBe(before + 1);
   });
 
+  it("parallel wrong codes across challenges can't slip past the lock", async () => {
+    await register(email, password);
+    await enableTwoFactor(await loginAndGetAuthKey(email, password));
+    const challenges = [await challenge(), await challenge()];
+    const used = Number(await redis.get(`loginthrottle:${await emailHash()}`));
+
+    const results = await Promise.allSettled(
+      challenges.flatMap((id) => Array.from({ length: 5 }, () => verify(id, "000000"))),
+    );
+    const checked = results.filter(
+      (r) => r.status === "rejected" && r.reason.code === "UNAUTHORIZED",
+    );
+    expect(checked).toHaveLength(LOGIN_FREE_ATTEMPTS + 1 - used);
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(0);
+    // The failure events are written in the background; let them land before the next truncate.
+    await vi.waitFor(async () => {
+      const events = await db
+        .select()
+        .from(accountEventsTable)
+        .where(eq(accountEventsTable.type, "second_factor_failed"));
+      expect(events).toHaveLength(checked.length);
+    });
+  });
+
   it("the throttle lock refuses codes, the right one too", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
     const challengeId = await challenge();
     await redis.set(`loginlock:${await emailHash()}`, "1", "PX", 60_000);
@@ -180,7 +197,7 @@ describe("two-factor login", () => {
 
   it("five wrong codes burn the challenge", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
     const challengeId = await challenge();
     // Don't run into the throttle lock: this checks the per-challenge cap.
@@ -203,7 +220,7 @@ describe("two-factor login", () => {
 
   it("a challenge is single-use and expires", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
 
     const used = await challenge();
@@ -224,7 +241,7 @@ describe("two-factor login", () => {
 
   it("a backup code logs in once", async () => {
     await register(email, password);
-    const { backupCodes } = await enable(await loginAndGetAuthKey(email, password));
+    const { backupCodes } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     expect(backupCodes).toHaveLength(10);
     expect(new Set(backupCodes).size).toBe(10);
 
@@ -238,7 +255,7 @@ describe("two-factor login", () => {
 
   it("a challenge from before a password change or recovery is dead, its code not spent", async () => {
     await register(email, password);
-    const { backupCodes } = await enable(await loginAndGetAuthKey(email, password));
+    const { backupCodes } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
 
     const challengeId = await challenge();
     await revokeUserSessions(await userId());
@@ -268,7 +285,7 @@ describe("two-factor management", () => {
       await (await call(s, "query", "user.twoFactorStatus")).user.twoFactorStatus();
 
     expect(await status(session)).toEqual({ enabled: false, backupCodesLeft: 0 });
-    const { secret, backupCodes } = await enable(session);
+    const { secret, backupCodes } = await enableTwoFactor(session);
     expect(await status(session)).toEqual({ enabled: true, backupCodesLeft: 10 });
 
     nextStep();
@@ -293,7 +310,7 @@ describe("two-factor management", () => {
   it("enrolling twice is refused", async () => {
     await register(email, password);
     const session = await loginAndGetAuthKey(email, password);
-    await enable(session);
+    await enableTwoFactor(session);
     await expect(
       (await call(session, "mutation", "user.startTotpEnrollment", {})).user.startTotpEnrollment(
         {},
@@ -304,7 +321,7 @@ describe("two-factor management", () => {
   it("disable needs a session that passed the second factor, then login is password-only", async () => {
     await register(email, password);
     const before = await loginAndGetAuthKey(email, password);
-    const { secret } = await enable(before);
+    const { secret } = await enableTwoFactor(before);
 
     // The session that enabled it never gave a login code.
     await expect(
@@ -322,7 +339,9 @@ describe("two-factor management", () => {
 
   it("regenerating replaces every backup code", async () => {
     await register(email, password);
-    const { secret, backupCodes } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret, backupCodes } = await enableTwoFactor(
+      await loginAndGetAuthKey(email, password),
+    );
     nextStep();
     const session = await loginAndGetAuthKey(email, password, undefined, () => getToken(secret));
 
@@ -338,7 +357,7 @@ describe("two-factor management", () => {
 
   it("deleting the account removes the second factor", async () => {
     await register(email, password);
-    const { secret } = await enable(await loginAndGetAuthKey(email, password));
+    const { secret } = await enableTwoFactor(await loginAndGetAuthKey(email, password));
     nextStep();
     const session = await loginAndGetAuthKey(email, password, undefined, () => getToken(secret));
     const uid = await userId();

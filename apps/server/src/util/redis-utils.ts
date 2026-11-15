@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
 import { emitSessionSignedOut } from "../events/record-events";
+import type { Result } from "ioredis";
 import { redis } from "../redis";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle
@@ -156,12 +157,18 @@ function signedOutKey(sessionId: string) {
   return `signedout:${sessionId}`;
 }
 
-function loginThrottleKey(emailHash: string) {
-  return `loginthrottle:${emailHash}`;
+// Second-factor codes of a device login count on their own throttle: a device
+// login never touches the password throttle.
+export type LoginThrottle = "password" | "device";
+
+function loginThrottleKey(emailHash: string, throttle: LoginThrottle = "password") {
+  return throttle === "password"
+    ? `loginthrottle:${emailHash}`
+    : `loginthrottle:device:${emailHash}`;
 }
 
-function loginLockKey(emailHash: string) {
-  return `loginlock:${emailHash}`;
+function loginLockKey(emailHash: string, throttle: LoginThrottle = "password") {
+  return throttle === "password" ? `loginlock:${emailHash}` : `loginlock:device:${emailHash}`;
 }
 
 function isLive(session: Session, epoch: string | null, now: number): boolean {
@@ -520,33 +527,73 @@ export async function takePasswordChangeAttempt(
   return JSON.parse(raw);
 }
 
-/** Remaining lock time in ms for this account, or 0 when a login may start. */
-export async function getLoginLockMs(emailHash: string): Promise<number> {
-  const ttl = await redis.pttl(loginLockKey(emailHash));
+// One script so parallel attempts can't all pass the lock check before any of
+// them sets the lock.
+redis.defineCommand("claimLoginAttempt", {
+  numberOfKeys: 2,
+  lua: `
+local lockMs = redis.call("pttl", KEYS[2])
+if lockMs > 0 then return lockMs end
+local count = redis.call("incr", KEYS[1])
+redis.call("expire", KEYS[1], ARGV[1])
+local excess = count - tonumber(ARGV[2])
+if excess > 0 then
+  local backoffMs = math.min(tonumber(ARGV[3]) * 2 ^ (excess - 1), tonumber(ARGV[4]))
+  redis.call("set", KEYS[2], "1", "PX", backoffMs)
+end
+return 0
+`,
+});
+
+declare module "ioredis" {
+  interface RedisCommander<Context> {
+    claimLoginAttempt(
+      counterKey: string,
+      lockKey: string,
+      windowSeconds: number,
+      freeAttempts: number,
+      baseBackoffMs: number,
+      maxBackoffMs: number,
+    ): Result<number, Context>;
+  }
+}
+
+/** Remaining lock time in ms, or 0. Only a pre-check: claimLoginAttempt is what enforces the lock. */
+export async function getLoginLockMs(
+  emailHash: string,
+  throttle: LoginThrottle = "password",
+): Promise<number> {
+  const ttl = await redis.pttl(loginLockKey(emailHash, throttle));
   return ttl > 0 ? ttl : 0;
 }
 
 /**
- * Count a login start. After LOGIN_FREE_ATTEMPTS starts without a successful
- * finish, lock the account with exponential back-off (1s, 2s, 4s, … capped).
+ * Count one password guess or second-factor code. Returns the remaining lock
+ * time in ms (nothing counted), or 0 when the attempt may go ahead. After
+ * LOGIN_FREE_ATTEMPTS without a successful login, locks with exponential
+ * back-off (1s, 2s, 4s, … capped).
  */
-export async function recordLoginStart(emailHash: string): Promise<void> {
-  const key = loginThrottleKey(emailHash);
-  const [[, count]] = (await redis
-    .multi()
-    .incr(key)
-    .expire(key, LOGIN_THROTTLE_WINDOW_SECONDS)
-    .exec()) as [[Error | null, number], [Error | null, number]];
-
-  const excess = count - LOGIN_FREE_ATTEMPTS;
-  if (excess <= 0) return;
-
-  const backoffMs = Math.min(LOGIN_BASE_BACKOFF_MS * 2 ** (excess - 1), LOGIN_MAX_BACKOFF_MS);
-  await redis.set(loginLockKey(emailHash), "1", "PX", backoffMs);
+export async function claimLoginAttempt(
+  emailHash: string,
+  throttle: LoginThrottle = "password",
+): Promise<number> {
+  return Number(
+    await redis.claimLoginAttempt(
+      loginThrottleKey(emailHash, throttle),
+      loginLockKey(emailHash, throttle),
+      LOGIN_THROTTLE_WINDOW_SECONDS,
+      LOGIN_FREE_ATTEMPTS,
+      LOGIN_BASE_BACKOFF_MS,
+      LOGIN_MAX_BACKOFF_MS,
+    ),
+  );
 }
 
-export async function resetLoginThrottle(emailHash: string): Promise<void> {
-  await redis.del(loginThrottleKey(emailHash), loginLockKey(emailHash));
+export async function resetLoginThrottle(
+  emailHash: string,
+  throttle: LoginThrottle = "password",
+): Promise<void> {
+  await redis.del(loginThrottleKey(emailHash, throttle), loginLockKey(emailHash, throttle));
 }
 
 function nonceKey(nonce: string) {
