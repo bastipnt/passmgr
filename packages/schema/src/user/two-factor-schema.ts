@@ -22,7 +22,7 @@ const totpCodeSchema = z
 export const twoFactorStatusSchema = z.object({
   enabled: z.boolean(),
   // Unused backup codes (0 when off).
-  backupCodesLeft: z.number().int(),
+  backupCodesLeft: z.int32(),
 });
 
 export type TwoFactorStatus = z.infer<typeof twoFactorStatusSchema>;

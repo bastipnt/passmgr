@@ -1,5 +1,6 @@
 import { isIP } from "node:net";
 import type { FastifyRequest } from "fastify";
+import { loggableError } from "./util/loggable-error";
 
 const SECRET_KEYS = [
   "email",
@@ -64,4 +65,5 @@ export const logSerializers = {
     host: req.host,
     remoteAddress: truncateIp(req.ip),
   }),
+  err: loggableError,
 };

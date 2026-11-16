@@ -32,6 +32,13 @@ describe("pushInputSchema", () => {
     expect(pushInputSchema.parse({ changes: [put, del] }).changes).toHaveLength(2);
   });
 
+  it("rejects a version past the int4 columns it is stored in", () => {
+    const put = { ...change, ...sealed, op: "put", baseVersion: 0 };
+    for (const tooBig of [{ keyVersion: 2 ** 31 }, { baseVersion: 2 ** 31 }]) {
+      expect(pushInputSchema.safeParse({ changes: [{ ...put, ...tooBig }] }).success).toBe(false);
+    }
+  });
+
   it("rejects a ciphertext over the largest record", () => {
     const put = {
       ...change,

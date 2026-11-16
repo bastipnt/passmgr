@@ -56,6 +56,10 @@ and alerts live in that stack's repo, see `docs/ops/monitoring.md`.
 
 Logging: pino options in `src/log-options.ts` (redact paths, request serializer without query string, client IP cut to
 /24 or /48); `log-options.test.ts` checks the redaction. A new secret field in a logged object goes into `SECRET_KEYS`.
+An `INTERNAL_SERVER_ERROR` reaches the client as a constant message (`errorFormatter`, `src/trpc.ts`). Every logged `err`
+goes through `loggableError` (`src/util/loggable-error.ts`: type, code, message, stack frames along the cause chain, no
+other fields), which drops every message once a database error is in the chain: a failed query's holds the SQL and its
+params. Zod integers stored in an int4 column are `z.int32()`, so an out-of-range value is a 400, not a failed query.
 
 ## Environment Variables
 

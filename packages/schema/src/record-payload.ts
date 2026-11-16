@@ -21,10 +21,10 @@ export const encryptedRecordSchema = z.object({
   vaultId: z.uuid(),
   encryptedData: z.string(),
   encryptionNonce: z.string(),
-  cryptoVersion: z.number().int().positive(),
+  cryptoVersion: z.int32().positive(),
   // The vault key version the ciphertext is encrypted with (a rotation bumps it).
-  keyVersion: z.number().int().positive(),
-  version: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
+  version: z.int32().positive(),
   clientUpdatedAt: z.string(),
   created_at: z.string().nullable().optional(),
   updated_at: z.string().nullable().optional(),
@@ -65,7 +65,7 @@ const sealedCiphertext = {
   encryptionNonce: z.string().max(32),
   cryptoVersion: z.literal(RECORD_CRYPTO_VERSION),
   // Must be the vault's current key version: nothing new is written under a rotated-out key.
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
 };
 
 export const pushChangeSchema = z.discriminatedUnion("op", [
@@ -73,7 +73,7 @@ export const pushChangeSchema = z.discriminatedUnion("op", [
     ...pushChangeBase,
     ...sealedCiphertext,
     op: z.literal("put"),
-    baseVersion: z.number().int().nonnegative(),
+    baseVersion: z.int32().nonnegative(),
   }),
   z
     .object({
@@ -82,7 +82,7 @@ export const pushChangeSchema = z.discriminatedUnion("op", [
       // empty for a purge.
       ...sealedCiphertext,
       op: z.literal("delete"),
-      baseVersion: z.number().int().positive(),
+      baseVersion: z.int32().positive(),
       // A plain delete when absent. `purged` deletes the record's history for good.
       tombstoneKind: tombstoneKindSchema.optional(),
     })
@@ -129,7 +129,7 @@ export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
     clientChangeId: z.uuid(),
     status: z.literal("stale"),
-    headVersion: z.number().int().nonnegative(),
+    headVersion: z.int32().nonnegative(),
   }),
   z.object({
     clientChangeId: z.uuid(),

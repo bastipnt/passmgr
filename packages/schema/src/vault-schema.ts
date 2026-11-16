@@ -27,7 +27,7 @@ export const sealedVaultKeySchema = z.base64().length(140);
 /** A vault key sealed to one member's public key (ADR 0001 D7). */
 export const memberKeySealSchema = z.object({
   userId: z.uuid(),
-  recipientKeyVersion: z.number().int().positive(),
+  recipientKeyVersion: z.int32().positive(),
   sealedVaultKey: sealedVaultKeySchema,
 });
 
@@ -75,7 +75,7 @@ export const linkedVaultInputSchema = z
   .object({
     ...vaultKeyWrapSchema.shape,
     ...encryptedVaultMetaSchema.shape,
-    keyVersion: z.number().int().positive().max(MAX_VAULT_KEY_VERSION),
+    keyVersion: z.int32().positive().max(MAX_VAULT_KEY_VERSION),
     previousKeys: previousKeysSchema,
   })
   .refine((vault) => isCompleteKeyChain(vault.keyVersion, vault.previousKeys), {
@@ -93,9 +93,9 @@ export const rotateVaultKeyInputSchema = z
   .object({
     ...vaultKeyWrapSchema.shape,
     ...encryptedVaultMetaSchema.shape,
-    keyVersion: z.number().int().min(2).max(MAX_VAULT_KEY_VERSION),
+    keyVersion: z.int32().min(2).max(MAX_VAULT_KEY_VERSION),
     previousKey: vaultKeyLinkSchema,
-    senderKeyVersion: z.number().int().positive(),
+    senderKeyVersion: z.int32().positive(),
     memberKeys: z.array(memberKeySealSchema).max(MAX_VAULT_MEMBERS),
   })
   .refine((input) => input.previousKey.keyVersion === input.keyVersion - 1, {
