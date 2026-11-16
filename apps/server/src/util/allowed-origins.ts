@@ -1,3 +1,5 @@
+import { serverEnv } from "../env";
+
 /** The Vite dev server, `vite preview` and the e2e web container. */
 const DEV_ORIGINS = ["http://localhost:5173", "http://localhost:4173", "http://localhost:8080"];
 
@@ -34,7 +36,4 @@ function toOrigin(entry: string): string {
   return url.origin;
 }
 
-export const allowedOrigins = parseAllowedOrigins(
-  process.env.CORS_ORIGIN,
-  process.env.NODE_ENV === "production",
-);
+export const allowedOrigins = parseAllowedOrigins(serverEnv.CORS_ORIGIN, serverEnv.production);

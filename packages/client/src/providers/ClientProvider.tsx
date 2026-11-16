@@ -99,12 +99,6 @@ export default function ClientProvider({
               }
               return headers;
             },
-            async fetch(url, options) {
-              return fetch(url, {
-                ...options,
-                credentials: "include",
-              });
-            },
           }),
         }),
       ],

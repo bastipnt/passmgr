@@ -71,14 +71,24 @@ new OPAQUE keys invalidate every registration). Instead of the file, `DOTENV_PRI
 `pnpm exec dotenvx set KEY value`; add a plain value by editing `.env`. Tests don't need the key (`global-setup.ts`
 sets the secrets). Production uses `.env.production` on the deploy host, not this file.
 
-- `DATABASE_URL` — PostgreSQL connection string
+Startup fails on a bad config: `src/env.ts` (`serverEnv`, one Zod schema, imported first by `server.ts` / `opaque.ts`)
+validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by `util/allowed-origins.ts`) and
+`STORAGE_QUOTA_MB`; `@repo/db` throws without `DATABASE_URL`. Read a new server env var through `serverEnv`.
+
+- `DATABASE_URL` — PostgreSQL connection string (required; `@repo/db` reads `apps/server/.env` only outside production)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
-- `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
-- `OPAQUE_SERVER_SETUP` — key for email hashing / email-at-rest encryption (must be stable)
+- `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets, base64 of 32 bytes each (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
+- `OPAQUE_SERVER_SETUP` — key for email hashing, email-at-rest, TOTP secret and backup-code keys (must be stable;
+  ≥ 32 bytes, `openssl rand -base64 32`; the key is the string's UTF-8 bytes as given, never trimmed or decoded)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
 - `SMTP_URL` (e.g. `smtps://user:pass@smtp.example.com`), `MAIL_FROM` — mail for email verification codes; unset = no
   verification (every account counts as verified). Dev: Mailpit from `pnpm db:up`, `SMTP_URL=smtp://localhost:1025`
   (UI on :8025); prod: Stalwart or any SMTP relay, see `docs/ops/email.md`
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see `docs/architecture/vaults-and-sync.md`
 - `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
-- `TRUST_PROXY`, `RATE_LIMIT_DISABLED`, `PREFIX`, `LOG_LEVEL`
+- `PREFIX` — tRPC mount path (e.g. `/trpc`); required in production, so tRPC never sits next to `/health` / `/metrics`
+- `TRUST_PROXY` — proxy IPs/CIDRs or proxy-addr names, never a hop count; unset in production logs
+  `config.trust_proxy_unset` (behind a proxy every client would share one rate-limit bucket)
+- `RATE_LIMIT_DISABLED`, `LOG_LEVEL`
+
+CORS sends no `Access-Control-Allow-Credentials`: there are no cookies, and the client fetches without credentials.

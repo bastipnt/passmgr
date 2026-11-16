@@ -10,5 +10,6 @@ bun ./devResetDB.ts   # Reset dev database (truncate data, keep schema)
 only). Needed after migrations were squashed into a new baseline; follow with `pnpm db:seed`.
 
 Environment: `DATABASE_URL`, read from `apps/server/.env` (`index.ts`, `drizzle.config.ts`, `devSeed.ts`); the package has no `.env` of its own.
+`index.ts` skips that file when `NODE_ENV=production` and throws without `DATABASE_URL`.
 
 Drizzle is a beta (`1.0.0-beta.15-*`) with the `defineRelationsPart` API — this differs from stable Drizzle docs.

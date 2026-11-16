@@ -1,7 +1,8 @@
 import { encryptEmail, hashEmail } from "@repo/crypto";
 import { db, usersTable } from "@repo/db";
-import { fromString, toBase64 } from "@repo/util";
+import { toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
+import { serverKey } from "../../src/opaque";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { register } from "./_helpers";
@@ -13,7 +14,6 @@ beforeEach(async () => {
 
 describe("email encryption + uniqueness (real crypto, live constraint)", () => {
   it("encryptEmail produces a fresh nonce + ciphertext on every call (entropy)", async () => {
-    const serverKey = fromString(process.env.OPAQUE_SERVER_SETUP!);
     const email = "alice@example.com";
     const [c1, n1, s1] = await encryptEmail(serverKey, email);
     const [c2, n2, s2] = await encryptEmail(serverKey, email);
@@ -23,7 +23,6 @@ describe("email encryption + uniqueness (real crypto, live constraint)", () => {
   });
 
   it("hashEmail is deterministic across runs (same serverKey + email → same hash)", async () => {
-    const serverKey = fromString(process.env.OPAQUE_SERVER_SETUP!);
     const h1 = toBase64(await hashEmail(serverKey, "alice@example.com"));
     const h2 = toBase64(await hashEmail(serverKey, "alice@example.com"));
     expect(h1).toBe(h2);
@@ -54,7 +53,6 @@ describe("email encryption + uniqueness (real crypto, live constraint)", () => {
 
   it("direct DB insert with a duplicate emailHash raises a unique-constraint violation", async () => {
     await register("alice@example.com", "pw-a");
-    const serverKey = fromString(process.env.OPAQUE_SERVER_SETUP!);
     const emailHash = toBase64(await hashEmail(serverKey, "alice@example.com"));
     const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(
       serverKey,

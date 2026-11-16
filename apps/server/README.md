@@ -52,7 +52,7 @@ Served at the server root, outside `PREFIX`, so the public proxy (which forwards
 | `REDIS_PORT`          | Redis port                                                                                                                  |
 | `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production: Redis holds live session `authKey`s.                          |
 | `CORS_ORIGIN`         | Exact web origin(s), comma-separated: CORS and the WebAuthn origin check. Required in production; unset in dev = localhost 5173 / 4173 / 8080. |
-| `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Effectively the master key — rotating breaks all registrations.** Generate once, keep stable. |
+| `OPAQUE_SERVER_SETUP` | at least 32 bytes of random (`openssl rand -base64 32`); the server refuses to start otherwise. **Effectively the master key — rotating breaks email lookup.** Generate once, keep stable. |
 
 ## Dev
 

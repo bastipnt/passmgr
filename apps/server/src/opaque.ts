@@ -6,6 +6,7 @@ import {
 } from "@cloudflare/opaque-ts";
 import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
 import { fromBase64, fromString } from "@repo/util";
+import { serverEnv } from "./env";
 
 // Cloudflare opaque-ts is pure TypeScript (uses crypto.subtle, no WASM) so the
 // same package runs on the Bun server, web (Vite), and React Native (with a
@@ -23,21 +24,13 @@ export const opaqueConfig = getOpaqueConfig(OpaqueID.OPAQUE_P256);
 //   OPAQUE_OPRF_SEED         — Nh random bytes (32 for SHA-256/P256), seeds
 //                              per-user OPRF keys.
 //   OPAQUE_AKE_PRIVATE_KEY   — server long-term AKE keypair private scalar.
-const oprfSeedRaw = process.env.OPAQUE_OPRF_SEED;
-const akePrivRaw = process.env.OPAQUE_AKE_PRIVATE_KEY;
-if (!oprfSeedRaw || !akePrivRaw) {
-  throw new Error(
-    "OPAQUE_OPRF_SEED and OPAQUE_AKE_PRIVATE_KEY must be set. Run bun apps/server/scripts/opaque-cf-bootstrap.ts to generate.",
-  );
-}
-
-const akePrivBytes = fromBase64(akePrivRaw);
+const akePrivBytes = fromBase64(serverEnv.OPAQUE_AKE_PRIVATE_KEY);
 const akePublic = opaqueConfig.ake.recoverPublicKey(akePrivBytes);
 const akeKeypair: AKEExportKeyPair = {
   private_key: Array.from(akePrivBytes),
   public_key: Array.from(akePublic.public_key),
 };
-const oprfSeed = Array.from(fromBase64(oprfSeedRaw));
+const oprfSeed = Array.from(fromBase64(serverEnv.OPAQUE_OPRF_SEED));
 
 // OpaqueServer holds no per-request state — the per-handshake `expected` blob
 // is returned from authInit and threaded through Redis to authFinish. One
@@ -53,7 +46,7 @@ export const opaqueServer = new OpaqueServer(
 // encryption (see hashEmail / encryptEmail). It is independent of the OPAQUE
 // protocol; keep using the existing OPAQUE_SERVER_SETUP env var so the email
 // HMAC stays stable across this migration.
-export const serverSetup = process.env.OPAQUE_SERVER_SETUP!;
+export const serverSetup = serverEnv.OPAQUE_SERVER_SETUP;
 export const serverKey = fromString(serverSetup);
 
 export function bytesToB64(bytes: number[]): string {
