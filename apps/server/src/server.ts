@@ -1,6 +1,7 @@
 import cors from "@fastify/cors";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import fastify from "fastify";
+import { serverEnv } from "./env";
 import "./opaque";
 import rateLimit from "@fastify/rate-limit";
 import fastifyRedis from "@fastify/redis";
@@ -16,19 +17,12 @@ import { createTrpcOptions } from "./trpc-options";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
 import { allowedOrigins } from "./util/allowed-origins";
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = !serverEnv.production;
 
 // Comma-separated IPs/CIDRs (or proxy-addr names like `loopback`, `uniquelocal`)
 // of the reverse proxies whose X-Forwarded-For to trust, so `req.ip` (the
-// rate-limit key) is the real client rather than the proxy. Fastify >=5.12 no
-// longer supports hop counts (it would silently trust nothing), so reject them.
-const trustProxyEnv = process.env.TRUST_PROXY?.trim();
-if (trustProxyEnv && /^\d+$/.test(trustProxyEnv)) {
-  throw new Error(
-    "TRUST_PROXY must list proxy IPs/CIDRs (e.g. `loopback,uniquelocal`), not a hop count",
-  );
-}
-const trustProxy = trustProxyEnv || false;
+// rate-limit key) is the real client rather than the proxy.
+const trustProxy = serverEnv.TRUST_PROXY || false;
 
 export const server = fastify({
   trustProxy,
@@ -43,6 +37,14 @@ export const server = fastify({
     ...(isDev && { transport: { target: "pino-pretty", options: { colorize: true } } }),
   },
 });
+
+if (serverEnv.production && !trustProxy) {
+  // Behind a proxy, every client would then share the proxy's rate-limit bucket.
+  server.log.warn(
+    { hint: "set TRUST_PROXY to the proxies' IPs/CIDRs" },
+    "config.trust_proxy_unset",
+  );
+}
 
 await server.register(fastifyRedis, { client: redis });
 
@@ -75,7 +77,6 @@ await server.register(cors, {
     server.log.warn({ origin }, "cors.rejected");
     cb(null, false);
   },
-  credentials: true,
 });
 
 registerHealthRoutes(server, {
@@ -93,7 +94,7 @@ registerActiveUsersGauge(metricsRegistry, (err) =>
 );
 
 await server.register(fastifyTRPCPlugin, {
-  prefix: process.env.PREFIX,
+  prefix: serverEnv.PREFIX,
   trpcOptions: createTrpcOptions(server.log),
 });
 

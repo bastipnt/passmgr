@@ -1,20 +1,10 @@
 import { vaultsTable } from "@repo/db";
 import { and, inArray, isNull, sql } from "drizzle-orm";
+import { serverEnv } from "../env";
 import type { DbExecutor } from "../vault/access";
 
-const DEFAULT_STORAGE_QUOTA_MB = 100;
-
-function storageQuotaBytes(): number {
-  const raw = process.env.STORAGE_QUOTA_MB?.trim();
-  const mb = raw ? Number(raw) : DEFAULT_STORAGE_QUOTA_MB;
-  if (!Number.isFinite(mb) || mb <= 0) {
-    throw new Error("STORAGE_QUOTA_MB must be a positive number of megabytes");
-  }
-  return mb * 1024 * 1024;
-}
-
 /** What every vault owner may store across their live vaults, history and tombstones included. */
-export const STORAGE_QUOTA_BYTES = storageQuotaBytes();
+export const STORAGE_QUOTA_BYTES = serverEnv.STORAGE_QUOTA_MB * 1024 * 1024;
 
 /**
  * How far past the quota a chain of deletes may go: a tombstone keeps its
