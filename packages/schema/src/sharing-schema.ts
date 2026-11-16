@@ -28,9 +28,9 @@ export const vaultKeySenderSchema = z.object({
  */
 export const vaultKeyUpdateSchema = z.object({
   vaultId: z.uuid(),
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
   sealedVaultKey: sealedVaultKeySchema,
-  recipientKeyVersion: z.number().int().positive(),
+  recipientKeyVersion: z.int32().positive(),
   sender: vaultKeySenderSchema,
   links: z.array(vaultKeyLinkSchema),
 });
@@ -39,9 +39,9 @@ export const vaultKeyUpdateSchema = z.object({
 export const vaultInvitationSchema = z.object({
   vaultId: z.uuid(),
   role: vaultRoleSchema,
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
   sealedVaultKey: sealedVaultKeySchema,
-  recipientKeyVersion: z.number().int().positive(),
+  recipientKeyVersion: z.int32().positive(),
   sender: vaultKeySenderSchema.extend({ email: z.string() }),
   ...encryptedVaultMetaSchema.shape,
 });
@@ -63,9 +63,9 @@ export const inviteMemberInputSchema = z.object({
   vaultId: z.uuid(),
   email: emailSchema,
   role: vaultRoleSchema,
-  keyVersion: z.number().int().positive(),
-  recipientKeyVersion: z.number().int().positive(),
-  senderKeyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
+  recipientKeyVersion: z.int32().positive(),
+  senderKeyVersion: z.int32().positive(),
   sealedVaultKey: sealedVaultKeySchema,
 });
 

@@ -1,5 +1,6 @@
 import { Gauge, type Registry } from "@prometheus-io/client";
 import type { FastifyInstance } from "fastify";
+import { hasDatabaseError } from "./util/loggable-error";
 
 export type HealthCheck = () => Promise<unknown>;
 
@@ -25,7 +26,12 @@ export async function runHealthChecks(
         await withTimeout(check, timeoutMs);
         return [name, { status: "ok" }];
       } catch (err) {
-        return [name, { status: "error", error: err instanceof Error ? err.message : String(err) }];
+        const error = hasDatabaseError(err)
+          ? "database error"
+          : err instanceof Error
+            ? err.message
+            : String(err);
+        return [name, { status: "error", error }];
       }
     }),
   );

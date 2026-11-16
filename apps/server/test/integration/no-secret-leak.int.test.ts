@@ -1,11 +1,23 @@
+import { Writable } from "node:stream";
 import { retrievePRK, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
+import { db } from "@repo/db";
 import { fromBase64, toBase64 } from "@repo/util";
+import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
+import { sql } from "drizzle-orm";
+import fastify from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
 import { loginUser } from "../../../../packages/client/src/login";
 import { registerNewUser } from "../../../../packages/client/src/register";
+import { logRedact, logSerializers } from "../../src/log-options";
 import { redis } from "../../src/redis";
 import { appRouter } from "../../src/router";
-import { createCallerFactory } from "../../src/trpc";
+import {
+  createCallerFactory,
+  INTERNAL_ERROR_MESSAGE,
+  publicProcedure,
+  router,
+} from "../../src/trpc";
+import { createTrpcOptions } from "../../src/trpc-options";
 import { truncateAll } from "../setup/db-helpers";
 import { buildTestContext } from "../setup/test-context";
 
@@ -128,6 +140,50 @@ describe("no-secret-leak — real client code, real server (in-process)", () => 
           `${label} (base64) leaked in ${call.path}`,
         ).toBe(false);
       }
+    }
+  });
+});
+
+describe("no-secret-leak — a failed query", () => {
+  it("answers and logs it without the SQL or its params", async () => {
+    const param = "query-param-DO-NOT-LEAK-XYZ";
+    const failingRouter = router({
+      failingQuery: publicProcedure.query(() => db.execute(sql`select ${param}::int`)),
+    });
+
+    const logLines: string[] = [];
+    const app = fastify({
+      logger: {
+        redact: logRedact,
+        serializers: logSerializers,
+        stream: new Writable({
+          write(chunk, _encoding, done) {
+            logLines.push(String(chunk));
+            done();
+          },
+        }),
+      },
+    });
+    const trpcOptions = { ...createTrpcOptions(app.log), router: failingRouter };
+    await app.register(fastifyTRPCPlugin, {
+      trpcOptions: trpcOptions as unknown as ReturnType<typeof createTrpcOptions>,
+    });
+
+    try {
+      const res = await app.inject({ method: "GET", url: "/failingQuery" });
+      expect(res.statusCode).toBe(500);
+      expect(res.json()).toMatchObject({ error: { message: INTERNAL_ERROR_MESSAGE } });
+      expect(res.body).not.toContain(param);
+      expect(res.body.toLowerCase()).not.toContain("select");
+
+      const errorLog = logLines.find((line) => line.includes("trpc.error"));
+      expect(errorLog).toBeDefined();
+      expect(errorLog).not.toContain(param);
+      expect(errorLog?.toLowerCase()).not.toContain("select");
+      // invalid_text_representation, from the driver error in the cause chain
+      expect(errorLog).toContain("22P02");
+    } finally {
+      await app.close();
     }
   });
 });

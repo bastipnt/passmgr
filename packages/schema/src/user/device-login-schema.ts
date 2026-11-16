@@ -28,7 +28,7 @@ export const registerDeviceCredentialInputSchema = z.object({
   credentialId: credentialIdSchema,
   publicKey: z.base64().max(2048),
   // COSE algorithm; the server takes ES256, EdDSA and RS256.
-  algorithm: z.number().int(),
+  algorithm: z.int32(),
 });
 
 export const deviceCredentialInputSchema = z.object({ credentialId: credentialIdSchema });

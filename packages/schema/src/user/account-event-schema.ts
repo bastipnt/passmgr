@@ -27,7 +27,7 @@ export const sealedAccountEventSchema = z.object({
   id: z.number().int(),
   type: accountEventTypeSchema,
   sealedDeviceName: z.string().nullable(),
-  deviceKeyVersion: z.number().int().nullable(),
+  deviceKeyVersion: z.int32().nullable(),
   newDevice: z.boolean(),
   // Unix ms.
   createdAt: z.number(),

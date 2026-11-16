@@ -95,7 +95,7 @@ export const userKeySchema = z.object({
 /** A vault key wrapped by the account key; the AAD binds it to vaultId + keyVersion. */
 export const vaultKeyWrapSchema = z.object({
   vaultId: z.uuid(),
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
   encryptedVaultKey: z.base64().length(64),
   vaultKeyEncryptionNonce: z.base64().length(32),
 });
@@ -109,7 +109,7 @@ export const MAX_VAULT_KEY_VERSION = 256;
  * down to the older ones, which the history below a rotation is encrypted with.
  */
 export const vaultKeyLinkSchema = z.object({
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
   encryptedVaultKey: z.base64().length(64),
   vaultKeyEncryptionNonce: z.base64().length(32),
 });
@@ -133,7 +133,7 @@ export function isCompleteKeyChain(
  * account key (AAD: key version) and checked against `publicKey` on unwrap.
  */
 export const userKeyPairSchema = z.object({
-  keyVersion: z.number().int().positive(),
+  keyVersion: z.int32().positive(),
   publicKey: z.base64().length(44),
   encryptedPrivateKey: z.base64().length(64),
   privateKeyEncryptionNonce: z.base64().length(32),
