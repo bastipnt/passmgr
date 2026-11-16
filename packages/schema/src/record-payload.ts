@@ -35,6 +35,16 @@ export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema> & {
   firstCreatedAt?: string;
 };
 
+/**
+ * A version as `record.push` answers it: a tombstone (not purged) comes without
+ * its ciphertext, which the client already holds.
+ */
+export const pushedRecordSchema = encryptedRecordSchema.extend({
+  encryptedData: z.string().optional(),
+  encryptionNonce: z.string().optional(),
+});
+export type PushedRecord = z.infer<typeof pushedRecordSchema>;
+
 /** The most changes one `record.push` takes; a client splits a longer outbox. */
 export const MAX_PUSH_CHANGES = 500;
 
@@ -93,17 +103,20 @@ export const pushInputSchema = z.object({
 /**
  * The answer for one change, never an error for the whole batch:
  * - `applied`: the server holds it (now, or from an earlier try); `record` is its copy.
+ *   A delete the head already is (same tombstone kind) appends nothing: `record`
+ *   is the head, so the client renumbers its chain.
  * - `stale`: the record moved on (`headVersion`); pull, merge and push again.
  * - `rejected`: it can never apply as sent (no write access, unknown record),
  *   or not under this key: `key_version`, encrypted with a key the vault no longer
  *   uses (rotated meanwhile); re-encrypt with the current one and push again.
- *   `quota`: the vault owner's storage is full; deletes still apply.
+ *   `quota`: the vault owner's storage is full; deletes still apply up to a
+ *   headroom past it, purges always.
  */
 export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
     clientChangeId: z.uuid(),
     status: z.literal("applied"),
-    record: encryptedRecordSchema,
+    record: pushedRecordSchema,
   }),
   z.object({
     clientChangeId: z.uuid(),

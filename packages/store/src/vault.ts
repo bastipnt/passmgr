@@ -6,6 +6,7 @@ import {
   type EncryptedRecordSchema,
   type EncryptedVaultMeta,
   type MemberVault,
+  type PushedRecord,
   type RecoveryKeySchema,
   type RecoveryWrapSchema,
   type SealedPendingRecovery,
@@ -426,7 +427,7 @@ export class Vault {
   }
 
   /** The server stored this change; `serverRow` is its copy, when it returned one. */
-  async ackPendingChange(changeId: string, serverRow: EncryptedRecordSchema | null): Promise<void> {
+  async ackPendingChange(changeId: string, serverRow: PushedRecord | null): Promise<void> {
     await this.ready();
     await this.transaction((tx) => ackPendingChange(changeId, serverRow, tx));
   }
