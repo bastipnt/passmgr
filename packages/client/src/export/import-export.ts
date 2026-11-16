@@ -1,5 +1,4 @@
 import type {
-  EncryptedRecordSchema,
   ExportData,
   ExportRecord,
   ExportVault,
@@ -7,6 +6,7 @@ import type {
   RecordData,
   RecordPayload,
 } from "@repo/schema";
+import type { LocalRecordVersion } from "@repo/store";
 import { monitoredPassword } from "../records/password-health";
 import type { RecordRepository } from "../records/record-repository";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
@@ -182,7 +182,7 @@ function originId(record: ExportRecord): string {
 async function importedHeads(
   records: RecordRepository,
   vaultIds: ReadonlySet<string>,
-  decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload>,
+  decrypt: (row: LocalRecordVersion) => Promise<RecordPayload>,
 ): Promise<Map<string, ImportedHead>> {
   const found = new Map<string, ImportedHead>();
   for (const vaultId of vaultIds) {
@@ -232,7 +232,7 @@ function sameContent(a: unknown, b: unknown): boolean {
 async function holdsSameContent(
   records: RecordRepository,
   entry: ImportEntry,
-  decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload>,
+  decrypt: (row: LocalRecordVersion) => Promise<RecordPayload>,
 ): Promise<boolean> {
   const row = await records.getById(entry.recordId);
   if (!row || row.deleted_at) return false;
@@ -267,7 +267,7 @@ export async function importExportData(
   records: RecordRepository,
   data: ExportData,
   options: ImportOptions,
-  decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload> = decryptRecordWithWorker,
+  decrypt: (row: LocalRecordVersion) => Promise<RecordPayload> = decryptRecordWithWorker,
 ): Promise<ImportResult> {
   const existing = new Map((await records.heads()).map((head) => [head.recordId, head]));
   const imported = options.trackOrigin

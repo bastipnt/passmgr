@@ -1,4 +1,5 @@
 import type { DecryptedRecord, EncryptedRecordSchema } from "@repo/schema";
+import type { LocalRecordVersion } from "@repo/store";
 import {
   createContext,
   type ReactNode,
@@ -77,7 +78,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     const activeIds = new Set<string>();
 
     // Find records that are new or changed
-    const toDecrypt: EncryptedRecordSchema[] = [];
+    const toDecrypt: LocalRecordVersion[] = [];
     for (const record of encrypted) {
       if (record.deleted_at) continue;
 

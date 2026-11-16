@@ -1,11 +1,5 @@
 import { db, type RecordType, recordsTable, vaultsTable } from "@repo/db";
-import {
-  type PushChange,
-  type PushResult,
-  pushChangeBytes,
-  type TombstoneKind,
-  VAULT_WRITE_ROLES,
-} from "@repo/schema";
+import { type PushChange, type PushResult, pushChangeBytes, VAULT_WRITE_ROLES } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { isLockTimeout, isUniqueViolation } from "../util/general";
@@ -17,7 +11,7 @@ import {
   vaultKeyVersions,
 } from "../vault/access";
 import { DELETE_HEADROOM_BYTES, type StorageBudget, storageBudgets } from "./quota";
-import { serializePushed } from "./serialize";
+import { serializeRecord } from "./serialize";
 
 /**
  * How long a push waits for a vault another transaction holds: a stuck writer
@@ -32,30 +26,10 @@ type Failure = { status: "stale"; headVersion: number } | { status: "rejected"; 
 type Outcome =
   | { kind: "stored"; row: RecordType } // a retry: the server has it already
   | { kind: "append" } // the record's next version
-  | { kind: "unchanged" } // a delete the head already is: answered with the head
   | ({ kind: "failed" } & Failure);
 
-/**
- * The record as pass 1 has it after the changes before. `clientVersion` is
- * the version the client numbered it, ahead of `version` by every `unchanged`.
- */
-type SimulatedHead = {
-  version: number;
-  clientVersion: number;
-  vaultId: string;
-  deleted: boolean;
-  tombstoneKind: TombstoneKind | null;
-} | null;
-
-type DeleteChange = Extract<PushChange, { op: "delete" }>;
-
-/** What a new version needs from the one below it (a tombstone keeps its ciphertext, unless purged). */
-type HeadContent =
-  | (Pick<
-      RecordType,
-      "version" | "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
-    > & { tombstoneKind?: RecordType["tombstoneKind"] })
-  | null;
+/** The record as pass 1 has it after the changes before. */
+type SimulatedHead = { version: number; vaultId: string } | null;
 
 type NewVersion = Omit<typeof recordsTable.$inferInsert, "seq"> & {
   version: number;
@@ -69,9 +43,6 @@ type VaultState = { access: Map<string, Rejection | null>; keyVersions: Map<stri
 type Indexed = { index: number; change: PushChange };
 
 type Appended = { index: number; version: NewVersion }[];
-
-/** `unchanged` changes, answered like the version they repeat: one appended in the batch (its index) or a stored row. */
-type Echoes = { index: number; of: number | RecordType }[];
 
 export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
 
@@ -87,28 +58,27 @@ export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
  * the stored version, so a retry after a lost response appends nothing (unless
  * another push's purge dropped that version meanwhile: the retry is then stale).
  *
- * An applied change appends one version, except a delete of a tombstone that
- * leaves its kind as it is (`unchanged`): it answers with that tombstone, so
- * repeated deletes can't copy a record's ciphertext over and over. The client
- * then renumbers its chain on the ack; the changes after it are matched
- * against the client's numbering. On a retry, a change below one the server
- * stored was covered by it (an `unchanged`, or a version a purge dropped) and
- * answers with that stored version.
+ * Every change is sealed (ADR 0001 D11): its ciphertext is bound to the
+ * version the client numbered it, so an applied change always appends exactly
+ * that version, a delete included (it brings its tombstone's ciphertext, and
+ * every byte of it counts against the quota). On a retry, a change below one
+ * the server stored was covered by it (a version a purge dropped) and answers
+ * with that stored version.
  *
- * A purge (`tombstoneKind: "purged"`) appends a tombstone without content and
+ * A purge (`tombstoneKind: "purged"`) appends a tombstone with empty content and
  * drops every version below it, in the same transaction: the history is gone
  * for good, and the tombstone (with its seq) tells the other devices to drop
  * their copies. A put on it starts the record over (an edit beats a delete).
  *
  * A put must be encrypted under the vault's current key: one under a key a
  * rotation replaced is rejected (`key_version`), so nothing new is written that
- * a removed member's old key would open. A delete carries no ciphertext.
+ * a removed member's old key would open. So must a delete.
  *
  * A chain with a put that would take the vault owner past their storage quota
- * is rejected (`quota`), unless it rewrites a record still under a rotated-out
- * key: a rotation must finish however full the vault is. A chain of deletes
- * may go past the quota by `DELETE_HEADROOM_BYTES` (a tombstone keeps its
- * ciphertext and so takes space), a chain ending in a purge always applies:
+ * is rejected (`quota`), unless it only rewrites a record still under a
+ * rotated-out key: a rotation must finish however full the vault is. A chain of
+ * deletes may go past the quota by `DELETE_HEADROOM_BYTES` (a tombstone carries
+ * its content and so takes space), a chain ending in a purge always applies:
  * only a purge frees space. A move's source tombstone (`moved`) is rejected too
  * when the batch had a put over quota, which may be the move's target: the
  * record must not leave its vault without arriving in the other.
@@ -142,8 +112,6 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
 
       const results: PushResult[] = Array.from({ length: changes.length });
       const accepted: { chain: Indexed[]; appended: Appended }[] = [];
-      // Written nothing, so never rejected themselves: they answer as the version they repeat.
-      const echoes: Echoes = [];
       let overQuota = false;
       const rejectForQuota = (appended: Appended) => {
         for (const { index } of appended) {
@@ -154,8 +122,7 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       for (const [recordId, chain] of chains) {
         const dbHead = heads.get(recordId) ?? null;
         const outcomes = decideChain(chain, dbHead, vaults, stored);
-        let head: HeadContent = dbHead;
-        let headOf: number | RecordType | null = dbHead;
+        let head: SimulatedHead = dbHead;
         const appended: Appended = [];
         for (const [i, { index, change }] of chain.entries()) {
           const outcome = outcomes[i]!;
@@ -167,20 +134,20 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
             results[index] = {
               clientChangeId,
               status: "applied",
-              record: serializePushed(outcome.row),
+              record: serializeRecord(outcome.row),
             };
-          } else if (outcome.kind === "unchanged") {
-            if (headOf === null) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-            echoes.push({ index, of: headOf });
           } else {
             const version = nextVersion(change, head, userId);
             appended.push({ index, version });
             head = version;
-            headOf = index;
           }
         }
+        // Only a rotation's re-encryption (puts) is exempt: a delete brings
+        // ciphertext of its own, which must not get past the quota this way.
         const rewritesOldKey =
-          !!dbHead && dbHead.keyVersion < (vaults.keyVersions.get(dbHead.vaultId) ?? 0);
+          !!dbHead &&
+          dbHead.keyVersion < (vaults.keyVersions.get(dbHead.vaultId) ?? 0) &&
+          chain.every(({ change }) => change.op === "put");
         if (rewritesOldKey || withinQuota(chain, appended, budgets)) {
           accepted.push({ chain, appended });
         } else {
@@ -205,15 +172,8 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
         results[index] = {
           clientChangeId: row.clientChangeId,
           status: "applied",
-          record: serializePushed(row),
+          record: serializeRecord(row),
         };
-      }
-      for (const { index, of } of echoes) {
-        const { clientChangeId } = changes[index]!;
-        results[index] =
-          typeof of === "number"
-            ? { ...results[of]!, clientChangeId }
-            : { clientChangeId, status: "applied", record: serializePushed(of) };
       }
       return { results, writtenVaultIds: [...new Set(written.map((row) => row.vaultId))] };
     });
@@ -238,31 +198,13 @@ function decideChain(
   vaults: VaultState,
   stored: Map<string, RecordType>,
 ): Outcome[] {
-  let head: SimulatedHead = dbHead && {
-    version: dbHead.version,
-    clientVersion: dbHead.version,
-    vaultId: dbHead.vaultId,
-    deleted: dbHead.deleted_at !== null,
-    tombstoneKind: dbHead.tombstoneKind,
-  };
+  let head: SimulatedHead = dbHead;
   const outcomes: Outcome[] = [];
 
   for (const { change } of chain) {
     const outcome = decideChange(change, head, dbHead?.version ?? 0, vaults, stored);
     if (outcome.kind === "append") {
-      head = {
-        version: (head?.version ?? 0) + 1,
-        clientVersion: change.baseVersion + 1,
-        vaultId: change.vaultId,
-        deleted: change.op === "delete",
-        tombstoneKind: change.op === "delete" ? tombstoneKindOn(change, head?.tombstoneKind) : null,
-      };
-    } else if (
-      head &&
-      (outcome.kind === "unchanged" ||
-        (outcome.kind === "stored" && outcome.row.version === head.version))
-    ) {
-      head = { ...head, clientVersion: change.baseVersion + 1 };
+      head = { version: (head?.version ?? 0) + 1, vaultId: change.vaultId };
     }
     outcomes.push(outcome);
   }
@@ -307,7 +249,7 @@ function decideChange(
       ? { kind: "stored", row }
       : { kind: "failed", status: "rejected", reason: "not_found" };
   }
-  if (change.op === "put" && change.keyVersion !== keyVersions.get(change.vaultId)) {
+  if (change.keyVersion !== keyVersions.get(change.vaultId)) {
     return { kind: "failed", status: "rejected", reason: "key_version" };
   }
   return decide(change, head, dbHeadVersion);
@@ -316,7 +258,7 @@ function decideChange(
 /**
  * One change against the record's (simulated) head. A put on a tombstone
  * restores the record (an edit beats a delete, D5); a delete of a tombstone
- * appends another one only when it changes the tombstone's kind.
+ * appends another one, of the kind it is sealed for.
  */
 function decide(change: PushChange, head: SimulatedHead, dbHeadVersion: number): Outcome {
   if (!head) {
@@ -330,25 +272,10 @@ function decide(change: PushChange, head: SimulatedHead, dbHeadVersion: number):
   if (head.vaultId !== change.vaultId) {
     return { kind: "failed", status: "rejected", reason: "not_found" };
   }
-  if (change.baseVersion !== head.clientVersion) {
+  if (change.baseVersion !== head.version) {
     return { kind: "failed", status: "stale", headVersion: dbHeadVersion };
   }
-  if (
-    change.op === "delete" &&
-    head.deleted &&
-    tombstoneKindOn(change, head.tombstoneKind) === head.tombstoneKind
-  ) {
-    return { kind: "unchanged" };
-  }
   return { kind: "append" };
-}
-
-/** The kind of the tombstone a delete leaves: a purged record stays purged, a moved one moved. */
-function tombstoneKindOn(
-  change: DeleteChange,
-  headKind: TombstoneKind | null | undefined,
-): TombstoneKind | null {
-  return headKind === "purged" ? "purged" : (change.tombstoneKind ?? headKind ?? null);
 }
 
 /**
@@ -378,7 +305,7 @@ function isMoveSource(change: PushChange): boolean {
 }
 
 /** A change as the version on top of `head`, without its seq yet. */
-function nextVersion(change: PushChange, head: HeadContent, userId: string): NewVersion {
+function nextVersion(change: PushChange, head: SimulatedHead, userId: string): NewVersion {
   const common = {
     recordId: change.recordId,
     vaultId: change.vaultId,
@@ -387,32 +314,11 @@ function nextVersion(change: PushChange, head: HeadContent, userId: string): New
     clientUpdatedAt: new Date(change.clientUpdatedAt),
     clientChangeId: change.clientChangeId,
   };
-  if (change.op === "put") {
-    const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = change;
-    return { ...common, encryptedData, encryptionNonce, cryptoVersion, keyVersion };
-  }
-  if (!head) throw new TRPCError({ code: "INTERNAL_SERVER_ERROR" });
-  const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = head;
-  const tombstoneKind = tombstoneKindOn(change, head.tombstoneKind);
-  if (tombstoneKind === "purged") {
-    // Nothing of the content is kept.
-    const deleted_at = new Date();
-    return { ...common, ...PURGED_CONTENT, cryptoVersion, keyVersion, deleted_at, tombstoneKind };
-  }
-  // A tombstone keeps the head's ciphertext (and its key), so the history still opens.
-  return {
-    ...common,
-    encryptedData,
-    encryptionNonce,
-    cryptoVersion,
-    keyVersion,
-    deleted_at: new Date(),
-    tombstoneKind,
-  };
+  const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = change;
+  const sealed = { ...common, encryptedData, encryptionNonce, cryptoVersion, keyVersion };
+  if (change.op === "put") return sealed;
+  return { ...sealed, deleted_at: new Date(), tombstoneKind: change.tombstoneKind ?? null };
 }
-
-/** A purged tombstone's (empty) ciphertext. */
-const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
 
 /** Drop every version below a purged tombstone just written: its history is gone for good. */
 async function dropPurgedHistory(written: RecordType[], tx: DbExecutor) {

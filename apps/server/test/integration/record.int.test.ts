@@ -1,9 +1,9 @@
 import { db, vaultsTable } from "@repo/db";
 import {
-  MAX_ENCRYPTED_RECORD_LENGTH,
-  MAX_PUSH_CHANGES,
+  MAX_PURGE_SEAL_LENGTH,
   type PushChange,
   pushChangeBytes,
+  RECORD_CRYPTO_VERSION,
 } from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
@@ -127,21 +127,22 @@ describe("record.push", () => {
     ]);
   });
 
-  it("tombstones a record with its last ciphertext, and an edit restores it", async () => {
+  it("tombstones a record with the content it brings, and an edit restores it", async () => {
     const alice = await signUp("alice@example.com");
     const record = putChange(alice.vaultId, { data: "LAST" });
     await push(alice, record);
 
-    const [deleted] = await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+    const [deleted] = await push(
+      alice,
+      deleteChange(alice.vaultId, record.recordId, 1, { data: "TOMB" }),
+    );
     expect(deleted).toMatchObject({
       status: "applied",
-      record: { version: 2, deleted_at: expect.any(String) },
+      record: { version: 2, encryptedData: "TOMB", deleted_at: expect.any(String) },
     });
-    // The client has the ciphertext; the answer carries only the metadata.
-    expect(deleted).not.toHaveProperty("record.encryptedData");
     expect(await history(alice, record.recordId)).toMatchObject([
-      { version: 2, encryptedData: "LAST" },
-      { version: 1 },
+      { version: 2, encryptedData: "TOMB" },
+      { version: 1, encryptedData: "LAST" },
     ]);
 
     const restore = putChange(alice.vaultId, {
@@ -154,101 +155,14 @@ describe("record.push", () => {
     ]);
   });
 
-  describe("a delete of a tombstone of the same kind", () => {
-    it("appends nothing and answers with the tombstone; the chain goes on in the client's numbering", async () => {
-      const alice = await signUp("alice@example.com");
-      const record = putChange(alice.vaultId, { data: "LAST" });
-      await push(alice, record);
-      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
-
-      // Deleted on another device too, then restored there (client numbering: 3, 4).
-      const again = deleteChange(alice.vaultId, record.recordId, 2);
-      const restore = putChange(alice.vaultId, {
-        recordId: record.recordId,
-        baseVersion: 3,
-        data: "BACK",
-      });
-      const restored = { version: 3, encryptedData: "BACK", deleted_at: null };
-      expect(await push(alice, again, restore)).toMatchObject([
-        { status: "applied", record: { version: 2, deleted_at: expect.any(String) } },
-        { status: "applied", record: restored },
-      ]);
-      expect(await history(alice, record.recordId)).toHaveLength(3);
-
-      // A retry after a lost answer writes nothing: the restore covers the delete below it.
-      expect(await push(alice, again, restore)).toMatchObject([
-        { status: "applied", record: restored },
-        { status: "applied", record: restored },
-      ]);
-      expect(await history(alice, record.recordId)).toHaveLength(3);
-    });
-
-    it("can't be chained to copy a record's ciphertext over and over", async () => {
-      const alice = await signUp("alice@example.com");
-      const data = "X".repeat(MAX_ENCRYPTED_RECORD_LENGTH);
-      const record = putChange(alice.vaultId, { data });
-      await push(alice, record);
-      const usedBefore = await usedBytes(alice.vaultId);
-
-      const deletes = Array.from({ length: MAX_PUSH_CHANGES }, (_, i) =>
-        deleteChange(alice.vaultId, record.recordId, i + 1),
-      );
-      const results = await push(alice, ...deletes);
-      expect(results.every((r) => r.status === "applied")).toBe(true);
-      expect(results.map((r) => r.status === "applied" && r.record.version)).toEqual(
-        deletes.map(() => 2),
-      );
-      expect(JSON.stringify(results).length).toBeLessThan(MAX_PUSH_CHANGES * 1024);
-      expect(await history(alice, record.recordId)).toHaveLength(2);
-      expect(await usedBytes(alice.vaultId)).toBe(
-        usedBefore + pushChangeBytes({ encryptedData: data }),
-      );
-    });
-
-    it("is answered on its own when the rest of its chain is over quota", async () => {
-      const alice = await signUp("alice@example.com");
-      const record = putChange(alice.vaultId);
-      await push(alice, record);
-      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
-      await db
-        .update(vaultsTable)
-        .set({ usedBytes: STORAGE_QUOTA_BYTES })
-        .where(eq(vaultsTable.vaultId, alice.vaultId));
-
-      const again = deleteChange(alice.vaultId, record.recordId, 2);
-      const restore = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 3 });
-      expect(await push(alice, again, restore)).toMatchObject([
-        { status: "applied", record: { version: 2 } },
-        { status: "rejected", reason: "quota" },
-      ]);
-    });
-
-    it("still appends a tombstone that changes the kind", async () => {
-      const alice = await signUp("alice@example.com");
-      const record = putChange(alice.vaultId);
-      await push(alice, record);
-      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
-
-      const moved = {
-        ...deleteChange(alice.vaultId, record.recordId, 2),
-        tombstoneKind: "moved" as const,
-      };
-      const plain = deleteChange(alice.vaultId, record.recordId, 3);
-      expect(await push(alice, moved, plain)).toMatchObject([
-        { status: "applied", record: { version: 3, tombstoneKind: "moved" } },
-        { status: "applied", record: { version: 3, tombstoneKind: "moved" } },
-      ]);
-    });
-  });
-
-  it("purges a record: drops its history and keeps one tombstone without content", async () => {
+  it("purges a record: drops its history and keeps one tombstone with its seal", async () => {
     const alice = await signUp("alice@example.com");
     const record = putChange(alice.vaultId, { data: "SECRET" });
     await push(alice, record);
     await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
 
     const purge = {
-      ...deleteChange(alice.vaultId, record.recordId, 2),
+      ...deleteChange(alice.vaultId, record.recordId, 2, { data: "TAG" }),
       tombstoneKind: "purged" as const,
     };
     expect(await push(alice, purge)).toMatchObject([
@@ -256,26 +170,99 @@ describe("record.push", () => {
         status: "applied",
         record: {
           version: 3,
-          encryptedData: "",
+          encryptedData: "TAG",
           tombstoneKind: "purged",
           deleted_at: expect.any(String),
         },
       },
     ]);
-    const left = await history(alice, record.recordId);
-    expect(left).toMatchObject([{ version: 3, encryptedData: "", tombstoneKind: "purged" }]);
+    expect(await history(alice, record.recordId)).toMatchObject([
+      { version: 3, encryptedData: "TAG", tombstoneKind: "purged" },
+    ]);
 
-    // A delete on top changes nothing (it stays purged); an edit starts the record over.
-    const again = deleteChange(alice.vaultId, record.recordId, 3);
+    // An edit starts the record over.
     const restore = putChange(alice.vaultId, {
       recordId: record.recordId,
-      baseVersion: 4,
+      baseVersion: 3,
       data: "NEW",
     });
-    expect(await push(alice, again, restore)).toMatchObject([
-      { status: "applied", record: { version: 3, encryptedData: "", tombstoneKind: "purged" } },
+    expect(await push(alice, restore)).toMatchObject([
       { status: "applied", record: { version: 4, encryptedData: "NEW", tombstoneKind: null } },
     ]);
+  });
+
+  describe("deletes bring their sealed ciphertext (ADR 0001 D11)", () => {
+    const seal = (data: string) => ({
+      encryptedData: data,
+      encryptionNonce: "N",
+      cryptoVersion: RECORD_CRYPTO_VERSION,
+      keyVersion: 1,
+    });
+
+    it("appends a tombstone even on one of its kind, each byte counted against the quota", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId, { data: "SECRET" });
+      await push(alice, record);
+
+      const del = { ...deleteChange(alice.vaultId, record.recordId, 1), ...seal("TOMB-2") };
+      const again = { ...deleteChange(alice.vaultId, record.recordId, 2), ...seal("TOMB-3") };
+      expect(await push(alice, del, again)).toMatchObject([
+        { status: "applied", record: { version: 2, encryptedData: "TOMB-2", cryptoVersion: 1 } },
+        { status: "applied", record: { version: 3, encryptedData: "TOMB-3", tombstoneKind: null } },
+      ]);
+      expect(await usedBytes(alice.vaultId)).toBe(
+        ["SECRET", "TOMB-2", "TOMB-3"].reduce(
+          (sum, data) => sum + pushChangeBytes({ encryptedData: data }),
+          0,
+        ),
+      );
+    });
+
+    it("takes the kind its ciphertext is sealed for, not the head's", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+      await push(alice, {
+        ...deleteChange(alice.vaultId, record.recordId, 1),
+        tombstoneKind: "moved" as const,
+      });
+
+      const del = { ...deleteChange(alice.vaultId, record.recordId, 2), ...seal("TOMB") };
+      expect(await push(alice, del)).toMatchObject([
+        { status: "applied", record: { version: 3, tombstoneKind: null } },
+      ]);
+    });
+
+    it("rejects a delete under a key the vault doesn't use", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+
+      const del = {
+        ...deleteChange(alice.vaultId, record.recordId, 1),
+        ...seal("TOMB"),
+        keyVersion: 2,
+      };
+      expect(await push(alice, del)).toMatchObject([{ status: "rejected", reason: "key_version" }]);
+    });
+
+    it("refuses a purge with content, and a delete with part of a ciphertext or unsealed", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+      const base = deleteChange(alice.vaultId, record.recordId, 1);
+
+      await expect(
+        push(alice, {
+          ...base,
+          tombstoneKind: "purged" as const,
+          ...seal("X".repeat(MAX_PURGE_SEAL_LENGTH + 1)),
+        }),
+      ).rejects.toThrow();
+      const { encryptionNonce: _nonce, ...partial } = base;
+      await expect(push(alice, partial as PushChange)).rejects.toThrow();
+      await expect(push(alice, { ...base, cryptoVersion: 2 } as PushChange)).rejects.toThrow();
+    });
   });
 
   it("counts what a vault stores against its owner's quota: puts past it are rejected, deletes and purges apply", async () => {
@@ -283,7 +270,9 @@ describe("record.push", () => {
     const record = putChange(alice.vaultId, { data: "SECRET" });
     await push(alice, record);
     await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
-    expect(await usedBytes(alice.vaultId)).toBe(2 * pushChangeBytes({ encryptedData: "SECRET" }));
+    const stored =
+      pushChangeBytes({ encryptedData: "SECRET" }) + pushChangeBytes({ encryptedData: "TOMB" });
+    expect(await usedBytes(alice.vaultId)).toBe(stored);
 
     await db
       .update(vaultsTable)
@@ -298,10 +287,7 @@ describe("record.push", () => {
     };
     expect(await push(alice, purge)).toMatchObject([{ status: "applied" }]);
     expect(await usedBytes(alice.vaultId)).toBe(
-      STORAGE_QUOTA_BYTES -
-        100 -
-        2 * pushChangeBytes({ encryptedData: "SECRET" }) +
-        pushChangeBytes({ encryptedData: "" }),
+      STORAGE_QUOTA_BYTES - 100 - stored + pushChangeBytes({ encryptedData: "TOMB" }),
     );
     expect(await push(alice, blocked)).toMatchObject([{ status: "applied" }]);
   });
@@ -410,7 +396,7 @@ describe("record.push", () => {
     const record = putChange(alice.vaultId, { data: "LAST" });
     await push(alice, record);
     const moved = {
-      ...deleteChange(alice.vaultId, record.recordId, 1),
+      ...deleteChange(alice.vaultId, record.recordId, 1, { data: "LAST" }),
       tombstoneKind: "moved" as const,
     };
     expect(await push(alice, moved)).toMatchObject([

@@ -216,7 +216,7 @@ describe("vault key rotation", () => {
     expect((await sync(alice)).vaults.find((v) => v.kind === "personal")?.previousKeys).toEqual([]);
   });
 
-  it("refuses puts under the old key afterwards, but takes deletes and earlier retries", async () => {
+  it("refuses puts and deletes under the old key afterwards, but takes earlier retries", async () => {
     const alice = await signUp("alice@example.com");
     const work = await createVaultFor(alice);
     const kept = await createRecord(alice, work.vaultId);
@@ -232,15 +232,20 @@ describe("vault key rotation", () => {
         alice,
         putChange(work.vaultId, edit),
         putChange(work.vaultId, { keyVersion: 3 }),
+        // A tombstone brings its own ciphertext: under the current key only.
         deleteChange(work.vaultId, doomed.recordId, 1),
         first,
       ),
     ).toMatchObject([
       { status: "rejected", reason: "key_version" },
       { status: "rejected", reason: "key_version" },
-      // A tombstone keeps its head's ciphertext, and so its key version.
-      { status: "applied", record: { version: 2, keyVersion: 1, deleted_at: expect.any(String) } },
+      { status: "rejected", reason: "key_version" },
       { status: "applied", record: { recordId: first.recordId, version: 1, keyVersion: 1 } },
+    ]);
+    expect(
+      await push(alice, deleteChange(work.vaultId, doomed.recordId, 1, { keyVersion: 2 })),
+    ).toMatchObject([
+      { status: "applied", record: { version: 2, keyVersion: 2, deleted_at: expect.any(String) } },
     ]);
     expect(await push(alice, putChange(work.vaultId, { ...edit, keyVersion: 2 }))).toMatchObject([
       { status: "applied", record: { version: 2, keyVersion: 2 } },

@@ -1,22 +1,14 @@
-import type { EncryptedRecordSchema, PushedRecord } from "@repo/schema";
-import {
-  and,
-  asc,
-  desc,
-  eq,
-  gt,
-  inArray,
-  isNotNull,
-  isNull,
-  lt,
-  lte,
-  max,
-  type SQL,
-  sql,
-} from "drizzle-orm";
+import { type EncryptedRecordSchema, RECORD_CRYPTO_VERSION } from "@repo/schema";
+import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
+import { secretsStore } from "../secrets-store";
 import { getProfile } from "./profile-schema";
-import { upsertRecords } from "./records-schema";
+import {
+  isSealedBySecretsStore,
+  type SealCheck,
+  upsertRecords,
+  withoutForgedRows,
+} from "./records-schema";
 import { outbox, records, vaults } from "./tables";
 
 /** A stored record version and whether the server has it yet. */
@@ -29,7 +21,7 @@ export type PendingChange = {
   lastError: string | null;
   /** When it was parked: not pushed again until `retryParkedChanges`. */
   parkedAt: string | null;
-  record: EncryptedRecordSchema;
+  record: LocalRecordVersion;
 };
 
 /** The ciphertext of a new record version, encrypted under its vault's key. */
@@ -47,7 +39,7 @@ export type RecordCiphertext = Pick<
 /**
  * One local write (ADR 0001 D1). `update` appends to the record whatever its
  * head is, a tombstone included (an edit restores a deleted record, D5);
- * `delete` appends a tombstone carrying the head's ciphertext, so the history
+ * `delete` appends a tombstone carrying the head's content, so the history
  * still opens (`moved`: the source of a move, kept out of the trash).
  */
 export type LocalRecordChange =
@@ -90,7 +82,7 @@ export async function writeLocalChange(
   change: LocalRecordChange,
   now: string,
   db: LocalDb,
-): Promise<EncryptedRecordSchema> {
+): Promise<LocalRecordVersion> {
   const head = await getHead(change.recordId, db);
   let row: Omit<EncryptedRecordSchema, "created_at" | "updated_at">;
 
@@ -112,10 +104,7 @@ export async function writeLocalChange(
     row = {
       recordId: head.recordId,
       vaultId: head.vaultId,
-      encryptedData: head.encryptedData,
-      encryptionNonce: head.encryptionNonce,
-      cryptoVersion: head.cryptoVersion,
-      keyVersion: head.keyVersion,
+      ...tombstoneContent(head),
       clientUpdatedAt: change.clientUpdatedAt,
       version: head.version + 1,
       deleted_at: now,
@@ -126,13 +115,27 @@ export async function writeLocalChange(
   return await insertPending(row, now, db);
 }
 
+/**
+ * A tombstone's content: its head's, as a draft. A draft head (pending) opens
+ * in any slot and is copied; a synced (sealed) head's ciphertext only opens in
+ * its own slot, so it is re-encrypted under the head's key (no newer key
+ * needed: a delete works whatever keys are loaded), or copied as unreadable
+ * as it was.
+ */
+function tombstoneContent(head: LocalRecordVersion) {
+  const { encryptedData, encryptionNonce, cryptoVersion, keyVersion } = head;
+  const copied = { encryptedData, encryptionNonce, cryptoVersion, keyVersion };
+  if (head.syncState === "pending") return copied;
+  return secretsStore.redraftRecord(head) ?? copied;
+}
+
 async function insertPending(
   row: Omit<EncryptedRecordSchema, "created_at" | "updated_at">,
   now: string,
   db: LocalDb,
-): Promise<EncryptedRecordSchema> {
-  const written = { ...row, created_at: now, updated_at: now };
-  await db.insert(records).values({ ...written, syncState: "pending" });
+): Promise<LocalRecordVersion> {
+  const written = { ...row, created_at: now, updated_at: now, syncState: "pending" as const };
+  await db.insert(records).values(written);
   await db.insert(outbox).values({
     changeId: crypto.randomUUID(),
     recordId: row.recordId,
@@ -180,7 +183,7 @@ export async function purgeRecord(
       recordId,
       vaultId: head.vaultId,
       ...PURGED_CONTENT,
-      cryptoVersion: head.cryptoVersion,
+      cryptoVersion: RECORD_CRYPTO_VERSION,
       keyVersion: head.keyVersion,
       clientUpdatedAt,
       version: (synced ? synced.version : head.version) + 1,
@@ -196,15 +199,18 @@ export async function purgeRecord(
 const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
 
 /**
- * Pulled purged tombstones (another device deleted these records for good): a
- * pending chain here that ends in a delete goes, it wanted the same. Unsent
- * edits stay (an edit beats a delete, D5): they move on top of the tombstone
- * and restore the record. Only a purge that is the record's newest version
- * counts: an old one (a full re-pull of a record restored since) leaves a
- * delete made after the restore alone. Run inside a transaction, before the
- * rows are rebased; `dropPurgedHistory` after they are written.
+ * Pulled tombstones (another device deleted these records): a pending chain
+ * here that ends in a delete goes, it wanted the same, so no second tombstone
+ * goes on top of the first (a delete rebased on a `moved` one would put the
+ * moved record in the trash). A local purge on a tombstone that isn't a purge
+ * stays: it still drops the history. Unsent edits stay (an edit beats a
+ * delete, D5): they move on top of the tombstone and restore the record. Only
+ * a tombstone that is the record's newest version counts: an old one (a full
+ * re-pull of a record restored since) leaves a delete made after the restore
+ * alone. Run inside a transaction, before the rows are rebased;
+ * `dropPurgedHistory` after they are written.
  */
-export async function dropDeletesOfPurged(
+export async function dropDeletesOfTombstones(
   incoming: readonly EncryptedRecordSchema[],
   db: LocalDb,
 ): Promise<void> {
@@ -213,9 +219,10 @@ export async function dropDeletesOfPurged(
     newest.set(recordId, Math.max(version, newest.get(recordId) ?? 0));
   }
   for (const row of incoming) {
-    if (row.tombstoneKind !== "purged" || newest.get(row.recordId) !== row.version) continue;
+    if (row.deleted_at === null || newest.get(row.recordId) !== row.version) continue;
     const head = await getHead(row.recordId, db);
     if (head?.syncState !== "pending" || head.deleted_at === null) continue;
+    if (row.tombstoneKind !== "purged" && head.tombstoneKind === "purged") continue;
     const synced = await db
       .select({ version: max(records.version) })
       .from(records)
@@ -309,32 +316,44 @@ export async function countParkedChanges(db: LocalDb): Promise<number> {
 
 /**
  * The server stored a change: drop its outbox entry and mark the row synced,
- * replacing it with the server's copy (canonical timestamps) when there is
- * one. A copy without ciphertext (a tombstone) takes it from here. When the
- * server numbered the change lower (a delete it already had appends nothing),
- * the record's later pending versions move down with it, so they build on the
- * server's numbering. Run inside a transaction.
+ * replacing it with the server's (sealed) copy when there is one. When the
+ * server numbered the change lower (a retry answered with the version it
+ * stored before a pull moved the chain up), the record's later pending
+ * versions move down with it, so they build on the server's numbering.
+ * Resolves false, changing nothing, for a copy no pull would take
+ * (`withoutForgedRows`): one of another record, numbered above the change,
+ * not sealed as it claims or rewriting a stored version. Run inside a
+ * transaction.
  */
 export async function ackPendingChange(
   changeId: string,
-  serverRow: PushedRecord | null,
+  serverRow: EncryptedRecordSchema | null,
   db: LocalDb,
-): Promise<void> {
+  isSealed: SealCheck = isSealedBySecretsStore,
+): Promise<boolean> {
   const entry = await db.select().from(outbox).where(eq(outbox.changeId, changeId)).get();
-  if (!entry) return;
-  await db.delete(outbox).where(eq(outbox.changeId, changeId));
+  if (!entry) return true;
 
   const at = and(eq(records.recordId, entry.recordId), eq(records.version, entry.version));
   if (!serverRow) {
+    await db.delete(outbox).where(eq(outbox.changeId, changeId));
     await db.update(records).set({ syncState: "synced" }).where(at);
-    return;
+    return true;
   }
-  const row = await withLocalCiphertext(serverRow, entry.version, db);
+  if (
+    serverRow.recordId !== entry.recordId ||
+    serverRow.version > entry.version ||
+    (await withoutForgedRows([serverRow], db, isSealed)).length === 0
+  ) {
+    return false;
+  }
+  await db.delete(outbox).where(eq(outbox.changeId, changeId));
   await db.delete(records).where(at);
-  await upsertRecords([row], db);
+  await upsertRecords([serverRow], db);
   if (serverRow.version < entry.version) {
     await shiftPendingDown(entry.recordId, entry.version, entry.version - serverRow.version, db);
   }
+  return true;
 }
 
 /** Move a record's pending versions above `above` down by `by`, lowest first into vacated slots. */
@@ -360,35 +379,6 @@ async function shiftPendingDown(recordId: string, above: number, by: number, db:
       .set({ version: version - by })
       .where(and(eq(outbox.recordId, recordId), eq(outbox.version, version)));
   }
-}
-
-/**
- * Fill in a pushed tombstone's ciphertext: the server copied it from the
- * version below, so take the synced copy of its version, else the newest
- * synced one below it, else the pending version it answers.
- */
-async function withLocalCiphertext(
-  serverRow: PushedRecord,
-  pendingVersion: number,
-  db: LocalDb,
-): Promise<EncryptedRecordSchema> {
-  const { encryptedData, encryptionNonce } = serverRow;
-  if (encryptedData !== undefined && encryptionNonce !== undefined) {
-    return { ...serverRow, encryptedData, encryptionNonce };
-  }
-  const ciphertextWhere = async (where: SQL | undefined) =>
-    await db
-      .select({ encryptedData: records.encryptedData, encryptionNonce: records.encryptionNonce })
-      .from(records)
-      .where(and(eq(records.recordId, serverRow.recordId), where))
-      .orderBy(desc(records.version))
-      .get();
-  const synced = eq(records.syncState, "synced");
-  const ciphertext =
-    (await ciphertextWhere(and(synced, lte(records.version, serverRow.version)))) ??
-    (await ciphertextWhere(eq(records.version, pendingVersion)));
-  if (!ciphertext) throw new Error(`No local ciphertext for record ${serverRow.recordId}`);
-  return { ...serverRow, ...ciphertext };
 }
 
 /**
@@ -432,7 +422,7 @@ export async function retryParkedChanges(db: LocalDb) {
  * than their vault's current one: the server won't take them (`key_version`)
  * until they are re-encrypted (`replacePendingCiphertexts`).
  */
-export async function getPendingUnderOldKeys(db: LocalDb): Promise<EncryptedRecordSchema[]> {
+export async function getPendingUnderOldKeys(db: LocalDb): Promise<LocalRecordVersion[]> {
   const rows = await db
     .select({ record: records })
     .from(records)
@@ -497,11 +487,11 @@ export async function deleteVaultChanges(vaultIds: readonly string[], db: LocalD
  */
 export type RecordConflict = {
   /** The synced version the local edits started from. */
-  base: EncryptedRecordSchema;
+  base: LocalRecordVersion;
   /** The pending chain. */
-  local: EncryptedRecordSchema[];
+  local: LocalRecordVersion[];
   /** The server's versions above `base`, as far as this pull brought them. */
-  remote: EncryptedRecordSchema[];
+  remote: LocalRecordVersion[];
   /** The server's time of the pull: no local edit can be later. */
   receivedAt: string;
 };
@@ -534,14 +524,14 @@ export async function rebasePendingVersions(
   db: LocalDb,
   { resolve, receivedAt = new Date().toISOString() }: RebaseOptions = {},
 ): Promise<void> {
-  const pending: EncryptedRecordSchema[] = await db
+  const pending: LocalRecordVersion[] = await db
     .select()
     .from(records)
     .where(eq(records.syncState, "pending"))
     .orderBy(asc(records.recordId), asc(records.version));
   if (pending.length === 0) return;
 
-  const pulled = groupByRecord(incoming);
+  const pulled = groupByRecord(incoming.map((row) => ({ ...row, syncState: "synced" as const })));
   const chains = groupByRecord(pending);
 
   for (const [recordId, chain] of chains) {
@@ -588,8 +578,8 @@ export async function rebasePendingVersions(
   }
 }
 
-function groupByRecord(rows: readonly EncryptedRecordSchema[]) {
-  const groups = new Map<string, EncryptedRecordSchema[]>();
+function groupByRecord(rows: readonly LocalRecordVersion[]) {
+  const groups = new Map<string, LocalRecordVersion[]>();
   for (const row of rows) {
     const group = groups.get(row.recordId);
     if (group) group.push(row);

@@ -631,6 +631,29 @@ The AAD never uses the server `userId`, because it doesn't exist before linking.
 > `vaultId ‖ keyVersion`, which stops the server from swapping wraps between the user's own vaults. A record moved
 to another vault is re-encrypted anyway (D6).
 
+> **Amended 2026-11-16** (sealed records): `recordId ‖ vaultId ‖ cryptoVersion` let the server serve an
+> old ciphertext of a record as a newer version, copy one into a tombstone, and forge a purge
+> (contentless). Crypto version 2 also binds `version ‖ keyVersion ‖ state`, and it is the only format
+> the server takes (still no existing data, so no migration). The version only exists once the push
+> numbers it, and pending versions are renumbered (a pull rebases them, an ack shifts them), so a
+> version written on the device stays a draft (crypto version 1, never sent) and is sealed right
+> before its push; the server stores the sealed copy and answers with it. A delete brings its own
+> ciphertext (a purge: empty content, so it proves a vault member wrote it) and always appends, which
+> replaces D5's "a delete on a purged head stays purged" and the dedup of repeated deletes. Devices
+> ignore unsealed rows, rows rewriting a stored version and purges whose seal doesn't open;
+> withholding stays possible (`docs/security/threat-model-inputs.md`).
+>
+> Revised the same day: `cryptoVersion` stays the ciphertext format (1) and no longer encodes the
+> stage. The AAD names it (`draft` / `sealed`), and the device derives it from where the row is: a
+> pending version is a draft, a synced or pulled one sealed. A server can't claim a row is a draft,
+> and a later format change doesn't need a draft and a sealed number of its own.
+>
+> Revised again the same day (review): "ignore unsealed rows" covers every row from the server, live
+> and tombstones, pulled or answering a push, not only purges; a vault with a row under a key not
+> loaded yet waits, cursor included. The server still appends a delete on a tombstone, but a device
+> drops its pending delete once it pulls a tombstone on top, so a `moved` source doesn't end up in
+> the trash.
+
 ### D12 — Durability of local-only data
 
 - **Web:** the database lives in OPFS (SQLocal), which the browser can evict. On local vault

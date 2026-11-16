@@ -1,4 +1,6 @@
 import {
+  type EncryptedRecordSchema,
+  MAX_PURGE_SEAL_LENGTH,
   MAX_PUSH_BYTES,
   MAX_PUSH_CHANGES,
   type MemberVault,
@@ -10,8 +12,10 @@ import {
 import {
   type ConflictResolver,
   type PendingChange,
+  type RecordContent,
   type SyncBatch,
   sameVaults,
+  secretsStore,
   type Vault,
   VaultListRejectedError,
   VaultsMissingError,
@@ -52,6 +56,21 @@ export type ChangePusher = (changes: PushChange[]) => Promise<PushResult[]>;
  * throw fails the round without applying the page.
  */
 export type VaultsChangedHandler = (vaults: MemberVault[]) => void | Promise<void>;
+
+/**
+ * The vault keys' part of a sync (ADR 0001 D11): seal each pending version for
+ * the server once its number is final, and check what the server sends (pulled
+ * rows, push answers) with the same keys.
+ */
+export type RecordSealer = {
+  sealRecord(row: EncryptedRecordSchema): RecordContent | null;
+  /** Whether the key a row is under is loaded: one that isn't can't be checked yet. */
+  hasRecordKey(row: EncryptedRecordSchema): boolean;
+  /** Whether a vault member sealed the row for its slot, key version and state. */
+  isSealedRow(row: EncryptedRecordSchema): boolean;
+  /** Whether a sealed row (a retry's answer) holds what a pending draft does. */
+  sameRecordContent(sealed: EncryptedRecordSchema, draft: EncryptedRecordSchema): boolean;
+};
 
 /** `vaultsChanged`: the vault list (membership, key wraps, metadata) changed since the last event. */
 export type SyncListener = (event: { vaultsChanged: boolean }) => void;
@@ -135,6 +154,8 @@ type SyncManagerOptions = {
    * A failure doesn't fail the round.
    */
   onSharingTasks?: SharingTasksHandler;
+  /** The vault keys (`secretsStore` by default). */
+  sealer?: RecordSealer;
 };
 
 /**
@@ -189,6 +210,9 @@ export class SyncManager {
   private resolveConflict?: ConflictResolver;
   private prepareOutbox?: () => Promise<void>;
   private onSharingTasks?: SharingTasksHandler;
+  private sealer: RecordSealer;
+  /** The round's pull held back a vault whose key isn't loaded yet: the round isn't done. */
+  private pullHeldBack = false;
   /** What the last pull asked for (`onSharingTasks`). */
   private sharingTasks: { keyUpdates: VaultKeyUpdate[]; rotationsDue: string[] } = {
     keyUpdates: [],
@@ -207,6 +231,7 @@ export class SyncManager {
       resolveConflict,
       prepareOutbox,
       onSharingTasks,
+      sealer = secretsStore,
     }: SyncManagerOptions,
   ) {
     this.store = store;
@@ -219,6 +244,7 @@ export class SyncManager {
     this.resolveConflict = resolveConflict;
     this.prepareOutbox = prepareOutbox;
     this.onSharingTasks = onSharingTasks;
+    this.sealer = sealer;
   }
 
   /** Register a callback invoked after each successful sync and each pulled page before its last. */
@@ -326,13 +352,15 @@ export class SyncManager {
 
     let done = false;
     let paused = false;
+    this.pullHeldBack = false;
     try {
       let pushed = await this.pushOutbox();
 
       const vaultsChanged = await this.pullAll();
 
       if (!pushed) pushed = await this.pushOutbox();
-      done = pushed;
+      // A held-back vault waits for its key (the sharing tasks below): retried.
+      done = pushed && !this.pullHeldBack;
 
       this.allowedVaultLoss = [];
       this.notify(vaultsChanged);
@@ -376,9 +404,11 @@ export class SyncManager {
    * Pull and apply pages until the server has no more. Each page is applied
    * (and its cursors stored) on its own, so a round that fails midway resumes
    * from the last page applied; listeners hear of every page but the last
-   * right away (the round reports that one). Throws when a page that claims
-   * more moved no cursor: pulling again would loop. Resolves whether the last
-   * page changed the vault list.
+   * right away (the round reports that one). A page that claims more but
+   * moved no cursor ends the pull when a vault was held back (its key comes
+   * with the sharing tasks after the pull; the round is retried), and throws
+   * otherwise: pulling again would loop. Resolves whether the last page
+   * changed the vault list.
    */
   private async pullAll(): Promise<boolean> {
     let cursors = await this.store.getSyncCursors();
@@ -395,7 +425,10 @@ export class SyncManager {
       if (this.disposed) throw new Error("sync stopped");
 
       const next = await this.store.getSyncCursors();
-      if (!advanced(cursors, next)) throw new Error("the pull made no progress");
+      if (!advanced(cursors, next)) {
+        if (this.pullHeldBack) return vaultsChanged;
+        throw new Error("the pull made no progress");
+      }
       cursors = next;
       this.notify(vaultsChanged);
     }
@@ -421,7 +454,10 @@ export class SyncManager {
         await onVaultsChanged(page.vaults);
         keysLoaded = true;
       }
-      return await this.store.applySync(page, this.resolveConflict, { allowVaultLoss });
+      return await this.store.applySync(this.withoutUncheckableVaults(page), this.resolveConflict, {
+        allowVaultLoss,
+        isSealed: (row) => this.sealer.isSealedRow(row),
+      });
     } catch (error) {
       const stored = await this.store.getVaults();
       if (onVaultsChanged && keysLoaded) {
@@ -433,6 +469,26 @@ export class SyncManager {
       }
       throw error;
     }
+  }
+
+  /**
+   * The page without the vaults that hold a row under a key this device
+   * doesn't have yet (e.g. a rotation or a new vault, whose key arrives with
+   * the sharing tasks): `applySync` would drop it as unsealed, and the cursor
+   * move past it. Their rows and cursors wait for a later pull.
+   */
+  private withoutUncheckableVaults(page: SyncPage): SyncPage {
+    const held = new Set(
+      page.records.filter((row) => !this.sealer.hasRecordKey(row)).map((row) => row.vaultId),
+    );
+    if (held.size === 0) return page;
+    this.pullHeldBack = true;
+    logWarning(`Holding back ${held.size} vault(s): a row is under a key not loaded yet`);
+    return {
+      ...page,
+      records: page.records.filter((row) => !held.has(row.vaultId)),
+      cursors: Object.fromEntries(Object.entries(page.cursors).filter(([id]) => !held.has(id))),
+    };
   }
 
   /** Hand the last pull's sharing work to `onSharingTasks`; run again when it changed something. */
@@ -482,17 +538,23 @@ export class SyncManager {
    * (e.g. one malformed change) is split by record, down to the record whose
    * changes it refuses, so one bad change doesn't block the others.
    */
-  private async pushBatch(batch: PendingChange[], failed: Set<string>): Promise<void> {
+  private async pushBatch(
+    pending: PendingChange[],
+    failed: Set<string>,
+    sealed = new Map<string, PushChange>(),
+  ): Promise<void> {
+    const { batch, changes } = await this.seal(pending, failed, sealed);
+    if (batch.length === 0) return;
     let results: PushResult[];
     try {
-      results = await this.push!(batch.map(toPushChange));
+      results = await this.push!(changes);
     } catch (error) {
       if (this.stopsRound(error)) throw error;
       const chains = [...groupChains(batch).values()];
       if (chains.length > 1) {
         const half = Math.ceil(chains.length / 2);
-        await this.pushBatch(chains.slice(0, half).flat(), failed);
-        await this.pushBatch(chains.slice(half).flat(), failed);
+        await this.pushBatch(chains.slice(0, half).flat(), failed, sealed);
+        await this.pushBatch(chains.slice(half).flat(), failed, sealed);
         return;
       }
       for (const change of batch) await this.fail(change, errorMessage(error));
@@ -506,7 +568,17 @@ export class SyncManager {
       if (result?.status === "applied") {
         // The server has it: a failed local ack must not count as a failed
         // push. It ends the sync instead; the retry gets the stored version.
-        await this.store.ackPendingChange(change.changeId, result.record);
+        // A copy that isn't the change (forged, another record's, other
+        // content) is a failed push: counted, so it is parked in the end.
+        const accepted =
+          this.answers(change, sealed.get(change.changeId)!, result.record) &&
+          (await this.store.ackPendingChange(change.changeId, result.record, {
+            isSealed: (row) => this.sealer.isSealedRow(row),
+          }));
+        if (!accepted) {
+          failed.add(change.record.recordId);
+          await this.fail(change, "the server's copy isn't this change");
+        }
         continue;
       }
       if (
@@ -520,8 +592,8 @@ export class SyncManager {
       }
       failed.add(change.record.recordId);
       if (result?.status === "rejected" && result.reason === "key_version") {
-        // Under a key the vault rotated away from: re-encrypted (`prepareOutbox`)
-        // once the pull brought the new one. Counted, in case it never does.
+        // Sealed under a key the vault rotated away from: the next push seals it
+        // under the one the pull brings. Counted, in case it never does.
         await this.fail(change, failureMessage(result));
       } else if (result?.status === "rejected") {
         // Not found, forbidden (e.g. access revoked) or over quota: retrying won't help on its own.
@@ -536,6 +608,66 @@ export class SyncManager {
         await this.fail(change, failureMessage(result));
       }
     }
+  }
+
+  /**
+   * Whether the server's copy of an applied change is that change: the same
+   * record and vault, at its version and with the ciphertext sent, or (a
+   * retry, answered with what an earlier try stored, sealed then) at or below
+   * its version, holding the same content. Whether it is sealed as it claims
+   * is checked with the ack (`withoutForgedRows`).
+   */
+  private answers(change: PendingChange, sent: PushChange, copy: EncryptedRecordSchema): boolean {
+    const { record } = change;
+    if (copy.recordId !== record.recordId || copy.vaultId !== record.vaultId) return false;
+    if (copy.version > record.version) return false;
+    if (
+      copy.version === record.version &&
+      copy.encryptedData === sent.encryptedData &&
+      copy.encryptionNonce === sent.encryptionNonce
+    ) {
+      return true;
+    }
+    // A purge that covered this change (it dropped what an earlier try stored) holds nothing.
+    if (copy.tombstoneKind === "purged") return this.sealer.isSealedRow(copy);
+    return this.sealer.sameRecordContent(copy, record);
+  }
+
+  /**
+   * The batch's changes as sealed push changes (each sealed once per push,
+   * `sealed`), with their records' later changes held back when one can't be:
+   * live content that doesn't open here is parked; a missing vault key counts
+   * as a failed push (as a `key_version` rejection would), so a key that
+   * never loads parks it in the end.
+   */
+  private async seal(
+    pending: PendingChange[],
+    failed: Set<string>,
+    sealed: Map<string, PushChange>,
+  ): Promise<{ batch: PendingChange[]; changes: PushChange[] }> {
+    const batch: PendingChange[] = [];
+    const changes: PushChange[] = [];
+    for (const change of pending) {
+      if (failed.has(change.record.recordId)) continue;
+      let pushed = sealed.get(change.changeId);
+      try {
+        const seal = pushed ? null : this.sealer.sealRecord(change.record);
+        if (!pushed && !seal) {
+          failed.add(change.record.recordId);
+          await this.store.parkPendingChange(change.changeId, "its content doesn't open here");
+          continue;
+        }
+        pushed ??= toPushChange(change, seal!);
+      } catch (error) {
+        failed.add(change.record.recordId);
+        await this.fail(change, `Cannot seal the change: ${errorMessage(error)}`);
+        continue;
+      }
+      sealed.set(change.changeId, pushed);
+      changes.push(pushed);
+      batch.push(change);
+    }
+    return { batch, changes };
   }
 
   /** Count a failed push, parking the change once it has failed too often. */
@@ -621,8 +753,8 @@ export class SyncManager {
   }
 }
 
-/** A pending version as a push change: it builds on the version below it. */
-export function toPushChange({ changeId, record }: PendingChange): PushChange {
+/** A pending version as a push change, with its sealed ciphertext: it builds on the version below it. */
+export function toPushChange({ changeId, record }: PendingChange, seal: RecordContent): PushChange {
   const common = {
     clientChangeId: changeId,
     recordId: record.recordId,
@@ -632,16 +764,9 @@ export function toPushChange({ changeId, record }: PendingChange): PushChange {
   };
   if (record.deleted_at) {
     const { tombstoneKind } = record;
-    return tombstoneKind ? { ...common, op: "delete", tombstoneKind } : { ...common, op: "delete" };
+    return { ...common, op: "delete", ...(tombstoneKind && { tombstoneKind }), ...seal };
   }
-  return {
-    ...common,
-    op: "put",
-    encryptedData: record.encryptedData,
-    encryptionNonce: record.encryptionNonce,
-    cryptoVersion: record.cryptoVersion,
-    keyVersion: record.keyVersion,
-  };
+  return { ...common, op: "put", ...seal };
 }
 
 /**
@@ -659,7 +784,7 @@ export function pushBatches(
   let batch: PendingChange[] = [];
   let batchBytes = 0;
   for (const chain of groupChains(changes).values()) {
-    const chainBytes = chain.map((change) => pushChangeBytes(toPushChange(change)));
+    const chainBytes = chain.map((change) => sealedBytes(change.record));
     let piece: PendingChange[] = [];
     let pieceBytes = 0;
     const addPiece = () => {
@@ -684,6 +809,17 @@ export function pushBatches(
   }
   if (batch.length > 0) batches.push(batch);
   return batches;
+}
+
+/**
+ * A pending version's size once sealed: the draft's (sealing keeps a content's
+ * length; a tombstone carries its head's content, or none), except a purge,
+ * whose empty draft is sealed into a tag.
+ */
+function sealedBytes(record: EncryptedRecordSchema): number {
+  return record.tombstoneKind === "purged"
+    ? pushChangeBytes({ encryptedData: "" }) + MAX_PURGE_SEAL_LENGTH
+    : pushChangeBytes(record);
 }
 
 /** Whether some vault's cursor moved forward (a vault without one is at 0). */

@@ -6,7 +6,6 @@ import {
   type EncryptedRecordSchema,
   type EncryptedVaultMeta,
   type MemberVault,
-  type PushedRecord,
   type RecoveryKeySchema,
   type RecoveryWrapSchema,
   type SealedPendingRecovery,
@@ -62,7 +61,7 @@ import {
   countParkedChanges,
   countPendingChanges,
   deleteVaultChanges,
-  dropDeletesOfPurged,
+  dropDeletesOfTombstones,
   dropPurgedHistory,
   failPendingChange,
   getHead,
@@ -97,7 +96,9 @@ import {
   getDeletedRecords,
   getRecordHeads,
   type RecordHead,
+  type SealCheck,
   upsertRecords,
+  withoutForgedRows,
 } from "./schema/records-schema";
 import {
   clearRevokedTables,
@@ -321,23 +322,27 @@ export class Vault {
    * Store server rows. Pending local versions they collide with move up first,
    * as in a pull (`applySync`), so no unsynced change is overwritten.
    */
-  async upsertRecords(records: EncryptedRecordSchema[]): Promise<void> {
+  async upsertRecords(
+    records: EncryptedRecordSchema[],
+    { isSealed }: { isSealed?: SealCheck } = {},
+  ): Promise<void> {
     await this.ready();
     if (records.length === 0) return;
     await this.transaction(async (tx) => {
-      await dropDeletesOfPurged(records, tx);
-      await rebasePendingVersions(records, tx);
-      await upsertRecords(records, tx);
+      const trusted = await withoutForgedRows(records, tx, isSealed);
+      await dropDeletesOfTombstones(trusted, tx);
+      await rebasePendingVersions(trusted, tx);
+      await upsertRecords(trusted, tx);
       await dropPurgedHistory(
-        records.map((r) => r.recordId),
+        trusted.map((r) => r.recordId),
         tx,
       );
-      await dropPurgedBreachChecks(records, tx);
+      await dropPurgedBreachChecks(trusted, tx);
     });
   }
 
   /** The current records of one vault, or of all vaults when `vaultId` is omitted. */
-  async getAllLatest(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+  async getAllLatest(vaultId?: string): Promise<LocalRecordVersion[]> {
     await this.ready();
     return await getAllRecordsLatest(this.db, vaultId);
   }
@@ -348,7 +353,7 @@ export class Vault {
     return await getRecordHeads(this.db);
   }
 
-  async getByRecordId(recordId: string): Promise<EncryptedRecordSchema | undefined> {
+  async getByRecordId(recordId: string): Promise<LocalRecordVersion | undefined> {
     await this.ready();
     return await getByRecordId(recordId, this.db);
   }
@@ -372,10 +377,10 @@ export class Vault {
   async writeLocalChanges(
     changes: readonly LocalRecordChange[],
     now = new Date().toISOString(),
-  ): Promise<EncryptedRecordSchema[]> {
+  ): Promise<LocalRecordVersion[]> {
     await this.ready();
     return await this.transaction(async (tx) => {
-      const written: EncryptedRecordSchema[] = [];
+      const written: LocalRecordVersion[] = [];
       for (const change of changes) written.push(await writeLocalChange(change, now, tx));
       return written;
     });
@@ -410,7 +415,7 @@ export class Vault {
    * Records in the trash (deleted, not moved or purged): their tombstones, which
    * carry the content they had, of one vault or of all of them.
    */
-  async getDeletedRecords(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+  async getDeletedRecords(vaultId?: string): Promise<LocalRecordVersion[]> {
     await this.ready();
     return await getDeletedRecords(this.db, vaultId);
   }
@@ -426,10 +431,18 @@ export class Vault {
     return await countPendingChanges(this.db);
   }
 
-  /** The server stored this change; `serverRow` is its copy, when it returned one. */
-  async ackPendingChange(changeId: string, serverRow: PushedRecord | null): Promise<void> {
+  /**
+   * The server stored this change; `serverRow` is its copy, when it returned
+   * one. Resolves false, changing nothing, when that copy isn't one a pull
+   * would take (`withoutForgedRows`, `isSealed`).
+   */
+  async ackPendingChange(
+    changeId: string,
+    serverRow: EncryptedRecordSchema | null,
+    { isSealed }: { isSealed?: SealCheck } = {},
+  ): Promise<boolean> {
     await this.ready();
-    await this.transaction((tx) => ackPendingChange(changeId, serverRow, tx));
+    return await this.transaction((tx) => ackPendingChange(changeId, serverRow, tx, isSealed));
   }
 
   /**
@@ -476,7 +489,7 @@ export class Vault {
    * Pending versions with content under an older key than their vault's
    * current one, oldest first per record: re-encrypt them before a push.
    */
-  async getPendingUnderOldKeys(): Promise<EncryptedRecordSchema[]> {
+  async getPendingUnderOldKeys(): Promise<LocalRecordVersion[]> {
     await this.ready();
     return await getPendingUnderOldKeys(this.db);
   }
@@ -761,12 +774,17 @@ export class Vault {
    *
    * Throws, applying nothing, for a vault list that breaks continuity
    * (`VaultListRejectedError`) or drops several vaults at once
-   * (`VaultsMissingError`) unless `allowVaultLoss` holds them.
+   * (`VaultsMissingError`) unless `allowVaultLoss` holds them. Rows the
+   * server may not send are left out (`withoutForgedRows`, checked with
+   * `isSealed`; `secretsStore` by default).
    */
   async applySync(
     { records, vaults, cursors, serverTimestamp }: SyncBatch,
     resolve?: ConflictResolver,
-    { allowVaultLoss = [] }: { allowVaultLoss?: readonly string[] } = {},
+    {
+      allowVaultLoss = [],
+      isSealed,
+    }: { allowVaultLoss?: readonly string[]; isSealed?: SealCheck } = {},
   ): Promise<boolean> {
     await this.ready();
     return await this.transaction(async (tx) => {
@@ -782,8 +800,12 @@ export class Vault {
       const vaultsChanged = !sameVaults(cached, vaults);
       if (vaultsChanged) await replaceVaults(vaults, tx);
 
-      const pulled = records.filter((r) => current.has(r.vaultId));
-      await dropDeletesOfPurged(pulled, tx);
+      const pulled = await withoutForgedRows(
+        records.filter((r) => current.has(r.vaultId)),
+        tx,
+        isSealed,
+      );
+      await dropDeletesOfTombstones(pulled, tx);
       await rebasePendingVersions(pulled, tx, { resolve, receivedAt: serverTimestamp });
       await upsertRecords(pulled, tx);
       await dropPurgedHistory(
@@ -826,11 +848,11 @@ export class Vault {
   async rescueRevokedVault(
     vaultId: string,
     changes: readonly LocalRecordChange[],
-  ): Promise<EncryptedRecordSchema[]> {
+  ): Promise<LocalRecordVersion[]> {
     await this.ready();
     const now = new Date().toISOString();
     return await this.transaction(async (tx) => {
-      const written: EncryptedRecordSchema[] = [];
+      const written: LocalRecordVersion[] = [];
       for (const change of changes) written.push(await writeLocalChange(change, now, tx));
       await deleteRevokedVault(vaultId, tx);
       return written;

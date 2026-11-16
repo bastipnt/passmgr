@@ -78,7 +78,7 @@ class FakeServer {
         );
         if (stored) {
           answers.push({ clientChangeId, status: "applied", record: stored });
-        } else if (change.op === "put" && change.keyVersion !== this.keyVersion(change.vaultId)) {
+        } else if (change.keyVersion !== this.keyVersion(change.vaultId)) {
           failure ??= { clientChangeId, status: "rejected", reason: "key_version" };
           answers.push({ ...failure, clientChangeId });
         } else if (failure || (head?.version ?? 0) !== change.baseVersion) {
@@ -90,14 +90,14 @@ class FakeServer {
           answers.push({ ...failure, clientChangeId });
         } else {
           const now = new Date().toISOString();
-          const ciphertext = change.op === "put" ? change : head!;
           const row: ServerRow = {
             recordId,
             vaultId: change.vaultId,
-            encryptedData: ciphertext.encryptedData,
-            encryptionNonce: ciphertext.encryptionNonce,
-            cryptoVersion: ciphertext.cryptoVersion,
-            keyVersion: ciphertext.keyVersion,
+            encryptedData: change.encryptedData,
+            encryptionNonce: change.encryptionNonce,
+            cryptoVersion: change.cryptoVersion,
+            keyVersion: change.keyVersion,
+            tombstoneKind: change.op === "delete" ? (change.tombstoneKind ?? null) : null,
             version: (head?.version ?? 0) + 1,
             clientUpdatedAt: change.clientUpdatedAt,
             clientChangeId,
@@ -128,6 +128,11 @@ class FakeServer {
     // In the order of the changes.
     return changes.map((c) => results.find((r) => r.clientChangeId === c.clientChangeId)!);
   };
+}
+
+/** A row as a device pulls it: sealed. */
+function openServerRow(row: ServerRow) {
+  return decryptRecord({ ...row, syncState: "synced" });
 }
 
 class Device {
@@ -217,7 +222,7 @@ describe("syncing a record edited on two devices", () => {
       expect(await device.read(recordId)).toMatchObject({ username: "bob", note: "from A" });
     }
     expect(await a.vault.countPendingChanges()).toBe(0);
-    const history = server.rows.map((row) => decryptRecord(row));
+    const history = server.rows.map(openServerRow);
     expect(history).toMatchObject([
       { username: "jana" },
       { username: "bob" },
@@ -270,7 +275,7 @@ describe("syncing a record edited on two devices", () => {
       };
     };
     await a.sync.sync();
-    expect(server.rows.map((row) => decryptRecord(row))).toMatchObject([
+    expect(server.rows.map(openServerRow)).toMatchObject([
       { username: "jana" },
       { username: "bob" },
       { username: "bob", title: "Renamed by B" },
@@ -358,8 +363,8 @@ describe("syncing a record edited on two devices", () => {
       expect(await device.read(recordId)).toMatchObject({ deleted: true });
     }
     expect(await a.vault.countPendingChanges()).toBe(0);
-    // A's delete lands on B's as one more tombstone: every push appends one version.
-    expect(server.rows.map((row) => row.deleted_at !== null)).toEqual([false, true, true]);
+    // A's pending delete goes once B's tombstone is pulled: no second tombstone on top.
+    expect(server.rows.map((row) => row.deleted_at !== null)).toEqual([false, true]);
   });
 
   it("restores a record deleted and restored offline while the other device deleted it", async () => {
@@ -448,7 +453,7 @@ describe("rotating a vault key while another device edits offline", () => {
 
     expect(await b.vault.countPendingChanges()).toBe(0);
     expect(server.rows.map((r) => r.keyVersion)).toEqual([1, 2, 2]);
-    expect(server.rows.map((row) => decryptRecord(row))).toMatchObject([
+    expect(server.rows.map(openServerRow)).toMatchObject([
       { username: "jana" },
       { username: "jana" }, // the re-encryption
       { username: "jana", note: "from B" },
@@ -503,9 +508,65 @@ describe("rotating a vault key while another device edits offline", () => {
         [1, 2],
         [2, 2],
       ]);
-      expect(pushed.map((row) => decryptRecord(row).title)).toEqual(["Local", "Local 2"]);
+      expect(pushed.map((row) => openServerRow(row).title)).toEqual(["Local", "Local 2"]);
     } finally {
       await local.vault.destroy();
     }
+  });
+});
+
+describe("a server tampering with the history (ADR 0001 D11)", () => {
+  const forged = (row: ServerRow, overrides: Partial<ServerRow>): ServerRow => ({
+    ...row,
+    version: server.head(recordId)!.version + 1,
+    clientChangeId: crypto.randomUUID(),
+    ...overrides,
+  });
+
+  it("ignores an old version served as a newer one, or as a tombstone", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    clock("10:00");
+    await edit(a, { username: "new" });
+    await a.sync.sync();
+    const first = server.rows[0]!;
+    await b.sync.sync();
+    const versions = async () => (await b.vault.getRecordHistory(recordId)).map((r) => r.version);
+    const before = await versions();
+
+    server.rows.push(forged(first, {}));
+    await b.sync.sync();
+    expect(await b.read(recordId)).toMatchObject({ username: "new", deleted: false });
+
+    server.rows.push(forged(first, { deleted_at: new Date().toISOString() }));
+    await b.sync.sync();
+    expect(await b.read(recordId)).toMatchObject({ username: "new", deleted: false });
+    expect(await versions()).toEqual(before);
+    warn.mockRestore();
+  });
+
+  it("ignores a purge no vault member sealed, keeping the history", async () => {
+    const head = server.head(recordId)!;
+    server.rows.push(
+      forged(head, {
+        encryptedData: "",
+        encryptionNonce: "",
+        deleted_at: new Date().toISOString(),
+        tombstoneKind: "purged",
+      }),
+    );
+
+    await b.sync.sync();
+
+    expect(await b.read(recordId)).toMatchObject({ username: "jana", deleted: false });
+  });
+
+  it("takes a purge pushed by the other device", async () => {
+    await a.records.purge([recordId]);
+    await a.sync.sync();
+    expect(server.head(recordId)).toMatchObject({ tombstoneKind: "purged", cryptoVersion: 1 });
+
+    await b.sync.sync();
+
+    expect(await b.vault.getRecordHistory(recordId)).toMatchObject([{ tombstoneKind: "purged" }]);
   });
 });

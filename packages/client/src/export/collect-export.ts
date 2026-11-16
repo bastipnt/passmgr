@@ -6,7 +6,7 @@ import type {
   MemberVault,
   RecordPayload,
 } from "@repo/schema";
-import { secretsStore, type Vault } from "@repo/store";
+import { type LocalRecordVersion, secretsStore, type Vault } from "@repo/store";
 import { decryptRecordWithWorker } from "../util/decrypt-record";
 import { buildExportData } from "./export-file";
 
@@ -46,7 +46,7 @@ function exportRecord(row: EncryptedRecordSchema, payload: RecordPayload): Expor
  */
 export async function collectExportData(
   vault: Vault,
-  decrypt: (row: EncryptedRecordSchema) => Promise<RecordPayload> = decryptRecordWithWorker,
+  decrypt: (row: LocalRecordVersion) => Promise<RecordPayload> = decryptRecordWithWorker,
 ): Promise<CollectedExport> {
   const [vaults, rows] = await Promise.all([vault.getVaults(), vault.getAllLatest()]);
   const live = rows.filter((row) => !row.deleted_at);

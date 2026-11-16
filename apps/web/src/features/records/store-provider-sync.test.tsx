@@ -36,7 +36,7 @@ const vault = {
   replacePendingCiphertexts: vi.fn(async () => undefined),
   getRekeyTargets: vi.fn(async () => ({})),
   getPendingChanges: vi.fn(async (): Promise<PendingChange[]> => []),
-  ackPendingChange: vi.fn(async () => undefined),
+  ackPendingChange: vi.fn(async () => true),
   failPendingChange: vi.fn(async () => undefined),
   parkPendingChange: vi.fn(async () => undefined),
   countPendingChanges: vi.fn(async () => 0),
@@ -95,6 +95,18 @@ function unauthorized(message = "UNAUTHORIZED") {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // No vault keys here: a draft is sealed as itself and every server row counts as
+  // sealed (sealing is tested in @repo/client and @repo/store).
+  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
+  vi.spyOn(secretsStore, "sameRecordContent").mockReturnValue(true);
+  vi.spyOn(secretsStore, "sealRecord").mockImplementation(
+    ({ encryptedData, encryptionNonce, keyVersion }) => ({
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: 1,
+      keyVersion,
+    }),
+  );
   trpcClient.record.sync.query.mockResolvedValue({
     records: [],
     vaults: [],
@@ -205,6 +217,7 @@ describe("StoreProvider sync", () => {
       keyVersion: 1,
       clientUpdatedAt: "2026-10-05T00:00:00.000Z",
       deleted_at: null,
+      syncState: "pending" as const,
     };
     const deletedAt = "2026-10-05T00:00:00.000Z";
     const versions = [
@@ -234,18 +247,19 @@ describe("StoreProvider sync", () => {
     renderWithProviders(ui("online"));
 
     await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
-    const { clientUpdatedAt, encryptedData, encryptionNonce, cryptoVersion, keyVersion } = row;
+    const { clientUpdatedAt, encryptedData, encryptionNonce, keyVersion } = row;
     const common = { recordId: "r1", vaultId: "v1", clientUpdatedAt };
-    const ciphertext = { encryptedData, encryptionNonce, cryptoVersion, keyVersion };
+    // Sealed as itself by the stub.
+    const ciphertext = { encryptedData, encryptionNonce, cryptoVersion: 1, keyVersion };
     expect(trpcClient.record.push.mutate).toHaveBeenCalledExactlyOnceWith({
       changes: [
         { ...common, ...ciphertext, op: "put", clientChangeId: "c1", baseVersion: 0 },
         { ...common, ...ciphertext, op: "put", clientChangeId: "c2", baseVersion: 1 },
-        { ...common, op: "delete", clientChangeId: "c3", baseVersion: 2 },
+        { ...common, ...ciphertext, op: "delete", clientChangeId: "c3", baseVersion: 2 },
       ],
     });
     expect(vault.ackPendingChange.mock.calls).toEqual(
-      versions.map((record, i) => [`c${i + 1}`, record]),
+      versions.map((record, i) => [`c${i + 1}`, record, { isSealed: expect.any(Function) }]),
     );
   });
 
@@ -271,6 +285,7 @@ describe("StoreProvider sync", () => {
             keyVersion: 1,
             clientUpdatedAt: "2026-10-05T00:00:00.000Z",
             version: 1,
+            syncState: "pending",
           },
         },
       ]);
@@ -305,6 +320,7 @@ describe("StoreProvider sync", () => {
       keyVersion: 1,
       clientUpdatedAt: "2026-10-05T00:00:00.000Z",
       version: 1,
+      syncState: "pending" as const,
     };
     vault.getPendingChanges.mockResolvedValueOnce([
       { changeId: "c1", attempts: 0, lastError: null, parkedAt: null, record },

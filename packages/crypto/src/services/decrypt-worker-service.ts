@@ -50,16 +50,8 @@ class DecryptWorkerService {
     );
   }
 
-  /**
-   * The parsed JSON payload, unchecked: the caller upgrades and types it.
-   * `keyVersion`: the vault key version the ciphertext is encrypted with.
-   */
-  decrypt(
-    context: RecordCipherContext,
-    keyVersion: number,
-    encryptedData: string,
-    nonce: string,
-  ): Promise<unknown> {
+  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
+  decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     const id = this.createRequestId();
     return new Promise((resolve, reject) => {
       this.pending.set(id, { resolve, reject });
@@ -67,7 +59,6 @@ class DecryptWorkerService {
         type: "decrypt",
         id,
         context,
-        keyVersion,
         encryptedData,
         nonce,
       });

@@ -1,4 +1,4 @@
-import type { EncryptedRecordSchema, RecordData } from "@repo/schema";
+import type { RecordData } from "@repo/schema";
 import {
   type LocalRecordChange,
   type LocalRecordVersion,
@@ -31,12 +31,12 @@ export class RecordRepository {
   }
 
   /** The current records of one vault, or of all vaults. */
-  async getAll(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+  async getAll(vaultId?: string): Promise<LocalRecordVersion[]> {
     return await this.vault.getAllLatest(vaultId);
   }
 
   /** The records in the trash (deleted, not moved or purged), as their tombstones. */
-  async getDeleted(vaultId?: string): Promise<EncryptedRecordSchema[]> {
+  async getDeleted(vaultId?: string): Promise<LocalRecordVersion[]> {
     return await this.vault.getDeletedRecords(vaultId);
   }
 
@@ -46,7 +46,7 @@ export class RecordRepository {
   }
 
   /** The latest version of a record, a tombstone included. */
-  async getById(recordId: string): Promise<EncryptedRecordSchema | undefined> {
+  async getById(recordId: string): Promise<LocalRecordVersion | undefined> {
     return await this.vault.getByRecordId(recordId);
   }
 
@@ -59,7 +59,7 @@ export class RecordRepository {
   async create(
     data: RecordData,
     vaultId = secretsStore.defaultVaultId,
-  ): Promise<EncryptedRecordSchema> {
+  ): Promise<LocalRecordVersion> {
     if (!vaultId) throw new Error("Vault is locked");
     const recordId = crypto.randomUUID();
     const [created] = await this.write([
@@ -69,7 +69,7 @@ export class RecordRepository {
   }
 
   /** `data` as the next version of the record, in the vault it lives in. */
-  async update(record: RecordRef, data: RecordData): Promise<EncryptedRecordSchema> {
+  async update(record: RecordRef, data: RecordData): Promise<LocalRecordVersion> {
     const [updated] = await this.updateMany([{ record, data }]);
     return updated!;
   }
@@ -77,7 +77,7 @@ export class RecordRepository {
   /** Several records' next versions, written in one transaction. */
   async updateMany(
     updates: readonly { record: RecordRef; data: RecordData }[],
-  ): Promise<EncryptedRecordSchema[]> {
+  ): Promise<LocalRecordVersion[]> {
     if (updates.length === 0) return [];
     const changes: LocalRecordChange[] = [];
     for (const { record, data } of updates) {
@@ -97,7 +97,7 @@ export class RecordRepository {
    * Take a record out of the trash: `data` (its tombstone's content) as its
    * next version, encrypted under the vault's current key.
    */
-  async restore(record: RecordRef, data: RecordData): Promise<EncryptedRecordSchema> {
+  async restore(record: RecordRef, data: RecordData): Promise<LocalRecordVersion> {
     return await this.update(record, data);
   }
 
@@ -117,7 +117,7 @@ export class RecordRepository {
     record: RecordRef,
     data: RecordData,
     targetVaultId: string,
-  ): Promise<EncryptedRecordSchema> {
+  ): Promise<LocalRecordVersion> {
     if (targetVaultId === record.vaultId) throw new Error("The record is already in this vault");
     const recordId = crypto.randomUUID();
     const [moved] = await this.write([
@@ -135,7 +135,7 @@ export class RecordRepository {
    * A password keeps the date its backup gives it; an overwrite that leaves the password as
    * it is keeps the stored date. `at` dates the written versions (default: now).
    */
-  async writeImport(entries: readonly ImportEntry[], at = now()): Promise<EncryptedRecordSchema[]> {
+  async writeImport(entries: readonly ImportEntry[], at = now()): Promise<LocalRecordVersion[]> {
     if (entries.length === 0) return [];
     const changes: LocalRecordChange[] = [];
     for (const { kind, data, ...ref } of entries) {
@@ -152,7 +152,7 @@ export class RecordRepository {
     return { ...ref, ...encryptRecord(data, ref), clientUpdatedAt: at };
   }
 
-  private async write(changes: LocalRecordChange[], at?: string): Promise<EncryptedRecordSchema[]> {
+  private async write(changes: LocalRecordChange[], at?: string): Promise<LocalRecordVersion[]> {
     const written = await this.vault.writeLocalChanges(changes, at);
     this.onWrite();
     return written;
@@ -196,7 +196,7 @@ function stampChangedPassword(
 }
 
 /** A head that doesn't open (or is in an unknown format) counts as a changed password. */
-function decryptHead(row: EncryptedRecordSchema): RecordData | undefined {
+function decryptHead(row: LocalRecordVersion): RecordData | undefined {
   try {
     return decryptRecord(row);
   } catch {

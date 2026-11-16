@@ -22,14 +22,3 @@ export function serializeRecord(record: RecordType) {
     deleted_at: deleted_at?.toISOString() ?? null,
   };
 }
-
-/**
- * A version as a push answers it: a tombstone without the ciphertext it
- * copied, so repeating a large record costs no response bytes.
- */
-export function serializePushed(record: RecordType) {
-  const serialized = serializeRecord(record);
-  if (!record.deleted_at || record.tombstoneKind === "purged") return serialized;
-  const { encryptedData: _encryptedData, encryptionNonce: _encryptionNonce, ...meta } = serialized;
-  return meta;
-}

@@ -16,7 +16,6 @@ self.onmessage = (event: MessageEvent) => {
         type: "decrypt";
         id: string;
         context: RecordCipherContext;
-        keyVersion: number;
         encryptedData: string;
         nonce: string;
       }
@@ -34,7 +33,7 @@ self.onmessage = (event: MessageEvent) => {
   }
 
   if (msg.type === "decrypt") {
-    const key = vaultKeys.get(vaultKeyId(msg.context.vaultId, msg.keyVersion));
+    const key = vaultKeys.get(vaultKeyId(msg.context.vaultId, msg.context.keyVersion));
     if (!key) {
       self.postMessage({ type: "error", id: msg.id, message: "No key for vault" });
       return;

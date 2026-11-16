@@ -10,7 +10,8 @@ export type RevokedVault = {
   records: RevokedRecord[];
 };
 
-export type RevokedRecord = typeof revokedRecords.$inferSelect;
+/** An unsent version: a draft. */
+export type RevokedRecord = typeof revokedRecords.$inferSelect & { syncState: "pending" };
 
 export async function clearRevokedTables(db: LocalDb) {
   await db.delete(revokedRecords);
@@ -80,7 +81,9 @@ export async function getRevokedVaults(db: LocalDb): Promise<RevokedVault[]> {
   return vaults.map(({ revokedAt, ...vault }) => ({
     vault,
     revokedAt,
-    records: rows.filter((row) => row.vaultId === vault.vaultId),
+    records: rows
+      .filter((row) => row.vaultId === vault.vaultId)
+      .map((row) => ({ ...row, syncState: "pending" as const })),
   }));
 }
 

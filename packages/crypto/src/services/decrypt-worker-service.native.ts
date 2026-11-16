@@ -14,13 +14,8 @@ class DecryptNativeService {
   }
 
   /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
-  decrypt(
-    context: RecordCipherContext,
-    keyVersion: number,
-    encryptedData: string,
-    nonce: string,
-  ): Promise<unknown> {
-    const key = this.vaultKeys.get(vaultKeyId(context.vaultId, keyVersion));
+  decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
+    const key = this.vaultKeys.get(vaultKeyId(context.vaultId, context.keyVersion));
     if (!key) return Promise.reject(new Error("No key for vault"));
     try {
       const bytes = decryptRecordData(key, context, encryptedData, nonce);
