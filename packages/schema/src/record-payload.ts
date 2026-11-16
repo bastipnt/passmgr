@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { MAX_ENCRYPTED_RECORD_LENGTH } from "./record-limits";
-import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
+import { hasRecordStructure, RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
 import { vaultKeyUpdateSchema } from "./sharing-schema";
 import { memberVaultSchema } from "./vault-schema";
 
@@ -174,6 +174,16 @@ export class UnknownRecordTypeError extends Error {
   }
 }
 
+export class InvalidRecordPayloadError extends Error {
+  readonly recordType: unknown;
+
+  constructor(recordType: unknown) {
+    super(`Malformed ${String(recordType)} record payload`);
+    this.name = "InvalidRecordPayloadError";
+    this.recordType = recordType;
+  }
+}
+
 /**
  * Bring a freshly decrypted payload up to the current format (ADR 0001 D4).
  * Upgrades run lazily on the client: in memory on decrypt, written back in the
@@ -181,10 +191,12 @@ export class UnknownRecordTypeError extends Error {
  * is nothing to upgrade yet. A payload from a newer client is rejected rather
  * than shown half-understood, where an edit would drop its unknown fields.
  *
- * The record type is checked too: everything that renders a record switches
- * on it, and any vault member with write access can author a payload. A
- * rejected record takes the same path as one that fails to decrypt (skipped).
- * Fields are not validated here; that would cost a schema parse per record.
+ * The record type and the kind of every field are checked too
+ * (`hasRecordStructure`): any vault member with write access can author a
+ * payload, and one without a title or with `tags: 5` would break sorting,
+ * search and export on every member's device. A rejected record takes the
+ * same path as one that fails to decrypt (skipped). Field content (lengths,
+ * URLs) is not validated: a record a form would refuse still opens.
  */
 export function upgradeRecordPayload(payload: unknown): RecordPayload {
   const { schemaVersion, type } = (payload ?? {}) as { schemaVersion?: unknown; type?: unknown };
@@ -192,6 +204,7 @@ export function upgradeRecordPayload(payload: unknown): RecordPayload {
     throw new UnsupportedSchemaVersionError(schemaVersion);
   }
   if (!RECORD_TYPES.includes(type as RecordType)) throw new UnknownRecordTypeError(type);
+  if (!hasRecordStructure(payload)) throw new InvalidRecordPayloadError(type);
   return payload as RecordPayload;
 }
 

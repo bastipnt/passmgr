@@ -8,6 +8,7 @@ import {
 } from "../src/record-limits";
 import {
   CURRENT_SCHEMA_VERSION,
+  InvalidRecordPayloadError,
   type RecordPayload,
   UnknownRecordTypeError,
   UnsupportedSchemaVersionError,
@@ -176,6 +177,44 @@ describe("upgradeRecordPayload", () => {
     ],
   ])("rejects a payload with %s", (_label, payload) => {
     expect(() => upgradeRecordPayload(payload)).toThrow(UnknownRecordTypeError);
+  });
+
+  it.each([
+    ["no title", { type: "login" }],
+    ["a numeric title", { type: "login", title: 5 }],
+    ["tags that aren't an array", { ...MIN_LOGIN, tags: 5 }],
+    ["a tag that isn't a string", { ...MIN_LOGIN, tags: [1] }],
+    ["custom fields that aren't an array", { ...MIN_LOGIN, customFields: "x" }],
+    [
+      "a custom field without a value",
+      { ...MIN_LOGIN, customFields: [{ type: "text", title: "a" }] },
+    ],
+    ["a website value that isn't a string", { ...MIN_LOGIN, websites: [{ value: 3 }] }],
+    ["websites that aren't objects", { ...MIN_LOGIN, websites: ["example.com"] }],
+    ["a numeric note", { ...MIN_LOGIN, note: 5 }],
+    ["a numeric username", { ...MIN_LOGIN, username: 5 }],
+    ["a string favorite", { ...MIN_LOGIN, favorite: "yes" }],
+    ["a numeric wifi security", { type: "wifi", title: "x", security: 2 }],
+  ])("rejects a payload with %s", (_label, data) => {
+    const payload = { schemaVersion: CURRENT_SCHEMA_VERSION, ...data };
+    expect(() => upgradeRecordPayload(payload)).toThrow(InvalidRecordPayloadError);
+  });
+
+  it("opens a record whose content a form would refuse", () => {
+    const payload = {
+      schemaVersion: CURRENT_SCHEMA_VERSION,
+      ...MIN_LOGIN,
+      title: "x".repeat(MAX_TITLE_LENGTH + 1),
+      websites: [{ value: "not a url" }],
+      customFields: [{ type: "url", title: "", value: "" }],
+      fromANewerField: { kept: true },
+    };
+    expect(upgradeRecordPayload(payload)).toBe(payload);
+  });
+
+  it.each(RECORD_TYPES)("opens a fully populated %s record", (type) => {
+    const payload = { schemaVersion: CURRENT_SCHEMA_VERSION, ...RECORDS[type] };
+    expect(upgradeRecordPayload(payload)).toBe(payload);
   });
 });
 

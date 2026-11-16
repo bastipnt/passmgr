@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { CURRENT_SCHEMA_VERSION } from "./record-payload";
-import { RECORD_TYPES, type RecordData, type RecordType } from "./record-types";
+import type { RecordData } from "./record-types";
 import { passwordSchema } from "./user/password-schema";
 import { vaultKindSchema } from "./vault-schema";
 
@@ -30,20 +30,15 @@ export type ExportRecord = RecordData & {
 };
 
 /**
- * What reading an export checks per record: where it belongs and its type.
- * Deliberately not the record fields (`recordDataSchema`): records aren't
- * validated field by field when written (`upgradeRecordPayload`), so the vault
- * may hold one an edit form would reject (an odd URL, an empty custom field).
- * One such record must not make the whole backup unreadable. Every field is
- * kept as written.
+ * What reading an export checks per record: where it belongs. The record itself
+ * is checked one by one on import (`hasRecordStructure`, a malformed one is
+ * skipped), never by field content (`recordDataSchema`): one bad record, or one
+ * an edit form would reject (an odd URL, an empty custom field), must not make
+ * the whole backup unreadable. Every field is kept as written.
  */
 export const exportRecordSchema = z.looseObject({
   id: z.uuid(),
   vaultId: z.uuid(),
-  type: z.string().refine((type) => RECORD_TYPES.includes(type as RecordType), {
-    message: "Unknown record type",
-  }),
-  title: z.string(),
   createdAt: z.string().nullable(),
   updatedAt: z.string(),
 });

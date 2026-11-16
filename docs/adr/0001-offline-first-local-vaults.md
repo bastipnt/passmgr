@@ -224,7 +224,10 @@ can't be shared or rotated like any other vault.
 > decrypt worker returns raw JSON) and **rejects** an unknown `schemaVersion` rather than showing a
 > newer client's payload half-understood, where an edit would drop its unknown fields, and an
 > unknown `type` (any writing vault member can author payloads); rejected records are skipped like
-> undecryptable ones, in the list and in history.
+> undecryptable ones, in the list and in history. Since 2026-11 it also checks each field's kind
+> (`hasRecordStructure`: title a string, arrays arrays, …, not lengths or URLs), so a malformed
+> shared record can't break sort, search or export. Importing a backup (plain or encrypted) checks
+> the same structure per record and skips a malformed one, the rest of the file still imports.
 > `encryptRecord` always stamps the current version. Field specs are `getRecordFieldSpecs`
 > (`packages/client/src/records/record-field-specs.ts`): one table of fields per type, groups
 > `title | fields | websites | note | custom`, kinds generic (`text`, `secret`) next to the login

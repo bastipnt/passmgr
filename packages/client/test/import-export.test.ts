@@ -1,5 +1,10 @@
 import { getPasswordKekParams, retrievePRK, setPasswordKekParams } from "@repo/crypto";
-import type { ExportData, MemberVault, RecordData } from "@repo/schema";
+import {
+  type ExportData,
+  type MemberVault,
+  type RecordData,
+  upgradeRecordPayload,
+} from "@repo/schema";
 import { secretsStore, Vault } from "@repo/store";
 import { createTestDriver } from "@repo/store/testing";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -114,9 +119,44 @@ describe("readExportFile", () => {
       expect(() => readExportFile(file)).toThrow(InvalidExportFileError);
     },
   );
+
+  it("leaves a record with a malformed payload out of the export, sorting the rest", async () => {
+    await repository.create(login("Bank"));
+    await repository.create(login("Mail"));
+    const { data, skipped } = await collectExportData(vault, async (row) => {
+      const payload = decryptRecord(row);
+      return payload.title === "Bank"
+        ? upgradeRecordPayload({ ...payload, title: undefined })
+        : payload;
+    });
+    expect(skipped).toBe(1);
+    expect(data.records.map((r) => r.title)).toEqual(["Mail"]);
+  });
 });
 
 describe("importExportData", () => {
+  it.each([
+    ["no title", { title: undefined }],
+    ["tags that aren't an array", { tags: 5 }],
+    ["an unknown type", { type: "wallet" }],
+  ])("skips a file record with %s and imports the rest", async (_label, change) => {
+    await repository.create(login("Bank"));
+    await repository.create(login("Mail"));
+    const data = await exported();
+    const file = exportToJson({
+      ...data,
+      records: data.records.map((r) => (r.title === "Bank" ? { ...r, ...change } : r)),
+    } as ExportData);
+    await vault.destroy();
+    vault = new Vault(createTestDriver());
+    repository = new RecordRepository(vault);
+
+    const read = readExportFile(file);
+    if (read.encrypted) throw new Error("expected a plain file");
+    expect(await runImport(read.data, options())).toEqual({ created: 1, updated: 0, skipped: 1 });
+    expect(await contents(personalId)).toEqual(["Mail:secret"]);
+  });
+
   it("round-trips an export into an empty vault, keeping ids and vaults", async () => {
     const mail = await repository.create({
       ...login("Mail"),
