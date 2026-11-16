@@ -1,10 +1,11 @@
-import type {
-  ExportData,
-  ExportRecord,
-  ExportVault,
-  MemberVault,
-  RecordData,
-  RecordPayload,
+import {
+  type ExportData,
+  type ExportRecord,
+  type ExportVault,
+  hasRecordStructure,
+  type MemberVault,
+  type RecordData,
+  type RecordPayload,
 } from "@repo/schema";
 import type { LocalRecordVersion } from "@repo/store";
 import { monitoredPassword } from "../records/password-health";
@@ -132,6 +133,10 @@ export function planImport(
   let skipped = 0;
 
   for (const record of data.records) {
+    if (!hasRecordStructure(record)) {
+      skipped++;
+      continue;
+    }
     const vaultId = options.vaultMap[record.vaultId] ?? options.fallbackVaultId;
     const recordData = importRecordData(record);
     const origin = originId(record);

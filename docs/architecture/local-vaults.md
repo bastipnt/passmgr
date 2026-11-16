@@ -20,7 +20,8 @@ Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`re
 `openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
 `RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
 it came from; an id already there (live or deleted) → skip / overwrite (new version, revives a deleted one; unchanged
-content writes nothing) / keep both. Restore or import (`useRestoreBackup`, web `/restore`; the file opened by
+content writes nothing) / keep both. A file record without the structure a decrypted payload must have
+(`hasRecordStructure`: title a string, arrays arrays, …) is skipped and counted, never the whole file. Restore or import (`useRestoreBackup`, web `/restore`; the file opened by
 `useOpenImportFile`): a backup or another manager's export (below) into a new local vault under a new master password,
 every record into its personal vault, all with new ids (a restored vault can be linked next to an account that still holds the originals). A backup's records remember the file id in their encrypted payload (`importedFrom`, `trackOrigin`): importing the file again, or a copy exported from them, matches on it (skip / overwrite / keep both), edited or not; found in memory by decrypting the target vault, nothing is hashed or stored beside the ciphertext. Mobile has no export / import UI yet.
 Import from other managers (`packages/client/src/import/`, same web Import dialog): `readImportFile` detects by content

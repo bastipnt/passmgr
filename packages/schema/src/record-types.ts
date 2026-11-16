@@ -166,6 +166,52 @@ export const RECORD_TYPES: readonly RecordType[] = recordDataSchema.options.map(
   (option) => option.shape.type.value,
 );
 
+/** The same fields and kinds as `schema`, without the content checks (lengths, URLs, enum values). */
+function structureOf(schema: z.ZodType): z.ZodType {
+  switch (schema.def.type) {
+    case "optional":
+      return structureOf((schema as z.ZodOptional).unwrap() as z.ZodType).optional();
+    case "string":
+    case "enum":
+      return z.string();
+    case "array":
+      return z.array(structureOf((schema as z.ZodArray).element as z.ZodType));
+    case "union":
+      return z.union((schema as z.ZodUnion).options.map((o) => structureOf(o as z.ZodType)));
+    case "object":
+      return z.looseObject(
+        Object.fromEntries(
+          Object.entries((schema as z.ZodObject).shape).map(([key, field]) => [
+            key,
+            structureOf(field as z.ZodType),
+          ]),
+        ),
+      );
+    case "boolean":
+    case "literal":
+    case "never":
+      return schema;
+    default:
+      throw new Error(`structureOf: no structure for a ${schema.def.type} field`);
+  }
+}
+
+const recordStructures = new Map<string, z.ZodType>(
+  recordDataSchema.options.map((option) => [option.shape.type.value, structureOf(option)]),
+);
+
+/**
+ * Whether `value` is a record of a known type whose fields all have their kind
+ * (strings are strings, arrays arrays, …): what reading every record assumes.
+ * Looser than `recordDataSchema` on purpose: a stored record may hold content a
+ * form would refuse (an odd URL, a long title), any client may have written it.
+ */
+export function hasRecordStructure(value: unknown): value is RecordData {
+  const type = (value as { type?: unknown } | null)?.type;
+  const structure = typeof type === "string" ? recordStructures.get(type) : undefined;
+  return structure?.safeParse(value).success ?? false;
+}
+
 /** Narrow a record (or anything carrying its payload) to one type. */
 export function isRecordType<R extends { type: RecordType }, T extends RecordType>(
   record: R,
