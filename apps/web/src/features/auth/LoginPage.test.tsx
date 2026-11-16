@@ -9,7 +9,14 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "@repo/client/src/login";
-import { deriveOpaquePassword, getPasswordKekParams } from "@repo/crypto";
+import {
+  createUserKeyPair,
+  deriveOpaquePassword,
+  genKey,
+  getPasswordKekParams,
+  wrapAccountKey,
+  wrapVaultKey,
+} from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
@@ -26,13 +33,16 @@ import AccountLoginPage from "./AccountLoginPage";
 import LoginPage from "./LoginPage";
 
 // Real `useUnlock` / `useLogin`; only the layers below them are replaced.
+// The Argon2 mock derives an all-zero KEK.
+const accountKey = genKey();
+const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(
+  new Uint8Array(32),
+  accountKey,
+);
 const personalVault: MemberVault = {
-  vaultId: "0199a3c4-0000-7000-8000-00000000000a",
+  ...wrapVaultKey(accountKey, genKey(), "0199a3c4-0000-7000-8000-00000000000a", 1),
   kind: "personal",
-  keyVersion: 1,
   role: "owner",
-  encryptedVaultKey: "AAAA",
-  vaultKeyEncryptionNonce: "AAAA",
   encryptedMeta: "AAAA",
   metaEncryptionNonce: "AAAA",
   previousKeys: [],
@@ -48,14 +58,9 @@ const linkedProfile = {
 const accountKeyMaterial = {
   passwordKekParams: getPasswordKekParams(),
   passwordKekSalt: "AAAAAAAAAAAAAAAAAAAAAA==",
-  encryptedAccountKey: "AAAA",
-  accountKeyEncryptionNonce: "AAAA",
-  userKeyPair: {
-    keyVersion: 1,
-    publicKey: "AAAA",
-    encryptedPrivateKey: "AAAA",
-    privateKeyEncryptionNonce: "AAAA",
-  },
+  encryptedAccountKey,
+  accountKeyEncryptionNonce,
+  userKeyPair: createUserKeyPair(accountKey),
 };
 
 const store = createFakeStore();
@@ -91,6 +96,7 @@ vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
 }));
 
 const unlockVault = vi.fn();
+const unlockWithAccountKey = vi.fn();
 const attachServer = vi.fn(async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
   await secretsStore.unlockSession(sessionId, sessionKey, salt);
 });
@@ -105,7 +111,7 @@ const session: ContextType<typeof SessionContext> = {
   linkServer: vi.fn(),
   restoreLogin: vi.fn(),
   unlockVault,
-  unlockWithAccountKey: vi.fn(),
+  unlockWithAccountKey,
   signRequest: vi.fn(),
   lock,
 };
@@ -191,6 +197,7 @@ function resetMocks() {
   vi.spyOn(secretsStore, "keepOpaquePassword");
   // `unlockVault` is a mock: let the background connect see an unlocked vault.
   vi.spyOn(secretsStore, "isVaultUnlocked", "get").mockReturnValue(true);
+  vi.spyOn(secretsStore, "exportAccountKey").mockImplementation(() => accountKey.slice());
   vi.spyOn(secretsStore, "exportVaultKeysForWorker").mockReturnValue(new Map());
 }
 
@@ -291,7 +298,7 @@ describe("LoginPage stored vault", () => {
     renderPage({ networkOffline: false });
     await unlockStored("other account's password");
 
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
     expect(store.profile?.userId).toBe("user-someone-else");
     // The profile that was picked stays on the device as it is.
     expect(store.profiles.map((p) => p.profileId)).toContain(linkedProfile.profileId);
@@ -308,13 +315,14 @@ describe("LoginPage stored vault", () => {
     renderPage({ networkOffline: false });
     await unlockStored("new password");
 
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
     // The server's (newer) key material replaces the profile's local copy.
     expect(store.openAccountProfile).toHaveBeenCalledWith(
       { userId: linkedProfile.userId, email: "alice@example.com" },
       accountKeyMaterial,
       [personalVault],
       null,
+      expect.any(Uint8Array),
     );
     expect(store.profile?.profileId).toBe(linkedProfile.profileId);
     expect(screen.queryByText(/check your email and password/i)).not.toBeInTheDocument();
@@ -374,7 +382,7 @@ describe("AccountLoginPage online", () => {
     renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
 
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
     expect(store.openAccountProfile.mock.calls[0]?.[0]).toEqual({
       userId: "user-bob",
       email: "alice@example.com",
@@ -453,7 +461,7 @@ describe("two-factor", () => {
     await userEvent.type(code, "123456");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
 
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
     expect(screen.queryByLabelText("Authentication code")).toBeNull();
   });
 
@@ -468,7 +476,7 @@ describe("two-factor", () => {
 
     await userEvent.type(screen.getByLabelText("Authentication code"), "123456");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
   });
 
   it("takes a backup code", async () => {
@@ -479,7 +487,7 @@ describe("two-factor", () => {
     await userEvent.click(await screen.findByRole("button", { name: "Use a backup code" }));
     await userEvent.type(screen.getByLabelText("Backup code"), "abcde-fghjk");
     await userEvent.click(screen.getByRole("button", { name: "Verify" }));
-    await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(unlockWithAccountKey).toHaveBeenCalledTimes(1));
   });
 
   it("cancelling goes back to the form without an error", async () => {
@@ -492,7 +500,7 @@ describe("two-factor", () => {
 
     await waitFor(() => expect(screen.getByLabelText("Password")).toBeVisible());
     expect(screen.queryByText(/check your email and password/i)).toBeNull();
-    expect(unlockVault).not.toHaveBeenCalled();
+    expect(unlockWithAccountKey).not.toHaveBeenCalled();
   });
 
   it("closing the code prompt of the unlock's server fallback is no wrong password", async () => {

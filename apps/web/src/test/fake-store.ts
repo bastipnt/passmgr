@@ -1,4 +1,5 @@
 import type { ActiveProfile } from "@repo/client";
+import { verifyServerKeyring } from "@repo/client/src/account/verify-server-keyring";
 import type { BiometricKeyMaterial } from "@repo/crypto";
 import type {
   AccountKeyMaterial,
@@ -128,9 +129,11 @@ export function createFakeStore() {
       async (
         account: { userId: string; email: string },
         material: AccountKeyMaterial,
-        _vaults: readonly MemberVault[],
+        vaults: readonly MemberVault[],
         _recoveryWrap: RecoveryWrapSchema | null,
+        accountKey: Uint8Array,
       ) => {
+        verifyServerKeyring(accountKey, { userKeyPair: material.userKeyPair, vaultKeys: vaults });
         const existing = store.profiles.find((p) => p.userId === account.userId);
         const profile: LocalProfile = {
           profileId: existing?.profileId ?? `profile-${account.userId}`,

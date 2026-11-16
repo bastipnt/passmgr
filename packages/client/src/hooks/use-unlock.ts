@@ -1,4 +1,10 @@
-import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
+import {
+  authenticateBiometric,
+  deriveOpaquePassword,
+  normalizeEmail,
+  unwrapAccountKey,
+  wipe,
+} from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -44,15 +50,24 @@ export function useUnlock() {
    * D2), derive the password KEK, unwrap the account key and with it the vault
    * keys. Other profiles are never touched. Resolves `false` on a wrong
    * password (or a vault key that doesn't open), with the server session
-   * revoked again.
+   * revoked again and nothing stored.
    */
   async function unlock(info: VaultUnlockInfo): Promise<boolean> {
     setUnlockError(undefined);
     const { password, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } = info;
 
-    let passwordKek: Uint8Array;
+    let accountKey: Uint8Array;
     try {
-      passwordKek = await derivePasswordKek(password, userPasswordKeys);
+      const passwordKek = await derivePasswordKek(password, userPasswordKeys);
+      try {
+        accountKey = unwrapAccountKey(
+          passwordKek,
+          userPasswordKeys.encryptedAccountKey,
+          userPasswordKeys.accountKeyEncryptionNonce,
+        );
+      } finally {
+        wipe(passwordKek);
+      }
     } catch (e) {
       logError("Vault unlock failed", e);
       await failUnlock("failed");
@@ -67,23 +82,17 @@ export function useUnlock() {
         material,
         vaultKeys,
         recoveryKeys,
+        accountKey,
       );
     } catch (e) {
       logError("Opening the account's profile failed", e);
-      wipe(passwordKek);
+      wipe(accountKey);
       await failUnlock("failed");
       return false;
     }
 
     try {
-      unlockVault(
-        "linked",
-        passwordKek,
-        userPasswordKeys.encryptedAccountKey,
-        userPasswordKeys.accountKeyEncryptionNonce,
-        vaultKeys,
-        userKeyPair,
-      );
+      unlockWithAccountKey("linked", accountKey, vaultKeys, userKeyPair);
     } catch (e) {
       // A vault key or keypair that doesn't open with the account key.
       logError("Vault unlock failed", e);

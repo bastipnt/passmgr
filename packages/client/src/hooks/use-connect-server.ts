@@ -1,8 +1,9 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
-import type { PendingRecovery } from "@repo/schema";
+import type { AccountKeyMaterial, MemberVault, PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
 import { rekeyIfBelowFloor } from "../account/rekey-password-keys";
+import { reconnectKeyMaterial, ServerKeyringMismatchError } from "../account/verify-server-keyring";
 import { logError } from "../errors/log-error";
 import {
   type AccountLogin,
@@ -127,18 +128,22 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     epoch: number,
   ): Promise<ConnectResult> {
     try {
-      const { result, profileId, info } = await attach(async (session, email, ask) => {
-        const opaquePassword =
-          typeof credential === "string"
-            ? await deriveOpaquePassword(credential, email)
-            : credential;
-        try {
-          await finishPendingReset(email, opaquePassword);
-          return await loginWithOpaquePassword(trpc, session, email, opaquePassword, ask);
-        } finally {
-          wipe(opaquePassword);
-        }
-      }, epoch);
+      const { result, profileId, info } = await attach(
+        async (session, email, ask) => {
+          const opaquePassword =
+            typeof credential === "string"
+              ? await deriveOpaquePassword(credential, email)
+              : credential;
+          try {
+            await finishPendingReset(email, opaquePassword);
+            return await loginWithOpaquePassword(trpc, session, email, opaquePassword, ask);
+          } finally {
+            wipe(opaquePassword);
+          }
+        },
+        epoch,
+        typeof credential === "string" ? credential : undefined,
+      );
       if (result === "online" && typeof credential === "string" && profileId && info)
         void rekeyAfterConnect(profileId, credential, info);
       return result;
@@ -147,9 +152,11 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     }
   }
 
+  /** `password`: the typed one, which can check a password wrap that changed on the server. */
   async function attach(
     login: ServerLogin,
     epoch: number,
+    password?: string,
   ): Promise<{ result: ConnectResult; profileId?: string; info?: AccountLogin }> {
     if (!stillUnlocked(epoch)) return { result: "cancelled" };
     if (secretsStore.hasServerSession) return { result: "online" };
@@ -157,6 +164,11 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     const active = storeRef.current.current();
     const profile = active?.profile;
     if (!active || profile?.mode !== "linked") return { result: "cancelled" };
+    const stored = active.accountKeyMaterial;
+    if (!stored) {
+      logError("The unlocked profile holds no key material to check the server's against");
+      return { result: "unreachable" };
+    }
     const { profileId } = active.entry;
 
     // Hold the session back until it's checked. A session that is never
@@ -185,9 +197,23 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     // Re-check: the vault may have been locked during the login.
     if (!stillUnlocked(epoch)) return { result: "cancelled" };
 
+    let material: AccountKeyMaterial;
+    let cachedVaults: MemberVault[];
     try {
-      const material = { ...info.userPasswordKeys, userKeyPair: info.userKeyPair };
-      const cachedVaults = await active.vault.getVaults();
+      cachedVaults = await active.vault.getVaults();
+      material = await checkedKeyMaterial(info, stored, password);
+    } catch (e) {
+      if (!stillUnlocked(epoch)) return { result: "cancelled" };
+      if (e instanceof ServerKeyringMismatchError) {
+        logError("The server's keys don't open this device's vault", e);
+        return { result: "rejected" };
+      }
+      logError("Checking the server's keys failed", e);
+      return { result: "unreachable" };
+    }
+    if (!stillUnlocked(epoch)) return { result: "cancelled" };
+
+    try {
       await storeRef.current.saveAccount(profileId, material, info.vaultKeys, {
         recoveryWrap: info.recoveryKeys,
       });
@@ -202,6 +228,23 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
 
     await persistSession(profileId);
     return { result: "online", profileId, info };
+  }
+
+  async function checkedKeyMaterial(
+    info: AccountLogin,
+    stored: AccountKeyMaterial,
+    password?: string,
+  ) {
+    const accountKey = secretsStore.exportAccountKey();
+    try {
+      return await reconnectKeyMaterial(
+        info,
+        { accountKey, stored, expected: secretsStore.keptPasswordKeys },
+        password,
+      );
+    } finally {
+      wipe(accountKey);
+    }
   }
 
   /**

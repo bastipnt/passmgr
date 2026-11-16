@@ -26,6 +26,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { verifyServerKeyring } from "../account/verify-server-keyring";
 import { logError } from "../errors/log-error";
 import { useLock } from "../hooks/use-lock";
 import { backupReminderSnoozedKey, biometricDismissedKey } from "../preferences/preference-keys";
@@ -105,12 +106,16 @@ type StoreContextValue = {
    * After an online login: open the account's profile (same `userId`), or add
    * one for an account this device hasn't seen, and store the account key wrap
    * and the vaults in it. Never touches another profile. Locked only.
+   * Throws, storing nothing, unless the keys belong to `accountKey` (the one
+   * `material` opened to) and, for a known profile, to its stored vaults
+   * (`verifyServerKeyring`).
    */
   openAccountProfile: (
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     recoveryWrap: RecoveryWrapSchema | null,
+    accountKey: Uint8Array,
   ) => Promise<ActiveProfile>;
   /**
    * Store the account key wrap and the vaults (and, when given, a changed
@@ -593,8 +598,9 @@ export function StoreProvider({
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     recoveryWrap: RecoveryWrapSchema | null,
+    accountKey: Uint8Array,
   ) {
-    return await switchLock(() => openAccount(account, material, vaults, recoveryWrap));
+    return await switchLock(() => openAccount(account, material, vaults, recoveryWrap, accountKey));
   }
 
   async function openAccount(
@@ -602,10 +608,16 @@ export function StoreProvider({
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
     recoveryWrap: RecoveryWrapSchema | null,
+    accountKey: Uint8Array,
   ) {
     assertLocked();
     const existing = await profiles.findByUserId(account.userId);
     if (existing) {
+      verifyServerKeyring(
+        accountKey,
+        { userKeyPair: material.userKeyPair, vaultKeys: vaults },
+        await profiles.withVault(existing.profileId, (v) => v.getVaults()),
+      );
       const opened = await activate(existing.profileId);
       const profile: LocalProfile = {
         profileId: existing.profileId,
@@ -621,6 +633,7 @@ export function StoreProvider({
       return requireActive({ current });
     }
 
+    verifyServerKeyring(accountKey, { userKeyPair: material.userKeyPair, vaultKeys: vaults });
     const profile: LocalProfile = {
       profileId: crypto.randomUUID(),
       mode: "linked",

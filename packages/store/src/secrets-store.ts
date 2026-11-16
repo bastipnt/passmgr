@@ -28,6 +28,7 @@ import {
   type EncryptedVaultMeta,
   type MemberKeySeal,
   type MemberVault,
+  type PasswordKeySchema,
   RECORD_CRYPTO_VERSION,
   type SealedPendingRecovery,
   type UserKeyPair,
@@ -104,6 +105,7 @@ class SecretsStore {
   // The plaintext password is never kept: this is `deriveOpaquePassword`'s
   // output, for reconnecting (and getting online for a biometric enrollment).
   private opaquePassword?: Uint8Array;
+  private opaquePasswordKeys?: PasswordKeySchema;
 
   // Bumped on every lock: work started before a lock (a background server
   // connect) compares it to tell that its unlock is gone.
@@ -302,11 +304,20 @@ class SecretsStore {
     this.setAccountKey(accountKey);
   }
 
-  /** Takes over the buffer. */
-  keepOpaquePassword(opaquePassword: Uint8Array) {
+  /**
+   * Takes over the buffer. `passwordKeys`: the password wrap this device made
+   * for it (a password change the server didn't confirm), which the reconnect
+   * may take from the server without the typed password.
+   */
+  keepOpaquePassword(opaquePassword: Uint8Array, passwordKeys?: PasswordKeySchema) {
     if (opaquePassword === this.opaquePassword) return;
     this.clearOpaquePassword();
     this.opaquePassword = opaquePassword;
+    this.opaquePasswordKeys = passwordKeys;
+  }
+
+  get keptPasswordKeys(): PasswordKeySchema | undefined {
+    return this.opaquePasswordKeys;
   }
 
   /** A copy, the caller wipes it: a lock wipes the kept one. */
@@ -321,6 +332,7 @@ class SecretsStore {
   clearOpaquePassword() {
     if (this.opaquePassword) wipe(this.opaquePassword);
     this.opaquePassword = undefined;
+    this.opaquePasswordKeys = undefined;
   }
 
   /** The serialized `PendingRecovery` (the caller wipes it). Throws while locked or when it doesn't open. */

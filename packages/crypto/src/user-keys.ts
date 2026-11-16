@@ -1,3 +1,4 @@
+import { equalBytes } from "@noble/ciphers/utils.js";
 import type {
   EncryptedVaultMeta,
   RecoveryKeySchema,
@@ -52,6 +53,11 @@ export function wrapAccountKey(
   accountKey: Uint8Array,
 ): [encryptedAccountKey: string, nonce: string] {
   return encryptXChaChaWithAAD(kek, accountKey, ACCOUNT_KEY_AAD);
+}
+
+/** Constant-time comparison of two account keys. */
+export function sameAccountKey(a: Uint8Array, b: Uint8Array): boolean {
+  return equalBytes(a, b);
 }
 
 /** Throws when the KEK doesn't match the wrap (AEAD tag failure). */

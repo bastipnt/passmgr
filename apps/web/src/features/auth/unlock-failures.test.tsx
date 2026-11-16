@@ -549,6 +549,7 @@ describe("useEnrollBiometric", () => {
     const { accountKey, wraps, userKeyPair } = keyring();
     session.unlockWithAccountKey("linked", accountKey, wraps, userKeyPair);
     store.vault.getVaults.mockResolvedValue(wraps);
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     if (online) await session.attachServer("sid", "session-key", new Uint8Array(32));
     return { wraps, userKeyPair };
   }
@@ -643,6 +644,7 @@ describe("useConnectServer", () => {
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadVaultKeys(wraps);
     store.vault.getVaults.mockResolvedValue(wraps);
+    store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
       await attach("live-session", "session-key", new Uint8Array(32));
       return {
@@ -682,6 +684,86 @@ describe("useConnectServer", () => {
       vi.mocked(session.attachServer).mock.invocationCallOrder[0] ?? 0,
     );
     expect(secretsStore.hasServerSession).toBe(true);
+  });
+
+  it("refuses keys that don't open this vault, storing nothing", async () => {
+    unlockedVault();
+    const foreign = keyring();
+    vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
+      await attach("live-session", "session-key", new Uint8Array(32));
+      return {
+        email: "alice@example.com",
+        userId: ALICE.userId,
+        password: "pw",
+        userPasswordKeys: passwordKeys,
+        recoveryKeys: null,
+        vaultKeys: foreign.wraps,
+        userKeyPair: foreign.userKeyPair,
+      };
+    });
+
+    expect(await connectOnce()).toBe("rejected");
+    expect(store.saveAccount).not.toHaveBeenCalled();
+    expect(session.attachServer).not.toHaveBeenCalled();
+  });
+
+  describe("a password wrap that changed on the server", () => {
+    function changedWrap(accountKey: Uint8Array) {
+      const kek = genKey();
+      vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
+      const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(kek, accountKey);
+      const changed = { ...passwordKeys, encryptedAccountKey, accountKeyEncryptionNonce };
+      const login = vi.mocked(loginUserCore).getMockImplementation()!;
+      vi.mocked(loginUserCore).mockImplementation(async (...args) => ({
+        ...(await login(...args)),
+        userPasswordKeys: changed,
+      }));
+      return changed;
+    }
+
+    it("is taken when it opens with the typed password to this vault's account key", async () => {
+      const { accountKey } = unlockedVault();
+      const changed = changedWrap(accountKey);
+
+      expect(await connectOnce()).toBe("online");
+      expect(store.saveAccount.mock.calls[0]?.[1]).toMatchObject(changed);
+    });
+
+    it("is refused when it opens to another account key", async () => {
+      unlockedVault();
+      changedWrap(genKey());
+
+      expect(await connectOnce()).toBe("rejected");
+      expect(store.saveAccount).not.toHaveBeenCalled();
+    });
+
+    it("is taken without the typed password when it is the one this device made", async () => {
+      const { accountKey } = unlockedVault();
+      const changed = changedWrap(accountKey);
+      const opaquePassword = genKey();
+      secretsStore.keepOpaquePassword(opaquePassword.slice(), changed);
+      const result = renderConnect();
+      let outcome: ConnectResult | undefined;
+      await act(async () => {
+        outcome = await result.current.connect(opaquePassword);
+      });
+
+      expect(outcome).toBe("online");
+      expect(store.saveAccount.mock.calls[0]?.[1]).toMatchObject(changed);
+    });
+
+    it("leaves the stored one in place without the typed password", async () => {
+      const { accountKey } = unlockedVault();
+      changedWrap(accountKey);
+      const result = renderConnect();
+      let outcome: ConnectResult | undefined;
+      await act(async () => {
+        outcome = await result.current.connect(genKey());
+      });
+
+      expect(outcome).toBe("online");
+      expect(store.saveAccount.mock.calls[0]?.[1]).toMatchObject(passwordKeys);
+    });
   });
 
   it("runs one OPAQUE login when the unlock and the auto-reconnect both connect", async () => {
@@ -925,6 +1007,7 @@ describe("unlock: which profile?", () => {
       { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
       keys.wraps,
       null,
+      expect.any(Uint8Array),
     );
     expect(store.profiles).toHaveLength(1);
     expect(secretsStore.isVaultUnlocked).toBe(true);
@@ -969,6 +1052,15 @@ describe("unlock: which profile?", () => {
     expect(error).toBe("failed");
     expect(trpcClient.login.logout.mutate).toHaveBeenCalledTimes(1);
     expect(secretsStore.hasServerSession).toBe(false);
+  });
+
+  it("stores nothing when the server's personal vault doesn't open with the password's account key", async () => {
+    const keys = account();
+    Object.assign(store, { profiles: [], profile: null });
+
+    expect((await unlockWith({ ...keys, wraps: keyring().wraps })).unlocked).toBe(false);
+    expect(store.profiles).toEqual([]);
+    expect(secretsStore.isVaultUnlocked).toBe(false);
   });
 
   it("stays locked when the keypair's public key isn't the one its private key proves", async () => {
