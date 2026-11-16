@@ -8,7 +8,6 @@ import {
   openPendingRecovery,
   sealPendingRecovery,
   unwrapAccountKeyWithRecoveryKey,
-  unwrapVaultKey,
   wipe,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
@@ -26,6 +25,7 @@ import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
 import { devicePasswordKekParams } from "./account/password-kek-params";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
+import { assertOpensPersonalVault } from "./account/verify-server-keyring";
 import { LoginThrottledError, LoginUnreachableError } from "./login";
 import {
   b64ToBytes,
@@ -315,10 +315,8 @@ async function rewrapOnDevice<T>(
     } catch {
       throw new RecoveryFailedError();
     }
-    const personal = vaults.find((v) => v.kind === "personal");
     try {
-      if (!personal) throw new Error("no personal vault");
-      wipe(unwrapVaultKey(accountKey, personal));
+      assertOpensPersonalVault(accountKey, vaults);
     } catch {
       throw new LocalRecoveryMismatchError();
     }

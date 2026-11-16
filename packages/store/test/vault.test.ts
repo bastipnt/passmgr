@@ -1050,6 +1050,18 @@ describe("vaults revoked with unsent changes (ADR 0001 D7)", () => {
     });
   });
 
+  it("a login's list leaving the vault out keeps it for the next sync, which keeps its unsent changes aside", async () => {
+    await vault.writeLocalChanges([change("update", "r-synced", "edited")]);
+
+    await vault.setAccountKeyMaterial(accountKey, [personal]);
+    expect(await vault.getPendingChanges()).toHaveLength(1);
+    await lose();
+
+    const revoked = await vault.getRevokedVaults();
+    expect(revoked.map((r) => r.vault)).toEqual([work]);
+    expect(revoked[0]?.records.map((r) => r.recordId)).toEqual(["r-synced"]);
+  });
+
   it("keeps the latest unsent version of each record next to the vault's row", async () => {
     await vault.writeLocalChanges([
       change("create", "r-new", "v1"),

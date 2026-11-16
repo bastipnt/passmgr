@@ -1,5 +1,5 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
-import type { AccountKeyMaterial } from "@repo/schema";
+import type { AccountKeyMaterial, PasswordKeySchema } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
 import {
@@ -122,7 +122,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
             );
     } catch (e) {
       if (e instanceof PasswordChangeUnconfirmedError && profile.mode === "linked")
-        return await confirmChange(active, profile.email, currentPassword, newPassword);
+        return await confirmChange(active, profile.email, currentPassword, newPassword, e.material);
       if (e instanceof WrongPasswordError) return "wrong_password";
       if (e instanceof LoginThrottledError) return "throttled";
       if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
@@ -156,6 +156,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     email: string,
     currentPassword: string,
     newPassword: string,
+    changed: AccountKeyMaterial,
   ): Promise<ChangePasswordError | undefined> {
     detachServer();
     const result = await connect(newPassword);
@@ -171,7 +172,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
       return "failed";
     }
     // Unknown: `useAutoReconnect` tries the new password once it can.
-    await keepForReconnect(email, newPassword);
+    await keepForReconnect(email, newPassword, changed);
     await persistSession(active.entry.profileId);
     return "unconfirmed";
   }
@@ -198,10 +199,15 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     if (result !== "online") await persistSession(active.entry.profileId);
   }
 
-  async function keepForReconnect(email: string, password: string) {
+  async function keepForReconnect(
+    email: string,
+    password: string,
+    passwordKeys?: PasswordKeySchema,
+  ) {
     const epoch = secretsStore.lockEpoch;
     const opaquePassword = await deriveOpaquePassword(password, email);
-    if (secretsStore.lockEpoch === epoch) secretsStore.keepOpaquePassword(opaquePassword);
+    if (secretsStore.lockEpoch === epoch)
+      secretsStore.keepOpaquePassword(opaquePassword, passwordKeys);
     else wipe(opaquePassword);
   }
 

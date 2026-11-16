@@ -1,6 +1,7 @@
 import { SessionContext, useStore } from "@repo/client";
 import { biometricDismissedKey } from "@repo/client/src/preferences/preference-keys";
 import { StoreProvider } from "@repo/client/src/providers/StoreProvider";
+import { createUserKeyPair, genKey, wrapVaultKey } from "@repo/crypto";
 import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import { type LocalProfile, ProfileStore, secretsStore } from "@repo/store";
 import { createTestDatabases } from "@repo/store/testing";
@@ -26,25 +27,18 @@ vi.mock("@repo/client/src/util/trpc", () => ({
 
 const b64 = (bytes: number) => toBase64(new Uint8Array(bytes).fill(1));
 
+const accountKey = genKey();
 const material: AccountKeyMaterial = {
   passwordKekParams: { t: 3, m: 65536, p: 4 },
   passwordKekSalt: b64(32),
   encryptedAccountKey: b64(48),
   accountKeyEncryptionNonce: b64(24),
-  userKeyPair: {
-    keyVersion: 1,
-    publicKey: b64(32),
-    encryptedPrivateKey: b64(48),
-    privateKeyEncryptionNonce: b64(24),
-  },
+  userKeyPair: createUserKeyPair(accountKey),
 };
 const personal: MemberVault = {
-  vaultId: "v-personal",
+  ...wrapVaultKey(accountKey, genKey(), "v-personal", 1),
   kind: "personal",
   role: "owner",
-  keyVersion: 1,
-  encryptedVaultKey: "enc",
-  vaultKeyEncryptionNonce: "nonce",
   encryptedMeta: "meta",
   metaEncryptionNonce: "mn",
   previousKeys: [],
@@ -254,12 +248,40 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         material,
         [personal],
         null,
+        accountKey,
       );
     });
 
     expect(store.active?.entry.profileId).toBe(ALICE.profileId);
     expect(databases.names()).toEqual(before);
     expect((await store.vault!.getAllLatest()).map((r) => r.recordId)).toEqual(["r-alice"]);
+  });
+
+  it("refuses a known account's profile for keys that don't open its stored vault: nothing stored", async () => {
+    await seed(ALICE, "r-alice");
+    await launch();
+    const otherKey = genKey();
+    const other: AccountKeyMaterial = {
+      ...material,
+      encryptedAccountKey: b64(64),
+      userKeyPair: createUserKeyPair(otherKey),
+    };
+    const otherPersonal = { ...personal, ...wrapVaultKey(otherKey, genKey(), "v-personal", 1) };
+
+    await act(async () => {
+      await expect(
+        store.openAccountProfile(
+          { userId: ALICE.userId, email: ALICE.email },
+          other,
+          [otherPersonal],
+          null,
+          otherKey,
+        ),
+      ).rejects.toThrow();
+    });
+
+    expect(await store.vault!.getAccountKeyMaterial()).toEqual(material);
+    expect(await store.vault!.getVaults()).toEqual([personal]);
   });
 
   it("adds a profile for an account new to this device, next to the others", async () => {
@@ -272,6 +294,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         material,
         [personal],
         null,
+        accountKey,
       );
     });
 
@@ -294,6 +317,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         material,
         [personal],
         null,
+        accountKey,
       );
     });
 
