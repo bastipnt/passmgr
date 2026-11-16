@@ -1,5 +1,5 @@
-import type { EncryptedRecordSchema, RecordData } from "@repo/schema";
-import type { RecordCiphertext, RecordConflict } from "@repo/store";
+import type { RecordData } from "@repo/schema";
+import type { LocalRecordVersion, RecordCiphertext, RecordConflict } from "@repo/store";
 import { decryptRecord } from "../util/decrypt-record";
 import { encryptRecord } from "../util/encrypt-record";
 import { type MergeVersion, mergeRecord, sameRecordData } from "./merge-record";
@@ -47,7 +47,7 @@ export function resolveRecordConflict({
   };
 }
 
-function mergeVersion(row: EncryptedRecordSchema, notAfter: string | undefined): MergeVersion {
+function mergeVersion(row: LocalRecordVersion, notAfter: string | undefined): MergeVersion {
   return {
     data: decryptData(row),
     editedAt:
@@ -56,7 +56,7 @@ function mergeVersion(row: EncryptedRecordSchema, notAfter: string | undefined):
   };
 }
 
-function decryptData(row: EncryptedRecordSchema): RecordData {
+function decryptData(row: LocalRecordVersion): RecordData {
   // Main thread on purpose: a conflict is a handful of rows, and a worker
   // round trip per version would only keep the applySync transaction open longer.
   const { schemaVersion: _schemaVersion, ...data } = decryptRecord(row);

@@ -7,11 +7,14 @@ import { memberVaultSchema } from "./vault-schema";
 /**
  * Why a record is gone without being in the trash: `moved` to another vault (a
  * new record there), or `purged` (permanently deleted: the server drops every
- * other version and keeps this one without content, so other devices drop
+ * other version and keeps this one with empty content, so other devices drop
  * theirs too).
  */
 export const tombstoneKindSchema = z.enum(["moved", "purged"]);
 export type TombstoneKind = z.infer<typeof tombstoneKindSchema>;
+
+/** The record ciphertext format (algorithm and AAD layout, `RecordCipherContext`). */
+export const RECORD_CRYPTO_VERSION = 1;
 
 export const encryptedRecordSchema = z.object({
   recordId: z.uuid(),
@@ -35,18 +38,11 @@ export type EncryptedRecordSchema = z.infer<typeof encryptedRecordSchema> & {
   firstCreatedAt?: string;
 };
 
-/**
- * A version as `record.push` answers it: a tombstone (not purged) comes without
- * its ciphertext, which the client already holds.
- */
-export const pushedRecordSchema = encryptedRecordSchema.extend({
-  encryptedData: z.string().optional(),
-  encryptionNonce: z.string().optional(),
-});
-export type PushedRecord = z.infer<typeof pushedRecordSchema>;
-
 /** The most changes one `record.push` takes; a client splits a longer outbox. */
 export const MAX_PUSH_CHANGES = 500;
+
+/** A sealed purge's ciphertext: empty content, only the AEAD tag (base64). */
+export const MAX_PURGE_SEAL_LENGTH = 64;
 
 const pushChangeBase = {
   // Client-generated, unique per record: a retry returns the version it stored (ADR 0001 D5).
@@ -63,24 +59,38 @@ const pushChangeBase = {
  * new ciphertext (restoring a deleted record); `delete` tombstones the record
  * (or purges it, `tombstoneKind`).
  */
+/** A pushed version's ciphertext: sealed for the version the change numbers (ADR 0001 D11). */
+const sealedCiphertext = {
+  encryptedData: z.string().max(MAX_ENCRYPTED_RECORD_LENGTH),
+  encryptionNonce: z.string().max(32),
+  cryptoVersion: z.literal(RECORD_CRYPTO_VERSION),
+  // Must be the vault's current key version: nothing new is written under a rotated-out key.
+  keyVersion: z.number().int().positive(),
+};
+
 export const pushChangeSchema = z.discriminatedUnion("op", [
   z.object({
     ...pushChangeBase,
+    ...sealedCiphertext,
     op: z.literal("put"),
     baseVersion: z.number().int().nonnegative(),
-    encryptedData: z.string().max(MAX_ENCRYPTED_RECORD_LENGTH),
-    encryptionNonce: z.string().max(32),
-    cryptoVersion: z.number().int().positive(),
-    // Must be the vault's current key version: nothing new is written under a rotated-out key.
-    keyVersion: z.number().int().positive(),
   }),
-  z.object({
-    ...pushChangeBase,
-    op: z.literal("delete"),
-    baseVersion: z.number().int().positive(),
-    // A plain delete when absent. `purged` deletes the record's history for good.
-    tombstoneKind: tombstoneKindSchema.optional(),
-  }),
+  z
+    .object({
+      ...pushChangeBase,
+      // The tombstone's own ciphertext, bound to its kind: the content it keeps,
+      // empty for a purge.
+      ...sealedCiphertext,
+      op: z.literal("delete"),
+      baseVersion: z.number().int().positive(),
+      // A plain delete when absent. `purged` deletes the record's history for good.
+      tombstoneKind: tombstoneKindSchema.optional(),
+    })
+    .refine(
+      ({ tombstoneKind, encryptedData }) =>
+        tombstoneKind !== "purged" || encryptedData.length <= MAX_PURGE_SEAL_LENGTH,
+      { message: "a purge carries no content" },
+    ),
 ]);
 
 export type PushChange = z.infer<typeof pushChangeSchema>;
@@ -103,12 +113,10 @@ export const pushInputSchema = z.object({
 /**
  * The answer for one change, never an error for the whole batch:
  * - `applied`: the server holds it (now, or from an earlier try); `record` is its copy.
- *   A delete the head already is (same tombstone kind) appends nothing: `record`
- *   is the head, so the client renumbers its chain.
  * - `stale`: the record moved on (`headVersion`); pull, merge and push again.
  * - `rejected`: it can never apply as sent (no write access, unknown record),
  *   or not under this key: `key_version`, encrypted with a key the vault no longer
- *   uses (rotated meanwhile); re-encrypt with the current one and push again.
+ *   uses (rotated meanwhile); seal under the current one and push again.
  *   `quota`: the vault owner's storage is full; deletes still apply up to a
  *   headroom past it, purges always.
  */
@@ -116,7 +124,7 @@ export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({
     clientChangeId: z.uuid(),
     status: z.literal("applied"),
-    record: pushedRecordSchema,
+    record: encryptedRecordSchema,
   }),
   z.object({
     clientChangeId: z.uuid(),
@@ -195,9 +203,6 @@ export type DecryptedRecord = RecordPayload & {
   created_at: string | null;
   firstCreatedAt: string | null;
 };
-
-/** The crypto version used when encrypting records with the current code. */
-export const CURRENT_CRYPTO_VERSION = 1;
 
 /**
  * A vault's pull cursor: the highest `seq` (the vault's server write order,

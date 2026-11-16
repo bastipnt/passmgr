@@ -116,6 +116,8 @@ async function seed(profile: LocalProfile, recordId: string) {
 beforeEach(async () => {
   vi.clearAllMocks();
   secretsStore.lock();
+  // The records here are stand-ins for sealed ones (the crypto: @repo/store).
+  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
   localStorage.clear();
   databases = createTestDatabases();
   profiles = new ProfileStore(databases.open);

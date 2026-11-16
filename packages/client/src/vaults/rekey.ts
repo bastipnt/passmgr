@@ -1,5 +1,6 @@
-import { CURRENT_CRYPTO_VERSION, type EncryptedRecordSchema } from "@repo/schema";
+import { RECORD_CRYPTO_VERSION } from "@repo/schema";
 import {
+  type LocalRecordVersion,
   type RecordCiphertext,
   type ReencryptedVersion,
   secretsStore,
@@ -25,7 +26,7 @@ const reportedUnreadable = new Set<string>();
  * when that can't be done here yet (the new key isn't loaded); `unreadable`
  * when the key it's under doesn't open it, which no retry changes.
  */
-function reencrypt(row: EncryptedRecordSchema) {
+function reencrypt(row: LocalRecordVersion) {
   let currentKeyVersion: number;
   try {
     currentKeyVersion = secretsStore.currentKeyVersion(row.vaultId);
@@ -39,7 +40,7 @@ function reencrypt(row: EncryptedRecordSchema) {
       { recordId: row.recordId, vaultId: row.vaultId },
       plaintext,
     );
-    return { encryptedData, encryptionNonce, cryptoVersion: CURRENT_CRYPTO_VERSION, keyVersion };
+    return { encryptedData, encryptionNonce, cryptoVersion: RECORD_CRYPTO_VERSION, keyVersion };
   } catch (error) {
     const id = `${row.recordId}/${row.version}`;
     if (!reportedUnreadable.has(id)) {
@@ -54,7 +55,7 @@ function reencrypt(row: EncryptedRecordSchema) {
  * Re-encrypt the pending versions written under a key their vault has since
  * left (an edit made before this device learned of a rotation, or the whole
  * history of a local vault waiting to be linked), in place: the server doesn't
- * have them yet. Tombstones stay: a delete sends no ciphertext. In batches, so
+ * have them yet. Tombstones stay: sealing re-encrypts them at the push. In batches, so
  * a big history doesn't hold one long transaction. A version that can't be
  * re-encrypted stays as it is: the server rejects it until it's parked.
  */

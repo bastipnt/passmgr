@@ -29,6 +29,7 @@ import {
   exampleLoginRecords,
   exampleTypedRecords,
   pushChangeBytes,
+  RECORD_CRYPTO_VERSION,
   type RecordData,
   type RecordPayload,
   SEED_VAULTS,
@@ -160,7 +161,15 @@ async function seed() {
     const recordId = crypto.randomUUID();
     const [encryptedData, encryptionNonce] = encryptRecordData(
       vaultKey,
-      { recordId, vaultId, cryptoVersion: 1 },
+      {
+        recordId,
+        vaultId,
+        cryptoVersion: RECORD_CRYPTO_VERSION,
+        stage: "sealed",
+        version: 1,
+        keyVersion: 1,
+        state: "live",
+      },
       JSON.stringify(payload),
     );
     const createdAt = new Date(now - ((i * 37) % 730) * DAY_MS - i * 60_000);
@@ -171,7 +180,7 @@ async function seed() {
       userId,
       encryptedData,
       encryptionNonce,
-      cryptoVersion: 1,
+      cryptoVersion: RECORD_CRYPTO_VERSION,
       version: 1,
       seq,
       clientChangeId: crypto.randomUUID(),

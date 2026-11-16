@@ -9,7 +9,9 @@ import {
   openAnonymousSeal,
   openPendingRecovery,
   openSealedVaultKey,
-  type RecordCipherContext,
+  type RecordStage,
+  recordCipherContext,
+  recordStateOf,
   rotateVaultKey,
   sealVaultKey,
   signHmac,
@@ -23,10 +25,10 @@ import {
   wrapVaultKey,
 } from "@repo/crypto";
 import {
-  CURRENT_CRYPTO_VERSION,
   type EncryptedVaultMeta,
   type MemberKeySeal,
   type MemberVault,
+  RECORD_CRYPTO_VERSION,
   type SealedPendingRecovery,
   type UserKeyPair,
   type UserPublicKey,
@@ -38,6 +40,35 @@ import {
 } from "@repo/schema";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 import type { LoginBundle, ServerSessionBundle } from "./session-persistence.types";
+
+/** A record version's new ciphertext, and the key version it is under. */
+export type RecordContent = {
+  encryptedData: string;
+  encryptionNonce: string;
+  cryptoVersion: typeof RECORD_CRYPTO_VERSION;
+  keyVersion: number;
+};
+
+/** A record version's ciphertext with the context it was encrypted in. */
+export type RecordCiphertextRow = Parameters<typeof recordCipherContext>[0] & {
+  encryptedData: string;
+  encryptionNonce: string;
+};
+
+/**
+ * A stored version: a pending one (not taken by the server yet) is a draft,
+ * a synced one is the server's sealed copy.
+ */
+export type StoredRecordCiphertext = RecordCiphertextRow & { syncState: "synced" | "pending" };
+
+export function recordStageOf(row: Pick<StoredRecordCiphertext, "syncState">): RecordStage {
+  return row.syncState === "pending" ? "draft" : "sealed";
+}
+
+/** The context a stored version's ciphertext was encrypted in. */
+export function storedRecordContext(row: StoredRecordCiphertext) {
+  return recordCipherContext(row, recordStageOf(row));
+}
 
 class SessionLockedError extends Error {
   override message: string = "SessionLockedError";
@@ -348,35 +379,161 @@ class SecretsStore {
   }
 
   /**
-   * Encrypt a record payload under its vault's current key, bound to the
-   * record and vault. Resolves the key version it used too.
+   * Encrypt a record payload as a draft under its vault's current key, bound
+   * to the record and vault. Resolves the key version it used too.
    */
   encryptRecord(
-    context: Omit<RecordCipherContext, "cryptoVersion">,
+    context: { recordId: string; vaultId: string },
     data: string,
   ): [encryptedData: string, nonce: string, keyVersion: number] {
     const keyVersion = this.currentKeyVersion(context.vaultId);
-    const [encryptedData, nonce] = encryptRecordData(
-      this.vaultKey(context.vaultId, keyVersion),
-      { ...context, cryptoVersion: CURRENT_CRYPTO_VERSION },
-      data,
-    );
-    return [encryptedData, nonce, keyVersion];
+    return [...this.encryptDraft(context, keyVersion, data), keyVersion];
   }
 
-  /** Decrypt a record version with the vault key it was encrypted with. */
-  decryptRecord(
-    row: RecordCipherContext & {
-      keyVersion: number;
-      encryptedData: string;
-      encryptionNonce: string;
-    },
-  ): Uint8Array {
+  /** A draft's AAD binds record and vault only: version and state aren't part of it. */
+  private encryptDraft(
+    { recordId, vaultId }: { recordId: string; vaultId: string },
+    keyVersion: number,
+    data: string | Uint8Array,
+  ): [encryptedData: string, nonce: string] {
+    const draft = {
+      recordId,
+      vaultId,
+      cryptoVersion: RECORD_CRYPTO_VERSION,
+      version: 0,
+      keyVersion,
+    };
+    return encryptRecordData(
+      this.vaultKey(vaultId, keyVersion),
+      recordCipherContext(draft, "draft"),
+      data,
+    );
+  }
+
+  /** Decrypt a record version with the vault key it was encrypted with, in the context it was stored in. */
+  decryptRecord(row: StoredRecordCiphertext): Uint8Array {
     return decryptRecordData(
       this.vaultKey(row.vaultId, row.keyVersion),
-      row,
+      storedRecordContext(row),
       row.encryptedData,
       row.encryptionNonce,
+    );
+  }
+
+  /**
+   * A stored version's content as a draft: a tombstone written here takes its
+   * head's content, which a sealed head binds to the head's own slot. Under
+   * the head's own key, so a delete never waits for a newer key (sealing moves
+   * it to the current one). Null when the row doesn't open (or its key isn't
+   * loaded).
+   */
+  redraftRecord(row: StoredRecordCiphertext): RecordContent | null {
+    let plaintext: Uint8Array;
+    try {
+      plaintext = this.decryptRecord(row);
+    } catch {
+      return null;
+    }
+    const [encryptedData, encryptionNonce] = this.encryptDraft(row, row.keyVersion, plaintext);
+    return {
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: RECORD_CRYPTO_VERSION,
+      keyVersion: row.keyVersion,
+    };
+  }
+
+  /**
+   * A pending version (a draft) sealed for the server: its content under the
+   * vault's current key, bound to its version and state.
+   * A purge seals empty content, so it proves a vault member wrote it, and so
+   * does a tombstone whose content doesn't open (it was unreadable already).
+   * Null for live content that doesn't open (the server takes sealed versions
+   * only). Throws when a key it needs isn't loaded.
+   */
+  sealRecord(row: RecordCiphertextRow): RecordContent | null {
+    const keyVersion = this.currentKeyVersion(row.vaultId);
+    const key = this.vaultKey(row.vaultId, keyVersion);
+    const context = {
+      ...recordCipherContext(row, "sealed"),
+      cryptoVersion: RECORD_CRYPTO_VERSION,
+      keyVersion,
+    };
+    let plaintext: Uint8Array | null = new Uint8Array();
+    if (context.state !== "purged") {
+      plaintext = this.openDraftRecord(row);
+      if (!plaintext) {
+        if (context.state === "live") return null;
+        plaintext = new Uint8Array();
+      }
+    }
+    const [encryptedData, encryptionNonce] = encryptRecordData(key, context, plaintext);
+    return { encryptedData, encryptionNonce, cryptoVersion: RECORD_CRYPTO_VERSION, keyVersion };
+  }
+
+  /** A draft's plaintext; null when it doesn't open. Throws when its key isn't loaded. */
+  private openDraftRecord(row: RecordCiphertextRow): Uint8Array | null {
+    const draftKey = this.vaultKey(row.vaultId, row.keyVersion);
+    try {
+      return decryptRecordData(
+        draftKey,
+        recordCipherContext(row, "draft"),
+        row.encryptedData,
+        row.encryptionNonce,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /** A sealed row's plaintext; null when it doesn't open or its key isn't loaded. */
+  private openSealedRecord(row: RecordCiphertextRow): Uint8Array | null {
+    try {
+      const key = this.vaultKey(row.vaultId, row.keyVersion);
+      return decryptRecordData(
+        key,
+        recordCipherContext(row, "sealed"),
+        row.encryptedData,
+        row.encryptionNonce,
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  /** Whether the key a stored row is encrypted with is loaded (`decryptRecord` would get it). */
+  hasRecordKey(row: Pick<StoredRecordCiphertext, "vaultId" | "keyVersion">): boolean {
+    return this.vaultKeys.has(vaultKeyId(row.vaultId, row.keyVersion));
+  }
+
+  /**
+   * Whether a row from the server was sealed by a vault member for the slot,
+   * key version and state it claims (a purge: with empty content). Anything
+   * else is the server's word only. False too when its key isn't loaded.
+   */
+  isSealedRow(row: RecordCiphertextRow): boolean {
+    const plaintext = this.openSealedRecord(row);
+    if (!plaintext) return false;
+    return recordStateOf(row) !== "purged" || plaintext.length === 0;
+  }
+
+  /**
+   * Whether a sealed row from the server holds what a pending draft does: a
+   * retried push is answered with the copy an earlier try stored, sealed
+   * then. A purge holds nothing, so any sealed purge matches one.
+   */
+  sameRecordContent(sealed: RecordCiphertextRow, draft: RecordCiphertextRow): boolean {
+    const stored = this.openSealedRecord(sealed);
+    if (!stored || recordStateOf(sealed) !== recordStateOf(draft)) return false;
+    if (recordStateOf(draft) === "purged") return stored.length === 0;
+    let pending: Uint8Array | null;
+    try {
+      pending = this.openDraftRecord(draft);
+    } catch {
+      return false;
+    }
+    return (
+      !!pending && pending.length === stored.length && pending.every((b, i) => b === stored[i])
     );
   }
 
@@ -522,11 +679,7 @@ class SecretsStore {
    */
   decryptWithWrap(
     vault: MemberVault,
-    rows: readonly (RecordCipherContext & {
-      keyVersion: number;
-      encryptedData: string;
-      encryptionNonce: string;
-    })[],
+    rows: readonly StoredRecordCiphertext[],
   ): { meta: VaultMeta | null; rows: (Uint8Array | null)[] } {
     const accountKey = this.accountKey;
     if (!accountKey) throw new SessionLockedError();
@@ -546,7 +699,12 @@ class SecretsStore {
         const rowKey = keys.get(vaultKeyId(row.vaultId, row.keyVersion));
         if (!rowKey) return null;
         try {
-          return decryptRecordData(rowKey, row, row.encryptedData, row.encryptionNonce);
+          return decryptRecordData(
+            rowKey,
+            storedRecordContext(row),
+            row.encryptedData,
+            row.encryptionNonce,
+          );
         } catch {
           return null;
         }

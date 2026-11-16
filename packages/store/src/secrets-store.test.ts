@@ -21,7 +21,7 @@ import {
 import type { MemberVault, VaultInvitation, VaultKeyUpdate } from "@repo/schema";
 import { fromString, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
-import { secretsStore } from "./secrets-store";
+import { type StoredRecordCiphertext, secretsStore } from "./secrets-store";
 
 const PERSONAL_ID = "0199a3c4-0000-7000-8000-00000000000a";
 const WORK_ID = "0199a3c4-0000-7000-8000-00000000000b";
@@ -67,10 +67,25 @@ function decryptAs(
     vaultId,
     cryptoVersion: 1,
     keyVersion: 1,
+    version: 1,
     encryptedData,
     encryptionNonce,
+    syncState: "pending",
   });
   return new TextDecoder().decode(bytes);
+}
+
+/** The context of a draft: only record and vault count. */
+function draftContext(vaultId: string) {
+  return {
+    recordId: RECORD_ID,
+    vaultId,
+    cryptoVersion: 1,
+    stage: "draft" as const,
+    version: 1,
+    keyVersion: 1,
+    state: "live" as const,
+  };
 }
 
 /** Unlock the store with a fresh keyring (biometric-style: account key set directly). */
@@ -349,15 +364,17 @@ describe("rotated vault keys", () => {
   }
 
   function sealUnder(key: Uint8Array, keyVersion: number, data: string) {
-    const context = { recordId: RECORD_ID, vaultId: WORK_ID, cryptoVersion: 1 };
+    const context = { ...draftContext(WORK_ID), keyVersion };
     const [encryptedData, encryptionNonce] = encryptRecordData(key, context, data);
     return {
       recordId: RECORD_ID,
       vaultId: WORK_ID,
       cryptoVersion: 1,
+      version: 1,
       keyVersion,
       encryptedData,
       encryptionNonce,
+      syncState: "pending" as const,
     };
   }
 
@@ -486,8 +503,9 @@ describe("encryptRecord / decryptRecord", () => {
       "hello",
     );
 
-    const context = { recordId: RECORD_ID, vaultId: WORK_ID, cryptoVersion: 1 };
-    expect(new TextDecoder().decode(decryptRecordData(workKey, context, enc, nonce))).toBe("hello");
+    expect(
+      new TextDecoder().decode(decryptRecordData(workKey, draftContext(WORK_ID), enc, nonce)),
+    ).toBe("hello");
     expect(() => decryptAs([enc, nonce], PERSONAL_ID)).toThrow();
     expect(() => decryptAs([enc, nonce], WORK_ID, crypto.randomUUID())).toThrow();
   });
@@ -967,10 +985,17 @@ describe("sharing (ADR 0001 D7)", () => {
     const lost = memberVault(accountKey, lostKey, lostId, "shared", "Lost");
     const [encryptedData, encryptionNonce] = encryptRecordData(
       lostKey,
-      { recordId: RECORD_ID, vaultId: lostId, cryptoVersion: 1 },
+      draftContext(lostId),
       "rescued",
     );
-    const row = { recordId: RECORD_ID, vaultId: lostId, cryptoVersion: 1, keyVersion: 1 };
+    const row = {
+      recordId: RECORD_ID,
+      vaultId: lostId,
+      cryptoVersion: 1,
+      version: 1,
+      keyVersion: 1,
+      syncState: "pending" as const,
+    };
 
     const {
       meta,
@@ -985,5 +1010,125 @@ describe("sharing (ADR 0001 D7)", () => {
     expect(wrongKey).toBeNull();
     // Not loaded as a side effect.
     expect(() => secretsStore.currentKeyVersion(lostId)).toThrow();
+  });
+});
+
+describe("sealing records (ADR 0001 D11)", () => {
+  function draftRow(data: string, overrides: { version?: number; deleted_at?: string } = {}) {
+    const [encryptedData, encryptionNonce, keyVersion] = secretsStore.encryptRecord(
+      { recordId: RECORD_ID, vaultId: WORK_ID },
+      data,
+    );
+    return {
+      recordId: RECORD_ID,
+      vaultId: WORK_ID,
+      cryptoVersion: 1,
+      keyVersion,
+      version: overrides.version ?? 1,
+      deleted_at: overrides.deleted_at ?? null,
+      encryptedData,
+      encryptionNonce,
+      syncState: "pending" as const,
+    };
+  }
+
+  /** The row as the server stores it: the draft's seal. */
+  function sealed(row: StoredRecordCiphertext) {
+    return { ...row, ...secretsStore.sealRecord(row)!, syncState: "synced" as const };
+  }
+
+  it("seals a draft for its own version and state only", () => {
+    unlockWithKeyring();
+    const row = sealed(draftRow("secret", { version: 4 }));
+
+    expect(new TextDecoder().decode(secretsStore.decryptRecord(row))).toBe("secret");
+    expect(() => secretsStore.decryptRecord({ ...row, version: 5 })).toThrow();
+    expect(() =>
+      secretsStore.decryptRecord({ ...row, deleted_at: "2026-11-16T00:00:00Z" }),
+    ).toThrow();
+    // A sealed version doesn't open as a draft (one the server passes off as unsent).
+    expect(() => secretsStore.decryptRecord({ ...row, syncState: "pending" })).toThrow();
+  });
+
+  it("redrafts a sealed head's content so a tombstone in the next slot opens", () => {
+    unlockWithKeyring();
+    const sealedHead = sealed(draftRow("kept", { version: 2 }));
+    const tombstone = {
+      ...sealedHead,
+      ...secretsStore.redraftRecord(sealedHead)!,
+      version: 3,
+      deleted_at: "2026-11-16T00:00:00Z",
+      syncState: "pending" as const,
+    };
+
+    expect(new TextDecoder().decode(secretsStore.decryptRecord(tombstone))).toBe("kept");
+    expect(new TextDecoder().decode(secretsStore.decryptRecord(sealed(tombstone)))).toBe("kept");
+  });
+
+  it("tells a sealed row from one only the server claims", () => {
+    unlockWithKeyring();
+    const purge = {
+      ...draftRow("", { version: 3, deleted_at: "2026-11-16T00:00:00Z" }),
+      tombstoneKind: "purged" as const,
+      encryptedData: "",
+      encryptionNonce: "",
+    };
+    const sealedPurge = sealed(purge);
+
+    expect(secretsStore.isSealedRow(sealedPurge)).toBe(true);
+    expect(secretsStore.isSealedRow(purge)).toBe(false);
+    // A purge sealed for another version, or a draft one, isn't proof.
+    expect(secretsStore.isSealedRow({ ...sealedPurge, version: 4 })).toBe(false);
+    const draftPurge = { ...draftRow(""), version: 3, deleted_at: "2026-11-16T00:00:00Z" };
+    expect(secretsStore.isSealedRow({ ...draftPurge, tombstoneKind: "purged" })).toBe(false);
+    const sealedContent = sealed({ ...draftRow("x", { version: 3 }), tombstoneKind: "purged" });
+    expect(secretsStore.isSealedRow({ ...sealedContent, deleted_at: "2026-11-16T00:00:00Z" })).toBe(
+      false,
+    );
+
+    // Content: only in its own slot and state, and under the key it claims.
+    const live = sealed(draftRow("secret", { version: 2 }));
+    expect(secretsStore.isSealedRow(live)).toBe(true);
+    expect(secretsStore.isSealedRow({ ...live, version: 3 })).toBe(false);
+    expect(secretsStore.isSealedRow({ ...live, deleted_at: "2026-11-16T00:00:00Z" })).toBe(false);
+    expect(secretsStore.isSealedRow({ ...live, keyVersion: 7 })).toBe(false);
+    expect(secretsStore.isSealedRow(draftRow("draft", { version: 2 }))).toBe(false);
+  });
+
+  it("matches a retry's stored copy with the draft it holds", () => {
+    unlockWithKeyring();
+    const draft = draftRow("secret", { version: 3 });
+    const storedEarlier = sealed({ ...draft, version: 2 });
+
+    expect(secretsStore.sameRecordContent(storedEarlier, draft)).toBe(true);
+    expect(secretsStore.sameRecordContent(sealed(draftRow("other", { version: 2 })), draft)).toBe(
+      false,
+    );
+    const tombstone = { ...draft, deleted_at: "2026-11-16T00:00:00Z" };
+    expect(secretsStore.sameRecordContent(storedEarlier, tombstone)).toBe(false);
+  });
+
+  it("returns null for a draft that doesn't open, and throws without the vault's key", () => {
+    unlockWithKeyring();
+    const row = { ...draftRow("x"), encryptedData: draftRow("y").encryptedData };
+    expect(secretsStore.sealRecord(row)).toBeNull();
+    expect(secretsStore.redraftRecord(row)).toBeNull();
+    // A tombstone's draft keeps its head's key: it needs no newer one.
+    const head = sealed(draftRow("kept"));
+    expect(secretsStore.redraftRecord({ ...head, vaultId: crypto.randomUUID() })).toBeNull();
+    expect(secretsStore.redraftRecord(head)).toMatchObject({ keyVersion: head.keyVersion });
+    expect(() => secretsStore.sealRecord({ ...row, vaultId: crypto.randomUUID() })).toThrow();
+    expect(() => secretsStore.sealRecord({ ...row, keyVersion: 7 })).toThrow();
+    expect(secretsStore.hasRecordKey(row)).toBe(true);
+    expect(secretsStore.hasRecordKey({ ...row, keyVersion: 7 })).toBe(false);
+  });
+
+  it("seals a tombstone whose content doesn't open as empty: it was unreadable already", () => {
+    unlockWithKeyring();
+    const row = {
+      ...draftRow("x", { deleted_at: "2026-11-16T00:00:00Z" }),
+      encryptedData: draftRow("y").encryptedData,
+    };
+    expect(secretsStore.decryptRecord(sealed(row))).toHaveLength(0);
   });
 });

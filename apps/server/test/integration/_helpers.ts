@@ -1,5 +1,11 @@
 import { genKey, getToken } from "@repo/crypto";
-import type { MemberVault, PasswordKeySchema, RecoveryWrapSchema, UserKeyPair } from "@repo/schema";
+import {
+  type MemberVault,
+  type PasswordKeySchema,
+  RECORD_CRYPTO_VERSION,
+  type RecoveryWrapSchema,
+  type UserKeyPair,
+} from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { expect } from "vitest";
 import { appRouter } from "../../src/router";
@@ -123,20 +129,29 @@ export function putChange(
     baseVersion,
     encryptedData: data,
     encryptionNonce: "NONCE",
-    cryptoVersion: 1,
+    cryptoVersion: RECORD_CRYPTO_VERSION,
     keyVersion,
     clientUpdatedAt: new Date().toISOString(),
   };
 }
 
-/** A `record.push` change tombstoning the record on top of `baseVersion`. */
-export function deleteChange(vaultId: string, recordId: string, baseVersion: number) {
+/** A `record.push` change tombstoning the record on top of `baseVersion`, with its sealed content `data`. */
+export function deleteChange(
+  vaultId: string,
+  recordId: string,
+  baseVersion: number,
+  { data = "TOMB", keyVersion = 1 } = {},
+) {
   return {
     op: "delete" as const,
     clientChangeId: crypto.randomUUID(),
     recordId,
     vaultId,
     baseVersion,
+    encryptedData: data,
+    encryptionNonce: "NONCE",
+    cryptoVersion: RECORD_CRYPTO_VERSION,
+    keyVersion,
     clientUpdatedAt: new Date().toISOString(),
   };
 }

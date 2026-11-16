@@ -7,6 +7,7 @@ import {
   pushChangeBytes,
 } from "@repo/schema";
 import {
+  type LocalRecordVersion,
   type PendingChange,
   type Vault,
   VaultListRejectedError,
@@ -16,6 +17,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PUSH_ATTEMPTS,
   pushBatches,
+  type RecordSealer,
   SyncManager,
   type SyncPage,
   type SyncStatus,
@@ -23,6 +25,18 @@ import {
 } from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
+/** Seals a draft as itself and has every key: the crypto is tested on its own. */
+const unsealed: RecordSealer = {
+  sealRecord: ({ encryptedData, encryptionNonce, keyVersion }) => ({
+    encryptedData,
+    encryptionNonce,
+    cryptoVersion: 1,
+    keyVersion,
+  }),
+  hasRecordKey: () => true,
+  isSealedRow: () => true,
+  sameRecordContent: () => true,
+};
 const batch: SyncPage = {
   records: [],
   vaults,
@@ -48,6 +62,7 @@ function fakeStore(vaultsChanged: boolean, outbox: PendingChange[] = []) {
         queue.findIndex((c) => c.changeId === changeId),
         1,
       );
+      return true;
     }),
     failPendingChange: vi.fn(
       async (changeId: string, error: string, { count = true }: { count?: boolean } = {}) => {
@@ -84,7 +99,8 @@ function change(changeId: string, recordId: string, version: number): PendingCha
       cryptoVersion: 1,
       keyVersion: 1,
       clientUpdatedAt: "2026-10-02T00:00:00.000Z",
-    } as EncryptedRecordSchema,
+      syncState: "pending",
+    } as LocalRecordVersion,
   };
 }
 
@@ -93,7 +109,13 @@ function applied(c: PushChange): PushResult {
   return {
     clientChangeId: c.clientChangeId,
     status: "applied",
-    record: { recordId: c.recordId, version } as EncryptedRecordSchema,
+    record: {
+      recordId: c.recordId,
+      vaultId: c.vaultId,
+      version,
+      encryptedData: c.encryptedData,
+      encryptionNonce: c.encryptionNonce,
+    } as EncryptedRecordSchema,
   };
 }
 
@@ -102,6 +124,12 @@ function pusher(answer: (c: PushChange) => PushResult | undefined = () => undefi
   return vi.fn(async (changes: PushChange[]) => changes.map((c) => answer(c) ?? applied(c)));
 }
 
+/** `applySync`'s options in a pull: no vault loss allowed, rows checked by the sealer. */
+const sealedPull = (allowVaultLoss: string[] = []) => ({
+  allowVaultLoss,
+  isSealed: expect.any(Function),
+});
+
 const ids = (push: { mock: { calls: [PushChange[]][] } }) =>
   push.mock.calls.map(([changes]) => changes.map((c) => c.clientChangeId));
 
@@ -109,12 +137,12 @@ describe("SyncManager pull", () => {
   it("pulls from the stored per-vault cursors and applies the batch", async () => {
     const store = fakeStore(false);
     const pull = vi.fn(async () => batch);
-    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull });
 
     expect(await manager.sync()).toBe(true);
 
     expect(pull).toHaveBeenCalledWith({ v1: 3 });
-    expect(store.applySync).toHaveBeenCalledWith(batch, undefined, { allowVaultLoss: [] });
+    expect(store.applySync).toHaveBeenCalledWith(batch, undefined, sealedPull());
   });
 
   it("syncFresh waits out a running round and pulls again after it", async () => {
@@ -127,7 +155,10 @@ describe("SyncManager pull", () => {
         return batch;
       })
       .mockResolvedValue(batch);
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
 
     const running = manager.sync();
     const fresh = manager.syncFresh();
@@ -149,6 +180,7 @@ describe("SyncManager pull", () => {
     });
     const onVaultsChanged = vi.fn(async () => void calls.push("keys"));
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged,
     });
@@ -168,6 +200,7 @@ describe("SyncManager pull", () => {
     store.checkVaultList.mockRejectedValue(new VaultListRejectedError("key-rollback"));
     const onVaultsChanged = vi.fn();
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged,
       isOffline: () => true,
@@ -191,7 +224,11 @@ describe("SyncManager pull", () => {
       .mockResolvedValue(undefined);
     const onVaultsChanged = vi.fn();
     const pull = vi.fn(async () => batch);
-    const manager = new SyncManager(store as unknown as Vault, { pull, onVaultsChanged });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+      onVaultsChanged,
+    });
     manager.setEnabled(true);
 
     expect(await manager.sync()).toBe(false);
@@ -205,6 +242,7 @@ describe("SyncManager pull", () => {
     store.applySync.mockRejectedValue(new Error("disk full"));
     const onVaultsChanged = vi.fn();
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged,
     });
@@ -217,6 +255,7 @@ describe("SyncManager pull", () => {
   it("applies nothing when loading the pulled keys fails", async () => {
     const store = fakeStore(true);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged: () => {
         throw new Error("Expected exactly one personal vault");
@@ -234,6 +273,7 @@ describe("SyncManager pull", () => {
       .mockRejectedValueOnce(new VaultsMissingError(["v2", "v3"]))
       .mockResolvedValue(undefined);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged: vi.fn(),
     });
@@ -244,19 +284,18 @@ describe("SyncManager pull", () => {
 
     expect(await manager.confirmVaultLoss()).toBe(true);
     expect(store.checkVaultList).toHaveBeenLastCalledWith(vaults, { allowVaultLoss: ["v2", "v3"] });
-    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, {
-      allowVaultLoss: ["v2", "v3"],
-    });
+    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, sealedPull(["v2", "v3"]));
     expect(manager.getStatus()).toMatchObject({ phase: "idle", vaultsMissing: [] });
 
     await manager.sync();
-    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, { allowVaultLoss: [] });
+    expect(store.applySync).toHaveBeenLastCalledWith(batch, undefined, sealedPull());
     await manager.dispose();
   });
 
   it("leaves the keys alone when the vault list is unchanged", async () => {
     const onVaultsChanged = vi.fn();
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       onVaultsChanged,
     });
@@ -277,13 +316,13 @@ describe("SyncManager pull", () => {
       .fn<() => Promise<SyncPage>>()
       .mockResolvedValueOnce(first)
       .mockResolvedValue(batch);
-    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull });
 
     expect(await manager.sync()).toBe(true);
 
     expect(pull.mock.calls).toEqual([[{ v1: 3 }], [{ v1: 5 }]]);
-    expect(store.applySync).toHaveBeenNthCalledWith(1, first, undefined, { allowVaultLoss: [] });
-    expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined, { allowVaultLoss: [] });
+    expect(store.applySync).toHaveBeenNthCalledWith(1, first, undefined, sealedPull());
+    expect(store.applySync).toHaveBeenNthCalledWith(2, batch, undefined, sealedPull());
   });
 
   it("tells listeners of each page, reloading keys before the page that changes them", async () => {
@@ -300,7 +339,11 @@ describe("SyncManager pull", () => {
       .mockResolvedValueOnce({ ...batch, hasMore: true })
       .mockResolvedValue(batch);
     const onVaultsChanged = vi.fn(async () => void calls.push("keys"));
-    const manager = new SyncManager(store as unknown as Vault, { pull, onVaultsChanged });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+      onVaultsChanged,
+    });
     manager.onSync(({ vaultsChanged }) => void calls.push(`listener:${vaultsChanged}`));
 
     await manager.sync();
@@ -311,7 +354,7 @@ describe("SyncManager pull", () => {
   it("fails the round when a page claiming more moved no cursor", async () => {
     const store = fakeStore(false);
     const pull = vi.fn(async () => ({ ...batch, hasMore: true }));
-    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull });
     manager.setEnabled(true);
 
     expect(await manager.sync()).toBe(false);
@@ -331,16 +374,17 @@ describe("SyncManager pull", () => {
       .fn<() => Promise<SyncPage>>()
       .mockResolvedValueOnce(first)
       .mockRejectedValue(new Error("offline"));
-    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull });
 
     expect(await manager.sync()).toBe(false);
     expect(store.applySync).toHaveBeenCalledTimes(1);
-    expect(store.applySync).toHaveBeenCalledWith(first, undefined, { allowVaultLoss: [] });
+    expect(store.applySync).toHaveBeenCalledWith(first, undefined, sealedPull());
   });
 
   it("reports a failed pull without applying anything", async () => {
     const store = fakeStore(false);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => {
         throw new Error("offline");
       },
@@ -356,7 +400,10 @@ describe("SyncManager pull", () => {
       .fn<() => Promise<SyncPage>>()
       .mockImplementationOnce(() => new Promise((r) => (release = () => r(batch))))
       .mockResolvedValue(batch);
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
     manager.setEnabled(true);
 
     const first = manager.sync();
@@ -374,7 +421,10 @@ describe("SyncManager pull", () => {
       .fn<() => Promise<SyncPage>>()
       .mockImplementationOnce(() => new Promise((r) => (release = () => r(batch))))
       .mockResolvedValue(batch);
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
     manager.setEnabled(true);
 
     const first = manager.sync();
@@ -392,7 +442,10 @@ describe("SyncManager pull", () => {
     vi.useFakeTimers();
     try {
       const pull = vi.fn(async () => batch);
-      const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+      const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+        sealer: unsealed,
+        pull,
+      });
 
       manager.requestSync();
       await vi.advanceTimersByTimeAsync(5_000);
@@ -423,13 +476,22 @@ describe("SyncManager push", () => {
       calls.push("pull");
       return batch;
     });
-    const manager = new SyncManager(store as unknown as Vault, { pull, push });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull, push });
 
     expect(await manager.sync()).toBe(true);
 
     expect(calls).toEqual(["push c1,c2", "pull"]);
-    expect(store.ackPendingChange).toHaveBeenCalledWith("c1", { recordId: "r1", version: 1 });
-    expect(store.ackPendingChange).toHaveBeenCalledWith("c2", { recordId: "r2", version: 3 });
+    const sealedAck = { isSealed: expect.any(Function) };
+    expect(store.ackPendingChange).toHaveBeenCalledWith(
+      "c1",
+      expect.objectContaining({ recordId: "r1", version: 1 }),
+      sealedAck,
+    );
+    expect(store.ackPendingChange).toHaveBeenCalledWith(
+      "c2",
+      expect.objectContaining({ recordId: "r2", version: 3 }),
+      sealedAck,
+    );
   });
 
   it("keeps a change that wasn't applied queued and pushes it again after the pull", async () => {
@@ -448,7 +510,11 @@ describe("SyncManager push", () => {
             : applied(c),
       );
     });
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     expect(await manager.sync()).toBe(true);
 
@@ -477,7 +543,11 @@ describe("SyncManager push", () => {
       status: "rejected",
       reason: "forbidden",
     }));
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -493,7 +563,11 @@ describe("SyncManager push", () => {
       status: "rejected",
       reason: "quota",
     }));
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -516,7 +590,11 @@ describe("SyncManager push", () => {
       status: "rejected",
       reason: "not_found",
     }));
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -537,6 +615,7 @@ describe("SyncManager push", () => {
         : { clientChangeId: c.clientChangeId, status: "rejected", reason: "key_version" },
     );
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       push,
       prepareOutbox,
@@ -556,6 +635,7 @@ describe("SyncManager push", () => {
     const push = pusher();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       push,
       prepareOutbox: async () => {
@@ -575,6 +655,7 @@ describe("SyncManager push", () => {
     });
     const pull = vi.fn(async () => batch);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull,
       push,
       stopsRound: (e) => e instanceof Error && e.message === "offline",
@@ -591,7 +672,11 @@ describe("SyncManager push", () => {
     const store = fakeStore(false, [change("c1", "r1", 1), change("c2", "r2", 1)]);
     store.ackPendingChange.mockRejectedValueOnce(new Error("disk full"));
     const push = pusher();
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     expect(await manager.sync()).toBe(false);
 
@@ -620,7 +705,11 @@ describe("SyncManager poison changes", () => {
       change("d1", "d", 1),
     ]);
     const push = refusing("b");
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -638,6 +727,7 @@ describe("SyncManager poison changes", () => {
     const stuck = { ...change("b1", "b", 1), attempts: MAX_PUSH_ATTEMPTS - 2 };
     const store = fakeStore(false, [stuck]);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       push: refusing("b"),
     });
@@ -657,7 +747,11 @@ describe("SyncManager poison changes", () => {
       status: "stale",
       headVersion: 2,
     }));
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -674,7 +768,11 @@ describe("SyncManager poison changes", () => {
       if (changes[0]!.clientChangeId === "a1") throw new Error("BAD_REQUEST");
       return changes.map(applied);
     });
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     await manager.sync();
 
@@ -690,7 +788,11 @@ describe("SyncManager poison changes", () => {
     const parked = { ...change("a1", "a", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
     const store = fakeStore(false, [parked, change("b1", "b", 1), change("a2", "a", 2)]);
     const push = pusher();
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
 
     expect(await manager.sync()).toBe(true);
 
@@ -702,7 +804,11 @@ describe("SyncManager poison changes", () => {
     const parked = { ...change("a1", "a", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
     const store = fakeStore(false, [parked]);
     const push = pusher();
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
     manager.setEnabled(true);
 
     await manager.retryParked();
@@ -722,7 +828,10 @@ describe("SyncManager retries", () => {
       .mockRejectedValueOnce(new Error("down"))
       .mockRejectedValueOnce(new Error("down"))
       .mockResolvedValue(batch);
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
     manager.setEnabled(true);
 
     await manager.sync();
@@ -748,7 +857,11 @@ describe("SyncManager retries", () => {
         ? { clientChangeId: c.clientChangeId, status: "stale", headVersion: 2 }
         : undefined,
     );
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch, push });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+      push,
+    });
     manager.setEnabled(true);
 
     expect(await manager.sync()).toBe(true);
@@ -766,6 +879,7 @@ describe("SyncManager retries", () => {
       .mockRejectedValueOnce(unverified)
       .mockResolvedValue(batch);
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
       pull,
       isPaused: (e) => e === unverified,
     });
@@ -786,7 +900,10 @@ describe("SyncManager retries", () => {
     const pull = vi.fn(async (): Promise<SyncPage> => {
       throw new Error("down");
     });
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
     manager.setEnabled(true);
 
     await manager.sync();
@@ -810,6 +927,7 @@ describe("SyncManager status", () => {
     const parked = { ...change("p1", "p", 1), parkedAt: "2026-10-07T00:00:00.000Z" };
     const store = fakeStore(false, [parked, change("c1", "r1", 1)]);
     const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
       push: pusher(),
     });
@@ -826,7 +944,10 @@ describe("SyncManager status", () => {
 
   it("counts a local write while offline", async () => {
     const store = fakeStore(false);
-    const manager = new SyncManager(store as unknown as Vault, { pull: async () => batch });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull: async () => batch,
+    });
 
     store.queue.push(change("c1", "r1", 1));
     manager.requestSync();
@@ -838,6 +959,7 @@ describe("SyncManager status", () => {
 
   it("goes offline when disposed", async () => {
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
       pull: async () => batch,
     });
     manager.setEnabled(true);
@@ -856,7 +978,10 @@ describe("SyncManager status", () => {
           answer = resolve;
         }),
     );
-    const manager = new SyncManager(fakeStore(false) as unknown as Vault, { pull });
+    const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+    });
     manager.setEnabled(true);
     const round = manager.sync();
     await vi.waitFor(() => expect(pull).toHaveBeenCalledTimes(1));
@@ -881,7 +1006,7 @@ describe("SyncManager status", () => {
     // Every page moves the cursor: only the dispose ends the round.
     let cursor = 3;
     store.getSyncCursors.mockImplementation(async () => ({ v1: cursor++ }));
-    const manager = new SyncManager(store as unknown as Vault, { pull });
+    const manager = new SyncManager(store as unknown as Vault, { sealer: unsealed, pull });
     const round = manager.sync();
     await manager.dispose();
 
@@ -896,6 +1021,7 @@ describe("SyncManager status", () => {
       .mockRejectedValueOnce(offline)
       .mockRejectedValueOnce(new Error("INTERNAL_SERVER_ERROR"));
     const manager = new SyncManager(fakeStore(false) as unknown as Vault, {
+      sealer: unsealed,
       pull,
       isOffline: (e) => e === offline,
     });
@@ -913,7 +1039,7 @@ describe("SyncManager status", () => {
 describe("toPushChange", () => {
   it("sends a pending version as a put or a delete on the version below it", () => {
     const put = change("c1", "r1", 3);
-    expect(toPushChange(put)).toEqual({
+    expect(toPushChange(put, unsealed.sealRecord(put.record)!)).toEqual({
       op: "put",
       clientChangeId: "c1",
       recordId: "r1",
@@ -927,20 +1053,27 @@ describe("toPushChange", () => {
     });
 
     const tombstone = { ...put, record: { ...put.record, deleted_at: "2026-10-02T00:00:00.000Z" } };
-    expect(toPushChange(tombstone)).toEqual({
+    const sealed = {
+      encryptedData: "S",
+      encryptionNonce: "SN",
+      cryptoVersion: 1 as const,
+      keyVersion: 1,
+    };
+    expect(toPushChange(tombstone, sealed)).toEqual({
       op: "delete",
       clientChangeId: "c1",
       recordId: "r1",
       vaultId: "v1",
       baseVersion: 2,
       clientUpdatedAt: "2026-10-02T00:00:00.000Z",
+      ...sealed,
     });
 
     const purge = {
       ...tombstone,
       record: { ...tombstone.record, tombstoneKind: "purged" as const },
     };
-    expect(toPushChange(purge)).toMatchObject({ op: "delete", tombstoneKind: "purged" });
+    expect(toPushChange(purge, sealed)).toMatchObject({ op: "delete", tombstoneKind: "purged" });
   });
 });
 
@@ -962,8 +1095,26 @@ describe("pushBatches", () => {
     expect(changeIds(pushBatches(outbox, 2))).toEqual([["x"], ["a1", "a2"], ["a3"]]);
   });
 
+  it("sizes a purge as sealed: its empty draft becomes a tag", () => {
+    const purge = (id: string) => {
+      const c = change(id, id, 2);
+      Object.assign(c.record, {
+        encryptedData: "",
+        encryptionNonce: "",
+        deleted_at: "2026-10-02T00:00:00.000Z",
+        tombstoneKind: "purged",
+      });
+      return c;
+    };
+    const drafts = 2 * pushChangeBytes({ encryptedData: "" });
+    expect(changeIds(pushBatches([purge("p1"), purge("p2")], MAX_PUSH_CHANGES, drafts))).toEqual([
+      ["p1"],
+      ["p2"],
+    ]);
+  });
+
   it("keeps a batch within the byte limit too", () => {
-    const twoChanges = 2 * pushChangeBytes(toPushChange(change("a1", "a", 1)));
+    const twoChanges = 2 * pushChangeBytes(change("a1", "a", 1).record);
     const outbox = [
       change("a1", "a", 1),
       change("a2", "a", 2),
@@ -989,7 +1140,11 @@ describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
       .mockResolvedValueOnce({ ...batch, keyUpdates: [update], rotationsDue: ["v1"] })
       .mockResolvedValue({ ...batch, keyUpdates: [], rotationsDue: [] });
     const onSharingTasks = vi.fn(async () => true);
-    const manager = new SyncManager(store as unknown as Vault, { pull, onSharingTasks });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+      onSharingTasks,
+    });
     manager.setEnabled(true);
 
     await manager.sync();
@@ -1006,6 +1161,7 @@ describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
       throw new Error("boom");
     });
     const quiet = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: vi.fn(async () => batch),
       onSharingTasks,
     });
@@ -1013,11 +1169,221 @@ describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
     expect(onSharingTasks).not.toHaveBeenCalled();
 
     const failing = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
       pull: vi.fn(async () => ({ ...batch, rotationsDue: ["v1"] })),
       onSharingTasks,
     });
     expect(await failing.sync()).toBe(true);
     expect(onSharingTasks).toHaveBeenCalledTimes(1);
     expect(failing.getStatus().phase).not.toBe("error");
+  });
+});
+
+describe("SyncManager sealing (ADR 0001 D11)", () => {
+  const sealer: RecordSealer = {
+    sealRecord: (row) => {
+      if (row.recordId === "locked") throw new Error("SessionLockedError");
+      if (row.recordId === "unreadable") return null;
+      return {
+        encryptedData: `SEALED-${row.recordId}-${row.version}`,
+        encryptionNonce: "SN",
+        cryptoVersion: 1,
+        keyVersion: 1,
+      };
+    },
+    hasRecordKey: (row) => row.keyVersion === 1,
+    isSealedRow: (row) => row.encryptedData.startsWith("SEALED-"),
+    sameRecordContent: (sealed, draft) =>
+      sealed.encryptedData === `SEALED-${draft.recordId}-${sealed.version}`,
+  };
+
+  it("pushes every change sealed for its version, a delete with its own ciphertext", async () => {
+    const tombstone = change("c2", "r1", 3);
+    tombstone.record.deleted_at = "2026-10-02T00:00:00.000Z";
+    const store = fakeStore(false, [change("c1", "r1", 2), tombstone]);
+    const push = pusher();
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer,
+      pull: async () => batch,
+      push,
+    });
+
+    await manager.sync();
+
+    expect(push.mock.calls[0]![0]).toMatchObject([
+      { op: "put", encryptedData: "SEALED-r1-2", cryptoVersion: 1 },
+      { op: "delete", encryptedData: "SEALED-r1-3", encryptionNonce: "SN", cryptoVersion: 1 },
+    ]);
+  });
+
+  it("seals a change once per push, even when a refused batch is split", async () => {
+    const sealRecord = vi.fn((row: EncryptedRecordSchema) => sealer.sealRecord(row));
+    const store = fakeStore(false, [change("a1", "a", 1), change("b1", "b", 1)]);
+    const push = vi
+      .fn<(changes: PushChange[]) => Promise<PushResult[]>>()
+      .mockRejectedValueOnce(new Error("BAD_REQUEST"))
+      .mockImplementation(async (changes) => changes.map(applied));
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: { ...sealer, sealRecord },
+      pull: async () => batch,
+      push,
+    });
+
+    await manager.sync();
+
+    expect(sealRecord).toHaveBeenCalledTimes(2);
+    expect(store.queue).toEqual([]);
+  });
+
+  it("counts a change it can't seal for a missing key, and parks content that doesn't open here", async () => {
+    const store = fakeStore(false, [
+      change("a1", "locked", 1),
+      change("a2", "locked", 2),
+      change("u1", "unreadable", 1),
+      change("b1", "r2", 1),
+    ]);
+    const push = pusher();
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer,
+      pull: async () => batch,
+      push,
+    });
+
+    await manager.sync();
+
+    expect(ids(push)).toEqual([["b1"]]);
+    // Counted like a `key_version` rejection: a key that never loads parks it in the end.
+    expect(store.failPendingChange).toHaveBeenCalledWith(
+      "a1",
+      "Cannot seal the change: SessionLockedError",
+    );
+    expect(store.parkPendingChange).toHaveBeenCalledWith("u1", "its content doesn't open here");
+    expect(store.queue.map((c) => [c.changeId, c.attempts])).toEqual([
+      ["a1", 2],
+      ["a2", 0],
+      ["u1", 1],
+    ]);
+  });
+
+  const pulledRow = (vaultId: string, keyVersion: number, tombstoneKind: "purged" | null) =>
+    ({
+      recordId: crypto.randomUUID(),
+      vaultId,
+      version: 4,
+      keyVersion,
+      deleted_at: tombstoneKind && "2026-10-02T00:00:00.000Z",
+      tombstoneKind,
+    }) as EncryptedRecordSchema;
+
+  it("holds back a vault with a row under a key not loaded yet, cursor included", async () => {
+    const store = fakeStore(false);
+    const page = {
+      ...batch,
+      records: [pulledRow("v1", 1, "purged"), pulledRow("v2", 1, null), pulledRow("v2", 2, null)],
+      cursors: { v1: 4, v2: 9 },
+    };
+    const manager = new SyncManager(store as unknown as Vault, { sealer, pull: async () => page });
+
+    await manager.sync();
+
+    expect(store.applySync).toHaveBeenCalledWith(
+      { ...page, records: [page.records[0]], cursors: { v1: 4 } },
+      undefined,
+      sealedPull(),
+    );
+  });
+
+  it("ends a pull stuck on a held-back vault, so the sharing tasks can bring its key", async () => {
+    const store = fakeStore(false);
+    const page = {
+      ...batch,
+      records: [pulledRow("v2", 2, null)],
+      cursors: { v1: 3, v2: 9 },
+      hasMore: true,
+      keyUpdates: [{ vaultId: "v2" } as never],
+    };
+    const pull = vi.fn(async () => page);
+    const onSharingTasks = vi.fn(async () => false);
+    const manager = new SyncManager(store as unknown as Vault, { sealer, pull, onSharingTasks });
+
+    expect(await manager.sync()).toBe(true);
+    expect(pull).toHaveBeenCalledTimes(1);
+    expect(onSharingTasks).toHaveBeenCalledTimes(1);
+    expect(manager.getStatus().phase).not.toBe("error");
+  });
+
+  it("acks the server's copy only when it is the change it was sent", async () => {
+    const store = fakeStore(false, [
+      change("ok", "r1", 2),
+      change("retry", "r2", 3),
+      change("other", "r3", 1),
+      change("forged", "r4", 1),
+    ]);
+    const push = pusher((c) => {
+      const record = { recordId: c.recordId, vaultId: c.vaultId, encryptionNonce: "OLD" };
+      if (c.clientChangeId === "retry") {
+        // Stored by an earlier try, before a pull moved the chain up.
+        return {
+          clientChangeId: c.clientChangeId,
+          status: "applied",
+          record: { ...record, version: 2, encryptedData: "SEALED-r2-2" } as EncryptedRecordSchema,
+        };
+      }
+      if (c.clientChangeId === "other") {
+        return {
+          clientChangeId: c.clientChangeId,
+          status: "applied",
+          record: {
+            ...record,
+            recordId: "r9",
+            version: 1,
+            encryptedData: c.encryptedData,
+          } as EncryptedRecordSchema,
+        };
+      }
+      if (c.clientChangeId === "forged") {
+        return {
+          clientChangeId: c.clientChangeId,
+          status: "applied",
+          record: {
+            ...record,
+            version: 1,
+            encryptedData: "SEALED-elsewhere",
+          } as EncryptedRecordSchema,
+        };
+      }
+      return undefined;
+    });
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer,
+      pull: async () => batch,
+      push,
+    });
+
+    await manager.sync();
+
+    expect(store.ackPendingChange.mock.calls.map(([id]) => id)).toEqual(
+      expect.arrayContaining(["ok", "retry"]),
+    );
+    expect(store.ackPendingChange.mock.calls.map(([id]) => id)).not.toContain("other");
+    expect(store.ackPendingChange.mock.calls.map(([id]) => id)).not.toContain("forged");
+    expect(store.queue.map((c) => [c.changeId, c.attempts, c.lastError])).toEqual([
+      ["other", 2, "the server's copy isn't this change"],
+      ["forged", 2, "the server's copy isn't this change"],
+    ]);
+  });
+
+  it("counts a change the store won't ack as a failed push", async () => {
+    const store = fakeStore(false, [change("c1", "r1", 1)]);
+    store.ackPendingChange.mockResolvedValue(false);
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer,
+      pull: async () => batch,
+      push: pusher(),
+    });
+
+    await manager.sync();
+
+    expect(store.queue.map((c) => [c.changeId, c.attempts])).toEqual([["c1", 2]]);
   });
 });

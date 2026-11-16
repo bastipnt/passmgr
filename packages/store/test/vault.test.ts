@@ -6,8 +6,9 @@ import type {
   RecoveryKeySchema,
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { LocalProfile } from "../src/schema/profile-schema";
+import { secretsStore } from "../src/secrets-store";
 import {
   sameVaults,
   Vault,
@@ -21,6 +22,17 @@ let vault: Vault;
 
 beforeEach(() => {
   vault = new Vault(createTestDriver());
+  // The rows here are stand-ins for sealed ones (the crypto: `secrets-store.test.ts`):
+  // a server row counts as sealed, a tombstone of a synced head copies its content.
+  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
+  vi.spyOn(secretsStore, "redraftRecord").mockImplementation(
+    ({ encryptedData, encryptionNonce, keyVersion }) => ({
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: 1,
+      keyVersion,
+    }),
+  );
 });
 
 afterEach(async () => {
@@ -132,13 +144,41 @@ describe("records", () => {
     expect(await vault.getAllLatest()).toEqual([]);
   });
 
-  it("re-upserting a (recordId, version) replaces the stored row", async () => {
+  it("re-upserting a (recordId, version) with the same ciphertext keeps one row", async () => {
     await vault.upsertRecords([record("r1", 1)]);
-    await vault.upsertRecords([record("r1", 1, { encryptedData: "changed" })]);
+    await vault.upsertRecords([record("r1", 1)]);
 
-    const [only, ...rest] = await vault.getAllLatest();
-    expect(rest).toEqual([]);
-    expect(only?.encryptedData).toBe("changed");
+    expect(await vault.getAllLatest()).toHaveLength(1);
+  });
+
+  it("ignores a server row that rewrites a stored version with other ciphertext", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await vault.upsertRecords([record("r1", 1)]);
+    await vault.upsertRecords([record("r1", 1, { encryptedData: "rolled-back" }), record("r2", 1)]);
+
+    const latest = await vault.getAllLatest();
+    expect(latest.find((r) => r.recordId === "r1")?.encryptedData).toBe("data-r1-1");
+    expect(latest.map((r) => r.recordId).sort()).toEqual(["r1", "r2"]);
+    expect(warn).toHaveBeenCalledOnce();
+    warn.mockRestore();
+  });
+
+  it("ignores a server row no vault member sealed: a purge, a tombstone or newer content", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await vault.upsertRecords([record("r1", 1), record("r2", 1), record("r3", 1)]);
+    vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(false);
+    await vault.upsertRecords([
+      record("r1", 2, { deleted_at: "2026-10-02T00:00:00.000Z", tombstoneKind: "purged" }),
+      // An old ciphertext served as a newer tombstone, or as a newer version.
+      record("r2", 2, { deleted_at: "2026-10-02T00:00:00.000Z", encryptedData: "data-r2-1" }),
+      record("r3", 2, { encryptedData: "data-r3-1" }),
+    ]);
+
+    for (const id of ["r1", "r2", "r3"]) {
+      expect((await vault.getRecordHistory(id)).map((r) => r.version)).toEqual([1]);
+    }
+    expect(warn).toHaveBeenCalledTimes(3);
+    warn.mockRestore();
   });
 
   it("upserts inputs larger than one statement chunk", async () => {

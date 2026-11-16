@@ -5,13 +5,12 @@ import {
 } from "@repo/client/src/account/create-local-vault";
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import {
-  CURRENT_CRYPTO_VERSION,
   CURRENT_SCHEMA_VERSION,
-  type EncryptedRecordSchema,
   exportDataSchema,
+  RECORD_CRYPTO_VERSION,
   type RecordData,
 } from "@repo/schema";
-import { secretsStore } from "@repo/store";
+import { type LocalRecordVersion, secretsStore } from "@repo/store";
 import { act, renderHook } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
@@ -41,7 +40,7 @@ afterAll(() => setPasswordKekParams(previous));
 
 let local: NewLocalVault;
 
-function encrypted(data: RecordData, extra: Partial<EncryptedRecordSchema> = {}) {
+function encrypted(data: RecordData, extra: Partial<LocalRecordVersion> = {}) {
   const recordId = crypto.randomUUID();
   const vaultId = local.vaults[0]!.vaultId;
   const [encryptedData, encryptionNonce, keyVersion] = secretsStore.encryptRecord(
@@ -53,13 +52,14 @@ function encrypted(data: RecordData, extra: Partial<EncryptedRecordSchema> = {})
     vaultId,
     encryptedData,
     encryptionNonce,
-    cryptoVersion: CURRENT_CRYPTO_VERSION,
+    cryptoVersion: RECORD_CRYPTO_VERSION,
     keyVersion,
     version: 1,
     clientUpdatedAt: "2026-10-02T00:00:00.000Z",
     created_at: "2026-10-01T00:00:00.000Z",
+    syncState: "pending" as const,
     ...extra,
-  } satisfies EncryptedRecordSchema;
+  } satisfies LocalRecordVersion;
 }
 
 let getAllLatest: ReturnType<typeof vi.fn>;

@@ -1,6 +1,7 @@
 import type { EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type RecordConflict, RecordWriteError } from "../src/schema/outbox-schema";
+import { secretsStore } from "../src/secrets-store";
 import { Vault } from "../src/vault";
 import { createTestDriver } from "./node-sqlite-driver";
 
@@ -8,6 +9,17 @@ let vault: Vault;
 
 beforeEach(() => {
   vault = new Vault(createTestDriver());
+  // The rows here are stand-ins for sealed ones (the crypto: `secrets-store.test.ts`):
+  // a server row counts as sealed, a tombstone of a synced head copies its content.
+  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
+  vi.spyOn(secretsStore, "redraftRecord").mockImplementation(
+    ({ encryptedData, encryptionNonce, keyVersion }) => ({
+      encryptedData,
+      encryptionNonce,
+      cryptoVersion: 1,
+      keyVersion,
+    }),
+  );
 });
 
 afterEach(async () => {
@@ -182,66 +194,50 @@ describe("ack / fail", () => {
     ]);
   });
 
-  it("an ack of a tombstone without ciphertext keeps the one held for the version it names", async () => {
-    await vault.upsertRecords([serverRow("r1", 1), serverRow("r2", 1)]);
-    await vault.writeLocalChanges([
-      { kind: "delete", recordId: "r1", clientUpdatedAt: T },
-      { kind: "delete", recordId: "r2", clientUpdatedAt: T },
-    ]);
-    // r1 was deleted on another device too: the local delete moves on top (3),
-    // and the server answers it with its tombstone (2), appending nothing.
-    await vault.upsertRecords([
-      serverRow("r1", 2, { deleted_at: T, encryptedData: "remote-tombstone" }),
-    ]);
-    const [r1, r2] = await vault.getPendingChanges();
-    const withoutCiphertext = ({
-      encryptedData: _data,
-      encryptionNonce: _nonce,
-      ...meta
-    }: EncryptedRecordSchema) => meta;
-
-    await vault.ackPendingChange(
-      r1!.changeId,
-      withoutCiphertext(serverRow("r1", 2, { deleted_at: T })),
-    );
-    await vault.ackPendingChange(
-      r2!.changeId,
-      withoutCiphertext(serverRow("r2", 2, { deleted_at: T })),
-    );
-
-    expect(await history("r1")).toEqual([
-      [2, "remote-tombstone", "synced"],
-      [1, "server-r1-1", "synced"],
-    ]);
-    expect(await history("r2")).toEqual([
-      [2, "server-r2-1", "synced"],
-      [1, "server-r2-1", "synced"],
-    ]);
-  });
-
-  it("an ack numbered lower by the server moves the record's later pending versions down", async () => {
+  it("a retry answered with the version stored before a pull moved the chain up shifts the later pending versions down", async () => {
     await vault.upsertRecords([serverRow("r1", 1)]);
-    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
-    await vault.upsertRecords([serverRow("r1", 2, { deleted_at: T })]);
-    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "back") }]);
-    const [deleted] = await vault.getPendingChanges();
-    const {
-      encryptedData: _data,
-      encryptionNonce: _nonce,
-      ...tombstone
-    } = serverRow("r1", 2, {
-      deleted_at: T,
-    });
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
+    // The push stored the edit as 2, its answer got lost, and a pull brought it.
+    await vault.upsertRecords([serverRow("r1", 2)]);
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "later") }]);
+    const [edited] = await vault.getPendingChanges();
+    expect(edited!.record.version).toBe(3);
 
-    await vault.ackPendingChange(deleted!.changeId, tombstone);
+    expect(await vault.ackPendingChange(edited!.changeId, serverRow("r1", 2))).toBe(true);
 
-    const [restore] = await vault.getPendingChanges();
-    expect(restore!.record).toMatchObject({ version: 3, encryptedData: "back" });
+    const [later] = await vault.getPendingChanges();
+    expect(later!.record).toMatchObject({ version: 3, encryptedData: "later" });
     expect(await history("r1")).toEqual([
-      [3, "back", "pending"],
+      [3, "later", "pending"],
       [2, "server-r1-2", "synced"],
       [1, "server-r1-1", "synced"],
     ]);
+  });
+
+  it("refuses a copy no pull would take, keeping the change queued", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    await vault.upsertRecords([serverRow("r1", 1)]);
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine") }]);
+    const [change] = await vault.getPendingChanges();
+
+    // Another record's, numbered above the change, rewriting a stored version, unsealed.
+    expect(await vault.ackPendingChange(change!.changeId, serverRow("r2", 2))).toBe(false);
+    expect(await vault.ackPendingChange(change!.changeId, serverRow("r1", 3))).toBe(false);
+    expect(
+      await vault.ackPendingChange(
+        change!.changeId,
+        serverRow("r1", 1, { encryptedData: "rolled-back" }),
+      ),
+    ).toBe(false);
+    vi.mocked(secretsStore.isSealedRow).mockReturnValue(false);
+    expect(await vault.ackPendingChange(change!.changeId, serverRow("r1", 2))).toBe(false);
+
+    expect(await vault.getPendingChanges()).toMatchObject([{ changeId: change!.changeId }]);
+    expect(await history("r1")).toEqual([
+      [2, "mine", "pending"],
+      [1, "server-r1-1", "synced"],
+    ]);
+    warn.mockRestore();
   });
 
   it("a failure is counted and keeps the change queued", async () => {
@@ -563,6 +559,27 @@ describe("trash and purge", () => {
     expect(await history("r1")).toEqual([[2, "", "synced"]]);
     expect(await history("r2")).toEqual([[2, "", "synced"]]);
     expect(await vault.countPendingChanges()).toBe(0);
+  });
+
+  it("drops a pending delete under a pulled tombstone, but keeps a purge on a plain one", async () => {
+    await sync(serverRow("r1", 1), serverRow("r2", 1));
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+    await vault.purgeRecords(["r2"]);
+
+    // Another device moved r1 away and put r2 in the trash first.
+    await sync(
+      serverRow("r1", 2, { deleted_at: T, tombstoneKind: "moved" }),
+      serverRow("r2", 2, { deleted_at: T }),
+    );
+
+    // No second tombstone on the moved one (it would land in the trash).
+    expect(await history("r1")).toEqual([
+      [2, "server-r1-2", "synced"],
+      [1, "server-r1-1", "synced"],
+    ]);
+    expect(await vault.getPendingChanges()).toMatchObject([
+      { record: { recordId: "r2", version: 3, tombstoneKind: "purged" } },
+    ]);
   });
 
   it("keeps an unsent edit on top of a pulled purge (an edit beats a delete)", async () => {

@@ -41,9 +41,7 @@ export const RECORD_VERSION_OVERHEAD_BYTES = 256;
 
 /** A push change's (or a stored version's) size against `MAX_PUSH_BYTES` and the storage quota. */
 export function pushChangeBytes(change: PushChange | { encryptedData: string }): number {
-  return (
-    ("encryptedData" in change ? change.encryptedData.length : 0) + RECORD_VERSION_OVERHEAD_BYTES
-  );
+  return (change.encryptedData?.length ?? 0) + RECORD_VERSION_OVERHEAD_BYTES;
 }
 
 export class RecordTooLargeError extends Error {

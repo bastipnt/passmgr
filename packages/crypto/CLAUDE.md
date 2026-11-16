@@ -23,4 +23,7 @@ against the public key). Password change / rekey / recovery rewrap only the acco
 is created once and `generateUserKeys` never touches it. A public key is verified out of band by its
 `publicKeyFingerprint` (30 digits).
 
-Records: the AAD binds `cryptoVersion/vaultId/recordId` (`src/vault-data.ts`), so a record never opens in another vault.
+Records: the AAD binds `cryptoVersion/stage/vaultId/recordId` (`src/vault-data.ts`), so a record never opens in another
+vault; a `sealed` one also `version/keyVersion/state` (`recordCipherContext(row, stage)`). `cryptoVersion` is the format
+(`RECORD_CRYPTO_VERSION`), not the stage: the store derives that from `syncState` (`storedRecordContext`). Drafts
+(pending) are sealed at push (`secretsStore.sealRecord`, ADR 0001 D11 amended 2026-11-16).

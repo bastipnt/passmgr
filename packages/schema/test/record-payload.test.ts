@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { MAX_ENCRYPTED_RECORD_LENGTH } from "../src/record-limits";
 import {
+  MAX_PURGE_SEAL_LENGTH,
   MAX_SYNC_RECORDS,
   MIN_SYNC_RECORDS,
   pushInputSchema,
@@ -17,18 +18,17 @@ describe("pushInputSchema", () => {
     vaultId: UUID,
     clientUpdatedAt: "2026-01-01T00:00:00Z",
   };
+  const sealed = { encryptedData: "E", encryptionNonce: "N", cryptoVersion: 1, keyVersion: 1 };
 
   it("takes a put from base 0 (a new record) and a delete of a version", () => {
-    const put = {
+    const put = { ...change, ...sealed, op: "put", baseVersion: 0 };
+    const del = {
       ...change,
-      op: "put",
-      baseVersion: 0,
-      encryptedData: "E",
-      encryptionNonce: "N",
-      cryptoVersion: 1,
-      keyVersion: 1,
+      ...sealed,
+      op: "delete",
+      baseVersion: 1,
+      clientChangeId: crypto.randomUUID(),
     };
-    const del = { ...change, op: "delete", baseVersion: 1, clientChangeId: crypto.randomUUID() };
     expect(pushInputSchema.parse({ changes: [put, del] }).changes).toHaveLength(2);
   });
 
@@ -37,16 +37,14 @@ describe("pushInputSchema", () => {
       ...change,
       op: "put",
       baseVersion: 0,
+      ...sealed,
       encryptedData: "E".repeat(MAX_ENCRYPTED_RECORD_LENGTH + 1),
-      encryptionNonce: "N",
-      cryptoVersion: 1,
-      keyVersion: 1,
     };
     expect(pushInputSchema.safeParse({ changes: [put] }).success).toBe(false);
   });
 
   it("rejects the same change twice in one batch", () => {
-    const del = { ...change, op: "delete", baseVersion: 1 };
+    const del = { ...change, ...sealed, op: "delete", baseVersion: 1 };
     expect(() => pushInputSchema.parse({ changes: [del, { ...del, baseVersion: 2 }] })).toThrow(
       /unique/,
     );
@@ -56,6 +54,21 @@ describe("pushInputSchema", () => {
     ["an empty batch", []],
     ["a delete of base 0 (nothing to delete)", [{ ...change, op: "delete", baseVersion: 0 }]],
     ["a put without ciphertext", [{ ...change, op: "put", baseVersion: 1 }]],
+    ["a delete without ciphertext", [{ ...change, op: "delete", baseVersion: 1 }]],
+    ["an unknown format", [{ ...change, ...sealed, cryptoVersion: 2, op: "put", baseVersion: 0 }]],
+    [
+      "a purge with content",
+      [
+        {
+          ...change,
+          ...sealed,
+          encryptedData: "E".repeat(MAX_PURGE_SEAL_LENGTH + 1),
+          op: "delete",
+          baseVersion: 1,
+          tombstoneKind: "purged",
+        },
+      ],
+    ],
   ])("rejects %s", (_label, changes) => {
     expect(() => pushInputSchema.parse({ changes })).toThrow();
   });
