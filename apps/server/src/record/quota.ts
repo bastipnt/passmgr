@@ -16,6 +16,13 @@ function storageQuotaBytes(): number {
 /** What every vault owner may store across their live vaults, history and tombstones included. */
 export const STORAGE_QUOTA_BYTES = storageQuotaBytes();
 
+/**
+ * How far past the quota a chain of deletes may go: a tombstone keeps its
+ * record's ciphertext, so a full vault can still move records to the trash,
+ * but not grow without bound.
+ */
+export const DELETE_HEADROOM_BYTES = Math.ceil(STORAGE_QUOTA_BYTES / 10);
+
 /** Bytes an owner may still add; shared by every vault they own. */
 export type StorageBudget = { remaining: number };
 

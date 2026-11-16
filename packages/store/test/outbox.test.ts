@@ -182,6 +182,68 @@ describe("ack / fail", () => {
     ]);
   });
 
+  it("an ack of a tombstone without ciphertext keeps the one held for the version it names", async () => {
+    await vault.upsertRecords([serverRow("r1", 1), serverRow("r2", 1)]);
+    await vault.writeLocalChanges([
+      { kind: "delete", recordId: "r1", clientUpdatedAt: T },
+      { kind: "delete", recordId: "r2", clientUpdatedAt: T },
+    ]);
+    // r1 was deleted on another device too: the local delete moves on top (3),
+    // and the server answers it with its tombstone (2), appending nothing.
+    await vault.upsertRecords([
+      serverRow("r1", 2, { deleted_at: T, encryptedData: "remote-tombstone" }),
+    ]);
+    const [r1, r2] = await vault.getPendingChanges();
+    const withoutCiphertext = ({
+      encryptedData: _data,
+      encryptionNonce: _nonce,
+      ...meta
+    }: EncryptedRecordSchema) => meta;
+
+    await vault.ackPendingChange(
+      r1!.changeId,
+      withoutCiphertext(serverRow("r1", 2, { deleted_at: T })),
+    );
+    await vault.ackPendingChange(
+      r2!.changeId,
+      withoutCiphertext(serverRow("r2", 2, { deleted_at: T })),
+    );
+
+    expect(await history("r1")).toEqual([
+      [2, "remote-tombstone", "synced"],
+      [1, "server-r1-1", "synced"],
+    ]);
+    expect(await history("r2")).toEqual([
+      [2, "server-r2-1", "synced"],
+      [1, "server-r2-1", "synced"],
+    ]);
+  });
+
+  it("an ack numbered lower by the server moves the record's later pending versions down", async () => {
+    await vault.upsertRecords([serverRow("r1", 1)]);
+    await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);
+    await vault.upsertRecords([serverRow("r1", 2, { deleted_at: T })]);
+    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "back") }]);
+    const [deleted] = await vault.getPendingChanges();
+    const {
+      encryptedData: _data,
+      encryptionNonce: _nonce,
+      ...tombstone
+    } = serverRow("r1", 2, {
+      deleted_at: T,
+    });
+
+    await vault.ackPendingChange(deleted!.changeId, tombstone);
+
+    const [restore] = await vault.getPendingChanges();
+    expect(restore!.record).toMatchObject({ version: 3, encryptedData: "back" });
+    expect(await history("r1")).toEqual([
+      [3, "back", "pending"],
+      [2, "server-r1-2", "synced"],
+      [1, "server-r1-1", "synced"],
+    ]);
+  });
+
   it("a failure is counted and keeps the change queued", async () => {
     await vault.writeLocalChanges([{ kind: "create", ...ciphertext("r1", "a") }]);
     const [change] = await vault.getPendingChanges();

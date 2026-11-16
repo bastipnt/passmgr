@@ -1,9 +1,14 @@
 import { db, vaultsTable } from "@repo/db";
-import { type PushChange, pushChangeBytes } from "@repo/schema";
+import {
+  MAX_ENCRYPTED_RECORD_LENGTH,
+  MAX_PUSH_CHANGES,
+  type PushChange,
+  pushChangeBytes,
+} from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { onRecordsChanged } from "../../src/events/record-events";
-import { STORAGE_QUOTA_BYTES } from "../../src/record/quota";
+import { DELETE_HEADROOM_BYTES, STORAGE_QUOTA_BYTES } from "../../src/record/quota";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, deleteChange, loginAndGetAuthKey, putChange, register } from "./_helpers";
@@ -31,6 +36,14 @@ async function history(session: Session, recordId: string) {
     recordId,
   );
   return await caller.record.history(recordId);
+}
+
+async function usedBytes(vaultId: string) {
+  const [vault] = await db
+    .select({ usedBytes: vaultsTable.usedBytes })
+    .from(vaultsTable)
+    .where(eq(vaultsTable.vaultId, vaultId));
+  return vault!.usedBytes;
 }
 
 async function signUp(email: string) {
@@ -119,28 +132,113 @@ describe("record.push", () => {
     const record = putChange(alice.vaultId, { data: "LAST" });
     await push(alice, record);
 
-    expect(await push(alice, deleteChange(alice.vaultId, record.recordId, 1))).toMatchObject([
-      {
-        status: "applied",
-        record: { version: 2, encryptedData: "LAST", deleted_at: expect.any(String) },
-      },
+    const [deleted] = await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+    expect(deleted).toMatchObject({
+      status: "applied",
+      record: { version: 2, deleted_at: expect.any(String) },
+    });
+    // The client has the ciphertext; the answer carries only the metadata.
+    expect(deleted).not.toHaveProperty("record.encryptedData");
+    expect(await history(alice, record.recordId)).toMatchObject([
+      { version: 2, encryptedData: "LAST" },
+      { version: 1 },
     ]);
 
-    // Deleted on another device too: one more tombstone, so the numbering stays
-    // the client's and a chain can go on from it (here: restored right away).
-    const again = deleteChange(alice.vaultId, record.recordId, 2);
     const restore = putChange(alice.vaultId, {
       recordId: record.recordId,
-      baseVersion: 3,
+      baseVersion: 2,
       data: "BACK",
     });
-    expect(await push(alice, again, restore)).toMatchObject([
-      {
-        status: "applied",
-        record: { version: 3, encryptedData: "LAST", deleted_at: expect.any(String) },
-      },
-      { status: "applied", record: { version: 4, encryptedData: "BACK", deleted_at: null } },
+    expect(await push(alice, restore)).toMatchObject([
+      { status: "applied", record: { version: 3, encryptedData: "BACK", deleted_at: null } },
     ]);
+  });
+
+  describe("a delete of a tombstone of the same kind", () => {
+    it("appends nothing and answers with the tombstone; the chain goes on in the client's numbering", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId, { data: "LAST" });
+      await push(alice, record);
+      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+
+      // Deleted on another device too, then restored there (client numbering: 3, 4).
+      const again = deleteChange(alice.vaultId, record.recordId, 2);
+      const restore = putChange(alice.vaultId, {
+        recordId: record.recordId,
+        baseVersion: 3,
+        data: "BACK",
+      });
+      const restored = { version: 3, encryptedData: "BACK", deleted_at: null };
+      expect(await push(alice, again, restore)).toMatchObject([
+        { status: "applied", record: { version: 2, deleted_at: expect.any(String) } },
+        { status: "applied", record: restored },
+      ]);
+      expect(await history(alice, record.recordId)).toHaveLength(3);
+
+      // A retry after a lost answer writes nothing: the restore covers the delete below it.
+      expect(await push(alice, again, restore)).toMatchObject([
+        { status: "applied", record: restored },
+        { status: "applied", record: restored },
+      ]);
+      expect(await history(alice, record.recordId)).toHaveLength(3);
+    });
+
+    it("can't be chained to copy a record's ciphertext over and over", async () => {
+      const alice = await signUp("alice@example.com");
+      const data = "X".repeat(MAX_ENCRYPTED_RECORD_LENGTH);
+      const record = putChange(alice.vaultId, { data });
+      await push(alice, record);
+      const usedBefore = await usedBytes(alice.vaultId);
+
+      const deletes = Array.from({ length: MAX_PUSH_CHANGES }, (_, i) =>
+        deleteChange(alice.vaultId, record.recordId, i + 1),
+      );
+      const results = await push(alice, ...deletes);
+      expect(results.every((r) => r.status === "applied")).toBe(true);
+      expect(results.map((r) => r.status === "applied" && r.record.version)).toEqual(
+        deletes.map(() => 2),
+      );
+      expect(JSON.stringify(results).length).toBeLessThan(MAX_PUSH_CHANGES * 1024);
+      expect(await history(alice, record.recordId)).toHaveLength(2);
+      expect(await usedBytes(alice.vaultId)).toBe(
+        usedBefore + pushChangeBytes({ encryptedData: data }),
+      );
+    });
+
+    it("is answered on its own when the rest of its chain is over quota", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+      await db
+        .update(vaultsTable)
+        .set({ usedBytes: STORAGE_QUOTA_BYTES })
+        .where(eq(vaultsTable.vaultId, alice.vaultId));
+
+      const again = deleteChange(alice.vaultId, record.recordId, 2);
+      const restore = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 3 });
+      expect(await push(alice, again, restore)).toMatchObject([
+        { status: "applied", record: { version: 2 } },
+        { status: "rejected", reason: "quota" },
+      ]);
+    });
+
+    it("still appends a tombstone that changes the kind", async () => {
+      const alice = await signUp("alice@example.com");
+      const record = putChange(alice.vaultId);
+      await push(alice, record);
+      await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
+
+      const moved = {
+        ...deleteChange(alice.vaultId, record.recordId, 2),
+        tombstoneKind: "moved" as const,
+      };
+      const plain = deleteChange(alice.vaultId, record.recordId, 3);
+      expect(await push(alice, moved, plain)).toMatchObject([
+        { status: "applied", record: { version: 3, tombstoneKind: "moved" } },
+        { status: "applied", record: { version: 3, tombstoneKind: "moved" } },
+      ]);
+    });
   });
 
   it("purges a record: drops its history and keeps one tombstone without content", async () => {
@@ -167,7 +265,7 @@ describe("record.push", () => {
     const left = await history(alice, record.recordId);
     expect(left).toMatchObject([{ version: 3, encryptedData: "", tombstoneKind: "purged" }]);
 
-    // A delete on top stays purged; an edit starts the record over.
+    // A delete on top changes nothing (it stays purged); an edit starts the record over.
     const again = deleteChange(alice.vaultId, record.recordId, 3);
     const restore = putChange(alice.vaultId, {
       recordId: record.recordId,
@@ -175,24 +273,17 @@ describe("record.push", () => {
       data: "NEW",
     });
     expect(await push(alice, again, restore)).toMatchObject([
-      { status: "applied", record: { version: 4, encryptedData: "", tombstoneKind: "purged" } },
-      { status: "applied", record: { version: 5, encryptedData: "NEW", tombstoneKind: null } },
+      { status: "applied", record: { version: 3, encryptedData: "", tombstoneKind: "purged" } },
+      { status: "applied", record: { version: 4, encryptedData: "NEW", tombstoneKind: null } },
     ]);
   });
 
   it("counts what a vault stores against its owner's quota: puts past it are rejected, deletes and purges apply", async () => {
     const alice = await signUp("alice@example.com");
-    const usedBytes = async () =>
-      (
-        await db
-          .select({ usedBytes: vaultsTable.usedBytes })
-          .from(vaultsTable)
-          .where(eq(vaultsTable.vaultId, alice.vaultId))
-      )[0]!.usedBytes;
     const record = putChange(alice.vaultId, { data: "SECRET" });
     await push(alice, record);
     await push(alice, deleteChange(alice.vaultId, record.recordId, 1));
-    expect(await usedBytes()).toBe(2 * pushChangeBytes({ encryptedData: "SECRET" }));
+    expect(await usedBytes(alice.vaultId)).toBe(2 * pushChangeBytes({ encryptedData: "SECRET" }));
 
     await db
       .update(vaultsTable)
@@ -206,7 +297,7 @@ describe("record.push", () => {
       tombstoneKind: "purged" as const,
     };
     expect(await push(alice, purge)).toMatchObject([{ status: "applied" }]);
-    expect(await usedBytes()).toBe(
+    expect(await usedBytes(alice.vaultId)).toBe(
       STORAGE_QUOTA_BYTES -
         100 -
         2 * pushChangeBytes({ encryptedData: "SECRET" }) +
@@ -239,6 +330,36 @@ describe("record.push", () => {
         { status: "rejected", reason: "quota" },
       ]);
       expect(await history(alice, source.recordId)).toHaveLength(1);
+    });
+
+    it("lets deletes go past it by a headroom only, and purges always", async () => {
+      const alice = await signUp("alice@example.com");
+      const records = [putChange(alice.vaultId), putChange(alice.vaultId)];
+      await push(alice, ...records);
+      const [first, second] = records.map((r) => deleteChange(alice.vaultId, r.recordId, 1));
+      await fillQuota(alice.vaultId, 0);
+      expect(await push(alice, first!)).toMatchObject([{ status: "applied" }]);
+
+      await fillQuota(alice.vaultId, -DELETE_HEADROOM_BYTES);
+      expect(await push(alice, second!)).toMatchObject([{ status: "rejected", reason: "quota" }]);
+      const purge = {
+        ...deleteChange(alice.vaultId, records[1]!.recordId, 1),
+        tombstoneKind: "purged" as const,
+      };
+      expect(await push(alice, purge)).toMatchObject([{ status: "applied" }]);
+
+      const third = putChange(alice.vaultId, { data: "Y".repeat(1000) });
+      await fillQuota(alice.vaultId, 10_000);
+      await push(alice, third);
+      await fillQuota(alice.vaultId, -DELETE_HEADROOM_BYTES);
+      const trashThenPurge = [
+        deleteChange(alice.vaultId, third.recordId, 1),
+        { ...deleteChange(alice.vaultId, third.recordId, 2), tombstoneKind: "purged" as const },
+      ];
+      expect(await push(alice, ...trashThenPurge)).toMatchObject([
+        { status: "applied" },
+        { status: "applied" },
+      ]);
     });
 
     it("lets a rotation rewrite a record still under the old key, however full", async () => {
@@ -293,9 +414,27 @@ describe("record.push", () => {
       tombstoneKind: "moved" as const,
     };
     expect(await push(alice, moved)).toMatchObject([
-      { status: "applied", record: { version: 2, encryptedData: "LAST", tombstoneKind: "moved" } },
+      { status: "applied", record: { version: 2, tombstoneKind: "moved" } },
     ]);
-    expect(await history(alice, record.recordId)).toHaveLength(2);
+    expect(await history(alice, record.recordId)).toMatchObject([
+      { version: 2, encryptedData: "LAST", tombstoneKind: "moved" },
+      { version: 1 },
+    ]);
+  });
+
+  it("answers a retried chain as stale when another device wrote above its stored part", async () => {
+    const alice = await signUp("alice@example.com");
+    const record = putChange(alice.vaultId);
+    await push(alice, record);
+    const deleted = deleteChange(alice.vaultId, record.recordId, 1);
+    await push(alice, deleted);
+    await push(alice, putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 2 }));
+
+    const edit = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 2 });
+    expect(await push(alice, deleted, edit)).toMatchObject([
+      { status: "applied", record: { version: 2 } },
+      { status: "stale", headVersion: 3 },
+    ]);
   });
 
   it("answers a delete that missed an edit as stale", async () => {

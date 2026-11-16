@@ -1,7 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
-import { emitSessionSignedOut } from "../events/record-events";
 import type { Result } from "ioredis";
+import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle

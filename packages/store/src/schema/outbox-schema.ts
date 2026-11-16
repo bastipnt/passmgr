@@ -1,5 +1,19 @@
-import type { EncryptedRecordSchema } from "@repo/schema";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
+import type { EncryptedRecordSchema, PushedRecord } from "@repo/schema";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  gt,
+  inArray,
+  isNotNull,
+  isNull,
+  lt,
+  lte,
+  max,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { getProfile } from "./profile-schema";
 import { upsertRecords } from "./records-schema";
@@ -296,11 +310,14 @@ export async function countParkedChanges(db: LocalDb): Promise<number> {
 /**
  * The server stored a change: drop its outbox entry and mark the row synced,
  * replacing it with the server's copy (canonical timestamps) when there is
- * one. Run inside a transaction.
+ * one. A copy without ciphertext (a tombstone) takes it from here. When the
+ * server numbered the change lower (a delete it already had appends nothing),
+ * the record's later pending versions move down with it, so they build on the
+ * server's numbering. Run inside a transaction.
  */
 export async function ackPendingChange(
   changeId: string,
-  serverRow: EncryptedRecordSchema | null,
+  serverRow: PushedRecord | null,
   db: LocalDb,
 ): Promise<void> {
   const entry = await db.select().from(outbox).where(eq(outbox.changeId, changeId)).get();
@@ -312,9 +329,66 @@ export async function ackPendingChange(
     await db.update(records).set({ syncState: "synced" }).where(at);
     return;
   }
-  // Same (recordId, version) unless the server numbered it differently.
+  const row = await withLocalCiphertext(serverRow, entry.version, db);
   await db.delete(records).where(at);
-  await upsertRecords([serverRow], db);
+  await upsertRecords([row], db);
+  if (serverRow.version < entry.version) {
+    await shiftPendingDown(entry.recordId, entry.version, entry.version - serverRow.version, db);
+  }
+}
+
+/** Move a record's pending versions above `above` down by `by`, lowest first into vacated slots. */
+async function shiftPendingDown(recordId: string, above: number, by: number, db: LocalDb) {
+  const later = await db
+    .select({ version: records.version })
+    .from(records)
+    .where(
+      and(
+        eq(records.recordId, recordId),
+        eq(records.syncState, "pending"),
+        gt(records.version, above),
+      ),
+    )
+    .orderBy(asc(records.version));
+  for (const { version } of later) {
+    await db
+      .update(records)
+      .set({ version: version - by })
+      .where(and(eq(records.recordId, recordId), eq(records.version, version)));
+    await db
+      .update(outbox)
+      .set({ version: version - by })
+      .where(and(eq(outbox.recordId, recordId), eq(outbox.version, version)));
+  }
+}
+
+/**
+ * Fill in a pushed tombstone's ciphertext: the server copied it from the
+ * version below, so take the synced copy of its version, else the newest
+ * synced one below it, else the pending version it answers.
+ */
+async function withLocalCiphertext(
+  serverRow: PushedRecord,
+  pendingVersion: number,
+  db: LocalDb,
+): Promise<EncryptedRecordSchema> {
+  const { encryptedData, encryptionNonce } = serverRow;
+  if (encryptedData !== undefined && encryptionNonce !== undefined) {
+    return { ...serverRow, encryptedData, encryptionNonce };
+  }
+  const ciphertextWhere = async (where: SQL | undefined) =>
+    await db
+      .select({ encryptedData: records.encryptedData, encryptionNonce: records.encryptionNonce })
+      .from(records)
+      .where(and(eq(records.recordId, serverRow.recordId), where))
+      .orderBy(desc(records.version))
+      .get();
+  const synced = eq(records.syncState, "synced");
+  const ciphertext =
+    (await ciphertextWhere(and(synced, lte(records.version, serverRow.version)))) ??
+    (await ciphertextWhere(eq(records.version, pendingVersion)));
+  if (!ciphertext) throw new Error(`No local ciphertext for record ${serverRow.recordId}`);
+  return { ...serverRow, ...ciphertext };
 }
 
 /**
