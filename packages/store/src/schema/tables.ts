@@ -33,8 +33,19 @@ export const records = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.recordId, t.version] }),
     index("records_vault_idx").on(t.vaultId),
+    // Covers the latest-version subquery (max version, first creation date per
+    // record), which otherwise reads every version's row, ciphertext and all.
+    index("records_latest_idx").on(t.recordId, t.version, t.created_at),
+    // The few pending versions, without scanning the synced history.
+    index("records_pending_idx").on(t.recordId, t.version).where(sql`${t.syncState} = 'pending'`),
   ],
 );
+
+/**
+ * Matches `records_pending_idx`: SQLite only uses a partial index when the query
+ * repeats its condition, and a bound parameter (`eq(syncState, "pending")`) doesn't.
+ */
+export const isPending = sql`${records.syncState} = 'pending'`;
 
 /**
  * Local record versions waiting to be pushed (ADR 0001 D8), in write order

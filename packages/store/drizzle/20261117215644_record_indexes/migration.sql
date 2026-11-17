@@ -1,0 +1,2 @@
+CREATE INDEX `records_latest_idx` ON `records` (`recordId`,`version`,`created_at`);--> statement-breakpoint
+CREATE INDEX `records_pending_idx` ON `records` (`recordId`,`version`) WHERE "records"."syncState" = 'pending';

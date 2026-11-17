@@ -9,7 +9,7 @@ import {
   upsertRecords,
   withoutForgedRows,
 } from "./records-schema";
-import { outbox, records, vaults } from "./tables";
+import { isPending, outbox, records, vaults } from "./tables";
 
 /** A stored record version and whether the server has it yet. */
 export type LocalRecordVersion = EncryptedRecordSchema & { syncState: "synced" | "pending" };
@@ -427,13 +427,7 @@ export async function getPendingUnderOldKeys(db: LocalDb): Promise<LocalRecordVe
     .select({ record: records })
     .from(records)
     .innerJoin(vaults, eq(vaults.vaultId, records.vaultId))
-    .where(
-      and(
-        eq(records.syncState, "pending"),
-        isNull(records.deleted_at),
-        lt(records.keyVersion, vaults.keyVersion),
-      ),
-    )
+    .where(and(isPending, isNull(records.deleted_at), lt(records.keyVersion, vaults.keyVersion)))
     .orderBy(asc(records.recordId), asc(records.version));
   return rows.map(({ record }) => record);
 }
@@ -527,7 +521,7 @@ export async function rebasePendingVersions(
   const pending: LocalRecordVersion[] = await db
     .select()
     .from(records)
-    .where(eq(records.syncState, "pending"))
+    .where(isPending)
     .orderBy(asc(records.recordId), asc(records.version));
   if (pending.length === 0) return;
 

@@ -15,6 +15,8 @@ sorted folder list, so `test/migrations.test.ts` pins the applied names: append 
 `PRAGMA user_version`) applies them. Queries go through
 `drizzle-orm/sqlite-proxy` over `SqlDriver` (array rows). **Never use Drizzle's `db.transaction()`**:
 it can't isolate a proxied connection. Use `SqlDriver.transaction` (`Vault.transaction`).
+Filter pending versions with `isPending` (`tables.ts`), not `eq(records.syncState, "pending")`: SQLite only uses the
+partial index `records_pending_idx` when the query repeats its literal condition (`test/query-plans.test.ts`).
 The web driver leans on SQLocal internals (`src/drivers/web.ts`); `test/browser/` covers its transactions, so run
 it when bumping `sqlocal`.
 

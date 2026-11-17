@@ -189,6 +189,7 @@ const APPLIED_MIGRATIONS = {
     "20261011195948_trash",
     "20261012143643_breach_checks",
     "20261114085615_known_vaults",
+    "20261117215644_record_indexes",
   ],
   registry: [
     "20261008060745_profile_registry",

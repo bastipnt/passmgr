@@ -82,5 +82,12 @@ export const GENERATED_MIGRATIONS: readonly { name: string; statements: readonly
     "statements": [
       "CREATE TABLE `known_vaults` (\n\t`vaultId` text PRIMARY KEY,\n\t`kind` text NOT NULL,\n\t`keyVersion` integer NOT NULL\n);"
     ]
+  },
+  {
+    "name": "20261117215644_record_indexes",
+    "statements": [
+      "CREATE INDEX `records_latest_idx` ON `records` (`recordId`,`version`,`created_at`);",
+      "CREATE INDEX `records_pending_idx` ON `records` (`recordId`,`version`) WHERE \"records\".\"syncState\" = 'pending';"
+    ]
   }
 ];
