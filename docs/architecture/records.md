@@ -31,6 +31,15 @@ for passwords without a result or with one ≥ `BREACH_RECHECK_DAYS`. Results pe
 (`breach_checks`, never synced, pruned to current versions); record detail reads them only (`useStoredBreachCount`).
 `api.pwnedpasswords.com` is the one third-party host in the `Caddyfile` CSP `connect-src`.
 
+## Website icons
+
+Favicons (`@repo/ui-shared` `useWebsiteAvatar`, web `WebsiteAvatar` and the form's `WebsiteFavicon`, native
+`WebsiteAvatar`) come from `icons.duckduckgo.com/ip3/<host>.ico`, only with Settings → General "Show website icons" on
+(`useWebsiteIconsPreference`, `PREF_KEYS.websiteIcons`, per device, off by default). `PreferencesProvider` feeds it to
+`WebsiteIconsContext`; off, no request is made and the avatar is the hue-tinted initial. The website form keeps a row's
+icon at its value from when it was focused, so only blurred values are looked up, never keystrokes. The host is in the
+`Caddyfile` CSP `img-src`.
+
 ## Login email
 
 Login `email` (optional, next to `username`): `loginAccountName` (the username, else the email) is the list subtitle,

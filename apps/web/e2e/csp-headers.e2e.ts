@@ -19,6 +19,8 @@ test.describe("security headers", () => {
     expect(csp).toMatch(/script-src[^;]*'wasm-unsafe-eval'/);
     // The breach check's only third-party call (HIBP range API).
     expect(csp).toMatch(/connect-src[^;]* https:\/\/api\.pwnedpasswords\.com[ ;]/);
+    // Opt-in website icons (Settings → General).
+    expect(csp).toMatch(/img-src[^;]* https:\/\/icons\.duckduckgo\.com[ ;]/);
   });
 
   // The SPA must actually boot under the CSP (sqlite-wasm and Argon2 need

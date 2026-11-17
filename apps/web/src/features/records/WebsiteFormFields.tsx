@@ -29,7 +29,7 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
   const values = useWatch({ control, name: "websites" }) ?? [];
   const filled = values.filter((site) => site?.value?.trim()).length;
   // The row being typed in keeps the favicon of its value on focus: no host leaves while typing.
-  const [editing, setEditing] = useState<{ index: number; value: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
 
   useEffect(() => {
     if (fields.length >= 1) return;
@@ -38,7 +38,9 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
   }, [fields.length, replace]);
 
   function normalizeRow(index: number, value: string) {
-    setValue(`websites.${index}.value`, normalizeWebsite(value), { shouldDirty: true });
+    const normalized = normalizeWebsite(value);
+    setValue(`websites.${index}.value`, normalized, { shouldDirty: true });
+    return normalized;
   }
 
   return (
@@ -50,7 +52,7 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
           onMove={move}
           itemName={(_, index) => values[index]?.value?.trim() || `website ${index + 1}`}
           className="flex flex-col gap-2"
-          renderItem={(_, index, handle) => {
+          renderItem={(field, index, handle) => {
             const value = values[index]?.value ?? "";
             return (
               <ControlledBoxedInput
@@ -64,7 +66,7 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
                 leading={
                   <>
                     {handle}
-                    <WebsiteFavicon website={editing?.index === index ? editing.value : value} />
+                    <WebsiteFavicon website={editing?.id === field.id ? editing.value : value} />
                   </>
                 }
                 trailing={
@@ -74,13 +76,15 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
                     onRemove={() => remove(index)}
                   />
                 }
-                onFocus={() => setEditing({ index, value })}
+                onFocus={() => setEditing({ id: field.id, value })}
                 onBlur={(e) => {
                   setEditing(null);
                   normalizeRow(index, e.target.value);
                 }}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter") normalizeRow(index, e.currentTarget.value);
+                  if (e.key === "Enter") {
+                    setEditing({ id: field.id, value: normalizeRow(index, e.currentTarget.value) });
+                  }
                 }}
               />
             );

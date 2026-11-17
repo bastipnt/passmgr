@@ -20,6 +20,8 @@ export const PREF_KEYS = {
   recentRecords: "search.recent-records",
   /** Web categories sidebar, from `lg` up (narrower it is always collapsed). */
   sidebarCollapsed: "pass-mgr-sidebar-collapsed",
+  /** Opt-in favicon lookups (`WebsiteIconsContext`); off sends no host to DuckDuckGo. */
+  websiteIcons: "pass-mgr-website-icons",
 
   generatorMode: "pass-mgr-generator-mode",
   generatorPasswordOptions: "pass-mgr-generator-password-options",

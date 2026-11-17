@@ -1,4 +1,9 @@
-import { SORT_LABELS, type SortOption, useSortPreference } from "@repo/client";
+import {
+  SORT_LABELS,
+  type SortOption,
+  useSortPreference,
+  useWebsiteIconsPreference,
+} from "@repo/client";
 import { AccentPicker } from "@repo/ui/complex-components/AccentPicker";
 import {
   Item,
@@ -19,10 +24,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/ui/components/Select";
+import { Switch } from "@repo/ui/components/Switch";
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/ToggleGroup";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useTheme } from "@repo/ui/providers/ThemeProvider";
-import { ACCENT_HINT } from "@repo/ui-shared";
+import { ACCENT_HINT, WEBSITE_ICONS_HINT } from "@repo/ui-shared";
 import { Monitor, Moon, Sun } from "lucide-react";
 import { recordPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
@@ -48,6 +54,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 export default function GeneralSettingsPage() {
   const { theme, setTheme } = useTheme();
   const [sort, setSort] = useSortPreference();
+  const [websiteIcons, setWebsiteIcons] = useWebsiteIconsPreference();
   const isMobile = useIsMobile();
 
   return (
@@ -89,6 +96,20 @@ export default function GeneralSettingsPage() {
                 <AccentPicker />
                 <ItemDescription>{ACCENT_HINT}</ItemDescription>
               </ItemContent>
+            </Item>
+
+            <Item variant="outline">
+              <ItemContent>
+                <ItemTitle id="website-icons-label">Show website icons</ItemTitle>
+                <ItemDescription>{WEBSITE_ICONS_HINT}</ItemDescription>
+              </ItemContent>
+              <ItemActions>
+                <Switch
+                  aria-labelledby="website-icons-label"
+                  checked={websiteIcons}
+                  onCheckedChange={setWebsiteIcons}
+                />
+              </ItemActions>
             </Item>
           </ItemGroup>
         </section>

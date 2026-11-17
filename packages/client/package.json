@@ -17,6 +17,7 @@
     "@repo/schema": "workspace:*",
     "@repo/store": "workspace:*",
     "@repo/types": "workspace:*",
+    "@repo/ui-shared": "workspace:*",
     "@repo/util": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@trpc/client": "catalog:",

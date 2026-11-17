@@ -651,6 +651,9 @@ importers:
       '@repo/types':
         specifier: workspace:*
         version: link:../types
+      '@repo/ui-shared':
+        specifier: workspace:*
+        version: link:../ui-shared
       '@repo/util':
         specifier: workspace:*
         version: link:../util

@@ -1,6 +1,18 @@
-import { SORT_LABELS, type SortOption, useSortPreference } from "@repo/client";
-import { AccentPicker, OptionList, Screen, SectionGroup, SettingsSection } from "@repo/ui-native";
-import { ACCENT_HINT } from "@repo/ui-shared";
+import {
+  SORT_LABELS,
+  type SortOption,
+  useSortPreference,
+  useWebsiteIconsPreference,
+} from "@repo/client";
+import {
+  AccentPicker,
+  OptionList,
+  OptionToggle,
+  Screen,
+  SectionGroup,
+  SettingsSection,
+} from "@repo/ui-native";
+import { ACCENT_HINT, WEBSITE_ICONS_HINT } from "@repo/ui-shared";
 import { ScrollView, Text, View } from "react-native";
 import { ThemeSwitch } from "@/components/ThemeSwitch";
 import { useAccentPreference } from "@/hooks/use-theme-preference";
@@ -13,6 +25,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 export default function GeneralSettingsScreen() {
   const [sort, setSort] = useSortPreference();
   const { accent, setAccent } = useAccentPreference();
+  const [websiteIcons, setWebsiteIcons] = useWebsiteIconsPreference();
 
   return (
     <Screen>
@@ -35,6 +48,14 @@ export default function GeneralSettingsScreen() {
 
         <SettingsSection title="Accent" description={ACCENT_HINT}>
           <AccentPicker value={accent} onChange={setAccent} />
+        </SettingsSection>
+
+        <SettingsSection title="Website icons" description={WEBSITE_ICONS_HINT}>
+          <OptionToggle
+            label="Show website icons"
+            checked={websiteIcons}
+            onChange={setWebsiteIcons}
+          />
         </SettingsSection>
 
         <SettingsSection flush title="Default sort order">

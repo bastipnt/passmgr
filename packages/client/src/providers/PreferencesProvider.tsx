@@ -1,4 +1,6 @@
+import { WebsiteIconsContext } from "@repo/ui-shared";
 import { createContext, type ReactNode, useContext } from "react";
+import { useWebsiteIconsPreference } from "../hooks/use-website-icons";
 import type { PreferencesStore } from "../preferences/PreferencesStore";
 
 const PreferencesContext = createContext<PreferencesStore | null>(null);
@@ -15,5 +17,14 @@ type PreferencesProviderProps = {
 };
 
 export function PreferencesProvider({ store, children }: PreferencesProviderProps) {
-  return <PreferencesContext value={store}>{children}</PreferencesContext>;
+  return (
+    <PreferencesContext value={store}>
+      <WebsiteIcons>{children}</WebsiteIcons>
+    </PreferencesContext>
+  );
+}
+
+function WebsiteIcons({ children }: { children: ReactNode }) {
+  const [enabled] = useWebsiteIconsPreference();
+  return <WebsiteIconsContext value={enabled}>{children}</WebsiteIconsContext>;
 }

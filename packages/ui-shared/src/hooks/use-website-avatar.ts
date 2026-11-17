@@ -1,10 +1,16 @@
 import { hashString, websiteHost } from "@repo/util";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 import { loadImage } from "../utils/load-image";
 
 type Website = { value: string };
 
 type Status = "loading" | "ok" | "fail";
+
+export const WEBSITE_ICONS_HINT =
+  "Fetches each site's icon from DuckDuckGo, which then learns the host names of your saved logins.";
+
+/** Off unless the user opted in: every favicon lookup sends the login's host to DuckDuckGo. */
+export const WebsiteIconsContext = createContext(false);
 
 function faviconUrl(websites: Website[] | undefined): string | null {
   const host = websites?.map(({ value }) => websiteHost(value)).find(Boolean);
@@ -18,7 +24,8 @@ export function useWebsiteAvatar({
   title: string;
   websites: Website[] | undefined;
 }) {
-  const src = faviconUrl(websites);
+  const enabled = useContext(WebsiteIconsContext);
+  const src = enabled ? faviconUrl(websites) : null;
   const [status, setStatus] = useState<Status>(src ? "loading" : "fail");
 
   useEffect(() => {
