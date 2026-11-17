@@ -10,7 +10,7 @@ import {
   RegistrationRecord,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
-import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
+import { OPAQUE_SERVER_IDENTITY, type PasswordForm } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import { SECOND_FACTOR_EXPIRED, SECOND_FACTOR_INVALID } from "@repo/schema";
 import { TRPCClientError } from "@trpc/client";
@@ -65,7 +65,11 @@ const SUCCESS = {
  * `twoFactor`: finishLogin answers with a challenge, and `verifySecondFactor`
  * takes `CODE` (or answers with `verifyError`).
  */
-async function fakeServer({ twoFactor = false } = {}) {
+async function fakeServer({
+  twoFactor = false,
+  password = PASSWORD,
+  form = "nfkc" as PasswordForm,
+} = {}) {
   const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
   const ake = await cfg.ake.generateAuthKeyPair();
   const keypair: AKEExportKeyPair = { private_key: ake.private_key, public_key: ake.public_key };
@@ -73,7 +77,7 @@ async function fakeServer({ twoFactor = false } = {}) {
   const server = new OpaqueServer(cfg, oprfSeed, keypair, OPAQUE_SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg, opaqueKsf);
-  const req = await client.registerInit(await opaqueInputFor(PASSWORD, EMAIL));
+  const req = await client.registerInit(await opaqueInputFor(password, EMAIL, form));
   if (req instanceof Error) throw req;
   const resp = await server.registerInit(req, EMAIL);
   if (resp instanceof Error) throw resp;
@@ -86,6 +90,7 @@ async function fakeServer({ twoFactor = false } = {}) {
   const record = fin.record.serialize();
 
   const attempts = new Map<string, string>();
+  let starts = 0;
   const state: {
     startError?: Error;
     finishError?: Error;
@@ -98,6 +103,7 @@ async function fakeServer({ twoFactor = false } = {}) {
     login: {
       startLogin: {
         mutate: async ({ startLoginRequest }: { startLoginRequest: string }) => {
+          starts++;
           if (state.startError) throw state.startError;
           const ke1 = KE1.deserialize(cfg, b64ToBytes(startLoginRequest));
           const init = await server.authInit(
@@ -136,13 +142,55 @@ async function fakeServer({ twoFactor = false } = {}) {
     },
   } as unknown as LoginTRPCClient;
 
-  return { trpc, state, verified };
+  return { trpc, state, verified, starts: () => starts };
 }
 
 /** A prompt answering with `codes` in turn (null: cancel). */
 function promptWith(...codes: (string | null)[]) {
   return vi.fn<SecondFactorPrompt>(async () => codes.shift() ?? null);
 }
+
+describe("loginUser — password forms", () => {
+  // "é" as "e" + combining accent.
+  const DECOMPOSED = "caf\u{65}\u{301}";
+
+  it("logs in an account registered before NFKC with the password as typed", async () => {
+    const { trpc, starts } = await fakeServer({ password: DECOMPOSED, form: "raw" });
+    const info = await loginUser(
+      trpc,
+      vi.fn(async () => {}),
+      EMAIL,
+      DECOMPOSED,
+    );
+    expect(info.userId).toBe(USER_ID);
+    expect(starts()).toBe(2);
+  });
+
+  it("logs in an NFKC registration typed the other way at once", async () => {
+    const { trpc, starts } = await fakeServer({ password: "caf\u{e9}" });
+    const info = await loginUser(
+      trpc,
+      vi.fn(async () => {}),
+      EMAIL,
+      DECOMPOSED,
+    );
+    expect(info.userId).toBe(USER_ID);
+    expect(starts()).toBe(1);
+  });
+
+  it("tries a wrong ASCII password once", async () => {
+    const { trpc, starts } = await fakeServer();
+    await expect(
+      loginUser(
+        trpc,
+        vi.fn(async () => {}),
+        EMAIL,
+        "wrong",
+      ),
+    ).rejects.toThrow();
+    expect(starts()).toBe(1);
+  });
+});
 
 describe("loginUser — second factor", () => {
   it("without two-factor never prompts", async () => {
@@ -168,7 +216,7 @@ describe("loginUser — second factor", () => {
     expect(info.userId).toBe(USER_ID);
     expect(prompt).toHaveBeenCalledExactlyOnceWith({ invalid: false });
     expect(verified).toEqual([CODE]);
-    expect(session).toHaveBeenCalledWith("s-1", expect.any(String), expect.any(Uint8Array));
+    expect(session).toHaveBeenCalledWith("s-1", expect.any(Uint8Array), expect.any(Uint8Array));
   });
 
   it("asks again after a wrong code, telling the prompt it was wrong", async () => {

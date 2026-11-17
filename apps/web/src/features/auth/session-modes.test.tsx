@@ -48,7 +48,7 @@ describe("SessionProvider modes (ADR 0001 D2)", () => {
     act(() => result.current.unlockWithAccountKey("local", accountKey, vaults, userKeyPair));
     expect(result.current.mode).toBe("local");
 
-    await act(() => result.current.attachServer("sid", "session-key", genKey()));
+    await act(() => result.current.attachServer("sid", genKey(), genKey()));
     expect(result.current.mode).toBe("local");
   });
 
@@ -60,14 +60,14 @@ describe("SessionProvider modes (ADR 0001 D2)", () => {
     expect(result.current.vaultUnlocked).toBe(true);
     expect(result.current.mode).toBe("offline");
 
-    await act(() => result.current.attachServer("sid", "session-key", genKey()));
+    await act(() => result.current.attachServer("sid", genKey(), genKey()));
     expect(result.current.mode).toBe("online");
   });
 
   it("detaching the server keeps the vault unlocked: `online` → `offline`", async () => {
     const { result } = renderSession();
     const { accountKey, vaults, userKeyPair } = keyring();
-    await act(() => result.current.attachServer("sid", "session-key", genKey()));
+    await act(() => result.current.attachServer("sid", genKey(), genKey()));
     act(() => result.current.unlockWithAccountKey("linked", accountKey, vaults, userKeyPair));
     expect(result.current.mode).toBe("online");
 
@@ -82,7 +82,7 @@ describe("SessionProvider modes (ADR 0001 D2)", () => {
   it("lock wipes the keys and the server session", async () => {
     const { result } = renderSession();
     const { accountKey, vaults, userKeyPair } = keyring();
-    await act(() => result.current.attachServer("sid", "session-key", genKey()));
+    await act(() => result.current.attachServer("sid", genKey(), genKey()));
     act(() => result.current.unlockWithAccountKey("linked", accountKey, vaults, userKeyPair));
 
     act(() => result.current.lock());

@@ -116,7 +116,11 @@ anyone else's when the user marks them verified after comparing codes (`verifyMe
 "Verify…", which asks to compare the code first; mobile's row does it for non-managers, its member sheet for managers;
 managers see `UNVERIFIED_MEMBERS_NOTICE`). A rotation seals only to pinned keys: any unpinned member aborts it
 (`UnverifiedMembersError`, shown to the user; `removeMember` resolves it after the removal went through, a `rotationsDue`
-rotation only logs it) and a key update is only taken from a pinned sender. A changed key is refused (`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
+rotation only logs it) and a key update is only taken from a pinned sender. A rotation that isn't done shows as
+"rotation pending" (`SyncStatus.rotationsPending`, `useRotationPending(vaultId)`, `ROTATION_PENDING_NOTICE` in the
+members dialog / page): a `rotationsDue` vault whose rotation failed here (`runSharingTasks` resolves them; a lost
+connection counts all as pending), or one this device rotated whose records aren't all re-encrypted yet
+(`reencryptForPush` resolves the open rekey targets). Set by every round that goes through. A changed key is refused (`PeerKeyChangedError`). A vault lost (or left) with unsent changes keeps their latest versions aside (`revoked_vaults` /
 `revoked_records`, `Vault.getRevokedVaults`) to copy into a writable vault (`copyRevokedRecords`, one transaction) or discard.
 
 ## Vault UI

@@ -17,6 +17,7 @@ import {
 import { secretsStore, type Vault } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import { logError, logWarning } from "../errors/log-error";
+import type { SharingTasksResult } from "../sync-manager";
 import type { useTRPCClient } from "../util/trpc";
 import {
   InvalidServerResponseError,
@@ -483,14 +484,17 @@ async function trustedSender(
  * chain to the held key), and rotate the vaults that lost a member. A task
  * that fails is logged and left for the next session; a lost connection or
  * session ends the tasks (rethrown) without counting against them. Resolves
- * whether anything changed on the server: the caller syncs again.
+ * whether anything changed on the server (the caller syncs again) and the
+ * vaults whose due rotation didn't go through (failed now or earlier in this
+ * session): the vault UI shows them as "rotation pending".
  */
 export async function runSharingTasks(
   deps: SharingDeps & { reloadVaultKeys: (vaults: readonly MemberVault[]) => void },
   tasks: SharingTasks,
-): Promise<boolean> {
+): Promise<SharingTasksResult> {
   const failed = failedTasksOf(deps.vault);
   const members = new Map<string, VaultMember[]>();
+  const rotationsPending: string[] = [];
   let changed = false;
   for (const update of tasks.keyUpdates) {
     const task = `${update.vaultId}/${update.keyVersion}`;
@@ -517,10 +521,15 @@ export async function runSharingTasks(
     const vault = vaults.get(vaultId);
     if (!vault) continue;
     const task = `${vaultId}/${vault.keyVersion}`;
-    if (failed.has(task)) continue;
+    // Refused below, not pending: nobody else holds the personal vault's key.
     if (vault.kind === "personal") {
+      if (failed.has(task)) continue;
       failed.add(task);
       logWarning(`The server asked to rotate the personal vault ${vaultId}; refused`);
+      continue;
+    }
+    if (failed.has(task)) {
+      rotationsPending.push(vaultId);
       continue;
     }
     try {
@@ -536,10 +545,11 @@ export async function runSharingTasks(
       }
       if (isRequestFailure(error)) throw error;
       failed.add(task);
+      rotationsPending.push(vaultId);
       logError(`Vault ${vaultId} needs a key rotation, which failed`, error);
     }
   }
-  return changed;
+  return { changed, rotationsPending };
 }
 
 /** Forget the profile's failed tasks (e.g. after the user verified a changed key). */

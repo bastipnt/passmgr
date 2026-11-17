@@ -39,7 +39,13 @@ export type SyncPage = SyncBatch & {
 export type SharingTasksHandler = (tasks: {
   keyUpdates: VaultKeyUpdate[];
   rotationsDue: string[];
-}) => Promise<boolean>;
+}) => Promise<SharingTasksResult>;
+
+/**
+ * `changed`: the server changed, the round runs again. `rotationsPending`: the
+ * vaults whose due rotation didn't go through here (`SyncStatus.rotationsPending`).
+ */
+export type SharingTasksResult = { changed: boolean; rotationsPending: readonly string[] };
 
 /** Pull a page of every vault's changes since its cursor (vaultId → cursor). */
 export type SyncFetcher = (cursors: Record<string, number>) => Promise<SyncPage>;
@@ -113,6 +119,13 @@ export type SyncStatus = {
   vaultsMissing: readonly string[];
   /** The server's vault list broke continuity (`VaultListRejectedError`): nothing of it was applied. */
   vaultListRejected: boolean;
+  /**
+   * Vaults whose key rotation isn't done: the server still asks for one (a
+   * member left) that failed here, or this device's rotation still has records
+   * to re-encrypt. Until then a removed member can read what is written. Set
+   * by each round that goes through; retried with the next one.
+   */
+  rotationsPending: readonly string[];
 };
 
 export type SyncStatusListener = (status: SyncStatus) => void;
@@ -147,8 +160,9 @@ type SyncManagerOptions = {
    * Runs before each push of the outbox, e.g. to re-encrypt changes written
    * under a vault key that was rotated meanwhile. A failure doesn't stop the
    * push: whatever wasn't prepared is answered by the server as before.
+   * Resolves the vaults whose re-encryption isn't done (`rotationsPending`).
    */
-  prepareOutbox?: () => Promise<void>;
+  prepareOutbox?: () => Promise<readonly string[] | void>;
   /**
    * Runs after a round that went through when its pull asked for sharing work.
    * A failure doesn't fail the round.
@@ -197,6 +211,7 @@ export class SyncManager {
     paused: false,
     vaultsMissing: [],
     vaultListRejected: false,
+    rotationsPending: [],
   };
   /** Vaults the user agreed to drop (`confirmVaultLoss`), until a round goes through. */
   private allowedVaultLoss: readonly string[] = [];
@@ -208,7 +223,10 @@ export class SyncManager {
   private isPaused: (error: unknown) => boolean;
   private onVaultsChanged?: VaultsChangedHandler;
   private resolveConflict?: ConflictResolver;
-  private prepareOutbox?: () => Promise<void>;
+  private prepareOutbox?: () => Promise<readonly string[] | void>;
+  /** From the last outbox preparation and sharing tasks (`SyncStatus.rotationsPending`). */
+  private reencryptPending: readonly string[] = [];
+  private sharingRotationsPending: readonly string[] = [];
   private onSharingTasks?: SharingTasksHandler;
   private sealer: RecordSealer;
   /** The round's pull held back a vault whose key isn't loaded yet: the round isn't done. */
@@ -373,6 +391,12 @@ export class SyncManager {
         vaultListRejected: false,
       });
       await this.runSharingTasks();
+      this.setStatus({
+        rotationsPending: sameList(
+          [...new Set([...this.sharingRotationsPending, ...this.reencryptPending])],
+          this.status.rotationsPending,
+        ),
+      });
       return true;
     } catch (error) {
       paused = this.isPaused(error);
@@ -494,11 +518,20 @@ export class SyncManager {
   /** Hand the last pull's sharing work to `onSharingTasks`; run again when it changed something. */
   private async runSharingTasks(): Promise<void> {
     const tasks = this.sharingTasks;
-    if (!this.onSharingTasks || (tasks.keyUpdates.length === 0 && tasks.rotationsDue.length === 0))
+    if (
+      !this.onSharingTasks ||
+      (tasks.keyUpdates.length === 0 && tasks.rotationsDue.length === 0)
+    ) {
+      this.sharingRotationsPending = [];
       return;
+    }
     try {
-      if (await this.onSharingTasks(tasks)) this.rerun = true;
+      const { changed, rotationsPending } = await this.onSharingTasks(tasks);
+      if (changed) this.rerun = true;
+      this.sharingRotationsPending = rotationsPending;
     } catch (error) {
+      // Not attempted (connection lost): every due rotation is still open.
+      this.sharingRotationsPending = tasks.rotationsDue;
       logWarning("Sharing tasks failed", error);
     }
   }
@@ -517,8 +550,9 @@ export class SyncManager {
     if (!this.push) return true;
 
     try {
-      await this.prepareOutbox?.();
+      if (this.prepareOutbox) this.reencryptPending = (await this.prepareOutbox()) ?? [];
     } catch (error) {
+      // The re-encryption is retried before the next push; until then it stays pending.
       logWarning("Cannot prepare the outbox", error);
     }
     const changes = await this.store.getPendingChanges();
@@ -846,4 +880,11 @@ function failureMessage(result: Exclude<PushResult, { status: "applied" }> | und
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
+}
+
+/** `next`, or `current` when they list the same: a status listener sees no change. */
+function sameList(next: readonly string[], current: readonly string[]): readonly string[] {
+  return next.length === current.length && next.every((id, i) => id === current[i])
+    ? current
+    : next;
 }

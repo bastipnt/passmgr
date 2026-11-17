@@ -15,12 +15,14 @@ const mocks = vi.hoisted(() => ({
   transferOwnership: vi.fn(),
   verifyMember: vi.fn(),
   members: [] as MemberInfo[],
+  rotationsPending: [] as string[],
 }));
 
 vi.mock("@repo/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client")>()),
   useVaultSharing: () => ({ ...mocks, pending: false, canShare: true }),
   useVaultMembers: () => ({ members: mocks.members, isPending: false, error: null }),
+  useRotationPending: (vaultId: string) => mocks.rotationsPending.includes(vaultId),
 }));
 
 const work = { vaultId: "v-work", name: "Work", kind: "shared", role: "owner" } as const;
@@ -83,6 +85,21 @@ describe("InviteMemberDialog", () => {
 });
 
 describe("VaultMembersDialog", () => {
+  it("says when the vault's key rotation is still pending", () => {
+    mocks.members = [self];
+    mocks.rotationsPending = [];
+    const { unmount } = renderWithProviders(
+      <VaultMembersDialog vault={work} open onOpenChange={vi.fn()} />,
+    );
+    expect(screen.queryByText(/key rotation is pending/)).not.toBeInTheDocument();
+    unmount();
+
+    mocks.rotationsPending = [work.vaultId];
+    renderWithProviders(<VaultMembersDialog vault={work} open onOpenChange={vi.fn()} />);
+    expect(screen.getByText(/key rotation is pending/)).toBeInTheDocument();
+    mocks.rotationsPending = [];
+  });
+
   it("lists members with their codes and marks a changed key", async () => {
     mocks.members = [self, member({ keyTrusted: false, status: "pending" })];
     renderWithProviders(<VaultMembersDialog vault={work} open onOpenChange={vi.fn()} />);

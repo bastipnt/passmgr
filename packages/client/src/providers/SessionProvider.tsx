@@ -23,7 +23,7 @@ type SessionContextValue = {
    * Attach server auth from a fresh OPAQUE session. Can come before the vault
    * is unlocked (login) or after it (reconnect).
    */
-  attachServer: (sessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
+  attachServer: (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => Promise<void>;
   /** Drop the server session keys (ended or expired): `online` → `offline`. */
   detachServer: () => void;
   /**
@@ -32,7 +32,7 @@ type SessionContextValue = {
    * attaching throws). The profile row must say `linked` already: being online
    * starts the sync, which uploads it.
    */
-  linkServer: (sessionId: string, sessionKey: string, salt: Uint8Array) => Promise<void>;
+  linkServer: (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => Promise<void>;
 
   /**
    * Restore a persisted bundle on app reopen (mobile): the vault from the
@@ -143,7 +143,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   }, []);
 
   const attachServer = useCallback(
-    async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+    async (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => {
       await secretsStore.unlockSession(sessionId, sessionKey, salt);
       setServerAttached(true);
     },
@@ -156,7 +156,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
   }, []);
 
   const linkServer = useCallback(
-    async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+    async (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => {
       if (!secretsStore.isVaultUnlocked) throw new Error("Unlock the vault before linking it");
       // Linked first: should attaching fail, the session is `offline`, like any linked one.
       setProfileMode("linked");

@@ -132,9 +132,9 @@ describe("runSharingTasks", () => {
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     const { update, newKey } = await rotatedByAlice(alice);
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      true,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: true });
 
     const [wrap] = trpc.vault.acceptKey.mutate.mock.calls[0] as unknown as [MemberVault];
     expect(wrap).toMatchObject({ vaultId: work.vaultId, keyVersion: 2 });
@@ -147,9 +147,9 @@ describe("runSharingTasks", () => {
     const trpc = fakeTrpc(aliceManages(ghost.keyPair));
     const { update } = await rotatedByAlice(ghost);
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      false,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: false });
     expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
     expect(await vault.getPeerKey(ALICE)).toBeNull();
   });
@@ -161,9 +161,9 @@ describe("runSharingTasks", () => {
     await vault.pinPeerKey(ALICE, otherUser().keyPair);
     const { update } = await rotatedByAlice(alice);
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      false,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: false });
     expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
   });
 
@@ -173,9 +173,9 @@ describe("runSharingTasks", () => {
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     const { update } = await rotatedByAlice(alice, otherUser());
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      false,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: false });
     expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
   });
 
@@ -195,9 +195,9 @@ describe("runSharingTasks", () => {
     const trpc = fakeTrpc(listing(alice.keyPair));
     const { update } = await rotatedByAlice(alice);
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      false,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: false });
     expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
   });
 
@@ -209,9 +209,9 @@ describe("runSharingTasks", () => {
     const trpc = fakeTrpc(aliceManages(alice.keyPair));
     const { update } = await rotatedByAlice(alice);
 
-    expect(await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] })).toBe(
-      false,
-    );
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [update], rotationsDue: [] }),
+    ).toMatchObject({ changed: false });
     expect(trpc.vault.acceptKey.mutate).not.toHaveBeenCalled();
   });
 
@@ -227,7 +227,9 @@ describe("runSharingTasks", () => {
       "fetch failed",
     );
     // Tried again on the next round.
-    expect(await runSharingTasks(d, { keyUpdates: [update], rotationsDue: [] })).toBe(true);
+    expect(await runSharingTasks(d, { keyUpdates: [update], rotationsDue: [] })).toMatchObject({
+      changed: true,
+    });
   });
 
   it("rotates a vault that lost a member, sealing the new key to the members left", async () => {
@@ -239,7 +241,9 @@ describe("runSharingTasks", () => {
     ]);
     const d = deps(trpc);
 
-    expect(await runSharingTasks(d, { keyUpdates: [], rotationsDue: [work.vaultId] })).toBe(true);
+    expect(
+      await runSharingTasks(d, { keyUpdates: [], rotationsDue: [work.vaultId] }),
+    ).toMatchObject({ changed: true });
 
     const [input] = trpc.vault.rotateKey.mutate.mock.calls[0] as unknown as [
       { keyVersion: number; memberKeys: { userId: string }[]; senderKeyVersion: number },
@@ -287,8 +291,12 @@ describe("rotating to verified members only", () => {
 
     expect(
       await runSharingTasks(deps(trpc), { keyUpdates: [], rotationsDue: [work.vaultId] }),
-    ).toBe(false);
+    ).toEqual({ changed: false, rotationsPending: [work.vaultId] });
     expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
+    // Not retried this session, still pending.
+    expect(
+      await runSharingTasks(deps(trpc), { keyUpdates: [], rotationsDue: [work.vaultId] }),
+    ).toEqual({ changed: false, rotationsPending: [work.vaultId] });
   });
 
   it("refuses the personal vault in rotationsDue", async () => {
@@ -297,7 +305,7 @@ describe("rotating to verified members only", () => {
 
     expect(
       await runSharingTasks(deps(trpc), { keyUpdates: [], rotationsDue: [personal.vaultId] }),
-    ).toBe(false);
+    ).toEqual({ changed: false, rotationsPending: [] });
     expect(trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
   });
 

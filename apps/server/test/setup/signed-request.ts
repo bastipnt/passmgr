@@ -14,8 +14,13 @@ export type SignedSessionHeaders = {
  *   sessionSecret = HKDF(sessionKey, "sessionSecret")
  *   authKey       = HKDF(sessionSecret, "sessionAuth", authSalt)
  */
-export async function deriveAuthKey(sessionKey: string, authSalt: Uint8Array): Promise<Uint8Array> {
-  const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+export async function deriveAuthKey(
+  sessionKey: string | Uint8Array,
+  authSalt: Uint8Array,
+): Promise<Uint8Array> {
+  // The server's form of a client's key bytes (`LoginSessionFn`): base64.
+  const text = typeof sessionKey === "string" ? sessionKey : toBase64(sessionKey);
+  const sessionSecret = await hkdf(fromString(text), "sessionSecret");
   return await hkdf(sessionSecret, "sessionAuth", authSalt);
 }
 

@@ -53,7 +53,7 @@ beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
 afterAll(() => setPasswordKekParams(previous));
 
 let local: NewLocalVault;
-const serverSession = ["s-1", "session-key", new Uint8Array(32)] as const;
+const serverSession = ["s-1", new Uint8Array(32).fill(5), new Uint8Array(32)] as const;
 
 beforeEach(async () => {
   vi.clearAllMocks();

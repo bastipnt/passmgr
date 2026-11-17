@@ -2,10 +2,12 @@ import {
   assignableRoles,
   LAST_OWNER_MESSAGE,
   type MemberInfo,
+  ROTATION_PENDING_NOTICE,
   type SharingRefusals,
   sharingErrorMessage,
   TRANSFER_REFUSED_MESSAGE,
   UNVERIFIED_MEMBERS_NOTICE,
+  useRotationPending,
   useVaultMembers,
   useVaultSharing,
   VAULT_ROLE_LABELS,
@@ -40,10 +42,12 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@repo/ui/components/Item";
+import { Note } from "@repo/ui/components/Note";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import {
   CrownIcon,
   EllipsisIcon,
+  KeyRoundIcon,
   LogOutIcon,
   ShieldCheckIcon,
   UserMinusIcon,
@@ -82,6 +86,7 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
     error: loadError,
   } = useVaultMembers(open ? vault.vaultId : undefined);
   const sharing = useVaultSharing();
+  const rotationPending = useRotationPending(vault.vaultId);
   const { pending } = sharing;
   const [error, setError] = useState<string>();
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -197,6 +202,11 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
           </DialogHeader>
 
           <div className="my-4 flex max-h-[60vh] flex-col gap-3 overflow-y-auto">
+            {rotationPending && (
+              <Note tone="warning" icon={<KeyRoundIcon />}>
+                {ROTATION_PENDING_NOTICE}
+              </Note>
+            )}
             {isPending ? (
               <div className="flex flex-col gap-2" aria-busy>
                 <Skeleton className="h-16 w-full rounded-xl" />

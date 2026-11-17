@@ -95,6 +95,10 @@ export function sharingErrorMessage(
 export const UNVERIFIED_MEMBERS_NOTICE =
   "Until you verify every member, this device can't give the vault a new key, so someone you remove could still read new changes.";
 
+/** The vault's key rotation didn't go through yet (`useRotationPending`). */
+export const ROTATION_PENDING_NOTICE =
+  "This vault's key rotation is pending: someone who left can still read changes made to it until it goes through. It's retried with every sync.";
+
 export const VERIFY_FAILED_MESSAGE = "They couldn't be marked verified. Try again.";
 
 /** The server's word for "a vault always keeps an owner" (`setMemberRole`, `leave`). */

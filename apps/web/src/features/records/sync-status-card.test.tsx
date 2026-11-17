@@ -68,6 +68,7 @@ beforeEach(() => {
     paused: false,
     vaultsMissing: [],
     vaultListRejected: false,
+    rotationsPending: [],
   };
   // The fake only grows what the menu calls.
   Object.assign(store.syncManager, {

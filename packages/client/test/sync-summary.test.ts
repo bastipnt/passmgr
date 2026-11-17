@@ -13,6 +13,7 @@ const idle: SyncStatus = {
   paused: false,
   vaultsMissing: [],
   vaultListRejected: false,
+  rotationsPending: [],
 };
 
 describe("summarizeSync", () => {

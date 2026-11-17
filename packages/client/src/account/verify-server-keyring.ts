@@ -1,10 +1,4 @@
-import {
-  sameAccountKey,
-  unwrapAccountKey,
-  unwrapUserPrivateKey,
-  unwrapVaultKey,
-  wipe,
-} from "@repo/crypto";
+import { sameAccountKey, unwrapUserPrivateKey, unwrapVaultKey, wipe } from "@repo/crypto";
 import {
   type AccountKeyMaterial,
   type MemberVault,
@@ -13,7 +7,7 @@ import {
   type UserKeyPair,
   type VaultUnlockInfo,
 } from "@repo/schema";
-import { derivePasswordKek } from "../util/derive-password-kek";
+import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 
 type ServerKeyring = Pick<VaultUnlockInfo, "userPasswordKeys" | "userKeyPair" | "vaultKeys">;
 
@@ -76,18 +70,11 @@ export async function reconnectKeyMaterial(
   if (known) return { ...keys, userKeyPair };
   if (password === undefined) return { ...device.stored, userKeyPair };
 
-  const passwordKek = await derivePasswordKek(password, keys);
   let accountKey: Uint8Array;
   try {
-    accountKey = unwrapAccountKey(
-      passwordKek,
-      keys.encryptedAccountKey,
-      keys.accountKeyEncryptionNonce,
-    );
+    accountKey = await unwrapAccountKeyWithPassword(password, keys);
   } catch (e) {
     throw new ServerKeyringMismatchError(e);
-  } finally {
-    wipe(passwordKek);
   }
   try {
     if (!sameAccountKey(accountKey, device.accountKey)) throw new ServerKeyringMismatchError();

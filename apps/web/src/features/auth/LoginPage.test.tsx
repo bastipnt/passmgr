@@ -97,7 +97,7 @@ vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
 
 const unlockVault = vi.fn();
 const unlockWithAccountKey = vi.fn();
-const attachServer = vi.fn(async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+const attachServer = vi.fn(async (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => {
   await secretsStore.unlockSession(sessionId, sessionKey, salt);
 });
 const detachServer = vi.fn();
@@ -159,7 +159,7 @@ function profileButton(name: RegExp) {
 /** What the server hands back after OPAQUE, with the server session attached. */
 function serverLogin(userId: string = linkedProfile.userId) {
   return async (_trpc: unknown, attach: LoginSessionFn) => {
-    await attach("live-session", "session-key", new Uint8Array(32));
+    await attach("live-session", new Uint8Array(32).fill(5), new Uint8Array(32));
     return {
       email: "alice@example.com",
       userId,

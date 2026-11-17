@@ -706,9 +706,9 @@ to another vault is re-encrypted anyway (D6).
 >   whoever sits at an unlocked session takes the whole vault in one click, an encrypted backup
 >   included, since they pick its password.
 > - **Plain JSON / CSV**: the same data unencrypted, behind a warning; not counted as a backup. CSV: login columns plus a `fields`
->   column ("key: value" lines) for every other type, so nothing is dropped. Free-text columns
->   get a `'` before a leading `=`/`+`/`-`/`@` (CSV injection from a shared vault); credentials
->   stay unchanged for the importer. Reading an export back (`decryptExport`) checks each
+>   column ("key: value" lines) for every other type, so nothing is dropped. Every column, credentials
+>   included (amended 2026-11-17), gets a `'` before a leading `=`/`+`/`-`/`@` (CSV injection from a
+>   shared vault); this app's own CSV import takes it off again. Reading an export back (`decryptExport`) checks each
 >   record's id, vault and type, not its fields: one odd record must not make a backup unreadable.
 > - The encrypted export counts once saved (`useExport().markSaved`), not when it is built.
 > - Web: Settings → Security → Export; the reminder's "Back up" leads there. Mobile has no export

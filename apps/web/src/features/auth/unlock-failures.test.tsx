@@ -185,7 +185,7 @@ const session = {
   ),
   lock: vi.fn(() => secretsStore.lock()),
   detachServer: vi.fn(() => secretsStore.detachServer()),
-  attachServer: vi.fn(async (sessionId: string, sessionKey: string, salt: Uint8Array) => {
+  attachServer: vi.fn(async (sessionId: string, sessionKey: Uint8Array, salt: Uint8Array) => {
     await secretsStore.unlockSession(sessionId, sessionKey, salt);
   }),
 } as unknown as ContextType<typeof SessionContext>;
@@ -468,7 +468,7 @@ describe("biometricUnlock", () => {
     const assertion = { authenticatorData: "ad", clientDataJSON: "cd", signature: "sig" };
     vi.mocked(authenticateBiometric).mockResolvedValue({ accountKey, assertion });
     const finish = vi.fn(async (_assertion, attach: Parameters<typeof loginUserCore>[1]) => {
-      await attach("live-session", "session-key", new Uint8Array(32));
+      await attach("live-session", new Uint8Array(32).fill(5), new Uint8Array(32));
       return {
         email: "alice@example.com",
         userId: ALICE.userId,
@@ -550,7 +550,7 @@ describe("useEnrollBiometric", () => {
     session.unlockWithAccountKey("linked", accountKey, wraps, userKeyPair);
     store.vault.getVaults.mockResolvedValue(wraps);
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
-    if (online) await session.attachServer("sid", "session-key", new Uint8Array(32));
+    if (online) await session.attachServer("sid", new Uint8Array(32).fill(5), new Uint8Array(32));
     return { wraps, userKeyPair };
   }
 
@@ -590,7 +590,7 @@ describe("useEnrollBiometric", () => {
     const { wraps, userKeyPair } = await unlocked({ online: false });
     secretsStore.keepOpaquePassword(genKey());
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
-      await attach("live-session", "session-key", new Uint8Array(32));
+      await attach("live-session", new Uint8Array(32).fill(5), new Uint8Array(32));
       return {
         email: "alice@example.com",
         userId: ALICE.userId,
@@ -646,7 +646,7 @@ describe("useConnectServer", () => {
     store.vault.getVaults.mockResolvedValue(wraps);
     store.accountKeyMaterial = { ...passwordKeys, userKeyPair };
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
-      await attach("live-session", "session-key", new Uint8Array(32));
+      await attach("live-session", new Uint8Array(32).fill(5), new Uint8Array(32));
       return {
         email: "alice@example.com",
         userId,
@@ -690,7 +690,7 @@ describe("useConnectServer", () => {
     unlockedVault();
     const foreign = keyring();
     vi.mocked(loginUserCore).mockImplementation(async (_trpc, attach) => {
-      await attach("live-session", "session-key", new Uint8Array(32));
+      await attach("live-session", new Uint8Array(32).fill(5), new Uint8Array(32));
       return {
         email: "alice@example.com",
         userId: ALICE.userId,
@@ -1045,7 +1045,7 @@ describe("unlock: which profile?", () => {
   it("revokes the session when the profile can't be opened", async () => {
     const keys = account();
     store.openAccountProfile.mockRejectedValueOnce(new Error("disk full"));
-    await secretsStore.unlockSession("live-session", "k", genKey());
+    await secretsStore.unlockSession("live-session", genKey(), genKey());
 
     const { unlocked, error } = await unlockWith(keys);
     expect(unlocked).toBe(false);

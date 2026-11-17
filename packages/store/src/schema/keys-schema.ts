@@ -175,7 +175,14 @@ const PEER_KEY_PREFIX = "peerKey:";
 export async function getPeerKey(userId: string, db: LocalDb): Promise<UserPublicKey | null> {
   const value = (await getEntries([PEER_KEY_PREFIX + userId], db))[PEER_KEY_PREFIX + userId];
   if (value === undefined) return null;
-  const parsed = userPublicKeySchema.safeParse(JSON.parse(value));
+  // A corrupt row reads as no pin (pinned again on next use), never as an error for every sharing call.
+  let json: unknown;
+  try {
+    json = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  const parsed = userPublicKeySchema.safeParse(json);
   return parsed.success ? parsed.data : null;
 }
 

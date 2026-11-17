@@ -1,4 +1,13 @@
-import { exportKdf, genSalt, openExport, sealExport, wipe } from "@repo/crypto";
+import {
+  exportKdf,
+  genSalt,
+  openExport,
+  type PasswordForm,
+  passwordInForm,
+  sealExport,
+  wipe,
+  withPasswordForms,
+} from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import {
   CURRENT_SCHEMA_VERSION,
@@ -43,10 +52,17 @@ export function exportToJson(data: ExportData): string {
   return JSON.stringify(data, null, 2);
 }
 
-/** The export key: Argon2id over the export password, in the worker (native: off the JS thread). */
-function deriveExportKey(password: string, kdf: ExportKdf): Promise<Uint8Array> {
+/**
+ * The export key: Argon2id over the export password (NFKC for a new file,
+ * `PasswordForm`), in the worker (native: off the JS thread).
+ */
+function deriveExportKey(
+  password: string,
+  kdf: ExportKdf,
+  form: PasswordForm = "nfkc",
+): Promise<Uint8Array> {
   return timed(`argon2 export (t:${kdf.t} m:${kdf.m} p:${kdf.p})`, () =>
-    argon2WorkerService.derive(password, fromBase64(kdf.salt), kdf),
+    argon2WorkerService.derive(passwordInForm(password, form), fromBase64(kdf.salt), kdf),
   );
 }
 
@@ -101,15 +117,17 @@ export async function openExportEnvelope(
   envelope: ExportEnvelope,
   password: string,
 ): Promise<ExportData> {
-  const key = await deriveExportKey(password, envelope.kdf);
-  let json: string;
-  try {
-    json = openExport(key, envelope);
-  } catch {
-    throw new WrongExportPasswordError();
-  } finally {
-    wipe(key);
-  }
+  // A file from before NFKC may need the password as typed.
+  const json = await withPasswordForms(password, async (form) => {
+    const key = await deriveExportKey(password, envelope.kdf, form);
+    try {
+      return openExport(key, envelope);
+    } catch {
+      throw new WrongExportPasswordError();
+    } finally {
+      wipe(key);
+    }
+  });
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);
@@ -163,29 +181,21 @@ function csvCell(value: string): string {
 }
 
 /**
- * Free-text columns any vault member can write (a shared vault's title, note,
- * tags): a leading `=`, `+`, `-`, `@`, tab or CR would run as a formula when
- * the file is opened in a spreadsheet, so it gets a `'` in front (OWASP CSV
- * injection). Credentials (`username`, `password`, `totp`, `websites`) stay as
- * they are: changing them would break the import this file is meant for.
+ * Every cell: any member of a shared vault can write a record's fields, and a
+ * leading `=`, `+`, `-`, `@`, tab or CR would run as a formula when another
+ * member opens their export in a spreadsheet, so it gets a `'` in front (OWASP
+ * CSV injection). Credentials too (a username `=HYPERLINK(…)`): this app's own
+ * import takes the `'` off again (`unescapeFormula`), another tool keeps it.
+ * A value that already starts with `'` before such a character gets one more,
+ * so the round trip gives back exactly what was exported.
  */
-export const FORMULA_ESCAPED = new Set<string>([
-  "vault",
-  "title",
-  "email",
-  "note",
-  "fields",
-  "customFields",
-  "tags",
-]);
+const FORMULA_START = /^'*[=+\-@\t\r]/;
 
-const FORMULA_START = /^[=+\-@\t\r]/;
-
-function escapeFormula(value: string): string {
+export function escapeFormula(value: string): string {
   return FORMULA_START.test(value) ? `'${value}` : value;
 }
 
-/** Undo `escapeFormula` on a cell of a `FORMULA_ESCAPED` column. */
+/** Undo `escapeFormula` (this app's own CSV import). */
 export function unescapeFormula(value: string): string {
   return value.startsWith("'") && FORMULA_START.test(value.slice(1)) ? value.slice(1) : value;
 }
@@ -218,9 +228,7 @@ function csvRow(record: ExportRecord, vaultNames: Map<string, string>): string[]
     createdAt: record.createdAt ?? "",
     updatedAt: record.updatedAt,
   };
-  return CSV_COLUMNS.map((column) =>
-    FORMULA_ESCAPED.has(column) ? escapeFormula(cells[column]) : cells[column],
-  );
+  return CSV_COLUMNS.map((column) => escapeFormula(cells[column]));
 }
 
 /**

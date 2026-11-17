@@ -27,21 +27,33 @@ export function deviceLoginChallenge(
 }
 
 /**
- * The session key of a device login: base64, like OPAQUE's, so the session
- * and auth keys derive from it the same way (`secretsStore.unlockSession`).
+ * The session key of a device login, as bytes (the client keeps it so up to
+ * `secretsStore.unlockSession`, which wipes it). The session and auth keys
+ * derive from it like from OPAQUE's (`deriveSessionSecret`).
  */
+export async function deviceSessionKeyBytes(
+  privateKey: Uint8Array,
+  peerPublicKey: Uint8Array,
+  challenge: Uint8Array,
+): Promise<Uint8Array> {
+  const shared = x25519.getSharedSecret(privateKey, peerPublicKey);
+  try {
+    return await hkdf(shared, "deviceSessionKey", challenge);
+  } finally {
+    wipe(shared);
+  }
+}
+
+/** `deviceSessionKeyBytes` as base64, the server's form. */
 export async function deviceSessionKey(
   privateKey: Uint8Array,
   peerPublicKey: Uint8Array,
   challenge: Uint8Array,
 ): Promise<string> {
-  const shared = x25519.getSharedSecret(privateKey, peerPublicKey);
+  const key = await deviceSessionKeyBytes(privateKey, peerPublicKey, challenge);
   try {
-    const key = await hkdf(shared, "deviceSessionKey", challenge);
-    const encoded = toBase64(key);
-    wipe(key);
-    return encoded;
+    return toBase64(key);
   } finally {
-    wipe(shared);
+    wipe(key);
   }
 }

@@ -3,9 +3,9 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = join(import.meta.dirname, "../../..");
-const SOURCES = ["packages/client/src", "apps/web/src", "apps/mobile/src"];
+const SOURCES = ["packages/client/src", "apps/web/src", "apps/mobile/src", "packages/util/src"];
 const ALLOWED = new Set([
-  "packages/client/src/errors/log-error.ts",
+  "packages/util/src/log.ts",
   "packages/client/src/util/perf.ts", // dev-only timings, no error data
 ]);
 const CONSOLE_CALL = /\bconsole\.(log|error|warn|info|debug|trace)\(/;

@@ -231,7 +231,7 @@ describe("registerLocalVault", () => {
     await expect(mismatch).rejects.toThrow(LinkAccountMismatchError);
     // Handed back to be ended, never attached.
     await expect(mismatch).rejects.toMatchObject({
-      session: ["s-1", expect.any(String), expect.anything()],
+      session: ["s-1", expect.any(Uint8Array), expect.anything()],
     });
   });
 

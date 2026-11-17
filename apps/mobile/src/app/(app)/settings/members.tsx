@@ -1,9 +1,11 @@
 import {
   LAST_OWNER_MESSAGE,
   type MemberInfo,
+  ROTATION_PENDING_NOTICE,
   SessionContext,
   sharingErrorMessage,
   UNVERIFIED_MEMBERS_NOTICE,
+  useRotationPending,
   useVaultActions,
   useVaultMembers,
   useVaultSharing,
@@ -135,6 +137,7 @@ function MemberList({ vault }: { vault: VaultInfo }) {
   const router = useRouter();
   const { members, isPending, error: loadError } = useVaultMembers(vault.vaultId);
   const { leaveVault, verifyMember, pending } = useVaultSharing();
+  const rotationPending = useRotationPending(vault.vaultId);
   const [error, setError] = useState<string>();
   const muted = useCSSVariable("--color-muted-foreground") as string;
 
@@ -187,6 +190,12 @@ function MemberList({ vault }: { vault: VaultInfo }) {
             : "Compare a security code with its person before you trust it."
         }
       >
+        {rotationPending && (
+          <View className="mb-3 items-start gap-1 px-5" accessibilityRole="alert">
+            <Badge variant="warning">Rotation pending</Badge>
+            <Text className="text-muted-foreground text-sm">{ROTATION_PENDING_NOTICE}</Text>
+          </View>
+        )}
         {isPending ? (
           <View className="gap-2 px-5">
             <Skeleton height={64} borderRadius={12} />

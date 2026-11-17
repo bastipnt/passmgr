@@ -153,16 +153,36 @@ export async function enrollBiometric(
     throw new Error("PRF extension not supported by this authenticator");
   }
 
-  const biometricKek = await hkdf(new Uint8Array(prfOutput), "biometricKek");
-  const [biometricEncryptedAccountKey, biometricNonce] = wrapAccountKey(biometricKek, accountKey);
+  const biometricKek = await biometricKekFrom(prfOutput);
+  let wrapped: [string, string];
+  try {
+    wrapped = wrapAccountKey(biometricKek, accountKey);
+  } finally {
+    wipe(biometricKek);
+  }
+  const [biometricEncryptedAccountKey, biometricNonce] = wrapped;
   const material: BiometricKeyMaterial = {
     biometricEncryptedAccountKey,
     biometricNonce,
     credentialId,
     prfSalt: toBase64(prfSalt),
   };
-  wipe(biometricKek);
   return { material, devicePublicKey: credentialPublicKey(credential) };
+}
+
+/**
+ * The biometric KEK from a PRF output, which is wiped: it opens the account
+ * key as much as the KEK does. Zeroes the buffer the browser handed over, not a copy.
+ */
+export async function biometricKekFrom(prfOutput: BufferSource): Promise<Uint8Array> {
+  const bytes = ArrayBuffer.isView(prfOutput)
+    ? new Uint8Array(prfOutput.buffer, prfOutput.byteOffset, prfOutput.byteLength)
+    : new Uint8Array(prfOutput);
+  try {
+    return await hkdf(bytes, "biometricKek");
+  } finally {
+    wipe(bytes);
+  }
 }
 
 function credentialPublicKey(
@@ -209,13 +229,17 @@ export async function authenticateBiometric(
     throw new Error("PRF extension not supported");
   }
 
-  const biometricKek = await hkdf(new Uint8Array(prfResult.results.first), "biometricKek");
-  const accountKey = unwrapAccountKey(
-    biometricKek,
-    material.biometricEncryptedAccountKey,
-    material.biometricNonce,
-  );
-  wipe(biometricKek);
+  const biometricKek = await biometricKekFrom(prfResult.results.first);
+  let accountKey: Uint8Array;
+  try {
+    accountKey = unwrapAccountKey(
+      biometricKek,
+      material.biometricEncryptedAccountKey,
+      material.biometricNonce,
+    );
+  } finally {
+    wipe(biometricKek);
+  }
 
   if (!challenge) return { accountKey };
   const response = assertion.response as AuthenticatorAssertionResponse;

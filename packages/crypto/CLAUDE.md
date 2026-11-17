@@ -24,6 +24,19 @@ library's `ScryptMemHardFn` (`util/opaque-scrypt.ts`; changing it breaks every r
 worker (`argon2WorkerService.opaqueKsf`, same queue), in-thread without `Worker` (Node); mobile native scrypt
 (`.native.ts`, react-native-quick-crypto). An async `harden` needs our patch of @cloudflare/opaque-ts
 (`patches/@cloudflare__opaque-ts@0.7.5.patch`, awaits it): re-check it on every library upgrade.
+## Password forms (NFKC)
+
+New wraps and registrations derive from `passwordInForm(password)` (NFKC): `genPasswordKek`, `deriveOpaquePassword`
+(default form). Opening existing ones goes through `withPasswordForms` (NFKC, then the raw form when it differs and the
+error is a wrong password), in `packages/client` `util/derive-password-kek.ts` (wraps) and `login.ts`
+`loginWithPassword` (OPAQUE). `retrievePRK` / `argon2idAsync` take the string as given: callers pass a form.
+Details: `docs/architecture/auth.md`, "Password forms".
+
+## Key buffers
+
+The WebAuthn PRF output is wiped once the biometric KEK is derived (`biometricKekFrom`, zeroes the browser's buffer).
+A login's session key stays bytes (`deviceSessionKeyBytes`, OPAQUE's `session_key`); `deriveSessionSecret` hashes its
+base64 text (what the server derives from) from a wiped buffer, never a string.
 
 ## Wraps
 

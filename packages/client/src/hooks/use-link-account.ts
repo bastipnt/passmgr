@@ -1,4 +1,4 @@
-import { normalizeEmail, unwrapAccountKey, wipe } from "@repo/crypto";
+import { normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
@@ -14,7 +14,7 @@ import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { RegistrationFinishFailedError, RegistrationStartFailedError } from "../register";
-import { derivePasswordKek } from "../util/derive-password-kek";
+import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
@@ -172,15 +172,11 @@ export function useLinkAccount() {
 
 /** Whether the password opens the stored password wrap (ADR 0001 D9: verified locally first). */
 async function opensAccountKey(password: string, material: AccountKeyMaterial): Promise<boolean> {
-  let kek: Uint8Array | undefined;
   try {
-    kek = await derivePasswordKek(password, material);
-    wipe(unwrapAccountKey(kek, material.encryptedAccountKey, material.accountKeyEncryptionNonce));
+    wipe(await unwrapAccountKeyWithPassword(password, material));
     return true;
   } catch {
     return false;
-  } finally {
-    if (kek) wipe(kek);
   }
 }
 

@@ -147,9 +147,12 @@ function hasCurrentKey(vaultId: string, keyVersion: number): boolean {
  * Everything a push needs re-encrypted first (`SyncManager`'s `prepareOutbox`).
  * Nothing to do while no vault was ever rotated (every rotation waits for its
  * vault's key version to move), so the common case costs one small query.
+ * Resolves the vaults whose rotation this device still has records to
+ * re-encrypt for (`rotationsPending`).
  */
-export async function reencryptForPush(vault: Vault): Promise<void> {
-  if ((await vault.getVaults()).every((v) => v.keyVersion === 1)) return;
+export async function reencryptForPush(vault: Vault): Promise<string[]> {
+  if ((await vault.getVaults()).every((v) => v.keyVersion === 1)) return [];
   await reencryptPendingVersions(vault);
   await reencryptRotatedVaults(vault);
+  return Object.keys(await vault.getRekeyTargets());
 }

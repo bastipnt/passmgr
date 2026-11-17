@@ -119,6 +119,18 @@ describe("import from the app's own CSV export", () => {
     expect(data.records[0]).toMatchObject({ title: "=SUM(A1)", note: "@home", tags: ["-x"] });
   });
 
+  it("undoes the formula escaping of credentials", () => {
+    const { data } = importCsv([
+      { type: "login", ...meta(1), title: "Mail", username: "=HYPERLINK(1)", password: "-secret" },
+    ]);
+    expect(data.records[0]).toMatchObject({ username: "=HYPERLINK(1)", password: "-secret" });
+  });
+
+  it("gives back a value that already started with a quote before a formula", () => {
+    const { data } = importCsv([{ type: "note", ...meta(1), title: "'=x", note: "''+y" }]);
+    expect(data.records[0]).toMatchObject({ title: "'=x", note: "''+y" });
+  });
+
   it("keeps a title that starts with a quote of its own", () => {
     const { data } = importCsv([{ type: "note", ...meta(1), title: "'quoted" }]);
     expect(data.records[0]!.title).toBe("'quoted");

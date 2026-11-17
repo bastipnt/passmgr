@@ -1,5 +1,5 @@
 import { RECORD_TYPES, type RecordType, recordDataSchema } from "@repo/schema";
-import { CSV_COLUMNS, FORMULA_ESCAPED, unescapeFormula } from "../export/export-file";
+import { CSV_COLUMNS, unescapeFormula } from "../export/export-file";
 import { csvRecords } from "./csv";
 import {
   type ForeignField,
@@ -75,12 +75,7 @@ export function importOwnCsv(rows: string[][]): ForeignImport {
 
   for (const raw of csvRecords(rows)) {
     const row = Object.fromEntries(
-      CSV_COLUMNS.map((column) => [
-        column,
-        FORMULA_ESCAPED.has(column)
-          ? unescapeFormula(raw[column.toLowerCase()] ?? "")
-          : (raw[column.toLowerCase()] ?? ""),
-      ]),
+      CSV_COLUMNS.map((column) => [column, unescapeFormula(raw[column.toLowerCase()] ?? "")]),
     ) as Record<(typeof CSV_COLUMNS)[number], string>;
 
     const type = row.type.trim();

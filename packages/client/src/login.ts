@@ -3,12 +3,13 @@ import {
   type DeviceAssertion,
   deriveOpaquePassword,
   deviceLoginChallenge,
-  deviceSessionKey,
+  deviceSessionKeyBytes,
   generateDeviceLoginKeyPair,
   genSalt,
   normalizeEmail,
   OPAQUE_SERVER_IDENTITY,
   wipe,
+  withPasswordForms,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
@@ -50,9 +51,10 @@ export {
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
 
+/** `sessionKey`: the login's session key, bytes (`secretsStore.unlockSession` wipes them). */
 export type LoginSessionFn = (
   sessionId: string,
-  sessionKey: string,
+  sessionKey: Uint8Array,
   authSalt: Uint8Array<ArrayBuffer>,
 ) => Promise<void>;
 
@@ -101,19 +103,40 @@ export async function loginUser(
   password: string,
   onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<VaultUnlockInfo> {
-  const opaquePassword = await deriveOpaquePassword(password, rawEmail);
-  try {
-    const login = await loginWithOpaquePassword(
-      trpc,
-      loginSession,
-      rawEmail,
-      opaquePassword,
-      onSecondFactor,
-    );
-    return { ...login, password };
-  } finally {
-    wipe(opaquePassword);
-  }
+  const login = await loginWithPassword(trpc, loginSession, rawEmail, password, onSecondFactor);
+  return { ...login, password };
+}
+
+/**
+ * The OPAQUE login with a typed password: its NFKC form, then, for a
+ * registration from before NFKC, the form as typed (`withPasswordForms`).
+ * Throws like `loginWithOpaquePassword`.
+ */
+export async function loginWithPassword(
+  trpc: LoginTRPCClient,
+  loginSession: LoginSessionFn,
+  rawEmail: string,
+  password: string,
+  onSecondFactor: SecondFactorPrompt = noSecondFactor,
+): Promise<AccountLogin> {
+  return await withPasswordForms(
+    password,
+    async (form) => {
+      const opaquePassword = await deriveOpaquePassword(password, rawEmail, form);
+      try {
+        return await loginWithOpaquePassword(
+          trpc,
+          loginSession,
+          rawEmail,
+          opaquePassword,
+          onSecondFactor,
+        );
+      } finally {
+        wipe(opaquePassword);
+      }
+    },
+    (error) => error instanceof OpaqueLoginFailedError,
+  );
 }
 
 export type AccountLogin = Omit<VaultUnlockInfo, "password">;
@@ -163,9 +186,37 @@ export async function loginWithOpaquePassword(
 
   const { ke3, session_key } = finished;
   const finishLoginRequest = bytesToB64(ke3.serialize());
-  const sessionKey = bytesToB64(session_key);
+  const sessionKey = Uint8Array.from(session_key);
+  session_key.fill(0);
   const authSalt = genSalt();
 
+  try {
+    const login = await finishOpaqueLogin(
+      trpc,
+      email,
+      attemptId,
+      finishLoginRequest,
+      authSalt,
+      onSecondFactor,
+    );
+    // `loginSession` takes the key over.
+    await loginSession(login.sessionId, sessionKey, authSalt);
+    const { userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } = login;
+    return { email, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair };
+  } catch (err) {
+    wipe(sessionKey);
+    throw err;
+  }
+}
+
+async function finishOpaqueLogin(
+  trpc: LoginTRPCClient,
+  email: string,
+  attemptId: string,
+  finishLoginRequest: string,
+  authSalt: Uint8Array,
+  onSecondFactor: SecondFactorPrompt,
+): Promise<LoginSuccess> {
   let finishedLogin: Awaited<ReturnType<LoginTRPCClient["login"]["finishLogin"]["mutate"]>>;
   try {
     finishedLogin = parseServerResponse(
@@ -183,14 +234,9 @@ export async function loginWithOpaquePassword(
     throw requestFailure(err, LoginFinishFailedError);
   }
 
-  const { sessionId, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } =
-    "secondFactorRequired" in finishedLogin
-      ? await passSecondFactor(trpc, finishedLogin.challengeId, onSecondFactor)
-      : finishedLogin;
-
-  await loginSession(sessionId, sessionKey, authSalt);
-
-  return { email, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair };
+  return "secondFactorRequired" in finishedLogin
+    ? await passSecondFactor(trpc, finishedLogin.challengeId, onSecondFactor)
+    : finishedLogin;
 }
 
 /**
@@ -247,14 +293,38 @@ export async function startDeviceLogin(
     onSecondFactor: SecondFactorPrompt = noSecondFactor,
   ): Promise<AccountLogin> {
     if (used) throw new DeviceLoginRejectedError();
-    let sessionKey: string;
+    let sessionKey: Uint8Array;
     try {
-      sessionKey = await deviceSessionKey(privateKey, serverPublicKey, challenge);
+      sessionKey = await deviceSessionKeyBytes(privateKey, serverPublicKey, challenge);
     } finally {
       discard();
     }
     const authSalt = genSalt();
 
+    let login: LoginSuccess;
+    try {
+      login = await finishDevice(assertion, authSalt, onSecondFactor);
+      await loginSession(login.sessionId, sessionKey, authSalt);
+    } catch (err) {
+      wipe(sessionKey);
+      throw err;
+    }
+    const { userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } = login;
+    return {
+      email: normalizeEmail(email),
+      userId,
+      userPasswordKeys,
+      recoveryKeys,
+      vaultKeys,
+      userKeyPair,
+    };
+  }
+
+  async function finishDevice(
+    assertion: DeviceAssertion,
+    authSalt: Uint8Array,
+    onSecondFactor: SecondFactorPrompt,
+  ): Promise<LoginSuccess> {
     let finished: Awaited<ReturnType<LoginTRPCClient["login"]["finishDeviceLogin"]["mutate"]>>;
     try {
       finished = parseServerResponse(
@@ -269,20 +339,9 @@ export async function startDeviceLogin(
     } catch (err) {
       throw requestFailure(err, DeviceLoginRejectedError);
     }
-
-    const { sessionId, userId, userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair } =
-      "secondFactorRequired" in finished
-        ? await passSecondFactor(trpc, finished.challengeId, onSecondFactor)
-        : finished;
-    await loginSession(sessionId, sessionKey, authSalt);
-    return {
-      email: normalizeEmail(email),
-      userId,
-      userPasswordKeys,
-      recoveryKeys,
-      vaultKeys,
-      userKeyPair,
-    };
+    return "secondFactorRequired" in finished
+      ? await passSecondFactor(trpc, finished.challengeId, onSecondFactor)
+      : finished;
   }
 
   return { challenge, startedAt: Date.now(), finish, discard };

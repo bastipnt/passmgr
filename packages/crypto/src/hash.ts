@@ -31,6 +31,32 @@ export async function hkdf(
   return await hkdf_(sha256, inputKey, salt, infoData, 32);
 }
 
+const BASE64_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+/**
+ * The session secret of a login's session key (`hkdf` "sessionSecret"). The
+ * server derives it from the key's base64 text, so this hashes those same
+ * ASCII bytes, built in a buffer that is wiped: the key never becomes a
+ * string, which couldn't be.
+ */
+export async function deriveSessionSecret(sessionKey: Uint8Array): Promise<Uint8Array> {
+  const encoded = new Uint8Array(Math.ceil(sessionKey.length / 3) * 4);
+  let at = 0;
+  for (let i = 0; i < sessionKey.length; i += 3) {
+    const rest = sessionKey.length - i;
+    const n = (sessionKey[i]! << 16) | ((sessionKey[i + 1] ?? 0) << 8) | (sessionKey[i + 2] ?? 0);
+    encoded[at++] = BASE64_ALPHABET.charCodeAt((n >> 18) & 63);
+    encoded[at++] = BASE64_ALPHABET.charCodeAt((n >> 12) & 63);
+    encoded[at++] = rest > 1 ? BASE64_ALPHABET.charCodeAt((n >> 6) & 63) : 61; // "="
+    encoded[at++] = rest > 2 ? BASE64_ALPHABET.charCodeAt(n & 63) : 61;
+  }
+  try {
+    return await hkdf(encoded, "sessionSecret");
+  } finally {
+    wipe(encoded);
+  }
+}
+
 /**
  * -------------------------- Generation of Message Authentication Codes (MACs) --------------------
  */
@@ -141,13 +167,50 @@ export async function hashRecoveryAuthKey(recoveryAuthKey: Uint8Array): Promise<
 }
 
 /**
+ * How a password goes into a key derivation. `nfkc`: Unicode NFKC, so "é" typed
+ * as one code point or as "e" + accent (another keyboard, OS or device) derives
+ * the same key; every new wrap and registration uses it. `raw`: as typed, the
+ * way wraps and registrations made before were derived; tried only when the
+ * `nfkc` form fails (`withPasswordForms`).
+ */
+export type PasswordForm = "nfkc" | "raw";
+
+export function passwordInForm(password: string, form: PasswordForm = "nfkc"): string {
+  return form === "raw" ? password : password.normalize("NFKC");
+}
+
+/**
+ * Open something keyed by an existing password (a wrap, an OPAQUE login):
+ * with the `nfkc` form first, then, when the password has another raw form and
+ * `retry` says the error means "wrong password", with the raw one. Throws the
+ * last attempt's error.
+ */
+export async function withPasswordForms<T>(
+  password: string,
+  attempt: (form: PasswordForm) => Promise<T> | T,
+  retry: (error: unknown) => boolean = () => true,
+): Promise<T> {
+  try {
+    return await attempt("nfkc");
+  } catch (error) {
+    if (passwordInForm(password) === password || !retry(error)) throw error;
+    return await attempt("raw");
+  }
+}
+
+/**
  * What OPAQUE gets instead of the password (registration, login, password
  * change, recovery). A device keeps it to reconnect or re-run the login after
  * a biometric unlock: unlike the password string it can be wiped, and it is
- * worthless for any other account or site.
+ * worthless for any other account or site. `form`: `raw` only for a login
+ * retried for a registration from before NFKC (`withPasswordForms`).
  */
-export async function deriveOpaquePassword(password: string, email: string): Promise<Uint8Array> {
-  const passwordBytes = fromString(password);
+export async function deriveOpaquePassword(
+  password: string,
+  email: string,
+  form: PasswordForm = "nfkc",
+): Promise<Uint8Array> {
+  const passwordBytes = fromString(passwordInForm(password, form));
   try {
     return await hkdf(passwordBytes, "opaquePassword", fromString(normalizeEmail(email)));
   } finally {
@@ -244,7 +307,7 @@ export type DeriveArgon2 = (
 ) => Promise<Uint8Array>;
 
 /**
- * Generate Password Root Key (PRK)
+ * Generate Password Root Key (PRK), over the password's NFKC form (a new wrap).
  *
  * @param password
  *
@@ -261,7 +324,7 @@ export async function genPasswordKek(
 }> {
   const passwordKekSaltData = genSalt();
 
-  const passwordKek = await derive(password, passwordKekSaltData, {
+  const passwordKek = await derive(passwordInForm(password), passwordKekSaltData, {
     ...passwordKekParams,
     maxmem: 2 ** 32 - 1,
   });

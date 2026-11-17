@@ -10,6 +10,18 @@ password: every registration, login, password change and recovery passes `derive
 (HKDF, `opaqueInputFor` / `loginWithOpaquePassword` in `packages/client`). That buffer, not the password, is what
 `secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect (and to get online for a pending web
 biometric enrollment); it is never stored.
+The login's session key stays bytes up to `secretsStore.unlockSession` (`LoginSessionFn`, `deviceSessionKeyBytes`),
+which derives the session secret from its base64 text as the server does (`deriveSessionSecret`) and wipes it.
+
+Password forms (`@repo/crypto` `PasswordForm`): every new registration and password wrap (register, local vault,
+password change, rekey, recovery, encrypted export) derives from the password's Unicode NFKC form, so a non-ASCII
+password typed composed on one device and decomposed on another opens the same keys. Opening an existing one
+(`withPasswordForms`) tries NFKC first, then the password as typed, for registrations and wraps from before:
+`loginWithPassword` (OPAQUE; retried only on `OpaqueLoginFailedError`, the server sees a second login attempt),
+`openWithPassword` / `unwrapAccountKeyWithPassword` (Argon2 wraps), `openExportEnvelope`. The kept OPAQUE password
+for a reconnect is always the NFKC one: an older raw-form registration reconnects with the typed password instead
+(`connect(password)`). Nothing migrates an older registration or wrap; a password change or a below-floor rekey
+rewraps in NFKC.
 
 ## Web biometric unlock and device login
 

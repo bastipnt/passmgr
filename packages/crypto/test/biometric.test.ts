@@ -4,6 +4,7 @@ import {
   authenticateBiometric,
   BIOMETRIC_KEY,
   type BiometricKeyMaterial,
+  biometricKekFrom,
   enrollBiometric,
   isPrfSupported,
 } from "../src/biometric";
@@ -349,5 +350,20 @@ describe("enrollBiometric / authenticateBiometric", () => {
       prfSalt: toBase64(new Uint8Array(32).fill(0xff)),
     };
     await expect(authenticateBiometric(tampered)).rejects.toThrow();
+  });
+});
+
+describe("biometricKekFrom", () => {
+  it("wipes the PRF output it was handed, as a buffer or a view of one", async () => {
+    const buffer = new Uint8Array(32).fill(7).buffer;
+    const kek = await biometricKekFrom(buffer);
+    expect(kek).toHaveLength(32);
+    expect(new Uint8Array(buffer).every((b) => b === 0)).toBe(true);
+
+    const backing = new Uint8Array(40).fill(7);
+    const view = new Uint8Array(backing.buffer, 4, 32);
+    expect(await biometricKekFrom(view)).toEqual(kek);
+    expect(view.every((b) => b === 0)).toBe(true);
+    expect(backing[0]).toBe(7);
   });
 });

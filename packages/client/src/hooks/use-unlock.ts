@@ -1,10 +1,4 @@
-import {
-  authenticateBiometric,
-  deriveOpaquePassword,
-  normalizeEmail,
-  unwrapAccountKey,
-  wipe,
-} from "@repo/crypto";
+import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -15,7 +9,7 @@ import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";
-import { derivePasswordKek } from "../util/derive-password-kek";
+import { openWithPassword, unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
@@ -58,16 +52,7 @@ export function useUnlock() {
 
     let accountKey: Uint8Array;
     try {
-      const passwordKek = await derivePasswordKek(password, userPasswordKeys);
-      try {
-        accountKey = unwrapAccountKey(
-          passwordKek,
-          userPasswordKeys.encryptedAccountKey,
-          userPasswordKeys.accountKeyEncryptionNonce,
-        );
-      } finally {
-        wipe(passwordKek);
-      }
+      accountKey = await unwrapAccountKeyWithPassword(password, userPasswordKeys);
     } catch (e) {
       logError("Vault unlock failed", e);
       await failUnlock("failed");
@@ -210,14 +195,17 @@ export function useUnlock() {
     const { profile, accountKeyMaterial: material } = active;
     if (!profile || !material) return false;
     try {
-      const passwordKek = await derivePasswordKek(password, material);
-      unlockVault(
-        profile.mode,
-        passwordKek,
-        material.encryptedAccountKey,
-        material.accountKeyEncryptionNonce,
-        await active.vault.getVaults(),
-        material.userKeyPair,
+      const vaults = await active.vault.getVaults();
+      // `unlockVault` wipes the KEK; wiping it again is harmless.
+      await openWithPassword(password, material, (passwordKek) =>
+        unlockVault(
+          profile.mode,
+          passwordKek,
+          material.encryptedAccountKey,
+          material.accountKeyEncryptionNonce,
+          vaults,
+          material.userKeyPair,
+        ),
       );
       return true;
     } catch (e) {

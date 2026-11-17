@@ -1,4 +1,5 @@
 import { type EncryptedRecordSchema, RECORD_CRYPTO_VERSION } from "@repo/schema";
+import { logWarning } from "@repo/util";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { secretsStore } from "../secrets-store";
@@ -565,7 +566,7 @@ export async function rebasePendingVersions(
       const local = chain.map((row) => ({ ...row, version: row.version + shift }));
       merged = await resolve({ base, local, remote, receivedAt });
     } catch (error) {
-      console.warn(`Cannot merge record ${recordId}; the local edit stays on top`, error);
+      logWarning(`Cannot merge record ${recordId}; the local edit stays on top`, error);
       continue;
     }
     if (merged) await writeLocalChange({ kind: "update", ...merged }, new Date().toISOString(), db);

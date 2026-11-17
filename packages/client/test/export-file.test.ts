@@ -148,7 +148,7 @@ describe("export CSV", () => {
     });
   });
 
-  it("escapes formulas in free text, never in credentials", () => {
+  it("escapes formulas in every column, credentials included", () => {
     const formula: ExportRecord = {
       ...login,
       title: '=HYPERLINK("http://evil")',
@@ -168,8 +168,8 @@ describe("export CSV", () => {
       tags: "'+1",
       customFields: "'-x: y",
       email: "'=evil@example.com",
-      username: "-me",
-      password: "=secret",
+      username: "'-me",
+      password: "'=secret",
     });
   });
 

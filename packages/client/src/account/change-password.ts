@@ -1,5 +1,5 @@
 import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { normalizeEmail, OPAQUE_SERVER_IDENTITY, unwrapAccountKey, wipe } from "@repo/crypto";
+import { normalizeEmail, OPAQUE_SERVER_IDENTITY, wipe } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
@@ -17,7 +17,7 @@ import {
   type SecondFactorPrompt,
 } from "../login";
 import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "../opaque";
-import { derivePasswordKek } from "../util/derive-password-kek";
+import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
 import { wrapAccountKeyForPassword } from "./rekey-password-keys";
@@ -53,21 +53,11 @@ export async function opensPasswordWrap(
   password: string,
   material: AccountKeyMaterial,
 ): Promise<boolean> {
-  let passwordKek: Uint8Array | undefined;
   try {
-    passwordKek = await derivePasswordKek(password, material);
-    wipe(
-      unwrapAccountKey(
-        passwordKek,
-        material.encryptedAccountKey,
-        material.accountKeyEncryptionNonce,
-      ),
-    );
+    wipe(await unwrapAccountKeyWithPassword(password, material));
     return true;
   } catch {
     return false;
-  } finally {
-    if (passwordKek) wipe(passwordKek);
   }
 }
 

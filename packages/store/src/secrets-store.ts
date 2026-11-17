@@ -3,6 +3,7 @@ import {
   createVault,
   decryptRecordData,
   decryptVaultMeta,
+  deriveSessionSecret,
   encryptRecordData,
   encryptVaultMeta,
   hkdf,
@@ -39,7 +40,7 @@ import {
   type VaultMeta,
   vaultMetaSchema,
 } from "@repo/schema";
-import { fromBase64, fromString, toBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import type { LoginBundle, ServerSessionBundle } from "./session-persistence.types";
 
 /** A record version's new ciphertext, and the key version it is under. */
@@ -116,9 +117,14 @@ class SecretsStore {
    * fresh OPAQUE session (fast, HKDF only). Independent of the vault: it can
    * come before the unlock (login) or after it (reconnect).
    */
-  async unlockSession(sessionId: string, sessionKey: string, authSalt: Uint8Array) {
+  async unlockSession(sessionId: string, sessionKey: Uint8Array, authSalt: Uint8Array) {
     const epoch = this.epoch;
-    const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    let sessionSecret: Uint8Array;
+    try {
+      sessionSecret = await deriveSessionSecret(sessionKey);
+    } finally {
+      wipe(sessionKey);
+    }
     const authKey = await hkdf(sessionSecret, "sessionAuth", authSalt);
     // Locked while deriving: the caller is gone, a session must not outlive the lock.
     if (this.epoch !== epoch) {

@@ -1166,6 +1166,25 @@ describe("peer keys", () => {
     expect(await vault.getPeerKey("u-alice")).toEqual(key);
     expect(await vault.getPeerKey("u-bob")).toBeNull();
   });
+
+  it("reads a corrupt pin as none instead of throwing", async () => {
+    const driver = createTestDriver();
+    const corrupt = new Vault(driver);
+    try {
+      await corrupt.pinPeerKey("u-alice", {
+        keyVersion: 1,
+        publicKey: toBase64(new Uint8Array(32)),
+      });
+      await driver.query(
+        "UPDATE key_material SET value = ? WHERE key = ?",
+        ["{not json", "peerKey:u-alice"],
+        "run",
+      );
+      expect(await corrupt.getPeerKey("u-alice")).toBeNull();
+    } finally {
+      await corrupt.destroy();
+    }
+  });
 });
 
 describe("breach check", () => {

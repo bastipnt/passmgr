@@ -4,6 +4,7 @@ import { afterAll, describe, expect, it, vi } from "vitest";
 import {
   deriveOpaquePassword,
   deriveRecoveryAuthKey,
+  deriveSessionSecret,
   genPasswordKek,
   getPasswordKekParams,
   hashDeviceName,
@@ -12,11 +13,13 @@ import {
   hkdf,
   needsPasswordKekRekey,
   PASSWORD_KEK_PARAM_SETS,
+  passwordInForm,
   retrievePRK,
   selectPasswordKekParams,
   setPasswordKekParams,
   signHmac,
   verifyHmac,
+  withPasswordForms,
 } from "../src/hash";
 import { hkdfInfo } from "../src/util/constants";
 import { wipe } from "../src/util/secrets-utils";
@@ -160,6 +163,61 @@ describe("deriveOpaquePassword", () => {
   });
 });
 
+// "é" as one code point and as "e" + combining accent; "ｐ" is full-width.
+const COMPOSED = "caf\u{e9}";
+const DECOMPOSED = "cafe\u{301}";
+
+describe("password forms (NFKC)", () => {
+  it("turns any way of typing the same text into one form", () => {
+    expect(passwordInForm(DECOMPOSED)).toBe(COMPOSED);
+    expect(passwordInForm("\u{ff50}w")).toBe("pw");
+    expect(passwordInForm(DECOMPOSED, "raw")).toBe(DECOMPOSED);
+  });
+
+  it("derives the same OPAQUE password for both, and the raw one on request", async () => {
+    const a = await deriveOpaquePassword(COMPOSED, "alice@example.com");
+    expect(await deriveOpaquePassword(DECOMPOSED, "alice@example.com")).toEqual(a);
+    expect(await deriveOpaquePassword(DECOMPOSED, "alice@example.com", "raw")).not.toEqual(a);
+  });
+
+  it("tries the raw form only after the NFKC one failed, and only when it differs", async () => {
+    const tried: string[] = [];
+    const fail = (form: string) => {
+      tried.push(form);
+      throw new Error(form);
+    };
+    await expect(withPasswordForms("ascii", fail)).rejects.toThrow("nfkc");
+    expect(tried).toEqual(["nfkc"]);
+
+    tried.length = 0;
+    await expect(withPasswordForms(DECOMPOSED, fail)).rejects.toThrow("raw");
+    expect(tried).toEqual(["nfkc", "raw"]);
+
+    expect(await withPasswordForms(DECOMPOSED, (form) => (form === "raw" ? 1 : fail(form)))).toBe(
+      1,
+    );
+  });
+
+  it("doesn't retry an error that isn't about the password", async () => {
+    const attempt = vi.fn(async () => {
+      throw new Error("offline");
+    });
+    await expect(withPasswordForms(DECOMPOSED, attempt, () => false)).rejects.toThrow("offline");
+    expect(attempt).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("deriveSessionSecret", () => {
+  it("matches the server's derivation from the key's base64 text, at any length", async () => {
+    for (const length of [32, 31, 30, 1]) {
+      const key = crypto.getRandomValues(new Uint8Array(length));
+      expect(await deriveSessionSecret(key)).toEqual(
+        await hkdf(fromString(btoa(String.fromCharCode(...key))), "sessionSecret"),
+      );
+    }
+  });
+});
+
 describe("recovery auth key", () => {
   const recoveryKey = new Uint8Array(32).fill(7);
 
@@ -239,6 +297,11 @@ describe("genPasswordKek / retrievePRK", () => {
     const { passwordKek, passwordKekParams } = await genPasswordKek(password, FAST_PARAMS);
     const prk = await retrievePRK(password, new Uint8Array(32).fill(0), passwordKekParams);
     expect(prk).not.toEqual(passwordKek);
+  });
+
+  it("genPasswordKek derives from the NFKC form", async () => {
+    const { passwordKek, passwordKekSaltData } = await genPasswordKek(DECOMPOSED, FAST_PARAMS);
+    expect(await retrievePRK(COMPOSED, passwordKekSaltData, FAST_PARAMS)).toEqual(passwordKek);
   });
 
   it("genPasswordKek picks a fresh random salt each call", async () => {

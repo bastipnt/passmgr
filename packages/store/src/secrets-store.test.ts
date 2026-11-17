@@ -102,13 +102,14 @@ beforeEach(() => {
 
 describe("unlockSession", () => {
   it("derives sessionSecret and authKey from sessionKey + authSalt (matches independent HKDF)", async () => {
-    const sessionKey = "deadbeef-session-key";
+    const sessionKey = genKey();
+    const sessionKeyText = toBase64(sessionKey);
     const authSalt = genKey();
 
     await secretsStore.unlockSession("sid-1", sessionKey, authSalt);
 
     // Independent derivation: the store must use the same hkdf chain.
-    const expectedSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    const expectedSecret = await hkdf(fromString(sessionKeyText), "sessionSecret");
     const expectedAuthKey = await hkdf(expectedSecret, "sessionAuth", authSalt);
 
     // signRequest uses authKey for HMAC — verify with the independently-derived authKey.
@@ -116,8 +117,14 @@ describe("unlockSession", () => {
     expect(await verifyHmac(expectedAuthKey, signature, "hello world")).toBe(true);
   });
 
+  it("wipes the session key it was handed", async () => {
+    const sessionKey = genKey();
+    await secretsStore.unlockSession("sid-wiped", sessionKey, genKey());
+    expect(sessionKey.every((b) => b === 0)).toBe(true);
+  });
+
   it("stores sessionId on the store", async () => {
-    await secretsStore.unlockSession("sid-42", "k", genKey());
+    await secretsStore.unlockSession("sid-42", genKey(), genKey());
     expect(secretsStore.sessionId).toBe("sid-42");
   });
 });
@@ -170,7 +177,7 @@ describe("replacing the account key", () => {
   });
 
   it("restoreSession leaves the store untouched when the bundle is malformed", async () => {
-    await secretsStore.unlockSession("sid-live", "k", genKey());
+    await secretsStore.unlockSession("sid-live", genKey(), genKey());
     const { accountKey } = unlockWithKeyring();
 
     // A bundle persisted before the account key existed has no accountKeyB64.
@@ -465,14 +472,15 @@ describe("signRequest", () => {
   });
 
   it("produces a HMAC that verifies against the derived authKey", async () => {
-    const sessionKey = "another-session-key";
+    const sessionKey = genKey();
+    const sessionKeyText = toBase64(sessionKey);
     const authSalt = genKey();
     await secretsStore.unlockSession("sid", sessionKey, authSalt);
 
     const message = "mutation\n/record.create\n123\n{}";
     const sig = await secretsStore.signRequest(message);
 
-    const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    const sessionSecret = await hkdf(fromString(sessionKeyText), "sessionSecret");
     const authKey = await hkdf(sessionSecret, "sessionAuth", authSalt);
     expect(await verifyHmac(authKey, sig, message)).toBe(true);
   });
@@ -530,7 +538,7 @@ describe("encryptRecord / decryptRecord", () => {
 
 describe("lock", () => {
   it("clears sessionId and disables signing + record decryption", async () => {
-    await secretsStore.unlockSession("sid", "k", genKey());
+    await secretsStore.unlockSession("sid", genKey(), genKey());
     unlockWithKeyring();
 
     expect(secretsStore.isVaultUnlocked).toBe(true);
@@ -550,7 +558,7 @@ describe("lock", () => {
     const authSalt = genKey();
     const { accountKey, wraps } = keyring();
 
-    await secretsStore.unlockSession("sid", "session-key", authSalt);
+    await secretsStore.unlockSession("sid", genKey(), authSalt);
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadVaultKeys(wraps);
 
@@ -579,7 +587,7 @@ describe("lock", () => {
   });
 
   it("lockVault wipes the account and vault keys but keeps the session", async () => {
-    await secretsStore.unlockSession("sid", "k", genKey());
+    await secretsStore.unlockSession("sid", genKey(), genKey());
     unlockWithKeyring();
     const internal = secretsStore._peekBuffers();
 
@@ -636,7 +644,7 @@ describe("exportPersistableBundle / restoreSession", () => {
   it("throws while the vault is locked, even with a server session", async () => {
     expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
 
-    await secretsStore.unlockSession("sid", "k", genKey());
+    await secretsStore.unlockSession("sid", genKey(), genKey());
     expect(() => secretsStore.exportPersistableBundle()).toThrow(/SessionLocked/);
   });
 
@@ -652,7 +660,8 @@ describe("exportPersistableBundle / restoreSession", () => {
   });
 
   it("round-trips: a restored store signs and, after reloading vault keys, decrypts (no OPAQUE/Argon2)", async () => {
-    const sessionKey = "persist-session-key";
+    const sessionKey = genKey();
+    const sessionKeyText = toBase64(sessionKey);
     const authSalt = genKey();
     const authSaltCopy = authSalt.slice(); // lock() will zero the stored authSalt
 
@@ -683,7 +692,7 @@ describe("exportPersistableBundle / restoreSession", () => {
 
     // signRequest verifies against the independently-derived authKey
     const message = "query\n/user.heartbeat\n123\nabc\n{}";
-    const sessionSecret = await hkdf(fromString(sessionKey), "sessionSecret");
+    const sessionSecret = await hkdf(fromString(sessionKeyText), "sessionSecret");
     const expectedAuthKey = await hkdf(sessionSecret, "sessionAuth", authSaltCopy);
     const sig = await secretsStore.signRequest(message);
     expect(await verifyHmac(expectedAuthKey, sig, message)).toBe(true);
@@ -696,7 +705,7 @@ describe("exportPersistableBundle / restoreSession", () => {
 
   it("restoring a bundle without a server session drops the one attached before", async () => {
     const { accountKey } = unlockWithKeyring();
-    await secretsStore.unlockSession("sid-old", "k", genKey());
+    await secretsStore.unlockSession("sid-old", genKey(), genKey());
 
     secretsStore.restoreSession({ accountKeyB64: toBase64(accountKey) });
 
@@ -707,7 +716,7 @@ describe("exportPersistableBundle / restoreSession", () => {
 
 describe("detachServer", () => {
   it("wipes the server session keys in place and keeps the vault unlocked", async () => {
-    await secretsStore.unlockSession("sid", "k", genKey());
+    await secretsStore.unlockSession("sid", genKey(), genKey());
     unlockWithKeyring();
     const { sessionSecret, authKey, authSalt } = secretsStore._peekBuffers();
 
@@ -776,8 +785,8 @@ describe("concurrent unlockSession calls (last write wins)", () => {
     const saltA = genKey();
     const saltB = genKey();
     await Promise.all([
-      secretsStore.unlockSession("sidA", "keyA", saltA),
-      secretsStore.unlockSession("sidB", "keyB", saltB),
+      secretsStore.unlockSession("sidA", genKey(), saltA),
+      secretsStore.unlockSession("sidB", genKey(), saltB),
     ]);
     // store is in a consistent unlocked state — signing must work
     const sig = await secretsStore.signRequest("ping");
@@ -792,7 +801,7 @@ describe("lockEpoch", () => {
     unlockWithKeyring();
     const before = secretsStore.lockEpoch;
 
-    await secretsStore.unlockSession("sid", "k", genKey());
+    await secretsStore.unlockSession("sid", genKey(), genKey());
     secretsStore.detachServer();
     expect(secretsStore.lockEpoch).toBe(before);
 

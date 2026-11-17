@@ -1139,7 +1139,7 @@ describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
       .fn<() => Promise<SyncPage>>()
       .mockResolvedValueOnce({ ...batch, keyUpdates: [update], rotationsDue: ["v1"] })
       .mockResolvedValue({ ...batch, keyUpdates: [], rotationsDue: [] });
-    const onSharingTasks = vi.fn(async () => true);
+    const onSharingTasks = vi.fn(async () => ({ changed: true, rotationsPending: [] }));
     const manager = new SyncManager(store as unknown as Vault, {
       sealer: unsealed,
       pull,
@@ -1152,6 +1152,26 @@ describe("SyncManager sharing tasks (ADR 0001 D7)", () => {
 
     expect(onSharingTasks).toHaveBeenCalledTimes(1);
     expect(onSharingTasks).toHaveBeenCalledWith({ keyUpdates: [update], rotationsDue: ["v1"] });
+    await manager.dispose();
+  });
+
+  it("reports the rotations still pending: failed ones and re-encryption left over", async () => {
+    const store = fakeStore(false);
+    const pull = vi.fn(async () => ({ ...batch, rotationsDue: ["v1", "v2"] }));
+    const onSharingTasks = vi.fn(async () => ({ changed: false, rotationsPending: ["v1"] }));
+    const manager = new SyncManager(store as unknown as Vault, {
+      sealer: unsealed,
+      pull,
+      push: vi.fn(async () => []),
+      prepareOutbox: async () => ["v3"],
+      onSharingTasks,
+    });
+    expect(await manager.sync()).toBe(true);
+    expect(manager.getStatus().rotationsPending).toEqual(["v1", "v3"]);
+
+    onSharingTasks.mockRejectedValueOnce(new Error("offline"));
+    expect(await manager.sync()).toBe(true);
+    expect(manager.getStatus().rotationsPending).toEqual(["v1", "v2", "v3"]);
     await manager.dispose();
   });
 
@@ -1303,7 +1323,7 @@ describe("SyncManager sealing (ADR 0001 D11)", () => {
       keyUpdates: [{ vaultId: "v2" } as never],
     };
     const pull = vi.fn(async () => page);
-    const onSharingTasks = vi.fn(async () => false);
+    const onSharingTasks = vi.fn(async () => ({ changed: false, rotationsPending: [] }));
     const manager = new SyncManager(store as unknown as Vault, { sealer, pull, onSharingTasks });
 
     expect(await manager.sync()).toBe(true);

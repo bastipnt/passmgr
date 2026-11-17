@@ -15,6 +15,7 @@ const NO_PROFILE: SyncStatus = {
   paused: false,
   vaultsMissing: [],
   vaultListRejected: false,
+  rotationsPending: [],
 };
 
 /** Where syncing the active profile with the server stands (ADR 0001 D8), live. */
@@ -24,6 +25,15 @@ export function useSyncStatus(): SyncStatus {
     (onChange) => syncManager?.onStatusChange(onChange) ?? (() => {}),
     () => syncManager?.getStatus() ?? NO_PROFILE,
   );
+}
+
+/**
+ * Whether the vault's key rotation isn't done (`SyncStatus.rotationsPending`):
+ * a member who left can still read what is written to it. Retried with each sync.
+ */
+export function useRotationPending(vaultId: string | undefined): boolean {
+  const { rotationsPending } = useSyncStatus();
+  return vaultId !== undefined && rotationsPending.includes(vaultId);
 }
 
 /**
