@@ -43,6 +43,7 @@ export const keysTable = pgTable(
     uniqueIndex("key_active_user_idx")
       .on(table.userId)
       .where(sql`${table.valid_to} IS NULL AND ${table.deleted_at} IS NULL`),
+    index("key_closed_valid_to_idx").on(table.valid_to).where(sql`${table.valid_to} IS NOT NULL`),
   ],
 );
 

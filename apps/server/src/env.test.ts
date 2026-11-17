@@ -54,6 +54,18 @@ describe("parseServerEnv", () => {
     }
   });
 
+  it("defaults KEY_SET_RETENTION_DAYS and refuses a negative, fractional or huge one", () => {
+    expect(parseServerEnv(valid).KEY_SET_RETENTION_DAYS).toBe(14);
+    expect(parseServerEnv({ ...valid, KEY_SET_RETENTION_DAYS: "0" }).KEY_SET_RETENTION_DAYS).toBe(
+      0,
+    );
+    for (const bad of ["-1", "1.5", "soon", "999999999"]) {
+      expect(() => parseServerEnv({ ...valid, KEY_SET_RETENTION_DAYS: bad })).toThrow(
+        /KEY_SET_RETENTION_DAYS/,
+      );
+    }
+  });
+
   it("requires PREFIX in production", () => {
     expect(() => parseServerEnv({ ...valid, NODE_ENV: "production" })).toThrow(/PREFIX/);
     expect(() => parseServerEnv({ ...valid, NODE_ENV: "production", PREFIX: "/" })).toThrow(

@@ -15,6 +15,7 @@ import { metricsRegistry, recordRateLimited } from "./metrics";
 import { redis } from "./redis";
 import { createTrpcOptions } from "./trpc-options";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
+import { purgeClosedKeySets } from "./user/purge-key-sets";
 import { allowedOrigins } from "./util/allowed-origins";
 
 const isDev = !serverEnv.production;
@@ -101,14 +102,22 @@ await server.register(fastifyTRPCPlugin, {
 const PURGE_INTERVAL_MS = 60 * 60_000;
 
 async function runPurge() {
-  try {
-    const { purged, failed } = await purgeUnverifiedAccounts();
-    if (purged > 0 || failed > 0) server.log.info({ purged, failed }, "auth.unverified.purged");
-  } catch (err) {
-    server.log.error({ err }, "auth.unverified.purge_failed");
+  const [accounts, keySets] = await Promise.allSettled([
+    purgeUnverifiedAccounts(),
+    purgeClosedKeySets(),
+  ]);
+  if (accounts.status === "rejected") {
+    server.log.error({ err: accounts.reason }, "auth.unverified.purge_failed");
+  } else if (accounts.value.purged > 0 || accounts.value.failed > 0) {
+    server.log.info(accounts.value, "auth.unverified.purged");
+  }
+  if (keySets.status === "rejected") {
+    server.log.error({ err: keySets.reason }, "auth.keysets.purge_failed");
+  } else if (keySets.value > 0) {
+    server.log.info({ purged: keySets.value }, "auth.keysets.purged");
   }
 }
 
-// Every instance runs it; a second deletion of the same account just fails and is skipped.
+// Every instance runs it; a second deletion of the same account or key set just fails or finds nothing.
 setInterval(() => void runPurge(), PURGE_INTERVAL_MS).unref();
 setTimeout(() => void runPurge(), 60_000).unref();

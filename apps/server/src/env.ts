@@ -4,6 +4,8 @@ import { z } from "zod";
 const OPAQUE_SECRET_BYTES = 32;
 const MIN_SERVER_KEY_BYTES = 32;
 const DEFAULT_STORAGE_QUOTA_MB = 100;
+const DEFAULT_KEY_SET_RETENTION_DAYS = 14;
+const MAX_KEY_SET_RETENTION_DAYS = 3650;
 
 function isBase64OfLength(bytes: number) {
   return (value: string) => {
@@ -64,6 +66,15 @@ const envSchema = z
         .number({ error: "must be a positive number of megabytes" })
         .positive("must be a positive number of megabytes")
         .default(DEFAULT_STORAGE_QUOTA_MB),
+    ),
+    KEY_SET_RETENTION_DAYS: z.preprocess(
+      blankToUndefined,
+      z.coerce
+        .number({ error: "must be a whole number of days" })
+        .int("must be a whole number of days")
+        .nonnegative("must be a whole number of days")
+        .max(MAX_KEY_SET_RETENTION_DAYS, `must be at most ${MAX_KEY_SET_RETENTION_DAYS} days`)
+        .default(DEFAULT_KEY_SET_RETENTION_DAYS),
     ),
   })
   .transform((env) => ({ ...env, production: env.NODE_ENV === "production" }))

@@ -3,6 +3,8 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { FRESH_AUTH_WINDOW_MS } from "../../src/auth/auth-middleware";
 import { redis } from "../../src/redis";
+import { purgeClosedKeySets } from "../../src/user/purge-key-sets";
+import { DAY_MS } from "../../src/util/time";
 import { truncateAll } from "../setup/db-helpers";
 import { buildUserKeys } from "../setup/user-keys";
 import { callSigned, loginAndGetAuthKey, register } from "./_helpers";
@@ -47,6 +49,21 @@ describe("user.rekeyPasswordKeys (real Postgres + Redis)", () => {
     expect(active?.encryptedAccountKeyRecovery).toBe(original.encryptedAccountKeyRecovery);
     expect(active?.recoveryKekSalt).toBe(original.recoveryKekSalt);
     expect(active?.recoveryVerifier).toBe(original.recoveryVerifier);
+  });
+
+  it("purges closed key sets once the retention window has passed, never the active one", async () => {
+    await register(email, password);
+    const { sessionId, authKey } = await loginAndGetAuthKey(email, password);
+    const updated = await rekey(sessionId, authKey);
+
+    const retentionMs = 14 * DAY_MS;
+    expect(await purgeClosedKeySets(Date.now(), retentionMs)).toBe(0);
+    expect(await db.select().from(keysTable)).toHaveLength(2);
+
+    expect(await purgeClosedKeySets(Date.now() + retentionMs + 60_000, retentionMs)).toBe(1);
+    const rows = await db.select().from(keysTable);
+    expect(rows).toEqual([expect.objectContaining({ ...updated, valid_to: null })]);
+    await expect(loginAndGetAuthKey(email, password)).resolves.toBeDefined();
   });
 
   it("rejects a session whose OPAQUE login is older than the fresh-auth window", async () => {

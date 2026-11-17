@@ -73,7 +73,8 @@ async function lockActiveKeySet(tx: Tx, userId: string) {
 /**
  * Close the active key set and insert its successor with a new password wrap;
  * the recovery wrap + verifier carry over unchanged. Never updates key
- * material in place, so a bad change can be rolled back.
+ * material in place, so a bad change can be rolled back until the closed set
+ * is purged (`purgeClosedKeySets`).
  */
 async function replacePasswordWrap(
   tx: Tx,
@@ -233,7 +234,7 @@ export const userRouter = router({
   // Requires a fresh OPAQUE login, and never overwrites: the active key set is
   // closed (valid_to) and a new version inserted with the new password-side
   // material and the unchanged recovery-KEK copy, so a bad or malicious rekey
-  // can be rolled back.
+  // can be rolled back until the closed set is purged (`purgeClosedKeySets`).
   rekeyPasswordKeys: freshAuthProcedure
     .input(passwordKeySchema)
     .mutation(async ({ ctx, input }) => {

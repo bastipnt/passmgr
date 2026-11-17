@@ -112,6 +112,11 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
 Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay.
 
+Closed key sets (password change, rekey, recovery) are kept `KEY_SET_RETENTION_DAYS` (default 14, the rollback window)
+and then deleted by the hourly purge in `server.ts` (`purgeClosedKeySets`, `user/purge-key-sets.ts`): they still
+open the unchanged account key with the old password or old recovery key. Nothing reads them: login, recovery,
+password change and a pending recovery (checked against the active set's verifier) only use the active set.
+
 ## Email verification
 
 Only on a server with a mailer (`SMTP_URL` + `MAIL_FROM`; `appConfig.emailVerification`; Mailpit in dev / E2E,

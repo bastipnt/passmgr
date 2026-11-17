@@ -8,12 +8,13 @@ import {
 import { fromString, toBase64 } from "@repo/util";
 import { and, desc, eq, inArray, lt, notInArray, or } from "drizzle-orm";
 import { serverKey } from "../opaque";
+import { DAY_MS } from "../util/time";
 
 export const ACCOUNT_EVENTS_MAX = 500;
 // Failed sign-ins are kept apart: anyone who knows the email can cause them,
 // and they must not push the owner's own events out of the log.
 export const ACCOUNT_FAILURES_MAX = 50;
-export const ACCOUNT_EVENTS_MAX_AGE_MS = 365 * 24 * 60 * 60 * 1000;
+export const ACCOUNT_EVENTS_MAX_AGE_MS = 365 * DAY_MS;
 
 const LOGIN_TYPES: AccountEventType[] = ["login", "device_login"];
 // Device names the owner has used: a login from one of them is not "new".

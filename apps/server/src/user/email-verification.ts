@@ -15,10 +15,11 @@ import {
   resetLoginThrottle,
   setEmailCode,
 } from "../util/redis-utils";
+import { DAY_MS } from "../util/time";
 import { deleteAccount } from "./delete-account";
 
 /** Accounts still unverified this long after registering are deleted (`purgeUnverifiedAccounts`). */
-export const UNVERIFIED_ACCOUNT_MAX_AGE_MS = 7 * 24 * 60 * 60_000;
+export const UNVERIFIED_ACCOUNT_MAX_AGE_MS = 7 * DAY_MS;
 
 export function emailVerificationEnabled(): boolean {
   return getMailer() !== null;

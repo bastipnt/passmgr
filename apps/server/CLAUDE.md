@@ -73,7 +73,7 @@ sets the secrets). Production uses `.env.production` on the deploy host, not thi
 
 Startup fails on a bad config: `src/env.ts` (`serverEnv`, one Zod schema, imported first by `server.ts` / `opaque.ts`)
 validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by `util/allowed-origins.ts`) and
-`STORAGE_QUOTA_MB`; `@repo/db` throws without `DATABASE_URL`. Read a new server env var through `serverEnv`.
+`STORAGE_QUOTA_MB` / `KEY_SET_RETENTION_DAYS`; `@repo/db` throws without `DATABASE_URL`. Read a new server env var through `serverEnv`.
 
 - `DATABASE_URL` — PostgreSQL connection string (required; `@repo/db` reads `apps/server/.env` only outside production)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
@@ -85,6 +85,7 @@ validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by 
   verification (every account counts as verified). Dev: Mailpit from `pnpm db:up`, `SMTP_URL=smtp://localhost:1025`
   (UI on :8025); prod: Stalwart or any SMTP relay, see `docs/ops/email.md`
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see `docs/architecture/vaults-and-sync.md`
+- `KEY_SET_RETENTION_DAYS` — days a closed key set is kept before the hourly purge deletes it (default 14, `0` = next run), see Password change in `docs/architecture/auth.md`
 - `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
 - `PREFIX` — tRPC mount path (e.g. `/trpc`); required in production, so tRPC never sits next to `/health` / `/metrics`
 - `TRUST_PROXY` — proxy IPs/CIDRs or proxy-addr names, never a hop count; unset in production logs

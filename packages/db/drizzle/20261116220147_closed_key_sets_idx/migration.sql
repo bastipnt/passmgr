@@ -1,0 +1,1 @@
+CREATE INDEX "key_closed_valid_to_idx" ON "keys" ("valid_to") WHERE "valid_to" IS NOT NULL;

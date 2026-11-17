@@ -3,10 +3,11 @@ import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema
 import type { Result } from "ioredis";
 import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
+import { DAY_MS } from "./time";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle
 // Hard cap from the OPAQUE login, however active the session stays.
-export const SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60_000; // 30 days
+export const SESSION_MAX_AGE_MS = 30 * DAY_MS;
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
 const TOTP_ENROLLMENT_TTL_SECONDS = 10 * 60; // 10min to scan and confirm
@@ -741,7 +742,6 @@ export async function deleteEmailCodes(userId: string): Promise<void> {
 // (~1 %) of distinct users, never which users, so metrics can show daily /
 // weekly / monthly actives without a per-user last-seen record.
 const ACTIVE_USERS_DAYS = 30;
-const DAY_MS = 24 * 60 * 60_000;
 
 function activeUsersKey(dayMs: number) {
   return `activeusers:${new Date(dayMs).toISOString().slice(0, 10)}`;
