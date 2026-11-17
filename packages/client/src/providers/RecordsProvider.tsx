@@ -6,6 +6,7 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -39,9 +40,13 @@ export function useRecordsContext() {
 }
 
 // The version too: a sync can renumber a pending local version without touching its ciphertext.
+// The nonce stands in for the ciphertext: every encryption draws a fresh one, and keeping
+// the whole ciphertext here would hold a second copy of every record in memory.
 function buildFingerprint(record: EncryptedRecordSchema): string {
-  return `${record.vaultId}|${record.version}|${record.encryptedData}|${record.encryptionNonce}`;
+  return `${record.vaultId}|${record.version}|${record.encryptionNonce}`;
 }
+
+const NO_RECORDS: DecryptedRecord[] = [];
 
 type DecryptedRecordsProviderProps = {
   children: ReactNode;
@@ -60,6 +65,9 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   const unlockedRef = useRef(vaultUnlocked);
 
   const [revision, setRevision] = useState(0);
+  // The list keeps its identity until a record changes: a sync that brought nothing new must
+  // not rerun every filter, sort and search downstream.
+  const [records, setRecords] = useState<DecryptedRecord[]>(NO_RECORDS);
   const [ready, setReady] = useState(false);
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
 
@@ -87,6 +95,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
       // Decrypt changed/new records. One that fails (wrong key, tampered) is left
       // out and retried on the next run, instead of hiding every other record.
+      let changed = false;
       if (toDecrypt.length > 0) {
         const results = await timed(`decrypt ${toDecrypt.length} records`, () =>
           Promise.allSettled(toDecrypt.map((row) => decryptRecordRow(row))),
@@ -105,6 +114,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
             encryptedRecord.recordId,
             buildFingerprint(encryptedRecord),
           );
+          changed = true;
         });
         if (failed > 0) logError(`${failed} record(s) could not be decrypted and are hidden`);
       }
@@ -114,9 +124,11 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
         if (!activeIds.has(id)) {
           recordsMapRef.current.delete(id);
           fingerprintMapRef.current.delete(id);
+          changed = true;
         }
       }
 
+      if (changed) setRecords(Array.from(recordsMapRef.current.values()));
       setRevision((r) => r + 1);
       setReady(true);
     },
@@ -146,6 +158,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     unlockedRef.current = vaultUnlocked;
     recordsMapRef.current = new Map();
     fingerprintMapRef.current = new Map();
+    setRecords(NO_RECORDS);
     setVaults([]);
     setReady(false);
     setRevision((r) => r + 1);
@@ -186,6 +199,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
         fingerprintMapRef.current.delete(id);
       }
 
+      setRecords(Array.from(recordsMapRef.current.values()));
       setRevision((r) => r + 1);
     },
     [vault],
@@ -198,15 +212,18 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     [revision, vaultUnlocked],
   );
 
-  const value: RecordsContextValue = {
-    records: vaultUnlocked ? Array.from(recordsMapRef.current.values()) : [],
-    getRecord,
-    ready: ready && vaultUnlocked,
-    refreshRecord,
-    reload,
-    revision,
-    vaults,
-  };
+  const value = useMemo<RecordsContextValue>(
+    () => ({
+      records: vaultUnlocked ? records : NO_RECORDS,
+      getRecord,
+      ready: ready && vaultUnlocked,
+      refreshRecord,
+      reload,
+      revision,
+      vaults,
+    }),
+    [vaultUnlocked, records, getRecord, ready, refreshRecord, reload, revision, vaults],
+  );
 
   return <RecordsContext value={value}>{children}</RecordsContext>;
 }

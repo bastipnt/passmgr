@@ -95,6 +95,37 @@ describe("RecordsProvider", () => {
     );
   });
 
+  it("keeps the list and the context value as they were after a sync that changed nothing", async () => {
+    const { result } = renderHook(() => useRecordsContext(), { wrapper });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    const { records, revision } = result.current;
+    decryptRecordWithWorker.mockClear();
+
+    syncListener?.({ vaultsChanged: false });
+
+    await waitFor(() => expect(result.current.revision).toBeGreaterThan(revision));
+    // Only "bad" is retried, and it fails again: the list holds the same records.
+    expect(decryptRecordWithWorker).toHaveBeenCalledTimes(1);
+    expect(result.current.records).toBe(records);
+  });
+
+  it("re-decrypts a record whose nonce changed, and gives the list a new identity", async () => {
+    store.vault.getAllLatest.mockResolvedValue([encrypted("good")]);
+    const { result } = renderHook(() => useRecordsContext(), { wrapper });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    const { records } = result.current;
+    decryptRecordWithWorker.mockClear();
+    store.vault.getAllLatest.mockResolvedValue([
+      { ...encrypted("good"), encryptedData: "data-good-2", encryptionNonce: "nonce-good-2" },
+    ]);
+
+    syncListener?.({ vaultsChanged: false });
+
+    await waitFor(() => expect(result.current.records).not.toBe(records));
+    expect(decryptRecordWithWorker).toHaveBeenCalledTimes(1);
+    expect(result.current.records[0]?.title).toBe("data-good-2");
+  });
+
   it("exposes no records once locked", async () => {
     const { result, rerender } = renderHook(() => useRecordsContext(), { wrapper });
     await waitFor(() => expect(result.current.records).toHaveLength(1));

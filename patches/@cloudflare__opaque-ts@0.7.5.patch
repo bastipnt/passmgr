@@ -1,0 +1,35 @@
+diff --git a/lib/src/core_client.js b/lib/src/core_client.js
+index 60a6631b8c2017d86aaceab361c22decaa0693b9..b47c70d0fd940e63d97f820568b0bfe6e701404c 100644
+--- a/lib/src/core_client.js
++++ b/lib/src/core_client.js
+@@ -62,7 +62,7 @@ export class OpaqueCoreClient {
+     async finalizeRequest(password, blind, response, server_identity, client_identity) {
+         const y = await this.config.oprf.finalize(password, blind, response.evaluation);
+         const nosalt = new Uint8Array(this.config.hash.Nh);
+-        const randomized_pwd = await this.config.kdf.extract(nosalt, joinAll([y, this.memHard.harden(y)]));
++        const randomized_pwd = await this.config.kdf.extract(nosalt, joinAll([y, await this.memHard.harden(y)]));
+         const { envelope, client_public_key, masking_key, export_key } = await store(this.config, randomized_pwd, response.server_public_key, server_identity, client_identity);
+         const record = new RegistrationRecord(this.config, client_public_key, masking_key, envelope);
+         return { record, export_key: Array.from(export_key) };
+@@ -75,7 +75,7 @@ export class OpaqueCoreClient {
+     async recoverCredentials(password, blind, response, server_identity, client_identity) {
+         const y = await this.config.oprf.finalize(password, blind, response.evaluation);
+         const nosalt = new Uint8Array(this.config.hash.Nh);
+-        const randomized_pwd = await this.config.kdf.extract(nosalt, joinAll([y, this.memHard.harden(y)]));
++        const randomized_pwd = await this.config.kdf.extract(nosalt, joinAll([y, await this.memHard.harden(y)]));
+         const masking_key = await this.config.kdf.expand(randomized_pwd, Uint8Array.from(LABELS.MaskingKey), this.config.hash.Nh);
+         const Ne = Envelope.sizeSerialized(this.config);
+         const credential_response_pad = await this.config.kdf.expand(masking_key, joinAll([response.masking_nonce, Uint8Array.from(LABELS.CredentialResponsePad)]), this.config.ake.Npk + Ne);
+diff --git a/lib/src/thecrypto.d.ts b/lib/src/thecrypto.d.ts
+index 74128e45c7bdba9b9faa033f4ab97791486f0b88..32bc4b39a9ef1a34cf99ab8a3a3ad948e15c172e 100644
+--- a/lib/src/thecrypto.d.ts
++++ b/lib/src/thecrypto.d.ts
+@@ -53,7 +53,7 @@ export declare class Hkdf implements KDFFn {
+ }
+ export interface MemoryHardFn {
+     readonly name: string;
+-    readonly harden: (input: Uint8Array) => Uint8Array;
++    readonly harden: (input: Uint8Array) => Uint8Array | Promise<Uint8Array>;
+ }
+ export declare const IdentityMemHardFn: MemoryHardFn;
+ export declare const ScryptMemHardFn: MemoryHardFn;

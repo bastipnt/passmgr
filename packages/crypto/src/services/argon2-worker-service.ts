@@ -26,16 +26,24 @@ class Argon2WorkerService {
       return argon2Async(variant, password, salt, opts);
     }
     const saltCopy = salt.slice();
-    const result = this.queue.then(() => this.run(password, saltCopy, params));
+    return this.enqueue({ type: "derive", password, salt: saltCopy.buffer, params }, [
+      saltCopy.buffer,
+    ]);
+  }
+
+  /** OPAQUE's scrypt KSF (`opaqueScrypt`), off the main thread. Needs a `Worker`. */
+  opaqueKsf(input: Uint8Array): Promise<Uint8Array> {
+    const inputCopy = input.slice();
+    return this.enqueue({ type: "opaque-ksf", input: inputCopy.buffer }, [inputCopy.buffer]);
+  }
+
+  private enqueue(message: object, transfer: ArrayBuffer[]): Promise<Uint8Array> {
+    const result = this.queue.then(() => this.run(message, transfer));
     this.queue = result.catch(() => {});
     return result;
   }
 
-  private run(
-    password: string | Uint8Array,
-    saltCopy: Uint8Array,
-    params: Argon2Params,
-  ): Promise<Uint8Array> {
+  private run(message: object, transfer: ArrayBuffer[]): Promise<Uint8Array> {
     return new Promise((resolve, reject) => {
       const worker = this.getWorker();
 
@@ -59,9 +67,7 @@ class Argon2WorkerService {
         reject(new Error(`Argon2 worker failed: ${event.message || "could not load"}`));
       };
 
-      worker.postMessage({ type: "derive", password, salt: saltCopy.buffer, params }, [
-        saltCopy.buffer,
-      ]);
+      worker.postMessage(message, transfer);
     });
   }
 

@@ -217,6 +217,7 @@ overrides:
   node-forge: ^1.4.2
 
 patchedDependencies:
+  '@cloudflare/opaque-ts@0.7.5': 0b50342a18a86000b7ed24798c2975e3c6c0a5a03d3ee70d8cf75a8aa110dbb4
   react-native-argon2: b9c66215b366e852c05f6c4261f46f0e60e1d723041dd30cc2e2107d7f4a30cd
 
 importers:
@@ -421,7 +422,7 @@ importers:
     dependencies:
       '@cloudflare/opaque-ts':
         specifier: 'catalog:'
-        version: 0.7.5
+        version: 0.7.5(patch_hash=0b50342a18a86000b7ed24798c2975e3c6c0a5a03d3ee70d8cf75a8aa110dbb4)
       '@fastify/cors':
         specifier: ^11.3.0
         version: 11.3.0
@@ -638,7 +639,7 @@ importers:
     dependencies:
       '@cloudflare/opaque-ts':
         specifier: 'catalog:'
-        version: 0.7.5
+        version: 0.7.5(patch_hash=0b50342a18a86000b7ed24798c2975e3c6c0a5a03d3ee70d8cf75a8aa110dbb4)
       '@repo/crypto':
         specifier: workspace:*
         version: link:../crypto
@@ -12522,7 +12523,7 @@ snapshots:
       - '@chromatic-com/playwright'
       - '@chromatic-com/vitest'
 
-  '@cloudflare/opaque-ts@0.7.5':
+  '@cloudflare/opaque-ts@0.7.5(patch_hash=0b50342a18a86000b7ed24798c2975e3c6c0a5a03d3ee70d8cf75a8aa110dbb4)':
     dependencies:
       '@cloudflare/voprf-ts': 0.8.0
       '@noble/hashes': 0.4.4

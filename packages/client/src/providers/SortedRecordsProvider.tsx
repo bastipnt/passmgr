@@ -104,12 +104,18 @@ function createdAt(record: DecryptedRecord): string | null {
   return record.firstCreatedAt ?? record.created_at;
 }
 
-function compareTimestamps(a: string | null, b: string | null): number {
-  if (!a && !b) return 0;
-  if (!a) return 1; // nulls last
-  if (!b) return -1;
-  return new Date(a).getTime() - new Date(b).getTime();
+/** Milliseconds, or null for none (sorted last). */
+function compareTimes(a: number | null, b: number | null): number {
+  if (a === null && b === null) return 0;
+  if (a === null) return 1; // nulls last
+  if (b === null) return -1;
+  return a - b;
 }
+
+const timeOf = (ts: string | null): number | null => (ts ? new Date(ts).getTime() : null);
+
+// One collator for the whole sort: `localeCompare` with options builds one per call.
+const titleCollator = new Intl.Collator(undefined, { sensitivity: "base" });
 
 const BUCKET_ORDER = [
   "Today",
@@ -130,9 +136,8 @@ function getMonday(d: Date): Date {
   return date;
 }
 
-function getDateBucket(ts: string | null): (typeof BUCKET_ORDER)[number] {
+function getDateBucket(ts: string | null, now: Date): (typeof BUCKET_ORDER)[number] {
   if (!ts) return "Older";
-  const now = new Date();
   const then = new Date(ts);
 
   // Today
@@ -221,10 +226,12 @@ function groupBySort(sortedRecords: DecryptedRecord[], sort: SortOption): Record
   }
 
   const bucketMap = new Map<string, DecryptedRecord[]>();
+  const now = new Date();
 
   for (const record of sortedRecords) {
     const bucket = getDateBucket(
       sort === "most-recent" ? record.clientUpdatedAt : createdAt(record),
+      now,
     );
     const list = bucketMap.get(bucket);
     if (list) list.push(record);
@@ -267,36 +274,51 @@ function groupRecordsByVault(
   });
 }
 
-function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRecord[] {
-  return [...records].sort((a, b) => {
+type SortKeys = {
+  record: DecryptedRecord;
+  created: number | null;
+  updated: number;
+};
+
+/**
+ * The list's order by `sort`; ties: first created → last updated → A–Z. The keys
+ * are read once per record, not per comparison (a 5k list compares ~60k times).
+ */
+export function sortRecords(records: DecryptedRecord[], sort: SortOption): DecryptedRecord[] {
+  const keyed: SortKeys[] = records.map((record) => ({
+    record,
+    created: timeOf(createdAt(record)),
+    updated: new Date(record.clientUpdatedAt).getTime(),
+  }));
+  keyed.sort((a, b) => {
     let cmp: number;
 
     switch (sort) {
       case "most-recent":
-        cmp = new Date(b.clientUpdatedAt).getTime() - new Date(a.clientUpdatedAt).getTime();
+        cmp = b.updated - a.updated;
         break;
       case "alphabetical":
-        cmp = a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+        cmp = titleCollator.compare(a.record.title, b.record.title);
         break;
       case "newest":
-        cmp = compareTimestamps(createdAt(b), createdAt(a));
+        cmp = compareTimes(b.created, a.created);
         break;
       case "oldest":
-        cmp = compareTimestamps(createdAt(a), createdAt(b));
+        cmp = compareTimes(a.created, b.created);
         break;
     }
 
     if (cmp !== 0) return cmp;
 
-    // Tiebreakers: created_at → clientUpdatedAt → alphabetical
-    cmp = compareTimestamps(createdAt(a), createdAt(b));
+    cmp = compareTimes(a.created, b.created);
     if (cmp !== 0) return cmp;
 
-    cmp = new Date(a.clientUpdatedAt).getTime() - new Date(b.clientUpdatedAt).getTime();
+    cmp = a.updated - b.updated;
     if (cmp !== 0) return cmp;
 
-    return a.title.localeCompare(b.title, undefined, { sensitivity: "base" });
+    return titleCollator.compare(a.record.title, b.record.title);
   });
+  return keyed.map(({ record }) => record);
 }
 
 export function filterByCategory(

@@ -17,6 +17,14 @@ Argon2id itself (`util/argon2-impl.ts`): web / Node run hash-wasm (WASM inlined 
 worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thread where there's no `Worker` (Node).
 `argon2Async(variant, …)` also does Argon2d (KeePass import only); on mobile Argon2d and binary passwords run on @noble (JS thread).
 
+## OPAQUE KSF
+
+`services/opaque-ksf.ts` (`opaqueKsf`, passed to every `OpaqueClient`): scrypt N=32768 r=8 p=1, byte-identical to the
+library's `ScryptMemHardFn` (`util/opaque-scrypt.ts`; changing it breaks every registration). Web runs it in the Argon2
+worker (`argon2WorkerService.opaqueKsf`, same queue), in-thread without `Worker` (Node); mobile native scrypt
+(`.native.ts`, react-native-quick-crypto). An async `harden` needs our patch of @cloudflare/opaque-ts
+(`patches/@cloudflare__opaque-ts@0.7.5.patch`, awaits it): re-check it on every library upgrade.
+
 ## Wraps
 
 Wraps are XChaCha20-Poly1305 with AAD (`packages/crypto/src/user-keys.ts`, `user-key-pair.ts`): the

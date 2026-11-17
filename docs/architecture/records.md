@@ -2,6 +2,12 @@
 
 Record features shared by web and mobile (`packages/client` `records/`, `SortedRecordsProvider`).
 
+The decrypted list (`RecordsProvider` `records`) keeps its identity until a record is added, changed or dropped, so the
+filters, counts, tags, sort and search memoized on it don't rerun on a sync that brought nothing (`revision` still bumps
+on every re-read). A record is re-decrypted when its `vaultId|version|encryptionNonce` fingerprint changes (a fresh nonce
+per encryption; the ciphertext isn't kept a second time). `sortRecords` reads each record's keys once and compares
+titles with one `Intl.Collator` (5k records: ~5 ms a sort, was 200–430 ms).
+
 ## Pass Monitor and breach check
 
 Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and
