@@ -189,6 +189,8 @@ export async function freshLogin(
     // The email now belongs to another account: never touch it.
     if (info.userId !== account.userId || !session) throw new failed();
   } catch (e) {
+    // Never attached (another account, or the login failed after it): its key is wiped here.
+    if (session) wipe(session[1]);
     if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
     if (
       e instanceof LoginThrottledError ||

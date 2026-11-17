@@ -112,38 +112,43 @@ export function useLinkAccount() {
       return linkFailure(e);
     }
 
-    // Locked or switched meanwhile: the account exists, linking again finishes it.
-    if (secretsStore.lockEpoch !== epoch || store.current()?.entry.profileId !== profileId)
-      return "failed";
     const { info, session } = linked;
-    // Another profile on this device is that account already: the registry holds it once.
-    if (store.profiles.some((p) => p.userId === info.userId && p.profileId !== profileId)) {
-      logError("This device has a profile for the account already");
-      return "failed";
-    }
+    try {
+      // Locked or switched meanwhile: the account exists, linking again finishes it.
+      if (secretsStore.lockEpoch !== epoch || store.current()?.entry.profileId !== profileId)
+        return "failed";
+      // Another profile on this device is that account already: the registry holds it once.
+      if (store.profiles.some((p) => p.userId === info.userId && p.profileId !== profileId)) {
+        logError("This device has a profile for the account already");
+        return "failed";
+      }
 
-    const profile: LocalProfile = { profileId, mode: "linked", email, userId: info.userId };
-    try {
-      // The server's copy of the keyring this vault just uploaded: the same wraps.
-      await store.saveAccount(
-        profileId,
-        { ...info.userPasswordKeys, userKeyPair: info.userKeyPair },
-        info.vaultKeys,
-        { profile, recoveryWrap: info.recoveryKeys },
-      );
-    } catch (e) {
-      logError("Linking the local vault failed", e);
-      return "failed";
+      const profile: LocalProfile = { profileId, mode: "linked", email, userId: info.userId };
+      try {
+        // The server's copy of the keyring this vault just uploaded: the same wraps.
+        await store.saveAccount(
+          profileId,
+          { ...info.userPasswordKeys, userKeyPair: info.userKeyPair },
+          info.vaultKeys,
+          { profile, recoveryWrap: info.recoveryKeys },
+        );
+      } catch (e) {
+        logError("Linking the local vault failed", e);
+        return "failed";
+      }
+      try {
+        // Online from here on: the sync uploads the outbox.
+        await linkServer(...session);
+      } catch (e) {
+        // Linked all the same: `offline` until the next sign-in, which uploads it then.
+        logError("Attaching the new account's session failed", e);
+      }
+      await persistSession(profileId);
+      return undefined;
+    } finally {
+      // Not attached (locked, refused, failed): its key is wiped here; `unlockSession` wiped an attached one.
+      wipe(session[1]);
     }
-    try {
-      // Online from here on: the sync uploads the outbox.
-      await linkServer(...session);
-    } catch (e) {
-      // Linked all the same: `offline` until the next sign-in, which uploads it then.
-      logError("Attaching the new account's session failed", e);
-    }
-    await persistSession(profileId);
-    return undefined;
   }
 
   /**

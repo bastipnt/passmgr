@@ -29,7 +29,7 @@ export function useSyncStatus(): SyncStatus {
 
 /**
  * Whether the vault's key rotation isn't done (`SyncStatus.rotationsPending`):
- * a member who left can still read what is written to it. Retried with each sync.
+ * a member who left can still read what is written to it.
  */
 export function useRotationPending(vaultId: string | undefined): boolean {
   const { rotationsPending } = useSyncStatus();

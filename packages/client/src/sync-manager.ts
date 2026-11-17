@@ -123,7 +123,8 @@ export type SyncStatus = {
    * Vaults whose key rotation isn't done: the server still asks for one (a
    * member left) that failed here, or this device's rotation still has records
    * to re-encrypt. Until then a removed member can read what is written. Set
-   * by each round that goes through; retried with the next one.
+   * by each round that goes through. A rotation that failed isn't retried before
+   * the failed task is reset (`resetSharingTasks`, e.g. after verifying a member).
    */
   rotationsPending: readonly string[];
 };

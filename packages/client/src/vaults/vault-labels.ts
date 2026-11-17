@@ -97,7 +97,7 @@ export const UNVERIFIED_MEMBERS_NOTICE =
 
 /** The vault's key rotation didn't go through yet (`useRotationPending`). */
 export const ROTATION_PENDING_NOTICE =
-  "This vault's key rotation is pending: someone who left can still read changes made to it until it goes through. It's retried with every sync.";
+  "This vault's key rotation is pending: someone who left can still read changes made to it until it goes through.";
 
 export const VERIFY_FAILED_MESSAGE = "They couldn't be marked verified. Try again.";
 
