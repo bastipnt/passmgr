@@ -8,8 +8,9 @@ import { fromBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import type { Context } from "../context";
 import { loggedProcedure, shortHash } from "../logger";
-import { requireVerifiedEmail } from "../user/email-verification";
+import { emailVerificationEnabled, requireVerifiedEmail } from "../user/email-verification";
 import {
+  cacheEmailVerified,
   claimNonce,
   getSession,
   isSignedOut,
@@ -135,7 +136,9 @@ export const protectedSubscriptionProcedure = loggedProcedure.use(async (opts) =
     input: {},
   });
 
-  return opts.next({ ctx: { userId: session.userId, sessionId } });
+  return opts.next({
+    ctx: { userId: session.userId, sessionId, emailVerified: session.emailVerified },
+  });
 });
 
 export const protectedProcedure = loggedProcedure.use(async (opts) => {
@@ -164,6 +167,7 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
       authenticatedAt: session.authenticatedAt,
       secondFactor: session.secondFactor === true,
       passwordless: session.passwordless === true,
+      emailVerified: session.emailVerified,
     },
   });
 });
@@ -187,11 +191,21 @@ export const freshAuthProcedure = protectedProcedure.use(async (opts) => {
 
 /** Sync and sharing: only once the account's email is verified (`EMAIL_UNVERIFIED`). */
 export const verifiedProcedure = protectedProcedure.use(async (opts) => {
-  await requireVerifiedEmail(opts.ctx.userId);
+  await requireVerifiedSession(opts.ctx);
   return opts.next();
 });
 
 export const verifiedSubscriptionProcedure = protectedSubscriptionProcedure.use(async (opts) => {
-  await requireVerifiedEmail(opts.ctx.userId);
+  await requireVerifiedSession(opts.ctx);
   return opts.next();
 });
+
+async function requireVerifiedSession(ctx: Context & { userId: string; emailVerified: boolean }) {
+  if (ctx.emailVerified) return;
+  await requireVerifiedEmail(ctx.userId);
+  // Without a mailer every account passes, verified or not: nothing to remember.
+  if (!emailVerificationEnabled()) return;
+  await cacheEmailVerified(ctx.userId).catch((err: unknown) =>
+    ctx.req?.log?.warn({ err }, "auth.email_verified_cache_failed"),
+  );
+}

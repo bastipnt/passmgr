@@ -25,12 +25,6 @@ describe("users unique constraints", () => {
     await truncateAll(client);
   });
 
-  it("rejects duplicate encryptedEmail", async () => {
-    const first = await insertUser(client);
-    const dupe = makeUserRow({ encryptedEmail: first.encryptedEmail });
-    await expect(insertUserRow(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
-  });
-
   it("rejects duplicate emailHash", async () => {
     const first = await insertUser(client);
     const dupe = makeUserRow({ emailHash: first.emailHash });

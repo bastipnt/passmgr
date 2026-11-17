@@ -31,7 +31,7 @@ per user) — never `UPDATE` key material in place.
 - `login` → `loginRouter` (startLogin, finishLogin, startDeviceLogin, finishDeviceLogin, verifySecondFactor, logout)
 - `register` → `registrationRouter` (startRegistration, finishRegistration)
 - `recovery` → `recoveryRouter` (startRecovery, finishRecovery — public)
-- `record` → `recordRouter` (sync, history, push, onRecordChange SSE) — `verifiedProcedure`, the SSE `verifiedSubscriptionProcedure`
+- `record` → `recordRouter` (sync, push, onRecordChange SSE; no history call: clients read versions from the device) — `verifiedProcedure`, the SSE `verifiedSubscriptionProcedure`
 - `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
   invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `verifiedProcedure`
 - `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
@@ -48,7 +48,7 @@ batch would run many calls in one. Clients use `httpLink`, never `httpBatchLink`
 
 All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProcedure` (→ `freshAuthProcedure` for key changes,
 → `verifiedProcedure` for sync and sharing: FORBIDDEN `email_unverified` until the email is verified, see Email verification
-in `docs/architecture/auth.md`)
+in `docs/architecture/auth.md`; once verified, the Redis key `emailverified:<userId>` answers with the session read instead of Postgres)
 
 Ops routes (`apps/server/src/health.ts`, on their own Fastify instance `opsServer` listening on `OPS_PORT`, never
 on the public `PORT`):

@@ -14,7 +14,18 @@ import { relations, schema } from "./src/relations";
 const databaseUrl = process.env.DATABASE_URL?.trim();
 if (!databaseUrl) throw new Error("DATABASE_URL must be set");
 
-export const db = drizzle(databaseUrl, { relations });
+export const db = drizzle({
+  connection: {
+    connectionString: databaseUrl,
+    max: 20,
+    connectionTimeoutMillis: 10_000,
+    statement_timeout: 30_000,
+    idle_in_transaction_session_timeout: 60_000,
+    // `timestamp` columns hold UTC wall-clock time: `now()` defaults must agree with what Drizzle writes.
+    options: "-c TimeZone=UTC",
+  },
+  relations,
+});
 
 export * from "./src/schema/account-events";
 export * from "./src/schema/device-credentials";

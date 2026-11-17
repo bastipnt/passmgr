@@ -14,6 +14,7 @@ import { logRedact, logSerializers } from "./log-options";
 import { metricsRegistry, recordRateLimited } from "./metrics";
 import { redis } from "./redis";
 import { createTrpcOptions } from "./trpc-options";
+import { purgeExpiredAccountEvents } from "./user/account-events";
 import { purgeUnverifiedAccounts } from "./user/email-verification";
 import { purgeClosedKeySets } from "./user/purge-key-sets";
 import { allowedOrigins } from "./util/allowed-origins";
@@ -108,11 +109,12 @@ await server.register(fastifyTRPCPlugin, {
 const PURGE_INTERVAL_MS = 60 * 60_000;
 
 async function runPurge() {
-  const [accounts, keySets] = await Promise.allSettled([
+  const [accounts, keySets, events] = await Promise.allSettled([
     purgeUnverifiedAccounts({
       onError: (err) => server.log.warn({ err }, "auth.unverified.purge_account_failed"),
     }),
     purgeClosedKeySets(),
+    purgeExpiredAccountEvents(),
   ]);
   if (accounts.status === "rejected") {
     server.log.error({ err: accounts.reason }, "auth.unverified.purge_failed");
@@ -123,6 +125,11 @@ async function runPurge() {
     server.log.error({ err: keySets.reason }, "auth.keysets.purge_failed");
   } else if (keySets.value > 0) {
     server.log.info({ purged: keySets.value }, "auth.keysets.purged");
+  }
+  if (events.status === "rejected") {
+    server.log.error({ err: events.reason }, "account_event.purge_failed");
+  } else if (events.value > 0) {
+    server.log.info({ purged: events.value }, "account_event.purged");
   }
 }
 

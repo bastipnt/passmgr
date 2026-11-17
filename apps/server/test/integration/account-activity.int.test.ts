@@ -14,6 +14,8 @@ import {
   ACCOUNT_EVENTS_MAX,
   ACCOUNT_EVENTS_MAX_AGE_MS,
   ACCOUNT_FAILURES_MAX,
+  pruneAccountEvents,
+  purgeExpiredAccountEvents,
   recordAccountEvent,
 } from "../../src/user/account-events";
 import { truncateAll } from "../setup/db-helpers";
@@ -198,6 +200,7 @@ describe("account activity", () => {
       sql`INSERT INTO account_events ("userId", type) SELECT ${id}, 'email_verified' FROM generate_series(1, ${ACCOUNT_EVENTS_MAX})`,
     );
     await recordAccountEvent(id, "password_changed");
+    await pruneAccountEvents(id, false);
 
     const rows = await db
       .select({ type: accountEventsTable.type })
@@ -208,7 +211,7 @@ describe("account activity", () => {
     expect(rows.some((r) => r.type === "account_created")).toBe(false);
   });
 
-  it("drops events past the max age", async () => {
+  it("drops events past the max age in the hourly purge", async () => {
     await registerAlice();
     const id = await userId();
     await db.insert(accountEventsTable).values({
@@ -217,6 +220,7 @@ describe("account activity", () => {
       created_at: new Date(Date.now() - ACCOUNT_EVENTS_MAX_AGE_MS - 60_000),
     });
     await recordAccountEvent(id, "password_changed");
+    expect(await purgeExpiredAccountEvents()).toBe(1);
 
     const rows = await db
       .select({ type: accountEventsTable.type })

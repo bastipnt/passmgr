@@ -176,7 +176,9 @@ devices someone uses (`device_credentials` keeps no device name either; only a l
 keypair version shows as an unknown device). `newDevice` compares `deviceNameHash` (`hashDeviceName`: HMAC under the
 server key, scoped to the user). Type, time and the flag stay readable: pruning needs them, and the server sees them when
 it records the event anyway (as it sees the device name then, and keeps it in the Redis session). Kept: the newest `ACCOUNT_EVENTS_MAX` (500) per user plus, counted apart since anyone who knows the
-email can cause them, the newest `ACCOUNT_FAILURES_MAX` (50) failures; none older than a year (pruned on write);
+email can cause them, the newest `ACCOUNT_FAILURES_MAX` (50) failures; none older than a year. Counts are pruned on write (`pruneAccountEvents`, one statement): failures on every one, the
+owner's events on about one in `ACCOUNT_EVENTS_PRUNE_EVERY` (10), so that log can briefly hold a few more; the age
+limit is the hourly purge (`purgeExpiredAccountEvents`, `server.ts`);
 account deletion cascades.
 
 ## Account deletion

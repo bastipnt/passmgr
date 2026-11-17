@@ -71,8 +71,9 @@ tx B:      UPDATE P … waits ────────────────�
 ```
 
 Seq 6 can't be handed out before seq 5 is committed. So when a pull sees 6, 5 is already
-visible, and the rule holds. The pull itself is a single `SELECT` (one snapshot), and the next
-cursor is computed from the rows it returned, not from a separate read of `lastSeq`.
+visible, and the rule holds. The pull runs in one read-only `REPEATABLE READ` transaction (one
+snapshot for the vault list, the sizes and the rows), and the next cursor is computed from the rows
+it returned, not from a separate read of `lastSeq`.
 
 Test: `holds a write back until an earlier one to the vault commits, so no pull skips it`
 (`apps/server/test/integration/vault.int.test.ts`) holds a write open and checks that a second
@@ -86,6 +87,11 @@ write waits for it.
   vaults are locked in id order, so two opposite moves can't deadlock.
 - **Cost.** Writes to one vault go one at a time, but only for the few milliseconds the
   transaction lasts, which is fine at password-manager write rates.
+- **Pages.** `syncPage` (`apps/server/src/record/router.ts`) first reads only the sizes: one query, a
+  bounded range scan of `records_vault_seq_idx` per vault (`LATERAL`, at most `limit + 1` rows each). It
+  takes versions in `(vaultId, seq)` order up to `limit` (`MAX_SYNC_RECORDS`) or `SYNC_PAGE_MAX_BYTES`
+  (4 MB of `pushChangeBytes`; the first version always fits), then loads just those rows. A page is
+  always a prefix of that order, so a cursor never passes a row the device hasn't pulled.
 - **`serverTimestamp`** is still returned by `record.sync`, but only as the clock cap for the
   field merge (ADR 0001 D5). It is no longer a cursor.
 - **`record.push`** locks every vault of the batch up front (`lockVaults`, id order) and only then

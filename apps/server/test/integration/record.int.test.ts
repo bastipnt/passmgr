@@ -1,14 +1,15 @@
-import { db, vaultsTable } from "@repo/db";
+import { db, recordsTable, vaultsTable } from "@repo/db";
 import {
   MAX_PURGE_SEAL_LENGTH,
   type PushChange,
   pushChangeBytes,
   RECORD_CRYPTO_VERSION,
 } from "@repo/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { onRecordsChanged } from "../../src/events/record-events";
 import { DELETE_HEADROOM_BYTES, STORAGE_QUOTA_BYTES } from "../../src/record/quota";
+import { serializeRecord } from "../../src/record/serialize";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, deleteChange, loginAndGetAuthKey, putChange, register } from "./_helpers";
@@ -27,15 +28,14 @@ async function push(session: Session, ...changes: PushChange[]) {
   return (await caller.record.push(input)).results;
 }
 
-async function history(session: Session, recordId: string) {
-  const caller = await callSigned(
-    session.sessionId,
-    session.authKey,
-    "query",
-    "record.history",
-    recordId,
-  );
-  return await caller.record.history(recordId);
+/** Every stored version of a record, newest first, as the server would send it. */
+async function history(recordId: string) {
+  const rows = await db
+    .select()
+    .from(recordsTable)
+    .where(eq(recordsTable.recordId, recordId))
+    .orderBy(desc(recordsTable.version));
+  return rows.map(serializeRecord);
 }
 
 async function usedBytes(vaultId: string) {
@@ -76,7 +76,7 @@ describe("record.push", () => {
     expect(await push(alice, update)).toMatchObject([
       { status: "applied", record: { version: 2, encryptedData: "ENC-V2" } },
     ]);
-    expect((await history(alice, create.recordId)).map((r) => r.version)).toEqual([2, 1]);
+    expect((await history(create.recordId)).map((r) => r.version)).toEqual([2, 1]);
   });
 
   it("answers a retried change with the stored version instead of appending again", async () => {
@@ -87,7 +87,7 @@ describe("record.push", () => {
 
     // The response got lost: the client sends the same changes again.
     expect(await push(alice, create, update)).toEqual(first);
-    expect(await history(alice, create.recordId)).toHaveLength(2);
+    expect(await history(create.recordId)).toHaveLength(2);
   });
 
   it("answers a change built on an old version as stale, and applies the rest of the batch", async () => {
@@ -102,7 +102,7 @@ describe("record.push", () => {
       { clientChangeId: stale.clientChangeId, status: "stale", headVersion: 2 },
       { clientChangeId: other.clientChangeId, status: "applied" },
     ]);
-    expect(await history(alice, record.recordId)).toHaveLength(2);
+    expect(await history(record.recordId)).toHaveLength(2);
   });
 
   it("applies a record's chain all or nothing", async () => {
@@ -117,7 +117,7 @@ describe("record.push", () => {
       { status: "stale", headVersion: 1 },
       { status: "stale", headVersion: 1 },
     ]);
-    expect(await history(alice, record.recordId)).toHaveLength(1);
+    expect(await history(record.recordId)).toHaveLength(1);
 
     // A losing edit with the merge on top goes in together.
     const merged = putChange(alice.vaultId, { recordId: record.recordId, baseVersion: 2 });
@@ -140,7 +140,7 @@ describe("record.push", () => {
       status: "applied",
       record: { version: 2, encryptedData: "TOMB", deleted_at: expect.any(String) },
     });
-    expect(await history(alice, record.recordId)).toMatchObject([
+    expect(await history(record.recordId)).toMatchObject([
       { version: 2, encryptedData: "TOMB" },
       { version: 1, encryptedData: "LAST" },
     ]);
@@ -176,7 +176,7 @@ describe("record.push", () => {
         },
       },
     ]);
-    expect(await history(alice, record.recordId)).toMatchObject([
+    expect(await history(record.recordId)).toMatchObject([
       { version: 3, encryptedData: "TAG", tombstoneKind: "purged" },
     ]);
 
@@ -315,7 +315,7 @@ describe("record.push", () => {
         { status: "rejected", reason: "quota" },
         { status: "rejected", reason: "quota" },
       ]);
-      expect(await history(alice, source.recordId)).toHaveLength(1);
+      expect(await history(source.recordId)).toHaveLength(1);
     });
 
     it("lets deletes go past it by a headroom only, and purges always", async () => {
@@ -384,7 +384,7 @@ describe("record.push", () => {
     expect(await push(alice, moved)).toMatchObject([
       { status: "applied", record: { version: 2, tombstoneKind: "moved" } },
     ]);
-    expect(await history(alice, record.recordId)).toMatchObject([
+    expect(await history(record.recordId)).toMatchObject([
       { version: 2, encryptedData: "LAST", tombstoneKind: "moved" },
       { version: 1 },
     ]);
@@ -473,7 +473,7 @@ describe("record.push — cross-user isolation", () => {
       { status: "rejected", reason: "not_found" },
       { status: "rejected", reason: "not_found" },
     ]);
-    expect(await history(alice, record.recordId)).toHaveLength(1);
+    expect(await history(record.recordId)).toHaveLength(1);
   });
 });
 

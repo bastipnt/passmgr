@@ -1,15 +1,13 @@
 import { db, type RecordType, recordsTable } from "@repo/db";
 import {
-  encryptedRecordSchema,
   pushInputSchema,
   pushOutputSchema,
+  RECORD_VERSION_OVERHEAD_BYTES,
   syncInputSchema,
   syncOutputSchema,
-  vaultRoleSchema,
 } from "@repo/schema";
 import { TRPCError, tracked } from "@trpc/server";
-import { and, desc, eq, gt } from "drizzle-orm";
-import z from "zod";
+import { and, eq, gt, lte, or, sql } from "drizzle-orm";
 import { verifiedProcedure, verifiedSubscriptionProcedure } from "../auth/auth-middleware";
 import {
   claimRecordStream,
@@ -22,18 +20,19 @@ import {
 import { router } from "../trpc";
 import { getSession, isSignedOut } from "../util/redis-utils";
 import {
+  type DbExecutor,
   keyUpdates,
   memberVaults,
   notifyVaultMembers,
-  requireVaultRole,
   rotationsDue,
 } from "../vault/access";
 import { pushChanges } from "./push";
 import { serializeRecord } from "./serialize";
 
-const ANY_ROLE = vaultRoleSchema.options;
-
 export const STREAM_SESSION_RECHECK_MS = 60_000;
+
+/** A sync page stops taking versions past this many bytes (`pushChangeBytes`); the first always fits. */
+export const SYNC_PAGE_MAX_BYTES = 4 * 1024 * 1024;
 
 const sessionWatches = new Map<
   string,
@@ -67,91 +66,105 @@ function watchSession(sessionId: string, onError: (err: unknown) => void): () =>
 }
 
 /**
- * The latest version of a record (deleted or not) the user may access. NOT_FOUND
- * for a record that doesn't exist or lives in a vault the user isn't a member
- * of, so ids from other vaults can't be probed.
+ * The next page of a sync: a prefix of the vaults' writes past their cursors in
+ * (vault, seq) order, so every cursor stays a point below which the device holds
+ * all of a vault's rows. At most `limit` versions and, past the first,
+ * `SYNC_PAGE_MAX_BYTES`. The sizes are read first (one bounded range scan of
+ * `records_vault_seq_idx` per vault, one query), then only the page's rows.
  */
-async function latestAccessibleVersion(userId: string, recordId: string): Promise<RecordType> {
-  const [latest] = await db
+async function syncPage(
+  tx: DbExecutor,
+  cursors: Record<string, number>,
+  limit: number,
+): Promise<{ records: RecordType[]; hasMore: boolean }> {
+  const vaultIds = Object.keys(cursors).sort();
+  if (vaultIds.length === 0) return { records: [], hasMore: false };
+
+  const { rows: candidates } = await tx.execute<{
+    vaultId: string;
+    seq: string;
+    bytes: number;
+  }>(sql`
+    SELECT r."vaultId", r.seq, r.bytes
+    FROM (VALUES ${sql.join(
+      vaultIds.map((vaultId) => sql`(${vaultId}::varchar, ${cursors[vaultId] ?? 0}::bigint)`),
+      sql`, `,
+    )}) AS c("vaultId", cursor)
+    CROSS JOIN LATERAL (
+      SELECT ${recordsTable.vaultId}, ${recordsTable.seq}, length(${recordsTable.encryptedData}) AS bytes
+      FROM ${recordsTable}
+      WHERE ${recordsTable.vaultId} = c."vaultId" AND ${recordsTable.seq} > c.cursor
+      ORDER BY ${recordsTable.seq}
+      LIMIT ${limit + 1}
+    ) r
+    ORDER BY r."vaultId", r.seq`);
+
+  const lastSeqs = new Map<string, number>();
+  let taken = 0;
+  let bytes = 0;
+  for (const row of candidates) {
+    const size = Number(row.bytes) + RECORD_VERSION_OVERHEAD_BYTES;
+    if (taken === limit || (taken > 0 && bytes + size > SYNC_PAGE_MAX_BYTES)) break;
+    taken++;
+    bytes += size;
+    lastSeqs.set(row.vaultId, Number(row.seq));
+  }
+  if (taken === 0) return { records: [], hasMore: false };
+
+  const records = await tx
     .select()
     .from(recordsTable)
-    .where(eq(recordsTable.recordId, recordId))
-    .orderBy(desc(recordsTable.version))
-    .limit(1);
-  if (!latest) throw new TRPCError({ code: "NOT_FOUND" });
-
-  await requireVaultRole(userId, latest.vaultId, ANY_ROLE);
-  return latest;
+    .where(
+      or(
+        ...[...lastSeqs].map(([vaultId, lastSeq]) =>
+          and(
+            eq(recordsTable.vaultId, vaultId),
+            gt(recordsTable.seq, cursors[vaultId] ?? 0),
+            lte(recordsTable.seq, lastSeq),
+          ),
+        ),
+      ),
+    )
+    .orderBy(recordsTable.vaultId, recordsTable.seq);
+  return { records, hasMore: taken < candidates.length };
 }
 
 export const recordRouter = router({
   sync: verifiedProcedure
     .input(syncInputSchema)
     .output(syncOutputSchema)
-    .query(async ({ ctx, input }) => {
-      const serverTimestamp = new Date().toISOString();
-      const vaults = await memberVaults(ctx.userId);
-      const sharing = {
-        keyUpdates: await keyUpdates(ctx.userId),
-        rotationsDue: await rotationsDue(ctx.userId),
-      };
-      if (vaults.length === 0) {
-        return { records: [], vaults, cursors: {}, hasMore: false, serverTimestamp, ...sharing };
-      }
+    .query(async ({ ctx, input }) =>
+      // One snapshot for the page (docs/sync-cursor.md): a seq it sees implies every lower one.
+      db.transaction(
+        async (tx) => {
+          const serverTimestamp = new Date().toISOString();
+          const vaults = await memberVaults(ctx.userId, tx);
+          const sharing = {
+            keyUpdates: await keyUpdates(ctx.userId, tx),
+            rotationsDue: await rotationsDue(ctx.userId, tx),
+          };
+          // Each vault from its own cursor; one this device hasn't synced yet in full.
+          const cursors = Object.fromEntries(
+            vaults.map(({ vaultId }) => [vaultId, input.cursors[vaultId] ?? 0]),
+          );
+          const { records, hasMore } = await syncPage(tx, cursors, input.limit);
 
-      // Each vault from its own cursor; one this device hasn't synced yet in full.
-      const cursors = Object.fromEntries(
-        vaults.map(({ vaultId }) => [vaultId, input.cursors[vaultId] ?? 0]),
-      );
-
-      // A page is a prefix of the vaults' writes in (vault, seq) order, so every
-      // cursor stays a point below which the device holds all of a vault's rows.
-      // One range scan of `records_vault_seq_idx` per vault, each stopping early;
-      // one row past the page tells whether more wait.
-      const records: RecordType[] = [];
-      let hasMore = false;
-      for (const vaultId of vaults.map((v) => v.vaultId).sort()) {
-        const room = input.limit - records.length;
-        const rows = await db
-          .select()
-          .from(recordsTable)
-          .where(
-            and(eq(recordsTable.vaultId, vaultId), gt(recordsTable.seq, cursors[vaultId] ?? 0)),
-          )
-          .orderBy(recordsTable.seq)
-          .limit(room + 1);
-        hasMore = rows.length > room;
-        records.push(...rows.slice(0, room));
-        if (hasMore) break;
-      }
-
-      // A vault's next cursor is the highest seq pulled from it (ADR 0001 D8).
-      for (const { vaultId, seq } of records) {
-        cursors[vaultId] = Math.max(cursors[vaultId] ?? 0, seq);
-      }
-
-      return {
-        records: records.map(serializeRecord),
-        vaults,
-        cursors,
-        hasMore,
-        serverTimestamp,
-        ...sharing,
-      };
-    }),
-
-  history: verifiedProcedure
-    .input(z.uuid())
-    .output(z.array(encryptedRecordSchema))
-    .query(async ({ ctx, input }) => {
-      await latestAccessibleVersion(ctx.userId, input);
-      const records = await db
-        .select()
-        .from(recordsTable)
-        .where(eq(recordsTable.recordId, input))
-        .orderBy(desc(recordsTable.version));
-      return records.map(serializeRecord);
-    }),
+          // A vault's next cursor is the highest seq pulled from it (ADR 0001 D8).
+          for (const { vaultId, seq } of records) {
+            cursors[vaultId] = Math.max(cursors[vaultId] ?? 0, seq);
+          }
+          return {
+            records: records.map(serializeRecord),
+            vaults,
+            cursors,
+            hasMore,
+            serverTimestamp,
+            ...sharing,
+          };
+        },
+        { isolationLevel: "repeatable read", accessMode: "read only" },
+      ),
+    ),
 
   /**
    * Upload local changes (ADR 0001 D8), the only record write. Each change gets

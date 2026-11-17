@@ -6,7 +6,7 @@ import {
   type SealedAccountEvent,
 } from "@repo/schema";
 import { fromString, toBase64 } from "@repo/util";
-import { and, desc, eq, inArray, lt, notInArray, or } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, notInArray, sql } from "drizzle-orm";
 import { serverKey } from "../opaque";
 import { DAY_MS } from "../util/time";
 
@@ -15,6 +15,9 @@ export const ACCOUNT_EVENTS_MAX = 500;
 // and they must not push the owner's own events out of the log.
 export const ACCOUNT_FAILURES_MAX = 50;
 export const ACCOUNT_EVENTS_MAX_AGE_MS = 365 * DAY_MS;
+// The owner's events are pruned on about one write in this many, so their log can run a few
+// past its cap; failures, which anyone can cause, on every write.
+export const ACCOUNT_EVENTS_PRUNE_EVERY = 10;
 
 const LOGIN_TYPES: AccountEventType[] = ["login", "device_login"];
 // Device names the owner has used: a login from one of them is not "new".
@@ -28,8 +31,8 @@ export const FAILURE_TYPES: AccountEventType[] = ["login_failed", "second_factor
 type EventLog = { error: (obj: object, msg: string) => void };
 
 /**
- * Append an event to the user's activity log, then drop what is past the
- * retention (count and age). Best-effort: the action it records already
+ * Append an event to the user's activity log and keep it within its count
+ * (`pruneAccountEvents`; the age limit is the hourly `purgeExpiredAccountEvents`). Best-effort: the action it records already
  * happened, so a failure here is logged, never thrown.
  */
 export async function recordAccountEvent(
@@ -44,7 +47,10 @@ export async function recordAccountEvent(
       device !== undefined &&
       !(await hasUsedDevice(userId, device.deviceNameHash));
     await db.insert(accountEventsTable).values({ userId, type, ...device, newDevice });
-    await pruneAccountEvents(userId, FAILURE_TYPES.includes(type));
+    const failure = FAILURE_TYPES.includes(type);
+    if (failure || Math.random() * ACCOUNT_EVENTS_PRUNE_EVERY < 1) {
+      await pruneAccountEvents(userId, failure);
+    }
   } catch (err) {
     log?.error({ err, type }, "account_event.record_failed");
   }
@@ -85,29 +91,36 @@ async function hasUsedDevice(userId: string, deviceNameHash: string): Promise<bo
   return seen !== undefined;
 }
 
-async function pruneAccountEvents(userId: string, failures: boolean): Promise<void> {
+/** Drop the user's events of one class (failures or the rest) past its count, in one statement. */
+export async function pruneAccountEvents(userId: string, failures: boolean): Promise<void> {
   const sameClass = failures
     ? inArray(accountEventsTable.type, FAILURE_TYPES)
     : notInArray(accountEventsTable.type, FAILURE_TYPES);
-  const [oldestKept] = await db
+  const oldestKept = db
     .select({ id: accountEventsTable.id })
     .from(accountEventsTable)
     .where(and(eq(accountEventsTable.userId, userId), sameClass))
     .orderBy(desc(accountEventsTable.id))
     .offset((failures ? ACCOUNT_FAILURES_MAX : ACCOUNT_EVENTS_MAX) - 1)
     .limit(1);
-  const cutoff = new Date(Date.now() - ACCOUNT_EVENTS_MAX_AGE_MS);
   await db
     .delete(accountEventsTable)
     .where(
       and(
         eq(accountEventsTable.userId, userId),
-        or(
-          lt(accountEventsTable.created_at, cutoff),
-          oldestKept ? and(sameClass, lt(accountEventsTable.id, oldestKept.id)) : undefined,
-        ),
+        sameClass,
+        lt(accountEventsTable.id, sql`(${oldestKept})`),
       ),
     );
+}
+
+/** Delete every account's events past `ACCOUNT_EVENTS_MAX_AGE_MS` (the hourly purge). */
+export async function purgeExpiredAccountEvents(now = Date.now()): Promise<number> {
+  const purged = await db
+    .delete(accountEventsTable)
+    .where(lt(accountEventsTable.created_at, new Date(now - ACCOUNT_EVENTS_MAX_AGE_MS)))
+    .returning({ id: accountEventsTable.id });
+  return purged.length;
 }
 
 type ActionCtx = { userId: string; deviceName?: string; req?: { log?: EventLog } };

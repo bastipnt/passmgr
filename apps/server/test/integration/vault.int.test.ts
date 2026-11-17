@@ -8,14 +8,18 @@ import {
 } from "@repo/crypto";
 import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import {
+  MAX_ENCRYPTED_RECORD_LENGTH,
+  MAX_PUSH_BYTES,
   MAX_VAULTS_PER_USER,
   MIN_SYNC_RECORDS,
   type PushChange,
+  pushChangeBytes,
   type VaultRole,
 } from "@repo/schema";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { STORAGE_QUOTA_BYTES } from "../../src/record/quota";
+import { SYNC_PAGE_MAX_BYTES } from "../../src/record/router";
 import { redis } from "../../src/redis";
 import { lockVaults, nextVaultSeq } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
@@ -334,19 +338,14 @@ describe("vault key rotation", () => {
 });
 
 describe("record access through vault membership", () => {
-  it("a non-member can't write into, read or probe another user's vault", async () => {
+  it("a non-member can't write into or read another user's vault", async () => {
     const alice = await signUp("alice@example.com");
     const mallory = await signUp("mallory@example.com");
-    const record = await createRecord(alice, alice.personalVaultId);
+    await createRecord(alice, alice.personalVaultId);
 
     expect(await push(mallory, putChange(alice.personalVaultId))).toMatchObject([
       { status: "rejected", reason: "not_found" },
     ]);
-    await expect(
-      (await as(mallory, "query", "record.history", record.recordId)).record.history(
-        record.recordId,
-      ),
-    ).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect((await sync(mallory)).records).toEqual([]);
   });
 
@@ -463,6 +462,26 @@ describe("record.sync per vault", () => {
     expect(exact.hasMore).toBe(false);
   });
 
+  it("ends a page at SYNC_PAGE_MAX_BYTES, but always takes one version", async () => {
+    const alice = await signUp("alice@example.com");
+    const big = () =>
+      putChange(alice.personalVaultId, { data: "A".repeat(MAX_ENCRYPTED_RECORD_LENGTH) });
+    const perPage = Math.floor(SYNC_PAGE_MAX_BYTES / pushChangeBytes(big()));
+    const total = perPage + 3;
+    const perPush = Math.floor(MAX_PUSH_BYTES / pushChangeBytes(big()));
+    for (let left = total; left > 0; left -= perPush) {
+      await push(alice, ...Array.from({ length: Math.min(perPush, left) }, big));
+    }
+
+    const first = await sync(alice);
+    expect(first.records).toHaveLength(perPage);
+    expect(first.hasMore).toBe(true);
+    const second = await sync(alice, first.cursors);
+    expect(second.records).toHaveLength(3);
+    expect(second.hasMore).toBe(false);
+    expect(second.cursors[alice.personalVaultId]).toBe(total);
+  });
+
   it("numbers each vault's writes on its own, deletes and moves included", async () => {
     const alice = await signUp("alice@example.com");
     const work = await createVaultFor(alice);
@@ -561,9 +580,11 @@ describe("record.push under the vault lock", () => {
       { status: "applied", record: { vaultId: alice.personalVaultId, version: 2 } },
     ]);
 
-    const history = await (
-      await as(alice, "query", "record.history", record.recordId)
-    ).record.history(record.recordId);
+    const history = await db
+      .select()
+      .from(recordsTable)
+      .where(eq(recordsTable.recordId, record.recordId))
+      .orderBy(desc(recordsTable.version));
     expect(history.map((h) => [h.version, h.vaultId, h.deleted_at !== null])).toEqual([
       [2, alice.personalVaultId, true],
       [1, alice.personalVaultId, false],

@@ -103,6 +103,7 @@ export const vaultMembersTable = pgTable(
   (table) => [
     primaryKey({ columns: [table.vaultId, table.userId] }),
     index("vault_members_user_idx").on(table.userId),
+    index("vault_members_sealed_by_idx").on(table.sealedByUserId),
     index("vault_members_pending_inviter_idx")
       .on(table.invitedByUserId)
       .where(sql`${table.status} = 'pending'`),

@@ -82,10 +82,9 @@ describe("replay protection", () => {
     });
 
     // Signature was computed for record.push. Reusing the headers against
-    // record.history must fail at HMAC verification (before nonce is even claimed).
+    // record.sync must fail at HMAC verification (before nonce is even claimed).
     const caller = createCaller(buildTestContext(headers));
-    const { recordId } = input.changes[0]!;
-    await expect(caller.record.history(recordId)).rejects.toMatchObject({
+    await expect(caller.record.sync({ cursors: {} })).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
   });

@@ -108,6 +108,21 @@ describe("email verification (real Postgres + Redis)", () => {
     await expect(alice.sync()).resolves.toMatchObject({ hasMore: false });
   });
 
+  it("remembers a verified account in Redis instead of asking Postgres again", async () => {
+    await register(email, password);
+    const alice = await signedIn();
+    await alice.verify(await sentCode());
+    await alice.sync();
+
+    // Only the cache can answer now: the column says unverified.
+    await db.update(usersTable).set({ emailVerifiedAt: null });
+    await expect(alice.sync()).resolves.toBeDefined();
+    await expect((await signedIn()).sync()).resolves.toBeDefined();
+
+    await redis.flushall();
+    await expect((await signedIn()).sync()).rejects.toMatchObject({ message: EMAIL_UNVERIFIED });
+  });
+
   it("counts an account as verified at once when there is no mailer", async () => {
     setMailer(null);
     await register(email, password);

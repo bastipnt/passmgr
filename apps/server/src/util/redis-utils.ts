@@ -148,6 +148,13 @@ function sessionEpochKey(userId: string) {
   return `sessionepoch:${userId}`;
 }
 
+// Set once a request found the user's email verified, so `verifiedProcedure`
+// reads it with the session instead of asking Postgres. Nothing unverifies an
+// email; anything that ever clears `emailVerifiedAt` must delete this key.
+function emailVerifiedKey(userId: string) {
+  return `emailverified:${userId}`;
+}
+
 // Sorted set of a user's session ids, scored by last activity (Unix ms). The
 // only way to find a user's sessions (session list, log out other devices).
 // Members may outlive their session; readers drop them.
@@ -188,18 +195,27 @@ function sessionTtlSeconds(session: Session, now: number): number {
   return Math.min(SESSION_TTL_SECONDS, leftSeconds);
 }
 
-export async function getSession(sessionId: string): Promise<Session | undefined> {
+export async function getSession(
+  sessionId: string,
+): Promise<(Session & { emailVerified: boolean }) | undefined> {
   const rawSession = await redis.get(sessionKey(sessionId));
   if (rawSession === null) return undefined;
 
   const session: Session = JSON.parse(rawSession);
-  const epoch = await redis.get(sessionEpochKey(session.userId));
-  if (!isLive(session, epoch, Date.now())) {
+  const [epoch, emailVerified] = await redis.mget(
+    sessionEpochKey(session.userId),
+    emailVerifiedKey(session.userId),
+  );
+  if (!isLive(session, epoch ?? null, Date.now())) {
     await deleteSession(sessionId, session.userId);
     return undefined;
   }
 
-  return session;
+  return { ...session, emailVerified: emailVerified !== null };
+}
+
+export async function cacheEmailVerified(userId: string): Promise<void> {
+  await redis.set(emailVerifiedKey(userId), "1", "PX", SESSION_MAX_AGE_MS);
 }
 
 /**
@@ -420,6 +436,7 @@ export async function endDeletedUserSessions(
 ): Promise<void> {
   await revokeUserSessions(userId, exceptSessionId);
   await redis.pexpire(sessionEpochKey(userId), SESSION_MAX_AGE_MS);
+  await redis.del(emailVerifiedKey(userId));
 }
 
 /** Store a login attempt and return its id (handed to the client for finishLogin). */

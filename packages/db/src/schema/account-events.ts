@@ -29,7 +29,11 @@ export const accountEventsTable = pgTable(
 
     created_at: timestamp().defaultNow().notNull(),
   },
-  (table) => [index().on(table.userId, table.id), index().on(table.userId, table.deviceNameHash)],
+  (table) => [
+    index().on(table.userId, table.id),
+    index().on(table.userId, table.deviceNameHash),
+    index().on(table.created_at),
+  ],
 );
 
 export type AccountEventRow = InferSelectModel<typeof accountEventsTable>;

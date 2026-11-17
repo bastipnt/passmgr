@@ -50,7 +50,6 @@ export const recordsTable = pgTable(
   (table) => [
     index("records_user_id_idx").on(table.userId),
     uniqueIndex("records_record_id_version_idx").on(table.recordId, table.version),
-    index("records_vault_record_version_idx").on(table.vaultId, table.recordId, table.version),
     uniqueIndex("records_vault_seq_idx").on(table.vaultId, table.seq),
     uniqueIndex("records_record_change_idx").on(table.recordId, table.clientChangeId),
   ],
