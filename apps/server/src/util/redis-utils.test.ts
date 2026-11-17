@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { redis } from "../redis";
 import {
   countActiveUsers,
@@ -38,6 +38,61 @@ describe("revokeUserSessions", () => {
     await revokeUserSessions("u1");
 
     expect(await getSession(other)).toMatchObject({ userId: "u2" });
+  });
+
+  it("retries a failed cut-off, so the sessions still end", async () => {
+    const a = await setSession({ userId: "u1", rawAuthKey: "k", authenticatedAt: Date.now() - 1 });
+    const multi = redis.multi.bind(redis);
+    const spy = vi.spyOn(redis, "multi").mockImplementationOnce(() => {
+      const tx = multi();
+      tx.exec = () => Promise.reject(new Error("connection lost"));
+      return tx;
+    });
+
+    await revokeUserSessions("u1");
+    spy.mockRestore();
+
+    expect(await getSession(a)).toBeUndefined();
+    expect(await isSignedOut(a)).toBe(true);
+  });
+
+  it("retries a failed command inside the sign-out", async () => {
+    const a = await setSession({ userId: "u1", rawAuthKey: "k", authenticatedAt: Date.now() - 1 });
+    const multi = redis.multi.bind(redis);
+    const spy = vi
+      .spyOn(redis, "multi")
+      .mockImplementationOnce(() => multi())
+      .mockImplementationOnce(() => {
+        const tx = multi();
+        tx.exec = () => Promise.resolve([[new Error("OOM"), null]]);
+        return tx;
+      });
+
+    await revokeUserSessions("u1");
+    spy.mockRestore();
+
+    expect(await isSignedOut(a)).toBe(true);
+  });
+
+  it("keeps the first cut-off when a retry follows a lost reply", async () => {
+    const multi = redis.multi.bind(redis);
+    let firstCutOff: string | null = null;
+    const spy = vi.spyOn(redis, "multi").mockImplementationOnce(() => {
+      const tx = multi();
+      const exec = tx.exec.bind(tx);
+      tx.exec = async () => {
+        await exec();
+        firstCutOff = await redis.get("sessionepoch:u1");
+        throw new Error("reply lost");
+      };
+      return tx;
+    });
+
+    await revokeUserSessions("u1");
+    spy.mockRestore();
+
+    expect(firstCutOff).not.toBeNull();
+    expect(await redis.get("sessionepoch:u1")).toBe(firstCutOff);
   });
 
   it("accepts sessions authenticated after the revocation", async () => {

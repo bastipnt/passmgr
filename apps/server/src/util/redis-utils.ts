@@ -1,6 +1,6 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
-import type { Result } from "ioredis";
+import type { ChainableCommander, Result } from "ioredis";
 import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 import { DAY_MS } from "./time";
@@ -236,7 +236,18 @@ export async function touchSession(sessionId: string, session: Session): Promise
 }
 
 export async function deleteSession(sessionId: string, userId: string): Promise<void> {
-  await redis.multi().del(sessionKey(sessionId)).zrem(userSessionsKey(userId), sessionId).exec();
+  await execOrThrow(
+    redis.multi().del(sessionKey(sessionId)).zrem(userSessionsKey(userId), sessionId),
+  );
+}
+
+/** `exec` resolves a failed command as an `[err, result]` tuple; throw it instead. */
+async function execOrThrow(tx: ChainableCommander): Promise<unknown[]> {
+  const results = await tx.exec();
+  if (!results) throw new Error("transaction aborted");
+  const failed = results.find(([err]) => err);
+  if (failed) throw failed[0];
+  return results.map(([, result]) => result);
 }
 
 /** The user's live sessions, most recently active first. Drops dead index entries. */
@@ -294,7 +305,7 @@ async function signOutSessions(userId: string, sessionIds: string[]): Promise<vo
   for (const id of sessionIds) {
     tx.del(sessionKey(id)).set(signedOutKey(id), "1", "PX", SESSION_MAX_AGE_MS);
   }
-  await tx.zrem(userSessionsKey(userId), ...sessionIds).exec();
+  await execOrThrow(tx.zrem(userSessionsKey(userId), ...sessionIds));
   for (const id of sessionIds) emitSessionSignedOut(id);
 }
 
@@ -329,13 +340,38 @@ export async function revokeOtherUserSessions(
  * without the sign-out. Sessions created afterwards work.
  */
 export async function revokeUserSessions(userId: string, exceptSessionId?: string): Promise<void> {
-  const ids = await userSessionIds(userId);
-  await redis.set(sessionEpochKey(userId), String(Date.now()));
-  await signOutSessions(
-    userId,
-    ids.filter((id) => id !== exceptSessionId),
+  // Runs after the password swap has committed: the cut-off alone ends every
+  // session, so it's set first, together with reading the index (a session
+  // created in between is either listed or after the cut-off), and retried.
+  // One cut-off for every attempt: a retry after a lost reply must not end
+  // sessions logged in with the new password meanwhile.
+  const cutOff = String(Date.now());
+  const [, ids] = await withRetry(() =>
+    execOrThrow(
+      redis.multi().set(sessionEpochKey(userId), cutOff).zrange(userSessionsKey(userId), 0, -1),
+    ),
   );
-  if (exceptSessionId) await deleteSession(exceptSessionId, userId);
+  await withRetry(() =>
+    signOutSessions(
+      userId,
+      (ids as string[]).filter((id) => id !== exceptSessionId),
+    ),
+  );
+  if (exceptSessionId) await withRetry(() => deleteSession(exceptSessionId, userId));
+}
+
+const REVOKE_ATTEMPTS = 3;
+const REVOKE_RETRY_DELAY_MS = 100;
+
+async function withRetry<T>(run: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await run();
+    } catch (err) {
+      if (attempt >= REVOKE_ATTEMPTS) throw err;
+      await new Promise((resolve) => setTimeout(resolve, REVOKE_RETRY_DELAY_MS * attempt));
+    }
+  }
 }
 
 /**

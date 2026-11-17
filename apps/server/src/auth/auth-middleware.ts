@@ -21,11 +21,13 @@ import {
 // long-lived session can't rewrite key material.
 export const FRESH_AUTH_WINDOW_MS = 5 * 60_000;
 
-function checkTimestamp(timestamp: string): boolean {
-  const now = Date.now();
+// Unix ms, digits only: `Number` would turn anything else into NaN, which
+// passes every window comparison and never goes stale.
+const TIMESTAMP_PATTERN = /^\d{13}$/;
 
-  if (Math.abs(now - Number(timestamp)) > 5 * 60_000) return false;
-  else return true;
+function checkTimestamp(timestamp: string): boolean {
+  if (!TIMESTAMP_PATTERN.test(timestamp)) return false;
+  return Math.abs(Date.now() - Number(timestamp)) <= 5 * 60_000;
 }
 
 type AuthFailReason =

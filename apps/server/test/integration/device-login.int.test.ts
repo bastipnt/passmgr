@@ -264,6 +264,43 @@ describe("device login (real Postgres + Redis)", () => {
     await expect(deviceLogin(authenticator)).resolves.toBeDefined();
   });
 
+  it("linking from an old session renews the credential only up to that session's login", async () => {
+    await register(email, password);
+    const authenticator = await enroll(await loginAndGetAuthKey(email, password));
+    const old = await loginAndGetAuthKey(email, password);
+    const loggedInAt = Date.now() - SESSION_MAX_AGE_MS + 60_000;
+    const raw = JSON.parse((await redis.get(`session:${old.sessionId}`))!);
+    await redis.set(
+      `session:${old.sessionId}`,
+      JSON.stringify({ ...raw, authenticatedAt: loggedInAt }),
+    );
+    await db
+      .update(deviceCredentialsTable)
+      .set({ passwordVerifiedAt: new Date(Date.now() - SESSION_MAX_AGE_MS - 60_000) });
+
+    await link(old, authenticator.credentialId);
+
+    const [credential] = await db.select().from(deviceCredentialsTable);
+    expect(credential!.passwordVerifiedAt.getTime()).toBe(loggedInAt);
+  });
+
+  it("linking never moves the credential's password login back", async () => {
+    await register(email, password);
+    const authenticator = await enroll(await loginAndGetAuthKey(email, password));
+    const old = await loginAndGetAuthKey(email, password);
+    const raw = JSON.parse((await redis.get(`session:${old.sessionId}`))!);
+    await redis.set(
+      `session:${old.sessionId}`,
+      JSON.stringify({ ...raw, authenticatedAt: Date.now() - 60 * 60_000 }),
+    );
+    const [before] = await db.select().from(deviceCredentialsTable);
+
+    await link(old, authenticator.credentialId);
+
+    const [after] = await db.select().from(deviceCredentialsTable);
+    expect(after!.passwordVerifiedAt).toEqual(before!.passwordVerifiedAt);
+  });
+
   it("a device login leaves the password throttle alone", async () => {
     await register(email, password);
     const authenticator = await enroll(await loginAndGetAuthKey(email, password));

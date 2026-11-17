@@ -31,8 +31,8 @@ export async function signRequest(opts: {
   type: "mutation" | "query" | "subscription";
   path: string;
   input: Record<string, unknown> | string | undefined;
-  /** ms since epoch — defaults to now */
-  timestamp?: number;
+  /** ms since epoch — defaults to now; a string is sent as given */
+  timestamp?: number | string;
   /** Override the auto-generated nonce — only set when intentionally replaying. */
   nonce?: string;
 }): Promise<SignedSessionHeaders> {

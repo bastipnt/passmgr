@@ -22,7 +22,7 @@ A linked profile also registers the credential's public key (`user.registerDevic
 session key = HKDF of the X25519 secret, `deviceSessionKey`), then two-factor as for a password login. Such a session is
 `passwordless`: never fresh auth and no reset of the password throttle. A credential stops logging in
 `SESSION_MAX_AGE_MS` after its last password login (`passwordVerifiedAt`); `useLinkDeviceCredential` (unlocked tree) links it
-to every session of the device (`user.linkDeviceCredential`, a password session also renews it). Revoking a session deletes
+to every session of the device (`user.linkDeviceCredential`, a password session also renews it, up to that session's login time, never backwards). Revoking a session deletes
 its device's credential (`Session.deviceCredentialId`), revoke-others every other one, a password change / recovery all of
 them; a credential the server refuses is forgotten on the device (`useDeviceLogin`), so enrollment is offered again.
 `useBiometricUnlock` prepares the login before the click (Safari's gesture window); there is no automatic reconnect after
@@ -85,7 +85,7 @@ Recovery (forgotten password, `auth/recovery-router.ts`):
 1. Client: parses the recovery key, derives `recoveryAuthKey = HKDF(recoveryKey, "recovery-auth")`, `registerInit` (OPAQUE password of the new one) → `recovery.startRecovery`
 2. Server: checks `SHA-256(recoveryAuthKey)` against `keys.recoveryVerifier` (constant time; unknown email / no verifier / wrong key all give the same `UNAUTHORIZED`), `registerInit` → returns `registrationResponse`, the recovery-wrapped account key and an `attemptId` (`recovery:<attemptId>`, 5 min, single-use, bound to the active `keySetId`)
 3. Client: unwraps the **existing** account key with the recovery KEK, `registerFinish`, `generateUserKeys(newPassword, accountKey)` (new password wrap + **new** recovery key + verifier; vault keys untouched) → `recovery.finishRecovery`
-4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
+4. Server: in one transaction closes the key set, inserts the new one and replaces `users.registrationRecord`; then `revokeUserSessions` (`sessionepoch:<userId>` — `getSession` rejects sessions authenticated before it; set first, in one MULTI with reading the session index, and retried, since it runs after the commit). Accounts without `recoveryVerifier` (pre-recovery registrations) cannot recover
 
 Local recovery (`local` profile, ADR 0001 D10): `useRecovery().recoverLocal` → `recoverLocalVault` unwraps the account key
 with the recovery wrap kept on the device, `generateUserKeys` → `Vault.setLocalKeyMaterial` replaces both wraps

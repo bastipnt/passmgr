@@ -1,5 +1,5 @@
 import { db, deviceCredentialsTable } from "@repo/db";
-import { and, eq, ne } from "drizzle-orm";
+import { and, eq, lt, ne } from "drizzle-orm";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0] | typeof db;
 
@@ -22,14 +22,20 @@ export async function ownsDeviceCredential(userId: string, credentialId: string)
   return found !== undefined;
 }
 
-export async function refreshDeviceCredential(userId: string, credentialId: string) {
+/** Renew the credential up to `verifiedAt` (the session's password login), never backwards. */
+export async function refreshDeviceCredential(
+  userId: string,
+  credentialId: string,
+  verifiedAt: Date,
+) {
   await db
     .update(deviceCredentialsTable)
-    .set({ passwordVerifiedAt: new Date() })
+    .set({ passwordVerifiedAt: verifiedAt })
     .where(
       and(
         eq(deviceCredentialsTable.userId, userId),
         eq(deviceCredentialsTable.credentialId, credentialId),
+        lt(deviceCredentialsTable.passwordVerifiedAt, verifiedAt),
       ),
     );
 }

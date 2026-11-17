@@ -192,6 +192,7 @@ export const userRouter = router({
           publicKey,
           algorithm,
           deviceName: ctx.deviceName,
+          passwordVerifiedAt: new Date(ctx.authenticatedAt),
         })
         .onConflictDoNothing()
         .returning({ credentialId: deviceCredentialsTable.credentialId });
@@ -212,7 +213,13 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await linkSessionCredential(ctx.sessionId, input.credentialId);
-      if (!ctx.passwordless) await refreshDeviceCredential(ctx.userId, input.credentialId);
+      if (!ctx.passwordless && ctx.authenticatedAt) {
+        await refreshDeviceCredential(
+          ctx.userId,
+          input.credentialId,
+          new Date(ctx.authenticatedAt),
+        );
+      }
       return { ok: true } as const;
     }),
 

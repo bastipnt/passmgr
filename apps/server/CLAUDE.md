@@ -8,7 +8,7 @@ flows (client + server) are in `docs/architecture/`.
 Authenticated requests use HMAC-signed headers (no cookies):
 
 - `x-session-id` — session identifier
-- `x-timestamp` — Unix timestamp in ms (requests >5 min off are rejected)
+- `x-timestamp` — Unix timestamp in ms, 13 digits (anything else, or >5 min off, is rejected)
 - `x-nonce` — random UUID, claimed once in Redis (replay protection)
 - `x-signature` — HMAC-SHA256 of `(type, path, timestamp, nonce, input)` using the `authKey`
 

@@ -102,6 +102,23 @@ describe("protectedProcedure — rejections", () => {
     await expectUnauthorized(() => caller.echo({ msg: "x" }));
   });
 
+  it.each(["abc", "NaN", `${Date.now()}x`])(
+    "rejects a validly signed non-numeric timestamp %j",
+    async (timestamp) => {
+      const { authKey } = await seedSession();
+      const headers = await signRequest({
+        authKey,
+        sessionId: SESSION_ID,
+        type: "mutation",
+        path: "echo",
+        input: { msg: "x" },
+        timestamp,
+      });
+      const caller = createCaller(buildTestContext(headers));
+      await expectUnauthorized(() => caller.echo({ msg: "x" }));
+    },
+  );
+
   it("rejects when sessionId is unknown to Redis", async () => {
     const { authKey } = await seedSession();
     const headers = await signRequest({
