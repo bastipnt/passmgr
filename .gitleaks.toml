@@ -1,18 +1,9 @@
-[allowlist]
-description = "Global allowlist for passmgr (password manager with crypto code)"
+[extend]
+useDefault = true
 
+[[allowlists]]
+description = "Test fixtures and generated migrations"
 paths = [
-  '''packages/db/drizzle/.*\.sql''',
-  '''\.talismanrc''',
-]
-
-regexTarget = "line"
-regexes = [
-  # Variable names containing key/secret/password in crypto and auth code
-  '''(?i)(password|secret|key)\w*\s*[:=]\s*[''\"]\w''',
-  # Common crypto variable patterns used throughout the codebase
-  '''(?i)(sessionKey|authKey|vaultKey|emailEncryptionKey|emailHashKey|recoveryK[eE][kK]|passwordK[eE][kK])''',
-  '''(?i)secretsStore''',
-  # React key prop
-  '''key=\{''',
+  '''(^|/)test/fixtures/''',
+  '''^packages/db/drizzle/.*\.sql$''',
 ]

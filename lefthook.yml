@@ -7,7 +7,7 @@ pre-commit:
   commands:
     gitleaks:
       tags: security audit
-      run: gitleaks protect --staged --no-banner -v
+      run: gitleaks git --pre-commit --staged --no-banner --redact -v
     format:
       tags: style
       glob: "*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css}"

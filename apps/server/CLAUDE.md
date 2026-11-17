@@ -69,7 +69,9 @@ Server (`apps/server/.env`, committed): dev config, with the `OPAQUE_*` secrets 
 `scripts/opaque-cf-bootstrap.ts` in `.env`, `pnpm exec dotenvx encrypt -k "OPAQUE_*"`, then `pnpm db:reset:hard`, since
 new OPAQUE keys invalidate every registration). Instead of the file, `DOTENV_PRIVATE_KEY` in the env works too. Change a secret with
 `pnpm exec dotenvx set KEY value`; add a plain value by editing `.env`. Tests don't need the key (`global-setup.ts`
-sets the secrets). Production uses `.env.production` on the deploy host, not this file.
+sets the secrets). Production uses `.env.production` on the deploy host, not this file:
+never reuse the dev `OPAQUE_*` values (or `.env.keys`) there, since anyone who has had the dev key can decrypt them;
+generate fresh ones.
 
 Startup fails on a bad config: `src/env.ts` (`serverEnv`, one Zod schema, imported first by `server.ts` / `opaque.ts`)
 validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by `util/allowed-origins.ts`) and

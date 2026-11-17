@@ -1,0 +1,19 @@
+# Test vectors and placeholder keys in tests
+7c274c88304e1d9d06c65b6e10fc585d6b508d20:packages/crypto/test/ssh-key.test.ts:private-key:78
+3dee581ca6d9244c2977f3f5ed022eda3c439cc3:packages/crypto/test/totp.test.ts:generic-api-key:67
+357010146501514a05ab7111e81fc7ca56be629b:apps/web/src/features/auth/RecoverPage.test.tsx:generic-api-key:20
+647e9ddf96d6f1a4674da414fa6041aa6a6909b4:packages/crypto/test/totp.test.ts:generic-api-key:179
+a7c13f9c03f4266b5b9bfa5cd4b20672de74e68c:packages/crypto/test/ssh-key.test.ts:private-key:9
+a7c13f9c03f4266b5b9bfa5cd4b20672de74e68c:packages/crypto/test/ssh-key.test.ts:private-key:25
+
+# Fake demo credentials in the seed data
+a7c13f9c03f4266b5b9bfa5cd4b20672de74e68c:packages/schema/src/seed/typed-record-seed.ts:stripe-access-token:84
+a7c13f9c03f4266b5b9bfa5cd4b20672de74e68c:packages/schema/src/seed/typed-record-seed.ts:private-key:70
+a7c13f9c03f4266b5b9bfa5cd4b20672de74e68c:packages/schema/src/seed/typed-record-seed.ts:generic-api-key:77
+
+# Removed code: variable names, not secrets (old secrets-store)
+f4384bfab91df172b01f2f554c953386dd3cb30b:packages/client/src/secrets-store.ts:generic-api-key:60
+f4384bfab91df172b01f2f554c953386dd3cb30b:packages/client/src/secrets-store.ts:generic-api-key:61
+
+# Removed code: hardcoded demo TOTP seed of the first TOTP timer UI
+6c79a321ce2e57f0bc5fe1282b73828faffcde48:apps/web/src/pages/DisplayItem.tsx:generic-api-key:31
