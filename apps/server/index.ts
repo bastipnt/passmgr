@@ -1,14 +1,19 @@
-import { server } from "./src/server";
+import { serverEnv } from "./src/env";
+import { opsServer, server } from "./src/server";
 
 export type { AppRouter } from "./src/router";
 
-const host = process.env.HOST ?? "0.0.0.0";
-const port = Number(process.env.PORT ?? 3000);
-
 void (async () => {
   try {
-    await server.listen({ port, host });
-    server.log.info({ host, port }, "server.listen");
+    const { HOST, PORT, OPS_HOST, OPS_PORT } = serverEnv;
+    await Promise.all([
+      server.listen({ port: PORT, host: HOST }),
+      opsServer.listen({ port: OPS_PORT, host: OPS_HOST }),
+    ]);
+    server.log.info(
+      { host: HOST, port: PORT, opsHost: OPS_HOST, opsPort: OPS_PORT },
+      "server.listen",
+    );
   } catch (err) {
     server.log.error(err);
     process.exit(1);

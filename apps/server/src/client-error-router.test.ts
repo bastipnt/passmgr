@@ -40,13 +40,13 @@ describe("clientError.report", () => {
     }
   });
 
-  it("keeps the series count bounded: unseen versions collapse to `other` past the cap", async () => {
+  it("counts versions outside APP_VERSION / CLIENT_VERSIONS as `other`", async () => {
     for (let minor = 0; minor < 40; minor++) {
       await caller.clientError.report({ ...report, version: `v9.${minor}.0` });
     }
+    await caller.clientError.report({ ...report, version: "1.2.3" });
     const metric = await clientErrorMetric();
     const versions = new Set(metric?.values.map((value) => value.labels.version));
-    expect(versions.size).toBeLessThanOrEqual(21);
-    expect(versions.has("other")).toBe(true);
+    expect(versions).toEqual(new Set(["v1.2.3", "other"]));
   });
 });

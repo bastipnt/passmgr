@@ -83,4 +83,28 @@ describe("parseServerEnv", () => {
       "loopback,uniquelocal",
     );
   });
+
+  it("puts the ops routes on their own port, never PORT", () => {
+    const env = parseServerEnv(valid);
+    expect(env).toMatchObject({ HOST: "0.0.0.0", PORT: 3000, OPS_HOST: "0.0.0.0", OPS_PORT: 3001 });
+    expect(parseServerEnv({ ...valid, HOST: "127.0.0.1" }).OPS_HOST).toBe("127.0.0.1");
+    expect(() => parseServerEnv({ ...valid, OPS_PORT: "3000" })).toThrow(/OPS_PORT/);
+    expect(() => parseServerEnv({ ...valid, OPS_PORT: "70000" })).toThrow(/OPS_PORT/);
+  });
+
+  it("knows APP_VERSION and CLIENT_VERSIONS without their leading v", () => {
+    const env = parseServerEnv({
+      ...valid,
+      APP_VERSION: "v2.0.0",
+      CLIENT_VERSIONS: " 1.9.0, v1.8.1 ,",
+    });
+    expect(env.clientVersions).toEqual(new Set(["2.0.0", "1.9.0", "1.8.1"]));
+    expect(parseServerEnv(valid).clientVersions).toEqual(new Set());
+    expect(() => parseServerEnv({ ...valid, CLIENT_VERSIONS: "v1.0.0,latest" })).toThrow(
+      /CLIENT_VERSIONS/,
+    );
+    expect(parseServerEnv({ ...valid, APP_VERSION: "v1.4.0-rc.1" }).clientVersions).toEqual(
+      new Set(),
+    );
+  });
 });

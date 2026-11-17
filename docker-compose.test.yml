@@ -34,7 +34,7 @@ services:
       MAIL_FROM: passmgr <noreply@passmgr.test>
       PREFIX: /trpc
     healthcheck:
-      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)})\""]
+      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)})\""]
       interval: 5s
       timeout: 5s
       retries: 30

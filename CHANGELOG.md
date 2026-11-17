@@ -10,6 +10,9 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 
 ### Changed
 
+- Server: `/health` and `/metrics` moved to their own listener on port 3001 (`OPS_PORT`); point the Prometheus
+  scrape and the Gatus check at `passmgr-server:3001`.
+
 ### Deprecated
 
 ### Removed
@@ -17,3 +20,7 @@ The format is based on [Keep a Changelog 1.1.0](https://keepachangelog.com/en/1.
 ### Fixed
 
 ### Security
+
+- Server: ops routes no longer share the public listener; crash reports label only known client versions
+  (`APP_VERSION`, `CLIENT_VERSIONS`); record streams are capped per user and end on logout / session expiry; a user's
+  sessions are capped (oldest signed out).

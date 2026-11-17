@@ -241,7 +241,9 @@ describe("email verification (real Postgres + Redis)", () => {
 
     expect(await alice.status()).toEqual({ verified: true });
     await expect(alice.sync()).resolves.toBeDefined();
-    expect(await purgeUnverifiedAccounts(Date.now() + 2 * UNVERIFIED_ACCOUNT_MAX_AGE_MS)).toEqual({
+    expect(
+      await purgeUnverifiedAccounts({ now: Date.now() + 2 * UNVERIFIED_ACCOUNT_MAX_AGE_MS }),
+    ).toEqual({
       purged: 0,
       failed: 0,
     });
@@ -267,8 +269,8 @@ describe("email verification (real Postgres + Redis)", () => {
     await alice.verify(await sentCode());
 
     const later = Date.now() + UNVERIFIED_ACCOUNT_MAX_AGE_MS + 60_000;
-    expect(await purgeUnverifiedAccounts(Date.now())).toEqual({ purged: 0, failed: 0 });
-    expect(await purgeUnverifiedAccounts(later)).toEqual({ purged: 1, failed: 0 });
+    expect(await purgeUnverifiedAccounts({ now: Date.now() })).toEqual({ purged: 0, failed: 0 });
+    expect(await purgeUnverifiedAccounts({ now: later })).toEqual({ purged: 1, failed: 0 });
 
     const left = await db.select({ userId: usersTable.userId }).from(usersTable);
     expect(left).toEqual([{ userId: await userId(email) }]);

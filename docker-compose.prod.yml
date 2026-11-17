@@ -35,8 +35,11 @@ services:
       # bridge networks, i.e. private ranges.
       - TRUST_PROXY=${TRUST_PROXY:-loopback,uniquelocal}
       - PREFIX=/trpc
+      # Mobile releases still in use, comma-separated (e.g. v1.3.0,v1.2.1); crash reports
+      # from other versions count as "other". The server's own release is always known.
+      - CLIENT_VERSIONS=${CLIENT_VERSIONS:-}
     healthcheck:
-      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3000/health').then(r=>{if(!r.ok)process.exit(1)})\""]
+      test: ["CMD-SHELL", "bun -e \"fetch('http://127.0.0.1:3001/health').then(r=>{if(!r.ok)process.exit(1)})\""]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -50,8 +53,8 @@ services:
     networks:
       passmgr_network:
       mail_network:
-      # The monitoring stack scrapes /metrics and checks /health here
-      # (docs/ops/monitoring.md); the public proxy never reaches them.
+      # The monitoring stack scrapes /metrics and checks /health on port 3001
+      # (OPS_PORT, docs/ops/monitoring.md); the public proxy only reaches 3000.
       passmgr_metrics_network:
         aliases: [passmgr-server]
     restart: unless-stopped

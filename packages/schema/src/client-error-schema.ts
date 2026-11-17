@@ -7,8 +7,12 @@ export const CLIENT_ERROR_PLATFORMS = ["web", "ios", "android"] as const;
 export const CLIENT_ERROR_OTHER_VERSION = "other";
 const RELEASE_VERSION = /^v?\d{1,3}\.\d{1,3}\.\d{1,3}$/;
 
+export function isReleaseVersion(version: string): boolean {
+  return RELEASE_VERSION.test(version);
+}
+
 export function clientErrorVersion(appVersion: string): string {
-  return RELEASE_VERSION.test(appVersion) ? appVersion : CLIENT_ERROR_OTHER_VERSION;
+  return isReleaseVersion(appVersion) ? appVersion : CLIENT_ERROR_OTHER_VERSION;
 }
 
 /**

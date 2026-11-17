@@ -150,7 +150,9 @@ export const protectedProcedure = loggedProcedure.use(async (opts) => {
   });
 
   // Sliding expiration: any authenticated activity rolls the 24h TTL forward.
-  void touchSession(sessionId, session);
+  void touchSession(sessionId, session).catch((err: unknown) =>
+    ctx.req?.log?.warn({ err }, "auth.session_touch_failed"),
+  );
   void recordActiveUser(session.userId).catch((err: unknown) =>
     ctx.req?.log?.warn({ err }, "metrics.active_user_failed"),
   );

@@ -15,9 +15,10 @@ docker network create mail_network     # SMTP relay for verification mails (docs
 docker network create passmgr_metrics_network  # Prometheus + Gatus → server /metrics and /health
 ```
 
-`server` sits on `passmgr_metrics_network` with the alias `passmgr-server`; Prometheus scrapes `passmgr-server:3000/metrics`
-(job `passmgr`, 15 s) and Gatus checks `passmgr-server:3000/health`. Both routes sit outside `PREFIX`, the only path the
-public proxy forwards, and no host port is published, so they are not reachable from the internet. Only Prometheus and Gatus may join `passmgr_metrics_network`: a Docker network exposes the server's whole port 3000,
+`server` sits on `passmgr_metrics_network` with the alias `passmgr-server`; Prometheus scrapes `passmgr-server:3001/metrics`
+(job `passmgr`, 15 s) and Gatus checks `passmgr-server:3001/health`. Both routes are served only on the ops listener
+(`OPS_PORT`, 3001), never on port 3000, which the public proxy forwards to, and no host port is published, so they are
+not reachable from the internet. Only Prometheus and Gatus may join `passmgr_metrics_network`: a Docker network exposes the server's whole port 3000,
 including `/trpc` past Caddy, and with `TRUST_PROXY=uniquelocal` its members count as trusted proxies (they could set
 `X-Forwarded-For` and dodge the per-IP rate limit). Check after a
 deploy: `curl -i https://<PUBLIC_HOSTNAME>/metrics` must not return Prometheus text.
@@ -53,9 +54,10 @@ counted.
 Crashes in the apps (a route boundary catching, an unhandled rejection, an uncaught error) are counted on the server,
 without any detail: the apps call the public `clientError.report` mutation with `kind` (`render`, `rejection`,
 `uncaught`), `area` (`auth`, `records`, `settings`, `app`), `platform` (`web`, `ios`, `android`) and `version` (release tag,
-else `other`). `clientErrorInputSchema` (`packages/schema`) is strict enums, so no message, stack, error ID, URL or user
-id can arrive. The server keeps at most 20 distinct versions as labels; later ones count as `other`.
-
+else `other`). The report is public, so the server labels only versions it knows as themselves: its own release
+(`APP_VERSION`, the image's tag) and `CLIENT_VERSIONS` in `.env.production` (mobile releases still in use); any other
+counts as `other`. `clientErrorInputSchema` (`packages/schema`) is strict enums, so no message, stack, error ID, URL or user
+id can arrive.
 Sent only while an account session is attached (`useClientErrorReporting`, `mode === "online"`): a local vault never talks
 to the server, and a crash on the unlock screen isn't counted. At most 5 reports per app run, once per error object. The
 usual per-IP rate limit applies.

@@ -80,7 +80,13 @@ await server.register(cors, {
   },
 });
 
-registerHealthRoutes(server, {
+/** Ops routes only, on `OPS_PORT`: the public listener has no /health or /metrics. */
+export const opsServer = fastify({ loggerInstance: server.log.child({ listener: "ops" }) });
+server.addHook("onClose", async () => {
+  await opsServer.close();
+});
+
+registerHealthRoutes(opsServer, {
   checks: {
     db: () => db.execute(sql`select 1`),
     // ioredis queues commands while disconnected; a probe must not pile up there.
@@ -103,7 +109,9 @@ const PURGE_INTERVAL_MS = 60 * 60_000;
 
 async function runPurge() {
   const [accounts, keySets] = await Promise.allSettled([
-    purgeUnverifiedAccounts(),
+    purgeUnverifiedAccounts({
+      onError: (err) => server.log.warn({ err }, "auth.unverified.purge_account_failed"),
+    }),
     purgeClosedKeySets(),
   ]);
   if (accounts.status === "rejected") {

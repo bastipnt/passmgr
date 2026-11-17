@@ -39,12 +39,17 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
+# The release tag; clientError.report counts only known versions under their own label.
+ARG APP_VERSION=""
+ENV APP_VERSION=${APP_VERSION}
+
 # Copy everything from build stage
 COPY --from=build --chown=bun:bun /app ./
 
 USER bun
 
-EXPOSE 3000
+# 3001: /health and /metrics (OPS_PORT), never behind the public proxy.
+EXPOSE 3000 3001
 
 # Run migrations then start the server
 CMD ["sh", "-c", "cd packages/db && bunx drizzle-kit migrate && cd /app && bun run apps/server/index.ts"]

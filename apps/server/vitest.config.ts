@@ -16,7 +16,12 @@ export default defineConfig({
     setupFiles: ["./test/setup/argon2-fast.ts"],
     // @repo/db loads apps/server/.env via dotenv/config; dotenv never overrides
     // vars already set, so pin flags here to keep a local dev .env from leaking in.
-    env: { REGISTRATION_DISABLED: "false", SMTP_URL: "" },
+    env: {
+      REGISTRATION_DISABLED: "false",
+      SMTP_URL: "",
+      APP_VERSION: "",
+      CLIENT_VERSIONS: "v1.2.3",
+    },
     // Coverage for the server is enforced by the integration suite
     // (vitest.integration.config.ts); the slimmed unit suite only exercises
     // narrow edge-case branches and would never meet a breadth threshold.

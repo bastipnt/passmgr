@@ -525,8 +525,16 @@ export function StoreProvider({
     function subscribe() {
       // Only this stream's session: a stale event must not sign out its successor.
       const sessionId = secretsStore.sessionId;
+      let gotSignedOut = false;
       const signedOutHere = () => {
+        gotSignedOut = true;
         if (secretsStore.sessionId === sessionId) void signedOut();
+      };
+      const retry = () => {
+        const delay = retryDelay;
+        retryDelay = Math.min(retryDelay * 2, 60_000);
+        resubscribing = true;
+        retryTimer = setTimeout(subscribe, delay);
       };
       currentSubscription = trpc.record.onRecordChange.subscribe(undefined, {
         onData: (event) => {
@@ -558,10 +566,14 @@ export function StoreProvider({
             unverified = true;
             return;
           }
-          const delay = retryDelay;
-          retryDelay = Math.min(retryDelay * 2, 60_000);
-          resubscribing = true;
-          retryTimer = setTimeout(subscribe, delay);
+          retry();
+        },
+        // The server ends a stream whose session ended (logout, expiry, password
+        // change); a new session's stream picks up from there.
+        onComplete: () => {
+          currentSubscription = null;
+          if (disposed || gotSignedOut) return;
+          retry();
         },
       });
     }

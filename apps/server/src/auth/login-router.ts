@@ -203,13 +203,16 @@ async function completeLogin(log: LoginLog | undefined, stage: LoginStage, login
 
   const keys = await loginKeys(log, stage, userId, emailHash);
   if (!deviceCredentialId) await resetLoginThrottle(emailHash);
-  const sessionId = await setSession({
-    userId,
-    rawAuthKey,
-    authenticatedAt: Date.now(),
-    deviceName,
-    ...(deviceCredentialId && { deviceCredentialId, passwordless: true }),
-  });
+  const sessionId = await setSession(
+    {
+      userId,
+      rawAuthKey,
+      authenticatedAt: Date.now(),
+      deviceName,
+      ...(deviceCredentialId && { deviceCredentialId, passwordless: true }),
+    },
+    (err) => log?.warn({ err }, "auth.session_evict_failed"),
+  );
 
   log?.info({ emailHash, device: deviceCredentialId !== undefined }, "auth.login.success");
   recordLogin(deviceCredentialId ? "device" : "password", false);
@@ -493,14 +496,17 @@ export const loginRouter = router({
       }
 
       await resetLoginThrottle(emailHash, throttle);
-      const sessionId = await setSession({
-        userId,
-        rawAuthKey: challenge.rawAuthKey,
-        authenticatedAt: Date.now(),
-        deviceName: challenge.deviceName,
-        secondFactor: true,
-        ...(deviceCredentialId && { deviceCredentialId, passwordless: true }),
-      });
+      const sessionId = await setSession(
+        {
+          userId,
+          rawAuthKey: challenge.rawAuthKey,
+          authenticatedAt: Date.now(),
+          deviceName: challenge.deviceName,
+          secondFactor: true,
+          ...(deviceCredentialId && { deviceCredentialId, passwordless: true }),
+        },
+        (err) => log?.warn({ err }, "auth.session_evict_failed"),
+      );
 
       log?.info({ emailHash }, "auth.login.success");
       recordLogin(deviceCredentialId ? "device" : "password", true);

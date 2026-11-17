@@ -1,5 +1,7 @@
 import { SESSION_SIGNED_OUT, SUBSCRIPTION_SIGNATURE_PATH } from "@repo/crypto";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { MAX_RECORD_STREAMS_PER_USER } from "../../src/events/record-events";
+import { STREAM_SESSION_RECHECK_MS } from "../../src/record/router";
 import { redis } from "../../src/redis";
 import { truncateAll } from "../setup/db-helpers";
 import { signRequest } from "../setup/signed-request";
@@ -162,6 +164,70 @@ describe("session lifecycle (real Redis)", () => {
 
     expect((await stream.next()).value[1]).toEqual({ type: "signedOut" });
     expect((await stream.next()).done).toBe(true);
+  });
+
+  async function openStream(session: { sessionId: string; authKey: Uint8Array }) {
+    const headers = await signRequest({
+      authKey: session.authKey,
+      sessionId: session.sessionId,
+      type: "subscription",
+      path: SUBSCRIPTION_SIGNATURE_PATH,
+      input: {},
+    });
+    return (await createCaller(buildTestContext(headers)).record.onRecordChange())[
+      Symbol.asyncIterator
+    ]();
+  }
+
+  it("ends the record stream on logout, without a signedOut event", async () => {
+    await register(email, password);
+    const a = await loginAndGetAuthKey(email, password);
+    const stream = await openStream(a);
+    expect((await stream.next()).value[1]).toEqual({ type: "connected" });
+
+    const cc = await callSigned(a.sessionId, a.authKey, "mutation", "login.logout", undefined);
+    await cc.login.logout();
+
+    expect((await stream.next()).done).toBe(true);
+  });
+
+  describe("with the stream's session re-check", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("ends the stream of a session that expired", async () => {
+      vi.useFakeTimers({ toFake: ["setInterval", "clearInterval"] });
+      await register(email, password);
+      const a = await loginAndGetAuthKey(email, password);
+      const stream = await openStream(a);
+      expect((await stream.next()).value[1]).toEqual({ type: "connected" });
+
+      await redis.del(`session:${a.sessionId}`);
+      const next = stream.next();
+      await vi.advanceTimersByTimeAsync(STREAM_SESSION_RECHECK_MS);
+
+      expect((await next).done).toBe(true);
+    });
+  });
+
+  it("refuses a record stream past the per-user cap", async () => {
+    await register(email, password);
+    const a = await loginAndGetAuthKey(email, password);
+    const streams = [];
+    for (let i = 0; i < MAX_RECORD_STREAMS_PER_USER; i++) {
+      const stream = await openStream(a);
+      await stream.next();
+      streams.push(stream);
+    }
+
+    const extra = await openStream(a);
+    await expect(extra.next()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+
+    await streams[0]!.return?.();
+    const again = await openStream(a);
+    expect((await again.next()).value[1]).toEqual({ type: "connected" });
+    for (const stream of [...streams, again]) await stream.return?.();
   });
 
   it("an expired session is refused without the signed-out message", async () => {

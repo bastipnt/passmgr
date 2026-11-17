@@ -14,7 +14,11 @@ Authenticated requests use HMAC-signed headers (no cookies):
 
 The `protectedProcedure` middleware in `apps/server/src/auth/auth-middleware.ts` validates these headers on every protected tRPC call.
 SSE subscriptions (no headers possible) send the same four values as tRPC `connectionParams`, signed over the fixed
-path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the session TTL. `freshAuthProcedure` additionally
+path `SUBSCRIPTION_SIGNATURE_PATH` with empty input; they don't extend the session TTL. A record stream ends on a
+sign-out from elsewhere (`signedOut` event), on logout / expiry (`deleteSession` → `emitSessionEnded`, plus a
+re-check every `STREAM_SESSION_RECHECK_MS` for other instances and TTL expiry); at most
+`MAX_RECORD_STREAMS_PER_USER` per user and instance (TOO_MANY_REQUESTS). A login past `MAX_SESSIONS_PER_USER` signs
+out the user's least recently active sessions. `freshAuthProcedure` additionally
 requires an OPAQUE login ≤ 5 min ago (used for key changes; a device login never counts). Key sets are versioned (`valid_from`/`valid_to`, one active
 per user) — never `UPDATE` key material in place.
 
@@ -46,7 +50,8 @@ All procedures chain: `publicProcedure` → `loggedProcedure` → `protectedProc
 → `verifiedProcedure` for sync and sharing: FORBIDDEN `email_unverified` until the email is verified, see Email verification
 in `docs/architecture/auth.md`)
 
-Ops routes (`apps/server/src/health.ts`, plain Fastify, outside `PREFIX` so the public proxy never forwards them):
+Ops routes (`apps/server/src/health.ts`, on their own Fastify instance `opsServer` listening on `OPS_PORT`, never
+on the public `PORT`):
 `GET /health` (Postgres `select 1` + Redis `PING`, 200 / 503; the compose healthchecks) and `GET /metrics`
 (Prometheus, `@prometheus-io/client` registry in `src/metrics.ts`; `loggedProcedure`, which every procedure builds on, records each call;
 domain counters for logins, auth failures, recovery, rate limits and email verification, plus the `passmgr_active_users`
@@ -89,7 +94,11 @@ validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by 
 - `STORAGE_QUOTA_MB` — storage per vault owner (default 100), see `docs/architecture/vaults-and-sync.md`
 - `KEY_SET_RETENTION_DAYS` — days a closed key set is kept before the hourly purge deletes it (default 14, `0` = next run), see Password change in `docs/architecture/auth.md`
 - `CORS_ORIGIN` — exact web origins, comma-separated (`util/allowed-origins.ts`: CORS + the WebAuthn origin check); required in production, unset in dev = localhost 5173 / 4173 / 8080
-- `PREFIX` — tRPC mount path (e.g. `/trpc`); required in production, so tRPC never sits next to `/health` / `/metrics`
+- `PREFIX` — tRPC mount path (e.g. `/trpc`); required in production (the web Caddy forwards only `/trpc/*`)
+- `HOST` / `PORT` (default `0.0.0.0` / 3000) — the tRPC listener; `OPS_HOST` (default `HOST`) / `OPS_PORT` (default 3001)
+  — `/health` and `/metrics`
+- `APP_VERSION` (the release tag, set by the image build), `CLIENT_VERSIONS` (comma-separated, e.g. mobile releases
+  still in use) — the only versions `clientError.report` labels as themselves; any other counts as `other`
 - `TRUST_PROXY` — proxy IPs/CIDRs or proxy-addr names, never a hop count; unset in production logs
   `config.trust_proxy_unset` (behind a proxy every client would share one rate-limit bucket)
 - `MAILS_PER_HOUR` (default 500), `MAILS_PER_DOMAIN_PER_HOUR` (default 50) — caps on verification mails, server-wide and

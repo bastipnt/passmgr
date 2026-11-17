@@ -11,8 +11,16 @@ import { TRPCError, tracked } from "@trpc/server";
 import { and, desc, eq, gt } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure, verifiedSubscriptionProcedure } from "../auth/auth-middleware";
-import { onRecordsChanged, onSessionSignedOut } from "../events/record-events";
+import {
+  claimRecordStream,
+  emitSessionEnded,
+  emitSessionSignedOut,
+  onRecordsChanged,
+  onSessionEnded,
+  onSessionSignedOut,
+} from "../events/record-events";
 import { router } from "../trpc";
+import { getSession, isSignedOut } from "../util/redis-utils";
 import {
   keyUpdates,
   memberVaults,
@@ -24,6 +32,39 @@ import { pushChanges } from "./push";
 import { serializeRecord } from "./serialize";
 
 const ANY_ROLE = vaultRoleSchema.options;
+
+export const STREAM_SESSION_RECHECK_MS = 60_000;
+
+const sessionWatches = new Map<
+  string,
+  { streams: number; timer: ReturnType<typeof setInterval> }
+>();
+
+/**
+ * One re-check per session, however many streams it has open: the sign-out and
+ * end events only fire on the instance that saw them, and a TTL expiry fires none.
+ */
+function watchSession(sessionId: string, onError: (err: unknown) => void): () => void {
+  const watch = sessionWatches.get(sessionId);
+  if (watch) {
+    watch.streams++;
+  } else {
+    const timer = setInterval(() => {
+      void (async () => {
+        if (await getSession(sessionId)) return;
+        if (await isSignedOut(sessionId)) emitSessionSignedOut(sessionId);
+        else emitSessionEnded(sessionId);
+      })().catch(onError);
+    }, STREAM_SESSION_RECHECK_MS);
+    sessionWatches.set(sessionId, { streams: 1, timer });
+  }
+  return () => {
+    const current = sessionWatches.get(sessionId);
+    if (!current || --current.streams > 0) return;
+    clearInterval(current.timer);
+    sessionWatches.delete(sessionId);
+  };
+}
 
 /**
  * The latest version of a record (deleted or not) the user may access. NOT_FOUND
@@ -126,6 +167,9 @@ export const recordRouter = router({
     }),
 
   onRecordChange: verifiedSubscriptionProcedure.subscription(async function* ({ ctx, signal }) {
+    const release = claimRecordStream(ctx.userId);
+    if (!release) throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+
     // Listening starts before "connected" is sent: a sign-out right after the
     // connect must not slip through while the generator is paused.
     let resolve: (() => void) | null = null;
@@ -136,33 +180,42 @@ export const recordRouter = router({
         r();
       }
     };
-    // This session signed out from elsewhere: tell the device, then end the stream.
-    let signedOut = false;
-    const unsubscribe = onRecordsChanged(ctx.userId, wake);
-    const unsubscribeSignedOut = onSessionSignedOut(ctx.sessionId, () => {
-      signedOut = true;
+    // Signed out from elsewhere: tell the device. Logged out or expired: just end.
+    let ended: "signedOut" | "ended" | null = null;
+    const end = (reason: "signedOut" | "ended") => {
+      ended ??= reason;
       wake();
-    });
+    };
+    const unsubscribe = onRecordsChanged(ctx.userId, wake);
+    const unsubscribeSignedOut = onSessionSignedOut(ctx.sessionId, () => end("signedOut"));
+    const unsubscribeEnded = onSessionEnded(ctx.sessionId, () => end("ended"));
+    signal?.addEventListener("abort", wake, { once: true });
+    const unwatch = watchSession(ctx.sessionId, (err) =>
+      ctx.req?.log?.warn({ err }, "record.stream_recheck_failed"),
+    );
 
     try {
       yield tracked("connected", { type: "connected" as const });
       while (!signal?.aborted) {
         await new Promise<void>((r) => {
-          // Signed out while an event was being sent: don't wait.
-          if (signedOut) return r();
+          // Ended while an event was being sent: don't wait.
+          if (ended || signal?.aborted) return r();
           resolve = r;
-          signal?.addEventListener("abort", () => r(), { once: true });
         });
-        if (signal?.aborted) break;
-        if (signedOut) {
+        if (signal?.aborted || ended === "ended") break;
+        if (ended === "signedOut") {
           yield tracked(Date.now().toString(), { type: "signedOut" as const });
           return;
         }
         yield tracked(Date.now().toString(), { type: "changed" as const });
       }
     } finally {
+      unwatch();
+      signal?.removeEventListener("abort", wake);
       unsubscribe();
       unsubscribeSignedOut();
+      unsubscribeEnded();
+      release();
     }
   }),
 });

@@ -1,3 +1,4 @@
+import { isReleaseVersion } from "@repo/schema";
 import { fromBase64, fromString } from "@repo/util";
 import { z } from "zod";
 
@@ -31,6 +32,24 @@ function isBase64OfLength(bytes: number) {
 
 const blankToUndefined = (value: unknown) =>
   typeof value === "string" && value.trim() === "" ? undefined : value;
+
+const port = (fallback: number) =>
+  z.preprocess(
+    blankToUndefined,
+    z.coerce
+      .number({ error: "must be a port number" })
+      .int("must be a port number")
+      .min(1, "must be a port number")
+      .max(65_535, "must be a port number")
+      .default(fallback),
+  );
+
+const releaseVersion = z
+  .string()
+  .trim()
+  .refine(isReleaseVersion, "must be a release version like v1.2.3");
+
+const normalizeVersion = (version: string) => version.replace(/^v/, "");
 
 const opaqueSecret = z
   .string()
@@ -72,6 +91,25 @@ const envSchema = z
         .optional(),
     ),
     CORS_ORIGIN: z.string().optional(),
+    HOST: z.preprocess(blankToUndefined, z.string().trim().default("0.0.0.0")),
+    PORT: port(3000),
+    // /health and /metrics listen here, never on PORT.
+    OPS_HOST: z.preprocess(blankToUndefined, z.string().trim().optional()),
+    OPS_PORT: port(3001),
+    // The server's own release (set by the image build; a tag that isn't one,
+    // like v1.4.0-rc.1, is ignored rather than failing startup). It and
+    // CLIENT_VERSIONS are the only versions `clientError.report` labels as themselves.
+    APP_VERSION: z.string().optional(),
+    CLIENT_VERSIONS: z.preprocess(
+      (value) =>
+        typeof value === "string"
+          ? value
+              .split(",")
+              .map((v) => v.trim())
+              .filter(Boolean)
+          : value,
+      z.array(releaseVersion).default([]),
+    ),
     STORAGE_QUOTA_MB: z.preprocess(
       blankToUndefined,
       z.coerce
@@ -91,14 +129,27 @@ const envSchema = z
     MAILS_PER_HOUR: mailsPerHour(DEFAULT_MAILS_PER_HOUR),
     MAILS_PER_DOMAIN_PER_HOUR: mailsPerHour(DEFAULT_MAILS_PER_DOMAIN_PER_HOUR),
   })
-  .transform((env) => ({ ...env, production: env.NODE_ENV === "production" }))
+  .transform(({ APP_VERSION, CLIENT_VERSIONS, ...env }) => ({
+    ...env,
+    OPS_HOST: env.OPS_HOST ?? env.HOST,
+    production: env.NODE_ENV === "production",
+    clientVersions: new Set(
+      [
+        ...(APP_VERSION && isReleaseVersion(APP_VERSION.trim()) ? [APP_VERSION.trim()] : []),
+        ...CLIENT_VERSIONS,
+      ].map(normalizeVersion),
+    ),
+  }))
   .superRefine((env, ctx) => {
     if (env.production && !env.PREFIX) {
       ctx.addIssue({
         code: "custom",
         path: ["PREFIX"],
-        message: "is required in production (otherwise tRPC mounts next to /health and /metrics)",
+        message: "is required in production (the web proxy forwards only that path)",
       });
+    }
+    if (env.PORT === env.OPS_PORT) {
+      ctx.addIssue({ code: "custom", path: ["OPS_PORT"], message: "must differ from PORT" });
     }
   });
 

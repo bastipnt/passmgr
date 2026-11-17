@@ -43,8 +43,7 @@ export async function runHealthChecks(
 
 /**
  * `GET /health` (200 / 503 with each dependency's status; errors only go to the
- * log) and `GET /metrics` (Prometheus text). Both sit outside `PREFIX`, the only
- * path the public proxy forwards, so they stay internal.
+ * log) and `GET /metrics` (Prometheus text), on the ops listener (`OPS_PORT`).
  */
 export function registerHealthRoutes(
   app: FastifyInstance,
@@ -63,7 +62,7 @@ export function registerHealthRoutes(
     },
   });
 
-  const routeConfig = { config: { rateLimit: false }, logLevel: "warn" } as const;
+  const routeConfig = { logLevel: "warn" } as const;
 
   app.get("/health", routeConfig, async (req, reply) => {
     const health = await runHealthChecks(checks);

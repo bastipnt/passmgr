@@ -156,9 +156,16 @@ export async function verifyEmail(userId: string, code: string): Promise<void> {
  * instance) is skipped until the next run. Nothing goes while the mailer is
  * off: those accounts couldn't have verified.
  */
-export async function purgeUnverifiedAccounts(
+export async function purgeUnverifiedAccounts({
   now = Date.now(),
-): Promise<{ purged: number; failed: number }> {
+  onError,
+}: {
+  now?: number;
+  onError?: (err: unknown) => void;
+} = {}): Promise<{
+  purged: number;
+  failed: number;
+}> {
   if (!emailVerificationEnabled()) return { purged: 0, failed: 0 };
   const stale = await db
     .select({ userId: usersTable.userId })
@@ -180,8 +187,9 @@ export async function purgeUnverifiedAccounts(
       await resetLoginThrottle(emailHash);
       await deleteEmailCodes(userId);
       purged++;
-    } catch {
+    } catch (err) {
       failed++;
+      onError?.(err);
     }
   }
   return { purged, failed };

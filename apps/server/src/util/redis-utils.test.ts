@@ -5,6 +5,7 @@ import {
   getSession,
   isSignedOut,
   listUserSessions,
+  MAX_SESSIONS_PER_USER,
   recordActiveUser,
   revokeOtherUserSessions,
   revokeUserSession,
@@ -226,6 +227,19 @@ describe("session list", () => {
     expect(await getSession(changing)).toBeUndefined();
     expect(await isSignedOut(changing)).toBe(false);
     expect(await isSignedOut(other)).toBe(true);
+  });
+
+  it("signs out the least recently active sessions past MAX_SESSIONS_PER_USER", async () => {
+    const session = { userId: "u-cap", rawAuthKey: "k", authenticatedAt: Date.now() };
+    const first = await setSession(session);
+    await new Promise((resolve) => setTimeout(resolve, 2));
+    for (let i = 1; i < MAX_SESSIONS_PER_USER; i++) await setSession(session);
+    expect(await listUserSessions("u-cap")).toHaveLength(MAX_SESSIONS_PER_USER);
+
+    await setSession(session);
+    expect(await listUserSessions("u-cap")).toHaveLength(MAX_SESSIONS_PER_USER);
+    expect(await getSession(first)).toBeUndefined();
+    expect(await isSignedOut(first)).toBe(true);
   });
 
   it("revokeUserSessions empties the list", async () => {

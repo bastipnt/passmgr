@@ -2,7 +2,7 @@ import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
 import type { ChainableCommander, Result } from "ioredis";
 import { serverEnv } from "../env";
-import { emitSessionSignedOut } from "../events/record-events";
+import { emitSessionEnded, emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 import { DAY_MS } from "./time";
 
@@ -13,6 +13,8 @@ const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay wind
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
 const TOTP_ENROLLMENT_TTL_SECONDS = 10 * 60; // 10min to scan and confirm
 export const INVITE_TTL_SECONDS = 60 * 60 * 24; // 24h
+// A new login past this signs out the user's least recently active sessions.
+export const MAX_SESSIONS_PER_USER = 50;
 
 // Per-account login throttling. OPAQUE lets the client check a password guess
 // locally in `authFinish`, so every `startLogin` is one guess — count starts,
@@ -200,12 +202,20 @@ export async function getSession(sessionId: string): Promise<Session | undefined
   return session;
 }
 
-export async function setSession(session: Session): Promise<string> {
+/**
+ * Store a new session. Past MAX_SESSIONS_PER_USER live sessions, the least
+ * recently active ones are signed out; that part is best-effort (`onEvictError`),
+ * the next login retries it.
+ */
+export async function setSession(
+  session: Session,
+  onEvictError?: (err: unknown) => void,
+): Promise<string> {
   const sessionId = crypto.randomUUID();
   const now = Date.now();
   const index = userSessionsKey(session.userId);
 
-  await redis
+  const results = await redis
     .multi()
     .set(sessionKey(sessionId), JSON.stringify(session), "EX", sessionTtlSeconds(session, now))
     .zadd(index, now, sessionId)
@@ -213,7 +223,20 @@ export async function setSession(session: Session): Promise<string> {
     .zremrangebyscore(index, "-inf", now - SESSION_TTL_SECONDS * 1000)
     // No session in it can outlive the newest one's max age.
     .pexpire(index, SESSION_MAX_AGE_MS)
+    .zcard(index)
     .exec();
+
+  const indexed = Number(results?.[4]?.[1] ?? 0);
+  if (indexed > MAX_SESSIONS_PER_USER) {
+    try {
+      // The index may hold dead entries; only live sessions count.
+      const live = await listUserSessions(session.userId);
+      const evicted = live.slice(MAX_SESSIONS_PER_USER).map((s) => s.sessionId);
+      await signOutSessions(session.userId, evicted);
+    } catch (err) {
+      onEvictError?.(err);
+    }
+  }
 
   return sessionId;
 }
@@ -240,6 +263,7 @@ export async function deleteSession(sessionId: string, userId: string): Promise<
   await execOrThrow(
     redis.multi().del(sessionKey(sessionId)).zrem(userSessionsKey(userId), sessionId),
   );
+  emitSessionEnded(sessionId);
 }
 
 /** `exec` resolves a failed command as an `[err, result]` tuple; throw it instead. */
