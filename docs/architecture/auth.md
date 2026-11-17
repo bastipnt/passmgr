@@ -40,7 +40,7 @@ Registration:
 Login:
 
 1. Client: normalizes the email (`normalizeEmail`, also enforced server-side by `emailSchema`), `OpaqueClient.authInit` → sends `startLoginRequest` (KE1)
-2. Server: per-account throttle (`claimLoginAttempt`: one Lua script checks `loginlock:<emailHash>` and counts the start, so parallel starts can't all pass the check; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use, with its `startedAt`: a login started at or before `sessionepoch:<userId>` is refused at finish / second factor, `isLoginRevoked`). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`) — no enumeration
+2. Server: per-account throttle (`claimLoginAttempt`: one Lua script checks `loginlock:<emailHash>` and counts the start, so parallel starts can't all pass the check; every start counts, reset on success), `opaqueServer.authInit` → returns `loginResponse` (KE2) + `attemptId`, stores the `expected` auth result in Redis under `login:<attemptId>` (5 min, single-use, with its `startedAt`: a login started at or before `sessionepoch:<userId>` is refused at finish / second factor, `isLoginRevoked`). Unknown emails get a KE2 from a deterministic fake record (`auth/fake-record.ts`, built for known emails too so both take as long) — no enumeration
 3. Client: `authFinish` → derives `sessionKey`, sends KE3 + `attemptId` + a random `authSalt`
 4. Server: `opaqueServer.authFinish` → verifies, derives `authKey`. Two-factor on (`user_totp` row): no keys and no session yet, the
    challenge goes to Redis (`login2fa:<challengeId>`, 5 min, the derived `authKey` inside) and the answer is `{ secondFactorRequired, challengeId }`;
@@ -123,12 +123,22 @@ password change and a pending recovery (checked against the active set's verifie
 Only on a server with a mailer (`SMTP_URL` + `MAIL_FROM`; `appConfig.emailVerification`; Mailpit in dev / E2E,
 Stalwart in prod: `docs/ops/email.md`). Without one, `users.emailVerifiedAt` is set at registration and
 nothing below applies (also for accounts left unverified when the mailer is turned off later). `finishRegistration` mails a 6-digit code (`apps/server/src/user/email-verification.ts`):
-only its hash in Redis (`emailcode:<userId>`, 15 min, `EMAIL_CODE_MAX_ATTEMPTS` 5 wrong tries burn it, a new one replaces
-it); `user.sendVerificationCode` sends another (once a minute, five an hour: TOO_MANY_REQUESTS), `user.verifyEmail({code})`
+without awaiting the send (a duplicate email answers at once too). Only its HMAC (HKDF(server key, `emailCode`)) is in
+Redis (`emailcode:<userId>`, 15 min, `EMAIL_CODE_MAX_ATTEMPTS` 5 wrong tries burn it, a new one replaces it);
+`user.sendVerificationCode` sends another (once a minute, five an hour: TOO_MANY_REQUESTS), `user.verifyEmail({code})`
 sets `emailVerifiedAt` (`email_code_invalid` / `email_code_expired`), `user.emailVerificationStatus` reads it.
+`EMAIL_CODE_MAX_TOTAL_ATTEMPTS` (25) wrong tries across all of an account's codes end verification for it
+(TOO_MANY_REQUESTS on verify and resend; the account is purged after 7 days and can register again). Every send also
+counts against server-wide and per-recipient-domain hourly caps (`MAILS_PER_HOUR` 500, `MAILS_PER_DOMAIN_PER_HOUR` 50,
+domain HMAC'd; `claimMailSend`); a refused send gives the account's resend cooldown back. Anyone registering can fill
+them, which delays verification for others (`rate_limited_total{limiter="mail"}`). Only wrong guesses at a live code
+count toward the total.
 Until then the account is local-only: `verifiedProcedure` (record + vault routers, the SSE stream) answers FORBIDDEN
 `email_unverified` (so vault create / rename / delete fail too, `vaultErrorMessage` says why), and neither
-`user.publicKey` nor `vault.invite` finds it as a share target. Login, password change, two-factor, recovery
+`user.publicKey` nor `vault.invite` finds it as a share target. `user.publicKey` is a `verifiedProcedure` mutation (the
+email stays out of URLs and proxy logs); it and `vault.invite` share a cap of 60 lookups an hour per account
+(`claimAccountLookup`), so the invite can't be used to enumerate past it. The invite UI says to wait or to verify
+first (`sharingErrorMessage`). Login, password change, two-factor, recovery
 and account deletion stay open. Invite sign-ups verify too. Accounts still unverified 7 days after registering are
 deleted (hourly in `server.ts`, `purgeUnverifiedAccounts`, like `deleteAccount`): the vault stays on the device, and
 signing in again finds no account.

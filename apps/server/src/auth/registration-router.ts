@@ -157,9 +157,14 @@ export const registrationRouter = router({
       await recordAccountEvent(created, "account_created", { deviceName: ctx.deviceName, log });
 
       if (emailVerificationEnabled()) {
-        // The account exists either way; the client offers a resend.
-        await sendVerificationCode(created).catch((err: unknown) => {
-          log?.error({ err, emailHash }, "auth.email.code_failed");
+        // Not awaited: a duplicate email answers without sending, so a new one
+        // mustn't wait for SMTP either. The client offers a resend.
+        void sendVerificationCode(created).catch((err: unknown) => {
+          if (err instanceof TRPCError && err.code === "TOO_MANY_REQUESTS") {
+            log?.warn({ emailHash }, "auth.email.code_throttled");
+          } else {
+            log?.error({ err, emailHash }, "auth.email.code_failed");
+          }
         });
       }
     }),

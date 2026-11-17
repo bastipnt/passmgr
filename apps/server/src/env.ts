@@ -6,6 +6,18 @@ const MIN_SERVER_KEY_BYTES = 32;
 const DEFAULT_STORAGE_QUOTA_MB = 100;
 const DEFAULT_KEY_SET_RETENTION_DAYS = 14;
 const MAX_KEY_SET_RETENTION_DAYS = 3650;
+const DEFAULT_MAILS_PER_HOUR = 500;
+const DEFAULT_MAILS_PER_DOMAIN_PER_HOUR = 50;
+
+const mailsPerHour = (fallback: number) =>
+  z.preprocess(
+    blankToUndefined,
+    z.coerce
+      .number({ error: "must be a positive whole number of mails" })
+      .int("must be a positive whole number of mails")
+      .positive("must be a positive whole number of mails")
+      .default(fallback),
+  );
 
 function isBase64OfLength(bytes: number) {
   return (value: string) => {
@@ -76,6 +88,8 @@ const envSchema = z
         .max(MAX_KEY_SET_RETENTION_DAYS, `must be at most ${MAX_KEY_SET_RETENTION_DAYS} days`)
         .default(DEFAULT_KEY_SET_RETENTION_DAYS),
     ),
+    MAILS_PER_HOUR: mailsPerHour(DEFAULT_MAILS_PER_HOUR),
+    MAILS_PER_DOMAIN_PER_HOUR: mailsPerHour(DEFAULT_MAILS_PER_DOMAIN_PER_HOUR),
   })
   .transform((env) => ({ ...env, production: env.NODE_ENV === "production" }))
   .superRefine((env, ctx) => {

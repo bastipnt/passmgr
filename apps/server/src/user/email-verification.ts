@@ -1,22 +1,40 @@
 import { randomInt } from "node:crypto";
-import { decryptEmail } from "@repo/crypto";
+import { decryptEmail, hkdf, normalizeEmail, signHmac } from "@repo/crypto";
 import { db, usersTable } from "@repo/db";
 import { EMAIL_CODE_EXPIRED, EMAIL_CODE_INVALID, EMAIL_UNVERIFIED } from "@repo/schema";
+import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, eq, isNull, lt } from "drizzle-orm";
 import { getMailer } from "../mail/mailer";
 import { recordEmailVerification, recordRateLimited } from "../metrics";
 import { serverKey } from "../opaque";
+import { memoizeAsync } from "../util/general";
 import {
   checkEmailCode,
   claimEmailCodeSend,
+  claimMailSend,
   deleteEmailCodes,
   endDeletedUserSessions,
+  releaseEmailCodeSend,
   resetLoginThrottle,
   setEmailCode,
 } from "../util/redis-utils";
 import { DAY_MS } from "../util/time";
 import { deleteAccount } from "./delete-account";
+
+// Codes and recipient domains in Redis: HMAC under HKDF(server key), so a Redis
+// dump can't be brute-forced offline (a code has only a million values).
+const getEmailCodeKey = memoizeAsync(() => hkdf(serverKey, "emailCode"));
+const getMailDomainKey = memoizeAsync(() => hkdf(serverKey, "mailDomain"));
+
+async function hashEmailCode(userId: string, code: string): Promise<string> {
+  return toBase64(await signHmac(await getEmailCodeKey(), `${userId}:${code}`));
+}
+
+async function hashMailDomain(email: string): Promise<string> {
+  const domain = normalizeEmail(email).split("@").at(-1) ?? "";
+  return toBase64(await signHmac(await getMailDomainKey(), domain));
+}
 
 /** Accounts still unverified this long after registering are deleted (`purgeUnverifiedAccounts`). */
 export const UNVERIFIED_ACCOUNT_MAX_AGE_MS = 7 * DAY_MS;
@@ -52,7 +70,8 @@ export async function requireVerifiedEmail(userId: string): Promise<void> {
 
 /**
  * Mail a new 6-digit code to the user's address (replacing an earlier one).
- * TOO_MANY_REQUESTS within the resend interval or past the hourly cap;
+ * TOO_MANY_REQUESTS within the resend interval, past the hourly cap, once the
+ * account used up its attempts, or past the server's mail caps;
  * PRECONDITION_FAILED when verification is off or the email is verified already.
  */
 export async function sendVerificationCode(userId: string): Promise<void> {
@@ -76,14 +95,20 @@ export async function sendVerificationCode(userId: string): Promise<void> {
     throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
   }
 
-  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
-  await setEmailCode(userId, code);
   const email = await decryptEmail(
     serverKey,
     user.encryptedEmail,
     user.emailNonce,
     user.emailEncryptionKeySalt,
   );
+  if (!(await claimMailSend(await hashMailDomain(email)))) {
+    await releaseEmailCodeSend(userId);
+    recordRateLimited("mail");
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+  }
+
+  const code = String(randomInt(0, 1_000_000)).padStart(6, "0");
+  await setEmailCode(userId, await hashEmailCode(userId, code));
   try {
     await mailer.send({
       to: email,
@@ -101,7 +126,11 @@ export async function sendVerificationCode(userId: string): Promise<void> {
 export async function verifyEmail(userId: string, code: string): Promise<void> {
   if (await isEmailVerified(userId)) return;
 
-  const result = await checkEmailCode(userId, code);
+  const result = await checkEmailCode(userId, await hashEmailCode(userId, code));
+  if (result === "exhausted") {
+    recordRateLimited("email_code");
+    throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+  }
   if (result === "invalid") {
     recordEmailVerification("code_invalid");
     throw new TRPCError({ code: "BAD_REQUEST", message: EMAIL_CODE_INVALID });

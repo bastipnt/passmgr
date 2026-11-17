@@ -25,9 +25,11 @@ import { and, count, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged } from "../events/record-events";
+import { recordRateLimited } from "../metrics";
 import { serverKey } from "../opaque";
 import { ownedUsage, STORAGE_QUOTA_BYTES } from "../record/quota";
 import { isUniqueViolation } from "../util/general";
+import { claimAccountLookup } from "../util/redis-utils";
 import {
   currentKeyPairVersions,
   currentPublicKeys,
@@ -146,7 +148,8 @@ export const sharingProcedures = {
    * make owners). The invitee sees it in `invitations` until they accept or
    * decline.
    *
-   * NOT_FOUND for an email without an account (as `user.publicKey` tells).
+   * NOT_FOUND for an email without an account (as `user.publicKey` tells);
+   * TOO_MANY_REQUESTS past the account lookup cap it shares with that.
    * CONFLICT when they are a member already, or the vault was rotated since the
    * key was sealed. PRECONDITION_FAILED when either keypair isn't the current
    * one any more, the vault is full, or a pending-invite cap is reached (per
@@ -154,6 +157,10 @@ export const sharingProcedures = {
    * counted without a lock, so concurrent invites can go a few past).
    */
   invite: verifiedProcedure.input(inviteMemberInputSchema).mutation(async ({ ctx, input }) => {
+    if (!(await claimAccountLookup(ctx.userId))) {
+      recordRateLimited("account_lookup");
+      throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+    }
     const { vaultId, role } = input;
     const emailHash = toBase64(await hashEmail(serverKey, input.email));
 

@@ -3,7 +3,7 @@ import { canAssignRole, type VaultRole } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import { TooManyVaultsError, VaultsOfflineError } from "../hooks/use-vaults";
-import { isEmailUnverified, isServerAnswer } from "../util/trpc-errors";
+import { isEmailUnverified, isServerAnswer, isThrottled } from "../util/trpc-errors";
 import {
   PeerKeyChangedError,
   UnverifiedMembersError,
@@ -81,7 +81,8 @@ export function sharingErrorMessage(
   fallback: string,
   byCode: SharingRefusals = {},
 ): string {
-  if (error instanceof TRPCClientError) {
+  if (error instanceof TRPCClientError && !isEmailUnverified(error)) {
+    if (isThrottled(error)) return "Too many attempts for now. Try again in a while.";
     const message = byCode[error.data?.code as SharingRefusal];
     if (message) return message;
     if (!isServerAnswer(error)) return "The server can't be reached. Try again.";

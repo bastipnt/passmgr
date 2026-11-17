@@ -22,7 +22,7 @@ import {
 import { fromBase64, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import { and, desc, eq, isNotNull, isNull } from "drizzle-orm";
-import { freshAuthProcedure, protectedProcedure } from "../auth/auth-middleware";
+import { freshAuthProcedure, protectedProcedure, verifiedProcedure } from "../auth/auth-middleware";
 import {
   deleteDeviceCredential,
   deleteDeviceCredentials,
@@ -38,9 +38,11 @@ import {
   twoFactorStatus,
 } from "../auth/two-factor";
 import { credentialKey } from "../auth/webauthn";
+import { recordRateLimited } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import {
+  claimAccountLookup,
   deleteTotpEnrollment,
   endDeletedUserSessions,
   getTotpEnrollment,
@@ -144,12 +146,18 @@ export const userRouter = router({
 
   // Another user's current public key, to seal a vault key to when inviting
   // them (ADR 0001 D7). The client shows its fingerprint for out-of-band
-  // verification before trusting it. Reveals to a logged-in user whether an
-  // email has an account, which an invite flow can't avoid.
-  publicKey: protectedProcedure
+  // verification before trusting it. Reveals whether an email has an account,
+  // which an invite flow can't avoid: so only to verified accounts, a few an
+  // hour (TOO_MANY_REQUESTS, shared with `vault.invite`), and as a mutation,
+  // so the email isn't in a URL.
+  publicKey: verifiedProcedure
     .input(userPublicKeyInputSchema)
     .output(userPublicKeySchema)
-    .query(async ({ input }) => {
+    .mutation(async ({ ctx, input }) => {
+      if (!(await claimAccountLookup(ctx.userId))) {
+        recordRateLimited("account_lookup");
+        throw new TRPCError({ code: "TOO_MANY_REQUESTS" });
+      }
       const emailHash = toBase64(await hashEmail(serverKey, input.email));
       const [found] = await db
         .select({

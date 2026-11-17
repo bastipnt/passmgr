@@ -59,24 +59,31 @@ export const recoveryRouter = router({
       const emailHash = toBase64(await hashEmail(serverKey, email));
       const presented = await hashRecoveryAuthKey(fromBase64(recoveryAuthKey));
 
-      const user = await db.query.usersTable.findFirst({
-        columns: { userId: true },
-        where: { emailHash, deleted_at: { isNull: true } },
-      });
-      if (!user) denyRecovery(log, "startRecovery", "unknown_user", emailHash);
-
-      const keys = await db.query.keysTable.findFirst({
-        columns: {
-          keySetId: true,
-          recoveryVerifier: true,
-          recoveryKekSalt: true,
-          encryptedAccountKeyRecovery: true,
-          accountKeyEncryptionNonceRecovery: true,
-        },
-        where: { userId: user.userId, valid_to: { isNull: true }, deleted_at: { isNull: true } },
-      });
+      // One query for known and unknown emails alike, so the answer takes as long.
+      const [found] = await db
+        .select({
+          userId: usersTable.userId,
+          keySetId: keysTable.keySetId,
+          recoveryVerifier: keysTable.recoveryVerifier,
+          recoveryKekSalt: keysTable.recoveryKekSalt,
+          encryptedAccountKeyRecovery: keysTable.encryptedAccountKeyRecovery,
+          accountKeyEncryptionNonceRecovery: keysTable.accountKeyEncryptionNonceRecovery,
+        })
+        .from(usersTable)
+        .innerJoin(
+          keysTable,
+          and(
+            eq(keysTable.userId, usersTable.userId),
+            isNull(keysTable.valid_to),
+            isNull(keysTable.deleted_at),
+          ),
+        )
+        .where(and(eq(usersTable.emailHash, emailHash), isNull(usersTable.deleted_at)))
+        .limit(1);
+      if (!found) denyRecovery(log, "startRecovery", "unknown_user", emailHash);
+      const { userId, ...keys } = found;
       // Accounts registered before recovery existed have no verifier.
-      if (!keys?.recoveryVerifier) denyRecovery(log, "startRecovery", "no_verifier", emailHash);
+      if (!keys.recoveryVerifier) denyRecovery(log, "startRecovery", "no_verifier", emailHash);
 
       const stored = fromBase64(keys.recoveryVerifier);
       if (stored.length !== presented.length || !timingSafeEqual(stored, presented)) {
@@ -97,7 +104,7 @@ export const recoveryRouter = router({
       }
 
       const attemptId = await setRecoveryAttempt({
-        userId: user.userId,
+        userId,
         emailHash,
         keySetId: keys.keySetId,
       });

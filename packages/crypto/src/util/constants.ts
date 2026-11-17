@@ -18,6 +18,8 @@ export const hkdfInfo = {
   deviceSessionKey: fromString("passmgr/device-session/v1"),
   anonymousSealKey: fromString("passmgr/seal/anonymous/v1"),
   deviceNameHashKey: fromString("passmgr/device-name-hash/v1"),
+  emailCode: fromString("passmgr/email-code/v1"),
+  mailDomain: fromString("passmgr/mail-domain/v1"),
 };
 
 // OPAQUE binds it into every registration envelope: a different value breaks

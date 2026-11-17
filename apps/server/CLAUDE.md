@@ -35,7 +35,7 @@ per user) — never `UPDATE` key material in place.
   mobile Settings (`SessionsSection`)
 - `activity` → `activityRouter` (list — the account's security log, `account_events`, see Account activity in
   `docs/architecture/auth.md`) — `protectedProcedure`. Record a new event type with `recordAccountEvent` / `recordAction`
-- `user` → `userRouter` (heartbeat, emailVerificationStatus, sendVerificationCode, verifyEmail, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email;
+- `user` → `userRouter` (heartbeat, emailVerificationStatus, sendVerificationCode, verifyEmail, rekeyPasswordKeys, startPasswordChange, finishPasswordChange, deleteAccount, publicKey — another user's public key by email, a verified-only mutation, 60 an hour shared with `vault.invite`;
   registerDeviceCredential, linkDeviceCredential, removeDeviceCredential (web biometric device login);
   two-factor: twoFactorStatus, startTotpEnrollment, confirmTotp, disableTotp, regenerateBackupCodes)
 
@@ -92,6 +92,8 @@ validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by 
 - `PREFIX` — tRPC mount path (e.g. `/trpc`); required in production, so tRPC never sits next to `/health` / `/metrics`
 - `TRUST_PROXY` — proxy IPs/CIDRs or proxy-addr names, never a hop count; unset in production logs
   `config.trust_proxy_unset` (behind a proxy every client would share one rate-limit bucket)
+- `MAILS_PER_HOUR` (default 500), `MAILS_PER_DOMAIN_PER_HOUR` (default 50) — caps on verification mails, server-wide and
+  per recipient domain (registration mails any address); see Email verification in `docs/architecture/auth.md`
 - `RATE_LIMIT_DISABLED`, `LOG_LEVEL`
 
 CORS sends no `Access-Control-Allow-Credentials`: there are no cookies, and the client fetches without credentials.

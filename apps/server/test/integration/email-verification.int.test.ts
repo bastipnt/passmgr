@@ -1,9 +1,14 @@
 import { hashEmail } from "@repo/crypto";
 import { db, usersTable } from "@repo/db";
-import { EMAIL_CODE_EXPIRED, EMAIL_CODE_INVALID, EMAIL_UNVERIFIED } from "@repo/schema";
+import {
+  EMAIL_CODE_EXPIRED,
+  EMAIL_CODE_INVALID,
+  EMAIL_CODE_MAX_ATTEMPTS,
+  EMAIL_UNVERIFIED,
+} from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { type Mail, type Mailer, setMailer } from "../../src/mail/mailer";
 import { serverKey } from "../../src/opaque";
 import { redis } from "../../src/redis";
@@ -11,6 +16,7 @@ import {
   purgeUnverifiedAccounts,
   UNVERIFIED_ACCOUNT_MAX_AGE_MS,
 } from "../../src/user/email-verification";
+import { EMAIL_CODE_MAX_TOTAL_ATTEMPTS } from "../../src/util/redis-utils";
 import { truncateAll } from "../setup/db-helpers";
 import { buildTestContext } from "../setup/test-context";
 import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
@@ -41,10 +47,13 @@ beforeEach(async () => {
 
 afterEach(() => setMailer(null));
 
-function sentCode(to = email): string {
-  const code = mailer.latest(to)?.text.match(/\b\d{6}\b/)?.[0];
-  if (!code) throw new Error(`no code mailed to ${to}`);
-  return code;
+// finishRegistration mails without awaiting the send.
+async function sentCode(to = email): Promise<string> {
+  return await vi.waitFor(() => {
+    const code = mailer.latest(to)?.text.match(/\b\d{6}\b/)?.[0];
+    if (!code) throw new Error(`no code mailed to ${to}`);
+    return code;
+  });
 }
 
 async function signedIn(as = email) {
@@ -77,7 +86,7 @@ async function signedIn(as = email) {
     publicKey: async (of: string) => {
       const input = { email: of };
       return (
-        await callSigned(sessionId, authKey, "query", "user.publicKey", input)
+        await callSigned(sessionId, authKey, "mutation", "user.publicKey", input)
       ).user.publicKey(input);
     },
   };
@@ -94,7 +103,7 @@ describe("email verification (real Postgres + Redis)", () => {
       message: EMAIL_UNVERIFIED,
     });
 
-    await alice.verify(sentCode());
+    await alice.verify(await sentCode());
     expect(await alice.status()).toEqual({ verified: true });
     await expect(alice.sync()).resolves.toMatchObject({ hasMore: false });
   });
@@ -113,7 +122,7 @@ describe("email verification (real Postgres + Redis)", () => {
   it("burns the code after five wrong guesses", async () => {
     await register(email, password);
     const alice = await signedIn();
-    const code = sentCode();
+    const code = await sentCode();
     const wrong = code === "000000" ? "111111" : "000000";
 
     for (let i = 0; i < 4; i++) {
@@ -126,13 +135,13 @@ describe("email verification (real Postgres + Redis)", () => {
   it("limits resends and replaces the earlier code", async () => {
     await register(email, password);
     const alice = await signedIn();
-    const first = sentCode();
+    const first = await sentCode();
 
     await expect(alice.resend()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
 
     await redis.del(`emailcode:cooldown:${await userId(email)}`);
     await alice.resend();
-    const second = sentCode();
+    const second = await sentCode();
     if (first !== second) {
       await expect(alice.verify(first)).rejects.toMatchObject({ message: EMAIL_CODE_INVALID });
     }
@@ -152,6 +161,79 @@ describe("email verification (real Postgres + Redis)", () => {
     await expect(alice.resend()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
   });
 
+  it("caps wrong guesses across every code the account is sent", async () => {
+    await register(email, password);
+    const alice = await signedIn();
+    const id = await userId(email);
+    const wrong = (code: string) => (code === "000000" ? "111111" : "000000");
+
+    for (let i = 0; i < EMAIL_CODE_MAX_TOTAL_ATTEMPTS / EMAIL_CODE_MAX_ATTEMPTS; i++) {
+      const code = await sentCode();
+      for (let j = 0; j < EMAIL_CODE_MAX_ATTEMPTS; j++) {
+        await expect(alice.verify(wrong(code))).rejects.toMatchObject({
+          message: EMAIL_CODE_INVALID,
+        });
+      }
+      await redis.del(`emailcode:cooldown:${id}`, `emailcode:hourly:${id}`);
+      if (i < EMAIL_CODE_MAX_TOTAL_ATTEMPTS / EMAIL_CODE_MAX_ATTEMPTS - 1) await alice.resend();
+    }
+
+    await expect(alice.resend()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    await expect(alice.verify("123456")).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+  });
+
+  it("stops mailing once the server's hourly mail cap is reached", async () => {
+    await register(email, password);
+    await sentCode();
+    await redis.set("mail:hourly", 500, "EX", 3600);
+    await register("carol@example.com", password);
+    const carol = await signedIn("carol@example.com");
+
+    // A refused send doesn't hold the account's resend cooldown.
+    const carolId = await userId("carol@example.com");
+    await vi.waitFor(async () => {
+      expect(await redis.get(`emailcode:hourly:${carolId}`)).toBe("0");
+      expect(await redis.exists(`emailcode:cooldown:${carolId}`)).toBe(0);
+    });
+    await expect(carol.resend()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
+    expect(mailer.latest("carol@example.com")).toBeUndefined();
+
+    await redis.del("mail:hourly");
+    await carol.resend();
+    await expect(sentCode("carol@example.com")).resolves.toMatch(/^\d{6}$/);
+  });
+
+  it("doesn't count stale or right codes toward the account's attempt cap", async () => {
+    await register(email, password);
+    const alice = await signedIn();
+    const code = await sentCode();
+    await redis.del(`emailcode:${await userId(email)}`);
+
+    for (let i = 0; i < EMAIL_CODE_MAX_TOTAL_ATTEMPTS; i++) {
+      await expect(alice.verify(code)).rejects.toMatchObject({ message: EMAIL_CODE_EXPIRED });
+    }
+    await redis.del(`emailcode:cooldown:${await userId(email)}`);
+    await alice.resend();
+    await alice.verify(await sentCode());
+    expect(await alice.status()).toEqual({ verified: true });
+  });
+
+  it("answers registration without waiting for the mail", async () => {
+    setMailer({ send: () => new Promise<void>(() => {}) });
+    await expect(register(email, password)).resolves.toBeDefined();
+  });
+
+  it("refuses the share lookup to an unverified account", async () => {
+    await register("bob@example.com", password);
+    await register(email, password);
+    const alice = await signedIn();
+
+    await expect(alice.publicKey("bob@example.com")).rejects.toMatchObject({
+      code: "FORBIDDEN",
+      message: EMAIL_UNVERIFIED,
+    });
+  });
+
   it("lets accounts made while the mailer was on sync once it is off", async () => {
     await register(email, password);
     const alice = await signedIn();
@@ -169,11 +251,12 @@ describe("email verification (real Postgres + Redis)", () => {
     await register(email, password);
     await register("bob@example.com", password);
     const bob = await signedIn("bob@example.com");
+    await bob.verify(await sentCode("bob@example.com"));
 
     await expect(bob.publicKey(email)).rejects.toMatchObject({ code: "NOT_FOUND" });
 
     const alice = await signedIn();
-    await alice.verify(sentCode());
+    await alice.verify(await sentCode());
     await expect(bob.publicKey(email)).resolves.toMatchObject({ keyVersion: 1 });
   });
 
@@ -181,7 +264,7 @@ describe("email verification (real Postgres + Redis)", () => {
     await register(email, password);
     await register("bob@example.com", password);
     const alice = await signedIn();
-    await alice.verify(sentCode());
+    await alice.verify(await sentCode());
 
     const later = Date.now() + UNVERIFIED_ACCOUNT_MAX_AGE_MS + 60_000;
     expect(await purgeUnverifiedAccounts(Date.now())).toEqual({ purged: 0, failed: 0 });

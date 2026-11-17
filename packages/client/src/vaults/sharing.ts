@@ -111,7 +111,7 @@ export type Invitee = { email: string; publicKey: UserPublicKey; fingerprint: st
 
 /** Look up a user to invite by email. NOT_FOUND (from the server) when there's no such account. */
 export async function lookupInvitee(trpc: TrpcClient, email: string): Promise<Invitee> {
-  const publicKey = await trpc.user.publicKey.query({ email });
+  const publicKey = await trpc.user.publicKey.mutate({ email });
   return { email, publicKey, fingerprint: publicKeyFingerprint(publicKey.publicKey) };
 }
 

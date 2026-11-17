@@ -234,18 +234,23 @@ export const loginRouter = router({
 
       // Before the read: a password change committed after it still revokes.
       const startedAt = Date.now();
-      const res = await db.query.usersTable.findFirst({
-        columns: { registrationRecord: true, userId: true },
-        where: { emailHash, deleted_at: { isNull: true } },
-      });
+      const [res, fakeRecord] = await Promise.all([
+        db.query.usersTable.findFirst({
+          columns: { registrationRecord: true, userId: true },
+          where: { emailHash, deleted_at: { isNull: true } },
+        }),
+        fakeRegistrationRecord(email).catch(() => undefined),
+      ]);
 
       let ke1: KE1;
       let record: RegistrationRecord;
       try {
         ke1 = KE1.deserialize(opaqueConfig, b64ToBytes(startLoginRequest));
-        record = res
+        const found = res
           ? RegistrationRecord.deserialize(opaqueConfig, b64ToBytes(res.registrationRecord))
-          : await fakeRegistrationRecord(email);
+          : fakeRecord;
+        if (!found) throw new Error("no fake record");
+        record = found;
       } catch {
         denyLogin(log, "startLogin", "decode_failed", emailHash);
       }

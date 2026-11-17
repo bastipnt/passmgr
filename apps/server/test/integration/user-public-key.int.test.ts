@@ -16,7 +16,7 @@ beforeEach(async () => {
 async function lookUp(asEmail: string, email: string) {
   const { sessionId, authKey } = await loginAndGetAuthKey(asEmail, password);
   const input = { email };
-  const caller = await callSigned(sessionId, authKey, "query", "user.publicKey", input);
+  const caller = await callSigned(sessionId, authKey, "mutation", "user.publicKey", input);
   return caller.user.publicKey(input);
 }
 
@@ -76,8 +76,23 @@ describe("user.publicKey (real Postgres + Redis)", () => {
       .where(eq(usersTable.userId, bobRow!.userId));
 
     const input = { email: "bob@example.com" };
-    const caller = await callSigned(sessionId, authKey, "query", "user.publicKey", input);
+    const caller = await callSigned(sessionId, authKey, "mutation", "user.publicKey", input);
     await expect(caller.user.publicKey(input)).rejects.toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  it("TOO_MANY_REQUESTS past the hourly lookup cap", async () => {
+    await register("alice@example.com", password);
+    const { sessionId, authKey } = await loginAndGetAuthKey("alice@example.com", password);
+    const lookUpOnce = async () => {
+      const input = { email: "nobody@example.com" };
+      const caller = await callSigned(sessionId, authKey, "mutation", "user.publicKey", input);
+      return caller.user.publicKey(input);
+    };
+
+    for (let i = 0; i < 60; i++) {
+      await expect(lookUpOnce()).rejects.toMatchObject({ code: "NOT_FOUND" });
+    }
+    await expect(lookUpOnce()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
   });
 
   it("UNAUTHORIZED without a session", async () => {

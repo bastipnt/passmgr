@@ -66,11 +66,11 @@ export function recordLogin(method: "password" | "device", secondFactor: boolean
   logins.inc({ method, second_factor: String(secondFactor) });
 }
 
-export type RateLimiter = "ip" | "login" | "email_code";
+export type RateLimiter = "ip" | "login" | "email_code" | "mail" | "account_lookup";
 
 const rateLimited = new Counter({
   name: "passmgr_rate_limited_total",
-  help: "Requests refused by a rate limit: per-IP request limit, per-account login throttle, email code resend cap",
+  help: "Requests refused by a rate limit: per-IP request limit, per-account login throttle, email code resend / attempt cap, server mail caps, account lookups by email",
   labelNames: ["limiter"] as const,
   registers: [metricsRegistry],
 });

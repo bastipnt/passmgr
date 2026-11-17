@@ -1,6 +1,7 @@
 import { RegistrationRecord } from "@cloudflare/opaque-ts";
 import { hkdf, normalizeEmail, signHmac } from "@repo/crypto";
 import { opaqueConfig, serverKey } from "../opaque";
+import { memoizeAsync } from "../util/general";
 
 /**
  * Stand-in registration record for emails with no account, so `startLogin`
@@ -9,10 +10,12 @@ import { opaqueConfig, serverKey } from "../opaque";
  * but derived from a server secret + the email instead of fresh randomness,
  * so repeated probes for the same email return consistent-looking responses.
  * The client's `authFinish` then fails exactly like a wrong password.
+ * `startLogin` builds it for known emails too, so both take as long.
  */
+const getFakeRecordKey = memoizeAsync(() => hkdf(serverKey, "opaqueFakeRecordKey"));
+
 export async function fakeRegistrationRecord(email: string): Promise<RegistrationRecord> {
-  const fakeRecordKey = await hkdf(serverKey, "opaqueFakeRecordKey");
-  const emailSecret = await signHmac(fakeRecordKey, normalizeEmail(email));
+  const emailSecret = await signHmac(await getFakeRecordKey(), normalizeEmail(email));
 
   const keySeed = await hkdf(emailSecret, "opaqueFakeKeySeed");
   const maskingKey = await hkdf(emailSecret, "opaqueFakeMaskingKey");

@@ -1,6 +1,7 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
 import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
 import type { ChainableCommander, Result } from "ioredis";
+import { serverEnv } from "../env";
 import { emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
 import { DAY_MS } from "./time";
@@ -688,6 +689,14 @@ export async function consumeInvite(code: string): Promise<Invite | undefined> {
 
 const EMAIL_CODE_TTL_SECONDS = 15 * 60;
 const EMAIL_CODES_PER_HOUR = 5;
+// Across every code the account is sent: with 5 tries per code alone, a week of
+// resends would give a squatter about a 0.4 % chance at a foreign address.
+export const EMAIL_CODE_MAX_TOTAL_ATTEMPTS = 25;
+// Outlives the unverified account (purged after 7 days), so the cap holds for its lifetime.
+const EMAIL_CODE_TOTAL_TTL_SECONDS = (8 * DAY_MS) / 1000;
+// Shared by `user.publicKey` and `vault.invite` (both tell whether an email has
+// an account); an invite takes a lookup and the invite itself.
+const ACCOUNT_LOOKUPS_PER_HOUR = 60;
 
 function emailCodeKey(userId: string) {
   return `emailcode:${userId}`;
@@ -701,22 +710,30 @@ function emailCodeHourlyKey(userId: string) {
   return `emailcode:hourly:${userId}`;
 }
 
-function hashEmailCode(userId: string, code: string) {
-  return createHash("sha256").update(`${userId}:${code}`).digest("base64url");
+function emailCodeTotalKey(userId: string) {
+  return `emailcode:total:${userId}`;
+}
+
+/** Count one event in a window that starts at the first; returns the count including it. */
+async function countInWindow(key: string, windowSeconds: number): Promise<number> {
+  const [[, count]] = (await redis.multi().incr(key).expire(key, windowSeconds, "NX").exec()) as [
+    [Error | null, number],
+    [Error | null, number],
+  ];
+  return count;
 }
 
 /**
  * Claim one email code send: false within EMAIL_CODE_RESEND_SECONDS of the
- * last one, or past EMAIL_CODES_PER_HOUR (the hour runs from the first send).
+ * last one, past EMAIL_CODES_PER_HOUR (the hour runs from the first send), or
+ * once the account has used up EMAIL_CODE_MAX_TOTAL_ATTEMPTS.
  */
 export async function claimEmailCodeSend(userId: string): Promise<boolean> {
+  const total = Number(await redis.get(emailCodeTotalKey(userId)));
+  if (total >= EMAIL_CODE_MAX_TOTAL_ATTEMPTS) return false;
+
   const hourly = emailCodeHourlyKey(userId);
-  const [[, count]] = (await redis
-    .multi()
-    .incr(hourly)
-    .expire(hourly, 60 * 60, "NX")
-    .exec()) as [[Error | null, number], [Error | null, number]];
-  if (count > EMAIL_CODES_PER_HOUR) return false;
+  if ((await countInWindow(hourly, 60 * 60)) > EMAIL_CODES_PER_HOUR) return false;
 
   const cooldown = await redis.set(
     emailCodeCooldownKey(userId),
@@ -730,48 +747,96 @@ export async function claimEmailCodeSend(userId: string): Promise<boolean> {
   return false;
 }
 
-/** Store a new code for the user, replacing any earlier one; only its hash is kept. */
-export async function setEmailCode(userId: string, code: string): Promise<void> {
+/** Undo a `claimEmailCodeSend` whose mail wasn't sent after all. */
+export async function releaseEmailCodeSend(userId: string): Promise<void> {
+  await redis.multi().del(emailCodeCooldownKey(userId)).decr(emailCodeHourlyKey(userId)).exec();
+}
+
+/**
+ * Claim one outgoing mail against the server-wide and the per-domain hourly
+ * cap (`domainHash`: a keyed hash of the recipient's domain). A refused send
+ * isn't counted. Registration mails any address, so these bound what the
+ * server sends for others; anyone registering can fill them, which only delays
+ * verification (`rate_limited_total{limiter="mail"}` shows it), see
+ * `MAILS_PER_HOUR` in `apps/server/CLAUDE.md`.
+ */
+export async function claimMailSend(domainHash: string): Promise<boolean> {
+  const { MAILS_PER_HOUR, MAILS_PER_DOMAIN_PER_HOUR } = serverEnv;
+  const global = "mail:hourly";
+  const domain = `mail:domain:${domainHash}`;
+  const [all, perDomain] = await Promise.all([
+    countInWindow(global, 60 * 60),
+    countInWindow(domain, 60 * 60),
+  ]);
+  if (all <= MAILS_PER_HOUR && perDomain <= MAILS_PER_DOMAIN_PER_HOUR) return true;
+  await redis.multi().decr(global).decr(domain).exec();
+  return false;
+}
+
+/** Claim one lookup of another account by email: false past ACCOUNT_LOOKUPS_PER_HOUR. */
+export async function claimAccountLookup(userId: string): Promise<boolean> {
+  return (await countInWindow(`lookup:hourly:${userId}`, 60 * 60)) <= ACCOUNT_LOOKUPS_PER_HOUR;
+}
+
+/** Store a new code's hash for the user, replacing any earlier one. */
+export async function setEmailCode(userId: string, codeHash: string): Promise<void> {
   const key = emailCodeKey(userId);
   await redis
     .multi()
     .del(key)
-    .hset(key, { hash: hashEmailCode(userId, code), attempts: 0 })
+    .hset(key, { hash: codeHash, attempts: 0 })
     .expire(key, EMAIL_CODE_TTL_SECONDS)
     .exec();
 }
 
 /**
- * Check a code. The attempt is counted before the comparison, so concurrent
- * guesses can't exceed EMAIL_CODE_MAX_ATTEMPTS; the code is gone after a
- * match or the last wrong guess.
+ * Check a code's hash. The attempt is counted before the comparison, so
+ * concurrent guesses can't exceed EMAIL_CODE_MAX_ATTEMPTS; the code is gone
+ * after a match or the last wrong guess. Wrong guesses also count toward the
+ * account's EMAIL_CODE_MAX_TOTAL_ATTEMPTS ("exhausted" once used up).
  */
 export async function checkEmailCode(
   userId: string,
-  code: string,
-): Promise<"ok" | "invalid" | "expired"> {
+  codeHash: string,
+): Promise<"ok" | "invalid" | "expired" | "exhausted"> {
   const key = emailCodeKey(userId);
-  const [[, attempts], [, stored]] = (await redis
+  const totalKey = emailCodeTotalKey(userId);
+  const [[, attempts], [, stored], [, total]] = (await redis
     .multi()
     .hincrby(key, "attempts", 1)
     .hget(key, "hash")
-    .exec()) as [[Error | null, number], [Error | null, string | null]];
+    .get(totalKey)
+    .exec()) as [
+    [Error | null, number],
+    [Error | null, string | null],
+    [Error | null, string | null],
+  ];
+  if (Number(total) >= EMAIL_CODE_MAX_TOTAL_ATTEMPTS) {
+    await redis.del(key);
+    return "exhausted";
+  }
   if (stored === null || attempts > EMAIL_CODE_MAX_ATTEMPTS) {
     await redis.del(key);
     return "expired";
   }
 
-  const given = Buffer.from(hashEmailCode(userId, code));
-  if (timingSafeEqual(given, Buffer.from(stored))) {
+  const given = Buffer.from(codeHash);
+  if (given.length === stored.length && timingSafeEqual(given, Buffer.from(stored))) {
     await redis.del(key);
     return "ok";
   }
+  await countInWindow(totalKey, EMAIL_CODE_TOTAL_TTL_SECONDS);
   if (attempts >= EMAIL_CODE_MAX_ATTEMPTS) await redis.del(key);
   return "invalid";
 }
 
 export async function deleteEmailCodes(userId: string): Promise<void> {
-  await redis.del(emailCodeKey(userId), emailCodeCooldownKey(userId), emailCodeHourlyKey(userId));
+  await redis.del(
+    emailCodeKey(userId),
+    emailCodeCooldownKey(userId),
+    emailCodeHourlyKey(userId),
+    emailCodeTotalKey(userId),
+  );
 }
 
 // Active users: one HyperLogLog per UTC day. It only yields an approximate count

@@ -36,7 +36,7 @@ deploy: `curl -i https://<PUBLIC_HOSTNAME>/metrics` must not return Prometheus t
 | `recovery_attempts_total`           | `stage`, `outcome`               | recovery steps, `ok` or the denial reason                        |
 | `logins_total`                      | `method` (`password`, `device`), `second_factor` | completed logins (session created)            |
 | `active_users`                      | `window` (`1d`, `7d`, `30d`)     | approx. distinct users with an authenticated request (gauge, see below) |
-| `rate_limited_total`                | `limiter` (`ip`, `login`, `email_code`) | refused by the per-IP limit, the account login throttle or the code resend cap |
+| `rate_limited_total`                | `limiter` (`ip`, `login`, `email_code`, `mail`, `account_lookup`) | refused by the per-IP limit, the account login throttle, the code resend / attempt cap, the server mail caps or the account lookup cap (`user.publicKey`, `vault.invite`) |
 | `email_verification_total`          | `event`                          | codes sent / failed to send, verified, invalid, expired          |
 | `client_errors_total`               | `kind`, `area`, `platform`, `version` | crashes reported by the apps, see Client crashes             |
 

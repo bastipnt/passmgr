@@ -13,16 +13,15 @@ import { BACKUP_CODE_COUNT } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { and, count, eq, isNull, lt, or } from "drizzle-orm";
 import { serverKey } from "../opaque";
+import { memoizeAsync } from "../util/general";
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 // TOTP secret at rest: XChaCha20 under HKDF(server key, "totp-secret"). Backup
 // codes: HMAC under HKDF(server key, "backup-code"), so a database dump alone
 // can't brute-force them offline.
-let totpKey: Promise<Uint8Array> | undefined;
-let backupCodeKey: Promise<Uint8Array> | undefined;
-const getTotpKey = () => (totpKey ??= hkdf(serverKey, "totpSecret"));
-const getBackupCodeKey = () => (backupCodeKey ??= hkdf(serverKey, "backupCode"));
+const getTotpKey = memoizeAsync(() => hkdf(serverKey, "totpSecret"));
+const getBackupCodeKey = memoizeAsync(() => hkdf(serverKey, "backupCode"));
 
 // No 0/o, 1/l/i: backup codes get read off paper.
 const BACKUP_CODE_ALPHABET = "abcdefghjkmnpqrstuvwxyz23456789";

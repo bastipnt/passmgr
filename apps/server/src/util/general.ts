@@ -90,3 +90,13 @@ export function isUniqueViolation(error: unknown): boolean {
 export function isLockTimeout(error: unknown): boolean {
   return hasPgCode(error, PG_LOCK_NOT_AVAILABLE);
 }
+
+/** `fn`'s promise, made once and shared; a rejection isn't kept, so the next call tries again. */
+export function memoizeAsync<T>(fn: () => Promise<T>): () => Promise<T> {
+  let pending: Promise<T> | undefined;
+  return () =>
+    (pending ??= fn().catch((error: unknown) => {
+      pending = undefined;
+      throw error;
+    }));
+}
