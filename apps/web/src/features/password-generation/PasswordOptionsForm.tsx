@@ -1,4 +1,4 @@
-import type { PasswordOptions } from "@repo/crypto";
+import { PASSWORD_LENGTH_RANGE, type PasswordOptions } from "@repo/crypto";
 import { Field, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Slider } from "@repo/ui/components/Slider";
@@ -22,8 +22,8 @@ export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptio
         </div>
         <Slider
           aria-labelledby={lengthLabelId}
-          min={8}
-          max={128}
+          min={PASSWORD_LENGTH_RANGE.min}
+          max={PASSWORD_LENGTH_RANGE.max}
           step={1}
           value={pwOpts.length}
           onValueChange={(v) => setPwOpts((o) => ({ ...o, length: (v as number) ?? o.length }))}

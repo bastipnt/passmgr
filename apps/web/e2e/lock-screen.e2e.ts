@@ -5,7 +5,8 @@ import { expectInApp } from "./helpers/vault";
 
 /**
  * Idle lock (`useIdleLock`, Settings → Security "Lock when idle"): with no
- * pointer / key activity for the configured time the vault locks: the page
+ * pointer / key activity for the configured time the vault locks on any page
+ * (here Settings, outside the record layout): the page
  * reloads (drops every key) after ending the server session. The clock is
  * faked, so a minute passes instantly.
  */
@@ -20,12 +21,14 @@ test("idle timeout locks the vault and ends its server session", async ({ page, 
   // Leaves the vault unlocked and signed in: the session the idle lock ends.
   await registerUser(page, email, password);
   await expectInApp(page);
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  await expect(page).toHaveURL(/\/settings\/account$/);
 
   // Activity restarts the countdown.
   await page.clock.fastForward("00:45");
   await page.keyboard.press("Shift");
   await page.clock.fastForward("00:45");
-  await expectInApp(page);
+  await expect(page).toHaveURL(/\/settings\/account$/);
 
   await page.clock.fastForward("00:20");
   await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });

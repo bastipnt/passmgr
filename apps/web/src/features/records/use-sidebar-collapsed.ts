@@ -1,4 +1,4 @@
-import { PREF_KEYS, usePreference } from "@repo/client";
+import { isBoolean, PREF_KEYS, usePreference } from "@repo/client";
 import { useMediaQuery } from "@repo/ui/hooks/use-media-query";
 import { type RefObject, useEffect, useRef } from "react";
 
@@ -15,7 +15,7 @@ export function useSidebarCollapsed(): [
   RefObject<HTMLButtonElement | null>,
 ] {
   const wide = useMediaQuery(WIDE_QUERY);
-  const [stored, setStored] = usePreference<boolean>(PREF_KEYS.sidebarCollapsed, false);
+  const [stored, setStored] = usePreference(PREF_KEYS.sidebarCollapsed, false, isBoolean);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const toggled = useRef(false);
   const collapsed = wide ? stored : true;

@@ -1,6 +1,9 @@
 import { endServerSession, useTRPCClient } from "@repo/client";
 import { secretsStore } from "@repo/store";
-import { useCallback, useRef } from "react";
+import { useCallback } from "react";
+
+/** Module-wide: the idle lock, the shortcut and the buttons each hold their own hook instance. */
+let locking = false;
 
 /**
  * Lock the vault (web). `secretsStore` is memory-only on web, so a reload drops
@@ -12,11 +15,10 @@ import { useCallback, useRef } from "react";
  */
 export function useLockVault() {
   const trpc = useTRPCClient();
-  const locking = useRef(false);
 
   return useCallback(async () => {
-    if (locking.current) return;
-    locking.current = true;
+    if (locking) return;
+    locking = true;
     // The keys live until the reload: hide the page and make it inert right away,
     // so nothing can be read or clicked while the logout is in flight.
     document.body.style.visibility = "hidden";

@@ -1,4 +1,4 @@
-import { DEFAULT_SORT, PREF_KEYS, SORT_LABELS, type SortOption, usePreference } from "@repo/client";
+import { SORT_LABELS, type SortOption, useSortPreference } from "@repo/client";
 import { AccentPicker, OptionList, Screen, SectionGroup, SettingsSection } from "@repo/ui-native";
 import { ACCENT_HINT } from "@repo/ui-shared";
 import { ScrollView, Text, View } from "react-native";
@@ -11,7 +11,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 }));
 
 export default function GeneralSettingsScreen() {
-  const [sort, setSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
+  const [sort, setSort] = useSortPreference();
   const { accent, setAccent } = useAccentPreference();
 
   return (

@@ -10,7 +10,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { usePreference } from "../hooks/use-preference";
+import { isBoolean, isString, usePreference } from "../hooks/use-preference";
 import { useGetRecords } from "../hooks/use-records";
 import { useTags } from "../hooks/use-tags";
 import { useVaults } from "../hooks/use-vaults";
@@ -88,6 +88,13 @@ export const SORT_LABELS: Record<SortOption, string> = {
   newest: "Newest to oldest",
   oldest: "Oldest to newest",
 };
+
+const isSortOption = (value: unknown): value is SortOption =>
+  typeof value === "string" && Object.hasOwn(SORT_LABELS, value);
+
+export function useSortPreference(): [SortOption, (sort: SortOption) => void] {
+  return usePreference(PREF_KEYS.sort, DEFAULT_SORT, isSortOption);
+}
 
 /**
  * Records are versioned and `created_at` belongs to the latest version, so it
@@ -309,7 +316,7 @@ export function filterByVault(records: DecryptedRecord[], vault: VaultFilter): D
 /** The stored vault filter, while it names a vault of this profile; else every vault. */
 function useVaultFilter(): [VaultFilter, (vault: VaultFilter) => void] {
   const { getVault } = useVaults();
-  const [stored, setStored] = usePreference<VaultFilter>(PREF_KEYS.vaultFilter, "all");
+  const [stored, setStored] = usePreference<VaultFilter>(PREF_KEYS.vaultFilter, "all", isString);
   // Another profile's vault, or one deleted meanwhile.
   return [stored !== "all" && getVault(stored) ? stored : "all", setStored];
 }
@@ -561,15 +568,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const vaultTags = useTags(vaultFilter);
   const [tagFilters, setTagFilters] = useTagFilters(vaultTags);
   const { vaults, hasSeveralVaults } = useVaults();
-  const [storedGroupByVault, setGroupByVault] = usePreference<boolean>(
-    PREF_KEYS.groupByVault,
-    false,
-  );
-  const groupByVault = storedGroupByVault === true;
+  const [groupByVault, setGroupByVault] = usePreference(PREF_KEYS.groupByVault, false, isBoolean);
   const [foldedVaults, setFoldedVaults] = useState<ReadonlySet<string>>(() => new Set());
-  const [storedSort, setStoredSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
-  // localStorage is user-editable and older builds wrote unvalidated values.
-  const sort = storedSort in SORT_LABELS ? storedSort : DEFAULT_SORT;
+  const [sort, setStoredSort] = useSortPreference();
 
   const search = useMemo(() => parseSearch(query, tagSearch), [query, tagSearch]);
   // A lone `#` with tag search off searches nothing yet.

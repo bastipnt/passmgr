@@ -1,7 +1,14 @@
-import { type AccentPreset, DEFAULT_ACCENT, parseAccent } from "@repo/ui-shared";
+import {
+  type AccentPreset,
+  DEFAULT_ACCENT,
+  parseAccent,
+  parseThemePreference,
+  type ThemePreference,
+} from "@repo/ui-shared";
 import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react";
+import { safeLocalStorage } from "../lib/safe-local-storage";
 
-type Theme = "dark" | "light" | "system";
+type Theme = ThemePreference;
 
 type ThemeProviderProps = {
   children: React.ReactNode;
@@ -28,7 +35,7 @@ const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 const accentStorageKey = (storageKey: string) => `${storageKey}-accent`;
 
 const readStoredAccent = (storageKey: string) =>
-  parseAccent(localStorage.getItem(accentStorageKey(storageKey)));
+  parseAccent(safeLocalStorage.get(accentStorageKey(storageKey)));
 
 /**
  * Sets the stored accent on <html> before React renders, so the auth screens
@@ -45,8 +52,8 @@ export function ThemeProvider({
   storageKey = "vite-ui-theme",
   ...props
 }: ThemeProviderProps) {
-  const [theme, setTheme] = useState<Theme>(
-    () => (localStorage.getItem(storageKey) as Theme) || defaultTheme,
+  const [theme, setTheme] = useState<Theme>(() =>
+    parseThemePreference(safeLocalStorage.get(storageKey), defaultTheme),
   );
   const [accent, setAccent] = useState(() => readStoredAccent(storageKey));
 
@@ -74,12 +81,12 @@ export function ThemeProvider({
   const value = {
     theme,
     setTheme: (theme: Theme) => {
-      localStorage.setItem(storageKey, theme);
+      safeLocalStorage.set(storageKey, theme);
       setTheme(theme);
     },
     accent,
     setAccent: (accent: AccentPreset) => {
-      localStorage.setItem(accentStorageKey(storageKey), accent);
+      safeLocalStorage.set(accentStorageKey(storageKey), accent);
       setAccent(accent);
     },
   };

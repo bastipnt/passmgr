@@ -1,3 +1,4 @@
+import { safeLocalStorage } from "@repo/ui/lib/safe-local-storage";
 import { useSyncExternalStore } from "react";
 
 export const DEMO_OVERRIDE_KEY = "passmgr:demo-override";
@@ -9,12 +10,7 @@ export function isDemoBuild(): boolean {
 }
 
 function readOverride(): boolean {
-  try {
-    return localStorage.getItem(DEMO_OVERRIDE_KEY) !== null;
-  } catch {
-    // Private window or blocked storage: stay in demo mode.
-    return false;
-  }
+  return safeLocalStorage.get(DEMO_OVERRIDE_KEY) !== null;
 }
 
 /** A demo build, unless this browser turned it off (`toggleDemoOverride`). */
@@ -28,12 +24,8 @@ export function isDemoMode(): boolean {
  * profile stays a demo profile either way. Resolves whether demo mode is now on.
  */
 export function toggleDemoOverride(): boolean {
-  try {
-    if (readOverride()) localStorage.removeItem(DEMO_OVERRIDE_KEY);
-    else localStorage.setItem(DEMO_OVERRIDE_KEY, "1");
-  } catch {
-    return isDemoMode();
-  }
+  if (readOverride()) safeLocalStorage.remove(DEMO_OVERRIDE_KEY);
+  else safeLocalStorage.set(DEMO_OVERRIDE_KEY, "1");
   for (const listener of listeners) listener();
   return isDemoMode();
 }

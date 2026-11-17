@@ -1,4 +1,4 @@
-import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, useLock, usePreference } from "@repo/client";
+import { AUTO_LOCK_PREFERENCE, useChoicePreference, useLock } from "@repo/client";
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
@@ -15,7 +15,7 @@ import { AppState } from "react-native";
  * This is a lock, not a sign-out — the vault and the persisted login stay on the device.
  */
 export function useAutoLock() {
-  const [minutes] = usePreference<number>(PREF_KEYS.autoLockMinutes, AUTO_LOCK_DEFAULT_MINUTES);
+  const [minutes] = useChoicePreference(AUTO_LOCK_PREFERENCE);
   const lock = useLock();
 
   const lockRef = useRef(lock);

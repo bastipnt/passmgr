@@ -146,6 +146,14 @@ PostCSS plugin didn't, and the fonts 404ed). `vite-plugin-preload-fonts.ts` prel
 static files only), and a missing `/assets/*` is a 404, never `index.html`. `verify:deployment` fetches every file in
 each encoding, so a tampered precompressed copy fails it too.
 
+## Preferences
+
+Device preferences go through `@repo/client` `usePreference(key, fallback, isValid)` (web store:
+`hooks/use-preferences-store.ts`, on `@repo/ui/lib/safe-local-storage`, which never throws when storage is
+blocked). Pass a validator: localStorage is user-editable, and a stored value it rejects reads as the fallback. The
+security durations use `useChoicePreference(AUTO_LOCK_PREFERENCE)` & co. (`security-choices.ts`, only listed
+values pass); the theme is parsed by `@repo/ui-shared` `parseThemePreference`.
+
 ## Error handling
 
 - Shared logic lives in `packages/client/src/errors`: `userMessage` (tRPC error code → fixed text, never the

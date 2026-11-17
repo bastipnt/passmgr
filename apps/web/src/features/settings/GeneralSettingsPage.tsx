@@ -1,4 +1,4 @@
-import { DEFAULT_SORT, PREF_KEYS, SORT_LABELS, type SortOption, usePreference } from "@repo/client";
+import { SORT_LABELS, type SortOption, useSortPreference } from "@repo/client";
 import { AccentPicker } from "@repo/ui/complex-components/AccentPicker";
 import {
   Item,
@@ -47,7 +47,7 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
 
 export default function GeneralSettingsPage() {
   const { theme, setTheme } = useTheme();
-  const [sort, setSort] = usePreference<SortOption>(PREF_KEYS.sort, DEFAULT_SORT);
+  const [sort, setSort] = useSortPreference();
   const isMobile = useIsMobile();
 
   return (

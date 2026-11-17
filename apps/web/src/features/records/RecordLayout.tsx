@@ -1,4 +1,4 @@
-import { AUTO_LOCK_DEFAULT_MINUTES, PREF_KEYS, usePreference, useShortcut } from "@repo/client";
+import { useShortcut } from "@repo/client";
 import {
   SortedRecordsProvider,
   useSortedRecords,
@@ -16,12 +16,11 @@ import { recordPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { VerifyEmailPrompt } from "@/components/VerifyEmailDialog";
-import { useIdleLock } from "@/hooks/use-idle-lock";
+import { useLockVault } from "@/hooks/use-lock-vault";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import { createSheetSearch } from "./CreateRecordSheet";
-import { useLockVault } from "./lock-vault";
 import { NoSearchResults } from "./NoSearchResults";
 import RecordList from "./RecordList";
 import { SidebarFooter } from "./SidebarFooter";
@@ -84,23 +83,12 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   }, [searchParams, setSearchParams]);
   const isMobile = useIsMobile();
   const lockVault = useLockVault();
-  const [autoLockMinutes] = usePreference<number>(
-    PREF_KEYS.autoLockMinutes,
-    AUTO_LOCK_DEFAULT_MINUTES,
-  );
 
   const [sidebarCollapsed, setSidebarCollapsed, toggleRef] = useSidebarCollapsed();
   const sidebarId = useId();
 
-  useIdleLock(autoLockMinutes, lockVault);
-
   useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
     description: "Create new record",
-  });
-
-  useShortcut("$mod+l", lockVault, {
-    description: "Lock vault",
-    allowInInput: true,
   });
 
   useShortcut("Shift+?", () => setHelpOpen((o) => !o), {

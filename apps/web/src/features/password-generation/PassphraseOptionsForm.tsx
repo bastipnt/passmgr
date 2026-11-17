@@ -1,4 +1,4 @@
-import { type PassphraseOptions, SEPARATORS } from "@repo/crypto";
+import { PASSPHRASE_WORDS_RANGE, type PassphraseOptions, SEPARATORS } from "@repo/crypto";
 import { Field, FieldLabel } from "@repo/ui/components/Field";
 import {
   Select,
@@ -28,8 +28,8 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
         </div>
         <Slider
           aria-labelledby={wordsLabelId}
-          min={3}
-          max={10}
+          min={PASSPHRASE_WORDS_RANGE.min}
+          max={PASSPHRASE_WORDS_RANGE.max}
           step={1}
           value={phOpts.wordCount}
           onValueChange={(v) =>

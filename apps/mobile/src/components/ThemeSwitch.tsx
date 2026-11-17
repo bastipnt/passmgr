@@ -1,12 +1,9 @@
 import { SegmentedControl } from "@repo/ui-native";
+import { THEME_PREFERENCES } from "@repo/ui-shared";
 import { Text, View } from "react-native";
-import {
-  THEME_LABELS,
-  type ThemePreference,
-  useThemePreference,
-} from "@/hooks/use-theme-preference";
+import { THEME_LABELS, useThemePreference } from "@/hooks/use-theme-preference";
 
-const OPTIONS = (["system", "light", "dark"] as const satisfies ThemePreference[]).map((value) => ({
+const OPTIONS = THEME_PREFERENCES.map((value) => ({
   value,
   label: THEME_LABELS[value],
 }));

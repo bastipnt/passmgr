@@ -8,10 +8,10 @@ import { renderWithProviders, screen } from "@/test/render";
 import RecordLayout from "./RecordLayout";
 
 // Every lock entry point goes through `useLockVault` (it ends the server session);
-// the hook itself is covered in lock-vault.test.ts, the phone's (AccountSheet) in
-// sync-status-card.test.tsx.
+// the hook itself is covered in use-lock-vault.test.ts, the phone's (AccountSheet) in
+// sync-status-card.test.tsx, the shortcut and idle lock in app/vault-lock.test.tsx.
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
-vi.mock("./lock-vault", () => ({ useLockVault: () => lockVault }));
+vi.mock("@/hooks/use-lock-vault", () => ({ useLockVault: () => lockVault }));
 
 const isMobile = vi.hoisted(() => ({ value: false }));
 vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => isMobile.value }));
@@ -57,15 +57,6 @@ describe("lock entry points", () => {
     renderShell(<RecordLayout>content</RecordLayout>);
 
     await userEvent.click(screen.getByRole("button", { name: "Lock vault" }));
-
-    expect(lockVault).toHaveBeenCalledTimes(1);
-  });
-
-  it("desktop: the lock shortcut locks through useLockVault", async () => {
-    isMobile.value = false;
-    renderShell(<RecordLayout>content</RecordLayout>);
-
-    await userEvent.keyboard("{Control>}l{/Control}");
 
     expect(lockVault).toHaveBeenCalledTimes(1);
   });

@@ -23,7 +23,7 @@ import { type ReactNode, useState } from "react";
 import { Link } from "wouter";
 import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { DemoVaultNotice } from "@/features/demo";
-import { useLockVault } from "./lock-vault";
+import { useLockVault } from "@/hooks/use-lock-vault";
 import { SyncDot, SyncStatusCard } from "./SyncStatusCard";
 
 const TITLE = "Account";

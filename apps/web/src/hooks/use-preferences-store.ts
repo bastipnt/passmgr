@@ -1,17 +1,8 @@
-import { type PreferencesStore } from "@repo/client";
+import type { PreferencesStore } from "@repo/client";
+import { safeLocalStorage } from "@repo/ui/lib/safe-local-storage";
 
-export function usePreferencesStore() {
-  const preferencesStore: PreferencesStore = {
-    get(key: string): string | null {
-      return localStorage.getItem(key);
-    },
-    set(key: string, value: string): void {
-      localStorage.setItem(key, value);
-    },
-    remove(key: string): void {
-      localStorage.removeItem(key);
-    },
-  };
+const preferencesStore: PreferencesStore = safeLocalStorage;
 
+export function usePreferencesStore(): PreferencesStore {
   return preferencesStore;
 }

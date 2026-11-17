@@ -1,5 +1,6 @@
 import { useCallback, useSyncExternalStore } from "react";
 import type { PreferencesStore } from "../preferences/PreferencesStore";
+import type { ChoicePreference } from "../preferences/security-choices";
 import { usePreferences } from "../providers/PreferencesProvider";
 
 const listeners = new Map<string, Set<() => void>>();
@@ -58,13 +59,22 @@ function read<T>(store: PreferencesStore, key: string, fallback: T): T {
 /**
  * Read and write one non-sensitive preference. Every component on the same key
  * re-renders together, so a settings control and the feature it configures stay
- * in sync without a reload.
+ * in sync without a reload. A stored value `isValid` rejects reads as `fallback`:
+ * localStorage is user-editable, and older builds wrote unvalidated values.
+ * Pass a stable `isValid` (module scope), it is a snapshot dependency.
  */
-export function usePreference<T>(key: string, fallback: T): [T, (value: T) => void] {
+export function usePreference<T>(
+  key: string,
+  fallback: T,
+  isValid?: (value: unknown) => value is T,
+): [T, (value: T) => void] {
   const store = usePreferences();
 
   const subscribeToKey = useCallback((onChange: () => void) => subscribe(key, onChange), [key]);
-  const getSnapshot = useCallback(() => read(store, key, fallback), [store, key, fallback]);
+  const getSnapshot = useCallback(() => {
+    const value = read(store, key, fallback);
+    return !isValid || isValid(value) ? value : fallback;
+  }, [store, key, fallback, isValid]);
 
   const value = useSyncExternalStore(subscribeToKey, getSnapshot, getSnapshot);
 
@@ -79,6 +89,20 @@ export function usePreference<T>(key: string, fallback: T): [T, (value: T) => vo
 
   return [value, setValue];
 }
+
+/** One of the fixed-duration security preferences (`security-choices.ts`). */
+export function useChoicePreference(
+  preference: ChoicePreference,
+): [number, (value: number) => void] {
+  return usePreference(preference.key, preference.fallback, preference.isValid);
+}
+
+export const isBoolean = (value: unknown): value is boolean => typeof value === "boolean";
+
+export const isString = (value: unknown): value is string => typeof value === "string";
+
+export const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
 
 /** Test seam — drops the parsed-snapshot cache. */
 export function clearPreferenceCache(): void {

@@ -1,11 +1,4 @@
-import { PREF_KEYS, usePreference } from "@repo/client";
-import {
-  type GeneratorMode,
-  PASSPHRASE_DEFAULTS,
-  PASSWORD_DEFAULTS,
-  type PassphraseOptions,
-  type PasswordOptions,
-} from "@repo/crypto";
+import { useGeneratorPreferences } from "@repo/client";
 import { Button, Screen, SettingsSection } from "@repo/ui-native";
 import { ScrollView } from "react-native";
 import GeneratorModeSwitch from "@/features/password-generation/components/GeneratorModeSwitch";
@@ -13,21 +6,8 @@ import PassphraseOptionsForm from "@/features/password-generation/components/Pas
 import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
 
 export default function GeneratorSettingsScreen() {
-  const [mode, setMode] = usePreference<GeneratorMode>(PREF_KEYS.generatorMode, "password");
-  const [pwOpts, setPwOpts] = usePreference<PasswordOptions>(
-    PREF_KEYS.generatorPasswordOptions,
-    PASSWORD_DEFAULTS,
-  );
-  const [phOpts, setPhOpts] = usePreference<PassphraseOptions>(
-    PREF_KEYS.generatorPassphraseOptions,
-    PASSPHRASE_DEFAULTS,
-  );
-
-  function resetToDefaults() {
-    setMode("password");
-    setPwOpts(PASSWORD_DEFAULTS);
-    setPhOpts(PASSPHRASE_DEFAULTS);
-  }
+  const { mode, setMode, pwOpts, setPwOpts, phOpts, setPhOpts, resetToDefaults } =
+    useGeneratorPreferences();
 
   return (
     <Screen>

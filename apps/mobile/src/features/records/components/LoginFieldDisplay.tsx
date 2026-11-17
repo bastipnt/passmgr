@@ -1,9 +1,8 @@
 import {
   type FieldSpec,
-  PREF_KEYS,
-  REVEAL_TIMEOUT_DEFAULT_SECONDS,
+  REVEAL_TIMEOUT_PREFERENCE,
+  useChoicePreference,
   usePasswordStrength,
-  usePreference,
 } from "@repo/client";
 import { RecordDetailsItem } from "@repo/ui-native";
 import { websiteLink } from "@repo/util";
@@ -26,10 +25,7 @@ type LoginFieldDisplayProps = {
  */
 export default function LoginFieldDisplay({ spec, onCopy }: LoginFieldDisplayProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
-  const [revealSeconds] = usePreference<number>(
-    PREF_KEYS.revealTimeoutSeconds,
-    REVEAL_TIMEOUT_DEFAULT_SECONDS,
-  );
+  const [revealSeconds] = useChoicePreference(REVEAL_TIMEOUT_PREFERENCE);
   const revealTimeoutMs = revealSeconds * 1_000;
   const strength = usePasswordStrength(spec.kind === "password" ? spec.value : undefined);
   const copy = onCopy ? () => onCopy(spec.copyValue ?? spec.value) : undefined;

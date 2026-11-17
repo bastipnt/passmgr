@@ -21,6 +21,10 @@ export type PassphraseOptions = {
 /** Which generator the UI is currently driving. */
 export type GeneratorMode = "password" | "passphrase";
 
+/** What the generator settings offer; a stored value outside them is not used. */
+export const PASSWORD_LENGTH_RANGE = { min: 8, max: 128 } as const;
+export const PASSPHRASE_WORDS_RANGE = { min: 3, max: 10 } as const;
+
 export const PASSWORD_DEFAULTS: PasswordOptions = {
   length: 16,
   uppercase: true,

@@ -1,4 +1,4 @@
-import type { PasswordOptions } from "@repo/crypto";
+import { PASSWORD_LENGTH_RANGE, type PasswordOptions } from "@repo/crypto";
 import { Input, OptionToggle, Slider } from "@repo/ui-native";
 import { clampInt } from "@repo/util";
 import { Text, View } from "react-native";
@@ -18,8 +18,8 @@ export default function PasswordOptionsForm({ pwOpts, setPwOpts }: PasswordOptio
         </View>
         <Slider
           accessibilityLabel="Password length"
-          min={8}
-          max={128}
+          min={PASSWORD_LENGTH_RANGE.min}
+          max={PASSWORD_LENGTH_RANGE.max}
           step={1}
           value={pwOpts.length}
           onValueChange={(v) => setPwOpts((o) => ({ ...o, length: v }))}

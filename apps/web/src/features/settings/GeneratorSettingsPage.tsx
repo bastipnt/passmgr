@@ -1,11 +1,4 @@
-import { PREF_KEYS, usePreference } from "@repo/client";
-import {
-  type GeneratorMode,
-  PASSPHRASE_DEFAULTS,
-  PASSWORD_DEFAULTS,
-  type PassphraseOptions,
-  type PasswordOptions,
-} from "@repo/crypto";
+import { useGeneratorPreferences } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { Item, ItemContent, ItemDescription, ItemGroup, ItemTitle } from "@repo/ui/components/Item";
 import { RotateCcwIcon } from "lucide-react";
@@ -14,21 +7,8 @@ import { PassphraseOptionsForm, PasswordOptionsForm } from "@/features/password-
 import GeneratorModeSwitch from "../password-generation/GeneratorModeSwitch";
 
 export default function GeneratorSettingsPage() {
-  const [mode, setMode] = usePreference<GeneratorMode>(PREF_KEYS.generatorMode, "password");
-  const [pwOpts, setPwOpts] = usePreference<PasswordOptions>(
-    PREF_KEYS.generatorPasswordOptions,
-    PASSWORD_DEFAULTS,
-  );
-  const [phOpts, setPhOpts] = usePreference<PassphraseOptions>(
-    PREF_KEYS.generatorPassphraseOptions,
-    PASSPHRASE_DEFAULTS,
-  );
-
-  function resetToDefaults() {
-    setMode("password");
-    setPwOpts(PASSWORD_DEFAULTS);
-    setPhOpts(PASSPHRASE_DEFAULTS);
-  }
+  const { mode, setMode, pwOpts, setPwOpts, phOpts, setPhOpts, resetToDefaults } =
+    useGeneratorPreferences();
 
   return (
     <>

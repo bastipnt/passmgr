@@ -1,7 +1,6 @@
 import { useCallback } from "react";
-import { PREF_KEYS } from "../preferences/preference-keys";
-import { CLIPBOARD_CLEAR_DEFAULT_SECONDS } from "../preferences/security-choices";
-import { usePreference } from "./use-preference";
+import { CLIPBOARD_CLEAR_PREFERENCE } from "../preferences/security-choices";
+import { useChoicePreference } from "./use-preference";
 
 /** One pending clear at a time — a fresh copy replaces the previous timer. */
 let clearTimer: ReturnType<typeof setTimeout> | undefined;
@@ -15,10 +14,7 @@ let clearTimer: ReturnType<typeof setTimeout> | undefined;
  * web, `Clipboard.setString` on native.
  */
 export function useCopyToClipboard(write: (text: string) => void | Promise<void>) {
-  const [clearSeconds] = usePreference<number>(
-    PREF_KEYS.clipboardClearSeconds,
-    CLIPBOARD_CLEAR_DEFAULT_SECONDS,
-  );
+  const [clearSeconds] = useChoicePreference(CLIPBOARD_CLEAR_PREFERENCE);
 
   return useCallback(
     (value: string | undefined) => {

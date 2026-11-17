@@ -1,7 +1,5 @@
-import { secretsStore } from "@repo/store";
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { useLockVault } from "./lock-vault";
 
 const logout = vi.hoisted(() => vi.fn<() => Promise<unknown>>());
 vi.mock("@repo/client/src/util/trpc", () => ({
@@ -11,7 +9,14 @@ vi.mock("@repo/client/src/util/trpc", () => ({
 
 const reload = vi.fn();
 
-beforeEach(() => {
+// The in-flight guard is module state: a fresh module per test.
+let useLockVault: typeof import("./use-lock-vault").useLockVault;
+let secretsStore: typeof import("@repo/store").secretsStore;
+
+beforeEach(async () => {
+  vi.resetModules();
+  ({ useLockVault } = await import("./use-lock-vault"));
+  ({ secretsStore } = await import("@repo/store"));
   vi.spyOn(window, "location", "get").mockReturnValue({ reload } as unknown as Location);
 });
 
@@ -70,6 +75,18 @@ describe("useLockVault", () => {
     const { result } = renderHook(() => useLockVault());
 
     await act(() => Promise.all([result.current(), result.current()]));
+
+    expect(logout).toHaveBeenCalledTimes(1);
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("ignores a lock from another caller while the first is in flight", async () => {
+    signedIn(true);
+    logout.mockResolvedValue({ ok: true });
+    const idle = renderHook(() => useLockVault());
+    const button = renderHook(() => useLockVault());
+
+    await act(() => Promise.all([idle.result.current(), button.result.current()]));
 
     expect(logout).toHaveBeenCalledTimes(1);
     expect(reload).toHaveBeenCalledTimes(1);

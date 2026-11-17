@@ -1,10 +1,14 @@
 import { PREF_KEYS, type PreferencesStore, usePreferences } from "@repo/client";
-import { type AccentPreset, accentVariables, parseAccent } from "@repo/ui-shared";
+import {
+  type AccentPreset,
+  accentVariables,
+  parseAccent,
+  parseThemePreference,
+  type ThemePreference,
+} from "@repo/ui-shared";
 import { useCallback, useState } from "react";
 import { Appearance } from "react-native";
 import { Uniwind } from "uniwind";
-
-export type ThemePreference = "system" | "light" | "dark";
 
 export const THEME_LABELS: Record<ThemePreference, string> = {
   system: "System",
@@ -13,9 +17,7 @@ export const THEME_LABELS: Record<ThemePreference, string> = {
 };
 
 export function getStoredTheme(preferences: PreferencesStore): ThemePreference {
-  const stored = preferences.get(PREF_KEYS.theme);
-  if (stored && stored in THEME_LABELS) return stored as ThemePreference;
-  return "system";
+  return parseThemePreference(preferences.get(PREF_KEYS.theme));
 }
 
 /**

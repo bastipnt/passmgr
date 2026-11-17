@@ -23,7 +23,7 @@ vi.mock("@repo/client/src/hooks/use-pass-monitor", async (importActual) => ({
   usePassMonitorIssueCount: () => issueCount.value,
 }));
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
-vi.mock("./lock-vault", () => ({ useLockVault: () => lockVault }));
+vi.mock("@/hooks/use-lock-vault", () => ({ useLockVault: () => lockVault }));
 vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => true }));
 
 const connect = vi.fn(async () => "online" as const);

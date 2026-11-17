@@ -1,9 +1,4 @@
-import {
-  type DetailFieldSpec,
-  PREF_KEYS,
-  REVEAL_TIMEOUT_DEFAULT_SECONDS,
-  usePreference,
-} from "@repo/client";
+import { type DetailFieldSpec, REVEAL_TIMEOUT_PREFERENCE, useChoicePreference } from "@repo/client";
 import {
   DetailBadge,
   DetailCodeBlock,
@@ -46,10 +41,7 @@ export default function FieldDisplay({
   actions,
   className,
 }: FieldDisplayProps) {
-  const [revealSeconds] = usePreference<number>(
-    PREF_KEYS.revealTimeoutSeconds,
-    REVEAL_TIMEOUT_DEFAULT_SECONDS,
-  );
+  const [revealSeconds] = useChoicePreference(REVEAL_TIMEOUT_PREFERENCE);
   const revealTimeoutMs = revealSeconds * 1_000;
   const copyValue = spec.copyValue ?? spec.value;
   const copy = onCopy && (() => onCopy(copyValue, spec.label));

@@ -5,6 +5,7 @@ import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
 import { PageTransitions, usePageLocation, usePageSearch } from "./page-transitions";
 import { authPaths, pageDepths, settingsPaths } from "./route-paths";
+import { VaultLock } from "./VaultLock";
 
 const RecordRoutes = lazyPreload(() => import("@/features/records"));
 const AuthRoutes = lazyPreload(() => import("@/features/auth"));
@@ -14,6 +15,7 @@ function Routes() {
   return (
     <Router hook={usePageLocation} searchHook={usePageSearch}>
       <PageTransitions pageDepths={pageDepths} />
+      <VaultLock />
       <Suspense fallback={null}>
         <DrawerProvider>
           <Switch>

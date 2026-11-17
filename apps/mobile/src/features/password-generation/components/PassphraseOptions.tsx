@@ -1,4 +1,4 @@
-import { type PassphraseOptions, SEPARATORS } from "@repo/crypto";
+import { PASSPHRASE_WORDS_RANGE, type PassphraseOptions, SEPARATORS } from "@repo/crypto";
 import { OptionToggle, SegmentedControl, Slider } from "@repo/ui-native";
 import { Text, View } from "react-native";
 
@@ -17,8 +17,8 @@ export default function PassphraseOptionsForm({ phOpts, setPhOpts }: PassphraseO
         </View>
         <Slider
           accessibilityLabel="Word count"
-          min={3}
-          max={10}
+          min={PASSPHRASE_WORDS_RANGE.min}
+          max={PASSPHRASE_WORDS_RANGE.max}
           step={1}
           value={phOpts.wordCount}
           onValueChange={(v) => setPhOpts((o) => ({ ...o, wordCount: v }))}
