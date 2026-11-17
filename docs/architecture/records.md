@@ -74,7 +74,7 @@ only wire their clipboard (`apps/web/src/lib/clipboard.ts`, `apps/mobile/src/lib
 It awaits the write and resolves `false` on failure (the caller shows an error, never "Copied"), and with the
 Clear clipboard preference (Settings → Security) clears after the delay, one pending clear at a time. The clear
 leaves newer content alone: it reads the clipboard back where that doesn't prompt (web with `clipboard-read`
-granted, Android), and on web a `copy` / `cut` in the page drops it; iOS and web without the permission clear
+granted, Android in the foreground: a background app reads it empty, which counts as unreadable), and on web a `copy` / `cut` in the page drops it; iOS and web without the permission clear
 unread. A lock runs the pending clear at once (`flushClipboardClear`; web before its reload, which would cancel the
 timer). Lint enforces the single path: `no-restricted-properties` on `writeText` (`.oxlintrc.base.json`), and on
 mobile `no-restricted-imports` of `expo-clipboard` / `@react-native-clipboard/clipboard` outside `lib/clipboard.ts`.

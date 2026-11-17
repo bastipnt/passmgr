@@ -41,7 +41,12 @@ function RouteErrorFallback({
         <Button
           variant="ghost"
           className="w-full"
-          onPress={() => void nativeClipboard.write(details).then(() => setCopied(true))}
+          onPress={() =>
+            void nativeClipboard.write(details).then(
+              () => setCopied(true),
+              () => undefined, // No providers here for a toast: the label just stays.
+            )
+          }
         >
           {copied ? "Copied" : "Copy error details"}
         </Button>

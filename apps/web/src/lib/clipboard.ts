@@ -4,8 +4,8 @@ import { type ClipboardAccess, useCopyToClipboard } from "@repo/client";
  * The browser's clipboard. Reads only once the user has granted
  * `clipboard-read` (else the auto-clear would raise a paste prompt); without
  * it a copy in the page drops the pending clear instead. A copy in another app
- * can't be seen, but the clear needs this tab focused, so it only runs once the
- * user is back.
+ * can't be seen; the clear's write needs this tab focused, so with the tab left
+ * when it fires the clipboard keeps whatever it holds.
  */
 export const webClipboard = {
   // The one direct write: everything else copies through `useCopySecret`.
