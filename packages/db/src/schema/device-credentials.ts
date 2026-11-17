@@ -27,7 +27,6 @@ export const deviceCredentialsTable = pgTable(
     // login on the device): device logins stop SESSION_MAX_AGE_MS after it.
     passwordVerifiedAt: timestamp().defaultNow().notNull(),
 
-    deviceName: varchar(),
     lastUsedAt: timestamp(),
     created_at: timestamp().defaultNow().notNull(),
   },

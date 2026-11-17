@@ -116,7 +116,7 @@ describe("device login (real Postgres + Redis)", () => {
     const caller = await signed(session, "query", "user.heartbeat");
     await expect(caller.user.heartbeat()).resolves.toEqual({ ok: true });
     const [row] = await db.select().from(deviceCredentialsTable);
-    expect(row).toMatchObject({ signCount: 1, deviceName: null });
+    expect(row).toMatchObject({ signCount: 1 });
     expect(row?.lastUsedAt).toBeInstanceOf(Date);
   });
 

@@ -171,8 +171,8 @@ was right); both failures are written without awaiting, so the answer takes as l
 `email_verified`, two-factor on / off / new backup codes, biometric device credential added / removed, `session_revoked`
 (the device is the one signed out) and `other_sessions_revoked`. Each row holds only type, device name and time: no
 IP, nothing secret. The device name is sealed to the user's current X25519 public key (`sealAnonymous`, no sender key,
-`deviceKeyVersion`), so the server writes it but can't read it back, and a copy of the database doesn't show which
-devices someone uses; the client opens it in `useAccountActivity` (`secretsStore.openAccountEventDeviceName`; another
+`deviceKeyVersion`), so the server writes it but can't read it back, and a copy of Postgres doesn't show which
+devices someone uses (`device_credentials` keeps no device name either; only a live Redis session holds it in clear); the client opens it in `useAccountActivity` (`secretsStore.openAccountEventDeviceName`; another
 keypair version shows as an unknown device). `newDevice` compares `deviceNameHash` (`hashDeviceName`: HMAC under the
 server key, scoped to the user). Type, time and the flag stay readable: pruning needs them, and the server sees them when
 it records the event anyway (as it sees the device name then, and keeps it in the Redis session). Kept: the newest `ACCOUNT_EVENTS_MAX` (500) per user plus, counted apart since anyone who knows the

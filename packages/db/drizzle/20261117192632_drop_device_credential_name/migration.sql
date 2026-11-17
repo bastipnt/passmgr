@@ -1,0 +1,1 @@
+ALTER TABLE "device_credentials" DROP COLUMN "deviceName";

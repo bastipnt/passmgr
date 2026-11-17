@@ -199,7 +199,6 @@ export const userRouter = router({
           userId: ctx.userId,
           publicKey,
           algorithm,
-          deviceName: ctx.deviceName,
           passwordVerifiedAt: new Date(ctx.authenticatedAt),
         })
         .onConflictDoNothing()
