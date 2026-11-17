@@ -1,7 +1,7 @@
 import type { MemberVault } from "@repo/schema";
 import { and, eq, inArray, isNull, max } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
-import { records, revokedRecords, revokedVaults } from "./tables";
+import { isPending, records, revokedRecords, revokedVaults } from "./tables";
 
 /** A vault the user lost access to, with the unsent record versions kept from it. */
 export type RevokedVault = {
@@ -54,7 +54,7 @@ export async function keepRevokedChanges(vaults: readonly MemberVault[], db: Loc
       latest,
       and(eq(records.recordId, latest.recordId), eq(records.version, latest.maxVersion)),
     )
-    .where(and(eq(records.syncState, "pending"), isNull(records.deleted_at)));
+    .where(and(isPending, isNull(records.deleted_at)));
   if (rows.length === 0) return;
 
   const revokedAt = new Date().toISOString();

@@ -64,7 +64,7 @@ class Argon2WorkerService {
       worker.onerror = (event: ErrorEvent) => {
         event.preventDefault();
         this.terminate();
-        reject(new Error(`Argon2 worker failed: ${event.message || "could not load"}`));
+        reject(new Error(`Key derivation worker failed: ${event.message || "could not load"}`));
       };
 
       worker.postMessage(message, transfer);

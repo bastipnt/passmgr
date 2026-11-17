@@ -231,9 +231,7 @@ export async function dropDeletesOfTombstones(
       .get();
     if ((synced?.version ?? 0) > row.version) continue;
     await db.delete(outbox).where(eq(outbox.recordId, row.recordId));
-    await db
-      .delete(records)
-      .where(and(eq(records.recordId, row.recordId), eq(records.syncState, "pending")));
+    await db.delete(records).where(and(eq(records.recordId, row.recordId), isPending));
   }
 }
 
@@ -362,13 +360,7 @@ async function shiftPendingDown(recordId: string, above: number, by: number, db:
   const later = await db
     .select({ version: records.version })
     .from(records)
-    .where(
-      and(
-        eq(records.recordId, recordId),
-        eq(records.syncState, "pending"),
-        gt(records.version, above),
-      ),
-    )
+    .where(and(eq(records.recordId, recordId), isPending, gt(records.version, above)))
     .orderBy(asc(records.version));
   for (const { version } of later) {
     await db
@@ -459,7 +451,7 @@ export async function replacePendingCiphertexts(
         and(
           eq(records.recordId, recordId),
           eq(records.version, version),
-          eq(records.syncState, "pending"),
+          isPending,
           eq(records.keyVersion, fromKeyVersion),
         ),
       );

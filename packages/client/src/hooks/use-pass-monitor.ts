@@ -49,11 +49,10 @@ const versionKey = (record: DecryptedRecord) =>
   `${record.recordId}|${record.version}|${record.clientUpdatedAt}`;
 
 function useCheapFindings() {
-  const { records, ready, revision } = useRecordsContext();
+  const { records, ready } = useRecordsContext();
 
-  // `records` is a new array on every render; `revision` says when its content changed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const snapshot = useMemo(() => records, [revision]);
+  // `records` keeps its identity until a record changes (RecordsProvider).
+  const snapshot = records;
 
   const cheap = useMemo(
     () =>

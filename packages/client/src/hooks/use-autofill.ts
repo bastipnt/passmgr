@@ -36,7 +36,7 @@ export function useAutofillState(appActive: boolean) {
  * foreground. The native "Create login" form generates with the password generator defaults.
  */
 export function useAutofillSync(appActive: boolean) {
-  const { records, ready, revision } = useRecordsContext();
+  const { records, ready } = useRecordsContext();
   const { vaultUnlocked } = useContext(SessionContext);
   const store = useStore();
   const { state } = useAutofillState(appActive);
@@ -45,9 +45,8 @@ export function useAutofillSync(appActive: boolean) {
   const generator = useMemo(() => ({ ...PASSWORD_DEFAULTS, ...pwOpts }), [pwOpts]);
   usePendingAutofillLogins(appActive);
 
-  // `records` is a new array on every render; `revision` says when its content changed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const entries = useMemo(() => autofillEntries(records), [revision]);
+  // `records` keeps its identity until a record changes (RecordsProvider).
+  const entries = useMemo(() => autofillEntries(records), [records]);
 
   useEffect(() => {
     const entry = store.current()?.entry;

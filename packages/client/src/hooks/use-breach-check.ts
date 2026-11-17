@@ -66,7 +66,7 @@ export function useStoredBreachChecks() {
  * result or with one older than `BREACH_RECHECK_DAYS`.
  */
 export function useBreachCheck(): BreachCheckState {
-  const { records, ready, revision } = useRecordsContext();
+  const { records, ready } = useRecordsContext();
   const { vault } = useStore();
   const { networkOffline } = useContext(SessionContext);
   const { current, setLoaded } = useStoredBreachChecks();
@@ -76,9 +76,8 @@ export function useBreachCheck(): BreachCheckState {
   const enabled = current?.enabled ?? null;
   const checks = current?.checks;
 
-  // `records` is a new array on every render; `revision` says when its content changed.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const snapshot = useMemo(() => records, [revision]);
+  // `records` keeps its identity until a record changes (RecordsProvider).
+  const snapshot = records;
   const monitored = useMemo(
     () => (ready ? snapshot.filter((record) => monitoredPassword(record)) : []),
     [snapshot, ready],
