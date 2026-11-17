@@ -21,6 +21,7 @@ import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFac
 import { finishPendingRecovery, RecoveryFailedError } from "@repo/client/src/recover";
 import {
   createUserKeyPair,
+  deriveOpaquePassword,
   genKey,
   getPasswordKekParams,
   SESSION_SIGNED_OUT,
@@ -684,6 +685,21 @@ describe("useConnectServer", () => {
       vi.mocked(session.attachServer).mock.invocationCallOrder[0] ?? 0,
     );
     expect(secretsStore.hasServerSession).toBe(true);
+  });
+
+  it("keeps the raw OPAQUE password for the reconnect when only that form logs in", async () => {
+    unlockedVault();
+    // "é" as "e" + combining accent, registered before NFKC.
+    const typed = "caf\u{65}\u{301}";
+    secretsStore.keepOpaquePassword(await deriveOpaquePassword(typed, ALICE.email));
+    const accepted = vi.mocked(loginUserCore).getMockImplementation();
+    vi.mocked(loginUserCore).mockRejectedValueOnce(new OpaqueLoginFailedError());
+    vi.mocked(loginUserCore).mockImplementationOnce(accepted!);
+
+    expect(await connectOnce(typed)).toBe("online");
+    expect(secretsStore.copyOpaquePassword()).toEqual(
+      await deriveOpaquePassword(typed, ALICE.email, "raw"),
+    );
   });
 
   it("refuses keys that don't open this vault, storing nothing", async () => {

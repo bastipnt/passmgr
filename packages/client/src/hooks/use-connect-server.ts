@@ -139,7 +139,24 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
                 try {
                   // A pending reset registers the new password: in its NFKC form only.
                   if (form === "nfkc") await finishPendingReset(email, opaquePassword);
-                  return await loginWithOpaquePassword(trpc, session, email, opaquePassword, ask);
+                  const login = await loginWithOpaquePassword(
+                    trpc,
+                    session,
+                    email,
+                    opaquePassword,
+                    ask,
+                  );
+                  // The kept OPAQUE password (`useAutoReconnect`) takes the form the server accepted.
+                  if (
+                    form === "raw" &&
+                    secretsStore.lockEpoch === epoch &&
+                    secretsStore.hasOpaquePassword
+                  )
+                    secretsStore.keepOpaquePassword(
+                      opaquePassword.slice(),
+                      secretsStore.keptPasswordKeys,
+                    );
+                  return login;
                 } finally {
                   wipe(opaquePassword);
                 }
@@ -187,60 +204,65 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     // Hold the session back until it's checked. A session that is never
     // attached is never used, and dies via its TTL.
     let session: SessionParams | undefined;
-    let info: AccountLogin;
     try {
-      info = await login(
-        async (...params) => {
-          session = params;
-        },
-        profile.email,
-        prompt,
-      );
-    } catch (e) {
-      return { result: loginFailure(e) };
-    }
-    if (!session) return { result: "unreachable" };
+      let info: AccountLogin;
+      try {
+        info = await login(
+          async (...params) => {
+            session = params;
+          },
+          profile.email,
+          prompt,
+        );
+      } catch (e) {
+        return { result: loginFailure(e) };
+      }
+      if (!session) return { result: "unreachable" };
 
-    // The email now belongs to another account (e.g. re-registered after a
-    // server reset). Its keys and data must never meet this vault's.
-    if (info.userId !== profile.userId) {
-      logError("The server account no longer matches this device's vault");
-      return { result: "rejected" };
-    }
-    // Re-check: the vault may have been locked during the login.
-    if (!stillUnlocked(epoch)) return { result: "cancelled" };
-
-    let material: AccountKeyMaterial;
-    let cachedVaults: MemberVault[];
-    try {
-      cachedVaults = await active.vault.getVaults();
-      material = await checkedKeyMaterial(info, stored, password);
-    } catch (e) {
-      if (!stillUnlocked(epoch)) return { result: "cancelled" };
-      if (e instanceof ServerKeyringMismatchError) {
-        logError("The server's keys don't open this device's vault", e);
+      // The email now belongs to another account (e.g. re-registered after a
+      // server reset). Its keys and data must never meet this vault's.
+      if (info.userId !== profile.userId) {
+        logError("The server account no longer matches this device's vault");
         return { result: "rejected" };
       }
-      logError("Checking the server's keys failed", e);
-      return { result: "unreachable" };
-    }
-    if (!stillUnlocked(epoch)) return { result: "cancelled" };
-
-    try {
-      await storeRef.current.saveAccount(profileId, material, info.vaultKeys, {
-        recoveryWrap: info.recoveryKeys,
-      });
+      // Re-check: the vault may have been locked during the login.
       if (!stillUnlocked(epoch)) return { result: "cancelled" };
-      if (!sameVaults(cachedVaults, info.vaultKeys)) reloadVaultKeys(info.vaultKeys);
 
-      await attachServer(...session);
-    } catch (e) {
-      logError("Connecting to the server failed", e);
-      return { result: "unreachable" };
+      let material: AccountKeyMaterial;
+      let cachedVaults: MemberVault[];
+      try {
+        cachedVaults = await active.vault.getVaults();
+        material = await checkedKeyMaterial(info, stored, password);
+      } catch (e) {
+        if (!stillUnlocked(epoch)) return { result: "cancelled" };
+        if (e instanceof ServerKeyringMismatchError) {
+          logError("The server's keys don't open this device's vault", e);
+          return { result: "rejected" };
+        }
+        logError("Checking the server's keys failed", e);
+        return { result: "unreachable" };
+      }
+      if (!stillUnlocked(epoch)) return { result: "cancelled" };
+
+      try {
+        await storeRef.current.saveAccount(profileId, material, info.vaultKeys, {
+          recoveryWrap: info.recoveryKeys,
+        });
+        if (!stillUnlocked(epoch)) return { result: "cancelled" };
+        if (!sameVaults(cachedVaults, info.vaultKeys)) reloadVaultKeys(info.vaultKeys);
+
+        await attachServer(...session);
+      } catch (e) {
+        logError("Connecting to the server failed", e);
+        return { result: "unreachable" };
+      }
+
+      await persistSession(profileId);
+      return { result: "online", profileId, info };
+    } finally {
+      // Not attached (refused, cancelled): its key is wiped here; `unlockSession` wiped an attached one.
+      if (session) wipe(session[1]);
     }
-
-    await persistSession(profileId);
-    return { result: "online", profileId, info };
   }
 
   async function checkedKeyMaterial(

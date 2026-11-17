@@ -1,4 +1,11 @@
-import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
+import {
+  authenticateBiometric,
+  deriveOpaquePassword,
+  normalizeEmail,
+  type PasswordForm,
+  passwordInForm,
+  wipe,
+} from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
@@ -123,10 +130,17 @@ export function useUnlock() {
       return false;
     }
 
-    // Kept for the reconnect: `useAutoReconnect` retries with it once online.
-    const opaquePassword =
-      profile.mode === "linked" ? await deriveOpaquePassword(password, profile.email) : undefined;
-    if (await unlockWithPassword(active, password)) {
+    // Kept for the reconnect: `useAutoReconnect` retries with it once online. Both
+    // forms up front (HKDF only), so the kept one is in hand the tick the vault opens:
+    // the form that opened the local wrap is the registration's (`withPasswordForms`).
+    const candidates =
+      profile.mode === "linked" ? await opaquePasswordForms(password, profile.email) : undefined;
+    const form = await unlockWithPassword(active, password);
+    const opaquePassword = form && candidates ? candidates[form] : undefined;
+    if (candidates)
+      for (const candidate of new Set(Object.values(candidates)))
+        if (candidate !== opaquePassword) wipe(candidate);
+    if (form) {
       afterUnlock(opaquePassword);
       await persistSession(active.entry.profileId);
       if (profile.mode === "local") void rekeyLocal(active, password, material);
@@ -134,7 +148,6 @@ export function useUnlock() {
         void connect(password).then(releaseIfDone(active));
       return true;
     }
-    if (opaquePassword) wipe(opaquePassword);
 
     // A reset made here waits for the server: the old password must not undo it.
     if (profile.mode === "linked" && !networkOffline && !active.pendingRecovery) {
@@ -190,14 +203,20 @@ export function useUnlock() {
     return undefined;
   }
 
-  /** Derive the KEK and open the local copy of the keyring. Resolves `false` on a wrong password. */
-  async function unlockWithPassword(active: ActiveProfile, password: string): Promise<boolean> {
+  /**
+   * Derive the KEK and open the local copy of the keyring. Resolves the password
+   * form that opened it, `undefined` on a wrong password.
+   */
+  async function unlockWithPassword(
+    active: ActiveProfile,
+    password: string,
+  ): Promise<PasswordForm | undefined> {
     const { profile, accountKeyMaterial: material } = active;
-    if (!profile || !material) return false;
+    if (!profile || !material) return undefined;
     try {
       const vaults = await active.vault.getVaults();
       // `unlockVault` wipes the KEK; wiping it again is harmless.
-      await openWithPassword(password, material, (passwordKek) =>
+      const { form } = await openWithPassword(password, material, (passwordKek) =>
         unlockVault(
           profile.mode,
           passwordKek,
@@ -207,10 +226,10 @@ export function useUnlock() {
           material.userKeyPair,
         ),
       );
-      return true;
+      return form;
     } catch (e) {
       logError("Vault unlock failed", e);
-      return false;
+      return undefined;
     }
   }
 
@@ -352,4 +371,17 @@ export function useBiometricUnlock() {
   }
 
   return { unlock };
+}
+
+/** The OPAQUE password of each form; one buffer for both when NFKC changes nothing. */
+async function opaquePasswordForms(
+  password: string,
+  email: string,
+): Promise<Record<PasswordForm, Uint8Array>> {
+  const nfkc = await deriveOpaquePassword(password, email);
+  const raw =
+    passwordInForm(password) === password
+      ? nfkc
+      : await deriveOpaquePassword(password, email, "raw");
+  return { nfkc, raw };
 }

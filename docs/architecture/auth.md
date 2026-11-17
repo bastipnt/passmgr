@@ -19,8 +19,9 @@ password typed composed on one device and decomposed on another opens the same k
 (`withPasswordForms`) tries NFKC first, then the password as typed, for registrations and wraps from before:
 `loginWithPassword` (OPAQUE; retried only on `OpaqueLoginFailedError`, the server sees a second login attempt),
 `openWithPassword` / `unwrapAccountKeyWithPassword` (Argon2 wraps), `openExportEnvelope`. The kept OPAQUE password
-for a reconnect is always the NFKC one: an older raw-form registration reconnects with the typed password instead
-(`connect(password)`). Nothing migrates an older registration or wrap; a password change or a below-floor rekey
+for a reconnect (`unlockLocal`) is the form that opened the local wrap, and a `connect(password)` the server accepted
+only in the raw form switches it to that one; left over: an older raw-form registration whose wrap a rekey already
+moved to NFKC, unlocked offline, gets its automatic reconnect refused until the next unlock online. Nothing migrates an older registration or wrap; a password change or a below-floor rekey
 rewraps in NFKC.
 
 ## Web biometric unlock and device login
