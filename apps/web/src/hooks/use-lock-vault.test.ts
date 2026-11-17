@@ -12,11 +12,13 @@ const reload = vi.fn();
 // The in-flight guard is module state: a fresh module per test.
 let useLockVault: typeof import("./use-lock-vault").useLockVault;
 let secretsStore: typeof import("@repo/store").secretsStore;
+let copyToClipboard: typeof import("@repo/client").copyToClipboard;
 
 beforeEach(async () => {
   vi.resetModules();
   ({ useLockVault } = await import("./use-lock-vault"));
   ({ secretsStore } = await import("@repo/store"));
+  ({ copyToClipboard } = await import("@repo/client"));
   vi.spyOn(window, "location", "get").mockReturnValue({ reload } as unknown as Location);
 });
 
@@ -67,6 +69,22 @@ describe("useLockVault", () => {
     await act(() => result.current());
 
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("clears a copied secret before the reload cancels its auto-clear", async () => {
+    signedIn(false);
+    let clipboard = "";
+    const write = vi.fn(async (text: string) => {
+      clipboard = text;
+    });
+    await copyToClipboard({ write }, "hunter2", 30);
+    reload.mockImplementation(() => expect(clipboard).toBe(""));
+    const { result } = renderHook(() => useLockVault());
+
+    await act(() => result.current());
+
+    expect(reload).toHaveBeenCalledTimes(1);
+    expect(clipboard).toBe("");
   });
 
   it("ignores a second lock while the first is in flight", async () => {

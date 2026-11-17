@@ -1,6 +1,8 @@
+import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
+import { useCopySecret } from "@/lib/clipboard";
 import { downloadFile } from "@/lib/download";
 
 const FILE_NAME = "passmgr-backup-codes.txt";
@@ -15,9 +17,13 @@ function codesText(codes: string[]) {
  */
 export default function BackupCodes({ codes, onSaved }: { codes: string[]; onSaved: () => void }) {
   const [copied, setCopied] = useState(false);
+  const copy = useCopySecret();
 
   const onCopy = async () => {
-    await navigator.clipboard.writeText(codesText(codes));
+    if (!(await copy(codesText(codes)))) {
+      toast.error("The codes couldn't be copied. Download them instead.");
+      return;
+    }
     setCopied(true);
     onSaved();
   };

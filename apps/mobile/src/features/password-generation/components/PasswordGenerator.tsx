@@ -7,8 +7,7 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
-import { Button, StrengthMeter } from "@repo/ui-native";
-import * as Clipboard from "expo-clipboard";
+import { Button, StrengthMeter, toast } from "@repo/ui-native";
 import { Stack, useRouter } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
@@ -18,6 +17,7 @@ import GeneratorModeSwitch from "@/features/password-generation/components/Gener
 import PassphraseOptionsForm from "@/features/password-generation/components/PassphraseOptions";
 import PasswordOptionsForm from "@/features/password-generation/components/PasswordOptionsForm";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
+import { useCopySecret } from "@/lib/clipboard";
 
 export default function PasswordGenerator() {
   const router = useRouter();
@@ -35,6 +35,7 @@ export default function PasswordGenerator() {
   const [generated, setGenerated] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const copy = useCopySecret();
 
   const noCharset = !pwOpts.uppercase && !pwOpts.lowercase && !pwOpts.digits && !pwOpts.symbols;
 
@@ -65,8 +66,8 @@ export default function PasswordGenerator() {
 
   const onCopy = async () => {
     if (!generated) return;
-    await Clipboard.setStringAsync(generated);
-    setCopied(true);
+    if (await copy(generated)) setCopied(true);
+    else toast.error("Couldn't copy to the clipboard");
   };
 
   const onUse = () => {

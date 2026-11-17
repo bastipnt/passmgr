@@ -10,6 +10,7 @@ export async function emergencyKitMocks() {
   const [
     { recoveryKeyChunks, RECOVERY_KEY_GROUPS, RECOVERY_KEY_GROUP_LENGTH },
     { useEmergencyKit },
+    { useCopyToClipboard },
   ] = await Promise.all([
     vi.importActual<typeof import("@repo/client/src/account/emergency-kit")>(
       "@repo/client/src/account/emergency-kit",
@@ -17,6 +18,15 @@ export async function emergencyKitMocks() {
     vi.importActual<typeof import("@repo/client/src/hooks/use-emergency-kit")>(
       "@repo/client/src/hooks/use-emergency-kit",
     ),
+    vi.importActual<typeof import("@repo/client/src/hooks/use-clipboard-clear")>(
+      "@repo/client/src/hooks/use-clipboard-clear",
+    ),
   ]);
-  return { recoveryKeyChunks, RECOVERY_KEY_GROUPS, RECOVERY_KEY_GROUP_LENGTH, useEmergencyKit };
+  return {
+    recoveryKeyChunks,
+    RECOVERY_KEY_GROUPS,
+    RECOVERY_KEY_GROUP_LENGTH,
+    useEmergencyKit,
+    useCopyToClipboard,
+  };
 }

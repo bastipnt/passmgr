@@ -1,7 +1,7 @@
 import { logError } from "@repo/client";
 import { toast } from "@repo/ui-native";
-import * as Clipboard from "expo-clipboard";
 import { useEffect } from "react";
+import { nativeClipboard } from "@/lib/clipboard";
 import { describeNativeError, reportNativeError } from "@/lib/error-report";
 
 /**
@@ -21,7 +21,10 @@ export function useGlobalErrorToast() {
         durationMs: 10_000,
         action: {
           label: "Copy error details",
-          onPress: () => void Clipboard.setStringAsync(details),
+          onPress: () =>
+            void nativeClipboard
+              .write(details)
+              .catch(() => toast.error("Couldn't copy the error details")),
         },
       });
     });

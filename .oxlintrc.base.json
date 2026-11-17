@@ -2,7 +2,14 @@
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["import", "typescript", "unicorn", "eslint", "oxc"],
   "rules": {
-    "react/rules-of-hooks": "error"
+    "react/rules-of-hooks": "error",
+    "no-restricted-properties": [
+      "error",
+      {
+        "property": "writeText",
+        "message": "Copy through the clipboard helper (web: `useCopySecret` / `webClipboard` in `src/lib/clipboard.ts`): it reports a failed write and auto-clears secrets."
+      }
+    ]
   },
   "env": {
     "browser": true,
@@ -12,7 +19,8 @@
     {
       "files": ["*.test.ts", "*.spec.ts", "*.test.tsx", "*.spec.tsx"],
       "rules": {
-        "@typescript-eslint/no-explicit-any": "off"
+        "@typescript-eslint/no-explicit-any": "off",
+        "no-restricted-properties": "off"
       }
     }
   ]

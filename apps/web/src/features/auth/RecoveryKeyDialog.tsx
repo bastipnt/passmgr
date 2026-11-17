@@ -14,6 +14,7 @@ import { cn } from "@repo/ui/lib/utils";
 import { toBase64 } from "@repo/util";
 import { ArrowRightIcon, CheckIcon, CopyIcon, FileDownIcon, KeyRoundIcon } from "lucide-react";
 import { type ReactNode, useMemo } from "react";
+import { useCopySecret } from "@/lib/clipboard";
 import { downloadFile } from "@/lib/download";
 import { RECOVERY_KEY_GROUP_COLORS } from "./recovery-key-colors";
 
@@ -49,13 +50,14 @@ export default function RecoveryKeyDialog({
     recoveryKey,
     { email, name, appUrl: window.location.origin },
   );
+  const copy = useCopySecret();
   const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
   const chunks = useMemo(() => (recoveryKey ? recoveryKeyChunks(recoveryKey) : []), [recoveryKey]);
 
   const onCopy = async () => {
     if (!recoveryKey) return;
-    await navigator.clipboard.writeText(recoveryKeyB64);
-    markCopied();
+    if (await copy(recoveryKeyB64)) markCopied();
+    else toast.error("The key couldn't be copied. Download the emergency kit instead.");
   };
 
   const onDownloadKit = async () => {

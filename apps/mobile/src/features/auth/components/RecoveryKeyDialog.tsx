@@ -2,12 +2,12 @@ import { recoveryKeyChunks, useEmergencyKit } from "@repo/client";
 import { wipe } from "@repo/crypto";
 import { Button } from "@repo/ui-native";
 import { toBase64 } from "@repo/util";
-import * as Clipboard from "expo-clipboard";
 import * as Print from "expo-print";
 import { KeyRound } from "lucide-react-native";
 import { type ReactNode, useMemo } from "react";
 import { Alert, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { FullWindowOverlay } from "react-native-screens";
+import { useCopySecret } from "@/lib/clipboard";
 
 /**
  * Hosts the recovery-key dialog above the app. iOS avoids RN's `Modal`:
@@ -77,13 +77,14 @@ export function RecoveryKeyDialog({
     recoveryKey,
     { email, name },
   );
+  const copy = useCopySecret();
   const recoveryKeyB64 = useMemo(() => (recoveryKey ? toBase64(recoveryKey) : ""), [recoveryKey]);
   const chunks = useMemo(() => (recoveryKey ? recoveryKeyChunks(recoveryKey) : []), [recoveryKey]);
 
   const onCopy = async () => {
     if (!recoveryKey) return;
-    await Clipboard.setStringAsync(recoveryKeyB64);
-    markCopied();
+    if (await copy(recoveryKeyB64)) markCopied();
+    else Alert.alert("Recovery key", "The key couldn't be copied. Save the emergency kit instead.");
   };
 
   const onSaveKit = async () => {

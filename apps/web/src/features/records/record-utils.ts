@@ -1,19 +1,18 @@
-import { useCopyToClipboard } from "@repo/client";
 import { toast } from "@repo/ui";
 import { useCallback } from "react";
+import { useCopySecret } from "@/lib/clipboard";
 
-const writeText = (text: string) => navigator.clipboard.writeText(text);
-
-/**
- * Copies with the user's clipboard auto-clear preference — the timer lives
- * in `@repo/client` so mobile clears on the same schedule.
- */
+/** Copies a record field (auto-cleared per the user's preference) and says whether it worked. */
 export function useCopyField() {
-  const copy = useCopyToClipboard(writeText);
+  const copy = useCopySecret();
 
   return useCallback(
     (value: string | undefined, label: string) => {
-      if (copy(value)) toast.success(`${label} copied to clipboard`);
+      if (!value) return;
+      void copy(value).then((copied) => {
+        if (copied) toast.success(`${label} copied to clipboard`);
+        else toast.error("Couldn't copy to the clipboard");
+      });
     },
     [copy],
   );

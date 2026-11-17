@@ -9,6 +9,7 @@ import {
   PasswordGeneratorError,
   type PasswordOptions,
 } from "@repo/crypto";
+import { toast } from "@repo/ui";
 import {
   ResponsiveSheet,
   SheetCloseAction,
@@ -19,6 +20,7 @@ import type { DialogHandle } from "@repo/ui/components/Dialog";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { CheckIcon, CopyIcon, RefreshCwIcon } from "lucide-react";
 import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { useCopySecret } from "@/lib/clipboard";
 import GeneratorModeSwitch from "./GeneratorModeSwitch";
 import PassphraseOptionsForm from "./PassphraseOptionsForm";
 import PasswordOptionsForm from "./PasswordOptionsForm";
@@ -53,6 +55,7 @@ export default function PasswordGenerator({
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
   const isMobile = useIsMobile();
+  const copy = useCopySecret();
 
   const noCharset = !pwOpts.uppercase && !pwOpts.lowercase && !pwOpts.digits && !pwOpts.symbols;
 
@@ -86,7 +89,10 @@ export default function PasswordGenerator({
 
   async function handleCopy() {
     if (!generated) return;
-    await navigator.clipboard.writeText(generated);
+    if (!(await copy(generated))) {
+      toast.error("Couldn't copy to the clipboard");
+      return;
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

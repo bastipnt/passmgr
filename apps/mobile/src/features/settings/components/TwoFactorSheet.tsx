@@ -22,12 +22,12 @@ import {
   FormLock,
   toast,
 } from "@repo/ui-native";
-import * as Clipboard from "expo-clipboard";
 import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Linking, Share, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { SecondFactorStep } from "@/features/auth/components/SecondFactorStep";
+import { useCopySecret } from "@/lib/clipboard";
 
 /** Quiet zone around the QR code, in modules; scanners want at least 4. */
 const QUIET_ZONE = 4;
@@ -90,6 +90,7 @@ export function TwoFactorSheet({ ref }: { ref: Ref<TwoFactorSheetRef> }) {
   const [action, setAction] = useState<TwoFactorAction>("enable");
   const [step, setStep] = useState<Step>({ kind: "password" });
   const [saved, setSaved] = useState(false);
+  const copy = useCopySecret();
   const secondFactor = useSecondFactorRequest();
   const { request: secondFactorRequest } = secondFactor;
   const { startEnrollment, confirm, disable, regenerateBackupCodes, error, clearError, pending } =
@@ -212,7 +213,11 @@ export function TwoFactorSheet({ ref }: { ref: Ref<TwoFactorSheetRef> }) {
                   <Button
                     variant="glass"
                     className="flex-1"
-                    onPress={() => void Clipboard.setStringAsync(step.enrollment.secret)}
+                    onPress={() =>
+                      void copy(step.enrollment.secret).then((ok) => {
+                        if (!ok) toast.error("Couldn't copy the setup key");
+                      })
+                    }
                   >
                     Copy key
                   </Button>
@@ -261,7 +266,10 @@ export function TwoFactorSheet({ ref }: { ref: Ref<TwoFactorSheetRef> }) {
                   variant="glass"
                   className="flex-1"
                   onPress={() =>
-                    void Clipboard.setStringAsync(codesText(step.codes)).then(() => setSaved(true))
+                    void copy(codesText(step.codes)).then((ok) => {
+                      if (ok) setSaved(true);
+                      else toast.error("Couldn't copy the codes. Share them instead.");
+                    })
                   }
                 >
                   Copy

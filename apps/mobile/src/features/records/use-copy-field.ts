@@ -1,9 +1,7 @@
-import Clipboard from "@react-native-clipboard/clipboard";
-import { useCopyToClipboard } from "@repo/client";
+import { toast } from "@repo/ui-native";
 import * as Haptics from "expo-haptics";
 import { useCallback } from "react";
-
-const write = (text: string) => Clipboard.setString(text);
+import { useCopySecret } from "@/lib/clipboard";
 
 /**
  * Copies a record field, honouring the clipboard auto-clear preference. A
@@ -11,11 +9,15 @@ const write = (text: string) => Clipboard.setString(text);
  * no icon to flip.
  */
 export function useCopyField() {
-  const copy = useCopyToClipboard(write);
+  const copy = useCopySecret();
 
   return useCallback(
     (value?: string) => {
-      if (copy(value)) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (!value) return;
+      void copy(value).then((copied) => {
+        if (copied) void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        else toast.error("Couldn't copy to the clipboard");
+      });
     },
     [copy],
   );

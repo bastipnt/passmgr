@@ -1,4 +1,4 @@
-import { endServerSession, useTRPCClient } from "@repo/client";
+import { endServerSession, flushClipboardClear, useTRPCClient } from "@repo/client";
 import { secretsStore } from "@repo/store";
 import { useCallback } from "react";
 
@@ -11,7 +11,8 @@ let locking = false;
  * a lock. Unlike mobile, the server session is ended first: nothing on this
  * device can sign with it after the reload, so it would only linger in Redis
  * until its TTL. Best-effort and bounded (`endServerSession`), so a slow or dead
- * network never keeps the vault open.
+ * network never keeps the vault open. A copied secret waiting for its auto-clear
+ * is cleared before the reload, which would cancel the timer.
  */
 export function useLockVault() {
   const trpc = useTRPCClient();
@@ -24,7 +25,10 @@ export function useLockVault() {
     document.body.style.visibility = "hidden";
     document.body.inert = true;
     try {
-      if (secretsStore.hasServerSession) await endServerSession(trpc);
+      await Promise.all([
+        flushClipboardClear(),
+        secretsStore.hasServerSession ? endServerSession(trpc) : undefined,
+      ]);
     } finally {
       window.location.reload();
     }

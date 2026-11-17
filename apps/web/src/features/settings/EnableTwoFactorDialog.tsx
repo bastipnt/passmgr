@@ -6,7 +6,7 @@ import {
   useTwoFactor,
 } from "@repo/client";
 import { type TotpConfirmFormValues, totpConfirmFormSchema } from "@repo/schema";
-import { useForm } from "@repo/ui";
+import { toast, useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
   Dialog,
@@ -28,6 +28,7 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useCopySecret } from "@/lib/clipboard";
 import BackupCodes from "./BackupCodes";
 import TwoFactorPasswordForm from "./TwoFactorPasswordForm";
 
@@ -66,6 +67,7 @@ function ScanStep({
 }) {
   const { confirm, error, pending } = useTwoFactor();
   const [copied, setCopied] = useState(false);
+  const copy = useCopySecret();
   const { handleSubmit, control } = useForm<TotpConfirmFormValues>({
     resolver: zodResolver(totpConfirmFormSchema),
     defaultValues: { code: "" },
@@ -96,7 +98,10 @@ function ScanStep({
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  void navigator.clipboard.writeText(enrollment.secret).then(() => setCopied(true))
+                  void copy(enrollment.secret).then((ok) => {
+                    if (ok) setCopied(true);
+                    else toast.error("The setup key couldn't be copied. Type it in instead.");
+                  })
                 }
               >
                 {copied ? <CheckIcon className="text-success" /> : <CopyIcon />}

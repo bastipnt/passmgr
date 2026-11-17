@@ -1,8 +1,8 @@
 import type { ClientErrorInput } from "@repo/client";
 import { Button, ErrorState, Screen } from "@repo/ui-native";
-import * as Clipboard from "expo-clipboard";
 import { type ErrorBoundaryProps, router } from "expo-router";
 import { useEffect, useState } from "react";
+import { nativeClipboard } from "@/lib/clipboard";
 import { describeNativeError, reportNativeError } from "@/lib/error-report";
 import { recordPaths } from "@/route-paths";
 
@@ -41,7 +41,7 @@ function RouteErrorFallback({
         <Button
           variant="ghost"
           className="w-full"
-          onPress={() => void Clipboard.setStringAsync(details).then(() => setCopied(true))}
+          onPress={() => void nativeClipboard.write(details).then(() => setCopied(true))}
         >
           {copied ? "Copied" : "Copy error details"}
         </Button>

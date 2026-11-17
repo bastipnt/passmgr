@@ -5,6 +5,7 @@ import {
   reportClientError,
 } from "@repo/client";
 import { toast } from "@repo/ui";
+import { webClipboard } from "./clipboard";
 
 const APP_VERSION = import.meta.env.VITE_APP_VERSION ?? "dev";
 const ERROR_ENVIRONMENT = { appVersion: APP_VERSION, platform: "web" };
@@ -24,7 +25,8 @@ export function reportWebError(
 
 export async function copyErrorDetails(details: string) {
   try {
-    await navigator.clipboard.writeText(details);
+    // Not a secret (`describeError` keeps messages and record data out): no auto-clear.
+    await webClipboard.write(details);
     toast.success("Error details copied");
   } catch {
     toast.error("Couldn't copy the error details");
