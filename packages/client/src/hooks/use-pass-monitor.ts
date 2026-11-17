@@ -1,6 +1,5 @@
 import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { DecryptedRecord } from "@repo/schema";
-import type { PasswordStrength } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
 import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
@@ -23,6 +22,7 @@ import {
   weakPasswordOf,
 } from "../records/pass-monitor";
 import { monitoredPassword } from "../records/password-health";
+import { passwordRatingsOf } from "../records/password-ratings";
 import { useStoredBreachChecks } from "./use-breach-check";
 import { useTwoFactorDirectory } from "./use-two-factor-directory";
 
@@ -45,17 +45,8 @@ export type PassMonitor = {
 
 const CHUNK_SIZE = 20;
 
-// Ratings only, never a password: a version's rating can't change, so a revisit skips zxcvbn.
-// Per open profile database, so a lock or profile switch drops them with it.
-const ratingsByVault = new WeakMap<object, Map<string, PasswordStrength | null>>();
 const versionKey = (record: DecryptedRecord) =>
   `${record.recordId}|${record.version}|${record.clientUpdatedAt}`;
-
-function ratingsOf(vault: object) {
-  let ratings = ratingsByVault.get(vault);
-  if (!ratings) ratingsByVault.set(vault, (ratings = new Map()));
-  return ratings;
-}
 
 function useCheapFindings() {
   const { records, ready, revision } = useRecordsContext();
@@ -93,15 +84,20 @@ export function usePassMonitor(): PassMonitor {
   const { directory, failed: twoFactorFailed } = useTwoFactorDirectory();
 
   useEffect(() => {
-    if (!ready || !vault) return;
+    if (!ready || !vault) {
+      // The findings hold decrypted records: none may outlive a lock.
+      setRated(null);
+      return;
+    }
     let cancelled = false;
-    const ratings = ratingsOf(vault);
+    const ratings = passwordRatingsOf(vault);
     void (async () => {
       const found: WeakPassword[] = [];
       for (let start = 0; start < snapshot.length; start += CHUNK_SIZE) {
         const chunk = snapshot.slice(start, start + CHUNK_SIZE);
         await Promise.all(
           chunk.map(async (record) => {
+            if (cancelled) return;
             const password = monitoredPassword(record);
             const key = versionKey(record);
             if (password && !ratings.has(key))
@@ -167,7 +163,7 @@ export function usePassMonitorIssueCount(): number | null {
 
   return useMemo(() => {
     if (!cheap || !vault || !breach || (!directory && !twoFactorFailed)) return null;
-    const ratings = ratingsOf(vault);
+    const ratings = passwordRatingsOf(vault);
     const cachedRating = (record: DecryptedRecord) => () => ratings.get(versionKey(record)) ?? null;
     return passMonitorIssueCount({
       ...cheap,

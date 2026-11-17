@@ -1,7 +1,7 @@
 import { SessionContext } from "@repo/client";
 import { RecordsProvider, useRecordsContext } from "@repo/client/src/providers/RecordsProvider";
 import type { EncryptedRecordSchema } from "@repo/schema";
-import { renderHook, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import type { ContextType, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -46,8 +46,9 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   useStore: () => store,
 }));
 
+let vaultUnlocked = true;
 function wrapper({ children }: { children: ReactNode }) {
-  const session = { vaultUnlocked: true } as ContextType<typeof SessionContext>;
+  const session = { vaultUnlocked } as ContextType<typeof SessionContext>;
   return (
     <SessionContext.Provider value={session}>
       <RecordsProvider>{children}</RecordsProvider>
@@ -57,6 +58,7 @@ function wrapper({ children }: { children: ReactNode }) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vaultUnlocked = true;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   store.vault.getAllLatest.mockResolvedValue([encrypted("good"), encrypted("bad")]);
   decryptRecordWithWorker.mockImplementation(async ({ encryptedData }: EncryptedRecordSchema) => {
@@ -91,5 +93,62 @@ describe("RecordsProvider", () => {
     expect(decryptRecordWithWorker).toHaveBeenCalledWith(
       expect.objectContaining({ recordId: "bad", encryptedData: "data-bad" }),
     );
+  });
+
+  it("exposes no records once locked", async () => {
+    const { result, rerender } = renderHook(() => useRecordsContext(), { wrapper });
+    await waitFor(() => expect(result.current.records).toHaveLength(1));
+
+    vaultUnlocked = false;
+    rerender();
+
+    expect(result.current.records).toEqual([]);
+    expect(result.current.getRecord("good")).toBeUndefined();
+    expect(result.current.ready).toBe(false);
+  });
+
+  it("doesn't run a decryption queued before the lock", async () => {
+    const { result, rerender } = renderHook(() => useRecordsContext(), { wrapper });
+    await waitFor(() => expect(result.current.ready).toBe(true));
+    let release: () => void = () => undefined;
+    store.vault.getAllLatest.mockImplementationOnce(
+      () => new Promise((resolve) => (release = () => resolve([encrypted("good")]))),
+    );
+    store.vault.getAllLatest.mockClear();
+    syncListener?.({ vaultsChanged: false });
+    syncListener?.({ vaultsChanged: false });
+    await waitFor(() => expect(store.vault.getAllLatest).toHaveBeenCalledTimes(1));
+
+    vaultUnlocked = false;
+    rerender();
+    await act(async () => {
+      release();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(store.vault.getAllLatest).toHaveBeenCalledTimes(1);
+    expect(result.current.ready).toBe(false);
+  });
+
+  it("drops a decryption that finishes after the lock", async () => {
+    const pending: (() => void)[] = [];
+    decryptRecordWithWorker.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pending.push(() => resolve({ schemaVersion: 1, type: "login", title: "late" }));
+        }),
+    );
+    const { result, rerender } = renderHook(() => useRecordsContext(), { wrapper });
+    await waitFor(() => expect(pending).toHaveLength(2));
+
+    vaultUnlocked = false;
+    rerender();
+    await act(async () => {
+      for (const finish of pending) finish();
+      await new Promise((resolve) => setTimeout(resolve, 20));
+    });
+
+    expect(result.current.records).toEqual([]);
+    expect(result.current.ready).toBe(false);
   });
 });

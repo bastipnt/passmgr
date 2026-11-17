@@ -10,6 +10,7 @@ import {
   useState,
 } from "react";
 import { logError } from "../errors/log-error";
+import { forgetPasswordRatings } from "../records/password-ratings";
 import { decryptRecordRow } from "../util/decrypt-record";
 import { timed } from "../util/perf";
 import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-info";
@@ -54,71 +55,73 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   const recordsMapRef = useRef(new Map<string, DecryptedRecord>());
   const fingerprintMapRef = useRef(new Map<string, string>());
   const runningRef = useRef<Promise<void> | null>(null);
+  // Bumped when the decrypted records are dropped: a run queued before must not write them back.
+  const generationRef = useRef(0);
+  const unlockedRef = useRef(vaultUnlocked);
 
   const [revision, setRevision] = useState(0);
   const [ready, setReady] = useState(false);
   const [vaults, setVaults] = useState<VaultInfo[]>([]);
 
-  // Another profile: nothing decrypted for the previous one may show.
-  useEffect(() => {
-    recordsMapRef.current = new Map();
-    fingerprintMapRef.current = new Map();
-    setVaults([]);
-    setReady(false);
-    setRevision((r) => r + 1);
-  }, [vault]);
+  const runDecryptAll = useCallback(
+    async (generation: number) => {
+      if (!vault || !unlockedRef.current || generation !== generationRef.current) return;
+      // The vault list with the records: a sync that changed one may change the other.
+      const [vaultRows, encrypted] = await Promise.all([vault.getVaults(), vault.getAllLatest()]);
+      if (generation !== generationRef.current) return;
+      // The same list keeps its identity: every `useVaults` consumer would re-render on each sync.
+      const nextVaults = decryptVaults(vaultRows);
+      setVaults((current) => (sameVaultInfos(current, nextVaults) ? current : nextVaults));
+      const activeIds = new Set<string>();
 
-  const runDecryptAll = useCallback(async () => {
-    if (!vault) return;
-    // The vault list with the records: a sync that changed one may change the other.
-    const [vaultRows, encrypted] = await Promise.all([vault.getVaults(), vault.getAllLatest()]);
-    // The same list keeps its identity: every `useVaults` consumer would re-render on each sync.
-    const nextVaults = decryptVaults(vaultRows);
-    setVaults((current) => (sameVaultInfos(current, nextVaults) ? current : nextVaults));
-    const activeIds = new Set<string>();
+      // Find records that are new or changed
+      const toDecrypt: LocalRecordVersion[] = [];
+      for (const record of encrypted) {
+        if (record.deleted_at) continue;
 
-    // Find records that are new or changed
-    const toDecrypt: LocalRecordVersion[] = [];
-    for (const record of encrypted) {
-      if (record.deleted_at) continue;
+        activeIds.add(record.recordId);
+        const fp = buildFingerprint(record);
 
-      activeIds.add(record.recordId);
-      const fp = buildFingerprint(record);
-
-      if (fingerprintMapRef.current.get(record.recordId) !== fp) toDecrypt.push(record);
-    }
-
-    // Decrypt changed/new records. One that fails (wrong key, tampered) is left
-    // out and retried on the next run, instead of hiding every other record.
-    if (toDecrypt.length > 0) {
-      const results = await timed(`decrypt ${toDecrypt.length} records`, () =>
-        Promise.allSettled(toDecrypt.map((row) => decryptRecordRow(row))),
-      );
-
-      let failed = 0;
-      results.forEach((result, i) => {
-        const encryptedRecord = toDecrypt[i]!;
-        if (result.status === "rejected") {
-          failed++;
-          return;
-        }
-        recordsMapRef.current.set(result.value.recordId, result.value);
-        fingerprintMapRef.current.set(encryptedRecord.recordId, buildFingerprint(encryptedRecord));
-      });
-      if (failed > 0) logError(`${failed} record(s) could not be decrypted and are hidden`);
-    }
-
-    // Remove deleted records
-    for (const id of recordsMapRef.current.keys()) {
-      if (!activeIds.has(id)) {
-        recordsMapRef.current.delete(id);
-        fingerprintMapRef.current.delete(id);
+        if (fingerprintMapRef.current.get(record.recordId) !== fp) toDecrypt.push(record);
       }
-    }
 
-    setRevision((r) => r + 1);
-    setReady(true);
-  }, [vault]);
+      // Decrypt changed/new records. One that fails (wrong key, tampered) is left
+      // out and retried on the next run, instead of hiding every other record.
+      if (toDecrypt.length > 0) {
+        const results = await timed(`decrypt ${toDecrypt.length} records`, () =>
+          Promise.allSettled(toDecrypt.map((row) => decryptRecordRow(row))),
+        );
+        if (generation !== generationRef.current) return;
+
+        let failed = 0;
+        results.forEach((result, i) => {
+          const encryptedRecord = toDecrypt[i]!;
+          if (result.status === "rejected") {
+            failed++;
+            return;
+          }
+          recordsMapRef.current.set(result.value.recordId, result.value);
+          fingerprintMapRef.current.set(
+            encryptedRecord.recordId,
+            buildFingerprint(encryptedRecord),
+          );
+        });
+        if (failed > 0) logError(`${failed} record(s) could not be decrypted and are hidden`);
+      }
+
+      // Remove deleted records
+      for (const id of recordsMapRef.current.keys()) {
+        if (!activeIds.has(id)) {
+          recordsMapRef.current.delete(id);
+          fingerprintMapRef.current.delete(id);
+        }
+      }
+
+      setRevision((r) => r + 1);
+      setReady(true);
+    },
+    [vault],
+  );
 
   // Serialize runs: the initial-unlock and on-sync effects can both fire before
   // either writes fingerprints, which would race into decrypting everything
@@ -126,8 +129,10 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   // no-op, so the fingerprint dedup actually applies. Run regardless of whether
   // the previous run resolved or rejected, so one failure doesn't stall the chain.
   const decryptAll = useCallback(() => {
+    const generation = generationRef.current;
+    const runOnce = () => runDecryptAll(generation);
     const prev = runningRef.current ?? Promise.resolve();
-    const run = prev.then(runDecryptAll, runDecryptAll);
+    const run = prev.then(runOnce, runOnce);
     runningRef.current = run;
     void run.finally(() => {
       if (runningRef.current === run) runningRef.current = null;
@@ -135,15 +140,20 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     return run;
   }, [runDecryptAll]);
 
-  // Initial decryption when vault becomes ready. Locked: the vault names go.
+  // A lock or another profile: nothing decrypted before may stay in memory or show.
   useEffect(() => {
-    if (!vaultUnlocked) {
-      setVaults([]);
-      return;
-    }
-
-    void decryptAll();
-  }, [vaultUnlocked, decryptAll]);
+    generationRef.current++;
+    unlockedRef.current = vaultUnlocked;
+    recordsMapRef.current = new Map();
+    fingerprintMapRef.current = new Map();
+    setVaults([]);
+    setReady(false);
+    setRevision((r) => r + 1);
+    if (vaultUnlocked) void decryptAll();
+    return () => {
+      if (vault) forgetPasswordRatings(vault);
+    };
+  }, [vaultUnlocked, vault, decryptAll]);
 
   // Re-decrypt on sync
   useEffect(() => {
@@ -160,16 +170,20 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
 
   const refreshRecord = useCallback(
     async (id: string) => {
-      if (!vault) return;
+      if (!vault || !unlockedRef.current) return;
+      const generation = generationRef.current;
       const encrypted = await vault.getByRecordId(id);
+      if (generation !== generationRef.current) return;
+      const decrypted =
+        encrypted && !encrypted.deleted_at ? await decryptRecordRow(encrypted) : undefined;
+      if (generation !== generationRef.current) return;
 
-      if (!encrypted || encrypted.deleted_at) {
-        recordsMapRef.current.delete(id);
-        fingerprintMapRef.current.delete(id);
-      } else {
-        const decrypted = await decryptRecordRow(encrypted);
+      if (encrypted && decrypted) {
         recordsMapRef.current.set(id, decrypted);
         fingerprintMapRef.current.set(id, buildFingerprint(encrypted));
+      } else {
+        recordsMapRef.current.delete(id);
+        fingerprintMapRef.current.delete(id);
       }
 
       setRevision((r) => r + 1);
@@ -177,16 +191,17 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     [vault],
   );
 
+  // Gated in render too: the render where the lock lands comes before the effect that clears the maps.
   const getRecord = useCallback(
-    (id: string) => recordsMapRef.current.get(id),
+    (id: string) => (vaultUnlocked ? recordsMapRef.current.get(id) : undefined),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [revision],
+    [revision, vaultUnlocked],
   );
 
   const value: RecordsContextValue = {
-    records: Array.from(recordsMapRef.current.values()),
+    records: vaultUnlocked ? Array.from(recordsMapRef.current.values()) : [],
     getRecord,
-    ready,
+    ready: ready && vaultUnlocked,
     refreshRecord,
     reload,
     revision,
