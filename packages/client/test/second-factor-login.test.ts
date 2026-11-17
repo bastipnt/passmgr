@@ -39,22 +39,24 @@ function trpcError(code: string, httpStatus: number, message: string) {
   } as never);
 }
 
+const zeros = (bytes: number) => btoa("\0".repeat(bytes));
+
 const SUCCESS = {
   sessionId: "s-1",
   userId: USER_ID,
   userPasswordKeys: {
     passwordKekParams: { t: 1, m: 8, p: 1 },
-    passwordKekSalt: "salt",
-    encryptedAccountKey: "eak",
-    accountKeyEncryptionNonce: "nonce",
+    passwordKekSalt: zeros(32),
+    encryptedAccountKey: zeros(48),
+    accountKeyEncryptionNonce: zeros(24),
   },
   recoveryKeys: null,
   vaultKeys: [],
   userKeyPair: {
     keyVersion: 1,
-    publicKey: "pk",
-    encryptedPrivateKey: "epk",
-    privateKeyEncryptionNonce: "n",
+    publicKey: zeros(32),
+    encryptedPrivateKey: zeros(48),
+    privateKeyEncryptionNonce: zeros(24),
   },
 };
 
@@ -84,7 +86,12 @@ async function fakeServer({ twoFactor = false } = {}) {
   const record = fin.record.serialize();
 
   const attempts = new Map<string, string>();
-  const state: { startError?: Error; finishError?: Error; verifyError?: Error } = {};
+  const state: {
+    startError?: Error;
+    finishError?: Error;
+    verifyError?: Error;
+    finishAnswer?: unknown;
+  } = {};
   const verified: string[] = [];
 
   const trpc = {
@@ -115,7 +122,7 @@ async function fakeServer({ twoFactor = false } = {}) {
           );
           if (server.authFinish(ke3, expected) instanceof Error) throw new Error("UNAUTHORIZED");
           if (twoFactor) return { secondFactorRequired: true, challengeId: crypto.randomUUID() };
-          return SUCCESS;
+          return state.finishAnswer ?? SUCCESS;
         },
       },
       verifySecondFactor: {
@@ -297,6 +304,23 @@ describe("loginUser — request failures", () => {
     await expect(loginUser(trpc, async () => {}, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
       LoginFinishFailedError,
     );
+  });
+
+  it("refuses a login answer with Argon2 params past the bounds, before any session", async () => {
+    const { trpc, state } = await fakeServer();
+    state.finishAnswer = {
+      ...SUCCESS,
+      userPasswordKeys: {
+        ...SUCCESS.userPasswordKeys,
+        passwordKekParams: { t: 3, m: 4 * 1024 * 1024, p: 4 },
+      },
+    };
+    const session = vi.fn(async () => {});
+
+    await expect(loginUser(trpc, session, EMAIL, PASSWORD)).rejects.toBeInstanceOf(
+      LoginUnreachableError,
+    );
+    expect(session).not.toHaveBeenCalled();
   });
 
   it("a network failure while verifying the code is unreachable", async () => {

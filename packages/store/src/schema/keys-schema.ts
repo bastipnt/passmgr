@@ -2,7 +2,7 @@ import { BIOMETRIC_KEY, BIOMETRIC_REQUIRED_KEY, type BiometricKeyMaterial } from
 import {
   ACCOUNT_KEY_MATERIAL_KEYS,
   type AccountKeyMaterial,
-  type ArgonParams,
+  argonParamsSchema,
   type RecoveryKeySchema,
   type RecoveryWrapSchema,
   recoveryKeySchema,
@@ -59,7 +59,7 @@ export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | n
 
   // A corrupt entry counts as nothing stored (no offline unlock until the next
   // online login rewrites it) instead of throwing at every app start.
-  let passwordKekParams: ArgonParams;
+  let passwordKekParams: unknown;
   let userKeyPair: unknown;
   try {
     passwordKekParams = JSON.parse(res.passwordKekParams ?? "");
@@ -67,10 +67,15 @@ export async function getAccountKey(db: LocalDb): Promise<AccountKeyMaterial | n
   } catch {
     return null;
   }
+  const parsedParams = argonParamsSchema.safeParse(passwordKekParams);
   const parsedKeyPair = userKeyPairSchema.safeParse(userKeyPair);
-  if (!parsedKeyPair.success) return null;
+  if (!parsedParams.success || !parsedKeyPair.success) return null;
 
-  return { ...res, passwordKekParams, userKeyPair: parsedKeyPair.data } as AccountKeyMaterial;
+  return {
+    ...res,
+    passwordKekParams: parsedParams.data,
+    userKeyPair: parsedKeyPair.data,
+  } as AccountKeyMaterial;
 }
 
 /**

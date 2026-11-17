@@ -1,10 +1,12 @@
 import { type BiometricKeyMaterial, isPrfSupported } from "@repo/crypto";
-import type {
-  AccountKeyMaterial,
-  MemberVault,
-  RecoveryKeySchema,
-  RecoveryWrapSchema,
-  SealedPendingRecovery,
+import {
+  type AccountKeyMaterial,
+  type MemberVault,
+  pushOutputSchema,
+  type RecoveryKeySchema,
+  type RecoveryWrapSchema,
+  type SealedPendingRecovery,
+  syncOutputSchema,
 } from "@repo/schema";
 import {
   clearAutofillEntries,
@@ -44,6 +46,7 @@ import {
   isSignedOut,
   isThrottled,
   isUnauthorized,
+  parseServerResponse,
 } from "../util/trpc-errors";
 import { reencryptForPush } from "../vaults/rekey";
 import { runSharingTasks } from "../vaults/sharing";
@@ -383,9 +386,16 @@ export function StoreProvider({
       }
 
       const syncManager = new SyncManager(vault, {
-        pull: (cursors) => request(() => trpcRef.current.record.sync.query({ cursors })),
+        pull: async (cursors) =>
+          parseServerResponse(
+            syncOutputSchema,
+            await request(() => trpcRef.current.record.sync.query({ cursors })),
+          ),
         push: async (changes) =>
-          (await request(() => trpcRef.current.record.push.mutate({ changes }))).results,
+          parseServerResponse(
+            pushOutputSchema,
+            await request(() => trpcRef.current.record.push.mutate({ changes })),
+          ).results,
         // Offline, a network failure, an unsigned request (locked), a rejected
         // session, a busy, throttling or failing server: every other batch would
         // fail the same way. Only an answer about the batch itself (a 4xx) is

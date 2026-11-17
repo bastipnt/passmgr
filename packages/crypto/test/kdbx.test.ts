@@ -1,8 +1,10 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { sha256 } from "@noble/hashes/sha2.js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   isKdbx,
+  KDBX_LIMITS,
   type KdbxArgon2,
   type KdbxCredentials,
   KdbxInvalidKeyError,
@@ -14,6 +16,41 @@ import { argon2Async } from "../src/util/argon2-impl";
 const fixture = (name: string) =>
   new Uint8Array(readFileSync(join(import.meta.dirname, "fixtures/kdbx", name)));
 const demoKey = fixture("kdbxweb-demo.key");
+
+/** Where the value of header field `id` starts, and the header's end (KDBX 3: u16 sizes, 4: u32). */
+function headerField(file: Uint8Array, id: number) {
+  const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
+  const major = view.getUint16(10, true);
+  let at = 12;
+  let found = -1;
+  for (;;) {
+    const fieldId = file[at]!;
+    const size = major === 3 ? view.getUint16(at + 1, true) : view.getUint32(at + 1, true);
+    const start = at + (major === 3 ? 3 : 5);
+    if (fieldId === id) found = start;
+    at = start + size;
+    if (fieldId === 0) return { start: found, headerEnd: at };
+  }
+}
+
+/** Where the value of `name` starts in a KDBX 4 KDF parameters dictionary (field 11). */
+function kdfParameter(file: Uint8Array, name: string) {
+  const view = new DataView(file.buffer, file.byteOffset, file.byteLength);
+  let at = headerField(file, 11).start + 2;
+  for (;;) {
+    const keyLength = view.getInt32(at + 1, true);
+    const key = new TextDecoder().decode(file.subarray(at + 5, at + 5 + keyLength));
+    const valueAt = at + 5 + keyLength + 4;
+    if (key === name) return { view, at: valueAt };
+    at = valueAt + view.getInt32(at + 5 + keyLength, true);
+  }
+}
+
+/** Recompute the KDBX 4 header hash after editing the header. */
+function rehash(file: Uint8Array) {
+  const { headerEnd } = headerField(file, 0);
+  file.set(sha256(file.subarray(0, headerEnd)), headerEnd);
+}
 
 const protectedValues = (xml: string) =>
   [...xml.matchAll(/<Value ProtectInMemory="True">([^<]*)<\/Value>/g)].map((m) => m[1]);
@@ -135,6 +172,53 @@ describe("openKdbx", () => {
 
     await expect(openKdbx(file, { password: "demo", keyFile: demoKey })).rejects.toBeInstanceOf(
       KdbxUnsupportedError,
+    );
+  });
+
+  it("refuses AES-KDF rounds past the cap before deriving", async () => {
+    const file = fixture("kdbxweb-demo.kdbx");
+    const { start } = headerField(file, 6);
+    new DataView(file.buffer).setBigUint64(start, BigInt(KDBX_LIMITS.aesKdfRounds + 1), true);
+
+    await expect(openKdbx(file, { password: "demo", keyFile: demoKey })).rejects.toThrow(
+      "AES-KDF rounds",
+    );
+  });
+
+  it.each([
+    ["memory", "M", 8n * 1024n ** 3n],
+    ["memory × iterations", "I", BigInt(KDBX_LIMITS.argon2Work)],
+  ])("refuses Argon2 %s past the cap before deriving", async (_name, parameter, value) => {
+    const file = fixture("kdbxweb-Argon2.kdbx");
+    const { view, at } = kdfParameter(file, parameter);
+    view.setBigUint64(at, value, true);
+    rehash(file);
+    const argon2 = vi.fn<KdbxArgon2>();
+
+    await expect(
+      openKdbx(file, { password: "demo", keyFile: demoKey }, argon2),
+    ).rejects.toBeInstanceOf(KdbxUnsupportedError);
+    expect(argon2).not.toHaveBeenCalled();
+  });
+
+  it("refuses Argon2 parallelism past the cap", async () => {
+    const file = fixture("kdbxweb-Argon2id.kdbx");
+    const { view, at } = kdfParameter(file, "P");
+    view.setUint32(at, KDBX_LIMITS.argon2Parallelism + 1, true);
+    rehash(file);
+
+    await expect(openKdbx(file, { password: "demo", keyFile: demoKey })).rejects.toBeInstanceOf(
+      KdbxUnsupportedError,
+    );
+  });
+
+  it("checks the KDBX 3.1 header against the XML's HeaderHash", async () => {
+    const file = fixture("kdbxweb-demo.kdbx");
+    // The minor version: covered by the hash, read by nothing else.
+    file[8]! ^= 1;
+
+    await expect(openKdbx(file, { password: "demo", keyFile: demoKey })).rejects.toThrow(
+      "KDBX header damaged",
     );
   });
 

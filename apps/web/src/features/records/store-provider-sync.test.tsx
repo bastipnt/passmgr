@@ -113,6 +113,8 @@ beforeEach(() => {
     cursors: {},
     hasMore: false,
     serverTimestamp: "2026-10-01T00:00:00.000Z",
+    keyUpdates: [],
+    rotationsDue: [],
   });
 });
 
@@ -208,9 +210,13 @@ describe("StoreProvider sync", () => {
   });
 
   it("pushes pending local versions in one record.push before pulling", async () => {
+    const RECORD_ID = "0199a3c4-0000-7000-8000-0000000000e1";
+    const VAULT_ID = "0199a3c4-0000-7000-8000-0000000000f1";
+    const changeId = (i: number) => `0199a3c4-0000-7000-8000-00000000000${i + 1}`;
+    const serverRow = ({ syncState: _, ...server }: (typeof versions)[number]) => server;
     const row = {
-      recordId: "r1",
-      vaultId: "v1",
+      recordId: RECORD_ID,
+      vaultId: VAULT_ID,
       encryptedData: "data",
       encryptionNonce: "nonce",
       cryptoVersion: 1,
@@ -227,7 +233,7 @@ describe("StoreProvider sync", () => {
     ];
     vault.getPendingChanges.mockResolvedValueOnce(
       versions.map((record, i) => ({
-        changeId: `c${i + 1}`,
+        changeId: changeId(i),
         attempts: 0,
         lastError: null,
         parkedAt: null,
@@ -239,7 +245,7 @@ describe("StoreProvider sync", () => {
         results: changes.map((c, i) => ({
           clientChangeId: c.clientChangeId,
           status: "applied",
-          record: versions[i],
+          record: serverRow(versions[i]!),
         })),
       }),
     );
@@ -248,18 +254,22 @@ describe("StoreProvider sync", () => {
 
     await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
     const { clientUpdatedAt, encryptedData, encryptionNonce, keyVersion } = row;
-    const common = { recordId: "r1", vaultId: "v1", clientUpdatedAt };
+    const common = { recordId: RECORD_ID, vaultId: VAULT_ID, clientUpdatedAt };
     // Sealed as itself by the stub.
     const ciphertext = { encryptedData, encryptionNonce, cryptoVersion: 1, keyVersion };
     expect(trpcClient.record.push.mutate).toHaveBeenCalledExactlyOnceWith({
       changes: [
-        { ...common, ...ciphertext, op: "put", clientChangeId: "c1", baseVersion: 0 },
-        { ...common, ...ciphertext, op: "put", clientChangeId: "c2", baseVersion: 1 },
-        { ...common, ...ciphertext, op: "delete", clientChangeId: "c3", baseVersion: 2 },
+        { ...common, ...ciphertext, op: "put", clientChangeId: changeId(0), baseVersion: 0 },
+        { ...common, ...ciphertext, op: "put", clientChangeId: changeId(1), baseVersion: 1 },
+        { ...common, ...ciphertext, op: "delete", clientChangeId: changeId(2), baseVersion: 2 },
       ],
     });
     expect(vault.ackPendingChange.mock.calls).toEqual(
-      versions.map((record, i) => [`c${i + 1}`, record, { isSealed: expect.any(Function) }]),
+      versions.map((record, i) => [
+        changeId(i),
+        serverRow(record),
+        { isSealed: expect.any(Function) },
+      ]),
     );
   });
 

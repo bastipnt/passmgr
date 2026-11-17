@@ -12,6 +12,8 @@ import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const ME_ID = "0199a3c4-0000-7000-8000-00000000000a";
+const BOB_ID = "0199a3c4-0000-7000-8000-00000000000b";
 const mocks = vi.hoisted(() => {
   const calls: string[] = [];
   return {
@@ -47,7 +49,7 @@ const vault = {
     profileId: "p",
     mode: "linked",
     email: "me@x.y",
-    userId: "u-me",
+    userId: ME_ID,
   })),
   getPeerKey: vi.fn(async () => null),
   pinPeerKey: vi.fn(async () => undefined),
@@ -211,13 +213,13 @@ describe("useVaultActions", () => {
     const next = { ...work, ...wrap, previousKeys: [previousKey] };
 
     const bob = {
-      userId: "u-bob",
+      userId: BOB_ID,
       email: "bob@x.y",
       role: "write",
       status: "active",
-      publicKey: { keyVersion: 1, publicKey: "pk-bob" },
+      publicKey: { keyVersion: 1, publicKey: btoa("b".repeat(32)) },
     };
-    const sealed = { userId: "u-bob", recipientKeyVersion: 1, sealedVaultKey: "sealed" };
+    const sealed = { userId: BOB_ID, recipientKeyVersion: 1, sealedVaultKey: "sealed" };
 
     beforeEach(() => {
       mocks.vaults = [work];
@@ -267,7 +269,7 @@ describe("useVaultActions", () => {
 
     it("online: seals the new key to the other members whose keys are pinned", async () => {
       mocks.trpc.vault.members.query.mockResolvedValueOnce([
-        { ...bob, userId: "u-me", email: "me@x.y" },
+        { ...bob, userId: ME_ID, email: "me@x.y" },
         bob,
       ]);
       vault.getPeerKey.mockResolvedValueOnce(bob.publicKey as never);

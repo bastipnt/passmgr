@@ -248,6 +248,15 @@ describe("key material", () => {
     expect(await vault.getAccountKeyMaterial()).toBeNull();
   });
 
+  it.each([
+    ["memory", { t: 3, m: 64 * 1024 * 1024, p: 4 }],
+    ["iterations", { t: 1_000_000, m: 65536, p: 4 }],
+  ])("treats cached KEK params with out-of-bounds %s as no key material", async (_l, params) => {
+    await vault.setAccountKeyMaterial({ ...accountKey, passwordKekParams: params }, [personal]);
+
+    expect(await vault.getAccountKeyMaterial()).toBeNull();
+  });
+
   it("a second set overwrites the account key and updates the vaults it lists", async () => {
     const left = vaultKey("v-left");
     await vault.setAccountKeyMaterial(accountKey, [personal, left]);

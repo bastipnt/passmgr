@@ -12,12 +12,7 @@ import {
   unwrapAccountKey,
   unwrapAccountKeyWithRecoveryKey,
 } from "@repo/crypto";
-import {
-  type AccountKeyMaterial,
-  getArgonBounds,
-  pendingRecoverySchema,
-  setArgonBounds,
-} from "@repo/schema";
+import { type AccountKeyMaterial, pendingRecoverySchema } from "@repo/schema";
 import type { LocalProfile } from "@repo/store";
 import { fromBase64, toBase64 } from "@repo/util";
 import { act, renderHook } from "@testing-library/react";
@@ -289,16 +284,8 @@ describe("useRecovery — account vault on this device", () => {
   const NEW_PASSWORD = "a brand new password";
 
   const previous = getPasswordKekParams();
-  const bounds = getArgonBounds();
-  beforeAll(() => {
-    setPasswordKekParams({ t: 1, m: 8, p: 1 });
-    // The pending recovery's key set is validated like the server's input.
-    setArgonBounds({ tMin: 1, mMin: 8, mMultipleOf: 1 });
-  });
-  afterAll(() => {
-    setPasswordKekParams(previous);
-    setArgonBounds(bounds);
-  });
+  beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
+  afterAll(() => setPasswordKekParams(previous));
 
   let keyring: Awaited<ReturnType<typeof generateLocalVault>>;
 

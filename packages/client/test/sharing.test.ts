@@ -120,6 +120,8 @@ function aliceManages(key: { keyVersion: number; publicKey: string }, role = "ma
 const selfListed = () => ({
   userId: SELF,
   email: "me@example.com",
+  role: "owner",
+  status: "active",
   publicKey: { keyVersion: 1, publicKey: local.material.userKeyPair.publicKey },
 });
 
@@ -233,7 +235,7 @@ describe("runSharingTasks", () => {
     await vault.pinPeerKey(ALICE, bob.keyPair);
     const trpc = fakeTrpc([
       selfListed(),
-      { userId: ALICE, email: "a@x.org", publicKey: bob.keyPair },
+      { userId: ALICE, email: "a@x.org", role: "write", status: "active", publicKey: bob.keyPair },
     ]);
     const d = deps(trpc);
 

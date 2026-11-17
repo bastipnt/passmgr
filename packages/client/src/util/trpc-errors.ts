@@ -35,8 +35,29 @@ export function isRetryLater(err: unknown): boolean {
   );
 }
 
-/** The server failed on its side (a 5xx), whatever the request held. */
+/** The server answered with something its output schema doesn't allow. */
+export class InvalidServerResponseError extends Error {
+  override message = "InvalidServerResponseError";
+}
+
+type ResponseSchema<T> = {
+  safeParse(value: unknown): { success: true; data: T } | { success: false };
+};
+
+/**
+ * Check a server answer against the schema the server's `.output()` uses: the
+ * client acts on it (Argon2 params, keys, cursors), so its types are a claim,
+ * not a guarantee.
+ */
+export function parseServerResponse<T>(schema: ResponseSchema<T>, value: unknown): T {
+  const parsed = schema.safeParse(value);
+  if (!parsed.success) throw new InvalidServerResponseError();
+  return parsed.data;
+}
+
+/** The server failed on its side (a 5xx or a malformed answer), whatever the request held. */
 export function isServerError(err: unknown): boolean {
+  if (err instanceof InvalidServerResponseError) return true;
   if (!(err instanceof TRPCClientError)) return false;
   const status = err.data?.httpStatus;
   return typeof status === "number" ? status >= 500 : err.data?.code === "INTERNAL_SERVER_ERROR";
@@ -83,5 +104,6 @@ function responseStatus(err: TRPCClientError<never>): number | undefined {
  * network failure, a locked session that couldn't sign it).
  */
 export function isServerAnswer(err: unknown): boolean {
+  if (err instanceof InvalidServerResponseError) return true;
   return err instanceof TRPCClientError && err.data !== undefined && err.data !== null;
 }

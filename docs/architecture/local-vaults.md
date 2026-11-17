@@ -31,7 +31,9 @@ Import from other managers (`packages/client/src/import/`, same web Import dialo
 new records in the one picked vault, the `vault` column dropped, custom fields come back as text) and refuses known-but-unsupported files with a how-to (`UnsupportedImportFileError`).
 A KeePass database (KDBX 3.1 / 4) comes back as `kind: "kdbx"`: `openKeePassDatabase` (password + optional key file)
 decrypts it on the device (`@repo/crypto` `openKdbx`, own reader on @noble: AES-KDF via WebCrypto, Argon2d / id through
-`argon2WorkerService`; no Twofish) to its inner XML, then `importKeePassXml`. Fixtures: `packages/crypto/test/fixtures/kdbx`.
+`argon2WorkerService`; no Twofish) to its inner XML, then `importKeePassXml`. The header's KDF cost and the inflated size
+are capped (`KDBX_LIMITS`, wider than our own wraps' `argonParamsSchema`), and a 3.1 header is checked against the XML's
+`HeaderHash` when it has one. Fixtures: `packages/crypto/test/fixtures/kdbx`.
 Each parser fills a `ForeignImportBuilder` → an `ExportData` of one vault, imported with `keep-both` into the picked
 vault (every record new). Folders → tags, extra fields → custom fields, history / passkeys / attachments dropped and
 counted in the report. App ids and other `scheme://` addresses stay websites (`parseWebsite` in `@repo/util`:

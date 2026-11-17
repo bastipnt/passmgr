@@ -12,9 +12,14 @@ import {
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
+  finishDeviceLoginOutputSchema,
+  finishLoginOutputSchema,
   type LoginSuccess,
+  loginSuccessSchema,
   SECOND_FACTOR_EXPIRED,
   SECOND_FACTOR_INVALID,
+  startDeviceLoginOutputSchema,
+  startLoginOutputSchema,
   type VaultUnlockInfo,
 } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
@@ -28,7 +33,13 @@ import {
   type SecondFactorPrompt,
 } from "./second-factor";
 import { timed } from "./util/perf";
-import { isServerAnswer, isServerError, isThrottled, isUnauthorized } from "./util/trpc-errors";
+import {
+  isServerAnswer,
+  isServerError,
+  isThrottled,
+  isUnauthorized,
+  parseServerResponse,
+} from "./util/trpc-errors";
 
 export {
   noSecondFactor,
@@ -128,8 +139,11 @@ export async function loginWithOpaquePassword(
   let loginResponse: string;
   let attemptId: string;
   try {
-    ({ loginResponse, attemptId } = await timed("opaque startLogin", () =>
-      trpc.login.startLogin.mutate({ email, startLoginRequest }),
+    ({ loginResponse, attemptId } = parseServerResponse(
+      startLoginOutputSchema,
+      await timed("opaque startLogin", () =>
+        trpc.login.startLogin.mutate({ email, startLoginRequest }),
+      ),
     ));
   } catch (err) {
     throw requestFailure(err, LoginStartFailedError);
@@ -154,13 +168,16 @@ export async function loginWithOpaquePassword(
 
   let finishedLogin: Awaited<ReturnType<LoginTRPCClient["login"]["finishLogin"]["mutate"]>>;
   try {
-    finishedLogin = await timed("opaque finishLogin", () =>
-      trpc.login.finishLogin.mutate({
-        email,
-        attemptId,
-        finishLoginRequest,
-        authSalt: toBase64(authSalt),
-      }),
+    finishedLogin = parseServerResponse(
+      finishLoginOutputSchema,
+      await timed("opaque finishLogin", () =>
+        trpc.login.finishLogin.mutate({
+          email,
+          attemptId,
+          finishLoginRequest,
+          authSalt: toBase64(authSalt),
+        }),
+      ),
     );
   } catch (err) {
     throw requestFailure(err, LoginFinishFailedError);
@@ -206,7 +223,10 @@ export async function startDeviceLogin(
 ): Promise<PendingDeviceLogin> {
   let started: Awaited<ReturnType<LoginTRPCClient["login"]["startDeviceLogin"]["mutate"]>>;
   try {
-    started = await trpc.login.startDeviceLogin.mutate({ credentialId });
+    started = parseServerResponse(
+      startDeviceLoginOutputSchema,
+      await trpc.login.startDeviceLogin.mutate({ credentialId }),
+    );
   } catch (err) {
     throw requestFailure(err, DeviceLoginRejectedError);
   }
@@ -237,12 +257,15 @@ export async function startDeviceLogin(
 
     let finished: Awaited<ReturnType<LoginTRPCClient["login"]["finishDeviceLogin"]["mutate"]>>;
     try {
-      finished = await trpc.login.finishDeviceLogin.mutate({
-        attemptId: started.attemptId,
-        clientPublicKey: toBase64(publicKey),
-        ...assertion,
-        authSalt: toBase64(authSalt),
-      });
+      finished = parseServerResponse(
+        finishDeviceLoginOutputSchema,
+        await trpc.login.finishDeviceLogin.mutate({
+          attemptId: started.attemptId,
+          clientPublicKey: toBase64(publicKey),
+          ...assertion,
+          authSalt: toBase64(authSalt),
+        }),
+      );
     } catch (err) {
       throw requestFailure(err, DeviceLoginRejectedError);
     }
@@ -307,7 +330,10 @@ async function verifyCode(
   code: string,
 ): Promise<LoginSuccess | undefined> {
   try {
-    return await trpc.login.verifySecondFactor.mutate({ challengeId, code });
+    return parseServerResponse(
+      loginSuccessSchema,
+      await trpc.login.verifySecondFactor.mutate({ challengeId, code }),
+    );
   } catch (err) {
     if (isUnauthorized(err) && err instanceof TRPCClientError) {
       if (err.message === SECOND_FACTOR_INVALID) return undefined;

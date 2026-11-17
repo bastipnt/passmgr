@@ -29,7 +29,12 @@ export function getArgonBounds(): ArgonBounds {
   return { ...argonBounds };
 }
 
-const argonParams = z
+/**
+ * The Argon2id params of one of our password wraps (account, export file),
+ * whoever sent or stored them: an unbounded `m` / `t` from a server, the disk
+ * or a crafted backup would hang or exhaust the device at unlock.
+ */
+export const argonParamsSchema = z
   .object({
     t: z.number().int(),
     m: z.number().int(),
@@ -59,7 +64,7 @@ const argonParams = z
     }
   });
 
-export type ArgonParams = z.infer<typeof argonParams>;
+export type ArgonParams = z.infer<typeof argonParamsSchema>;
 
 // Key hierarchy (ADR 0001 D3): the password KEK and the recovery KEK each wrap
 // the account key; the account key wraps one key per vault.
@@ -80,7 +85,7 @@ export const recoveryKeySchema = z.object({
 });
 
 export const passwordKeySchema = z.object({
-  passwordKekParams: argonParams,
+  passwordKekParams: argonParamsSchema,
   passwordKekSalt: z.base64().length(44),
 
   encryptedAccountKey: z.base64().length(64),

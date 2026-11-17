@@ -6,8 +6,8 @@ import { hmac } from "@noble/hashes/hmac.js";
 import { sha256, sha512 } from "@noble/hashes/sha2.js";
 import { bytesToHex, concatBytes, hexToBytes } from "@noble/hashes/utils.js";
 import { fromBase64 } from "@repo/util";
-import { gunzipSync } from "fflate";
 import { type Argon2Params, argon2Async } from "./util/argon2-impl";
+import { GzipTooLargeError, gunzipBounded } from "./util/gunzip-bounded";
 
 /*
  * Reads a KeePass database (KDBX 3.1 and 4.x) into its inner XML, the format
@@ -48,6 +48,20 @@ const KDF_ARGON2: Record<string, Argon2Params["variant"]> = {
   "9e298b1956db4773b23dfc3ec6f0a1e6": "argon2id",
 };
 const ARGON2_VERSION = 0x13;
+
+/**
+ * Work a database's header may ask for. KeePass picks its KDF cost freely, so
+ * these are wider than our own wraps' bounds (`argonParamsSchema`), only
+ * capped so a crafted file can't hang or exhaust the device.
+ */
+export const KDBX_LIMITS = {
+  aesKdfRounds: 300_000_000,
+  argon2MemoryKib: 1024 * 1024,
+  argon2Parallelism: 64,
+  /** Argon2 memory × iterations, in KiB: 16 passes over 1 GiB. */
+  argon2Work: 16 * 1024 * 1024,
+  inflatedBytes: 512 * 1024 * 1024,
+} as const;
 
 const STREAM_NONE = 0;
 const STREAM_SALSA20 = 2;
@@ -186,6 +200,7 @@ const AES_KDF_CHUNK_BLOCKS = 1 << 18;
  * Chunked, yielding in between, so a high round count doesn't freeze the page.
  */
 async function aesKdf(key: Uint8Array, seed: Uint8Array, rounds: number): Promise<Uint8Array> {
+  if (rounds > KDBX_LIMITS.aesKdfRounds) throw new KdbxUnsupportedError("AES-KDF rounds");
   const subtle = globalThis.crypto?.subtle;
   const aesKey =
     subtle && (await subtle.importKey("raw", seed.slice(), "AES-CBC", false, ["encrypt"]));
@@ -230,12 +245,38 @@ async function transformKey(
   if (!variant) throw new KdbxUnsupportedError("KDF");
   if (readU32(get("V")) !== ARGON2_VERSION || kdf.get("K")?.length || kdf.get("A")?.length)
     throw new KdbxUnsupportedError("Argon2 parameters");
-  return argon2(key, get("S"), {
-    t: readU64(get("I")),
-    m: readU64(get("M")) / 1024,
-    p: readU32(get("P")),
-    variant,
-  });
+  return argon2(
+    key,
+    get("S"),
+    boundedArgon2(readU64(get("I")), readU64(get("M")), readU32(get("P")), variant),
+  );
+}
+
+function boundedArgon2(
+  t: number,
+  memoryBytes: number,
+  p: number,
+  variant: Argon2Params["variant"] & {},
+): Required<Argon2Params> {
+  const m = memoryBytes / 1024;
+  const ok =
+    Number.isInteger(m) &&
+    t >= 1 &&
+    p >= 1 &&
+    m >= 8 * p &&
+    m <= KDBX_LIMITS.argon2MemoryKib &&
+    p <= KDBX_LIMITS.argon2Parallelism &&
+    m * t <= KDBX_LIMITS.argon2Work;
+  if (!ok) throw new KdbxUnsupportedError("Argon2 parameters");
+  return { t, m, p, variant };
+}
+
+function inflate(payload: Uint8Array): Uint8Array {
+  try {
+    return gunzipBounded(payload, KDBX_LIMITS.inflatedBytes);
+  } catch (e) {
+    throw e instanceof GzipTooLargeError ? new KdbxUnsupportedError("database size") : e;
+  }
 }
 
 function cipherOf(fields: Fields) {
@@ -333,12 +374,29 @@ function revealProtected(xml: string, stream: (data: Uint8Array) => Uint8Array):
 
 type Keys = { encryptionKey: Uint8Array; transformed: Uint8Array };
 
+/**
+ * KDBX 3.1 has no header MAC: the XML's `Meta/HeaderHash` (SHA-256 of the
+ * header) covers it. Optional, as in KeePass: older writers leave it out.
+ */
+function checkHeaderHash(xml: string, header: Uint8Array) {
+  const meta = xml.slice(0, xml.indexOf("</Meta>"));
+  const hash = /<HeaderHash>\s*([^<]*?)\s*<\/HeaderHash>/.exec(meta)?.[1];
+  if (hash === undefined) return;
+  let expected: Uint8Array;
+  try {
+    expected = fromBase64(hash);
+  } catch {
+    throw new Error("KDBX header damaged");
+  }
+  if (!equalBytes(expected, sha256(header))) throw new Error("KDBX header damaged");
+}
+
 function readKdbx3(reader: Reader, fields: Fields, { encryptionKey }: Keys) {
   const plain = decrypt(fields, encryptionKey, reader.rest());
   const start = required(fields, Header.StreamStartBytes);
   if (!equalBytes(plain.subarray(0, start.length), start)) throw new KdbxInvalidKeyError();
   let payload = readHashedBlocks(new Reader(plain.subarray(start.length)));
-  if (readU32(required(fields, Header.Compression))) payload = gunzipSync(payload);
+  if (readU32(required(fields, Header.Compression))) payload = inflate(payload);
   const stream = innerStream(
     readU32(required(fields, Header.InnerRandomStreamId)),
     required(fields, Header.ProtectedStreamKey),
@@ -351,8 +409,8 @@ function readKdbx4(reader: Reader, fields: Fields, header: Uint8Array, keys: Key
   const hmacKey = sha512(concatBytes(masterSeed, keys.transformed, new Uint8Array([1])));
   const headerMac = hmac(sha256, blockHmacKey(hmacKey, 0xffff_ffff_ffff_ffffn), header);
   if (!equalBytes(headerMac, reader.bytesOf(32))) throw new KdbxInvalidKeyError();
-  let payload = decrypt(fields, keys.encryptionKey, readHmacBlocks(reader, hmacKey));
-  if (readU32(required(fields, Header.Compression))) payload = gunzipSync(payload);
+  let payload: Uint8Array = decrypt(fields, keys.encryptionKey, readHmacBlocks(reader, hmacKey));
+  if (readU32(required(fields, Header.Compression))) payload = inflate(payload);
   const inner = new Reader(payload);
   const innerFields = readFields(inner, inner.u32);
   const stream = innerStream(
@@ -395,5 +453,7 @@ export async function openKdbx(
   };
   const { xml, stream } =
     major === 3 ? readKdbx3(reader, fields, keys) : readKdbx4(reader, fields, header, keys);
-  return revealProtected(new TextDecoder().decode(xml), stream);
+  const text = new TextDecoder().decode(xml);
+  if (major === 3) checkHeaderHash(text, header);
+  return revealProtected(text, stream);
 }

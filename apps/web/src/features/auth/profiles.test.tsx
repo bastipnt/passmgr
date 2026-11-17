@@ -35,12 +35,13 @@ const material: AccountKeyMaterial = {
   accountKeyEncryptionNonce: b64(24),
   userKeyPair: createUserKeyPair(accountKey),
 };
+const PERSONAL_ID = "0199a3c4-0000-7000-8000-0000000000aa";
 const personal: MemberVault = {
-  ...wrapVaultKey(accountKey, genKey(), "v-personal", 1),
+  ...wrapVaultKey(accountKey, genKey(), PERSONAL_ID, 1),
   kind: "personal",
   role: "owner",
-  encryptedMeta: "meta",
-  metaEncryptionNonce: "mn",
+  encryptedMeta: btoa("meta"),
+  metaEncryptionNonce: btoa("n".repeat(24)),
   previousKeys: [],
 };
 const ALICE: LocalProfile = {
@@ -59,7 +60,7 @@ const BOB: LocalProfile = {
 function record(recordId: string): EncryptedRecordSchema {
   return {
     recordId,
-    vaultId: "v-personal",
+    vaultId: PERSONAL_ID,
     version: 1,
     encryptedData: "data",
     encryptionNonce: "nonce",
@@ -216,7 +217,15 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
     expect(switched).toBe(false);
     expect(close).not.toHaveBeenCalled();
 
-    answer({ records: [], vaults: [personal], cursors: {}, hasMore: false, serverTimestamp: "" });
+    answer({
+      records: [],
+      vaults: [personal],
+      cursors: {},
+      hasMore: false,
+      serverTimestamp: "",
+      keyUpdates: [],
+      rotationsDue: [],
+    });
     await act(() => switching);
     expect(await round).toBe(true);
     expect(close).toHaveBeenCalledWith(ALICE.profileId);
@@ -266,7 +275,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
       encryptedAccountKey: b64(64),
       userKeyPair: createUserKeyPair(otherKey),
     };
-    const otherPersonal = { ...personal, ...wrapVaultKey(otherKey, genKey(), "v-personal", 1) };
+    const otherPersonal = { ...personal, ...wrapVaultKey(otherKey, genKey(), PERSONAL_ID, 1) };
 
     await act(async () => {
       await expect(

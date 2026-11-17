@@ -8,18 +8,25 @@ import type {
   VaultMeta,
   VaultRole,
 } from "@repo/schema";
-import { canManageVault } from "@repo/schema";
+import {
+  canManageVault,
+  userPublicKeySchema,
+  vaultInvitationSchema,
+  vaultMemberSchema,
+} from "@repo/schema";
 import { secretsStore, type Vault } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
 import { logError, logWarning } from "../errors/log-error";
 import type { useTRPCClient } from "../util/trpc";
 import {
+  InvalidServerResponseError,
   isConflict,
   isPreconditionFailed,
   isRetryLater,
   isServerAnswer,
   isServerError,
   isUnauthorized,
+  parseServerResponse,
 } from "../util/trpc-errors";
 
 /*
@@ -37,6 +44,13 @@ import {
  */
 
 type TrpcClient = ReturnType<typeof useTRPCClient>;
+
+const vaultMembersSchema = vaultMemberSchema.array();
+const vaultInvitationsSchema = vaultInvitationSchema.array();
+
+async function listMembers(trpc: TrpcClient, vaultId: string): Promise<VaultMember[]> {
+  return parseServerResponse(vaultMembersSchema, await trpc.vault.members.query({ vaultId }));
+}
 
 /** What the sharing calls need: the profile's database and the server. */
 export type SharingDeps = { vault: Vault; trpc: TrpcClient };
@@ -111,7 +125,10 @@ export type Invitee = { email: string; publicKey: UserPublicKey; fingerprint: st
 
 /** Look up a user to invite by email. NOT_FOUND (from the server) when there's no such account. */
 export async function lookupInvitee(trpc: TrpcClient, email: string): Promise<Invitee> {
-  const publicKey = await trpc.user.publicKey.mutate({ email });
+  const publicKey = parseServerResponse(
+    userPublicKeySchema,
+    await trpc.user.publicKey.mutate({ email }),
+  );
   return { email, publicKey, fingerprint: publicKeyFingerprint(publicKey.publicKey) };
 }
 
@@ -139,7 +156,13 @@ export async function inviteMember(
     senderKeyVersion: secretsStore.userKeyVersion,
     sealedVaultKey,
   });
-  const listed = (await trpc.vault.members.query({ vaultId })).find(
+  // The invite went through: a malformed member list only skips the pin, which
+  // the user can still set by verifying the member.
+  const members = await listMembers(trpc, vaultId).catch((e: unknown) => {
+    if (e instanceof InvalidServerResponseError) return [];
+    throw e;
+  });
+  const listed = members.find(
     (m) => m.email === invitee.email && m.publicKey.publicKey === invitee.publicKey.publicKey,
   );
   if (listed) {
@@ -159,7 +182,7 @@ export type OpenedInvitation = {
 
 /** The user's pending invites, as the server lists them (`openInvitations` opens them). */
 export async function fetchInvitations(trpc: TrpcClient): Promise<VaultInvitation[]> {
-  return await trpc.vault.invitations.query();
+  return parseServerResponse(vaultInvitationsSchema, await trpc.vault.invitations.query());
 }
 
 /**
@@ -223,7 +246,7 @@ export async function getMembers(
   vaultId: string,
 ): Promise<MemberInfo[]> {
   const self = await ownUserId(vault);
-  const members = await trpc.vault.members.query({ vaultId });
+  const members = await listMembers(trpc, vaultId);
   return await Promise.all(
     members.map(async (member) => {
       const pinned = await vault.getPeerKey(member.userId);
@@ -381,9 +404,7 @@ export async function rotateVault(
  */
 async function otherMembers(deps: SharingDeps, vaultId: string) {
   const self = await ownUserId(deps.vault);
-  const others = (await deps.trpc.vault.members.query({ vaultId })).filter(
-    (m) => m.userId !== self,
-  );
+  const others = (await listMembers(deps.trpc, vaultId)).filter((m) => m.userId !== self);
   const pinned = await Promise.all(
     others.map((m) => isPinnedKey(deps.vault, m.userId, m.publicKey)),
   );
@@ -421,6 +442,7 @@ export class UntrustedKeySenderError extends Error {
  * connection, not the task, so it ends the tasks without counting against one.
  */
 function isRequestFailure(error: unknown): boolean {
+  if (error instanceof InvalidServerResponseError) return true;
   return error instanceof TRPCClientError && (!isServerAnswer(error) || isUnauthorized(error));
 }
 
@@ -442,7 +464,7 @@ async function trustedSender(
   if (!(await isPinnedKey(deps.vault, sender.userId, sender))) return false;
   let listed = members.get(vaultId);
   if (!listed) {
-    listed = await deps.trpc.vault.members.query({ vaultId });
+    listed = await listMembers(deps.trpc, vaultId);
     members.set(vaultId, listed);
   }
   const member = listed.find((m) => m.userId === sender.userId);
