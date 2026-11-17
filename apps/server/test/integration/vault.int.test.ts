@@ -7,9 +7,15 @@ import {
   wrapVaultKey,
 } from "@repo/crypto";
 import { db, recordsTable, vaultMembersTable, vaultsTable } from "@repo/db";
-import { MIN_SYNC_RECORDS, type PushChange, type VaultRole } from "@repo/schema";
+import {
+  MAX_VAULTS_PER_USER,
+  MIN_SYNC_RECORDS,
+  type PushChange,
+  type VaultRole,
+} from "@repo/schema";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { STORAGE_QUOTA_BYTES } from "../../src/record/quota";
 import { redis } from "../../src/redis";
 import { lockVaults, nextVaultSeq } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
@@ -166,6 +172,49 @@ describe("vaults", () => {
     expect(await push(alice, putChange(work.vaultId))).toMatchObject([
       { status: "rejected", reason: "not_found" },
     ]);
+    expect(
+      await db.select().from(vaultsTable).where(eq(vaultsTable.vaultId, work.vaultId)),
+    ).toEqual([]);
+    expect(
+      await db.select().from(recordsTable).where(eq(recordsTable.vaultId, work.vaultId)),
+    ).toEqual([]);
+    expect(
+      await db.select().from(vaultMembersTable).where(eq(vaultMembersTable.vaultId, work.vaultId)),
+    ).toEqual([]);
+  });
+
+  it("a deleted vault no longer counts against the owner's quota", async () => {
+    const alice = await signUp("alice@example.com");
+    const work = await createVaultFor(alice);
+    await db
+      .update(vaultsTable)
+      .set({ usedBytes: STORAGE_QUOTA_BYTES })
+      .where(eq(vaultsTable.vaultId, work.vaultId));
+    expect(await push(alice, putChange(alice.personalVaultId))).toMatchObject([
+      { status: "rejected", reason: "quota" },
+    ]);
+
+    const input = { vaultId: work.vaultId };
+    await (await as(alice, "mutation", "vault.delete", input)).vault.delete(input);
+    expect(await push(alice, putChange(alice.personalVaultId))).toMatchObject([
+      { status: "applied" },
+    ]);
+  });
+
+  it("vault.create stops at MAX_VAULTS_PER_USER owned vaults", async () => {
+    const alice = await signUp("alice@example.com");
+    await db.insert(vaultsTable).values(
+      Array.from({ length: MAX_VAULTS_PER_USER - 2 }, () => ({
+        vaultId: crypto.randomUUID(),
+        ownerId: alice.userId,
+        kind: "shared" as const,
+        encryptedMeta: "META",
+        metaEncryptionNonce: "NONCE",
+      })),
+    );
+    await createVaultFor(alice);
+
+    await expect(createVaultFor(alice)).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
   it("delete refuses the personal vault", async () => {

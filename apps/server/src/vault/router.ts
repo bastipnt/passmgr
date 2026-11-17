@@ -1,16 +1,18 @@
-import { db, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, usersTable, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import {
   createVaultInputSchema,
   deleteVaultInputSchema,
+  MAX_VAULTS_PER_USER,
   memberVaultSchema,
   rotateVaultKeyInputSchema,
   updateVaultMetaInputSchema,
   VAULT_MANAGE_ROLES,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, eq, isNull } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure } from "../auth/auth-middleware";
+import { emitRecordsChanged } from "../events/record-events";
 import { router } from "../trpc";
 import { isUniqueViolation } from "../util/general";
 import {
@@ -33,12 +35,28 @@ export const vaultRouter = router({
   /**
    * A new vault next to the personal one, owned by the caller. The client
    * generated its id and key and wrapped the key under its account key.
+   * PRECONDITION_FAILED once they own `MAX_VAULTS_PER_USER`.
    */
   create: verifiedProcedure.input(createVaultInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId, encryptedMeta, metaEncryptionNonce, ...vaultKey } = input;
 
     await db
       .transaction(async (tx) => {
+        // Concurrent creates queue up here, so they can't all pass the count.
+        // NO KEY UPDATE, as in `deleteAccount`: record inserts' FK checks don't wait.
+        await tx
+          .select({ userId: usersTable.userId })
+          .from(usersTable)
+          .where(eq(usersTable.userId, ctx.userId))
+          .for("no key update");
+        const [owned] = await tx
+          .select({ vaults: count() })
+          .from(vaultsTable)
+          .where(eq(vaultsTable.ownerId, ctx.userId));
+        if ((owned?.vaults ?? 0) >= MAX_VAULTS_PER_USER) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "too many vaults" });
+        }
+
         await tx.insert(vaultsTable).values({
           vaultId,
           ownerId: ctx.userId,
@@ -134,14 +152,7 @@ export const vaultRouter = router({
             metaEncryptionNonce: input.metaEncryptionNonce,
             updated_at: now,
           })
-          .where(
-            and(
-              eq(vaultsTable.vaultId, vaultId),
-              eq(vaultsTable.keyVersion, keyVersion - 1),
-              // Deleted after the role check, before the lock: nothing left to rotate.
-              isNull(vaultsTable.deleted_at),
-            ),
-          )
+          .where(and(eq(vaultsTable.vaultId, vaultId), eq(vaultsTable.keyVersion, keyVersion - 1)))
           .returning({ vaultId: vaultsTable.vaultId });
         if (!rotated) throw new TRPCError({ code: "CONFLICT" });
 
@@ -187,24 +198,32 @@ export const vaultRouter = router({
   }),
 
   /**
-   * Delete a vault (owners only, never the personal one): it leaves every
-   * member's list, so the next sync drops it and its records from their
-   * devices. The rows stay (`deleted_at`) until account deletion purges them.
+   * Delete a vault for good (owners only, never the personal one): its
+   * records, history, key links, members and invites go with it, and so does
+   * what it counted against the owner's quota. The next sync of each member
+   * drops it and its records from their devices.
    */
   delete: verifiedProcedure.input(deleteVaultInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId } = input;
 
-    await db.transaction(async (tx) => {
+    const members = await db.transaction(async (tx) => {
+      // Before the role check, so a concurrent demotion or transfer can't slip in between.
+      // A push to it finishes first, or finds it gone.
+      await lockVaults(tx, [vaultId]);
       await requireVaultRole(ctx.userId, vaultId, ["owner"], tx);
+      const members = await tx
+        .select({ userId: vaultMembersTable.userId })
+        .from(vaultMembersTable)
+        .where(eq(vaultMembersTable.vaultId, vaultId));
       const [deleted] = await tx
-        .update(vaultsTable)
-        .set({ deleted_at: new Date(), updated_at: new Date() })
+        .delete(vaultsTable)
         .where(and(eq(vaultsTable.vaultId, vaultId), eq(vaultsTable.kind, "shared")))
         .returning({ vaultId: vaultsTable.vaultId });
       // The personal vault: every account keeps exactly one.
       if (!deleted) throw new TRPCError({ code: "FORBIDDEN" });
+      return members;
     });
 
-    await notifyVaultMembers(vaultId);
+    for (const { userId } of members) emitRecordsChanged(userId);
   }),
 });

@@ -2,7 +2,7 @@ import { publicKeyFingerprint } from "@repo/crypto";
 import { canAssignRole, type VaultRole } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { TRPCClientError } from "@trpc/client";
-import { VaultsOfflineError } from "../hooks/use-vaults";
+import { TooManyVaultsError, VaultsOfflineError } from "../hooks/use-vaults";
 import { isEmailUnverified, isServerAnswer } from "../util/trpc-errors";
 import {
   PeerKeyChangedError,
@@ -51,6 +51,7 @@ export function vaultErrorMessage(error: unknown, fallback: string): string {
   if (isEmailUnverified(error))
     return "Verify your email address first: until then your vaults can't change on the server.";
   return error instanceof VaultsOfflineError ||
+    error instanceof TooManyVaultsError ||
     error instanceof VaultMembersChangedError ||
     error instanceof VaultKeyRotatedElsewhereError ||
     error instanceof PeerKeyChangedError ||
@@ -98,6 +99,10 @@ export const VERIFY_FAILED_MESSAGE = "They couldn't be marked verified. Try agai
 /** The server's word for "a vault always keeps an owner" (`setMemberRole`, `leave`). */
 export const LAST_OWNER_MESSAGE =
   "A vault needs an owner. Make someone else owner first, or delete the vault.";
+
+/** `invite`'s PRECONDITION_FAILED: a keypair changed, the vault is full, or too many open invites. */
+export const INVITE_REFUSED_MESSAGE =
+  "Their key or yours changed meanwhile, the vault is full, or too many invites are still open. Look them up again, or wait until some are answered.";
 
 /** The server's word for "only a member who joined can own the vault" (`transferOwnership`). */
 export const NOT_JOINED_MESSAGE = "They have to accept the invite before they can own the vault.";

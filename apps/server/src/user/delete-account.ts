@@ -1,14 +1,14 @@
 import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { TRPCError } from "@trpc/server";
-import { and, eq, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { lockVaults } from "../vault/access";
 import { SOLE_OWNER, SoleOwnerCause } from "./sole-owner";
 
 /**
  * Delete an account and everything stored for it, for good (no `deleted_at`):
  * the OPAQUE record, every key set, the keypair, the personal vault with all
- * its record versions and tombstones, the vaults it soft-deleted, its
- * memberships and the invites it sent that weren't accepted yet.
+ * its record versions and tombstones, its memberships and the invites it
+ * sent that weren't accepted yet.
  *
  * Shared vaults:
  * - nobody else active in it: deleted with its records (pending invites go too)
@@ -67,7 +67,6 @@ export async function deleteAccount(
       .where(
         and(
           eq(vaultsTable.kind, "shared"),
-          isNull(vaultsTable.deleted_at),
           inArray(
             vaultsTable.vaultId,
             candidates.map((v) => v.vaultId),
@@ -147,7 +146,7 @@ export async function deleteAccount(
       await tx.delete(vaultsTable).where(inArray(vaultsTable.vaultId, deleteVaultIds));
     }
     // Cascades: key sets, keypairs, memberships, the vaults they own (the
-    // personal one and soft-deleted ones) with their records and key links.
+    // personal one) with their records and key links.
     // Their versions in vaults that stay keep `userId` null.
     await tx.delete(usersTable).where(eq(usersTable.userId, userId));
 

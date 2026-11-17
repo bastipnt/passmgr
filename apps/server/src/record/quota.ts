@@ -1,9 +1,9 @@
 import { vaultsTable } from "@repo/db";
-import { and, inArray, isNull, sql } from "drizzle-orm";
+import { inArray, sql } from "drizzle-orm";
 import { serverEnv } from "../env";
 import type { DbExecutor } from "../vault/access";
 
-/** What every vault owner may store across their live vaults, history and tombstones included. */
+/** What every vault owner may store across their vaults, history and tombstones included. */
 export const STORAGE_QUOTA_BYTES = serverEnv.STORAGE_QUOTA_MB * 1024 * 1024;
 
 /**
@@ -36,13 +36,7 @@ export async function storageBudgets(
       used: sql<string>`sum(${vaultsTable.usedBytes})`,
     })
     .from(vaultsTable)
-    .where(
-      and(
-        inArray(vaultsTable.ownerId, [...new Set(owners.map((o) => o.ownerId))]),
-        // A deleted vault's records can't be reached any more, so they can't be purged either.
-        isNull(vaultsTable.deleted_at),
-      ),
-    )
+    .where(inArray(vaultsTable.ownerId, [...new Set(owners.map((o) => o.ownerId))]))
     .groupBy(vaultsTable.ownerId);
 
   const byOwner = new Map(

@@ -115,11 +115,6 @@ describe("user.deleteAccount", () => {
     const put = putChange(alice.personalVaultId);
     await push(alice, put);
     await push(alice, deleteChange(alice.personalVaultId, put.recordId, 1));
-    // A vault she deleted earlier stays as rows until now.
-    const deletedVault = await createSharedVault(alice);
-    await (await call(alice, "mutation", "vault.delete", { vaultId: deletedVault })).vault.delete({
-      vaultId: deletedVault,
-    });
 
     expect(await deleteAccount(alice)).toEqual({ ok: true });
 
@@ -132,7 +127,6 @@ describe("user.deleteAccount", () => {
       records: [],
     });
     expect(await db.select().from(recordsTable)).toEqual([]);
-    expect(await vaultRow(deletedVault)).toBeUndefined();
 
     // Other devices are signed out (they lock); this one's session just ends.
     const other = await callSigned(

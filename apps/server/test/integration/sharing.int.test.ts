@@ -8,8 +8,17 @@ import {
   unwrapVaultKey,
   wrapVaultKey,
 } from "@repo/crypto";
-import { db, vaultsTable } from "@repo/db";
-import type { MemberVault, PushChange, VaultInvitation, VaultRole } from "@repo/schema";
+import { db, vaultMembersTable, vaultsTable } from "@repo/db";
+import {
+  MAX_PENDING_INVITES_FROM_ONE_SENDER,
+  MAX_PENDING_INVITES_PER_INVITEE,
+  MAX_PENDING_INVITES_PER_SENDER,
+  type MemberVault,
+  type PushChange,
+  type VaultInvitation,
+  type VaultRole,
+} from "@repo/schema";
+import { toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
@@ -182,6 +191,37 @@ beforeEach(async () => {
   await redis.flushall();
 });
 
+const randomBase64 = (bytes: number) => toBase64(crypto.getRandomValues(new Uint8Array(bytes)));
+
+/** `count` pending invites for `inviteeId` from `senderId`, each into a vault of its own. */
+async function pendingInvitesFor(inviteeId: string, senderId: string, count: number) {
+  const vaultIds = Array.from({ length: count }, () => crypto.randomUUID());
+  await db.insert(vaultsTable).values(
+    vaultIds.map((vaultId) => ({
+      vaultId,
+      ownerId: senderId,
+      kind: "shared" as const,
+      encryptedMeta: randomBase64(32),
+      metaEncryptionNonce: randomBase64(24),
+    })),
+  );
+  await db.insert(vaultMembersTable).values(
+    vaultIds.map((vaultId) => ({
+      vaultId,
+      userId: inviteeId,
+      role: "read" as const,
+      status: "pending" as const,
+      keyVersion: 1,
+      sealedVaultKey: randomBase64(105),
+      sealedKeyVersion: 1,
+      sealedToKeyVersion: 1,
+      sealedByUserId: senderId,
+      sealedByKeyVersion: 1,
+      invitedByUserId: senderId,
+    })),
+  );
+}
+
 describe("invites", () => {
   it("an invitee opens the sealed key from the inviter and joins on accepting", async () => {
     const alice = await signUp("alice@example.com");
@@ -272,6 +312,37 @@ describe("invites", () => {
     await expect(
       api.mutate(alice, "invite", { ...sealed, keyVersion: 2, recipientKeyVersion: 2 }),
     ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+  });
+
+  it("refuses past the pending invites an invitee may hold or a sender may have open", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const carol = await signUp("carol@example.com");
+    const team = await createSharedVault(alice);
+
+    await pendingInvitesFor(bob.userId, carol.userId, MAX_PENDING_INVITES_PER_INVITEE);
+    await expect(invite(alice, team.vaultId, bob, "read")).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "too many invites",
+    });
+    expect(await api.invitations(bob)).toHaveLength(MAX_PENDING_INVITES_PER_INVITEE);
+
+    const dave = await signUp("dave@example.com");
+    await pendingInvitesFor(dave.userId, alice.userId, MAX_PENDING_INVITES_FROM_ONE_SENDER);
+    await expect(invite(alice, team.vaultId, dave, "read")).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "too many invites",
+    });
+    await invite(alice, team.vaultId, carol, "read");
+
+    const erin = await signUp("erin@example.com");
+    const frank = await signUp("frank@example.com");
+    const other = await createSharedVault(alice, "Other");
+    await pendingInvitesFor(erin.userId, alice.userId, MAX_PENDING_INVITES_PER_SENDER);
+    await expect(invite(alice, other.vaultId, frank, "read")).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+      message: "too many invites",
+    });
   });
 
   it("an invite forged with another keypair doesn't open as the inviter's", async () => {

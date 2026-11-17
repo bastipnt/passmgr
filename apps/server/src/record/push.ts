@@ -98,7 +98,11 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
       const writable = [...access].filter(([, denied]) => denied === null).map(([id]) => id);
       await lockVaults(tx, writable);
       // Under the lock: a rotation of these vaults waits until this push commits.
-      const vaults: VaultState = { access, keyVersions: await vaultKeyVersions(tx, writable) };
+      const keyVersions = await vaultKeyVersions(tx, writable);
+      // Deleted while this push waited for the lock.
+      for (const vaultId of writable)
+        if (!keyVersions.has(vaultId)) access.set(vaultId, "not_found");
+      const vaults: VaultState = { access, keyVersions };
       const budgets = await storageBudgets(tx, writable);
 
       const chains = groupByRecord(changes);

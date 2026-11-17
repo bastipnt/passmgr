@@ -21,6 +21,18 @@ export const VAULT_MANAGE_ROLES = ["owner", "manage"] as const;
 /** The most members (pending invites included) a vault can have. */
 export const MAX_VAULT_MEMBERS = 256;
 
+/** The most vaults one user owns, the personal one included (`vault.create`, registration). */
+export const MAX_VAULTS_PER_USER = 100;
+
+/** The most invites waiting for one invitee (what bounds `vault.invitations`). */
+export const MAX_PENDING_INVITES_PER_INVITEE = 100;
+
+/** The most of them from one sender, so no single account fills an invitee's list. */
+export const MAX_PENDING_INVITES_FROM_ONE_SENDER = 5;
+
+/** The most invites one user has sent that nobody has accepted or declined yet. */
+export const MAX_PENDING_INVITES_PER_SENDER = 200;
+
 /** `sealVaultKey`'s box: ephemeral key ‖ nonce ‖ 32-byte key + tag (104 bytes). */
 export const sealedVaultKeySchema = z.base64().length(140);
 

@@ -4,6 +4,9 @@ import {
   acceptVaultKeyInputSchema,
   canAssignRole,
   inviteMemberInputSchema,
+  MAX_PENDING_INVITES_FROM_ONE_SENDER,
+  MAX_PENDING_INVITES_PER_INVITEE,
+  MAX_PENDING_INVITES_PER_SENDER,
   MAX_VAULT_MEMBERS,
   setMemberRoleInputSchema,
   VAULT_MANAGE_ROLES,
@@ -17,7 +20,7 @@ import {
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNotNull, isNull, ne } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged } from "../events/record-events";
@@ -45,7 +48,7 @@ import {
 
 const ANY_ROLE = vaultRoleSchema.options;
 
-/** The caller's membership row of a live vault, any status; NOT_FOUND without one. */
+/** The caller's membership row, any status; NOT_FOUND without one. */
 async function ownMembership(tx: DbExecutor, userId: string, vaultId: string) {
   const [row] = await tx
     .select({
@@ -58,13 +61,7 @@ async function ownMembership(tx: DbExecutor, userId: string, vaultId: string) {
     })
     .from(vaultMembersTable)
     .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
-    .where(
-      and(
-        eq(vaultMembersTable.vaultId, vaultId),
-        eq(vaultMembersTable.userId, userId),
-        isNull(vaultsTable.deleted_at),
-      ),
-    );
+    .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, userId)));
   if (!row) throw new TRPCError({ code: "NOT_FOUND" });
   return row;
 }
@@ -92,6 +89,28 @@ async function activeOwners(tx: DbExecutor, vaultId: string): Promise<number> {
       ),
     );
   return row?.owners ?? 0;
+}
+
+/** Whether one more invite from `senderId` to `inviteeId` would pass a pending-invite cap. */
+async function tooManyInvites(tx: DbExecutor, senderId: string, inviteeId: string) {
+  const toInvitee = eq(vaultMembersTable.userId, inviteeId);
+  const fromSender = eq(vaultMembersTable.invitedByUserId, senderId);
+  const [row] = await tx
+    .select({
+      toInvitee: sql`count(*) filter (where ${toInvitee})`.mapWith(Number),
+      fromSenderToInvitee: sql`count(*) filter (where ${and(toInvitee, fromSender)})`.mapWith(
+        Number,
+      ),
+      fromSender: sql`count(*) filter (where ${fromSender})`.mapWith(Number),
+    })
+    .from(vaultMembersTable)
+    .where(and(eq(vaultMembersTable.status, "pending"), or(toInvitee, fromSender)));
+  return (
+    !!row &&
+    (row.toInvitee >= MAX_PENDING_INVITES_PER_INVITEE ||
+      row.fromSenderToInvitee >= MAX_PENDING_INVITES_FROM_ONE_SENDER ||
+      row.fromSender >= MAX_PENDING_INVITES_PER_SENDER)
+  );
 }
 
 /** Someone who knows the current key lost access: the next manager online rotates it. */
@@ -126,7 +145,9 @@ export const sharingProcedures = {
    * NOT_FOUND for an email without an account (as `user.publicKey` tells).
    * CONFLICT when they are a member already, or the vault was rotated since the
    * key was sealed. PRECONDITION_FAILED when either keypair isn't the current
-   * one any more, or the vault is full.
+   * one any more, the vault is full, or a pending-invite cap is reached (per
+   * invitee, from this sender to them, per sender: `MAX_PENDING_INVITES_*`;
+   * counted without a lock, so concurrent invites can go a few past).
    */
   invite: verifiedProcedure.input(inviteMemberInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId, role } = input;
@@ -178,6 +199,9 @@ export const sharingProcedures = {
         if ((members?.members ?? 0) >= MAX_VAULT_MEMBERS) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "vault is full" });
         }
+        if (await tooManyInvites(tx, ctx.userId, invitee.userId)) {
+          throw new TRPCError({ code: "PRECONDITION_FAILED", message: "too many invites" });
+        }
 
         await tx.insert(vaultMembersTable).values({
           vaultId,
@@ -190,6 +214,7 @@ export const sharingProcedures = {
           sealedToKeyVersion: input.recipientKeyVersion,
           sealedByUserId: ctx.userId,
           sealedByKeyVersion: input.senderKeyVersion,
+          invitedByUserId: ctx.userId,
         });
         return invitee.userId;
       })
@@ -207,6 +232,7 @@ export const sharingProcedures = {
    * The caller's pending invites, with the key sealed to them, who sealed it
    * (their public key and email: the invitee compares the fingerprint out of
    * band before accepting) and the vault's metadata (it opens with the key).
+   * `invite` keeps them to about `MAX_PENDING_INVITES_PER_INVITEE`.
    */
   invitations: verifiedProcedure.output(z.array(vaultInvitationSchema)).query(async ({ ctx }) => {
     const rows = await db
@@ -239,7 +265,6 @@ export const sharingProcedures = {
         and(
           eq(vaultMembersTable.userId, ctx.userId),
           eq(vaultMembersTable.status, "pending"),
-          isNull(vaultsTable.deleted_at),
           isNull(usersTable.deleted_at),
         ),
       );

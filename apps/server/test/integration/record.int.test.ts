@@ -371,24 +371,6 @@ describe("record.push", () => {
       });
       expect(await push(alice, edit)).toMatchObject([{ status: "rejected", reason: "quota" }]);
     });
-
-    it("doesn't count a deleted vault", async () => {
-      const alice = await signUp("alice@example.com");
-      const [{ ownerId }] = await db
-        .select({ ownerId: vaultsTable.ownerId })
-        .from(vaultsTable)
-        .where(eq(vaultsTable.vaultId, alice.vaultId));
-      await db.insert(vaultsTable).values({
-        vaultId: crypto.randomUUID(),
-        ownerId,
-        kind: "shared",
-        encryptedMeta: "META",
-        metaEncryptionNonce: "NONCE",
-        usedBytes: STORAGE_QUOTA_BYTES,
-        deleted_at: new Date(),
-      });
-      expect(await push(alice, putChange(alice.vaultId))).toMatchObject([{ status: "applied" }]);
-    });
   });
 
   it("marks the source of a move, keeping its content", async () => {

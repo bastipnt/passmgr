@@ -1,5 +1,5 @@
 import z from "zod";
-import { linkedVaultInputSchema } from "../vault-schema";
+import { linkedVaultInputSchema, MAX_VAULTS_PER_USER } from "../vault-schema";
 import { emailSchema } from "./email-schema";
 import { userKeyPairSchema, userKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
@@ -19,7 +19,7 @@ export const startRegistrationOutputSchema = z.object({
 });
 
 /** At most this many vaults besides the personal one at registration (linking a local vault). */
-export const MAX_REGISTRATION_VAULTS = 100;
+export const MAX_REGISTRATION_VAULTS = MAX_VAULTS_PER_USER - 1;
 
 /**
  * Finish registration

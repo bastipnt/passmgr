@@ -1,4 +1,4 @@
-import { canWriteVault, type MemberVault, type VaultMeta } from "@repo/schema";
+import { canWriteVault, MAX_VAULTS_PER_USER, type MemberVault, type VaultMeta } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useMutation } from "@tanstack/react-query";
 import { useContext, useMemo } from "react";
@@ -11,6 +11,7 @@ import {
   useStore,
 } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
+import { isPreconditionFailed } from "../util/trpc-errors";
 import { reencryptForPush } from "../vaults/rekey";
 import { rotateVault, VaultKeyRotatedElsewhereError } from "../vaults/sharing";
 import type { VaultInfo } from "../vaults/vault-info";
@@ -18,6 +19,11 @@ import type { VaultInfo } from "../vaults/vault-info";
 /** A linked profile changes its vaults on the server: without a session it can't. */
 export class VaultsOfflineError extends Error {
   override message = "Connect to the server to change your vaults";
+}
+
+/** The server refused a new vault: the user owns `MAX_VAULTS_PER_USER` already. */
+export class TooManyVaultsError extends Error {
+  override message = `You can own at most ${MAX_VAULTS_PER_USER} vaults. Delete one to make room.`;
 }
 
 /** The unlocked profile's vaults (personal first), and lookups over them. */
@@ -83,7 +89,9 @@ export function useVaultActions() {
       const created = secretsStore.createVault(meta);
       const member: MemberVault = { ...created, kind: "shared", role: "owner" };
       if (server) {
-        await trpc.vault.create.mutate(created);
+        await trpc.vault.create.mutate(created).catch((error: unknown) => {
+          throw isPreconditionFailed(error) ? new TooManyVaultsError() : error;
+        });
         // A fresh round, so no pull from before the create drops it again.
         await active.syncManager.syncFresh();
         const listed = (await active.vault.getVaults()).some((v) => v.vaultId === created.vaultId);

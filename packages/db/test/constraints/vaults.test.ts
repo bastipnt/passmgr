@@ -37,12 +37,16 @@ describe("vault constraints", () => {
     });
   });
 
-  it("allows a new personal vault once the old one is deleted", async () => {
-    const user = await insertUser(client);
-    const old = await insertVault(client, user.userId, "personal");
-    await client.query(`UPDATE "vaults" SET "deleted_at" = now() WHERE "vaultId" = $1`, [old]);
+  it("deleting a vault removes its members", async () => {
+    const owner = await insertUser(client);
+    const member = await insertUser(client);
+    const vaultId = await insertVault(client, owner.userId, "shared");
+    await insertVaultMember(client, vaultId, owner.userId);
+    await insertVaultMember(client, vaultId, member.userId, "read");
 
-    await expect(insertVault(client, user.userId, "personal")).resolves.toBeTruthy();
+    await client.query(`DELETE FROM "vaults" WHERE "vaultId" = $1`, [vaultId]);
+
+    expect((await client.query(`SELECT 1 FROM "vault_members"`)).rowCount).toBe(0);
   });
 
   it("rejects a member of a vault that doesn't exist", async () => {

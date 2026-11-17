@@ -172,7 +172,7 @@ account deletion cascades.
 
 Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account & sync): a fresh OPAQUE login
 (`freshLogin`) then `user.deleteAccount` (`apps/server/src/user/delete-account.ts`), a hard delete in one transaction:
-user row → cascades to key sets, keypair, memberships and every vault it owns (personal + soft-deleted) with their
+user row → cascades to key sets, keypair, memberships and every vault it owns (the personal one) with their
 records. Shared vaults: nobody else active → deleted; the user is the only active owner of one others are in →
 `PRECONDITION_FAILED` `sole_owner` (the vaults in `data.vaultIds`, `SoleOwnerCause` via the `errorFormatter`), nothing deleted; otherwise the user leaves (`keyRotationNeeded`, `ownerId`
 handed to another owner) and their versions stay with `records.userId` null. Unaccepted invites they sent are dropped.

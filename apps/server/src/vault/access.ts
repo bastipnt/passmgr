@@ -13,19 +13,15 @@ import {
   type VaultRole,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, isNotNull, isNull, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
 export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-/** Access is via an active membership of a live vault (ADR 0001 D6). */
+/** Access is via an active membership (ADR 0001 D6). */
 function activeMembership(userId: string) {
-  return and(
-    eq(vaultMembersTable.userId, userId),
-    eq(vaultMembersTable.status, "active"),
-    isNull(vaultsTable.deleted_at),
-  );
+  return and(eq(vaultMembersTable.userId, userId), eq(vaultMembersTable.status, "active"));
 }
 
 /**

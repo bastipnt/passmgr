@@ -44,14 +44,15 @@ export const vaultsTable = pgTable(
     encryptedMeta: varchar().notNull(),
     metaEncryptionNonce: varchar().notNull(),
 
-    ...timestamps,
+    updated_at: timestamps.updated_at,
+    created_at: timestamps.created_at,
   },
   (table) => [
     index("vaults_owner_idx").on(table.ownerId),
     // Exactly one personal (default) vault per user.
     uniqueIndex("vaults_one_personal_per_owner_idx")
       .on(table.ownerId)
-      .where(sql`${table.kind} = 'personal' AND ${table.deleted_at} IS NULL`),
+      .where(sql`${table.kind} = 'personal'`),
   ],
 );
 
@@ -93,6 +94,8 @@ export const vaultMembersTable = pgTable(
     sealedToKeyVersion: integer(),
     sealedByUserId: varchar().references(() => usersTable.userId, { onDelete: "set null" }),
     sealedByKeyVersion: integer(),
+    // Who sent the invite; unlike `sealedByUserId`, a rotation doesn't change it.
+    invitedByUserId: varchar().references(() => usersTable.userId, { onDelete: "set null" }),
 
     updated_at: timestamp().defaultNow().notNull(),
     created_at: timestamp().defaultNow().notNull(),
@@ -100,6 +103,9 @@ export const vaultMembersTable = pgTable(
   (table) => [
     primaryKey({ columns: [table.vaultId, table.userId] }),
     index("vault_members_user_idx").on(table.userId),
+    index("vault_members_pending_inviter_idx")
+      .on(table.invitedByUserId)
+      .where(sql`${table.status} = 'pending'`),
   ],
 );
 

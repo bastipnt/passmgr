@@ -1,5 +1,6 @@
 import {
   assignableRoles,
+  INVITE_REFUSED_MESSAGE,
   type Invitee,
   sharingErrorMessage,
   useVaultSharing,
@@ -115,8 +116,7 @@ function InviteForm({ vault, sharing, onDone }: InviteFormProps) {
           BAD_REQUEST: "That's your own account.",
           CONFLICT:
             "They're already in this vault or invited, or its key just changed. Check the members and try again.",
-          PRECONDITION_FAILED:
-            "Their key or yours changed meanwhile, or the vault is full. Look them up again.",
+          PRECONDITION_FAILED: INVITE_REFUSED_MESSAGE,
         }),
       );
     }
