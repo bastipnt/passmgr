@@ -110,7 +110,7 @@ checks the sender (listed active owner / manager with the pinned key, not remove
 and that the chain reaches the held key, and accepts it. Removing a member, leaving or declining sets
 `vaults.keyRotationNeeded`; `record.sync`'s `rotationsDue` lists it to managers holding the current key, whose next
 sync rotates (`removeMember` rotates right away; the personal vault is never rotated for `rotationsDue` and its key is
-never sealed to anyone, `secretsStore.rotateVaultKey` refuses). The last owner can't leave or be demoted (`transferOwnership`).
+never sealed to anyone, `secretsStore.rotateVaultKey` refuses). The last owner can't leave or be demoted (`transferOwnership`). `vaults.ownerId` (whose quota and vault count the vault takes) always names an active owner: when that owner leaves, is removed or is demoted, it moves to the longest-standing remaining owner (`keepOwnerIdActive`, past their quota if need be); `transferOwnership` refuses (`PRECONDITION_FAILED`) when the vault would take the new owner past `MAX_VAULTS_PER_USER` or their storage quota. `deleteAccount` moves it the same way, and a migration fixed the rows that had drifted. Member and key changes read the caller's role again after taking the vault lock (`lockVaultForRole`; the first read keeps outsiders from holding the lock), so a concurrent demotion, removal or promotion counts.
 Peer public keys are pinned per device only on an explicit check: the invitee's on invite, the inviter's on accept,
 anyone else's when the user marks them verified after comparing codes (`verifyMember`; members list: "Not verified" +
 "Verify…", which asks to compare the code first; mobile's row does it for non-managers, its member sheet for managers;

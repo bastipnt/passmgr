@@ -1,7 +1,7 @@
 import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, or } from "drizzle-orm";
-import { lockVaults } from "../vault/access";
+import { keepOwnerIdActive, lockVaults } from "../vault/access";
 import { SOLE_OWNER, SoleOwnerCause } from "./sole-owner";
 
 /**
@@ -39,8 +39,7 @@ export async function deleteAccount(
     if (!user) throw new TRPCError({ code: "NOT_FOUND" });
 
     // Every vault the user is in (any status) or is recorded as owner of
-    // (after a demotion `ownerId` can still name them; deleting the user row
-    // would cascade into it). Locked first, the user's membership rows after
+    // (deleting the user row would cascade into it). Locked first, the user's membership rows after
     // (the order `removeMember` takes), so no invite is accepted meanwhile.
     const memberOf = tx
       .select({ vaultId: vaultMembersTable.vaultId })
@@ -122,9 +121,11 @@ export async function deleteAccount(
       }
       if (vault.ownerId === userId) {
         await tx
-          .update(vaultsTable)
-          .set({ ownerId: otherOwner.userId, updated_at: now })
-          .where(eq(vaultsTable.vaultId, vault.vaultId));
+          .delete(vaultMembersTable)
+          .where(
+            and(eq(vaultMembersTable.vaultId, vault.vaultId), eq(vaultMembersTable.userId, userId)),
+          );
+        await keepOwnerIdActive(tx, vault.vaultId);
       }
       if (isMember) {
         // They still know the current key.

@@ -9,18 +9,18 @@ import {
   VAULT_MANAGE_ROLES,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged } from "../events/record-events";
+import { ownedUsage } from "../record/quota";
 import { router } from "../trpc";
 import { isUniqueViolation } from "../util/general";
 import {
   currentKeyPairVersions,
-  lockVaults,
+  lockVaultForRole,
   memberVaults,
   notifyVaultMembers,
-  requireVaultRole,
 } from "./access";
 import { sharingProcedures } from "./sharing";
 
@@ -49,11 +49,7 @@ export const vaultRouter = router({
           .from(usersTable)
           .where(eq(usersTable.userId, ctx.userId))
           .for("no key update");
-        const [owned] = await tx
-          .select({ vaults: count() })
-          .from(vaultsTable)
-          .where(eq(vaultsTable.ownerId, ctx.userId));
-        if ((owned?.vaults ?? 0) >= MAX_VAULTS_PER_USER) {
+        if ((await ownedUsage(tx, ctx.userId)).vaults >= MAX_VAULTS_PER_USER) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "too many vaults" });
         }
 
@@ -84,7 +80,7 @@ export const vaultRouter = router({
       const { vaultId, encryptedMeta, metaEncryptionNonce } = input;
 
       await db.transaction(async (tx) => {
-        await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
+        await lockVaultForRole(tx, ctx.userId, vaultId, VAULT_MANAGE_ROLES);
         await tx
           .update(vaultsTable)
           .set({ encryptedMeta, metaEncryptionNonce, updated_at: new Date() })
@@ -114,9 +110,8 @@ export const vaultRouter = router({
 
     await db
       .transaction(async (tx) => {
-        await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
         // Pushes, invites and member changes wait, so none sees the old key after this.
-        await lockVaults(tx, [vaultId]);
+        await lockVaultForRole(tx, ctx.userId, vaultId, VAULT_MANAGE_ROLES);
 
         const members = await tx
           .select({ userId: vaultMembersTable.userId, keyVersion: vaultMembersTable.keyVersion })
@@ -207,10 +202,8 @@ export const vaultRouter = router({
     const { vaultId } = input;
 
     const members = await db.transaction(async (tx) => {
-      // Before the role check, so a concurrent demotion or transfer can't slip in between.
       // A push to it finishes first, or finds it gone.
-      await lockVaults(tx, [vaultId]);
-      await requireVaultRole(ctx.userId, vaultId, ["owner"], tx);
+      await lockVaultForRole(tx, ctx.userId, vaultId, ["owner"]);
       const members = await tx
         .select({ userId: vaultMembersTable.userId })
         .from(vaultMembersTable)

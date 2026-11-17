@@ -19,9 +19,11 @@ import {
   type VaultRole,
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
-import { eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
+import { STORAGE_QUOTA_BYTES } from "../../src/record/quota";
 import { redis } from "../../src/redis";
+import { lockVaults } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, loginAndGetAuthKey, putChange, register } from "./_helpers";
 
@@ -220,6 +222,56 @@ async function pendingInvitesFor(inviteeId: string, senderId: string, count: num
       invitedByUserId: senderId,
     })),
   );
+}
+
+async function ownerIdOf(vaultId: string) {
+  const [vault] = await db
+    .select({ ownerId: vaultsTable.ownerId })
+    .from(vaultsTable)
+    .where(eq(vaultsTable.vaultId, vaultId));
+  return vault?.ownerId;
+}
+
+/** Until another backend waits on a row lock (the call queued behind ours). */
+async function waitForBlockedLock() {
+  for (let i = 0; i < 200; i++) {
+    const { rows } = await db.execute<{ waiting: number }>(
+      sql`select count(*)::int as waiting from pg_locks where not granted`,
+    );
+    if ((rows[0]?.waiting ?? 0) > 0) return;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+  }
+  throw new Error("the call never waited on the vault lock");
+}
+
+/**
+ * Start `call` while another transaction holds the vault lock and sets
+ * `userId`'s role (`owner` becomes a manager when `userId` turns owner), then
+ * let it run. Resolves how the call ended.
+ */
+async function whileLocked(
+  vaultId: string,
+  owner: User,
+  userId: string,
+  role: VaultRole,
+  call: () => Promise<unknown>,
+): Promise<{ error?: unknown }> {
+  let pending: Promise<{ error?: unknown }> = Promise.resolve({});
+  await db.transaction(async (tx) => {
+    await lockVaults(tx, [vaultId]);
+    const member = (id: string) =>
+      and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, id));
+    await tx.update(vaultMembersTable).set({ role }).where(member(userId));
+    if (role === "owner") {
+      await tx.update(vaultMembersTable).set({ role: "manage" }).where(member(owner.userId));
+    }
+    pending = call().then(
+      () => ({}),
+      (error: unknown) => ({ error }),
+    );
+    await waitForBlockedLock();
+  });
+  return pending;
 }
 
 describe("invites", () => {
@@ -608,6 +660,80 @@ describe("members and roles", () => {
       .where(eq(vaultsTable.vaultId, team.vaultId));
     expect(vault?.ownerId).toBe(bob.userId);
     await api.mutate(alice, "leave", { vaultId: team.vaultId });
+  });
+
+  it("ownerId follows the vault's active owners when one leaves, is removed or demoted", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const carol = await signUp("carol@example.com");
+    const team = await createSharedVault(alice);
+    await share(alice, team.vaultId, bob, "owner");
+    await share(alice, team.vaultId, carol, "owner");
+
+    await api.mutate(alice, "leave", { vaultId: team.vaultId });
+    expect(await ownerIdOf(team.vaultId)).toBe(bob.userId);
+    await api.mutate(carol, "setMemberRole", {
+      vaultId: team.vaultId,
+      userId: bob.userId,
+      role: "manage",
+    });
+    expect(await ownerIdOf(team.vaultId)).toBe(carol.userId);
+    await api.mutate(carol, "setMemberRole", {
+      vaultId: team.vaultId,
+      userId: bob.userId,
+      role: "owner",
+    });
+    expect(await ownerIdOf(team.vaultId)).toBe(carol.userId);
+    await api.mutate(bob, "removeMember", { vaultId: team.vaultId, userId: carol.userId });
+    expect(await ownerIdOf(team.vaultId)).toBe(bob.userId);
+  });
+
+  it("refuses a transfer that would take the new owner past their quota", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const team = await createSharedVault(alice);
+    await share(alice, team.vaultId, bob, "write");
+    await db
+      .update(vaultsTable)
+      .set({ usedBytes: STORAGE_QUOTA_BYTES })
+      .where(eq(vaultsTable.vaultId, bob.personalVaultId));
+    await db.update(vaultsTable).set({ usedBytes: 1 }).where(eq(vaultsTable.vaultId, team.vaultId));
+
+    await expect(
+      api.mutate(alice, "transferOwnership", { vaultId: team.vaultId, userId: bob.userId }),
+    ).rejects.toMatchObject({ code: "PRECONDITION_FAILED" });
+    expect(await ownerIdOf(team.vaultId)).toBe(alice.userId);
+  });
+
+  it("reads the caller's role after the vault lock, so a concurrent change counts", async () => {
+    const alice = await signUp("alice@example.com");
+    const bob = await signUp("bob@example.com");
+    const carol = await signUp("carol@example.com");
+    const team = await createSharedVault(alice);
+    await share(alice, team.vaultId, bob, "manage");
+    await share(alice, team.vaultId, carol, "read");
+
+    // Bob is demoted while his role change waits on the vault lock.
+    const roleChange = await whileLocked(team.vaultId, alice, bob.userId, "read", () =>
+      api.mutate(bob, "setMemberRole", {
+        vaultId: team.vaultId,
+        userId: carol.userId,
+        role: "write",
+      }),
+    );
+    expect(roleChange.error).toMatchObject({ code: "FORBIDDEN" });
+
+    // Bob becomes the only owner while his leave waits: he is the last owner by then.
+    await db
+      .update(vaultMembersTable)
+      .set({ role: "manage" })
+      .where(
+        and(eq(vaultMembersTable.vaultId, team.vaultId), eq(vaultMembersTable.userId, bob.userId)),
+      );
+    const leave = await whileLocked(team.vaultId, alice, bob.userId, "owner", () =>
+      api.mutate(bob, "leave", { vaultId: team.vaultId }),
+    );
+    expect(leave.error).toMatchObject({ code: "PRECONDITION_FAILED" });
   });
 
   it("members of other vaults can't list or change this one's members", async () => {

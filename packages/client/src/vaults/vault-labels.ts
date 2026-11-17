@@ -104,5 +104,6 @@ export const LAST_OWNER_MESSAGE =
 export const INVITE_REFUSED_MESSAGE =
   "Their key or yours changed meanwhile, the vault is full, or too many invites are still open. Look them up again, or wait until some are answered.";
 
-/** The server's word for "only a member who joined can own the vault" (`transferOwnership`). */
-export const NOT_JOINED_MESSAGE = "They have to accept the invite before they can own the vault.";
+/** `transferOwnership`'s PRECONDITION_FAILED: not joined yet, or no room for the vault in their limits. */
+export const TRANSFER_REFUSED_MESSAGE =
+  "They can't own this vault yet: they have to accept the invite first, and have room for it in their storage and vault limits.";

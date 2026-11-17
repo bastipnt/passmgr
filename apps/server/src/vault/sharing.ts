@@ -8,6 +8,7 @@ import {
   MAX_PENDING_INVITES_PER_INVITEE,
   MAX_PENDING_INVITES_PER_SENDER,
   MAX_VAULT_MEMBERS,
+  MAX_VAULTS_PER_USER,
   setMemberRoleInputSchema,
   VAULT_MANAGE_ROLES,
   type VaultInvitation,
@@ -20,16 +21,19 @@ import {
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
-import { and, count, eq, isNotNull, isNull, ne, or, sql } from "drizzle-orm";
+import { and, count, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import z from "zod";
 import { verifiedProcedure } from "../auth/auth-middleware";
 import { emitRecordsChanged } from "../events/record-events";
 import { serverKey } from "../opaque";
+import { ownedUsage, STORAGE_QUOTA_BYTES } from "../record/quota";
 import { isUniqueViolation } from "../util/general";
 import {
   currentKeyPairVersions,
   currentPublicKeys,
   type DbExecutor,
+  keepOwnerIdActive,
+  lockVaultForRole,
   lockVaults,
   notifyVaultMembers,
   requireVaultRole,
@@ -155,6 +159,8 @@ export const sharingProcedures = {
 
     const inviteeId = await db
       .transaction(async (tx) => {
+        // A rotation waits for this, and this sees the key it left.
+        await lockVaultForRole(tx, ctx.userId, vaultId, ANY_ROLE);
         const own = await ownMembership(tx, ctx.userId, vaultId);
         if (own.status !== "active") throw new TRPCError({ code: "NOT_FOUND" });
         if (!canAssignRole(own.role, "manage") || !canAssignRole(own.role, role)) {
@@ -163,8 +169,6 @@ export const sharingProcedures = {
         // The personal vault is every account's own (it is their default vault).
         if (own.kind !== "shared") throw new TRPCError({ code: "FORBIDDEN" });
 
-        // A rotation waits for this, and this sees the key it left.
-        await lockVaults(tx, [vaultId]);
         const [vault] = await tx
           .select({ keyVersion: vaultsTable.keyVersion })
           .from(vaultsTable)
@@ -408,9 +412,8 @@ export const sharingProcedures = {
     .mutation(async ({ ctx, input }) => {
       const { vaultId, userId, role } = input;
       await db.transaction(async (tx) => {
-        const actor = await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
         // Owner changes queue up, so two demotions can't both see another owner left.
-        await lockVaults(tx, [vaultId]);
+        const actor = await lockVaultForRole(tx, ctx.userId, vaultId, VAULT_MANAGE_ROLES);
         const target = await memberRow(tx, vaultId, userId);
         if (!canAssignRole(actor, target.role) || !canAssignRole(actor, role)) {
           throw new TRPCError({ code: "FORBIDDEN" });
@@ -427,6 +430,7 @@ export const sharingProcedures = {
           .update(vaultMembersTable)
           .set({ role, updated_at: new Date() })
           .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, userId)));
+        await keepOwnerIdActive(tx, vaultId);
       });
       await notifyVaultMembers(vaultId);
     }),
@@ -441,13 +445,13 @@ export const sharingProcedures = {
     if (userId === ctx.userId) throw new TRPCError({ code: "BAD_REQUEST" });
 
     await db.transaction(async (tx) => {
-      const actor = await requireVaultRole(ctx.userId, vaultId, VAULT_MANAGE_ROLES, tx);
-      await lockVaults(tx, [vaultId]);
+      const actor = await lockVaultForRole(tx, ctx.userId, vaultId, VAULT_MANAGE_ROLES);
       const target = await memberRow(tx, vaultId, userId);
       if (!canAssignRole(actor, target.role)) throw new TRPCError({ code: "FORBIDDEN" });
       await tx
         .delete(vaultMembersTable)
         .where(and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, userId)));
+      await keepOwnerIdActive(tx, vaultId);
       await requireRotation(tx, vaultId);
     });
 
@@ -464,10 +468,11 @@ export const sharingProcedures = {
   leave: verifiedProcedure.input(vaultIdInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId } = input;
     await db.transaction(async (tx) => {
+      // Before reading the role: a concurrent promotion to owner counts in the check below.
+      await lockVaultForRole(tx, ctx.userId, vaultId, ANY_ROLE);
       const own = await ownMembership(tx, ctx.userId, vaultId);
       if (own.status !== "active") throw new TRPCError({ code: "NOT_FOUND" });
       if (own.kind !== "shared") throw new TRPCError({ code: "FORBIDDEN" });
-      await lockVaults(tx, [vaultId]);
       if (own.role === "owner" && (await activeOwners(tx, vaultId)) <= 1) {
         throw new TRPCError({ code: "PRECONDITION_FAILED", message: "last owner" });
       }
@@ -476,6 +481,7 @@ export const sharingProcedures = {
         .where(
           and(eq(vaultMembersTable.vaultId, vaultId), eq(vaultMembersTable.userId, ctx.userId)),
         );
+      await keepOwnerIdActive(tx, vaultId);
       await requireRotation(tx, vaultId);
     });
 
@@ -485,7 +491,9 @@ export const sharingProcedures = {
 
   /**
    * Hand the vault to another active member (owners only): they become an
-   * owner (and the vault's `ownerId`), the caller a manager.
+   * owner (and the vault's `ownerId`, so it counts against their quota), the
+   * caller a manager. PRECONDITION_FAILED when they haven't joined, or the
+   * vault would take them past `MAX_VAULTS_PER_USER` or their storage quota.
    */
   transferOwnership: verifiedProcedure
     .input(vaultMemberInputSchema)
@@ -494,15 +502,37 @@ export const sharingProcedures = {
       if (userId === ctx.userId) throw new TRPCError({ code: "BAD_REQUEST" });
 
       await db.transaction(async (tx) => {
+        await requireVaultRole(ctx.userId, vaultId, ["owner"], tx);
+        // Their user row first, then the vault (the order of `vault.create` and
+        // `deleteAccount`): their count and usage hold until this commits.
+        await tx
+          .select({ userId: usersTable.userId })
+          .from(usersTable)
+          .where(eq(usersTable.userId, userId))
+          .for("no key update");
+        await lockVaults(tx, [vaultId]);
         const own = await ownMembership(tx, ctx.userId, vaultId);
         if (own.status !== "active") throw new TRPCError({ code: "NOT_FOUND" });
         if (own.role !== "owner" || own.kind !== "shared") {
           throw new TRPCError({ code: "FORBIDDEN" });
         }
-        await lockVaults(tx, [vaultId]);
         const target = await memberRow(tx, vaultId, userId);
         // An invitee can't own a vault they haven't joined.
         if (target.status !== "active") throw new TRPCError({ code: "PRECONDITION_FAILED" });
+
+        const [vault] = await tx
+          .select({ ownerId: vaultsTable.ownerId, usedBytes: vaultsTable.usedBytes })
+          .from(vaultsTable)
+          .where(eq(vaultsTable.vaultId, vaultId));
+        if (vault?.ownerId !== userId) {
+          const usage = await ownedUsage(tx, userId);
+          if (
+            usage.vaults >= MAX_VAULTS_PER_USER ||
+            usage.usedBytes + (vault?.usedBytes ?? 0) > STORAGE_QUOTA_BYTES
+          ) {
+            throw new TRPCError({ code: "PRECONDITION_FAILED", message: "quota" });
+          }
+        }
 
         const now = new Date();
         await tx
@@ -518,7 +548,7 @@ export const sharingProcedures = {
         await tx
           .update(vaultsTable)
           .set({ ownerId: userId, updated_at: now })
-          .where(and(eq(vaultsTable.vaultId, vaultId), ne(vaultsTable.kind, "personal")));
+          .where(eq(vaultsTable.vaultId, vaultId));
       });
       await notifyVaultMembers(vaultId);
     }),

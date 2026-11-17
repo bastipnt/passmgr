@@ -13,7 +13,7 @@ import {
   type VaultRole,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, inArray, isNotNull, max, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, isNotNull, max, notExists, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 /** The db handle or a transaction on it. */
@@ -246,6 +246,58 @@ export async function requireVaultRole(
   if (!member) throw new TRPCError({ code: "NOT_FOUND" });
   if (!allowed.includes(member.role)) throw new TRPCError({ code: "FORBIDDEN" });
   return member.role;
+}
+
+/**
+ * `requireVaultRole`, read again after locking the vault (`lockVaults`), so the
+ * role can't change (demotion, removal, transfer) before `tx` commits. The
+ * first read turns away outsiders before they can hold the vault's lock.
+ */
+export async function lockVaultForRole(
+  tx: DbExecutor,
+  userId: string,
+  vaultId: string,
+  allowed: readonly VaultRole[],
+): Promise<VaultRole> {
+  await requireVaultRole(userId, vaultId, allowed, tx);
+  await lockVaults(tx, [vaultId]);
+  return await requireVaultRole(userId, vaultId, allowed, tx);
+}
+
+/**
+ * Point a shared vault's `ownerId` (whose quota it counts against) at its
+ * longest-standing active owner once it names someone who isn't one any more
+ * (left, removed, demoted, deleted). The new owner may end up past their quota:
+ * a leave is never refused for it. Run under the vault lock.
+ */
+export async function keepOwnerIdActive(tx: DbExecutor, vaultId: string): Promise<void> {
+  const activeOwner = and(
+    eq(vaultMembersTable.vaultId, vaultId),
+    eq(vaultMembersTable.role, "owner"),
+    eq(vaultMembersTable.status, "active"),
+  );
+  const longestStanding = tx
+    .select({ userId: vaultMembersTable.userId })
+    .from(vaultMembersTable)
+    .where(activeOwner)
+    .orderBy(asc(vaultMembersTable.created_at), asc(vaultMembersTable.userId))
+    .limit(1);
+  await tx
+    .update(vaultsTable)
+    .set({ ownerId: sql`(${longestStanding})`, updated_at: new Date() })
+    .where(
+      and(
+        eq(vaultsTable.vaultId, vaultId),
+        eq(vaultsTable.kind, "shared"),
+        exists(longestStanding),
+        notExists(
+          tx
+            .select({ userId: vaultMembersTable.userId })
+            .from(vaultMembersTable)
+            .where(and(activeOwner, eq(vaultMembersTable.userId, vaultsTable.ownerId))),
+        ),
+      ),
+    );
 }
 
 /**

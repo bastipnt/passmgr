@@ -2,9 +2,9 @@ import {
   assignableRoles,
   LAST_OWNER_MESSAGE,
   type MemberInfo,
-  NOT_JOINED_MESSAGE,
   type SharingRefusals,
   sharingErrorMessage,
+  TRANSFER_REFUSED_MESSAGE,
   UNVERIFIED_MEMBERS_NOTICE,
   useVaultMembers,
   useVaultSharing,
@@ -157,7 +157,7 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
         () => sharing.transferOwnership(vault.vaultId, member.userId),
         "The vault couldn't be handed over. Try again.",
         `${member.email} now owns “${vault.name}”`,
-        { PRECONDITION_FAILED: NOT_JOINED_MESSAGE },
+        { PRECONDITION_FAILED: TRANSFER_REFUSED_MESSAGE },
       );
     } else {
       const left = await run(

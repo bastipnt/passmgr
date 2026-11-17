@@ -1,5 +1,5 @@
 import { vaultsTable } from "@repo/db";
-import { inArray, sql } from "drizzle-orm";
+import { count, eq, inArray, sql } from "drizzle-orm";
 import { serverEnv } from "../env";
 import type { DbExecutor } from "../vault/access";
 
@@ -12,6 +12,18 @@ export const STORAGE_QUOTA_BYTES = serverEnv.STORAGE_QUOTA_MB * 1024 * 1024;
  * but not grow without bound.
  */
 export const DELETE_HEADROOM_BYTES = Math.ceil(STORAGE_QUOTA_BYTES / 10);
+
+/** How many vaults a user owns (personal included) and what they take up. */
+export async function ownedUsage(
+  tx: DbExecutor,
+  ownerId: string,
+): Promise<{ vaults: number; usedBytes: number }> {
+  const [row] = await tx
+    .select({ vaults: count(), used: sql<string | null>`sum(${vaultsTable.usedBytes})` })
+    .from(vaultsTable)
+    .where(eq(vaultsTable.ownerId, ownerId));
+  return { vaults: row?.vaults ?? 0, usedBytes: Number(row?.used ?? 0) };
+}
 
 /** Bytes an owner may still add; shared by every vault they own. */
 export type StorageBudget = { remaining: number };
