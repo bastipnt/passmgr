@@ -1,125 +1,29 @@
-import { groupedCount, securityScore, useBreachCheck, usePassMonitor } from "@repo/client";
-import { Badge } from "@repo/ui/components/Badge";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemTitle,
-} from "@repo/ui/components/Item";
-import { Spinner } from "@repo/ui/components/Spinner";
-import { ChevronRightIcon } from "lucide-react";
-import { Link as WouterLink } from "wouter";
-import { passMonitorPaths } from "@/app/route-paths";
-import { PanelHeader, PanelTitle } from "@/components/AppShell";
+import { securityScore } from "@repo/client";
+import { FindingsList } from "./FindingsList";
+import { useFindings } from "./findings";
+import { useBreach, useMonitor } from "./PassMonitorContext";
 import { SecurityScoreCard } from "./SecurityScoreCard";
 
-type CategoryProps = {
-  path: string;
-  title: string;
-  description: string;
-  count: number | undefined;
-  failed?: boolean;
-  off?: boolean;
-};
-
-function Category({ path, title, description, count, failed, off }: CategoryProps) {
-  return (
-    <Item variant="outline" render={<WouterLink href={path} />}>
-      <ItemContent className="gap-1">
-        <ItemTitle>{title}</ItemTitle>
-        <ItemDescription>{description}</ItemDescription>
-      </ItemContent>
-      <ItemActions>
-        {off ? (
-          <Badge variant="outline">Off</Badge>
-        ) : failed ? (
-          <Badge variant="outline" aria-label={`${title} couldn't be checked`}>
-            —
-          </Badge>
-        ) : count === undefined ? (
-          <Spinner aria-label={`Checking ${title.toLowerCase()}`} />
-        ) : (
-          <Badge variant={count > 0 ? "warning" : "success"} aria-label={`${count} ${title}`}>
-            {count}
-          </Badge>
-        )}
-        <ChevronRightIcon className="size-4" />
-      </ItemActions>
-    </Item>
-  );
-}
-
-export default function PassMonitorPage() {
-  const monitor = usePassMonitor();
-  const { weak, weakFailed, reused, duplicates, old, insecure, missingTwoFactor, twoFactorFailed } =
-    monitor;
-  const breach = useBreachCheck();
-  const score = securityScore({ ...monitor, breach });
+/** The score and every finding: the phone's first page, the desktop's left column. */
+export function PassMonitorSummary({ active }: { active?: string }) {
+  const monitor = useMonitor();
+  const breach = useBreach();
+  const findings = useFindings();
 
   return (
     <>
-      <PanelHeader>
-        <PanelTitle>Pass Monitor</PanelTitle>
-      </PanelHeader>
-      <div className="flex flex-col gap-3 px-4 pb-4">
-        <SecurityScoreCard score={score} />
-        <ItemGroup>
-          <Category
-            title="Weak passwords"
-            description="Easy to guess"
-            path={passMonitorPaths.weak}
-            count={weak?.length}
-            failed={weakFailed}
-          />
-          <Category
-            title="Reused passwords"
-            description="The same password in more than one place"
-            path={passMonitorPaths.reused}
-            count={groupedCount(reused)}
-          />
-          <Category
-            title="Duplicates"
-            description="The same account saved more than once"
-            path={passMonitorPaths.duplicates}
-            count={groupedCount(duplicates)}
-          />
-          <Category
-            title="Old passwords"
-            description="Unchanged for a year or longer"
-            path={passMonitorPaths.old}
-            count={old?.length}
-          />
-          <Category
-            title="Breached passwords"
-            description={
-              breach.enabled === false
-                ? "Check against known data breaches"
-                : "Found in known data breaches"
-            }
-            path={passMonitorPaths.breached}
-            count={breach.breached?.length}
-            failed={
-              breach.breached === null && !breach.checking && (breach.failed || breach.offline)
-            }
-            off={breach.enabled === false}
-          />
-          <Category
-            title="Insecure websites"
-            description="Logins on plain HTTP"
-            path={passMonitorPaths.insecure}
-            count={insecure?.length}
-          />
-          <Category
-            title="Missing 2FA"
-            description="Sites that offer two-factor authentication"
-            path={passMonitorPaths.twoFactor}
-            count={missingTwoFactor?.length}
-            failed={twoFactorFailed}
-          />
-        </ItemGroup>
-      </div>
+      <SecurityScoreCard score={securityScore({ ...monitor, breach })} />
+      <FindingsList findings={findings} active={active} />
     </>
+  );
+}
+
+/** Phone: the overview, each finding a pushed page. */
+export default function PassMonitorPage() {
+  return (
+    <div className="flex flex-col gap-7 px-6 pt-3 pb-12">
+      <h1 className="px-1 font-bold font-display text-[30px] leading-9">Pass Monitor</h1>
+      <PassMonitorSummary />
+    </div>
   );
 }

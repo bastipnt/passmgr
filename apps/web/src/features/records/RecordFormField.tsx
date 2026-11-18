@@ -29,12 +29,20 @@ type FieldProps = {
   setValue: UseFormSetValue<AnyFormValues>;
   /** Phone width: a field's `shortLabel` shows in place of its label. */
   compact?: boolean;
+  /** The password field opens its generator right away. */
+  openGenerator?: boolean;
 };
 
 const INPUT_TYPES = { email: "email", phone: "tel", numeric: "text", date: "date" } as const;
 
 /** One input, by its kind; the card's and the key's need their own controls. */
-export default function RecordFormField({ spec, control, setValue, compact }: FieldProps) {
+export default function RecordFormField({
+  spec,
+  control,
+  setValue,
+  compact,
+  openGenerator,
+}: FieldProps) {
   const name = spec.key;
 
   switch (spec.kind) {
@@ -94,7 +102,14 @@ export default function RecordFormField({ spec, control, setValue, compact }: Fi
       );
 
     case "password":
-      return <PasswordField control={control} setValue={setValue} label={spec.label} />;
+      return (
+        <PasswordField
+          control={control}
+          setValue={setValue}
+          label={spec.label}
+          openGenerator={openGenerator}
+        />
+      );
 
     case "multiline":
     case "secretMultiline":

@@ -1,12 +1,12 @@
-import { breachCountLabel, formatTimeAgo, logError, useBreachCheck } from "@repo/client";
+import { breachCountLabel, formatTimeAgo, logError } from "@repo/client";
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
-import { ItemGroup } from "@repo/ui/components/Item";
 import { Label } from "@repo/ui/components/Label";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { Switch } from "@repo/ui/components/Switch";
-import { MonitorPage } from "./MonitorPage";
+import { MonitorList, MonitorPage, useChangeFootnote } from "./MonitorPage";
 import { MonitorRecordItem } from "./MonitorRecordItem";
+import { useBreach } from "./PassMonitorContext";
 
 const HOW_IT_WORKS =
   "Checks your passwords against Have I Been Pwned. Only the first 5 characters of each " +
@@ -28,8 +28,8 @@ function statusLine({
 }
 
 export default function BreachedPasswordsPage() {
-  const { enabled, setEnabled, breached, checking, failed, offline, lastCheckedAt } =
-    useBreachCheck();
+  const { enabled, setEnabled, breached, checking, failed, offline, lastCheckedAt } = useBreach();
+  const changeFootnote = useChangeFootnote(breached?.map(({ record }) => record));
 
   const toggle = (on: boolean) => {
     setEnabled(on).catch((error: unknown) => {
@@ -72,10 +72,11 @@ export default function BreachedPasswordsPage() {
       description="These passwords appeared in data breaches. Change them wherever you use them."
       count={breached?.length}
       empty="No breached passwords."
+      footnote={changeFootnote}
       error={error}
       actions={
         enabled ? (
-          <div className="ml-auto flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             <Label htmlFor="breach-check-switch" className="text-muted-foreground text-sm">
               Breach check
             </Label>
@@ -93,15 +94,16 @@ export default function BreachedPasswordsPage() {
         )
       }
     >
-      <ItemGroup>
+      <MonitorList>
         {breached?.map(({ record, count }) => (
           <MonitorRecordItem
             key={record.recordId}
             record={record}
-            detail={breachCountLabel(count)}
+            reason={breachCountLabel(count)}
+            action="change-password"
           />
         ))}
-      </ItemGroup>
+      </MonitorList>
     </MonitorPage>
   );
 }

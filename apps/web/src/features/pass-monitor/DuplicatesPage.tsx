@@ -1,9 +1,9 @@
-import { usePassMonitor } from "@repo/client";
 import { MonitorGroups } from "./MonitorGroups";
 import { MonitorPage } from "./MonitorPage";
+import { useMonitor } from "./PassMonitorContext";
 
 export default function DuplicatesPage() {
-  const { duplicates } = usePassMonitor();
+  const { duplicates } = useMonitor();
 
   return (
     <MonitorPage

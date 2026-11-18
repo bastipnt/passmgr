@@ -17,7 +17,8 @@ crossing 640px keeps search and filters.
 
 ## Pass Monitor and breach check
 
-Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web: its own screen, `/pass-monitor` from the vault sidebar, `features/pass-monitor/`): login and
+Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web: its own overlay, `/pass-monitor` from the vault sidebar / phone
+`AccountSheet`, `features/pass-monitor/`, see below): login and
 Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after decryption. Weak = zxcvbn score < 3 (rated
 in chunks, ratings cached per version, never the password). zxcvbn costs 100–500 ms a password: every rating goes through
 `strengthWorkerService` (`@repo/crypto/services`; a Web Worker on web, deferred on the JS thread on mobile), incl.
@@ -33,6 +34,15 @@ Record detail (web `PasswordHealthLine` under a login's or Wi-Fi's password): on
 "N issues" toggle opening `passwordIssues` (breached, weak, reused, old, missing 2FA, most urgent first; each with its fix:
 Change, Show for a single reuse, Set up with the site's 2FA docs, else Add code; Change / Add code only when writable) via `usePasswordHealth`; open state per record until a lock.
 Sidebar badge (web desktop `SidebarFooter`): `usePassMonitorIssueCount`, the overview's counts summed (`passMonitorIssueCount`, duplicates aside) with weak only from ratings the Pass Monitor cached and breaches only from stored results, so it runs no zxcvbn and no request.
+Web Pass Monitor screen: `PassMonitorProvider` runs `usePassMonitor` + `useBreachCheck` once for the whole overlay
+(the list and the open finding share it; the breach check never runs twice). Desktop: a full-screen overlay
+(`OverlayHeader`: "N passwords in M vaults", Check again = `useBreachCheck().recheck` (every password, recent results
+too), Esc / close to `overlayReturnPath`); left the score and `FindingsList`, right the open finding; `/pass-monitor`
+shows the first finding with issues (`defaultFindingPath`). Phone: the overview, each finding a pushed page. Rows
+(`MonitorRecordItem`): the record (opens it), the reason as a red pill, and the fix when writable: Change
+(`recordPaths.changePassword`: the edit with `?generate`; `EditRecordSheet` reads it once, `useOneShotParam`, and hands
+`openGenerator` down to `PasswordField`, which opens the generator right after mounting; shown only when the vault is writable,
+the "Change opens …" note too) for weak / reused / old / breached, Edit for insecure websites and missing 2FA.
 Security score (`securityScore`, `records/security-score.ts`; web `SecurityScoreCard` atop the Pass Monitor): the mean
 per-password health (1 minus the summed `SCORE_PENALTY`s, capped) over `usePassMonitor().monitored`; duplicates don't
 count, a breached password keeps it below good. `undefined` while a counted check runs (the breach check too, until its

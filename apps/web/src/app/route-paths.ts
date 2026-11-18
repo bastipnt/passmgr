@@ -23,6 +23,7 @@ export const authPaths = {
 } as const;
 
 const shortcutsParam = "shortcuts";
+const generateParam = "generate";
 
 export const recordPaths = {
   index: "/",
@@ -40,6 +41,8 @@ export const recordPaths = {
   record: (recordId: string) => `/record/${recordId}`,
   editRecord: (recordId: string) => `/record/${recordId}/edit`,
   recordVersions: (recordId: string) => `/record/${recordId}/versions`,
+  /** The edit with the password generator open (Pass Monitor's "Change"). */
+  changePassword: (recordId: string) => `/record/${recordId}/edit?${generateParam}`,
   version: (recordId: string, version: number) => `/record/${recordId}/versions/${version}`,
 
   /**
@@ -52,6 +55,8 @@ export const recordPaths = {
   createTypeParam: "type",
   /** With `createParam`: the record to copy; its type replaces `createTypeParam`. */
   createDuplicateParam: "duplicate",
+  /** On the edit route: opens the password generator once. */
+  generateParam,
   /** Presence opens the keyboard shortcuts list over the vault. */
   shortcutsParam: shortcutsParam,
   shortcuts: `/?${shortcutsParam}`,

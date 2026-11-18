@@ -13,6 +13,8 @@ type GeneratePasswordButtonProps = {
   fieldLabel: string;
   /** `icon`: a round button without the text, for tight rows (always so on phones). */
   size?: "default" | "icon";
+  /** Opens the generator right after mounting. */
+  openOnMount?: boolean;
   className?: string;
 };
 
@@ -21,6 +23,7 @@ export default function GeneratePasswordButton({
   onUse,
   fieldLabel,
   size = "default",
+  openOnMount,
   className,
 }: GeneratePasswordButtonProps) {
   const handle = useMemo(() => createHandle(), []);
@@ -57,7 +60,7 @@ export default function GeneratePasswordButton({
         />
         <TooltipContent>{name}</TooltipContent>
       </Tooltip>
-      <PasswordGenerator handle={handle} onUse={onUse} />
+      <PasswordGenerator handle={handle} onUse={onUse} openOnMount={openOnMount} />
     </>
   );
 }

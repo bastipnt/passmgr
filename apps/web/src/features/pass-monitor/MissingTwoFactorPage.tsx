@@ -1,11 +1,10 @@
-import { usePassMonitor } from "@repo/client";
 import { ExternalLink } from "@repo/ui/components/ExternalLink";
-import { ItemGroup } from "@repo/ui/components/Item";
-import { MonitorPage } from "./MonitorPage";
+import { MonitorList, MonitorPage } from "./MonitorPage";
 import { MonitorRecordItem } from "./MonitorRecordItem";
+import { useMonitor } from "./PassMonitorContext";
 
 export default function MissingTwoFactorPage() {
-  const { missingTwoFactor, twoFactorFailed } = usePassMonitor();
+  const { missingTwoFactor, twoFactorFailed } = useMonitor();
 
   return (
     <MonitorPage
@@ -25,15 +24,16 @@ export default function MissingTwoFactorPage() {
         </p>
       }
     >
-      <ItemGroup>
+      <MonitorList>
         {missingTwoFactor?.map(({ record, site }) => (
           <MonitorRecordItem
             key={record.recordId}
             record={record}
-            detail={`${site.domain} supports 2FA`}
+            reason={`${site.domain} supports 2FA`}
+            action="edit"
           />
         ))}
-      </ItemGroup>
+      </MonitorList>
     </MonitorPage>
   );
 }

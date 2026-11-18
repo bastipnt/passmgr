@@ -8,6 +8,7 @@ import { toLocalDateStr } from "@repo/util";
 import { TrashIcon } from "lucide-react";
 import { type ReactElement, useRef } from "react";
 import { recordPaths } from "@/app/route-paths";
+import { useOneShotParam } from "@/hooks/use-one-shot-param";
 import { RecordAvatar } from "./RecordAvatar";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 import RecordFormSheet from "./RecordFormSheet";
@@ -26,6 +27,8 @@ export default function EditRecordSheet({ record }: { record: DecryptedRecord })
 function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
   const isMobile = useIsMobile();
   const formRef = useRef<RecordFormHandle>(null);
+  // Pass Monitor's "Change" asks for a new password right away.
+  const generateRequested = useOneShotParam(recordPaths.generateParam);
 
   const { open, setOpen, onOpenChangeComplete } = useRouteSheet<{ recordId: string }>(
     recordPaths.edit,
@@ -85,6 +88,7 @@ function EditRecordSheetContent({ record }: { record: DecryptedRecord }) {
         serverError={updateRecordError ? userMessage(updateRecordError) : undefined}
         disabled={updatePending}
         defaultValues={recordFormDefaults(record)}
+        openGenerator={generateRequested}
         header={
           isMobile && (
             <SheetMediaHeader

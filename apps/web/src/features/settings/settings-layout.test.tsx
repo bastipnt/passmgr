@@ -5,8 +5,8 @@ import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
+import { rememberOverlayReturn } from "@/app/overlay-return";
 import { settingsPaths } from "@/app/route-paths";
-import { rememberSettingsReturn } from "@/app/settings-return";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen, within } from "@/test/render";
 import SettingsHome from "./SettingsHome";
@@ -61,7 +61,7 @@ function renderAt(path: string, page: ReactNode = <p>Page</p>) {
 beforeEach(() => {
   store.profile = LINKED;
   store.profiles = [profileEntry(LINKED)];
-  rememberSettingsReturn("/", "");
+  rememberOverlayReturn("/");
 });
 afterEach(() => {
   viewport.mobile = false;
@@ -93,15 +93,15 @@ describe("settings overlay (desktop)", () => {
   });
 
   it("closes to the screen it was opened from, by Esc or the close button", async () => {
-    rememberSettingsReturn("/record/r1", "?new=");
-    rememberSettingsReturn(settingsPaths.tags, "");
+    rememberOverlayReturn("/record/r1/edit");
+    rememberOverlayReturn(settingsPaths.tags);
     const location = renderAt(settingsPaths.tags);
 
     await userEvent.keyboard("{Escape}");
-    expect(location.history.at(-1)).toBe("/record/r1?new=");
+    expect(location.history.at(-1)).toBe("/record/r1");
 
     await userEvent.click(screen.getByRole("button", { name: "Close settings" }));
-    expect(location.history.at(-1)).toBe("/record/r1?new=");
+    expect(location.history.at(-1)).toBe("/record/r1");
     expect(location.history).toHaveLength(3);
   });
 

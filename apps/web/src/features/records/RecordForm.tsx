@@ -44,6 +44,8 @@ type RecordFormProps<T extends RecordType> = {
   header?: ReactNode;
   /** After the last section (the phone drawer's Delete). */
   footer?: ReactNode;
+  /** The password field opens its generator right away. */
+  openGenerator?: boolean;
   ref?: Ref<RecordFormHandle>;
 };
 
@@ -65,6 +67,7 @@ export default function RecordForm<T extends RecordType>({
   vaultField,
   header,
   footer,
+  openGenerator,
   ref,
 }: RecordFormProps<T>) {
   const isMobile = useIsMobile();
@@ -84,7 +87,13 @@ export default function RecordForm<T extends RecordType>({
 
   const renderField = (spec: FormFieldSpec) => (
     <div key={spec.key} className={cn("sm:col-span-6", spec.width && WIDTH_CLASSES[spec.width])}>
-      <RecordFormField spec={spec} control={control} setValue={setValue} compact={isMobile} />
+      <RecordFormField
+        spec={spec}
+        control={control}
+        setValue={setValue}
+        compact={isMobile}
+        openGenerator={openGenerator}
+      />
     </div>
   );
 

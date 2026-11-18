@@ -1,10 +1,11 @@
-import { passwordLastChangedLabel, usePassMonitor } from "@repo/client";
-import { ItemGroup } from "@repo/ui/components/Item";
-import { MonitorPage } from "./MonitorPage";
+import { passwordLastChangedLabel } from "@repo/client";
+import { MonitorList, MonitorPage, useChangeFootnote } from "./MonitorPage";
 import { MonitorRecordItem } from "./MonitorRecordItem";
+import { useMonitor } from "./PassMonitorContext";
 
 export default function OldPasswordsPage() {
-  const { old } = usePassMonitor();
+  const { old } = useMonitor();
+  const changeFootnote = useChangeFootnote(old?.map(({ record }) => record));
 
   return (
     <MonitorPage
@@ -12,16 +13,18 @@ export default function OldPasswordsPage() {
       description="These passwords haven't changed in a year or longer."
       count={old?.length}
       empty="No old passwords."
+      footnote={changeFootnote}
     >
-      <ItemGroup>
+      <MonitorList>
         {old?.map(({ record, ageDays }) => (
           <MonitorRecordItem
             key={record.recordId}
             record={record}
-            detail={passwordLastChangedLabel(ageDays)}
+            reason={passwordLastChangedLabel(ageDays)}
+            action="change-password"
           />
         ))}
-      </ItemGroup>
+      </MonitorList>
     </MonitorPage>
   );
 }

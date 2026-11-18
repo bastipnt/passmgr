@@ -87,11 +87,14 @@ Rules:
 - **Settings** (`features/settings`): desktop, a full-screen overlay (`SettingsLayout`: header with "Settings", the
   search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the sync
   dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was opened
-  from (`app/settings-return.ts`, `SettingsReturnTracker`; never auth or settings itself), else the vault list; Esc is
-  left to a focused dialog, menu, listbox or field. Phone: `/settings` is `SettingsHome` (the same groups as drill-down
+  from (never auth or an overlay), else the vault list; Esc (`OverlayHeader`) is left to a focused dialog, menu,
+  listbox or field. Phone: `/settings` is `SettingsHome` (the same groups as drill-down
   rows with their values; its close steps back with `usePageBack`), each section a pushed page with "‹ Settings" back;
   pages are imported eagerly. Sections an account lacks are hidden (`useSettingsGroups`: Devices & activity is
-  `linkedOnly`), Keyboard shortcuts is desktop only. Pass Monitor is not a section: it has its own route (`/pass-monitor`, `PassMonitorLayout`).
+  `linkedOnly`), Keyboard shortcuts is desktop only. Pass Monitor is not a section: it is its own overlay (`/pass-monitor`, `PassMonitorLayout`, same
+  `OverlayHeader` / `BackToButton` / `CloseButton`; flow in `docs/architecture/records.md`). Both overlays close to
+  `overlayReturnPath()` (`app/overlay-return.ts`, `OverlayReturnTracker`: the last pathname outside them and auth, a
+  record's sheet routes collapsed to the record, no query).
 - **Settings pages** compose the `features/settings` primitives (pages not redesigned yet still use `PanelHeader` + `Item`): `SettingsPage` (display title, description,
   optional action; h1 on a phone, h2 under the overlay's "Settings" on desktop), `SettingsGroup` (uppercase label over
   one hairline-split card, footnote, `variant="danger"`), `SettingsRow` (label + hint, `status` "· Off" after the

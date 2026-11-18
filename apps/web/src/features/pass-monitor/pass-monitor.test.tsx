@@ -1,11 +1,13 @@
 import type { BreachCheckState, PassMonitor } from "@repo/client";
 import userEvent from "@testing-library/user-event";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { recordPaths } from "@/app/route-paths";
 import { renderWithProviders, screen } from "@/test/render";
 import BreachedPasswordsPage from "./BreachedPasswordsPage";
 import InsecureWebsitesPage from "./InsecureWebsitesPage";
 import MissingTwoFactorPage from "./MissingTwoFactorPage";
+import { PassMonitorProvider } from "./PassMonitorContext";
 import PassMonitorPage from "./PassMonitorPage";
 import ReusedPasswordsPage from "./ReusedPasswordsPage";
 import WeakPasswordsPage from "./WeakPasswordsPage";
@@ -20,7 +22,11 @@ vi.mock("@repo/client", async (importOriginal) => ({
   usePassMonitor: () => mocks.monitor,
   useBreachCheck: () => mocks.breach,
   useVaults: () => ({ getVault: () => undefined, hasSeveralVaults: false }),
+  useRecordVault: () => ({ writable: true }),
 }));
+
+const inMonitor = (page: ReactElement) => <PassMonitorProvider>{page}</PassMonitorProvider>;
+const renderMonitor = (page: ReactElement) => renderWithProviders(inMonitor(page));
 
 function login(recordId: string, title: string) {
   return {
@@ -58,6 +64,7 @@ const breachOff: BreachCheckState = {
   failed: false,
   offline: false,
   lastCheckedAt: null,
+  recheck: vi.fn(),
 };
 
 // Braces: a returned function would run as the hook's teardown.
@@ -68,7 +75,7 @@ beforeEach(() => {
 
 describe("PassMonitorPage", () => {
   it("shows a spinner per category while checking, then the counts", () => {
-    const { rerender } = renderWithProviders(<PassMonitorPage />);
+    const { rerender } = renderMonitor(<PassMonitorPage />);
     expect(screen.getByLabelText("Checking weak passwords")).toBeInTheDocument();
 
     const github = login("a", "GitHub");
@@ -84,7 +91,7 @@ describe("PassMonitorPage", () => {
       missingTwoFactor: [],
       twoFactorFailed: false,
     };
-    rerender(<PassMonitorPage />);
+    rerender(inMonitor(<PassMonitorPage />));
 
     expect(screen.getByLabelText("1 Weak passwords")).toBeInTheDocument();
     expect(screen.getByLabelText("2 Reused passwords")).toBeInTheDocument();
@@ -94,7 +101,7 @@ describe("PassMonitorPage", () => {
   });
 
   it("scores the findings, naming the checks left out", () => {
-    const { rerender } = renderWithProviders(<PassMonitorPage />);
+    const { rerender } = renderMonitor(<PassMonitorPage />);
     expect(screen.getByLabelText("Calculating security score")).toBeInTheDocument();
 
     const github = login("a", "GitHub");
@@ -109,7 +116,7 @@ describe("PassMonitorPage", () => {
       insecure: [{ record: figma, hosts: ["figma.com"] }],
       missingTwoFactor: [],
     };
-    rerender(<PassMonitorPage />);
+    rerender(inMonitor(<PassMonitorPage />));
 
     expect(screen.getByRole("meter", { name: "Security score" })).toHaveAttribute(
       "aria-valuenow",
@@ -120,9 +127,30 @@ describe("PassMonitorPage", () => {
     expect(screen.getByText("Not counted: breaches.")).toBeInTheDocument();
   });
 
+  it("offers Change on a weak password, opening its edit with the generator", () => {
+    const github = login("a", "GitHub");
+    mocks.monitor = {
+      ...checking,
+      weak: [
+        {
+          record: github,
+          strength: { level: "weak", label: "Weak", warning: "A common password" },
+        },
+      ],
+    };
+    renderMonitor(<WeakPasswordsPage />);
+
+    expect(screen.getByText("Weak: A common password")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change GitHub" })).toHaveAttribute(
+      "href",
+      recordPaths.changePassword("a"),
+    );
+    expect(screen.getByText(/generator ready/)).toBeInTheDocument();
+  });
+
   it("says when the strength check couldn't run", () => {
     mocks.monitor = { ...checking, weakFailed: true };
-    renderWithProviders(<WeakPasswordsPage />);
+    renderMonitor(<WeakPasswordsPage />);
 
     expect(screen.getByText(/strength check couldn't load/)).toBeInTheDocument();
   });
@@ -134,7 +162,7 @@ describe("ReusedPasswordsPage", () => {
       ...checking,
       reused: [{ id: "a", records: [login("a", "GitHub"), login("b", "Figma")] }],
     };
-    renderWithProviders(<ReusedPasswordsPage />);
+    renderMonitor(<ReusedPasswordsPage />);
 
     expect(screen.getByRole("heading", { name: "Used in 2 places" })).toBeInTheDocument();
     expect(screen.queryByText(/hunter2/)).not.toBeInTheDocument();
@@ -146,7 +174,7 @@ describe("ReusedPasswordsPage", () => {
 
   it("says so when every password is unique", () => {
     mocks.monitor = { ...checking, reused: [] };
-    renderWithProviders(<ReusedPasswordsPage />);
+    renderMonitor(<ReusedPasswordsPage />);
 
     expect(screen.getByText("Every password is unique.")).toBeInTheDocument();
   });
@@ -154,11 +182,11 @@ describe("ReusedPasswordsPage", () => {
 
 describe("BreachedPasswordsPage", () => {
   it("is off until turned on, and the overview says so", async () => {
-    const { unmount } = renderWithProviders(<PassMonitorPage />);
+    const { unmount } = renderMonitor(<PassMonitorPage />);
     expect(screen.getByRole("link", { name: /Breached passwords/ })).toHaveTextContent("Off");
     unmount();
 
-    renderWithProviders(<BreachedPasswordsPage />);
+    renderMonitor(<BreachedPasswordsPage />);
     await userEvent.click(screen.getByRole("button", { name: "Turn on breach check" }));
 
     expect(mocks.breach.setEnabled).toHaveBeenCalledWith(true);
@@ -171,10 +199,16 @@ describe("BreachedPasswordsPage", () => {
       breached: [{ record: login("a", "GitHub"), count: 1200 }],
       lastCheckedAt: new Date().toISOString(),
     };
-    renderWithProviders(<BreachedPasswordsPage />);
+    renderMonitor(<BreachedPasswordsPage />);
 
-    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveTextContent(
-      "Seen 1,200 times in data breaches",
+    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveAttribute(
+      "href",
+      recordPaths.record("a"),
+    );
+    expect(screen.getByText("Seen 1,200 times in data breaches")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Change GitHub" })).toHaveAttribute(
+      "href",
+      recordPaths.changePassword("a"),
     );
     expect(screen.getByText(/Last checked just now/)).toBeInTheDocument();
     expect(screen.getByRole("switch", { name: "Breach check" })).toBeChecked();
@@ -182,7 +216,7 @@ describe("BreachedPasswordsPage", () => {
 
   it("explains an offline device without stored results", () => {
     mocks.breach = { ...breachOff, enabled: true, offline: true };
-    renderWithProviders(<BreachedPasswordsPage />);
+    renderMonitor(<BreachedPasswordsPage />);
 
     expect(screen.getByText(/You're offline/)).toBeInTheDocument();
   });
@@ -194,10 +228,12 @@ describe("InsecureWebsitesPage", () => {
       ...checking,
       insecure: [{ record: login("a", "Router"), hosts: ["192.168.1.1", "router.lan"] }],
     };
-    renderWithProviders(<InsecureWebsitesPage />);
+    renderMonitor(<InsecureWebsitesPage />);
 
-    expect(screen.getByRole("link", { name: /Router/ })).toHaveTextContent(
-      "http://192.168.1.1, http://router.lan",
+    expect(screen.getByText("http://192.168.1.1, http://router.lan")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit Router" })).toHaveAttribute(
+      "href",
+      recordPaths.editRecord("a"),
     );
   });
 });
@@ -208,11 +244,9 @@ describe("MissingTwoFactorPage", () => {
       ...checking,
       missingTwoFactor: [{ record: login("a", "GitHub"), site: { domain: "github.com" } }],
     };
-    renderWithProviders(<MissingTwoFactorPage />);
+    renderMonitor(<MissingTwoFactorPage />);
 
-    expect(screen.getByRole("link", { name: /GitHub/ })).toHaveTextContent(
-      "github.com supports 2FA",
-    );
+    expect(screen.getByText("github.com supports 2FA")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "2fa.directory" })).toHaveAttribute(
       "href",
       "https://2fa.directory",
@@ -221,7 +255,7 @@ describe("MissingTwoFactorPage", () => {
 
   it("says when the directory couldn't load", () => {
     mocks.monitor = { ...checking, twoFactorFailed: true };
-    renderWithProviders(<MissingTwoFactorPage />);
+    renderMonitor(<MissingTwoFactorPage />);
 
     expect(screen.getByText(/2FA directory couldn't load/)).toBeInTheDocument();
   });

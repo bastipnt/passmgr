@@ -1,6 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, breachCheckKey, type Vault } from "@repo/store";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
@@ -27,6 +27,8 @@ export type BreachCheckState = {
   offline: boolean;
   /** When the least recently checked current password was checked. */
   lastCheckedAt: string | null;
+  /** Checks every password again now, recent results included. */
+  recheck: () => void;
 };
 
 // Setting and results of one profile database: a profile switch never runs on the previous one's opt-in.
@@ -72,6 +74,9 @@ export function useBreachCheck(): BreachCheckState {
   const { current, setLoaded } = useStoredBreachChecks();
   const [checking, setChecking] = useState(false);
   const [failed, setFailed] = useState(false);
+  // A recheck asks for one full run: the round counts as done once a run checking everything finishes.
+  const [recheckRound, setRecheckRound] = useState(0);
+  const recheckedRound = useRef(0);
 
   const enabled = current?.enabled ?? null;
   const checks = current?.checks;
@@ -87,10 +92,13 @@ export function useBreachCheck(): BreachCheckState {
     if (!vault || !ready || !enabled || !checks || networkOffline) return;
     const controller = new AbortController();
     const versions = monitored.map(breachVersion);
-    const due = monitored.filter((record) => {
-      const check = checks.get(breachCheckKey(record));
-      return !check || isBreachCheckStale(check);
-    });
+    const all = recheckRound > recheckedRound.current;
+    const due = all
+      ? monitored
+      : monitored.filter((record) => {
+          const check = checks.get(breachCheckKey(record));
+          return !check || isBreachCheckStale(check);
+        });
     setFailed(false);
 
     let pending: BreachCheck[] = [];
@@ -111,6 +119,7 @@ export function useBreachCheck(): BreachCheckState {
     const logSaveError = (error: unknown) => logError("Failed to save breach checks", error);
 
     if (due.length === 0) {
+      recheckedRound.current = recheckRound;
       void flush(true).catch(logSaveError);
       return () => controller.abort();
     }
@@ -131,6 +140,7 @@ export function useBreachCheck(): BreachCheckState {
       .then(async (counts) => {
         await flush(true);
         if (controller.signal.aborted) return;
+        if (all) recheckedRound.current = recheckRound;
         setFailed(counts.size < due.length);
         setChecking(false);
       })
@@ -150,7 +160,9 @@ export function useBreachCheck(): BreachCheckState {
     };
     // `checks` changes as results come in; re-running for it would restart the run.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [vault, ready, enabled, !!checks, networkOffline, monitored]);
+  }, [vault, ready, enabled, !!checks, networkOffline, monitored, recheckRound]);
+
+  const recheck = useCallback(() => setRecheckRound((round) => round + 1), []);
 
   const setEnabled = useCallback(
     async (on: boolean) => {
@@ -189,6 +201,7 @@ export function useBreachCheck(): BreachCheckState {
     failed,
     offline: networkOffline,
     lastCheckedAt,
+    recheck,
   };
 }
 

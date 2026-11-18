@@ -6,13 +6,14 @@ import { TooltipProvider } from "@repo/ui/components/Tooltip";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { LockIcon } from "lucide-react";
-import { type ReactNode, useEffect, useId, useState } from "react";
-import { useLocation, useSearchParams } from "wouter";
+import { type ReactNode, useId, useState } from "react";
+import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { AppShell, ShellPanel } from "@/components/AppShell";
 import ShortcutsHelpDialog from "@/components/ShortcutsHelpDialog";
 import { VerifyEmailPrompt } from "@/components/VerifyEmailDialog";
 import { useLockVault } from "@/hooks/use-lock-vault";
+import { useOneShotParam } from "@/hooks/use-one-shot-param";
 import { modKey } from "@/lib/formatShortcut";
 import BackupReminder from "./BackupReminder";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
@@ -68,15 +69,9 @@ function MainContent({ children, className }: { children: ReactNode; className?:
 
 export default function RecordLayout({ children }: RecordLayoutProps) {
   const [, navigate] = useLocation();
-  const [searchParams, setSearchParams] = useSearchParams();
-  // A one-shot request (Settings → Keyboard shortcuts): read once, then dropped, so a reload doesn't reopen it.
-  const [helpOpen, setHelpOpen] = useState(() => searchParams.has(recordPaths.shortcutsParam));
-  useEffect(() => {
-    if (!searchParams.has(recordPaths.shortcutsParam)) return;
-    const next = new URLSearchParams(searchParams);
-    next.delete(recordPaths.shortcutsParam);
-    setSearchParams(next, { replace: true });
-  }, [searchParams, setSearchParams]);
+  // Settings → Keyboard shortcuts asks for the list.
+  const helpRequested = useOneShotParam(recordPaths.shortcutsParam);
+  const [helpOpen, setHelpOpen] = useState(helpRequested);
   const isMobile = useIsMobile();
   const lockVault = useLockVault();
 

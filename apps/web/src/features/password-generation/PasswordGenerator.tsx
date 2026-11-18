@@ -31,6 +31,8 @@ type PasswordGeneratorProps = {
   onUse: (password: string) => void;
   /** Opens in this mode instead of the saved default. */
   mode?: GeneratorMode;
+  /** Opens right after mounting (once its parent sheet has opened and taken focus). */
+  openOnMount?: boolean;
   note?: ReactNode;
 };
 
@@ -41,11 +43,17 @@ export default function PasswordGenerator({
   handle,
   mode: modeOverride,
   note,
+  openOnMount = false,
 }: PasswordGeneratorProps) {
   const { mode: savedMode, pwOpts: defaultPwOpts, phOpts: defaultPhOpts } = useGeneratorDefaults();
   const defaultMode = modeOverride ?? savedMode;
 
   const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!openOnMount) return;
+    const timer = setTimeout(() => setOpen(true));
+    return () => clearTimeout(timer);
+  }, [openOnMount]);
   // Seeded from the saved defaults; edits here are for this password only and
   // are thrown away when the sheet closes.
   const [mode, setMode] = useState<GeneratorMode>(defaultMode);

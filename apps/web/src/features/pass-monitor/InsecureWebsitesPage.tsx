@@ -1,10 +1,9 @@
-import { usePassMonitor } from "@repo/client";
-import { ItemGroup } from "@repo/ui/components/Item";
-import { MonitorPage } from "./MonitorPage";
+import { MonitorList, MonitorPage } from "./MonitorPage";
 import { MonitorRecordItem } from "./MonitorRecordItem";
+import { useMonitor } from "./PassMonitorContext";
 
 export default function InsecureWebsitesPage() {
-  const { insecure } = usePassMonitor();
+  const { insecure } = useMonitor();
 
   return (
     <MonitorPage
@@ -13,15 +12,16 @@ export default function InsecureWebsitesPage() {
       count={insecure?.length}
       empty="Every website uses HTTPS."
     >
-      <ItemGroup>
+      <MonitorList>
         {insecure?.map(({ record, hosts }) => (
           <MonitorRecordItem
             key={record.recordId}
             record={record}
-            detail={hosts.map((host) => `http://${host}`).join(", ")}
+            reason={hosts.map((host) => `http://${host}`).join(", ")}
+            action="edit"
           />
         ))}
-      </ItemGroup>
+      </MonitorList>
     </MonitorPage>
   );
 }

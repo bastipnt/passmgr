@@ -3,9 +3,9 @@ import { Suspense } from "react";
 import { Route, Router, Switch } from "wouter";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
+import { OverlayReturnTracker } from "./overlay-return";
 import { PageTransitions, usePageLocation, usePageSearch } from "./page-transitions";
 import { authPaths, pageDepths, passMonitorPaths, settingsPaths } from "./route-paths";
-import { SettingsReturnTracker } from "./settings-return";
 import { VaultLock } from "./VaultLock";
 
 const RecordRoutes = lazyPreload(() => import("@/features/records"));
@@ -17,7 +17,7 @@ function Routes() {
   return (
     <Router hook={usePageLocation} searchHook={usePageSearch}>
       <PageTransitions pageDepths={pageDepths} />
-      <SettingsReturnTracker />
+      <OverlayReturnTracker />
       <VaultLock />
       <Suspense fallback={null}>
         <DrawerProvider>

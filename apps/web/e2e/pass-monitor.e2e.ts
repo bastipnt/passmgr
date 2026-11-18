@@ -17,11 +17,18 @@ test("finds a weak password reused by two logins and opens one of them", async (
     username: "jana",
     password: "password1",
   });
-  await createLogin(page, { title: "Figma", username: "jana", password: "password1" });
+  const figma = await createLogin(page, {
+    title: "Figma",
+    username: "jana",
+    password: "password1",
+  });
 
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
+  await expect(page).toHaveURL(/\/pass-monitor$/);
 
   await expect(page.getByLabel("2 Weak passwords")).toBeVisible({ timeout: 15_000 });
+  // Desktop opens on the first finding with something to fix.
+  await expect(page.getByRole("heading", { level: 2, name: "Weak passwords" })).toBeVisible();
   await expect(page.getByLabel("2 Reused passwords")).toBeVisible();
   await expect(page.getByLabel("0 Duplicates")).toBeVisible();
   await expect(page.getByLabel("0 Old passwords")).toBeVisible();
@@ -29,11 +36,19 @@ test("finds a weak password reused by two logins and opens one of them", async (
   await expect(page.getByLabel("0 Missing 2FA")).toBeVisible();
 
   await page.getByRole("link", { name: /Reused passwords/ }).click();
+  await expect(page).toHaveURL(/\/pass-monitor\/reused$/);
   await expect(page.getByRole("heading", { name: "Used in 2 places" })).toBeVisible();
   await expect(page.getByText("password1")).toHaveCount(0);
 
   await page.getByRole("link", { name: /GitHub/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
+
+  // Change: the item's edit, with the generator open.
+  await page.getByRole("link", { name: /Pass Monitor/ }).click();
+  await page.getByRole("link", { name: /Reused passwords/ }).click();
+  await page.getByRole("button", { name: "Change Figma" }).click();
+  await expect(page).toHaveURL(new RegExp(`/record/${figma}/edit$`));
+  await expect(page.getByRole("dialog", { name: "Generate password" })).toBeVisible();
 });
 
 test("checks passwords against HIBP only by hash prefix, once turned on", async ({ page }) => {
@@ -66,7 +81,7 @@ test("checks passwords against HIBP only by hash prefix, once turned on", async 
   await page.getByRole("button", { name: "Turn on breach check" }).click();
 
   const breached = page.getByRole("link", { name: /GitHub/ });
-  await expect(breached).toContainText("Seen 2,254,650 times in data breaches");
+  await expect(page.getByText("Seen 2,254,650 times in data breaches")).toBeVisible();
   await expect(page.getByRole("link", { name: /Figma/ })).toHaveCount(0);
   expect(requests).toHaveLength(2);
   for (const { url, padding } of requests) {
@@ -106,13 +121,13 @@ test("flags plain HTTP websites and logins missing 2FA from the bundled list", a
   await expect(page.getByLabel("1 Missing 2FA")).toBeVisible();
 
   await page.getByRole("link", { name: /Insecure websites/ }).click();
-  await expect(page.getByRole("link", { name: /Router/ })).toContainText("http://router.example");
+  await expect(page.getByText("http://router.example")).toBeVisible();
   await page.getByRole("link", { name: /Router/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${router}$`));
 
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
   await page.getByRole("link", { name: /Missing 2FA/ }).click();
-  await expect(page.getByRole("link", { name: /GitHub/ })).toContainText("github.com supports 2FA");
+  await expect(page.getByText("github.com supports 2FA")).toBeVisible();
   await page.getByRole("link", { name: /GitHub/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${github}$`));
   const issues = await openPasswordIssues(page);

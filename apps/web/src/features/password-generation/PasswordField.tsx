@@ -11,6 +11,8 @@ type PasswordFieldProps<T extends PasswordFormValues> = {
   control: Control<T>;
   setValue: UseFormSetValue<T>;
   label?: string;
+  /** Opens the generator right away (Pass Monitor's "Change"). */
+  openGenerator?: boolean;
 };
 
 export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
@@ -20,6 +22,7 @@ export default function PasswordField<T extends PasswordFormValues>(props: Passw
     control,
     setValue,
     label = "Password",
+    openGenerator,
   } = props as unknown as PasswordFieldProps<PasswordFormValues>;
   const password = useWatch({ control, name: "password" }) ?? "";
   const strength = usePasswordStrength(password);
@@ -35,6 +38,7 @@ export default function PasswordField<T extends PasswordFormValues>(props: Passw
       trailing={
         <GeneratePasswordButton
           fieldLabel={label}
+          openOnMount={openGenerator}
           onUse={(pwd) => setValue("password", pwd, { shouldDirty: true, shouldValidate: true })}
         />
       }
