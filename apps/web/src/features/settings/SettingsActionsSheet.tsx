@@ -1,12 +1,10 @@
-import { itemCount, type VaultInfo } from "@repo/client";
 import { ResponsiveSheet, SheetDrawerHeader } from "@repo/ui/complex-components/ResponsiveSheet";
 import { ListRow, ListRowIcon } from "@repo/ui/components/ListRow";
 import { cn } from "@repo/ui/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import { useRef } from "react";
-import { VaultTile } from "@/features/vaults";
+import { type ReactNode, useRef } from "react";
 
-export type VaultAction = {
+export type SettingsAction = {
   key: string;
   label: string;
   /** The desktop button's name, when the label alone is ambiguous in the list ("Members of Family"). */
@@ -18,26 +16,28 @@ export type VaultAction = {
   run: () => void;
 };
 
-type VaultActionsSheetProps = {
-  vault: VaultInfo;
-  count: number;
-  actions: readonly VaultAction[];
+type SettingsActionsSheetProps = {
+  title: string;
+  /** What the actions are for, above them (a vault's tile and item count). */
+  summary?: ReactNode;
+  actions: readonly SettingsAction[];
   open: boolean;
   onOpenChange: (open: boolean) => void;
 };
 
 /**
- * The phone's vault detail: Members, Edit, Rotate key, Delete. An action runs
- * once the sheet has closed, so its dialog doesn't open under the sheet.
+ * A phone row's actions (a vault's Members, Edit, Rotate key, Delete; a tag's
+ * Rename, Remove). An action runs once the sheet has closed, so its dialog
+ * doesn't open under the sheet.
  */
-export function VaultActionsSheet({
-  vault,
-  count,
+export function SettingsActionsSheet({
+  title,
+  summary,
   actions,
   open,
   onOpenChange,
-}: VaultActionsSheetProps) {
-  const pending = useRef<VaultAction>(undefined);
+}: SettingsActionsSheetProps) {
+  const pending = useRef<SettingsAction>(undefined);
 
   return (
     <ResponsiveSheet
@@ -49,14 +49,11 @@ export function VaultActionsSheet({
         pending.current = undefined;
         action?.run();
       }}
-      title={vault.name}
-      actions={<SheetDrawerHeader title={vault.name} />}
+      title={title}
+      actions={<SheetDrawerHeader title={title} />}
     >
       <div className="flex flex-col">
-        <div className="flex items-center gap-3 px-3 pb-2">
-          <VaultTile vault={vault} />
-          <span className="text-muted-foreground text-sm">{itemCount(count)}</span>
-        </div>
+        {summary && <div className="flex items-center gap-3 px-3 pb-2">{summary}</div>}
         {actions.map((action) => (
           <ListRow
             key={action.key}

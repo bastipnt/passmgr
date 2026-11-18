@@ -24,12 +24,12 @@ export function AppShell({ header, children, mainClassName }: AppShellProps) {
   return (
     <div
       className={cn(
-        "relative isolate flex min-h-dvh flex-col sm:h-dvh",
+        "relative isolate flex min-h-dvh flex-col [--page-bar-h:calc(max(env(safe-area-inset-top),0.75rem)+3.5rem)] sm:h-dvh",
         header ? "sm:gap-4 sm:p-5" : "sm:p-0",
       )}
     >
       {header && (
-        <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-20 sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
+        <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-20 max-sm:h-(--page-bar-h) sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
           {header}
         </header>
       )}

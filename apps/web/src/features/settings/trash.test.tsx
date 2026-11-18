@@ -3,6 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen, within } from "@/test/render";
 import TrashPage from "./TrashPage";
 
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => viewport.mobile }));
+
 const mocks = vi.hoisted(() => ({
   restore: vi.fn(),
   purge: vi.fn(),
@@ -46,13 +49,14 @@ beforeEach(() => {
   mocks.purge.mockReset();
   mocks.emptyTrash.mockReset();
   mocks.records = [];
+  viewport.mobile = false;
 });
 
 describe("TrashPage", () => {
   it("says so when the trash is empty", () => {
     renderWithProviders(<TrashPage />);
 
-    expect(screen.getByText(/Nothing here/)).toBeInTheDocument();
+    expect(screen.getByText("Trash is empty")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Empty trash" })).toBeDisabled();
   });
 
@@ -90,5 +94,27 @@ describe("TrashPage", () => {
     await userEvent.click(within(dialog).getByRole("button", { name: "Delete for good" }));
 
     expect(mocks.emptyTrash).toHaveBeenCalled();
+  });
+
+  it("says how long ago an item was deleted", () => {
+    mocks.records = [{ ...trashed("r1", "Old note"), deletedAt: new Date().toISOString() }];
+    renderWithProviders(<TrashPage />);
+
+    expect(screen.getByRole("list", { name: "1 item" })).toHaveTextContent("deleted just now");
+  });
+
+  it("deletes for good from a row's sheet on a phone", async () => {
+    viewport.mobile = true;
+    mocks.records = [trashed("r1", "Old note")];
+    renderWithProviders(<TrashPage />);
+
+    expect(screen.getByRole("button", { name: "Restore Old note" })).toBeInTheDocument();
+    await userEvent.click(screen.getByRole("button", { name: "More actions for Old note" }));
+    const sheet = await screen.findByRole("dialog", { name: "Old note" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Delete for good" }));
+    const dialog = await screen.findByRole("dialog", { name: "Delete Old note for good?" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Delete for good" }));
+
+    expect(mocks.purge).toHaveBeenCalledWith(["r1"]);
   });
 });

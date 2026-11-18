@@ -1,8 +1,11 @@
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { renderWithProviders, screen, waitFor, within } from "@/test/render";
 import TagsSettingsPage from "./TagsSettingsPage";
+
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => viewport.mobile }));
 
 type Update = { record: { recordId: string; vaultId: string }; data: RecordData };
 
@@ -70,6 +73,7 @@ const written = () =>
   ]);
 
 beforeEach(() => {
+  viewport.mobile = false;
   mocks.updateMany.mockClear();
   mocks.reload.mockClear();
   mocks.stored.clear();
@@ -154,5 +158,34 @@ describe("TagsSettingsPage", () => {
       ["a", ["home"]],
       ["b", undefined],
     ]);
+  });
+
+  it("filters the tags and sorts them by use or A–Z", async () => {
+    renderWithProviders(<TagsSettingsPage />);
+    const names = () =>
+      within(screen.getByRole("list", { name: "All tags" }))
+        .getAllByRole("listitem")
+        .map((row) => row.textContent);
+
+    expect(screen.getByPlaceholderText("Filter 2 tags")).toBeInTheDocument();
+    expect(names()).toEqual(["work3 items", "home2 items"]);
+    await userEvent.click(screen.getByRole("button", { name: "A–Z" }));
+    expect(names()).toEqual(["home2 items", "work3 items"]);
+
+    await userEvent.type(screen.getByRole("searchbox", { name: "Filter tags" }), "HO");
+    await waitFor(() => expect(names()).toEqual(["home2 items"]));
+    await userEvent.type(screen.getByRole("searchbox", { name: "Filter tags" }), "x");
+    expect(await screen.findByText("No tag matches “HOx”.")).toBeInTheDocument();
+  });
+
+  it("opens rename and remove from a tag's sheet on a phone", async () => {
+    viewport.mobile = true;
+    renderWithProviders(<TagsSettingsPage />);
+
+    await userEvent.click(screen.getByRole("button", { name: /^home/ }));
+    const sheet = await screen.findByRole("dialog", { name: "home" });
+    await userEvent.click(within(sheet).getByRole("button", { name: "Rename" }));
+
+    expect(await screen.findByRole("dialog", { name: "Rename tag" })).toBeInTheDocument();
   });
 });

@@ -76,7 +76,7 @@ delete, and the local edits stay in the history below the merged version.
 
 ## Trash
 
-Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`, mobile `settings/trash`): a
+Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`: Restore per row, delete for good beside it (phone: the row's ⋯ sheet), Empty trash; mobile `settings/trash`): a
 tombstone's `tombstoneKind` is null for a delete (in the trash), `moved` for a move's source, `purged` for
 a record deleted for good. Restore = update with the tombstone's content (`RecordRepository.restore`).
 Purge (`RecordRepository.purge` → `Vault.purgeRecords`) drops every local version + unsent change; a
@@ -131,5 +131,5 @@ rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` 
 first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
 it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
 Settings → Vaults: "New vault", one row per vault with Members (shared) and a ⋯ menu (Edit, Rotate key, Delete; on a
-phone the row opens `VaultActionsSheet` with all four), then the user's security code to read out); mobile:
+phone the row opens `SettingsActionsSheet` with all four), then the user's security code to read out); mobile:
 Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.

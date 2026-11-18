@@ -14,6 +14,10 @@ type SettingsPageProps = {
   description?: ReactNode;
   /** Page-wide action next to the title ("New vault", "Empty trash"). */
   action?: ReactNode;
+  /** Under the title, part of the header (a filter and sort row). */
+  toolbar?: ReactNode;
+  /** The header stays put while the page scrolls, the content fading out under it. */
+  stickyHeader?: boolean;
   children: ReactNode;
   className?: string;
 };
@@ -23,6 +27,8 @@ export function SettingsPage({
   title,
   description,
   action,
+  toolbar,
+  stickyHeader = false,
   children,
   className,
 }: SettingsPageProps) {
@@ -38,12 +44,22 @@ export function SettingsPage({
           className,
         )}
       >
-        <header className="flex items-start gap-4 max-sm:px-1">
-          <div className="flex min-w-0 flex-1 flex-col gap-1">
-            <Title className="font-bold font-display text-[30px] leading-9">{title}</Title>
-            {description && <p className="text-muted-foreground text-sm">{description}</p>}
+        <header
+          className={cn(
+            "flex flex-col gap-6 max-sm:gap-4",
+            // Covers the page's top padding while stuck; on a phone it sticks under the AppShell bar.
+            stickyHeader &&
+              "sticky top-0 z-10 -mt-10 bg-background pt-10 pb-4 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background after:to-transparent max-sm:top-(--page-bar-h,0px) max-sm:-mt-3 max-sm:pt-3",
+          )}
+        >
+          <div className="flex items-start gap-4 max-sm:px-1">
+            <div className="flex min-w-0 flex-1 flex-col gap-1">
+              <Title className="font-bold font-display text-[30px] leading-9">{title}</Title>
+              {description && <p className="text-muted-foreground text-sm">{description}</p>}
+            </div>
+            {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
           </div>
-          {action && <div className="flex shrink-0 items-center gap-2">{action}</div>}
+          {toolbar}
         </header>
         {children}
       </div>

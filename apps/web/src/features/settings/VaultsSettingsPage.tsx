@@ -37,10 +37,10 @@ import {
 } from "@/features/vaults";
 import CreateAccountDialog from "./CreateAccountDialog";
 import { SecurityCodeCard } from "./SecurityCodeCard";
+import { type SettingsAction, SettingsActionsSheet } from "./SettingsActionsSheet";
 import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPage } from "./SettingsPage";
 import { SettingsRow, SettingsRowButton } from "./SettingsRow";
-import { type VaultAction, VaultActionsSheet } from "./VaultActionsSheet";
 
 /**
  * A vault dialog's state. The vault stays set while the dialog closes, so its
@@ -69,7 +69,7 @@ function vaultRelation(vault: VaultInfo, phone: boolean): string {
  * managers invite people there; a local profile needs an online account first.
  * Invites to other people's vaults and changes left over from a lost vault show
  * above the list. Desktop: Members + a ⋯ menu per row; phone: a row opens
- * `VaultActionsSheet`.
+ * `SettingsActionsSheet`.
  */
 export default function VaultsSettingsPage() {
   const { vaults } = useVaults();
@@ -92,8 +92,8 @@ export default function VaultsSettingsPage() {
   for (const record of records) counts.set(record.vaultId, (counts.get(record.vaultId) ?? 0) + 1);
 
   /** Members (or Share, for a local profile), then Edit, Rotate key and Delete. */
-  const vaultActions = (vault: VaultInfo): VaultAction[] => {
-    const actions: VaultAction[] = [];
+  const vaultActions = (vault: VaultInfo): SettingsAction[] => {
+    const actions: SettingsAction[] = [];
     if (vault.kind === "shared")
       actions.push(
         mode === "local"
@@ -283,9 +283,16 @@ export default function VaultsSettingsPage() {
       )}
       {mode === "local" && <CreateAccountDialog open={shareOpen} onOpenChange={setShareOpen} />}
       {sheetVault && (
-        <VaultActionsSheet
-          vault={sheetVault}
-          count={counts.get(sheetVault.vaultId) ?? 0}
+        <SettingsActionsSheet
+          title={sheetVault.name}
+          summary={
+            <>
+              <VaultTile vault={sheetVault} />
+              <span className="text-muted-foreground text-sm">
+                {itemCount(counts.get(sheetVault.vaultId) ?? 0)}
+              </span>
+            </>
+          }
           actions={vaultActions(sheetVault)}
           open={sheetOpen}
           onOpenChange={setSheetOpen}

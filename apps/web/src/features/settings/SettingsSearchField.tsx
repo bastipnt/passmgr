@@ -1,7 +1,23 @@
 import { cn } from "@repo/ui/lib/utils";
 import { SearchIcon } from "lucide-react";
 
-export function SettingsSearchField({ className }: { className?: string }) {
+type SettingsSearchFieldProps = {
+  label?: string;
+  placeholder?: string;
+  className?: string;
+} & (
+  | { value: string; onValueChange: (value: string) => void }
+  | { value?: never; onValueChange?: never }
+);
+
+/** A search field in the settings look: 40px on desktop, 52px with 17px text on a phone. */
+export function SettingsSearchField({
+  label = "Search settings",
+  placeholder = label,
+  value,
+  onValueChange,
+  className,
+}: SettingsSearchFieldProps) {
   return (
     <label
       className={cn(
@@ -12,8 +28,10 @@ export function SettingsSearchField({ className }: { className?: string }) {
       <SearchIcon aria-hidden="true" className="size-4 shrink-0 max-sm:size-5" />
       <input
         type="search"
-        placeholder="Search settings"
-        aria-label="Search settings"
+        placeholder={placeholder}
+        aria-label={label}
+        value={value}
+        onChange={onValueChange && ((event) => onValueChange(event.target.value))}
         className="min-w-0 flex-1 bg-transparent text-foreground text-sm outline-none placeholder:text-muted-foreground max-sm:text-[17px]"
       />
     </label>

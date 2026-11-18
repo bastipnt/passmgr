@@ -354,16 +354,20 @@ export function SettingsSegmented<T extends string>({
   value,
   onValueChange,
   className,
+  "aria-label": ariaLabel,
 }: {
   options: readonly SegmentedOption<T>[];
   value: T;
   onValueChange: (value: T) => void;
   className?: string;
+  /** Its name outside a row (a page's sort toggle). */
+  "aria-label"?: string;
 }) {
   const row = use(RowLabelContext);
   return (
     <ToggleGroup
       variant="segmented"
+      aria-label={ariaLabel}
       aria-labelledby={row?.labelId}
       aria-describedby={row?.describedBy}
       className={className}

@@ -25,6 +25,19 @@ export function collectTags(records: readonly DecryptedRecord[]): TagCount[] {
     .sort((a, b) => a.tag.localeCompare(b.tag, undefined, { sensitivity: "base" }));
 }
 
+export type TagSort = "used" | "name";
+
+/** `tags` (A–Z, as `collectTags` gives them) whose name contains `query`, most used first or A–Z. */
+export function filterAndSortTags(
+  tags: readonly TagCount[],
+  query: string,
+  sort: TagSort,
+): TagCount[] {
+  const needle = tagKey(query.trim());
+  const matching = needle ? tags.filter(({ tag }) => tagKey(tag).includes(needle)) : [...tags];
+  return sort === "used" ? matching.sort((a, b) => b.count - a.count) : matching;
+}
+
 export function hasTag(record: Pick<DecryptedRecord, "tags">, tag: string): boolean {
   const key = tagKey(tag);
   return (record.tags ?? []).some((own) => tagKey(own) === key);

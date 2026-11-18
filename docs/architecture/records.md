@@ -153,6 +153,7 @@ drags off the list behind (`@repo/ui` `useViewportLayer`), its ground carried on
 opened in it (also once moved, or created from it) lands on the same search with the results' scroll, field focused;
 Cancel / Back clears the query and restores the filters (tags, category) and the list's scroll it opened with.
 Keyboard mechanics (focus in the tap, holding the keyboard over Back): `apps/web/CLAUDE.md`. Mobile app:
-the filters sit in the records header menu. Settings → Tags renames (onto another tag merges) or removes one: a new
+the filters sit in the records header menu. Settings → Tags (web: every tag, filtered and sorted Most used / A–Z
+with `filterAndSortTags`) renames (onto another tag merges) or removes one: a new
 version per record in one transaction (`RecordRepository.updateMany`), built from the stored head (not the list's copy), records in `read` vaults skipped and counted. `mergeRecord` merges tags
 per tag without case.
