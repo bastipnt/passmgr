@@ -3,24 +3,26 @@ import { expect, test } from "@playwright/test";
 import { randomPassword } from "./helpers/auth";
 import { createLocalVault, expectInApp } from "./helpers/vault";
 
-/** Import from another password manager (Settings → Import & export → Import): a Chrome CSV. */
+/** Import from another password manager (Settings → Import & export): a Chrome CSV dropped on the page. */
 test("imports a Chrome password export into the vault", async ({ page }) => {
   test.setTimeout(90_000);
   await createLocalVault(page, "Import", randomPassword());
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Import & export", exact: true }).click();
-  await page.getByRole("button", { name: "Import", exact: true }).click();
 
-  await page.getByLabel("Export file").setInputFiles({
-    name: "Chrome Passwords.csv",
-    mimeType: "text/csv",
-    buffer: Buffer.from(
-      "name,url,username,password,note\r\n" +
-        "Mail,https://mail.example.com,jana,mail-pw,\r\n" +
-        "Bank,https://bank.example.com,jana@example.com,bank-pw,\r\n",
-    ),
-  });
+  const csv =
+    "name,url,username,password,note\r\n" +
+    "Mail,https://mail.example.com,jana,mail-pw,\r\n" +
+    "Bank,https://bank.example.com,jana@example.com,bank-pw,\r\n";
+  const dataTransfer = await page.evaluateHandle((text) => {
+    const transfer = new DataTransfer();
+    transfer.items.add(new File([text], "Chrome Passwords.csv", { type: "text/csv" }));
+    return transfer;
+  }, csv);
+  const dropZone = page.getByText("Drop an export file here");
+  await dropZone.dispatchEvent("dragover", { dataTransfer });
+  await dropZone.dispatchEvent("drop", { dataTransfer });
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("Chrome / Edge export: 2 logins.", { exact: false })).toBeVisible();
   await dialog.getByRole("button", { name: "Import", exact: true }).click();
@@ -43,10 +45,9 @@ test("imports a KeePass database with its password and key file", async ({ page 
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Import & export", exact: true }).click();
-  await page.getByRole("button", { name: "Import", exact: true }).click();
 
+  await page.getByLabel("Import file").setInputFiles(kdbxFixture("kdbxweb-Argon2.kdbx"));
   const dialog = page.getByRole("dialog");
-  await page.getByLabel("Export file").setInputFiles(kdbxFixture("kdbxweb-Argon2.kdbx"));
   await page.getByLabel("Key file").setInputFiles(kdbxFixture("kdbxweb-demo.key"));
   await dialog.getByLabel("Database password").fill("wrong");
   await dialog.getByRole("button", { name: "Continue", exact: true }).click();

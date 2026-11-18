@@ -6,8 +6,9 @@ import { Button } from "@repo/ui/components/Button";
 import userEvent from "@testing-library/user-event";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { fireEvent, renderWithProviders, screen, waitFor } from "@/test/render";
 import ImportDialog from "./ImportDialog";
+import ImportDropZone from "./ImportDropZone";
 
 const importHook = vi.hoisted(() => ({
   importData: vi.fn(),
@@ -224,5 +225,46 @@ describe("ImportDialog", () => {
     await user.click(screen.getByRole("button", { name: "Import" }));
 
     expect(await screen.findByText(/Imported 100 of 250 items/)).toBeInTheDocument();
+  });
+});
+
+describe("ImportDropZone", () => {
+  function drop(target: Element, files: File[], types = ["Files"]) {
+    const dataTransfer = { files, types };
+    fireEvent.dragOver(target, { dataTransfer });
+    fireEvent.drop(target, { dataTransfer });
+  }
+
+  it("lists the supported apps and opens a dropped file in the Import dialog", async () => {
+    renderWithProviders(<ImportDropZone />);
+    const zone = screen
+      .getByText("Drop an export file here")
+      .closest("[data-slot=import-drop-zone]")!;
+    const apps = screen.getByRole("list", { name: "Supported apps" });
+    expect(apps.textContent).toContain("Bitwarden");
+    expect(apps.textContent).toContain("Edge");
+
+    fireEvent.dragOver(zone, { dataTransfer: { files: [], types: ["Files"] } });
+    expect(zone).toHaveAttribute("data-drag-over");
+    drop(zone, [file(CHROME_CSV, "Chrome Passwords.csv")]);
+
+    expect(await screen.findByText(/Chrome \/ Edge export: 1 login/)).toBeTruthy();
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  it("ignores a drag that carries no file", () => {
+    renderWithProviders(<ImportDropZone />);
+    const zone = screen.getByText("Drop an export file here");
+    drop(zone, [], ["text/plain"]);
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("opens a chosen file the same way, with the how-to for an unsupported one", async () => {
+    const user = userEvent.setup();
+    renderWithProviders(<ImportDropZone />);
+    await user.upload(screen.getByLabelText("Import file"), file("hello", "notes.json"));
+
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+    expect(await screen.findByText(/can't import this file|couldn't be read/)).toBeTruthy();
   });
 });

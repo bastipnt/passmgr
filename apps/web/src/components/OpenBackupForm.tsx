@@ -11,7 +11,7 @@ import { FilePickerButton } from "@repo/ui/components/FilePickerButton";
 import { InputGroup, InputGroupAddon, InputGroupInput } from "@repo/ui/components/InputGroup";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { ArrowRightIcon, FileUpIcon, KeyRoundIcon } from "lucide-react";
-import { type ReactNode, useId, useState } from "react";
+import { type ReactNode, useEffect, useEffectEvent, useId, useState } from "react";
 import KeyFileButton from "./KeyFileButton";
 
 type OpenBackupFormProps = {
@@ -23,6 +23,8 @@ type OpenBackupFormProps = {
   children?: ReactNode;
   /** Wraps the submit button (a dialog footer with Cancel, …). */
   renderActions?: (submit: ReactNode) => ReactNode;
+  /** Opened right away, as if picked (a file dropped before the form showed). */
+  initialFile?: File;
 };
 
 /**
@@ -36,6 +38,7 @@ export default function OpenBackupForm({
   onForeignOpened,
   children,
   renderActions,
+  initialFile,
 }: OpenBackupFormProps) {
   const passwordId = useId();
   const [keyFile, setKeyFile] = useState<{ name: string; bytes: Uint8Array }>();
@@ -48,6 +51,16 @@ export default function OpenBackupForm({
     { foreign: !!onForeignOpened },
   );
   const { file, locked, opening, error } = importFile;
+
+  const pickFile = (picked: File) => {
+    setKeyFile(undefined);
+    setPassword("");
+    void importFile.pick(picked);
+  };
+  const pickInitialFile = useEffectEvent(pickFile);
+  useEffect(() => {
+    if (initialFile) pickInitialFile(initialFile);
+  }, [initialFile]);
 
   function open(event: React.SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -67,11 +80,7 @@ export default function OpenBackupForm({
     <form onSubmit={open}>
       <FieldGroup className="my-4 gap-4">
         <FilePickerButton
-          onFile={(picked) => {
-            setKeyFile(undefined);
-            setPassword("");
-            void importFile.pick(picked);
-          }}
+          onFile={pickFile}
           accept={onForeignOpened ? IMPORT_FILE_ACCEPT : ".json,application/json"}
           label={onForeignOpened ? "Export file" : "Backup file"}
           icon={<FileUpIcon />}

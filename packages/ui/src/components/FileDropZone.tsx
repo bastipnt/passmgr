@@ -1,5 +1,6 @@
+import { useFileDrop } from "@repo/ui/hooks/use-file-drop";
 import { cn } from "@repo/ui/lib/utils";
-import { type ReactNode, type Ref, useImperativeHandle, useRef, useState } from "react";
+import { type ReactNode, type Ref, useImperativeHandle, useRef } from "react";
 
 export type FileDropZoneHandle = { open: () => void };
 
@@ -29,7 +30,7 @@ function FileDropZone({
   ref,
 }: FileDropZoneProps) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [dragOver, setDragOver] = useState(false);
+  const { dropProps } = useFileDrop(onFile, { disabled });
   useImperativeHandle(ref, () => ({ open: () => inputRef.current?.click() }), []);
 
   return (
@@ -50,20 +51,9 @@ function FileDropZone({
       <button
         type="button"
         data-slot="file-drop-zone"
-        data-drag-over={dragOver || undefined}
         disabled={disabled}
         onClick={() => inputRef.current?.click()}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragOver(false);
-          const file = e.dataTransfer.files[0];
-          if (file && !disabled) onFile(file);
-        }}
+        {...dropProps}
         className={cn(
           "flex w-full cursor-pointer flex-col items-center gap-1.5 rounded-2xl border border-primary/35 border-dashed bg-primary/[0.03] px-6 py-8 text-center outline-none transition-colors hover:bg-primary/6 focus-visible:ring-4 focus-visible:ring-ring/25 disabled:pointer-events-none disabled:opacity-50 data-drag-over:border-primary data-drag-over:bg-primary/10",
           className,

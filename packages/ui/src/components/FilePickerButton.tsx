@@ -1,14 +1,16 @@
 import { Button } from "@repo/ui/components/Button";
 import { cn } from "@repo/ui/lib/utils";
-import { type ReactNode, useRef } from "react";
+import { type ComponentProps, type ReactNode, useRef } from "react";
 
 type FilePickerButtonProps = {
   onFile: (file: File) => void;
   accept?: string;
   /** Accessible name of the hidden file input. */
   label: string;
-  icon: ReactNode;
+  icon?: ReactNode;
   children: ReactNode;
+  variant?: ComponentProps<typeof Button>["variant"];
+  size?: ComponentProps<typeof Button>["size"];
   disabled?: boolean;
   className?: string;
 };
@@ -19,6 +21,8 @@ function FilePickerButton({
   label,
   icon,
   children,
+  variant = "outline",
+  size,
   disabled,
   className,
 }: FilePickerButtonProps) {
@@ -41,7 +45,8 @@ function FilePickerButton({
       />
       <Button
         type="button"
-        variant="outline"
+        variant={variant}
+        size={size}
         className={cn("w-full justify-start", className)}
         disabled={disabled}
         onClick={() => inputRef.current?.click()}

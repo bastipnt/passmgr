@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen } from "@/test/render";
 import AccountSettingsPage from "./AccountSettingsPage";
-import ExportSettings from "./ExportSettings";
+import BackupSettingsPage from "./BackupSettingsPage";
 
 const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
@@ -45,8 +45,9 @@ describe("Account & sync of a demo vault", () => {
 
   it("keeps export in demo mode, import not", () => {
     vi.stubEnv("VITE_DEMO_MODE", "true");
-    renderWithProviders(<ExportSettings />);
-    expect(screen.getByRole("button", { name: /Export/ })).toBeTruthy();
-    expect(screen.queryByRole("button", { name: /Import/ })).toBeNull();
+    renderWithProviders(<BackupSettingsPage />);
+    expect(screen.getByRole("button", { name: "Export backup" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Import" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Choose file" })).toBeNull();
   });
 });

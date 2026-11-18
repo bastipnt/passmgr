@@ -12,7 +12,7 @@ test("restores an encrypted backup next to an existing vault", async ({ page }) 
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: "Import & export", exact: true }).click();
-  await page.getByRole("button", { name: "Export", exact: true }).click();
+  await page.getByRole("button", { name: "Export backup", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("passmgr password").fill(password);
   await dialog.getByLabel("Backup password", { exact: true }).fill(backupPassword);

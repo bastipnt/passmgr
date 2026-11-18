@@ -42,8 +42,7 @@ import { type Control, type Path, useWatch } from "react-hook-form";
 import { PasswordStrengthMeter } from "@/features/password-generation";
 import { downloadFile } from "@/lib/download";
 
-const FORMATS: { value: ExportFormat; label: string }[] = [
-  { value: "encrypted", label: "Encrypted backup (.json)" },
+const PLAIN_FORMATS: { value: ExportFormat; label: string }[] = [
   { value: "json", label: "Unencrypted JSON" },
   { value: "csv", label: "Unencrypted CSV" },
 ];
@@ -55,14 +54,24 @@ const DESCRIPTIONS: Record<ExportFormat, string> = {
   csv: "Every record in this vault as a CSV spreadsheet, for moving to another app.",
 };
 
+type ExportKind = "backup" | "plain";
+
+const INITIAL_FORMAT: Record<ExportKind, ExportFormat> = { backup: "encrypted", plain: "json" };
+
 /**
- * Export the vault (ADR 0001 D12): an encrypted backup (the backup a local
- * vault relies on), or plain JSON / CSV behind the password and a
+ * Export the vault (ADR 0001 D12): `backup`, an encrypted backup (the backup a
+ * local vault relies on), or `plain`, JSON / CSV behind the password and a
  * warning.
  */
-export default function ExportDialog({ children }: { children: ReactElement }) {
+export default function ExportDialog({
+  kind,
+  children,
+}: {
+  kind: ExportKind;
+  children: ReactElement;
+}) {
   const [open, setOpen] = useState(false);
-  const [format, setFormat] = useState<ExportFormat>("encrypted");
+  const [format, setFormat] = useState<ExportFormat>(INITIAL_FORMAT[kind]);
   const { createExport, markSaved, exporting, exportError, clearExportError } = useExport();
 
   const run = async (request: ExportRequest): Promise<boolean> => {
@@ -85,7 +94,7 @@ export default function ExportDialog({ children }: { children: ReactElement }) {
         if (exporting) return;
         if (next) {
           clearExportError();
-          setFormat("encrypted");
+          setFormat(INITIAL_FORMAT[kind]);
         }
         setOpen(next);
       }}
@@ -94,32 +103,34 @@ export default function ExportDialog({ children }: { children: ReactElement }) {
 
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Export vault</DialogTitle>
+          <DialogTitle>{kind === "backup" ? "Export backup" : "Export file"}</DialogTitle>
           <DialogDescription>{DESCRIPTIONS[format]}</DialogDescription>
         </DialogHeader>
 
-        <Select
-          items={FORMATS}
-          value={format}
-          onValueChange={(next) => {
-            clearExportError();
-            setFormat(next as ExportFormat);
-          }}
-          disabled={exporting}
-        >
-          <SelectTrigger className="mt-4 w-full" aria-label="Format">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectGroup>
-              {FORMATS.map((f) => (
-                <SelectItem key={f.value} value={f.value}>
-                  {f.label}
-                </SelectItem>
-              ))}
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+        {kind === "plain" && (
+          <Select
+            items={PLAIN_FORMATS}
+            value={format}
+            onValueChange={(next) => {
+              clearExportError();
+              setFormat(next as ExportFormat);
+            }}
+            disabled={exporting}
+          >
+            <SelectTrigger className="mt-4 w-full" aria-label="Format">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectGroup>
+                {PLAIN_FORMATS.map((f) => (
+                  <SelectItem key={f.value} value={f.value}>
+                    {f.label}
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            </SelectContent>
+          </Select>
+        )}
 
         {format === "encrypted" ? (
           <EncryptedExportForm

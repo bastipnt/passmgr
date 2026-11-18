@@ -17,6 +17,8 @@ type SettingsGroupProps = {
   variant?: GroupVariant;
   /** The card is a list named by the label; each child is an `<li>` holding its row. */
   list?: boolean;
+  /** Its child is the card itself (the import drop zone), not rows to put in one. */
+  cardless?: boolean;
   /** `SettingsRow`s, split by hairlines. */
   children: ReactNode;
   className?: string;
@@ -27,6 +29,7 @@ export function SettingsGroup({
   footnote,
   variant = "default",
   list = false,
+  cardless = false,
   children,
   className,
 }: SettingsGroupProps) {
@@ -45,13 +48,17 @@ export function SettingsGroup({
       >
         {label}
       </Heading>
-      <Card
-        data-slot="settings-card"
-        aria-labelledby={list ? headingId : undefined}
-        className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card"
-      >
-        <GroupVariantContext value={variant}>{children}</GroupVariantContext>
-      </Card>
+      {cardless ? (
+        children
+      ) : (
+        <Card
+          data-slot="settings-card"
+          aria-labelledby={list ? headingId : undefined}
+          className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card"
+        >
+          <GroupVariantContext value={variant}>{children}</GroupVariantContext>
+        </Card>
+      )}
       {footnote != null && (
         <p className="px-1 text-[13px] text-muted-foreground leading-4.5 max-sm:px-4">{footnote}</p>
       )}

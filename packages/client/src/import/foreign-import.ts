@@ -53,6 +53,20 @@ export const IMPORT_SOURCE_LIST = (() => {
   return `${labels.slice(0, -1).join(", ")} or ${labels.at(-1)}`;
 })();
 
+/** The apps whose exports import here, by name, in the order an import screen lists them. */
+export const IMPORT_APPS = [
+  { id: "passmgr", label: "passmgr" },
+  { id: "bitwarden", label: "Bitwarden" },
+  { id: "1password", label: "1Password" },
+  { id: "keepass", label: "KeePass" },
+  { id: "chrome", label: "Chrome" },
+  { id: "edge", label: "Edge" },
+  { id: "firefox", label: "Firefox" },
+  { id: "safari", label: "Safari" },
+] as const;
+
+export type ImportApp = (typeof IMPORT_APPS)[number]["id"];
+
 /**
  * - `unsupported_type`: an item kind with no record type here (a 1Password document)
  * - `invalid`: no valid record even after cleanup

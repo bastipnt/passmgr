@@ -79,6 +79,15 @@ type Step =
       fileEncrypted?: boolean;
     };
 
+export type ImportDialogProps = {
+  /** The trigger; leave it out to open the dialog with `open`. */
+  children?: ReactElement;
+  /** A file to open right away (dropped or picked before the dialog showed). */
+  file?: File;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+};
+
 /**
  * Import into the open vault: this app's export (ADR 0001 D12, an encrypted
  * backup or plain JSON) or another password manager's. A backup's records go
@@ -86,8 +95,18 @@ type Step =
  * personal vault; with more than one writable vault the user picks per file
  * vault. Another app's records all go into one vault the user picks.
  */
-export default function ImportDialog({ children }: { children: ReactElement }) {
-  const [open, setOpen] = useState(false);
+export default function ImportDialog({
+  children,
+  file,
+  open: openProp,
+  onOpenChange,
+}: ImportDialogProps) {
+  const [openState, setOpenState] = useState(false);
+  const open = openProp ?? openState;
+  const setOpen = (next: boolean) => {
+    if (openProp === undefined) setOpenState(next);
+    onOpenChange?.(next);
+  };
   const [step, setStep] = useState<Step>();
   const importer = useImport();
   const { busy } = importer;
@@ -105,7 +124,7 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
         if (!next) setStep(undefined);
       }}
     >
-      <DialogTrigger render={children} />
+      {children && <DialogTrigger render={children} />}
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Import</DialogTitle>
@@ -116,6 +135,7 @@ export default function ImportDialog({ children }: { children: ReactElement }) {
         </DialogHeader>
         {!step && (
           <OpenBackupForm
+            initialFile={file}
             onOpened={(data) => setStep({ kind: "backup", data })}
             onForeignOpened={(foreign) => setStep({ kind: "foreign", foreign })}
             renderActions={(submit) => <Footer>{submit}</Footer>}

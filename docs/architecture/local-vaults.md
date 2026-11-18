@@ -17,7 +17,11 @@ Export (`useExport`, ADR 0001 D12 amended): encrypted backup (`ExportEnvelope`: 
 password + XChaCha20, `decryptExport` reads it back; moves `lastExportAt`) or plain JSON / CSV. Every format
 re-checks the master password. CSV escapes formulas in every cell, credentials included (a shared-vault member's
 `=HYPERLINK(…)` username): a leading `=`/`+`/`-`/`@`/tab/CR (after any `'`s) gets a `'`, which this app's own CSV
-import takes off again (`unescapeFormula`); another manager importing the file keeps it. Web: Settings → Import & export → Export.
+import takes off again (`unescapeFormula`); another manager importing the file keeps it. Web: Settings → Import & export (`BackupSettingsPage`): "Export backup"
+(encrypted only, with a status pill from `lastExportAt`: "Never backed up" / "Backed up 3 days ago", amber while the
+reminder is due) and "Export file" (JSON or CSV). Its Import card is a drop zone (`ImportDropZone`, `@repo/ui`
+`useFileDrop`, only drags that carry a file) listing the supported apps (`IMPORT_APPS`, logos from Simple Icons, bundled);
+a dropped or chosen file opens the Import dialog with it (`ImportDialog file`), unsupported files get the same how-to.
 Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`readExportFile` /
 `openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
 `RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
