@@ -73,10 +73,11 @@ describe("SessionsSettings", () => {
     const list = await screen.findByRole("list", { name: "Signed-in devices" });
     const rows = within(list).getAllByRole("listitem");
     expect(rows.map((r) => r.textContent)).toEqual([
-      expect.stringContaining("Firefox on macOS (this device)"),
+      expect.stringContaining("Firefox on macOS"),
       expect.stringContaining("Safari on iOS"),
       expect.stringContaining("Unknown device"),
     ]);
+    expect(rows[0]).toHaveTextContent("This device");
     expect(rows[2]).toHaveTextContent("Active 2 hours ago");
     // No sign-out for this device: that's the account's "Sign out".
     expect(within(rows[0]!).queryByRole("button")).not.toBeInTheDocument();

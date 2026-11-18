@@ -16,7 +16,6 @@ import {
 } from "@repo/ui/components/Select";
 import { useId } from "react";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
-import TwoFactorSettings from "./TwoFactorSettings";
 
 type ChoiceSettingProps = {
   title: string;
@@ -81,8 +80,6 @@ export default function SecuritySettingsPage() {
             description="Applies to passwords and hidden custom fields after you reveal them."
             preference={REVEAL_TIMEOUT_PREFERENCE}
           />
-
-          <TwoFactorSettings />
         </ItemGroup>
       </div>
     </>

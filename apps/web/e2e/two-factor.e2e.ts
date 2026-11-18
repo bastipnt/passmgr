@@ -13,7 +13,7 @@ import { expectInApp, expectSynced, reloadAndSubmitUnlock } from "./helpers/vaul
 
 /**
  * Two-factor for the server login (TOTP + backup codes), opt-in. Turned on in
- * Settings → Security; then every login to the server asks for a code: the
+ * Settings → Account; then every login to the server asks for a code: the
  * login form, the reconnect after an offline unlock and the fresh login of a
  * change. Turned off, logins are password-only again.
  */
@@ -51,10 +51,9 @@ async function freshCode(secret: string, used: Set<number>): Promise<string> {
   return totp(secret, step);
 }
 
-async function openSecuritySettings(page: Page): Promise<void> {
+async function openAccountSettings(page: Page): Promise<void> {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "Security", exact: true }).click();
-  await expect(page).toHaveURL(/\/settings\/security$/);
+  await expect(page).toHaveURL(/\/settings\/account$/);
 }
 
 async function backToVault(page: Page): Promise<void> {
@@ -64,8 +63,8 @@ async function backToVault(page: Page): Promise<void> {
 
 /** Turn two-factor on; returns the secret and the backup codes. */
 async function enableTwoFactor(page: Page, password: string, used: Set<number>) {
-  await openSecuritySettings(page);
-  await expect(page.getByText("Two-factor authentication is off")).toBeVisible();
+  await openAccountSettings(page);
+  await expect(page.getByText("· Off", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Turn on", exact: true }).click();
 
   const dialog = page.getByRole("dialog");
@@ -89,7 +88,7 @@ async function enableTwoFactor(page: Page, password: string, used: Set<number>) 
   await dialog.getByRole("button", { name: "I saved them" }).click();
   await expect(dialog).toHaveCount(0);
 
-  await expect(page.getByText("Two-factor authentication is on")).toBeVisible();
+  await expect(page.getByText("· On", { exact: true })).toBeVisible();
   await expect(page.getByText(/10 backup codes left/)).toBeVisible();
   return { secret, backupCodes };
 }
@@ -171,7 +170,7 @@ test("two-factor: off by default, then every server login asks for a code until 
   await expectSynced(page);
 
   // Turning it off: the master password, and the code its fresh login asks for.
-  await openSecuritySettings(page);
+  await openAccountSettings(page);
   await expect(page.getByText(/8 backup codes left/)).toBeVisible();
   await page.getByRole("button", { name: "Turn off", exact: true }).click();
   const dialog = page.getByRole("dialog", { name: "Turn off two-factor?" });
@@ -181,7 +180,7 @@ test("two-factor: off by default, then every server login asks for a code until 
   await expect(offPrompt).toBeVisible({ timeout: 30_000 });
   await enterCode(offPrompt, await freshCode(secret, used));
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
-  await expect(page.getByText("Two-factor authentication is off")).toBeVisible();
+  await expect(page.getByText("· Off", { exact: true })).toBeVisible();
 
   // Password-only again.
   await simulateLogout(secondDevice);

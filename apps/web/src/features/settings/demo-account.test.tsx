@@ -4,7 +4,7 @@ import type { ContextType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen } from "@/test/render";
-import AccountSettings from "./AccountSettings";
+import AccountSettingsPage from "./AccountSettingsPage";
 import ExportSettings from "./ExportSettings";
 
 const store = createFakeStore();
@@ -33,14 +33,14 @@ describe("Account & sync of a demo vault", () => {
   it("says it can't sync and offers no account or password change", () => {
     renderWithProviders(
       <SessionContext.Provider value={local}>
-        <AccountSettings />
+        <AccountSettingsPage />
       </SessionContext.Provider>,
     );
 
     expect(screen.getByRole("note").textContent).toMatch(/can't be synced or linked/);
     expect(screen.queryByRole("button", { name: /Create online account/ })).toBeNull();
     expect(screen.queryByRole("button", { name: /Change password/ })).toBeNull();
-    expect(screen.getByRole("button", { name: /Remove from device/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Remove" })).toBeTruthy();
   });
 
   it("keeps export in demo mode, import not", () => {

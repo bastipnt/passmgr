@@ -2,16 +2,18 @@ import { SessionContext, sessionDetail, sessionLabel, useSessions, useStore } fr
 import { toast } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemTitle,
-} from "@repo/ui/components/Item";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { LogOutIcon, MonitorSmartphoneIcon } from "lucide-react";
+import { StatusPill } from "@repo/ui/components/StatusPill";
+import { MonitorIcon, SmartphoneIcon } from "lucide-react";
 import { useContext } from "react";
+import { SettingsGroup } from "./SettingsGroup";
+import { SettingsRow } from "./SettingsRow";
+
+const FOOTNOTE =
+  "Signing out a device locks it and asks for the password again. Its unsynced changes stay on it.";
+
+const deviceIcon = (label: string) =>
+  /\b(iOS|iPadOS|Android)\b/.test(label) ? SmartphoneIcon : MonitorIcon;
 
 /**
  * The account's signed-in devices (linked profiles, `online` only): end one,
@@ -27,71 +29,89 @@ export default function SessionsSettings() {
   const others = sessions.filter((s) => !s.current);
   const failed = () => toast.error("Could not sign the device out. Try again.");
 
-  return (
-    <Item variant="outline" className="items-start">
-      <ItemContent className="gap-3">
-        <div className="flex flex-col gap-1">
-          <ItemTitle>
-            <MonitorSmartphoneIcon className="size-4" aria-hidden />
-            Signed-in devices
-          </ItemTitle>
-          <ItemDescription>
-            {mode !== "online"
+  if (mode !== "online" || sessions.length === 0)
+    return (
+      <SettingsGroup label="Signed-in devices" footnote={FOOTNOTE}>
+        <SettingsRow
+          label={
+            mode !== "online"
+              ? "Not connected"
+              : isPending
+                ? "Loading devices…"
+                : error
+                  ? "Could not load your devices"
+                  : "No signed-in devices"
+          }
+          hint={
+            mode !== "online"
               ? "Connect to your account to see where you are signed in."
-              : "A signed-out device locks and needs the password again. Its unsynced changes stay on it."}
-          </ItemDescription>
-        </div>
-        {isPending && <Spinner aria-label="Loading devices" />}
-        {error && <p className="text-destructive text-sm">Could not load your devices.</p>}
-        {sessions.length > 0 && (
-          <ul className="flex flex-col divide-y" aria-label="Signed-in devices">
-            {sessions.map((session) => (
-              <li key={session.id} className="flex items-center gap-3 py-2">
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate font-medium text-sm">
-                    {sessionLabel(session)}
-                    {session.current && " (this device)"}
-                  </span>
-                  <span className="text-muted-foreground text-xs">{sessionDetail(session)}</span>
-                </div>
-                {!session.current && (
-                  <RemoveDialog
-                    title="Sign this device out?"
-                    description={`${sessionLabel(session)} locks and needs the password to sign in again. Its unsynced changes stay on it.`}
-                    removeTitle="Sign out"
-                    onRemove={() => void revoke(session.id).catch(failed)}
-                  >
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      disabled={pending}
-                      aria-label={`Sign out ${sessionLabel(session)}`}
+              : undefined
+          }
+          control={
+            mode === "online" && isPending ? <Spinner aria-label="Loading devices" /> : undefined
+          }
+        />
+      </SettingsGroup>
+    );
+
+  return (
+    <div className="flex flex-col gap-3">
+      <SettingsGroup
+        label="Signed-in devices"
+        footnote={
+          <>
+            {error && <span className="text-destructive">Could not refresh your devices. </span>}
+            {FOOTNOTE}
+          </>
+        }
+        list
+      >
+        {sessions.map((session) => {
+          const label = sessionLabel(session);
+          return (
+            <li key={session.id}>
+              <SettingsRow
+                icon={deviceIcon(label)}
+                label={label}
+                hint={sessionDetail(session)}
+                control={
+                  session.current ? (
+                    <StatusPill tone="success">This device</StatusPill>
+                  ) : (
+                    <RemoveDialog
+                      title="Sign this device out?"
+                      description={`${label} locks and needs the password to sign in again. Its unsynced changes stay on it.`}
+                      removeTitle="Sign out"
+                      onRemove={() => void revoke(session.id).catch(failed)}
                     >
-                      <LogOutIcon />
-                      Sign out
-                    </Button>
-                  </RemoveDialog>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </ItemContent>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        disabled={pending}
+                        aria-label={`Sign out ${label}`}
+                      >
+                        Sign out
+                      </Button>
+                    </RemoveDialog>
+                  )
+                }
+              />
+            </li>
+          );
+        })}
+      </SettingsGroup>
       {others.length > 0 && (
-        <ItemActions>
-          <RemoveDialog
-            title="Sign out all other devices?"
-            description="Every other device locks and needs the password to sign in again. This device stays signed in."
-            removeTitle="Sign out others"
-            onRemove={() => void revokeOthers().catch(failed)}
-          >
-            <Button variant="outline" disabled={pending}>
-              <LogOutIcon />
-              Sign out other devices
-            </Button>
-          </RemoveDialog>
-        </ItemActions>
+        <RemoveDialog
+          title="Sign out all other devices?"
+          description="Every other device locks and needs the password to sign in again. This device stays signed in."
+          removeTitle="Sign out others"
+          onRemove={() => void revokeOthers().catch(failed)}
+        >
+          <Button variant="outline" disabled={pending} className="self-start max-sm:self-stretch">
+            Sign out other devices
+          </Button>
+        </RemoveDialog>
       )}
-    </Item>
+    </div>
   );
 }

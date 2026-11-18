@@ -95,12 +95,12 @@ Rules:
   `OverlayHeader` / `BackToButton` / `CloseButton`; flow in `docs/architecture/records.md`). Both overlays close to
   `overlayReturnPath()` (`app/overlay-return.ts`, `OverlayReturnTracker`: the last pathname outside them and auth, a
   record's sheet routes collapsed to the record, no query).
-- **Settings pages** compose the `features/settings` primitives (pages not redesigned yet still use `PanelHeader` + `Item`): `SettingsPage` (display title, description,
+- **Settings pages** compose the `features/settings` primitives (Account, Devices & activity, Sync & storage so far; pages not redesigned yet still use `PanelHeader` + `Item`): `SettingsPage` (display title, description,
   optional action; h1 on a phone, h2 under the overlay's "Settings" on desktop), `SettingsGroup` (uppercase label over
-  one hairline-split card, footnote, `variant="danger"`), `SettingsRow` (label + hint, `status` "· Off" after the
-  label; `control`, or `href` / `onClick` for a whole-row drill-down named by its label). Controls in a row
+  one hairline-split card, footnote, `variant="danger"`, `list`: the card is a `<ul>` named by the label, rows in `<li>`s), `SettingsRow` (label + hint, `status` "· Off" after the
+  label; `icon` + `iconTone` tile; `control`, `stackOnPhone` puts it full width under the text; or `href` / `onClick` for a whole-row drill-down named by its label). `SettingsRowButton` is that whole-row button on its own, so it can be a dialog trigger (`<ChangePasswordDialog><SettingsRowButton …/>`): phone rows open dialogs that way, desktop rows have a button. Controls in a row
   (`SettingsSwitch`, `SettingsSegmented`, `SettingsSelectTrigger`) take their name and description from the row.
-  Status pills: `@repo/ui` `StatusPill`; status text colors: `@repo/ui/lib/tone`.
+  Status pills: `@repo/ui` `StatusPill`; status text / tile colors: `@repo/ui/lib/tone`.
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
   `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
   one wins). Picked in Settings → Appearance (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,

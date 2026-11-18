@@ -9,17 +9,11 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@repo/ui/components/Dialog";
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemTitle,
-} from "@repo/ui/components/Item";
-import { KeyRoundIcon, RefreshCwIcon, ShieldCheckIcon, ShieldOffIcon } from "lucide-react";
+import { RefreshCwIcon, ShieldOffIcon } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import BackupCodes from "./BackupCodes";
 import EnableTwoFactorDialog from "./EnableTwoFactorDialog";
+import { SettingsRow, useSettingsButtonSize } from "./SettingsRow";
 import TwoFactorPasswordForm from "./TwoFactorPasswordForm";
 
 /** Turn two-factor off again: the master password, and the code (asked by the fresh login). */
@@ -115,64 +109,65 @@ function RegenerateBackupCodesDialog({ children }: { children: ReactElement }) {
 }
 
 /**
- * Two-factor for the account's server login (TOTP + backup codes), opt-in.
- * Online accounts only; it guards the server, not this device's unlock.
+ * Two-factor for the account's server login (TOTP + backup codes), opt-in: a
+ * row of the account's sign-in group. Online accounts only; it guards the
+ * server, not this device's unlock.
  */
 export default function TwoFactorSettings() {
   const { profile } = useStore();
   const { status, blocked } = useTwoFactor();
   const [enabling, setEnabling] = useState(false);
+  const size = useSettingsButtonSize();
   if (profile?.mode !== "linked") return null;
 
   const enabled = status?.enabled === true;
   const left = status?.backupCodesLeft ?? 0;
 
   return (
-    <Item variant="outline">
-      <ItemContent className="gap-1">
-        <ItemTitle>
-          <ShieldCheckIcon className="size-4" aria-hidden />
-          {/* Unknown while loading or offline: never claim "off" for an account that has it on. */}
-          Two-factor authentication{status && (enabled ? " is on" : " is off")}
-        </ItemTitle>
-        <ItemDescription>
-          {blocked
+    <>
+      <SettingsRow
+        label="Two-factor authentication"
+        // Unknown while loading or offline: never claim "off" for an account that has it on.
+        status={
+          status &&
+          (enabled ? { label: "On", tone: "success" } : { label: "Off", tone: "destructive" })
+        }
+        hint={
+          blocked
             ? "Two-factor settings need a connection to the server."
             : !status
               ? "Checking your account…"
               : enabled
-                ? `Signing in to your account asks for a code from your authenticator app. ${left === 1 ? "1 backup code" : `${left} backup codes`} left.`
-                : "Ask for a code from an authenticator app when signing in to your account, on top of your password. Unlocking this device stays password-only."}
-        </ItemDescription>
-      </ItemContent>
-      <ItemActions className="flex-wrap">
-        {enabled ? (
-          <>
-            <RegenerateBackupCodesDialog>
-              <Button variant="outline" disabled={blocked}>
-                <KeyRoundIcon />
-                New backup codes
-              </Button>
-            </RegenerateBackupCodesDialog>
-            <DisableTwoFactorDialog>
-              <Button variant="outline" disabled={blocked}>
-                <ShieldOffIcon />
-                Turn off
-              </Button>
-            </DisableTwoFactorDialog>
-          </>
-        ) : (
-          <Button
-            variant="outline"
-            disabled={blocked || status === undefined}
-            onClick={() => setEnabling(true)}
-          >
-            <ShieldCheckIcon />
-            Turn on
-          </Button>
-        )}
-      </ItemActions>
+                ? `Signing in asks for a code from your authenticator app. ${left === 1 ? "1 backup code" : `${left} backup codes`} left.`
+                : "Ask for a code from an authenticator app when you sign in. Unlocking this device stays password-only."
+        }
+        stackOnPhone={enabled}
+        control={
+          enabled ? (
+            <>
+              <RegenerateBackupCodesDialog>
+                <Button variant="outline" size={size} disabled={blocked}>
+                  New backup codes
+                </Button>
+              </RegenerateBackupCodesDialog>
+              <DisableTwoFactorDialog>
+                <Button variant="outline" size={size} disabled={blocked}>
+                  Turn off
+                </Button>
+              </DisableTwoFactorDialog>
+            </>
+          ) : (
+            <Button
+              size={size}
+              disabled={blocked || status === undefined}
+              onClick={() => setEnabling(true)}
+            >
+              Turn on
+            </Button>
+          )
+        }
+      />
       <EnableTwoFactorDialog open={enabling} onOpenChange={setEnabling} />
-    </Item>
+    </>
   );
 }

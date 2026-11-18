@@ -158,7 +158,7 @@ Mobile has no verify UI yet: an account made there syncs once verified on the we
 
 ## Two-factor
 
-Two-factor (TOTP + backup codes, opt-in; `useTwoFactor`, web Settings → Security `TwoFactorSettings`, mobile `TwoFactorSection` /
+Two-factor (TOTP + backup codes, opt-in; `useTwoFactor`, web Settings → Account `TwoFactorSettings` (a row of Sign-in), mobile `TwoFactorSection` /
 `TwoFactorSheet`): `user.startTotpEnrollment` (fresh login; secret in Redis `totpenroll:<userId>` 10 min, returns `otpauth://` URI +
 base32) → `confirmTotp({code})` (stores `user_totp` with the code's step used + 10 `user_backup_codes`, shown once);
 `disableTotp` / `regenerateBackupCodes` need a fresh login that passed a code (session `secondFactor`). Secret encrypted
@@ -204,6 +204,6 @@ Emergency kit (`createEmergencyKit` / `useEmergencyKit`, `packages/client/src/ac
 PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a local vault), a write-in field for the
 master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
 only where a recovery key is issued (`RecoveryKeyDialog`: register, local vault, restore, recovery): it can't be made
-later, the key isn't kept. Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
+later, the key isn't kept (so Settings → Account has no Emergency kit row). Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
 dialog hidden meanwhile on iOS), which counts only on iOS, where a cancelled print rejects. The server is printed
 as a full URL (web may be configured with a path, `/trpc`).

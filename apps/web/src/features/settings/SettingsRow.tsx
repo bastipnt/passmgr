@@ -1,10 +1,19 @@
+import { Button } from "@repo/ui/components/Button";
 import { SelectTrigger } from "@repo/ui/components/Select";
 import { Switch } from "@repo/ui/components/Switch";
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/ToggleGroup";
-import { type StatusTone, toneTextClassName } from "@repo/ui/lib/tone";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { type StatusTone, toneTextClassName, toneTileClassName } from "@repo/ui/lib/tone";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronRightIcon, type LucideIcon } from "lucide-react";
-import { type ComponentProps, createContext, type ReactNode, use, useId } from "react";
+import {
+  type ComponentProps,
+  createContext,
+  type ReactElement,
+  type ReactNode,
+  use,
+  useId,
+} from "react";
 import { Link as WouterLink } from "wouter";
 import { useGroupVariant } from "./SettingsGroup";
 
@@ -16,8 +25,10 @@ const RowLabelContext = createContext<RowLabel | null>(null);
 type RowStatus = { label: string; tone: StatusTone };
 
 type RowTextProps = {
-  /** A tile before the text (the phone's section list). */
+  /** A tile before the text (the phone's section list, a device, an event). */
   icon?: LucideIcon;
+  /** Colors the icon tile (a warning event, a synced vault). */
+  iconTone?: StatusTone;
   label: ReactNode;
   hint?: ReactNode;
   /** Shown after the label ("Two-factor authentication · Off"): describes the control, doesn't name it. */
@@ -28,6 +39,8 @@ type SettingsRowProps = RowTextProps & { className?: string } & (
     | {
         /** Right-hand control: a button, `SettingsSwitch`, `SettingsSegmented`, a select. */
         control?: ReactNode;
+        /** On a phone the control goes under the text, full width. */
+        stackOnPhone?: boolean;
         href?: never;
         onClick?: never;
         value?: never;
@@ -38,6 +51,7 @@ type SettingsRowProps = RowTextProps & { className?: string } & (
         onClick?: never;
         value?: ReactNode;
         control?: never;
+        stackOnPhone?: never;
       }
     | {
         /** The whole row is a button (opens a dialog), with `value`. */
@@ -45,6 +59,7 @@ type SettingsRowProps = RowTextProps & { className?: string } & (
         href?: never;
         value?: ReactNode;
         control?: never;
+        stackOnPhone?: never;
       }
   );
 
@@ -56,6 +71,7 @@ const pressableRowClassName =
 
 function RowText({
   icon: Icon,
+  iconTone = "neutral",
   label,
   hint,
   status,
@@ -68,7 +84,10 @@ function RowText({
       {Icon && (
         <span
           aria-hidden="true"
-          className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-primary-text max-sm:size-7.5 max-sm:rounded-[10px] [&_svg]:size-4"
+          className={cn(
+            "grid size-9 shrink-0 place-items-center rounded-xl max-sm:size-7.5 max-sm:rounded-[10px] [&_svg]:size-4",
+            toneTileClassName[iconTone],
+          )}
         >
           <Icon />
         </span>
@@ -95,86 +114,217 @@ function RowText({
   );
 }
 
-/** Label and one-line hint on the left, a control (or a drill-down) on the right. */
-export function SettingsRow({
+function describedBy(ids: (string | false)[]) {
+  return ids.filter(Boolean).join(" ") || undefined;
+}
+
+function useRowIds() {
+  return { labelId: useId(), statusId: useId(), hintId: useId(), valueId: useId() };
+}
+
+function RowValue({ id, children }: { id: string; children: ReactNode }) {
+  return (
+    <span id={id} className="shrink-0 text-muted-foreground max-sm:text-[15px]">
+      {children}
+    </span>
+  );
+}
+
+/** Ids, name and description of a whole-row button or link: named by its label alone. */
+function usePressableRow({
+  status,
+  hint,
+  value,
+  className,
+}: Pick<RowTextProps, "status" | "hint"> & { value?: ReactNode; className?: string }) {
+  const danger = useGroupVariant() === "danger";
+  const ids = useRowIds();
+  return {
+    ids,
+    props: {
+      className: cn(rowClassName, pressableRowClassName, danger && "text-destructive", className),
+      "aria-labelledby": ids.labelId,
+      "aria-describedby": describedBy([
+        status != null && ids.statusId,
+        hint != null && ids.hintId,
+        value != null && ids.valueId,
+      ]),
+    },
+  };
+}
+
+function PressableRowContent({
+  ids,
+  value,
+  chevron,
+  ...text
+}: RowTextProps & { ids: ReturnType<typeof useRowIds>; value?: ReactNode; chevron: boolean }) {
+  return (
+    <>
+      <RowText {...text} labelId={ids.labelId} statusId={ids.statusId} hintId={ids.hintId} />
+      {value != null && <RowValue id={ids.valueId}>{value}</RowValue>}
+      {chevron && (
+        <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+      )}
+    </>
+  );
+}
+
+type SettingsRowButtonProps = RowTextProps &
+  Omit<ComponentProps<"button">, "children" | "value"> & {
+    value?: ReactNode;
+    chevron?: boolean;
+  };
+
+/**
+ * A whole row that is a button, named by its label. Takes the props a trigger
+ * passes, so it can be a dialog's trigger itself (`<ChangePasswordDialog><SettingsRowButton …/>`).
+ */
+export function SettingsRowButton({
   icon,
+  iconTone,
   label,
   hint,
   status,
+  value,
+  chevron = false,
+  className,
+  ...props
+}: SettingsRowButtonProps) {
+  const pressable = usePressableRow({ status, hint, value, className });
+  return (
+    <button type="button" {...props} {...pressable.props}>
+      <PressableRowContent
+        ids={pressable.ids}
+        icon={icon}
+        iconTone={iconTone}
+        label={label}
+        hint={hint}
+        status={status}
+        value={value}
+        chevron={chevron}
+      />
+    </button>
+  );
+}
+
+function SettingsRowLink({
+  href,
+  value,
+  className,
+  ...text
+}: RowTextProps & { href: string; value?: ReactNode; className?: string }) {
+  const pressable = usePressableRow({ status: text.status, hint: text.hint, value, className });
+  return (
+    <WouterLink href={href} {...pressable.props}>
+      <PressableRowContent ids={pressable.ids} value={value} chevron {...text} />
+    </WouterLink>
+  );
+}
+
+function ControlRow({
   control,
+  stackOnPhone,
+  className,
+  ...text
+}: RowTextProps & { control?: ReactNode; stackOnPhone: boolean; className?: string }) {
+  const { labelId, statusId, hintId } = useRowIds();
+  const controlLabel: RowLabel = {
+    labelId,
+    describedBy: describedBy([text.status != null && statusId, text.hint != null && hintId]),
+  };
+  return (
+    <div
+      className={cn(
+        rowClassName,
+        stackOnPhone && "max-sm:flex-col max-sm:items-stretch",
+        className,
+      )}
+    >
+      <RowText {...text} labelId={labelId} statusId={statusId} hintId={hintId} />
+      {control != null && (
+        <RowLabelContext value={controlLabel}>
+          <div
+            className={cn("flex shrink-0 items-center gap-2", stackOnPhone && "max-sm:*:flex-1")}
+          >
+            {control}
+          </div>
+        </RowLabelContext>
+      )}
+    </div>
+  );
+}
+
+/** Label and one-line hint on the left, a control (or a drill-down) on the right. */
+export function SettingsRow({
+  control,
+  stackOnPhone = false,
   href,
   onClick,
   value,
   className,
+  ...text
 }: SettingsRowProps) {
-  const danger = useGroupVariant() === "danger";
-  const labelId = useId();
-  const statusId = useId();
-  const hintId = useId();
-  const valueId = useId();
-  const describedBy = (ids: (string | false)[]) => ids.filter(Boolean).join(" ") || undefined;
-  const controlLabel: RowLabel = {
-    labelId,
-    describedBy: describedBy([status != null && statusId, hint != null && hintId]),
-  };
-  // A pressable row is named by its label alone; the rest of its text describes it.
-  const pressableLabel = {
-    "aria-labelledby": labelId,
-    "aria-describedby": describedBy([
-      status != null && statusId,
-      hint != null && hintId,
-      value != null && valueId,
-    ]),
-  };
-  const text = (
-    <RowText
-      icon={icon}
+  if (onClick)
+    return <SettingsRowButton {...text} value={value} onClick={onClick} className={className} />;
+  if (href !== undefined)
+    return <SettingsRowLink {...text} href={href} value={value} className={className} />;
+  return (
+    <ControlRow {...text} control={control} stackOnPhone={stackOnPhone} className={className} />
+  );
+}
+
+/** Row buttons are compact on a phone, as the row itself is (56px). */
+export function useSettingsButtonSize() {
+  return useIsMobile() ? "sm" : "default";
+}
+
+type SettingsActionRowProps = Pick<RowTextProps, "label" | "hint"> & {
+  /** The shorter hint a phone row shows. */
+  phoneHint?: ReactNode;
+  /** Wraps the trigger in its dialog: `(trigger) => <ChangePasswordDialog>{trigger}</ChangePasswordDialog>`. */
+  dialog: (trigger: ReactElement) => ReactElement;
+  buttonLabel: string;
+  buttonVariant?: ComponentProps<typeof Button>["variant"];
+  /** The phone row's value before its chevron ("Change"); a row without one has no chevron. */
+  phoneValue?: string;
+  disabled?: boolean;
+};
+
+/**
+ * A row that opens a dialog: on desktop a button at its end, on a phone the
+ * whole row (`SettingsRowButton`).
+ */
+export function SettingsActionRow({
+  label,
+  hint,
+  phoneHint,
+  dialog,
+  buttonLabel,
+  buttonVariant = "outline",
+  phoneValue,
+  disabled,
+}: SettingsActionRowProps) {
+  if (useIsMobile())
+    return dialog(
+      <SettingsRowButton
+        label={label}
+        hint={phoneHint ?? hint}
+        value={phoneValue}
+        chevron={phoneValue !== undefined}
+        disabled={disabled}
+      />,
+    );
+  return (
+    <SettingsRow
       label={label}
       hint={hint}
-      status={status}
-      labelId={labelId}
-      statusId={statusId}
-      hintId={hintId}
-    />
-  );
-  const valueText = value != null && (
-    <span id={valueId} className="shrink-0 text-muted-foreground max-sm:text-[15px]">
-      {value}
-    </span>
-  );
-  const pressable = cn(
-    rowClassName,
-    pressableRowClassName,
-    danger && "text-destructive",
-    className,
-  );
-
-  if (href !== undefined) {
-    return (
-      <WouterLink href={href} className={pressable} {...pressableLabel}>
-        {text}
-        {valueText}
-        <ChevronRightIcon aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
-      </WouterLink>
-    );
-  }
-  if (onClick) {
-    return (
-      <button type="button" onClick={onClick} className={pressable} {...pressableLabel}>
-        {text}
-        {valueText}
-      </button>
-    );
-  }
-  return (
-    <div className={cn(rowClassName, className)}>
-      {text}
-      {control != null && (
-        <RowLabelContext value={controlLabel}>
-          <div className="flex shrink-0 items-center gap-2">{control}</div>
-        </RowLabelContext>
+      control={dialog(
+        <Button variant={buttonVariant} disabled={disabled}>
+          {buttonLabel}
+        </Button>,
       )}
-    </div>
+    />
   );
 }
 

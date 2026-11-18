@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requestPersistentStorage } from "@/hooks/use-storage-durability";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen } from "@/test/render";
-import StorageSettings, { formatStorageUsage } from "./StorageSettings";
+import StorageSettings from "./StorageSettings";
 
 const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
@@ -63,13 +63,15 @@ describe("StorageSettings", () => {
   it("warns a local vault about eviction and asks again on request", async () => {
     renderWithProviders(<StorageSettings />);
 
-    expect(await screen.findByText(/Not persistent/)).toHaveTextContent("Using 1.2MB of 10GB.");
+    expect(await screen.findByText("Not persistent")).toBeInTheDocument();
+    expect(screen.getByText("1.2MB used")).toBeInTheDocument();
+    expect(screen.getByText("of 10GB the browser allows for this site")).toBeInTheDocument();
     expect(screen.getByText(/exists only in this browser/)).toBeInTheDocument();
 
     await userEvent.click(screen.getByRole("button", { name: "Keep data" }));
 
     expect(storage.persist).toHaveBeenCalledOnce();
-    expect(await screen.findByText(/Persistent: the browser keeps/)).toBeInTheDocument();
+    expect(await screen.findByText("Persistent")).toBeInTheDocument();
     expect(screen.queryByText(/exists only in this browser/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Keep data" })).not.toBeInTheDocument();
   });
@@ -79,7 +81,8 @@ describe("StorageSettings", () => {
     store.profiles = [profileEntry(LINKED)];
     renderWithProviders(<StorageSettings />);
 
-    expect(await screen.findByText(/Not persistent/)).toBeInTheDocument();
+    expect(await screen.findByText("Not persistent")).toBeInTheDocument();
+    expect(screen.getByText(/Items already synced can be downloaded again/)).toBeInTheDocument();
     expect(screen.queryByText(/exists only in this browser/)).not.toBeInTheDocument();
   });
 
@@ -90,10 +93,5 @@ describe("StorageSettings", () => {
     expect(screen.getByText("Checking…")).toBeInTheDocument();
     expect(await screen.findByText(/doesn't say whether it keeps/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Keep data" })).not.toBeInTheDocument();
-  });
-
-  it("formats usage with and without a quota", () => {
-    expect(formatStorageUsage(null, 10)).toBeNull();
-    expect(formatStorageUsage(2048, null)).toBe("2kB");
   });
 });
