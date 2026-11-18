@@ -67,7 +67,7 @@ Make sure Postgres + Redis are up (`pnpm db:up` from repo root) and migrations h
 With `REGISTRATION_DISABLED=true` (the prod default) sign-up needs a single-use invite. Mint one on the server:
 
 ```bash
-docker compose -f docker-compose.prod.yml exec server \
+docker compose -f docker-compose.prod.yml --env-file .env.production exec server \
   bun apps/server/scripts/create-invite.ts --email alice@example.com
 # https://<host>/create?invite=...
 # Single use, expires <ISO date>, only for alice@example.com

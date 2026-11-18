@@ -1,6 +1,6 @@
 // Mint a single-use registration invite while REGISTRATION_DISABLED=true.
 // Run inside the server container (needs REDIS_HOST / REDIS_PORT / REDIS_PASSWORD):
-//   docker compose -f docker-compose.prod.yml exec server \
+//   docker compose -f docker-compose.prod.yml --env-file .env.production exec server \
 //     bun apps/server/scripts/create-invite.ts [--email a@b.c] [--ttl 24] [--url https://host]
 //
 // The invitee opens the printed link and registers in the web app. Their
