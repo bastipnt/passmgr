@@ -9,6 +9,13 @@ bun ./devResetDB.ts   # Reset dev database (truncate data, keep schema)
 `pnpm db:reset:hard` drops all tables and the migration log, then migrates from scratch (localhost
 only). Needed after migrations were squashed into a new baseline; follow with `pnpm db:seed`.
 
+Deployed migrations: `migrate.ts` (drizzle-orm's migrator, same `drizzle.__drizzle_migrations` rows as
+`drizzle-kit migrate`) runs as the owner role, then creates / updates `APP_DB_USER` (`passmgr_app`): login, DML on every
+table in `public`, no DDL, never superuser. The server connects only as that role (compose `migrate` service, its
+image has no drizzle-kit). A migration that needs a new privilege for the app (a sequence elsewhere, a function)
+must add it to `grantAppRole`. The deploy migrates while the previous release still serves, so a migration must
+work with the old server too (expand first; drop or rename a column only a release after the code stops using it). Dev keeps `pnpm db:migrate` (drizzle-kit) and the superuser.
+
 Environment: `DATABASE_URL`, read from `apps/server/.env` (`index.ts`, `drizzle.config.ts`, `devSeed.ts`); the package has no `.env` of its own.
 `index.ts` skips that file when `NODE_ENV=production` and throws without `DATABASE_URL`.
 

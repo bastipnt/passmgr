@@ -81,10 +81,31 @@ updates:
         patterns:
           - "*"
 
+  # Image digests in the Dockerfiles and compose files (tag@sha256 pins).
   - package-ecosystem: docker
     directories:
       - /
       - /.github/semgrep
+    schedule:
+      interval: weekly
+      day: monday
+      time: "06:00"
+      timezone: Europe/Berlin
+    open-pull-requests-limit: 5
+    cooldown:
+      default-days: 7
+    commit-message:
+      prefix: chore
+      include: scope
+    labels:
+      - dependencies
+      - docker
+
+  - package-ecosystem: docker-compose
+    directories:
+      - /
+      - /packages/db
+      - /infra/redis
     schedule:
       interval: weekly
       day: monday

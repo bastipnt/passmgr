@@ -1,5 +1,6 @@
 # ---- Stage 1: Install + Build ----
-FROM node:26-alpine AS build
+# Images by digest (Dependabot bumps them).
+FROM node:26-alpine@sha256:6bd9ab43c0ec0190ca7b2d193906cb8b7edf6e7f4afa43ddeccd6452710bffb5 AS build
 
 WORKDIR /app
 
@@ -57,12 +58,20 @@ RUN pnpm --config.verify-deps-before-run=false --filter web build
 RUN node apps/web/scripts/precompress.ts apps/web/dist
 
 # ---- Stage 2: Serve with Caddy ----
-FROM caddy:2-alpine AS production
+FROM caddy:2-alpine@sha256:003a97808e781aa9f7e75cc2f43d34d461099031faf5e20faefb9f61126836f0 AS production
+
+# Unprivileged: :8080 needs no capability, so drop the file capability the image gives the binary
+# (with cap_drop: ALL an exec would fail on it) and run as a plain user.
+RUN apk add --no-cache libcap && setcap -r /usr/bin/caddy && apk del libcap && \
+  addgroup -S -g 10001 caddy && adduser -S -D -H -u 10001 -G caddy caddy && \
+  chown -R caddy:caddy /data /config
 
 # Copy built static files
 COPY --from=build /app/apps/web/dist /srv
 
 # Copy Caddyfile
 COPY Caddyfile /etc/caddy/Caddyfile
+
+USER caddy
 
 EXPOSE 8080

@@ -1,10 +1,12 @@
 services:
   postgres_pass_mgr:
-    image: "postgres:latest"
+    # 18+: the volume holds /var/lib/postgresql (versioned subdirectory), not .../data.
+    image: "postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc"
     restart: always
     shm_size: 128mb
+    # Loopback only: the dev password is in the repo.
     ports:
-      - 5432:5432
+      - 127.0.0.1:5432:5432
     # Dev only. Defaults match DATABASE_URL in apps/server/.env; override from the shell if needed.
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-passmgr}
@@ -19,11 +21,11 @@ services:
       - postgres_pass_mgr_data:/var/lib/postgresql
 
   mailpit:
-    image: "axllent/mailpit:latest"
+    image: "axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e"
     restart: always
     ports:
-      - 1025:1025
-      - 8025:8025
+      - 127.0.0.1:1025:1025
+      - 127.0.0.1:8025:8025
 
   # adminer:
   #   image: adminer

@@ -82,7 +82,9 @@ Startup fails on a bad config: `src/env.ts` (`serverEnv`, one Zod schema, import
 validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by `util/allowed-origins.ts`) and
 `STORAGE_QUOTA_MB` / `KEY_SET_RETENTION_DAYS`; `@repo/db` throws without `DATABASE_URL`. Read a new server env var through `serverEnv`.
 
-- `DATABASE_URL` — PostgreSQL connection string (required; `@repo/db` reads `apps/server/.env` only outside production)
+- `DATABASE_URL` — PostgreSQL connection string (required; `@repo/db` reads `apps/server/.env` only outside production).
+  Deployed (prod, E2E compose) it is `passmgr_app`, data access only; migrations run before as the owner
+  (`packages/db/migrate.ts`, see `packages/db/CLAUDE.md`)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
 - `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets, base64 of 32 bytes each (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
 - `OPAQUE_SERVER_SETUP` — key for email hashing, email-at-rest, TOTP secret and backup-code keys (must be stable;

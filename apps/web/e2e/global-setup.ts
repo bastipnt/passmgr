@@ -51,6 +51,7 @@ export default async function globalSetup() {
   // Stable secret used only for email HMAC/encryption — independent of OPAQUE.
   const opaqueServerSetup = randomBytes(32).toString("base64");
   const postgresPassword = randomBytes(24).toString("base64url");
+  const postgresAppPassword = randomBytes(24).toString("base64url");
   const redisPassword = randomBytes(24).toString("hex");
 
   writeFileSync(
@@ -60,6 +61,7 @@ export default async function globalSetup() {
       `OPAQUE_AKE_PRIVATE_KEY=${opaqueAkePrivateKey}`,
       `OPAQUE_SERVER_SETUP=${opaqueServerSetup}`,
       `POSTGRES_PASSWORD=${postgresPassword}`,
+      `POSTGRES_APP_PASSWORD=${postgresAppPassword}`,
       `REDIS_PASSWORD=${redisPassword}`,
       "",
     ].join("\n"),

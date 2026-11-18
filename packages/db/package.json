@@ -27,7 +27,8 @@
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
     "dotenv": "^17.4.2",
-    "drizzle-orm": "catalog:"
+    "drizzle-orm": "catalog:",
+    "pg": "^8.22.0"
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "catalog:",
@@ -37,7 +38,6 @@
     "drizzle-kit": "catalog:",
     "drizzle-seed": "catalog:",
     "oxlint": "catalog:",
-    "pg": "^8.22.0",
     "testcontainers": "catalog:",
     "tsx": "^4.23.0",
     "vitest": "catalog:"

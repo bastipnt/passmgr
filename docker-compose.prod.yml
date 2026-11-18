@@ -1,5 +1,18 @@
+# Every service: no privilege gain through setuid binaries or file capabilities, and only the
+# capabilities it needs (postgres / redis start as root to chown their data, then drop to their user).
+x-hardened: &hardened
+  security_opt:
+    - no-new-privileges:true
+  cap_drop: [ALL]
+
+x-db-capabilities: &db-capabilities
+  cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+
 services:
   web:
+    <<: *hardened
+    read_only: true
+    tmpfs: [/data, /config]
     # CI deploys by digest (infra/deploy/remote-deploy.sh); the tag only names it.
     image: ghcr.io/${GHCR_OWNER}/passmgr-web:${IMAGE_TAG:-latest}${WEB_DIGEST:+@${WEB_DIGEST}}
     # The host Caddy (caddy-docker-proxy) terminates TLS and proxies here over
@@ -17,9 +30,16 @@ services:
     restart: unless-stopped
 
   server:
+    <<: *hardened
+    read_only: true
+    tmpfs: [/tmp]
+    # Set here, not only in the image: a rollback to an image from before the migrate step would
+    # otherwise migrate on start as passmgr_app and fail.
+    command: ["bun", "run", "apps/server/index.ts"]
     image: ghcr.io/${GHCR_OWNER}/passmgr-server:${IMAGE_TAG:-latest}${SERVER_DIGEST:+@${SERVER_DIGEST}}
     environment:
-      - DATABASE_URL=postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
+      # passmgr_app reads and writes data only; the schema belongs to passmgr (`migrate` below).
+      - DATABASE_URL=postgres://passmgr_app:${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-passmgr}
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
@@ -44,7 +64,6 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
-      # Migrations run on start.
       start_period: 60s
     depends_on:
       postgres:
@@ -60,8 +79,31 @@ services:
         aliases: [passmgr-server]
     restart: unless-stopped
 
+  # One-shot, as the database owner: infra/deploy/remote-deploy.sh runs it with `compose run` before
+  # each rollout. Also (re)grants passmgr_app, so tables a migration adds are covered.
+  migrate:
+    <<: *hardened
+    read_only: true
+    tmpfs: [/tmp]
+    image: ghcr.io/${GHCR_OWNER}/passmgr-server:${IMAGE_TAG:-latest}${SERVER_DIGEST:+@${SERVER_DIGEST}}
+    profiles: [migrate]
+    command: ["bun", "packages/db/migrate.ts"]
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=postgres://passmgr:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/${POSTGRES_DB:-passmgr}
+      - APP_DB_USER=passmgr_app
+      - APP_DB_PASSWORD=${POSTGRES_APP_PASSWORD:?POSTGRES_APP_PASSWORD is required}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - passmgr_network
+
   postgres:
-    image: postgres:17-alpine
+    <<: [*hardened, *db-capabilities]
+    read_only: true
+    tmpfs: [/tmp, /var/run/postgresql]
+    image: postgres:17-alpine@sha256:a77aa70e641402a21411b92b721c58d10f23b50ae5fdd2333efd22d166e1e5f7
     volumes:
       - postgres_data:/var/lib/postgresql/data
     environment:
@@ -78,10 +120,20 @@ services:
     restart: unless-stopped
 
   redis:
-    image: redis:7-alpine
+    <<: [*hardened, *db-capabilities]
+    read_only: true
+    image: redis:7-alpine@sha256:7f7d30b7fdd09467bac58198a1f166dd69789d348d4fe859cccb20e0cf287fbe
     # Redis holds live session authKeys: without a password anything on the
     # network could read them and sign requests as any user.
-    command: ["sh", "-c", "exec redis-server --requirepass \"$$REDIS_PASSWORD\""]
+    # The password goes in as config on stdin, never on the command line (visible in ps); the image's
+    # entrypoint drops to the redis user.
+    command:
+      - sh
+      - -c
+      - |
+        exec docker-entrypoint.sh redis-server - <<EOF
+        requirepass "$$REDIS_PASSWORD"
+        EOF
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD is required}
     volumes:

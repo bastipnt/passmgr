@@ -28,6 +28,7 @@
     "@repo/schema": "workspace:*",
     "@repo/util": "workspace:*",
     "@trpc/server": "catalog:",
+    "drizzle-orm": "catalog:",
     "fastify": "^5.12.5",
     "ioredis": "^5.11.1",
     "nodemailer": "^10.2.1",

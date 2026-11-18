@@ -1,5 +1,18 @@
+# pnpm's standalone build (the bun image has no npm), checked against its hash; the version is
+# package.json's packageManager. One stage per arch, so a build fetches only its own.
+FROM scratch AS pnpm-amd64
+ADD --checksum=sha256:4c592fa410eb23b69691a9efb9bf21c87c15b3e9d88c6ec8acdd354a0eb8de71 \
+  https://github.com/pnpm/pnpm/releases/download/v11.22.0/pnpm-linux-x64.tar.gz /pnpm.tar.gz
+
+FROM scratch AS pnpm-arm64
+ADD --checksum=sha256:f1426231f365bdfd46c15fa3d1211c3936ee2c4e557afd304f6c66dbf1b2a8bf \
+  https://github.com/pnpm/pnpm/releases/download/v11.22.0/pnpm-linux-arm64.tar.gz /pnpm.tar.gz
+
+FROM pnpm-${TARGETARCH} AS pnpm
+
 # ---- Stage 1: Install dependencies ----
-FROM oven/bun:1 AS install
+# Images by digest (Dependabot bumps them); CI checks the Bun version against .bun-version.
+FROM oven/bun:1.4.4@sha256:1d22548f177f4ff38e0c15baa3c2c46c6c2060ba2d1bc573bb4720b407548f1d AS install
 
 WORKDIR /app
 
@@ -15,12 +28,14 @@ COPY packages/schema/package.json packages/schema/
 COPY packages/util/package.json packages/util/
 COPY patches/ patches/
 
-# Install pnpm (no npm or curl in bun image) and dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates libatomic1 && rm -rf /var/lib/apt/lists/* && \
-  curl -fsSL https://get.pnpm.io/install.sh | ENV="$HOME/.shrc" SHELL="$(which sh)" PNPM_VERSION=11.22.0 sh - && \
-  export PNPM_HOME="$HOME/.local/share/pnpm" && \
-  export PATH="$PNPM_HOME/bin:$PATH" && \
-  pnpm install --frozen-lockfile
+# Production dependencies of the server only: the image never builds
+# or tests, and the workspace's hoisted linker would install every app's packages regardless of --filter.
+# Hoisted to /app/node_modules so the workspace packages find their peers (zod) by walking up.
+RUN --mount=type=bind,from=pnpm,source=/pnpm.tar.gz,target=/tmp/pnpm.tar.gz \
+  apt-get update && apt-get install -y --no-install-recommends ca-certificates libatomic1 && rm -rf /var/lib/apt/lists/* && \
+  mkdir -p /opt/pnpm && tar -xzf /tmp/pnpm.tar.gz -C /opt/pnpm && \
+  /opt/pnpm/pnpm install --frozen-lockfile --prod --filter server... \
+    --config.node-linker=isolated --config.shamefully-hoist=true
 
 # ---- Stage 2: Build ----
 FROM install AS build
@@ -33,11 +48,13 @@ COPY packages/schema/ packages/schema/
 COPY packages/util/ packages/util/
 
 # ---- Stage 3: Production ----
-FROM oven/bun:1-slim AS production
+FROM oven/bun:1.4.4-slim@sha256:1846adf22496bd711036aae8be147e57bdebbaea2e5264e3e0b5af1db187d9a4 AS production
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+# The root filesystem is read-only in compose: no transpiler cache on disk.
+ENV BUN_RUNTIME_TRANSPILER_CACHE_PATH=0
 
 # The release tag; clientError.report counts only known versions under their own label.
 ARG APP_VERSION=""
@@ -51,5 +68,6 @@ USER bun
 # 3001: /health and /metrics (OPS_PORT), never behind the public proxy.
 EXPOSE 3000 3001
 
-# Run migrations then start the server
-CMD ["sh", "-c", "cd packages/db && bunx drizzle-kit migrate && cd /app && bun run apps/server/index.ts"]
+# Migrations run as their own step with the owner role (`migrate` service in compose,
+# packages/db/migrate.ts); the server connects as a role that can't change the schema.
+CMD ["bun", "run", "apps/server/index.ts"]

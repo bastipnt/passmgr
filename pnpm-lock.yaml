@@ -447,6 +447,9 @@ importers:
       '@trpc/server':
         specifier: 'catalog:'
         version: 11.18.0(typescript@6.0.3)
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 1.0.0-beta.15-859cf75(@opentelemetry/api@1.9.1)(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.4(expo@57.0.27)(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.6.7)
       fastify:
         specifier: ^5.12.5
         version: 5.12.5
@@ -734,6 +737,12 @@ importers:
       '@otplib/totp':
         specifier: ^13.4.1
         version: 13.4.1
+      '@repo/schema':
+        specifier: workspace:*
+        version: link:../schema
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../util
       '@zxcvbn-ts/core':
         specifier: ^4.2.0
         version: 4.2.0
@@ -753,15 +762,9 @@ importers:
         specifier: ^13.4.1
         version: 13.4.1
     devDependencies:
-      '@repo/schema':
-        specifier: workspace:*
-        version: link:../schema
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@repo/util':
-        specifier: workspace:*
-        version: link:../util
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.11)
@@ -792,6 +795,9 @@ importers:
       drizzle-orm:
         specifier: 'catalog:'
         version: 1.0.0-beta.15-859cf75(@opentelemetry/api@1.9.1)(@types/mssql@9.1.9(supports-color@10.2.2))(@types/pg@8.20.0)(expo-sqlite@57.0.4(expo@57.0.27)(react-native@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(@react-native/metro-config@0.86.3(@babel/core@7.29.7(supports-color@10.2.2))(supports-color@10.2.2))(@types/react@19.3.0)(react@19.3.0)(supports-color@10.2.2))(react@19.3.0))(mssql@11.0.1(supports-color@10.2.2))(pg@8.22.0)(zod@4.6.7)
+      pg:
+        specifier: ^8.22.0
+        version: 8.22.0
     devDependencies:
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
@@ -814,9 +820,6 @@ importers:
       oxlint:
         specifier: 'catalog:'
         version: 1.73.0(oxlint-tsgolint@0.23.0)
-      pg:
-        specifier: ^8.22.0
-        version: 8.22.0
       testcontainers:
         specifier: 'catalog:'
         version: 12.0.4(supports-color@10.2.2)
@@ -962,13 +965,14 @@ importers:
         version: 8.3.4(@types/node@26.6.5)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.49.0)(tsx@4.23.0)(yaml@2.9.1)
 
   packages/schema:
+    dependencies:
+      '@repo/util':
+        specifier: workspace:*
+        version: link:../util
     devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-      '@repo/util':
-        specifier: workspace:*
-        version: link:../util
       '@vitest/coverage-v8':
         specifier: 'catalog:'
         version: 4.1.10(@vitest/browser@4.1.10)(vitest@4.1.11)
@@ -16539,7 +16543,7 @@ snapshots:
 
   '@types/pg@8.20.0':
     dependencies:
-      '@types/node': 26.1.1
+      '@types/node': 26.6.5
       pg-protocol: 1.15.0
       pg-types: 2.2.0
 

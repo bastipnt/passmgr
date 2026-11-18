@@ -4,8 +4,9 @@
 # the tag is pulled as is). Backs up Postgres, rolls out the images and rolls back to the
 # previously deployed ones if the stack doesn't become healthy.
 #
-# Note: the rollback restores the old images only. If the failed release already
-# applied a migration the old server can't handle, restore the pre-deploy backup.
+# Migrations run as their own step (`migrate` service) before the rollout. The rollback restores
+# the old images only: if the failed release applied a migration the old server can't handle,
+# restore the pre-deploy backup.
 set -euo pipefail
 
 cd "$DEPLOY_PATH"
@@ -13,6 +14,11 @@ cd "$DEPLOY_PATH"
 compose() {
   docker compose -f docker-compose.prod.yml --env-file .env.production "$@"
 }
+
+if ! grep -qE '^POSTGRES_APP_PASSWORD=.+' .env.production; then
+  echo "Set POSTGRES_APP_PASSWORD in .env.production first (openssl rand -hex 32): the server's own database role" >&2
+  exit 1
+fi
 
 WEB_DIGEST=${WEB_DIGEST:-}
 SERVER_DIGEST=${SERVER_DIGEST:-}
@@ -32,7 +38,7 @@ echo "Deploying ${IMAGE_TAG} (previous: ${previous_tag:-none})"
 export IMAGE_TAG WEB_DIGEST SERVER_DIGEST
 compose pull
 
-# Migrations run when the new server starts, so snapshot the database first.
+# Snapshot the database before the migrate step below changes it.
 if [ -n "$(compose ps -q postgres)" ]; then
   mkdir -p backups
   backup="backups/pre-${IMAGE_TAG}-$(date -u +%Y%m%dT%H%M%SZ).sql.gz"
@@ -45,6 +51,14 @@ if [ -n "$(compose ps -q postgres)" ]; then
   # Keep the 10 most recent backups.
   # shellcheck disable=SC2012 # we control these filenames
   ls -1t backups/pre-*.sql.gz | tail -n +11 | xargs -r rm --
+fi
+
+# Migrations as the owner role, before anything runs the new server. A failure here leaves the old
+# release running untouched.
+compose up -d --wait --wait-timeout 180 postgres
+if ! compose run --rm migrate </dev/null; then
+  echo "Migrations for ${IMAGE_TAG} failed; ${previous_tag:-the previous release} keeps running" >&2
+  exit 1
 fi
 
 if compose up -d --remove-orphans --wait --wait-timeout 180; then
