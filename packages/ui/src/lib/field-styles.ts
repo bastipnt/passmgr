@@ -17,6 +17,10 @@ export const fieldBoxFrameClassName =
 /** The boxed, label-inside field (`FieldBox`): a white box in the frame. */
 export const fieldBoxClassName = `${fieldBoxFrameClassName} flex min-h-15 w-full items-center gap-1.5 bg-card py-[9px] pr-2 pl-3.5 text-left`;
 
+/** A secret shown once to copy or write down (recovery key, setup key, backup codes): mono, selected whole. */
+export const secretBlockClassName =
+  "select-all rounded-2xl border border-border bg-field px-5 py-4 font-medium font-mono text-sm";
+
 /** Masks a text input until focused, without `type="password"` (no save-password prompt). */
 export const maskedTextClassName =
   "[-webkit-text-security:disc] focus:[-webkit-text-security:none]";

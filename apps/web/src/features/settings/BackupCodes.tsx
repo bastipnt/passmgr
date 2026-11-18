@@ -1,5 +1,7 @@
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
+import { secretBlockClassName } from "@repo/ui/lib/field-styles";
+import { cn } from "@repo/ui/lib/utils";
 import { CheckIcon, CopyIcon, DownloadIcon } from "lucide-react";
 import { useState } from "react";
 import { useCopySecret } from "@/lib/clipboard";
@@ -32,7 +34,7 @@ export default function BackupCodes({ codes, onSaved }: { codes: string[]; onSav
     <div className="flex flex-col gap-3">
       <ul
         aria-label="Backup codes"
-        className="grid select-all grid-cols-2 gap-x-6 gap-y-1 rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-5 py-4 font-medium font-mono text-sm dark:border-white/10 dark:bg-black/30"
+        className={cn(secretBlockClassName, "grid grid-cols-2 gap-x-6 gap-y-1")}
       >
         {codes.map((code) => (
           <li key={code}>{code}</li>

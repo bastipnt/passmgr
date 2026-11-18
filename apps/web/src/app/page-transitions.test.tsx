@@ -4,6 +4,12 @@ import { Route, Router, Switch } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 import { pageDepths, passMonitorPaths, recordPaths, settingsPaths } from "./route-paths";
 
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@repo/ui/hooks/use-is-mobile", async (importActual) => ({
+  ...(await importActual<object>()),
+  isMobile: () => viewport.mobile,
+}));
+
 type PageTransitionsModule = typeof import("./page-transitions");
 
 let pt: PageTransitionsModule;
@@ -82,6 +88,50 @@ describe("page direction", () => {
     act(() => navigate(recordPaths.record("a")));
     expect(screen.getByText("record")).toBeDefined();
   });
+});
+
+describe("view transitions", () => {
+  const rejected = (name: string) => Promise.reject(new DOMException("Transition aborted", name));
+
+  beforeEach(async () => {
+    viewport.mobile = true;
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: false } as MediaQueryList);
+    await setup();
+  });
+  afterEach(() => {
+    viewport.mobile = false;
+    // @ts-expect-error jsdom has none; the test added it
+    delete document.startViewTransition;
+  });
+
+  it.each(["AbortError", "InvalidStateError"])(
+    "never reports a slide that didn't play (%s)",
+    async (name) => {
+      const unhandled = vi.fn();
+      process.on("unhandledRejection", unhandled);
+      const startViewTransition = vi.fn((update?: unknown) => {
+        if (typeof update === "function") update();
+        return {
+          ready: rejected(name),
+          finished: Promise.resolve(),
+          updateCallbackDone: Promise.resolve(),
+          skipTransition: () => {},
+        } as unknown as ViewTransition;
+      });
+      document.startViewTransition = startViewTransition;
+
+      act(() => navigate(recordPaths.record("a")));
+      act(() => navigate(recordPaths.index));
+      // Node reports an unhandled rejection once the microtasks after it ran: a macrotask later.
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      process.off("unhandledRejection", unhandled);
+
+      expect(startViewTransition).toHaveBeenCalled();
+      expect(screen.getByText("list")).toBeDefined();
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(document.documentElement.dataset.nav).toBeUndefined();
+    },
+  );
 });
 
 describe("usePageBack", () => {

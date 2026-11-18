@@ -41,7 +41,8 @@ Rules:
   `tsconfig.app.json`.
 - Web `features/records/` matches mobile's `features/records/` naming.
 - **Phone pages are real routes that scroll the document**, never drawers. The push/pop slide is
-  `app/page-transitions.ts` (View Transitions, driven by the router's location hook). A new page
+  `app/page-transitions.ts` (View Transitions, driven by the router's location hook; a slide that doesn't play, skipped
+  by the next navigation, rejects only `ready`, which is ignored; a failing update is reported once, by `finished`). A new page
   gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
   `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
 - **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar

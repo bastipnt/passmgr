@@ -10,6 +10,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@repo/ui/components/Dialog";
+import { secretBlockClassName } from "@repo/ui/lib/field-styles";
 import { cn } from "@repo/ui/lib/utils";
 import { toBase64 } from "@repo/util";
 import { ArrowRightIcon, CheckIcon, CopyIcon, FileDownIcon, KeyRoundIcon } from "lucide-react";
@@ -95,7 +96,7 @@ export default function RecoveryKeyDialog({
 
         {/* Inline chunks with no whitespace between them, so selecting or reading the
             element yields the exact key (grid/flex items would copy with newlines). */}
-        <code className="block select-all break-all rounded-2xl border border-foreground/10 bg-foreground/[0.03] px-5 py-4 font-medium font-mono text-sm dark:border-white/10 dark:bg-black/30">
+        <code className={cn(secretBlockClassName, "block break-all")}>
           {chunks.map((part, i) => (
             <span
               key={i}

@@ -672,7 +672,7 @@ to another vault is re-encrypted anyway (D6).
 >
 > - Web: `CreateVaultPage` calls `persist()` on create, before the key derivation, while
 >   the submit is still a user gesture (Firefox asks; Chrome decides by engagement). Settings →
->   Security shows persistence and the estimate (`StorageSettings`), warns a `local` profile when
+>   Sync & storage shows persistence and the estimate (`StorageSettings`), warns a `local` profile when
 >   persistence is denied and can ask again.
 > - Backup reminder: the registry keeps `lastExportAt` per profile (`ProfileStore.markExported`,
 >   to be called by the export). A `local` profile is reminded once 7 days have passed since the

@@ -5,6 +5,7 @@ import {
   TWO_FACTOR_ERROR_MESSAGES,
   useTwoFactor,
 } from "@repo/client";
+
 import { type TotpConfirmFormValues, totpConfirmFormSchema } from "@repo/schema";
 import { toast, useForm } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
@@ -20,6 +21,8 @@ import { FieldError, FieldGroup } from "@repo/ui/components/Field";
 import { ControlledInput } from "@repo/ui/components/form/ControlledInput";
 import { FormLock } from "@repo/ui/components/form/FormLock";
 import { Spinner } from "@repo/ui/components/Spinner";
+import { secretBlockClassName } from "@repo/ui/lib/field-styles";
+import { cn } from "@repo/ui/lib/utils";
 import {
   ArrowRightIcon,
   CheckIcon,
@@ -87,7 +90,7 @@ function ScanStep({
             <span className="text-muted-foreground text-sm">Or enter this setup key:</span>
             <code
               aria-label="Setup key"
-              className="block select-all break-all rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3 font-medium font-mono text-sm dark:border-white/10 dark:bg-black/30"
+              className={cn(secretBlockClassName, "block break-all rounded-xl px-4 py-3")}
             >
               {groupSecret(enrollment.secret)}
             </code>
