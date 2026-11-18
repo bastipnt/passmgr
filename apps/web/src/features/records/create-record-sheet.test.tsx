@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { renderWithProviders, screen, within } from "@/test/render";
-import CreateRecordSheet from "./CreateRecordSheet";
+import CreateRecordSheet, { prefillCreateSheet } from "./CreateRecordSheet";
 
 // The tag field offers the tags in use, which live in the records context.
 vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
@@ -62,9 +62,12 @@ beforeEach(() => {
   mocks.vaultFilter = "all";
   mocks.writableVaults = [];
   mocks.mobile = false;
+  prefillCreateSheet(undefined);
 });
 
-function renderAt(path: string) {
+/** `title`: prefilled, as "Create from search" does. */
+function renderAt(path: string, title?: string) {
+  prefillCreateSheet(title);
   const location = memoryLocation({ path, record: true });
   renderWithProviders(
     <Router hook={location.hook} searchHook={location.searchHook}>
@@ -93,7 +96,7 @@ describe("CreateRecordSheet", () => {
   });
 
   it("opens the picked type's form, keeping a prefilled title", async () => {
-    renderAt("/?new=Home");
+    renderAt("/?new=", "Home");
 
     await userEvent.click(screen.getByRole("link", { name: /^Wi-Fi\b/ }));
 
@@ -114,7 +117,7 @@ describe("CreateRecordSheet", () => {
       { vaultId: "v-work", name: "Work", kind: "shared", role: "owner" },
     ];
     mocks.vaultFilter = "v-work";
-    renderAt("/?new=Wiki&type=note");
+    renderAt("/?new=&type=note", "Wiki");
 
     expect(screen.getByRole("combobox", { name: "Vault" })).toHaveTextContent("Work");
     await userEvent.click(screen.getByRole("button", { name: "Create secure note" }));
@@ -135,7 +138,7 @@ describe("CreateRecordSheet", () => {
     });
 
     it("creates from the page bar", async () => {
-      renderAt("/?new=Home&type=wifi");
+      renderAt("/?new=&type=wifi", "Home");
 
       expect(screen.getByRole("heading", { name: "New Wi-Fi network" })).toBeInTheDocument();
       await userEvent.click(screen.getByRole("button", { name: "Create" }));
@@ -143,11 +146,11 @@ describe("CreateRecordSheet", () => {
     });
 
     it("keeps the way back to the type picker in the form", async () => {
-      const location = renderAt("/?new=Home&type=wifi");
+      const location = renderAt("/?new=&type=wifi", "Home");
 
       const form = screen.getByRole("textbox", { name: "Title" }).closest("form") as HTMLElement;
       await userEvent.click(within(form).getByRole("button", { name: "Type" }));
-      expect(location.history.at(-1)).toBe("?new=Home");
+      expect(location.history.at(-1)).toBe("?new=");
     });
 
     it("puts the SSH key buttons above the private key", () => {

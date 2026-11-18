@@ -74,7 +74,7 @@ async function enableTwoFactor(page: Page, password: string, used: Set<number>) 
 
   const key = dialog.getByLabel("Setup key");
   await expect(key).toBeVisible({ timeout: 30_000 });
-  const secret = (await key.getAttribute("data-secret")) ?? "";
+  const secret = (await key.textContent())?.replace(/\s/g, "") ?? "";
   expect(secret).toMatch(/^[A-Z2-7]+$/);
   await expect(dialog.getByRole("img", { name: /qr code/i })).toBeVisible();
 

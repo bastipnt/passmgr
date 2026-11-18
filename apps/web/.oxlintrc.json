@@ -16,11 +16,41 @@
             "message": "Alias removed — use @/ (e.g. @/features/records)."
           },
           {
+            "group": ["@repo/*/src/*", "@repo/*/src/**"],
+            "message": "Import a workspace package through its barrel (e.g. @repo/client); export what's missing there. Tests may reach into src/."
+          },
+          {
             "group": ["../../**"],
             "message": "Don't climb more than one folder up — use @/ for anything further, ./ for siblings. One level up is allowed so a sub-domain folder (records/versions/) can reach its parent feature."
           }
         ]
       }
     ]
-  }
+  },
+  "overrides": [
+    {
+      "files": ["*.test.ts", "*.test.tsx", "src/test/**"],
+      "rules": {
+        "no-restricted-imports": [
+          "error",
+          {
+            "patterns": [
+              {
+                "group": ["@/features/*/*"],
+                "message": "Import a feature through its barrel: @/features/<name>. Inside a feature, use relative ./ imports."
+              },
+              {
+                "group": ["@features/*", "@pages/*", "@components/*", "@utils/*"],
+                "message": "Alias removed — use @/ (e.g. @/features/records)."
+              },
+              {
+                "group": ["../../**"],
+                "message": "Don't climb more than one folder up — use @/ for anything further, ./ for siblings. One level up is allowed so a sub-domain folder (records/versions/) can reach its parent feature."
+              }
+            ]
+          }
+        ]
+      }
+    }
+  ]
 }

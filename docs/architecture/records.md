@@ -109,7 +109,8 @@ records left if added; a detail chip's `showTag` clears the other filters first)
 with `#`, `TAG_SEARCH_PREFIX`, is tag mode) keeps to vault, category and tags; `outsideScope` counts the matches they hide,
 `searchAllItems` widens past vault, category and tags (`canSearchAll`: one of them narrows it, a vault only with several)
 until the query or the filters change or tag mode starts (`OutsideScope`, also on phones); result rows then mark their vault;
-`recentRecords` (session only, search previews excluded); `recentSearches` (text + tags, newest first, once each,
+`recentRecords` (session only, search previews excluded); "Create" from no results prefills the title in memory
+(`prefillCreateSheet`, gone when the sheet closes or unmounts), never in the URL (`?new=` only opens the sheet); `recentSearches` (text + tags, newest first, once each,
 kept when a search opens a record or adds a tag; in memory only and gone on lock, since a query tells which accounts
 exist; only those whose tags the vault in view has, `countSearch` counts each there); `searchSections` builds the groups and `useSearchOptions` turns
 them into ids + selected state for any search UI; `clearFilters`

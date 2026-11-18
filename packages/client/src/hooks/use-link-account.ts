@@ -1,7 +1,7 @@
 import { normalizeEmail, wipe } from "@repo/crypto";
-import type { AccountKeyMaterial } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import { useCallback, useContext, useState } from "react";
+import { opensPasswordWrap } from "../account/change-password";
 import {
   LinkAccountMismatchError,
   type LinkedAccount,
@@ -14,7 +14,6 @@ import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { RegistrationFinishFailedError, RegistrationStartFailedError } from "../register";
-import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
@@ -92,7 +91,8 @@ export function useLinkAccount() {
     if (active.entry.demo) return "demo";
     const { profileId } = active.entry;
 
-    if (!(await opensAccountKey(password, material))) return "wrong_password";
+    // ADR 0001 D9: the password is verified locally first.
+    if (!(await opensPasswordWrap(password, material))) return "wrong_password";
 
     let keyring: ReturnType<typeof localVaultKeyring>;
     try {
@@ -173,16 +173,6 @@ export function useLinkAccount() {
   const clearLinkError = useCallback(() => setLinkError(undefined), []);
 
   return { linkAccount, linkError, clearLinkError, linking };
-}
-
-/** Whether the password opens the stored password wrap (ADR 0001 D9: verified locally first). */
-async function opensAccountKey(password: string, material: AccountKeyMaterial): Promise<boolean> {
-  try {
-    wipe(await unwrapAccountKeyWithPassword(password, material));
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 function linkFailure(e: unknown): LinkAccountError {

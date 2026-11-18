@@ -6,6 +6,12 @@
     "no-restricted-imports": [
       "error",
       {
+        "patterns": [
+          {
+            "group": ["@repo/*/src/*", "@repo/*/src/**"],
+            "message": "Import a workspace package through its barrel (e.g. @repo/client); export what's missing there."
+          }
+        ],
         "paths": [
           {
             "name": "expo-clipboard",

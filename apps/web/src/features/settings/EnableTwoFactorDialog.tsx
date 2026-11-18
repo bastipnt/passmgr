@@ -87,7 +87,6 @@ function ScanStep({
             <span className="text-muted-foreground text-sm">Or enter this setup key:</span>
             <code
               aria-label="Setup key"
-              data-secret={enrollment.secret}
               className="block select-all break-all rounded-xl border border-foreground/10 bg-foreground/[0.03] px-4 py-3 font-medium font-mono text-sm dark:border-white/10 dark:bg-black/30"
             >
               {groupSecret(enrollment.secret)}

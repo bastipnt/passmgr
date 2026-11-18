@@ -4,8 +4,8 @@ import {
   type SearchOption,
   TAG_SEARCH_PREFIX,
   useSearchOptions,
+  useSortedRecords,
 } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
   InputGroup,

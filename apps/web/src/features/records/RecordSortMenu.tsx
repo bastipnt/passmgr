@@ -1,5 +1,4 @@
-import type { SortOption } from "@repo/client/src/providers/SortedRecordsProvider";
-import { SORT_LABELS, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { SORT_LABELS, type SortOption, useSortedRecords } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   DropdownMenu,

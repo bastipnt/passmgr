@@ -1,4 +1,4 @@
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client";
 import Link from "@repo/ui/components/Link";
 import { useFlatGround } from "@repo/ui/hooks/use-flat-ground";
 import { cn } from "@repo/ui/lib/utils";

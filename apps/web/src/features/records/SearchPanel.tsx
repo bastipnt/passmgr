@@ -1,12 +1,13 @@
 import {
   categoryCountLabel,
+  categoryLabel,
   getRecordSubtitle,
   matchRange,
   type SearchOption,
   TAG_SEARCH_PREFIX,
+  useSortedRecords,
   useVaults,
 } from "@repo/client";
-import { categoryLabel, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { ChipLane } from "@repo/ui/components/ChipLane";
 import { Highlight } from "@repo/ui/components/Highlight";
 import { Kbd } from "@repo/ui/components/Kbd";

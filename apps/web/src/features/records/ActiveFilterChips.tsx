@@ -1,8 +1,4 @@
-import {
-  activeFilterCount,
-  categoryLabel,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { activeFilterCount, categoryLabel, useSortedRecords } from "@repo/client";
 import { tagKey } from "@repo/schema";
 import { ChipLane } from "@repo/ui/components/ChipLane";
 import { FilterChip } from "@repo/ui/components/FilterChip";

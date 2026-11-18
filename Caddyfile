@@ -17,7 +17,8 @@
 		X-Content-Type-Options nosniff
 		X-Frame-Options DENY
 		Referrer-Policy no-referrer
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=()"
+		# camera: the TOTP QR scanner (record form), this origin only.
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=()"
 		-Server
 	}
 
@@ -31,7 +32,11 @@
 	handle {
 		# Vite emits content-hashed files under /assets; everything else
 		# (index.html) must revalidate so a deploy is picked up immediately.
-		@assets path /assets/*
+		# Only files that exist: a 404 under /assets must not be cached for a year.
+		@assets {
+			path /assets/*
+			file
+		}
 		header @assets Cache-Control "public, max-age=31536000, immutable"
 		@pages not path /assets/*
 		header @pages Cache-Control no-cache

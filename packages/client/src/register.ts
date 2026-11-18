@@ -1,11 +1,9 @@
-import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { normalizeEmail, OPAQUE_SERVER_IDENTITY, wipe } from "@repo/crypto";
-import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
+import { normalizeEmail, wipe } from "@repo/crypto";
 import type { FinishRegistrationInput } from "@repo/schema";
 import type { AppRouter } from "@repo/types";
 import type { TRPCClient } from "@trpc/client";
 import { generateKeyring } from "./account/new-keyring";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "./opaque";
+import { opaqueInputFor, registerOpaque } from "./opaque";
 
 export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
 
@@ -81,35 +79,19 @@ export async function registerAccount(
   invite?: string,
 ): Promise<void> {
   const email = normalizeEmail(rawEmail);
-  const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-
-  const req = await client.registerInit(await opaqueInputFor(password, email));
-  if (req instanceof Error) throw new RegistrationStartFailedError();
-
-  const registrationRequest = bytesToB64(req.serialize());
-
-  let registrationResponse: string;
-  try {
-    ({ registrationResponse } = await trpc.register.startRegistration.mutate({
-      email,
-      registrationRequest,
-      invite,
-    }));
-  } catch {
-    throw new RegistrationStartFailedError();
-  }
-
-  let resp: RegistrationResponse;
-  try {
-    resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
-  } catch {
-    throw new RegistrationStartFailedError();
-  }
-
-  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
-  if (finished instanceof Error) throw new RegistrationFinishFailedError();
-
-  const registrationRecord = bytesToB64(finished.record.serialize());
+  const { registrationRecord } = await registerOpaque(
+    await opaqueInputFor(password, email),
+    email,
+    async (registrationRequest) => {
+      try {
+        return await trpc.register.startRegistration.mutate({ email, registrationRequest, invite });
+      } catch {
+        throw new RegistrationStartFailedError();
+      }
+    },
+    (phase) =>
+      phase === "start" ? new RegistrationStartFailedError() : new RegistrationFinishFailedError(),
+  );
   const keyring = await getKeyring();
 
   try {

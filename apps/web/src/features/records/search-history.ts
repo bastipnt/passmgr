@@ -1,4 +1,4 @@
-import type { CategoryFilter } from "@repo/client/src/providers/SortedRecordsProvider";
+import type { CategoryFilter } from "@repo/client";
 
 /** Kept in the history entry the phone search pushes, so Back from a record lands on it again. */
 export type SearchEntry = {

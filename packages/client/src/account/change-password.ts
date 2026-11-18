@@ -1,6 +1,4 @@
-import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
-import { normalizeEmail, OPAQUE_SERVER_IDENTITY, wipe } from "@repo/crypto";
-import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
+import { normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
@@ -16,7 +14,7 @@ import {
   SecondFactorExpiredError,
   type SecondFactorPrompt,
 } from "../login";
-import { b64ToBytes, bytesToB64, opaqueConfig as config, opaqueInputFor } from "../opaque";
+import { opaqueInputFor, registerOpaque } from "../opaque";
 import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
@@ -118,32 +116,23 @@ export async function changeAccountPassword(
     onSecondFactor,
   );
 
-  const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-  const req = await client.registerInit(await opaqueInputFor(newPassword, email));
-  if (req instanceof Error) throw new PasswordChangeFailedError();
-
-  const { attemptId, registrationResponse } = await callServer(() =>
-    trpc.user.startPasswordChange.mutate({
-      email,
-      registrationRequest: bytesToB64(req.serialize()),
-    }),
+  const {
+    reply: { attemptId },
+    registrationRecord,
+  } = await registerOpaque(
+    await opaqueInputFor(newPassword, email),
+    email,
+    (registrationRequest) =>
+      callServer(() => trpc.user.startPasswordChange.mutate({ email, registrationRequest })),
+    () => new PasswordChangeFailedError(),
   );
-
-  let resp: RegistrationResponse;
-  try {
-    resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
-  } catch {
-    throw new PasswordChangeFailedError();
-  }
-  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
-  if (finished instanceof Error) throw new PasswordChangeFailedError();
 
   const passwordKeys = await wrapAccountKeyForPassword(newPassword);
   const changed = { ...passwordKeys, userKeyPair: material.userKeyPair };
   try {
     await trpc.user.finishPasswordChange.mutate({
       attemptId,
-      registrationRecord: bytesToB64(finished.record.serialize()),
+      registrationRecord,
       passwordKeys,
     });
   } catch (e) {

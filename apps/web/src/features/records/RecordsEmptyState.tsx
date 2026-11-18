@@ -1,9 +1,10 @@
-import { IMPORT_SOURCE_LIST, RECORD_TYPE_LABELS } from "@repo/client";
 import {
   activeFilterCount,
   emptyCategoryCreateType,
+  IMPORT_SOURCE_LIST,
+  RECORD_TYPE_LABELS,
   useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+} from "@repo/client";
 import type { RecordType } from "@repo/schema";
 import { BrandMark } from "@repo/ui/components/BrandMark";
 import { Button } from "@repo/ui/components/Button";
@@ -73,7 +74,7 @@ function FilteredEmptyState({
         </EmptyHeader>
         <EmptyContent className="flex-row flex-wrap justify-center">
           {labels && (
-            <Link variant="default" href={createSheetSearch(undefined, createType)}>
+            <Link variant="default" href={createSheetSearch(createType)}>
               <PlusIcon />
               New {labels.noun}
             </Link>

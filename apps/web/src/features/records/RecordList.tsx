@@ -1,20 +1,18 @@
 import {
+  activeFilterCount,
+  type CategoryFilter,
   emptyCategoryCreateType,
   emptyCategoryHint,
   getRecordSubtitle,
   listHeading,
   RECORD_TYPE_LABELS,
+  type RecordGroup,
   useGetRecords,
   useShortcut,
+  useSortedRecords,
   useVaults,
   type VaultInfo,
 } from "@repo/client";
-import {
-  activeFilterCount,
-  type CategoryFilter,
-  type RecordGroup,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -206,7 +204,7 @@ function EmptyRecordList({
           variant="outline"
           size="lg"
           className="self-start"
-          href={createSheetSearch(undefined, createType)}
+          href={createSheetSearch(createType)}
         >
           <PlusIcon />
           New {RECORD_TYPE_LABELS[createType].noun}

@@ -4,13 +4,13 @@ import {
   profileHue,
   removeVaultDescription,
   signInErrorMessage,
+  timed,
   useLogin,
   usePendingChangeCount,
   useSecondFactorRequest,
   useStore,
   useUnlock,
 } from "@repo/client";
-import { timed } from "@repo/client/src/util/perf";
 import { useCallback, useState } from "react";
 import { Redirect } from "wouter";
 import { authPaths } from "@/app/route-paths";

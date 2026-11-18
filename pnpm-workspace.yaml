@@ -61,7 +61,6 @@ catalog:
   react: 19.2.3
   react-dom: 19.2.3
   react-hook-form: ^7.81.0
-  react-icons: ^5.7.0
   react-native: 0.86.3
   react-native-keyboard-controller: 1.21.9
   react-native-reanimated: 4.5.1
@@ -113,13 +112,6 @@ minimumReleaseAgeExclude:
   - node-forge@1.4.2
 
 nodeLinker: hoisted
-
-onlyBuiltDependencies:
-  - cpu-features
-  - fallow
-  - protobufjs
-  - sharp
-  - ssh
 
 overrides:
   # lightningcss: "1.30.1"

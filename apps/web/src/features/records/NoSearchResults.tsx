@@ -1,4 +1,4 @@
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
   Empty,

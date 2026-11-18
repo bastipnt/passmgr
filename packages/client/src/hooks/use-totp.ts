@@ -1,4 +1,4 @@
-import { getToken } from "@repo/crypto";
+import { getToken, UnsupportedTotpUriError } from "@repo/crypto";
 import { isDefined } from "@repo/util";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -44,10 +44,14 @@ export function useTotp(totpSecret?: string) {
           setIsInvalid(false);
           setToken(next);
         }
-      } catch {
+      } catch (e) {
         if (!cancelled) {
           setIsInvalid(true);
-          setToken("invalid TOTP secret");
+          setToken(
+            e instanceof UnsupportedTotpUriError
+              ? "unsupported TOTP settings"
+              : "invalid TOTP secret",
+          );
         }
       }
     }

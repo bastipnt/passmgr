@@ -5,9 +5,25 @@ const guardrails = createGuardrails({
   MIN_SECRET_BYTES: 10,
 });
 
+/** An `otpauth://` URI whose codes this app can't make (only TOTP, 6 digits, 30 s, SHA-1). */
+export class UnsupportedTotpUriError extends Error {
+  override message = "UnsupportedTotpUriError";
+}
+
+/** The current 6-digit code for a base32 secret or an `otpauth://totp/` URI. */
 export async function getToken(secret: string | Uint8Array) {
-  const key = typeof secret === "string" ? (totpSecretFromUri(secret) ?? secret) : secret;
-  return await generate({ secret: key, guardrails });
+  return await generate({
+    secret: typeof secret === "string" ? totpKey(secret) : secret,
+    guardrails,
+  });
+}
+
+function totpKey(value: string): string {
+  if (!/^\s*otpauth:/i.test(value)) return value;
+  const secret = totpSecretFromUri(value);
+  // Not the URI itself as the secret: other digits, period or algorithm (or no secret) would give wrong codes.
+  if (secret === undefined) throw new UnsupportedTotpUriError();
+  return secret;
 }
 
 const TOTP_URI_DEFAULTS: Record<string, string> = { algorithm: "sha1", digits: "6", period: "30" };

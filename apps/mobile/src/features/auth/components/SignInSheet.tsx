@@ -3,12 +3,12 @@ import {
   profileLabel,
   signInErrorMessage,
   signInToAccount,
+  timed,
   useLogin,
   useSecondFactorRequest,
   useStore,
   useUnlock,
 } from "@repo/client";
-import { timed } from "@repo/client/src/util/perf";
 import { passwordSchema } from "@repo/schema";
 import {
   BottomSheet,

@@ -1,8 +1,4 @@
-import {
-  type CategoryFilter,
-  categoryLabel,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { type CategoryFilter, categoryLabel, useSortedRecords } from "@repo/client";
 import { RECORD_TYPES } from "@repo/schema";
 import { SidebarDivider, SidebarItem } from "@repo/ui/components/SidebarItem";
 import { cn } from "@repo/ui/lib/utils";

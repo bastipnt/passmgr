@@ -49,10 +49,3 @@ export function toBase64(input: Uint8Array): string {
   for (let i = 0; i < input.length; i++) s += String.fromCharCode(input[i]!);
   return btoa(s);
 }
-
-/**
- * Convert Uint8Array to ArrayBuffer
- */
-export function toBuffer(input: Uint8Array): ArrayBufferLike {
-  return input.buffer;
-}

@@ -14,7 +14,7 @@ import { SheetMediaHeader } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { ChevronLeftIcon, PlusIcon } from "lucide-react";
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultPicker } from "@/features/vaults";
@@ -25,13 +25,12 @@ import { RecordTypePicker } from "./RecordTypePicker";
 import { searchReturnState } from "./search-history";
 
 /**
- * Href that opens the create sheet over whatever is currently in view,
- * optionally prefilling the title. Without a `type` the sheet starts at the
- * type picker. The sheet is a URL mode, so entry points are links — which
- * also makes ⌘-click and middle-click work.
+ * Href that opens the create sheet over whatever is currently in view. Without
+ * a `type` the sheet starts at the type picker. The sheet is a URL mode, so
+ * entry points are links — which also makes ⌘-click and middle-click work.
  */
-export function createSheetSearch(title?: string, type?: RecordType) {
-  const params = new URLSearchParams({ [recordPaths.createParam]: title?.trim() ?? "" });
+export function createSheetSearch(type?: RecordType) {
+  const params = new URLSearchParams({ [recordPaths.createParam]: "" });
   if (type) params.set(recordPaths.createTypeParam, type);
   return `?${params}`;
 }
@@ -45,10 +44,23 @@ function parseType(value: string | null): RecordType | undefined {
   return RECORD_TYPES.find((type) => type === value);
 }
 
+/**
+ * The title the create sheet opens with (e.g. the search text). Kept in memory, never in the URL:
+ * there it would stay in the browser history after the vault locks.
+ */
+let prefilledTitle: string | undefined;
+
+export function prefillCreateSheet(title?: string) {
+  prefilledTitle = title?.trim() || undefined;
+}
+
 /** Imperative form of {@link createSheetSearch}, for entry points that also do other work. */
 export function useOpenCreateSheet() {
   const [, navigate] = useLocation();
-  return (title?: string) => navigate(createSheetSearch(title), { state: searchReturnState() });
+  return (title?: string) => {
+    prefillCreateSheet(title);
+    navigate(createSheetSearch(), { state: searchReturnState() });
+  };
 }
 
 export default function CreateRecordSheet() {
@@ -57,9 +69,14 @@ export default function CreateRecordSheet() {
   const isMobile = useIsMobile();
   const formRef = useRef<RecordFormHandle>(null);
 
-  // Presence opens the sheet; the value, if any, is the prefilled title.
-  const initialTitle = searchParams.get(recordPaths.createParam) || undefined;
+  // Presence opens the sheet. The prefilled title lasts while it's open (type picker → form).
   const open = searchParams.has(recordPaths.createParam);
+  const initialTitle = open ? prefilledTitle : undefined;
+  useEffect(() => {
+    if (!open) prefillCreateSheet(undefined);
+  }, [open]);
+  // Also when the sheet goes away open, e.g. the vault locks: the title mustn't outlive it.
+  useEffect(() => () => prefillCreateSheet(undefined), []);
   const duplicateId = open ? searchParams.get(recordPaths.createDuplicateParam) : null;
   const source = useDuplicateSource(duplicateId, () => {
     toast.error("This item is no longer available");
@@ -102,9 +119,7 @@ export default function CreateRecordSheet() {
       size="lg"
       type="button"
       disabled={createPending}
-      onClick={() =>
-        navigate(createSheetSearch(initialTitle), { replace: true, state: searchReturnState() })
-      }
+      onClick={() => navigate(createSheetSearch(), { replace: true, state: searchReturnState() })}
     >
       <ChevronLeftIcon />
       Type
@@ -169,7 +184,7 @@ export default function CreateRecordSheet() {
           ref={formRef}
         />
       ) : duplicateId ? null : (
-        <RecordTypePicker hrefFor={(pick) => createSheetSearch(initialTitle, pick)} />
+        <RecordTypePicker hrefFor={(pick) => createSheetSearch(pick)} />
       )}
     </RecordFormSheet>
   );

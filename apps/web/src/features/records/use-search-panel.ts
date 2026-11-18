@@ -1,5 +1,4 @@
-import { type SearchOption, useSearchOptions } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { type SearchOption, useSearchOptions, useSortedRecords } from "@repo/client";
 import {
   type KeyboardEvent,
   type PointerEvent,

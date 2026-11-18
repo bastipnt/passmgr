@@ -4,7 +4,7 @@ import {
   categoryCountLabel,
   categoryShortLabel,
   useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+} from "@repo/client";
 import { tagKey } from "@repo/schema";
 import { ResponsiveSheet, SheetDrawerHeader } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";

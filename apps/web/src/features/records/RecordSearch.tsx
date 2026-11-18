@@ -1,5 +1,10 @@
-import { parseSearch, TAG_SEARCH_PREFIX, useShortcut, useVaults } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import {
+  parseSearch,
+  TAG_SEARCH_PREFIX,
+  useShortcut,
+  useSortedRecords,
+  useVaults,
+} from "@repo/client";
 import {
   InputGroup,
   InputGroupAddon,

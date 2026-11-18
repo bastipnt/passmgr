@@ -1,16 +1,13 @@
-import { OpaqueClient, type RegistrationClient, RegistrationResponse } from "@cloudflare/opaque-ts";
 import {
   deriveRecoveryAuthKey,
   generateRecoveryKeys,
   generateUserKeys,
   normalizeEmail,
-  OPAQUE_SERVER_IDENTITY,
   openPendingRecovery,
   sealPendingRecovery,
   unwrapAccountKeyWithRecoveryKey,
   wipe,
 } from "@repo/crypto";
-import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
   type AccountKeyMaterial,
   type MemberVault,
@@ -27,13 +24,7 @@ import { devicePasswordKekParams } from "./account/password-kek-params";
 import { wrapGivenAccountKeyForPassword } from "./account/rekey-password-keys";
 import { assertOpensPersonalVault } from "./account/verify-server-keyring";
 import { LoginThrottledError, LoginUnreachableError } from "./login";
-import {
-  b64ToBytes,
-  bytesToB64,
-  opaqueConfig as config,
-  opaqueInput,
-  opaqueInputFor,
-} from "./opaque";
+import { opaqueInput, opaqueInputFor, registerOpaque } from "./opaque";
 import { deriveArgon2InWorker } from "./util/derive-password-kek";
 import { isServerAnswer, isServerError, isThrottled } from "./util/trpc-errors";
 
@@ -102,44 +93,39 @@ export async function recoverAccount(
   let accountKey: Uint8Array | undefined;
 
   try {
-    const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-    const req = await client.registerInit(await opaqueInputFor(newPassword, email));
-    if (req instanceof Error) throw new RecoveryFailedError();
-
-    const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);
-    let attemptId: string;
-    let registrationResponse: string;
-    let recoveryKeys: RecoveryWrapSchema;
-    try {
-      ({ attemptId, registrationResponse, recoveryKeys } = await trpc.recovery.startRecovery.mutate(
-        {
-          email,
-          recoveryAuthKey: toBase64(recoveryAuthKey),
-          registrationRequest: bytesToB64(req.serialize()),
-        },
-      ));
-    } catch (err) {
-      if (isThrottled(err)) throw new LoginThrottledError();
-      throw new RecoveryFailedError();
-    } finally {
-      wipe(recoveryAuthKey);
-    }
-
-    try {
-      accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, recoveryKeys);
-    } catch {
-      // Verifier matched but the wrap doesn't — corrupt or tampered key set.
-      throw new RecoveryFailedError();
-    }
-
-    let resp: RegistrationResponse;
-    try {
-      resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
-    } catch {
-      throw new RecoveryFailedError();
-    }
-    const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
-    if (finished instanceof Error) throw new RecoveryFailedError();
+    const {
+      reply: { attemptId },
+      registrationRecord,
+    } = await registerOpaque(
+      await opaqueInputFor(newPassword, email),
+      email,
+      async (registrationRequest) => {
+        const recoveryAuthKey = await deriveRecoveryAuthKey(recoveryKey);
+        let reply: Awaited<ReturnType<RecoveryTRPCClient["recovery"]["startRecovery"]["mutate"]>>;
+        try {
+          reply = await trpc.recovery.startRecovery.mutate({
+            email,
+            recoveryAuthKey: toBase64(recoveryAuthKey),
+            registrationRequest,
+          });
+        } catch (err) {
+          if (isThrottled(err)) throw new LoginThrottledError();
+          throw new RecoveryFailedError();
+        } finally {
+          wipe(recoveryAuthKey);
+        }
+        // Here, before registerFinish runs the KSF: a key set that doesn't open fails at once.
+        try {
+          accountKey = await unwrapAccountKeyWithRecoveryKey(recoveryKey, reply.recoveryKeys);
+        } catch {
+          // Verifier matched but the wrap doesn't — corrupt or tampered key set.
+          throw new RecoveryFailedError();
+        }
+        return reply;
+      },
+      () => new RecoveryFailedError(),
+    );
+    if (!accountKey) throw new RecoveryFailedError();
 
     const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(
       newPassword,
@@ -152,7 +138,7 @@ export async function recoverAccount(
       await trpc.recovery.finishRecovery.mutate({
         email,
         attemptId,
-        registrationRecord: bytesToB64(finished.record.serialize()),
+        registrationRecord,
         userKeys,
       });
     } catch (err) {
@@ -354,36 +340,31 @@ export async function finishPendingRecovery(
   pending: PendingRecovery,
 ): Promise<void> {
   const email = normalizeEmail(rawEmail);
-  const client: RegistrationClient = new OpaqueClient(config, opaqueKsf);
-  const req = await client.registerInit(opaqueInput(opaquePassword));
-  if (req instanceof Error) throw new RecoveryFailedError();
-
-  let attemptId: string;
-  let registrationResponse: string;
-  try {
-    ({ attemptId, registrationResponse } = await trpc.recovery.startRecovery.mutate({
-      email,
-      recoveryAuthKey: pending.recoveryAuthKey,
-      registrationRequest: bytesToB64(req.serialize()),
-    }));
-  } catch (err) {
-    throw recoveryRequestFailure(err);
-  }
-
-  let resp: RegistrationResponse;
-  try {
-    resp = RegistrationResponse.deserialize(config, b64ToBytes(registrationResponse));
-  } catch {
-    throw new RecoveryFailedError();
-  }
-  const finished = await client.registerFinish(resp, OPAQUE_SERVER_IDENTITY, email);
-  if (finished instanceof Error) throw new RecoveryFailedError();
+  const {
+    reply: { attemptId },
+    registrationRecord,
+  } = await registerOpaque(
+    opaqueInput(opaquePassword),
+    email,
+    async (registrationRequest) => {
+      try {
+        return await trpc.recovery.startRecovery.mutate({
+          email,
+          recoveryAuthKey: pending.recoveryAuthKey,
+          registrationRequest,
+        });
+      } catch (err) {
+        throw recoveryRequestFailure(err);
+      }
+    },
+    () => new RecoveryFailedError(),
+  );
 
   try {
     await trpc.recovery.finishRecovery.mutate({
       email,
       attemptId,
-      registrationRecord: bytesToB64(finished.record.serialize()),
+      registrationRecord,
       userKeys: pending.userKeys,
     });
   } catch (err) {

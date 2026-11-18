@@ -6,6 +6,7 @@ import {
   getToken,
   totpSecretFromUri,
   totpUri,
+  UnsupportedTotpUriError,
   verifyToken,
 } from "../src/totp";
 
@@ -66,6 +67,13 @@ describe("getToken — input handling", () => {
   it("accepts an otpauth URI", async () => {
     const token = await getToken("otpauth://totp/x?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ");
     expect(token).toBe("287082");
+  });
+
+  it("refuses an otpauth URI it can't produce codes for", async () => {
+    await expect(getToken("otpauth://totp/x?secret=ABC&digits=8")).rejects.toThrow(
+      UnsupportedTotpUriError,
+    );
+    await expect(getToken("otpauth://hotp/x?secret=ABC")).rejects.toThrow(UnsupportedTotpUriError);
   });
 
   it("returns a 6-digit string", async () => {

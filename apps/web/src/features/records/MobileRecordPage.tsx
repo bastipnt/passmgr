@@ -1,5 +1,4 @@
-import { getPrimaryWebsite, useRecordVault } from "@repo/client";
-import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import { getPrimaryWebsite, useRecordVault, useSortedRecords } from "@repo/client";
 import type { DecryptedRecord } from "@repo/schema";
 import { Button } from "@repo/ui/components/Button";
 import Link from "@repo/ui/components/Link";

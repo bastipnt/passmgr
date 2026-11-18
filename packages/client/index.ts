@@ -133,6 +133,7 @@ export * from "./src/util/decrypt-record";
 export * from "./src/util/encrypt-record";
 export { endServerSession } from "./src/util/end-server-session";
 export { generateAuthHeaders } from "./src/util/headers";
+export { timed } from "./src/util/perf";
 export * from "./src/util/profile-label";
 export * from "./src/util/server-url";
 export * from "./src/util/session-label";

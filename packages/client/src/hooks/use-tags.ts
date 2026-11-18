@@ -79,7 +79,6 @@ export function useTagActions() {
       const parsed = tagSchema.safeParse(to);
       if (!parsed.success) throw new InvalidTagError(parsed.error.issues[0]?.message);
       if (parsed.data === from) return { changed: 0, skipped: 0 };
-      if (parsed.data === from) return { changed: 0, skipped: 0 };
       return await mutation.mutateAsync({
         tag: from,
         edit: (tags) => renameTagIn(tags, from, parsed.data),

@@ -1,5 +1,10 @@
-import { RECORD_TYPE_LABELS, TAG_SEARCH_PREFIX, useVaults } from "@repo/client";
-import { categoryLabel, useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
+import {
+  categoryLabel,
+  RECORD_TYPE_LABELS,
+  TAG_SEARCH_PREFIX,
+  useSortedRecords,
+  useVaults,
+} from "@repo/client";
 import { cn } from "@repo/ui/lib/utils";
 
 /** The search's matches the vault, category and tags hide, with a way to widen it past them. */
