@@ -29,6 +29,8 @@ type RowTextProps = {
   icon?: LucideIcon;
   /** Colors the icon tile (a warning event, a synced vault). */
   iconTone?: StatusTone;
+  /** A leading element of its own in place of `icon` (a vault's tile). */
+  media?: ReactNode;
   label: ReactNode;
   hint?: ReactNode;
   /** Shown after the label ("Two-factor authentication · Off"): describes the control, doesn't name it. */
@@ -72,6 +74,7 @@ const pressableRowClassName =
 function RowText({
   icon: Icon,
   iconTone = "neutral",
+  media,
   label,
   hint,
   status,
@@ -81,7 +84,8 @@ function RowText({
 }: RowTextProps & { labelId: string; statusId: string; hintId: string }) {
   return (
     <>
-      {Icon && (
+      {media}
+      {!media && Icon && (
         <span
           aria-hidden="true"
           className={cn(
@@ -183,6 +187,7 @@ type SettingsRowButtonProps = RowTextProps &
 export function SettingsRowButton({
   icon,
   iconTone,
+  media,
   label,
   hint,
   status,
@@ -198,6 +203,7 @@ export function SettingsRowButton({
         ids={pressable.ids}
         icon={icon}
         iconTone={iconTone}
+        media={media}
         label={label}
         hint={hint}
         status={status}

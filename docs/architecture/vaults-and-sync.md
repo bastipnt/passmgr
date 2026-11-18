@@ -94,7 +94,7 @@ rejects a put under another key (`key_version`, the client retries it re-encrypt
 key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
 resumable). History keeps the old key. The new key is sealed to every other member and invitee (`memberKeys`; exactly
 the server's member set, else `PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the
-current key (`CONFLICT` otherwise). Web: Settings → Vaults (key icon); mobile: `settings/vault` sheet.
+current key (`CONFLICT` otherwise). Web: Settings → Vaults (a vault's ⋯ menu → Rotate key; on a phone its row's sheet); mobile: `settings/vault` sheet.
 
 ## Sharing
 
@@ -130,5 +130,6 @@ records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vault
 rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
 first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
 it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
-Settings → Vaults); mobile:
+Settings → Vaults: "New vault", one row per vault with Members (shared) and a ⋯ menu (Edit, Rotate key, Delete; on a
+phone the row opens `VaultActionsSheet` with all four), then the user's security code to read out); mobile:
 Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.

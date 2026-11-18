@@ -33,8 +33,16 @@ type FormValues = z.infer<typeof schema>;
  * Create an online account from this local vault (ADR 0001 D9): same master
  * password, same recovery key. The vault then syncs with the account.
  */
-export default function CreateAccountDialog({ children }: { children: ReactElement }) {
-  const [open, setOpen] = useState(false);
+export default function CreateAccountDialog({
+  children,
+  open: controlledOpen,
+  onOpenChange,
+}:
+  | { children: ReactElement; open?: never; onOpenChange?: never }
+  | { children?: never; open: boolean; onOpenChange: (open: boolean) => void }) {
+  const [uncontrolledOpen, setUncontrolledOpen] = useState(false);
+  const open = controlledOpen ?? uncontrolledOpen;
+  const setOpen = onOpenChange ?? setUncontrolledOpen;
   const { registrationEnabled } = useAppConfig();
   const { linkAccount, linkError, clearLinkError, linking } = useLinkAccount();
   const { handleSubmit, control, reset } = useForm<FormValues>({
@@ -58,7 +66,7 @@ export default function CreateAccountDialog({ children }: { children: ReactEleme
         setOpen(next);
       }}
     >
-      <DialogTrigger render={children} />
+      {children && <DialogTrigger render={children} />}
 
       <DialogContent className="sm:max-w-md">
         <form onSubmit={handleSubmit(onSubmit)}>

@@ -1,6 +1,5 @@
 import {
   itemCount,
-  ownFingerprint,
   SessionContext,
   useGetRecords,
   useVaultActions,
@@ -12,20 +11,23 @@ import { canManageVault } from "@repo/schema";
 import { Badge } from "@repo/ui/components/Badge";
 import { Button } from "@repo/ui/components/Button";
 import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemMedia,
-  ItemTitle,
-} from "@repo/ui/components/Item";
-import { KeyRoundIcon, PencilLineIcon, PlusIcon, TrashIcon, UsersIcon } from "lucide-react";
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@repo/ui/components/DropdownMenu";
+import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import {
+  EllipsisIcon,
+  KeyRoundIcon,
+  PencilLineIcon,
+  PlusIcon,
+  TrashIcon,
+  UsersIcon,
+} from "lucide-react";
 import { useContext, useState } from "react";
-import { PanelHeader, PanelTitle } from "@/components/AppShell";
 import {
   DeleteVaultDialog,
-  Fingerprint,
   RevokedVaults,
   RotateVaultKeyDialog,
   VaultDialog,
@@ -34,6 +36,31 @@ import {
   VaultTile,
 } from "@/features/vaults";
 import CreateAccountDialog from "./CreateAccountDialog";
+import { SecurityCodeCard } from "./SecurityCodeCard";
+import { SettingsGroup } from "./SettingsGroup";
+import { SettingsPage } from "./SettingsPage";
+import { SettingsRow, SettingsRowButton } from "./SettingsRow";
+import { type VaultAction, VaultActionsSheet } from "./VaultActionsSheet";
+
+/**
+ * A vault dialog's state. The vault stays set while the dialog closes, so its
+ * content doesn't change or empty during the exit animation.
+ */
+function useVaultDialog() {
+  const [vault, setVault] = useState<VaultInfo>();
+  const [open, setOpen] = useState(false);
+  const show = (next: VaultInfo) => {
+    setVault(next);
+    setOpen(true);
+  };
+  return { vault, open, setOpen, show };
+}
+
+/** Who the vault is for, after its item count: "only you", "you own it", "can edit". */
+function vaultRelation(vault: VaultInfo, phone: boolean): string {
+  if (vault.kind === "personal") return phone ? "default for new items" : "only you";
+  return vaultAccessLabel(vault)?.toLowerCase() ?? "you own it";
+}
 
 /**
  * The profile's vaults (ADR 0001 D6): create one, rename it or change its icon
@@ -41,182 +68,229 @@ import CreateAccountDialog from "./CreateAccountDialog";
  * the personal one). Shared vaults show their members (ADR 0001 D7): owners and
  * managers invite people there; a local profile needs an online account first.
  * Invites to other people's vaults and changes left over from a lost vault show
- * above the list.
+ * above the list. Desktop: Members + a ⋯ menu per row; phone: a row opens
+ * `VaultActionsSheet`.
  */
 export default function VaultsSettingsPage() {
   const { vaults } = useVaults();
   const { records } = useGetRecords();
   const { canChangeVaults } = useVaultActions();
   const { mode } = useContext(SessionContext);
-  const fingerprint = mode === "online" ? ownFingerprint() : undefined;
+  const isMobile = useIsMobile();
   const [createOpen, setCreateOpen] = useState(false);
-  // The vault a dialog is for stays set while the dialog closes, so its content
-  // doesn't change or empty during the exit animation.
-  const [editing, setEditing] = useState<VaultInfo>();
-  const [editOpen, setEditOpen] = useState(false);
-  const [deleting, setDeleting] = useState<VaultInfo>();
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [rotating, setRotating] = useState<VaultInfo>();
-  const [rotateOpen, setRotateOpen] = useState(false);
-  const [sharing, setSharing] = useState<VaultInfo>();
-  const [membersOpen, setMembersOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const editDialog = useVaultDialog();
+  const rotateDialog = useVaultDialog();
+  const deleteDialog = useVaultDialog();
+  const membersDialog = useVaultDialog();
+  // By id, so the sheet follows a rename or a role change while it's open.
+  const [sheetVaultId, setSheetVaultId] = useState<string>();
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheetVault = vaults.find((vault) => vault.vaultId === sheetVaultId);
 
   const counts = new Map<string, number>();
   for (const record of records) counts.set(record.vaultId, (counts.get(record.vaultId) ?? 0) + 1);
 
-  return (
-    <>
-      <PanelHeader className="flex-row items-center justify-between">
-        <PanelTitle>Vaults</PanelTitle>
-        <Button variant="outline" disabled={!canChangeVaults} onClick={() => setCreateOpen(true)}>
-          <PlusIcon />
-          New vault
-        </Button>
-      </PanelHeader>
-      <div className="flex flex-col gap-3 px-4 pb-4">
-        {!canChangeVaults && (
-          <p className="text-muted-foreground text-sm">
-            You're offline. Vaults change on the server, so connect to create, edit, delete or share
-            one. Shared vaults stay usable meanwhile.
-          </p>
-        )}
-        <VaultInvitations />
-        <RevokedVaults />
-        <ItemGroup>
-          {vaults.map((vault) => {
-            const access = vaultAccessLabel(vault);
-            const canEdit = canChangeVaults && canManageVault(vault.role);
-            const canDelete =
-              canChangeVaults && vault.kind !== "personal" && vault.role === "owner";
-            return (
-              <Item key={vault.vaultId} variant="outline">
-                <ItemMedia>
-                  <VaultTile vault={vault} />
-                </ItemMedia>
-                <ItemContent className="min-w-0 gap-1">
-                  <ItemTitle className="flex items-center gap-2">
-                    <span className="truncate">{vault.name}</span>
-                    {access && <Badge variant="outline">{access}</Badge>}
-                  </ItemTitle>
-                  <ItemDescription>
-                    {itemCount(counts.get(vault.vaultId) ?? 0)}
-                    {vault.kind === "personal" &&
-                      " · new items go here unless you pick another vault"}
-                  </ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  {vault.kind === "shared" && (
-                    <MembersButton
-                      vault={vault}
-                      local={mode === "local"}
-                      disabled={mode === "offline"}
-                      onOpen={() => {
-                        setSharing(vault);
-                        setMembersOpen(true);
-                      }}
-                    />
-                  )}
-                  {canEdit && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label={`Edit ${vault.name}`}
-                      onClick={() => {
-                        setEditing(vault);
-                        setEditOpen(true);
-                      }}
-                    >
-                      <PencilLineIcon />
-                    </Button>
-                  )}
-                  {canEdit && (
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      aria-label={`Rotate the key of ${vault.name}`}
-                      title="Rotate key"
-                      onClick={() => {
-                        setRotating(vault);
-                        setRotateOpen(true);
-                      }}
-                    >
-                      <KeyRoundIcon />
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                      variant="ghost-destructive"
-                      size="icon"
-                      aria-label={`Delete ${vault.name}`}
-                      onClick={() => {
-                        setDeleting(vault);
-                        setDeleteOpen(true);
-                      }}
-                    >
-                      <TrashIcon />
-                    </Button>
-                  )}
-                </ItemActions>
-              </Item>
-            );
-          })}
-        </ItemGroup>
-        {fingerprint && (
-          <section className="flex flex-col gap-2" aria-labelledby="own-fingerprint">
-            <h2 id="own-fingerprint" className="font-medium text-sm">
-              Your security code
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Someone sharing a vault with you sees this code for you. Read it to them so they know
-              the vault key reaches you and nobody else.
-            </p>
-            <Fingerprint value={fingerprint} className="sm:max-w-sm" />
-          </section>
-        )}
-      </div>
+  /** Members (or Share, for a local profile), then Edit, Rotate key and Delete. */
+  const vaultActions = (vault: VaultInfo): VaultAction[] => {
+    const actions: VaultAction[] = [];
+    if (vault.kind === "shared")
+      actions.push(
+        mode === "local"
+          ? {
+              key: "members",
+              label: "Share",
+              ariaLabel: `Share ${vault.name}`,
+              description: "Sharing needs an online account",
+              icon: UsersIcon,
+              run: () => setShareOpen(true),
+            }
+          : {
+              key: "members",
+              label: "Members",
+              ariaLabel: `Members of ${vault.name}`,
+              description: mode === "offline" ? "Connect to see members or share" : undefined,
+              icon: UsersIcon,
+              disabled: mode === "offline",
+              run: () => membersDialog.show(vault),
+            },
+      );
+    if (canChangeVaults && canManageVault(vault.role))
+      actions.push(
+        { key: "edit", label: "Edit", icon: PencilLineIcon, run: () => editDialog.show(vault) },
+        {
+          key: "rotate",
+          label: "Rotate key",
+          icon: KeyRoundIcon,
+          run: () => rotateDialog.show(vault),
+        },
+      );
+    if (canChangeVaults && vault.kind !== "personal" && vault.role === "owner")
+      actions.push({
+        key: "delete",
+        label: "Delete",
+        icon: TrashIcon,
+        destructive: true,
+        run: () => deleteDialog.show(vault),
+      });
+    return actions;
+  };
 
-      <VaultDialog open={createOpen} onOpenChange={setCreateOpen} />
-      <VaultDialog open={editOpen} vault={editing} onOpenChange={setEditOpen} />
-      {deleting && (
-        <DeleteVaultDialog vault={deleting} open={deleteOpen} onOpenChange={setDeleteOpen} />
-      )}
-      {rotating && (
-        <RotateVaultKeyDialog vault={rotating} open={rotateOpen} onOpenChange={setRotateOpen} />
-      )}
-      {sharing && (
-        <VaultMembersDialog vault={sharing} open={membersOpen} onOpenChange={setMembersOpen} />
-      )}
-    </>
-  );
-}
-
-type MembersButtonProps = {
-  vault: VaultInfo;
-  /** A local profile shares nothing: the button offers an online account instead. */
-  local: boolean;
-  disabled: boolean;
-  onOpen: () => void;
-};
-
-/** Open a shared vault's members (and invite); offline it's disabled, local it leads to an account. */
-function MembersButton({ vault, local, disabled, onOpen }: MembersButtonProps) {
-  const button = (
+  const newVault = (
     <Button
-      variant="outline"
-      size="icon"
-      aria-label={local ? `Share ${vault.name}` : `Members of ${vault.name}`}
-      title={
-        local
-          ? "Sharing needs an online account"
-          : disabled
-            ? "Connect to see members or share"
-            : "Members and sharing"
-      }
-      disabled={disabled}
-      onClick={local ? undefined : onOpen}
+      disabled={!canChangeVaults}
+      onClick={() => setCreateOpen(true)}
+      className={isMobile ? "w-full" : undefined}
     >
-      <UsersIcon />
+      <PlusIcon />
+      New vault
     </Button>
   );
-  return local ? <CreateAccountDialog>{button}</CreateAccountDialog> : button;
+
+  return (
+    <SettingsPage
+      title="Vaults"
+      description="Keep items apart, and share a vault with the people who need it."
+      action={isMobile ? undefined : newVault}
+    >
+      {!canChangeVaults && (
+        <p className="text-muted-foreground text-sm">
+          You're offline. Vaults change on the server, so connect to create, edit, delete or share
+          one. Shared vaults stay usable meanwhile.
+        </p>
+      )}
+      <VaultInvitations />
+      <RevokedVaults />
+      <SettingsGroup
+        label="Your vaults"
+        list
+        footnote={
+          isMobile
+            ? "Tap a vault for Members, Edit, Rotate key and Delete."
+            : "Edit, Rotate key and Delete are in each vault's ⋯ menu. Personal can't be shared or deleted."
+        }
+      >
+        {vaults.map((vault) => {
+          const hint = `${itemCount(counts.get(vault.vaultId) ?? 0)} · ${vaultRelation(vault, isMobile)}`;
+          const actions = vaultActions(vault);
+          const members = actions.find((action) => action.key === "members");
+          const menu = actions.filter((action) => action !== members);
+          if (isMobile)
+            return (
+              <li key={vault.vaultId}>
+                {actions.some((action) => !action.disabled) ? (
+                  <SettingsRowButton
+                    media={<VaultTile vault={vault} />}
+                    label={vault.name}
+                    hint={hint}
+                    chevron
+                    onClick={() => {
+                      setSheetVaultId(vault.vaultId);
+                      setSheetOpen(true);
+                    }}
+                  />
+                ) : (
+                  <SettingsRow media={<VaultTile vault={vault} />} label={vault.name} hint={hint} />
+                )}
+              </li>
+            );
+          return (
+            <li key={vault.vaultId}>
+              <SettingsRow
+                media={<VaultTile vault={vault} />}
+                label={vault.name}
+                hint={hint}
+                control={
+                  <>
+                    {vault.kind === "personal" && (
+                      <Badge variant="secondary">Default for new items</Badge>
+                    )}
+                    {members && (
+                      <Button
+                        variant="outline"
+                        disabled={members.disabled}
+                        title={members.description}
+                        aria-label={members.ariaLabel}
+                        onClick={members.run}
+                      >
+                        <UsersIcon />
+                        {members.label}
+                      </Button>
+                    )}
+                    {menu.length > 0 && (
+                      <DropdownMenu>
+                        <DropdownMenuTrigger
+                          render={
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              aria-label={`More actions for ${vault.name}`}
+                            >
+                              <EllipsisIcon />
+                            </Button>
+                          }
+                        />
+                        <DropdownMenuContent align="end">
+                          {menu.map((action) => (
+                            <DropdownMenuItem
+                              key={action.key}
+                              variant={action.destructive ? "destructive" : undefined}
+                              onClick={action.run}
+                            >
+                              <action.icon />
+                              {action.label}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    )}
+                  </>
+                }
+              />
+            </li>
+          );
+        })}
+      </SettingsGroup>
+      {isMobile && newVault}
+      {mode === "online" && <SecurityCodeCard />}
+
+      <VaultDialog open={createOpen} onOpenChange={setCreateOpen} />
+      <VaultDialog
+        open={editDialog.open}
+        vault={editDialog.vault}
+        onOpenChange={editDialog.setOpen}
+      />
+      {deleteDialog.vault && (
+        <DeleteVaultDialog
+          vault={deleteDialog.vault}
+          open={deleteDialog.open}
+          onOpenChange={deleteDialog.setOpen}
+        />
+      )}
+      {rotateDialog.vault && (
+        <RotateVaultKeyDialog
+          vault={rotateDialog.vault}
+          open={rotateDialog.open}
+          onOpenChange={rotateDialog.setOpen}
+        />
+      )}
+      {membersDialog.vault && (
+        <VaultMembersDialog
+          vault={membersDialog.vault}
+          open={membersDialog.open}
+          onOpenChange={membersDialog.setOpen}
+        />
+      )}
+      {mode === "local" && <CreateAccountDialog open={shareOpen} onOpenChange={setShareOpen} />}
+      {sheetVault && (
+        <VaultActionsSheet
+          vault={sheetVault}
+          count={counts.get(sheetVault.vaultId) ?? 0}
+          actions={vaultActions(sheetVault)}
+          open={sheetOpen}
+          onOpenChange={setSheetOpen}
+        />
+      )}
+    </SettingsPage>
+  );
 }
