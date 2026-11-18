@@ -72,15 +72,17 @@ jobs:
             fi
           fi
 
+          # The tag's Caddyfile holds the security headers the site must send (CSP, COOP, COEP).
           for tag in "${candidates[@]}"; do
             gh release download "$tag" --repo "$GITHUB_REPOSITORY" --pattern passmgr-web.SHA256SUMS --dir "sums/$tag"
+            gh api -H "Accept: application/vnd.github.raw" "repos/${GITHUB_REPOSITORY}/contents/Caddyfile?ref=${tag}" > "sums/$tag/Caddyfile"
           done
 
           # Two attempts so one network hiccup doesn't page anyone.
           for attempt in 1 2; do
             for tag in "${candidates[@]}"; do
               echo "Checking ${SITE_URL} against ${tag}"
-              if bun apps/web/scripts/verify-deployment.ts "$SITE_URL" "sums/$tag/passmgr-web.SHA256SUMS"; then
+              if bun apps/web/scripts/verify-deployment.ts "$SITE_URL" "sums/$tag/passmgr-web.SHA256SUMS" "sums/$tag/Caddyfile"; then
                 if [ "$tag" != "${candidates[0]}" ]; then
                   echo "::warning::${SITE_URL} serves ${tag}; ${candidates[0]} is not deployed yet (release run: ${release_run:-none})"
                 fi

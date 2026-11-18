@@ -1,6 +1,7 @@
 services:
   web:
-    image: ghcr.io/${GHCR_OWNER}/passmgr-web:${IMAGE_TAG:-latest}
+    # CI deploys by digest (infra/deploy/remote-deploy.sh); the tag only names it.
+    image: ghcr.io/${GHCR_OWNER}/passmgr-web:${IMAGE_TAG:-latest}${WEB_DIGEST:+@${WEB_DIGEST}}
     # The host Caddy (caddy-docker-proxy) terminates TLS and proxies here over
     # caddy_network; no host port is published.
     labels:
@@ -16,7 +17,7 @@ services:
     restart: unless-stopped
 
   server:
-    image: ghcr.io/${GHCR_OWNER}/passmgr-server:${IMAGE_TAG:-latest}
+    image: ghcr.io/${GHCR_OWNER}/passmgr-server:${IMAGE_TAG:-latest}${SERVER_DIGEST:+@${SERVER_DIGEST}}
     environment:
       - DATABASE_URL=postgres://passmgr:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-passmgr}
       - REDIS_HOST=redis

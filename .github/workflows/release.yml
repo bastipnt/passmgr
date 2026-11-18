@@ -10,9 +10,9 @@ concurrency:
   group: deploy-production
   cancel-in-progress: false
 
+# Only the build job can push to GHCR; the reused ci / e2e workflows get read access alone.
 permissions:
   contents: read
-  packages: write
 
 jobs:
   ci:
@@ -24,6 +24,16 @@ jobs:
   build:
     needs: [ci, e2e]
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+      attestations: write
+    # Later jobs pull and deploy these digests, never a tag: anything else with packages: write
+    # could move a tag between build and deploy. One name per matrix leg, so they don't overwrite.
+    outputs:
+      web_digest: ${{ steps.digest.outputs.web_digest }}
+      server_digest: ${{ steps.digest.outputs.server_digest }}
     strategy:
       fail-fast: true
       matrix:
@@ -52,7 +62,8 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}
             type=raw,value=latest
 
-      - uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+      - id: build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
           file: ${{ matrix.dockerfile }}
@@ -68,6 +79,28 @@ jobs:
             VITE_APP_VERSION=${{ github.ref_name }}
             APP_VERSION=${{ github.ref_name }}
 
+      - id: digest
+        env:
+          NAME: ${{ matrix.name }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          if ! [[ "$DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]]; then
+            echo "::error::build-push-action returned no digest: '${DIGEST}'"
+            exit 1
+          fi
+          {
+            echo "${NAME}_digest=${DIGEST}"
+            echo "image=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/passmgr-${NAME}"
+          } >> "$GITHUB_OUTPUT"
+
+      # Signed SLSA build provenance, stored in the registry next to the image. Check it with
+      # `gh attestation verify oci://<image>@<digest> --repo <owner>/<repo>`.
+      - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-name: ${{ steps.digest.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+
   # The web build's checksums, published outside the web host so anyone can check what it
   # serves (`pnpm --filter web verify:deployment`).
   web-checksums:
@@ -76,6 +109,7 @@ jobs:
     permissions:
       contents: write
       packages: read
+      attestations: read
     steps:
       - uses: docker/login-action@81c6f93d4bc991e510b342a00b419b3bb4efc5c6 # v4.7.0
         with:
@@ -84,8 +118,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Extract SHA256SUMS from the web image
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DIGEST: ${{ needs.build.outputs.web_digest }}
         run: |
-          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/passmgr-web:${GITHUB_REF_NAME#v}"
+          image="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/passmgr-web@${DIGEST}"
+          gh attestation verify "oci://${image}" --repo "$GITHUB_REPOSITORY" \
+            --signer-workflow "${GITHUB_REPOSITORY}/.github/workflows/release.yml" --source-ref "$GITHUB_REF"
           docker pull "$image"
           container=$(docker create "$image")
           docker cp "$container:/srv/SHA256SUMS" passmgr-web.SHA256SUMS
@@ -114,6 +153,8 @@ jobs:
       contents: read
     env:
       DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+      WEB_DIGEST: ${{ needs.build.outputs.web_digest }}
+      SERVER_DIGEST: ${{ needs.build.outputs.server_digest }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -155,7 +196,7 @@ jobs:
           IMAGE_TAG="${GITHUB_REF_NAME#v}"
           # Expanded locally on purpose; %q quotes the values for the remote shell.
           # shellcheck disable=SC2029
-          ssh deploy "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") IMAGE_TAG=$(printf %q "$IMAGE_TAG") bash -s" \
+          ssh deploy "DEPLOY_PATH=$(printf %q "$DEPLOY_PATH") IMAGE_TAG=$(printf %q "$IMAGE_TAG") WEB_DIGEST=$(printf %q "$WEB_DIGEST") SERVER_DIGEST=$(printf %q "$SERVER_DIGEST") bash -s" \
             < infra/deploy/remote-deploy.sh
 
       # The deploy script can exit 0 without having rolled anything out (e.g. a
@@ -172,8 +213,11 @@ jobs:
             exit 1
           fi
           for service in web server; do
-            if ! grep -qE "^${service} .*/passmgr-${service}:${IMAGE_TAG//./\\.}$" state.txt; then
-              echo "::error::${service} is not running passmgr-${service}:${IMAGE_TAG}"
+            digest_var="${service^^}_DIGEST"
+            digest="${!digest_var}"
+            # Docker may show the reference with or without the tag in front of the digest.
+            if ! grep -qE "^${service} .*/passmgr-${service}(:[^@ ]+)?@${digest}$" state.txt; then
+              echo "::error::${service} is not running passmgr-${service}@${digest}"
               exit 1
             fi
           done
