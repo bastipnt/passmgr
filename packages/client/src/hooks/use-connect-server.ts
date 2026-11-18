@@ -1,4 +1,4 @@
-import { deriveOpaquePassword, wipe, withPasswordForms } from "@repo/crypto";
+import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
@@ -130,45 +130,15 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
     try {
       const { result, profileId, info } = await attach(
         async (session, email, ask) => {
-          if (typeof credential === "string") {
-            // NFKC first, then as typed for a registration from before (`withPasswordForms`).
-            return await withPasswordForms(
-              credential,
-              async (form) => {
-                const opaquePassword = await deriveOpaquePassword(credential, email, form);
-                try {
-                  // A pending reset registers the new password: in its NFKC form only.
-                  if (form === "nfkc") await finishPendingReset(email, opaquePassword);
-                  const login = await loginWithOpaquePassword(
-                    trpc,
-                    session,
-                    email,
-                    opaquePassword,
-                    ask,
-                  );
-                  // The kept OPAQUE password (`useAutoReconnect`) takes the form the server accepted.
-                  if (
-                    form === "raw" &&
-                    secretsStore.lockEpoch === epoch &&
-                    secretsStore.hasOpaquePassword
-                  )
-                    secretsStore.keepOpaquePassword(
-                      opaquePassword.slice(),
-                      secretsStore.keptPasswordKeys,
-                    );
-                  return login;
-                } finally {
-                  wipe(opaquePassword);
-                }
-              },
-              (error) => error instanceof OpaqueLoginFailedError,
-            );
-          }
+          const opaquePassword =
+            typeof credential === "string"
+              ? await deriveOpaquePassword(credential, email)
+              : credential;
           try {
-            await finishPendingReset(email, credential);
-            return await loginWithOpaquePassword(trpc, session, email, credential, ask);
+            await finishPendingReset(email, opaquePassword);
+            return await loginWithOpaquePassword(trpc, session, email, opaquePassword, ask);
           } finally {
-            wipe(credential);
+            wipe(opaquePassword);
           }
         },
         epoch,

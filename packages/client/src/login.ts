@@ -9,7 +9,6 @@ import {
   normalizeEmail,
   OPAQUE_SERVER_IDENTITY,
   wipe,
-  withPasswordForms,
 } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import {
@@ -103,40 +102,19 @@ export async function loginUser(
   password: string,
   onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<VaultUnlockInfo> {
-  const login = await loginWithPassword(trpc, loginSession, rawEmail, password, onSecondFactor);
-  return { ...login, password };
-}
-
-/**
- * The OPAQUE login with a typed password: its NFKC form, then, for a
- * registration from before NFKC, the form as typed (`withPasswordForms`).
- * Throws like `loginWithOpaquePassword`.
- */
-export async function loginWithPassword(
-  trpc: LoginTRPCClient,
-  loginSession: LoginSessionFn,
-  rawEmail: string,
-  password: string,
-  onSecondFactor: SecondFactorPrompt = noSecondFactor,
-): Promise<AccountLogin> {
-  return await withPasswordForms(
-    password,
-    async (form) => {
-      const opaquePassword = await deriveOpaquePassword(password, rawEmail, form);
-      try {
-        return await loginWithOpaquePassword(
-          trpc,
-          loginSession,
-          rawEmail,
-          opaquePassword,
-          onSecondFactor,
-        );
-      } finally {
-        wipe(opaquePassword);
-      }
-    },
-    (error) => error instanceof OpaqueLoginFailedError,
-  );
+  const opaquePassword = await deriveOpaquePassword(password, rawEmail);
+  try {
+    const login = await loginWithOpaquePassword(
+      trpc,
+      loginSession,
+      rawEmail,
+      opaquePassword,
+      onSecondFactor,
+    );
+    return { ...login, password };
+  } finally {
+    wipe(opaquePassword);
+  }
 }
 
 export type AccountLogin = Omit<VaultUnlockInfo, "password">;

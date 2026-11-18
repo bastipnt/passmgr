@@ -24,13 +24,12 @@ library's `ScryptMemHardFn` (`util/opaque-scrypt.ts`; changing it breaks every r
 worker (`argon2WorkerService.opaqueKsf`, same queue), in-thread without `Worker` (Node); mobile native scrypt
 (`.native.ts`, react-native-quick-crypto). An async `harden` needs our patch of @cloudflare/opaque-ts
 (`patches/@cloudflare__opaque-ts@0.7.5.patch`, awaits it): re-check it on every library upgrade.
-## Password forms (NFKC)
 
-New wraps and registrations derive from `passwordInForm(password)` (NFKC): `genPasswordKek`, `deriveOpaquePassword`
-(default form). Opening existing ones goes through `withPasswordForms` (NFKC, then the raw form when it differs and the
-error is a wrong password), in `packages/client` `util/derive-password-kek.ts` (wraps) and `login.ts`
-`loginWithPassword` (OPAQUE). `retrievePRK` / `argon2idAsync` take the string as given: callers pass a form.
-Details: `docs/architecture/auth.md`, "Password forms".
+## Password normalisation (NFKC)
+
+Every derivation from a password goes through `normalizePassword` (NFKC): `genPasswordKek`, `deriveOpaquePassword`, and
+in `packages/client` `derivePasswordKek`, the rekey and the export key. `retrievePRK` / `argon2idAsync` take the string
+as given. No raw-form fallback. Details: `docs/architecture/auth.md`.
 
 ## Key buffers
 

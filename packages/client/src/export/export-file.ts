@@ -1,13 +1,4 @@
-import {
-  exportKdf,
-  genSalt,
-  openExport,
-  type PasswordForm,
-  passwordInForm,
-  sealExport,
-  wipe,
-  withPasswordForms,
-} from "@repo/crypto";
+import { exportKdf, genSalt, normalizePassword, openExport, sealExport, wipe } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import {
   CURRENT_SCHEMA_VERSION,
@@ -52,17 +43,10 @@ export function exportToJson(data: ExportData): string {
   return JSON.stringify(data, null, 2);
 }
 
-/**
- * The export key: Argon2id over the export password (NFKC for a new file,
- * `PasswordForm`), in the worker (native: off the JS thread).
- */
-function deriveExportKey(
-  password: string,
-  kdf: ExportKdf,
-  form: PasswordForm = "nfkc",
-): Promise<Uint8Array> {
+/** The export key: Argon2id over the export password, in the worker (native: off the JS thread). */
+function deriveExportKey(password: string, kdf: ExportKdf): Promise<Uint8Array> {
   return timed(`argon2 export (t:${kdf.t} m:${kdf.m} p:${kdf.p})`, () =>
-    argon2WorkerService.derive(passwordInForm(password, form), fromBase64(kdf.salt), kdf),
+    argon2WorkerService.derive(normalizePassword(password), fromBase64(kdf.salt), kdf),
   );
 }
 
@@ -117,17 +101,15 @@ export async function openExportEnvelope(
   envelope: ExportEnvelope,
   password: string,
 ): Promise<ExportData> {
-  // A file from before NFKC may need the password as typed.
-  const json = await withPasswordForms(password, async (form) => {
-    const key = await deriveExportKey(password, envelope.kdf, form);
-    try {
-      return openExport(key, envelope);
-    } catch {
-      throw new WrongExportPasswordError();
-    } finally {
-      wipe(key);
-    }
-  });
+  const key = await deriveExportKey(password, envelope.kdf);
+  let json: string;
+  try {
+    json = openExport(key, envelope);
+  } catch {
+    throw new WrongExportPasswordError();
+  } finally {
+    wipe(key);
+  }
   let parsed: unknown;
   try {
     parsed = JSON.parse(json);

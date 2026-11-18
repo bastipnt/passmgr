@@ -167,50 +167,22 @@ export async function hashRecoveryAuthKey(recoveryAuthKey: Uint8Array): Promise<
 }
 
 /**
- * How a password goes into a key derivation. `nfkc`: Unicode NFKC, so "é" typed
- * as one code point or as "e" + accent (another keyboard, OS or device) derives
- * the same key; every new wrap and registration uses it. `raw`: as typed, the
- * way wraps and registrations made before were derived; tried only when the
- * `nfkc` form fails (`withPasswordForms`).
+ * Unicode NFKC, so "é" typed as one code point or as "e" + accent (another
+ * keyboard, OS or device) derives the same key. Every derivation from a
+ * password (Argon2, OPAQUE) goes through it.
  */
-export type PasswordForm = "nfkc" | "raw";
-
-export function passwordInForm(password: string, form: PasswordForm = "nfkc"): string {
-  return form === "raw" ? password : password.normalize("NFKC");
-}
-
-/**
- * Open something keyed by an existing password (a wrap, an OPAQUE login):
- * with the `nfkc` form first, then, when the password has another raw form and
- * `retry` says the error means "wrong password", with the raw one. Throws the
- * last attempt's error.
- */
-export async function withPasswordForms<T>(
-  password: string,
-  attempt: (form: PasswordForm) => Promise<T> | T,
-  retry: (error: unknown) => boolean = () => true,
-): Promise<T> {
-  try {
-    return await attempt("nfkc");
-  } catch (error) {
-    if (passwordInForm(password) === password || !retry(error)) throw error;
-    return await attempt("raw");
-  }
+export function normalizePassword(password: string): string {
+  return password.normalize("NFKC");
 }
 
 /**
  * What OPAQUE gets instead of the password (registration, login, password
  * change, recovery). A device keeps it to reconnect or re-run the login after
  * a biometric unlock: unlike the password string it can be wiped, and it is
- * worthless for any other account or site. `form`: `raw` only for a login
- * retried for a registration from before NFKC (`withPasswordForms`).
+ * worthless for any other account or site.
  */
-export async function deriveOpaquePassword(
-  password: string,
-  email: string,
-  form: PasswordForm = "nfkc",
-): Promise<Uint8Array> {
-  const passwordBytes = fromString(passwordInForm(password, form));
+export async function deriveOpaquePassword(password: string, email: string): Promise<Uint8Array> {
+  const passwordBytes = fromString(normalizePassword(password));
   try {
     return await hkdf(passwordBytes, "opaquePassword", fromString(normalizeEmail(email)));
   } finally {
@@ -324,7 +296,7 @@ export async function genPasswordKek(
 }> {
   const passwordKekSaltData = genSalt();
 
-  const passwordKek = await derive(passwordInForm(password), passwordKekSaltData, {
+  const passwordKek = await derive(normalizePassword(password), passwordKekSaltData, {
     ...passwordKekParams,
     maxmem: 2 ** 32 - 1,
   });

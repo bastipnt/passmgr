@@ -1,4 +1,10 @@
-import { genSalt, needsPasswordKekRekey, passwordInForm, wipe, wrapAccountKey } from "@repo/crypto";
+import {
+  genSalt,
+  needsPasswordKekRekey,
+  normalizePassword,
+  wipe,
+  wrapAccountKey,
+} from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
@@ -37,7 +43,11 @@ async function derivePasswordWrap(
   const passwordKek = await timed(
     `argon2 rekey (t:${passwordKekParams.t} m:${passwordKekParams.m} p:${passwordKekParams.p})`,
     () =>
-      argon2WorkerService.derive(passwordInForm(password), passwordKekSaltData, passwordKekParams),
+      argon2WorkerService.derive(
+        normalizePassword(password),
+        passwordKekSaltData,
+        passwordKekParams,
+      ),
   );
   try {
     const [encryptedAccountKey, accountKeyEncryptionNonce] = wrap(passwordKek);

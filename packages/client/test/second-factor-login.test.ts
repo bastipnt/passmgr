@@ -10,7 +10,7 @@ import {
   RegistrationRecord,
   RegistrationResponse,
 } from "@cloudflare/opaque-ts";
-import { OPAQUE_SERVER_IDENTITY, type PasswordForm } from "@repo/crypto";
+import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
 import { opaqueKsf } from "@repo/crypto/services/opaque-ksf";
 import { SECOND_FACTOR_EXPIRED, SECOND_FACTOR_INVALID } from "@repo/schema";
 import { TRPCClientError } from "@trpc/client";
@@ -65,11 +65,7 @@ const SUCCESS = {
  * `twoFactor`: finishLogin answers with a challenge, and `verifySecondFactor`
  * takes `CODE` (or answers with `verifyError`).
  */
-async function fakeServer({
-  twoFactor = false,
-  password = PASSWORD,
-  form = "nfkc" as PasswordForm,
-} = {}) {
+async function fakeServer({ twoFactor = false, password = PASSWORD } = {}) {
   const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
   const ake = await cfg.ake.generateAuthKeyPair();
   const keypair: AKEExportKeyPair = { private_key: ake.private_key, public_key: ake.public_key };
@@ -77,7 +73,7 @@ async function fakeServer({
   const server = new OpaqueServer(cfg, oprfSeed, keypair, OPAQUE_SERVER_IDENTITY);
 
   const client = new OpaqueClient(cfg, opaqueKsf);
-  const req = await client.registerInit(await opaqueInputFor(password, EMAIL, form));
+  const req = await client.registerInit(await opaqueInputFor(password, EMAIL));
   if (req instanceof Error) throw req;
   const resp = await server.registerInit(req, EMAIL);
   if (resp instanceof Error) throw resp;
@@ -150,23 +146,11 @@ function promptWith(...codes: (string | null)[]) {
   return vi.fn<SecondFactorPrompt>(async () => codes.shift() ?? null);
 }
 
-describe("loginUser — password forms", () => {
+describe("loginUser — NFKC", () => {
   // "é" as "e" + combining accent.
   const DECOMPOSED = "caf\u{65}\u{301}";
 
-  it("logs in an account registered before NFKC with the password as typed", async () => {
-    const { trpc, starts } = await fakeServer({ password: DECOMPOSED, form: "raw" });
-    const info = await loginUser(
-      trpc,
-      vi.fn(async () => {}),
-      EMAIL,
-      DECOMPOSED,
-    );
-    expect(info.userId).toBe(USER_ID);
-    expect(starts()).toBe(2);
-  });
-
-  it("logs in an NFKC registration typed the other way at once", async () => {
+  it("logs in a registration typed the other way, in one attempt", async () => {
     const { trpc, starts } = await fakeServer({ password: "caf\u{e9}" });
     const info = await loginUser(
       trpc,

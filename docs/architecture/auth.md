@@ -13,16 +13,10 @@ biometric enrollment); it is never stored.
 The login's session key stays bytes up to `secretsStore.unlockSession` (`LoginSessionFn`, `deviceSessionKeyBytes`),
 which derives the session secret from its base64 text as the server does (`deriveSessionSecret`) and wipes it.
 
-Password forms (`@repo/crypto` `PasswordForm`): every new registration and password wrap (register, local vault,
-password change, rekey, recovery, encrypted export) derives from the password's Unicode NFKC form, so a non-ASCII
-password typed composed on one device and decomposed on another opens the same keys. Opening an existing one
-(`withPasswordForms`) tries NFKC first, then the password as typed, for registrations and wraps from before:
-`loginWithPassword` (OPAQUE; retried only on `OpaqueLoginFailedError`, the server sees a second login attempt),
-`openWithPassword` / `unwrapAccountKeyWithPassword` (Argon2 wraps), `openExportEnvelope`. The kept OPAQUE password
-for a reconnect (`unlockLocal`) is the form that opened the local wrap, and a `connect(password)` the server accepted
-only in the raw form switches it to that one; left over: an older raw-form registration whose wrap a rekey already
-moved to NFKC, unlocked offline, gets its automatic reconnect refused until the next unlock online. Nothing migrates an older registration or wrap; a password change or a below-floor rekey
-rewraps in NFKC.
+Every password is NFKC-normalised (`@repo/crypto` `normalizePassword`) before Argon2 and OPAQUE (register, login,
+local vault, unlock, password change, rekey, recovery, reconnect, encrypted export), so a non-ASCII password typed
+composed on one device and decomposed on another gives the same keys. There is no fallback to the password as typed:
+no account predates it.
 
 ## Web biometric unlock and device login
 

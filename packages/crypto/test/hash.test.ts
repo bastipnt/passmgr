@@ -12,14 +12,13 @@ import {
   hashRecoveryAuthKey,
   hkdf,
   needsPasswordKekRekey,
+  normalizePassword,
   PASSWORD_KEK_PARAM_SETS,
-  passwordInForm,
   retrievePRK,
   selectPasswordKekParams,
   setPasswordKekParams,
   signHmac,
   verifyHmac,
-  withPasswordForms,
 } from "../src/hash";
 import { hkdfInfo } from "../src/util/constants";
 import { wipe } from "../src/util/secrets-utils";
@@ -167,43 +166,15 @@ describe("deriveOpaquePassword", () => {
 const COMPOSED = "caf\u{e9}";
 const DECOMPOSED = "cafe\u{301}";
 
-describe("password forms (NFKC)", () => {
+describe("normalizePassword (NFKC)", () => {
   it("turns any way of typing the same text into one form", () => {
-    expect(passwordInForm(DECOMPOSED)).toBe(COMPOSED);
-    expect(passwordInForm("\u{ff50}w")).toBe("pw");
-    expect(passwordInForm(DECOMPOSED, "raw")).toBe(DECOMPOSED);
+    expect(normalizePassword(DECOMPOSED)).toBe(COMPOSED);
+    expect(normalizePassword("\u{ff50}w")).toBe("pw");
   });
 
-  it("derives the same OPAQUE password for both, and the raw one on request", async () => {
+  it("derives the same OPAQUE password for both", async () => {
     const a = await deriveOpaquePassword(COMPOSED, "alice@example.com");
     expect(await deriveOpaquePassword(DECOMPOSED, "alice@example.com")).toEqual(a);
-    expect(await deriveOpaquePassword(DECOMPOSED, "alice@example.com", "raw")).not.toEqual(a);
-  });
-
-  it("tries the raw form only after the NFKC one failed, and only when it differs", async () => {
-    const tried: string[] = [];
-    const fail = (form: string) => {
-      tried.push(form);
-      throw new Error(form);
-    };
-    await expect(withPasswordForms("ascii", fail)).rejects.toThrow("nfkc");
-    expect(tried).toEqual(["nfkc"]);
-
-    tried.length = 0;
-    await expect(withPasswordForms(DECOMPOSED, fail)).rejects.toThrow("raw");
-    expect(tried).toEqual(["nfkc", "raw"]);
-
-    expect(await withPasswordForms(DECOMPOSED, (form) => (form === "raw" ? 1 : fail(form)))).toBe(
-      1,
-    );
-  });
-
-  it("doesn't retry an error that isn't about the password", async () => {
-    const attempt = vi.fn(async () => {
-      throw new Error("offline");
-    });
-    await expect(withPasswordForms(DECOMPOSED, attempt, () => false)).rejects.toThrow("offline");
-    expect(attempt).toHaveBeenCalledTimes(1);
   });
 });
 

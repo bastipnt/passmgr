@@ -1,5 +1,5 @@
 import { getOpaqueConfig, OpaqueID } from "@cloudflare/opaque-ts";
-import { deriveOpaquePassword, type PasswordForm, wipe } from "@repo/crypto";
+import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import { fromBase64, toBase64 } from "@repo/util";
 
 export const opaqueConfig = getOpaqueConfig(OpaqueID.OPAQUE_P256);
@@ -17,13 +17,9 @@ export function opaqueInput(opaquePassword: Uint8Array): string {
   return toBase64(opaquePassword);
 }
 
-/** A registration's OPAQUE input: the password's NFKC form (`raw`: tests of older registrations). */
-export async function opaqueInputFor(
-  password: string,
-  email: string,
-  form: PasswordForm = "nfkc",
-): Promise<string> {
-  const opaquePassword = await deriveOpaquePassword(password, email, form);
+/** A registration's OPAQUE input (`deriveOpaquePassword`). */
+export async function opaqueInputFor(password: string, email: string): Promise<string> {
+  const opaquePassword = await deriveOpaquePassword(password, email);
   try {
     return opaqueInput(opaquePassword);
   } finally {
