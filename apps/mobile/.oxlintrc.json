@@ -10,10 +10,6 @@
           {
             "name": "expo-clipboard",
             "message": "Copy through `@/lib/clipboard` (`useCopySecret` / `nativeClipboard`): it reports a failed write and auto-clears secrets."
-          },
-          {
-            "name": "@react-native-clipboard/clipboard",
-            "message": "Copy through `@/lib/clipboard` (`useCopySecret` / `nativeClipboard`): it reports a failed write and auto-clears secrets."
           }
         ]
       }

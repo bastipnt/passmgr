@@ -77,7 +77,7 @@ leaves newer content alone: it reads the clipboard back where that doesn't promp
 granted, Android in the foreground: a background app reads it empty, which counts as unreadable), and on web a `copy` / `cut` in the page drops it; iOS and web without the permission clear
 unread. A lock runs the pending clear at once (`flushClipboardClear`; web before its reload, which would cancel the
 timer). Lint enforces the single path: `no-restricted-properties` on `writeText` (`.oxlintrc.base.json`), and on
-mobile `no-restricted-imports` of `expo-clipboard` / `@react-native-clipboard/clipboard` outside `lib/clipboard.ts`.
+mobile `no-restricted-imports` of `expo-clipboard` outside `lib/clipboard.ts`.
 Non-secret copies (error details) use the platform clipboard's plain `write`, without the auto-clear.
 
 ## Duplicate
