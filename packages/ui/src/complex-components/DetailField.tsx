@@ -3,6 +3,7 @@ import { Kbd } from "@repo/ui/components/Kbd";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@repo/ui/components/Tooltip";
 import { useExpandable } from "@repo/ui/hooks/use-expandable";
 import { blurredTextClassName } from "@repo/ui/lib/field-styles";
+import { toneTextClassName } from "@repo/ui/lib/tone";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDownIcon, CopyIcon, EyeIcon, EyeOffIcon } from "lucide-react";
 import {
@@ -233,9 +234,9 @@ function DetailFieldRow({ children, keepOnPhone = false }: DetailFieldRowProps) 
 }
 
 const TONE_CLASSES = {
-  neutral: "bg-success/12 text-emerald-700 dark:text-success",
-  warning: "bg-warning/20 text-amber-700 dark:text-warning",
-  danger: "bg-destructive/12 text-destructive",
+  neutral: `bg-success/12 ${toneTextClassName.success}`,
+  warning: `bg-warning/20 ${toneTextClassName.warning}`,
+  danger: `bg-destructive/12 ${toneTextClassName.destructive}`,
 } as const;
 
 /** A small status chip among a field's actions (a card's time left). */

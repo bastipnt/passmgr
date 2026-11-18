@@ -41,7 +41,7 @@ function SelectTrigger({
   children,
   ...props
 }: SelectPrimitive.Trigger.Props & {
-  size?: "sm" | "default";
+  size?: "sm" | "md" | "default";
 }) {
   return (
     <SelectPrimitive.Trigger
@@ -49,7 +49,7 @@ function SelectTrigger({
       data-size={size}
       className={cn(
         fieldClassName,
-        "flex w-fit select-none items-center justify-between gap-1.5 whitespace-nowrap py-2 pr-2.5 pl-3 aria-expanded:border-ring aria-expanded:bg-white data-[size=default]:h-10 data-[size=sm]:h-8 data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-expanded:bg-white/8 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
+        "flex w-fit select-none items-center justify-between gap-1.5 whitespace-nowrap py-2 pr-2.5 pl-3 aria-expanded:border-ring aria-expanded:bg-white data-[size=default]:h-10 data-[size=md]:h-9 data-[size=sm]:h-8 data-[size=md]:rounded-xl data-[size=sm]:rounded-[min(var(--radius-md),10px)] data-placeholder:text-muted-foreground *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 dark:aria-expanded:bg-white/8 [&_svg:not([class*='size-'])]:size-4 [&_svg]:pointer-events-none [&_svg]:shrink-0",
         className,
       )}
       {...props}

@@ -9,6 +9,7 @@ import type { DecryptedRecord } from "@repo/schema";
 import { DetailFieldGroup } from "@repo/ui/complex-components/DetailField";
 import { Skeleton } from "@repo/ui/components/Skeleton";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { toneTextClassName } from "@repo/ui/lib/tone";
 import { cn } from "@repo/ui/lib/utils";
 import { toLocalDateStr } from "@repo/util";
 import FieldDisplay from "../FieldDisplay";
@@ -33,8 +34,8 @@ const STATUS_LABEL: Record<DiffStatus, string> = {
 
 const STATUS_TEXT_CLASS: Record<DiffStatus, string> = {
   unchanged: "",
-  edited: "text-amber-700 dark:text-warning",
-  added: "text-emerald-700 dark:text-success",
+  edited: toneTextClassName.warning,
+  added: toneTextClassName.success,
   removed: "text-error",
 };
 

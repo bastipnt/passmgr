@@ -84,6 +84,12 @@ Rules:
   (drag or ↑ / ↓, `SortableList`). Both sheets wrap it in `RecordFormSheet` (desktop: avatar + "Edit login" header,
   Delete / Back left, Cancel + submit right; phone: `SheetFormBar`, the record header and Delete in the content). The
   create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead.
+- **Settings pages** are composed from `features/settings` primitives only: `SettingsPage` (display title, description,
+  optional action; h1 on a phone, h2 under the overlay's "Settings" on desktop), `SettingsGroup` (uppercase label over
+  one hairline-split card, footnote, `variant="danger"`), `SettingsRow` (label + hint, `status` "· Off" after the
+  label; `control`, or `href` / `onClick` for a whole-row drill-down named by its label). Controls in a row
+  (`SettingsSwitch`, `SettingsSegmented`, `SettingsSelectTrigger`) take their name and description from the row.
+  Status pills: `@repo/ui` `StatusPill`; status text colors: `@repo/ui/lib/tone`.
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
   `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
   one wins). Picked in Settings → General (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,
