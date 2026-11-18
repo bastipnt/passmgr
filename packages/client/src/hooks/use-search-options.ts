@@ -1,11 +1,6 @@
 import { useMemo } from "react";
 import { categoryLabel, useSortedRecords } from "../providers/SortedRecordsProvider";
-import {
-  parseSearch,
-  searchOptionSections,
-  searchSections,
-  type TaggedRecords,
-} from "../records/record-search";
+import { searchOptionSections, searchSections, type TaggedRecords } from "../records/record-search";
 
 /**
  * What the search lists for the current query and filters, for any search UI to render.
@@ -20,7 +15,7 @@ export function useSearchOptions({
   withTags?: boolean;
 } = {}) {
   const {
-    query,
+    search,
     categoryFilter,
     tagFilters,
     tags,
@@ -28,9 +23,7 @@ export function useSearchOptions({
     recentRecords,
     recordGroups,
     searchAll,
-    tagSearch,
   } = useSortedRecords();
-  const search = useMemo(() => parseSearch(query, tagSearch), [query, tagSearch]);
   const tagged = useMemo<TaggedRecords | undefined>(
     () =>
       listTagged && tagFilters.length > 0 && !search.text && !search.tagMode

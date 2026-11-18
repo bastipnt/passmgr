@@ -1,4 +1,4 @@
-import { TAG_SEARCH_PREFIX, useShortcut, useVaults } from "@repo/client";
+import { parseSearch, TAG_SEARCH_PREFIX, useShortcut, useVaults } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import {
   InputGroup,
@@ -66,20 +66,22 @@ function ShowRecordsButton({ onShow }: { onShow: () => void }) {
 }
 
 export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; listboxId: string }) {
-  const { query, setQuery, vaultFilter, searchInputRef } = useSortedRecords();
+  const { query, setQuery, tagSearch, vaultFilter, searchInputRef } = useSortedRecords();
   const { getVault } = useVaults();
-  const { open, search, options, active } = panel;
+  const { open, options, active } = panel;
+  // The field's own mode, from what it holds: the panel's `search` can trail it.
+  const { tagMode } = parseSearch(query, tagSearch);
   const label = `Search ${vaultFilter === "all" ? "all vaults" : getVault(vaultFilter)?.name}`;
   useShortcut("$mod+k", () => searchInputRef.current?.focus(), {
     description: "Focus search",
     allowInInput: true,
   });
-  const value = search.tagMode ? query.trimStart().slice(TAG_SEARCH_PREFIX.length) : query;
+  const value = tagMode ? query.trimStart().slice(TAG_SEARCH_PREFIX.length) : query;
 
   return (
     <InputGroup className="shrink-0">
       <InputGroupAddon align="inline-start">
-        {search.tagMode ? (
+        {tagMode ? (
           <span className="flex items-center gap-1 rounded-md bg-primary px-1.5 py-0.5 font-semibold text-primary-foreground text-xs">
             <TagIcon className="size-3!" aria-hidden />
             Tags
@@ -101,13 +103,11 @@ export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; li
         aria-activedescendant={
           open && active ? optionDomId(listboxId, options.indexOf(active)) : undefined
         }
-        placeholder={
-          search.tagMode ? "Find tags…" : open ? "Search records and tags…" : `${label}…`
-        }
-        aria-label={search.tagMode ? "Search tags" : label}
+        placeholder={tagMode ? "Find tags…" : open ? "Search records and tags…" : `${label}…`}
+        aria-label={tagMode ? "Search tags" : label}
         value={value}
         onChange={(e) =>
-          setQuery(search.tagMode ? `${TAG_SEARCH_PREFIX}${e.target.value}` : e.target.value)
+          setQuery(tagMode ? `${TAG_SEARCH_PREFIX}${e.target.value}` : e.target.value)
         }
         onFocus={panel.onFocus}
         onBlur={panel.onBlur}
@@ -115,7 +115,7 @@ export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; li
       />
       <InputGroupAddon align="inline-end" className="gap-1.5 pr-1.5">
         {open ? (
-          search.tagMode ? (
+          tagMode ? (
             <ShowRecordsButton onShow={panel.cancel} />
           ) : (
             <CloseChip onClose={panel.cancel} />

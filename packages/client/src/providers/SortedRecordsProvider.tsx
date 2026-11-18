@@ -6,6 +6,7 @@ import {
   type RefObject,
   useCallback,
   useContext,
+  useDeferredValue,
   useMemo,
   useRef,
   useState,
@@ -20,6 +21,7 @@ import {
   addRecentSearch,
   filterByTagText,
   matchRecords,
+  type ParsedSearch,
   parseSearch,
   type RecentSearch,
   type RecordMatch,
@@ -424,8 +426,18 @@ export function listTitle({
 }
 
 type SortedRecordsContextValue = {
+  /** What the search field holds. */
   query: string;
   setQuery: (query: string) => void;
+  /**
+   * The query the results are for: it trails `query` while a large vault is
+   * matched, so typing doesn't wait on it. Read this (or `searching`), not
+   * `query`, next to anything derived from the search.
+   */
+  search: ParsedSearch;
+  searching: boolean;
+  /** The results are still for an earlier `query`. */
+  searchPending: boolean;
   sort: SortOption;
   handleSortChange: (value: string) => void;
   /** "By vault" is on (a device preference); it applies only while `canGroupByVault`. */
@@ -594,7 +606,8 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
   const [foldedVaults, setFoldedVaults] = useState<ReadonlySet<string>>(() => new Set());
   const [sort, setStoredSort] = useSortPreference();
 
-  const search = useMemo(() => parseSearch(query, tagSearch), [query, tagSearch]);
+  const searchedQuery = useDeferredValue(query);
+  const search = useMemo(() => parseSearch(searchedQuery, tagSearch), [searchedQuery, tagSearch]);
   // A lone `#` with tag search off searches nothing yet.
   const hasQuery = search.tagMode || search.text !== "";
   const canGroupByVault = vaultFilter === "all" && hasSeveralVaults;
@@ -796,6 +809,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     () => ({
       query,
       setQuery,
+      search,
+      searching: hasQuery,
+      searchPending: searchedQuery !== query,
       sort,
       handleSortChange,
       groupByVault,
@@ -840,6 +856,9 @@ export function SortedRecordsProvider({ children }: SortedRecordsProviderProps) 
     [
       query,
       setQuery,
+      search,
+      hasQuery,
+      searchedQuery,
       sort,
       handleSortChange,
       groupByVault,

@@ -8,6 +8,13 @@ on every re-read). A record is re-decrypted when its `vaultId|version|encryption
 per encryption; the ciphertext isn't kept a second time). `sortRecords` reads each record's keys once and compares
 titles with one `Intl.Collator` (5k records: ~5 ms a sort, was 200–430 ms).
 
+The search matches a deferred query (`useDeferredValue`), so typing in a large vault doesn't wait on the match: the
+context's `query` is the field, `search` / `searching` what the results are for, `searchPending` while they trail it
+(web: Enter waits for them, previews and the list's scroll-back hold off). Web: `RecordList`'s rows are memoized and
+skip layout off screen (`content-visibility`), a folded "By vault" group renders none (5k records: ~15 ms a ↑↓ step,
+was ~650 ms, jsdom dev build), and `SortedRecordsProvider` sits above the phone / desktop branch (`routes.tsx`), so
+crossing 640px keeps search and filters.
+
 ## Pass Monitor and breach check
 
 Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and

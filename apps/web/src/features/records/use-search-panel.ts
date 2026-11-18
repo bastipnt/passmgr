@@ -28,6 +28,7 @@ export const SEARCH_ALL_KEY = "$mod+Shift+f";
 export function useSearchPanel(enabled: boolean) {
   const {
     query,
+    searchPending,
     setQuery,
     toggleTag,
     noteOpened,
@@ -42,6 +43,8 @@ export function useSearchPanel(enabled: boolean) {
   const [activeId, setActiveId] = useState<string>();
   // Set by the pointer: highlights only, so sweeping across the rows opens nothing.
   const [pointed, setPointed] = useState(false);
+  // Enter on results still trailing the field: chosen once they're for what it holds.
+  const [enterPending, setEnterPending] = useState(false);
   const pointer = useRef<{ x: number; y: number }>(undefined);
   const { search, sections, options } = useSearchOptions();
   const open = enabled && focused;
@@ -61,7 +64,11 @@ export function useSearchPanel(enabled: boolean) {
 
   // Only what the user asked for previews: focusing alone must not swap the open record.
   const previewId =
-    open && active?.kind === "record" && !pointed && (typed || activeId !== undefined)
+    open &&
+    !searchPending &&
+    active?.kind === "record" &&
+    !pointed &&
+    (typed || activeId !== undefined)
       ? active.record.recordId
       : undefined;
   // Debounced: opening a record decrypts and renders it, so holding ↓ would stall on every row.
@@ -111,6 +118,12 @@ export function useSearchPanel(enabled: boolean) {
     [toggleTag, search.tagMode, close, noteOpened, revealRecord, navigate],
   );
 
+  useEffect(() => {
+    if (!enterPending || searchPending) return;
+    setEnterPending(false);
+    if (active) choose(active);
+  }, [enterPending, searchPending, active, choose]);
+
   // Scrolling the results under a still pointer fires moves too: only a real move counts.
   const point = useCallback((option: SearchOption, e: PointerEvent) => {
     const last = pointer.current;
@@ -140,7 +153,10 @@ export function useSearchPanel(enabled: boolean) {
           return;
         }
         case "Enter":
-          if (active) {
+          if (searchPending) {
+            e.preventDefault();
+            setEnterPending(true);
+          } else if (active) {
             e.preventDefault();
             choose(active);
           }
@@ -162,6 +178,7 @@ export function useSearchPanel(enabled: boolean) {
       choose,
       cancel,
       query,
+      searchPending,
       search.tagMode,
       setQuery,
       canSearchAll,

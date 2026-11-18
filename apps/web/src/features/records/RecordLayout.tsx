@@ -1,8 +1,5 @@
 import { useShortcut } from "@repo/client";
-import {
-  SortedRecordsProvider,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { SidebarDivider } from "@repo/ui/components/SidebarItem";
@@ -60,8 +57,8 @@ function LockButton({ collapsed, onLock }: { collapsed: boolean; onLock: () => v
 }
 
 function MainContent({ children, className }: { children: ReactNode; className?: string }) {
-  const { query, sortedRecords } = useSortedRecords();
-  const noResults = query.trim().length > 0 && sortedRecords.length === 0;
+  const { searching, sortedRecords } = useSortedRecords();
+  const noResults = searching && sortedRecords.length === 0;
 
   return (
     <ShellPanel surface="ground" className={cn("hidden sm:block", className)}>
@@ -96,69 +93,67 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
     allowInInput: false,
   });
 
-  // Phones: every route is its own page (`MobileVault`, `MobileRecordPage`).
-  if (isMobile)
-    return (
-      <SortedRecordsProvider>
-        {children}
-        <BackupReminder />
-        <VerifyEmailPrompt />
-      </SortedRecordsProvider>
-    );
-
+  // The siblings keep their place across the 640px breakpoint, so they don't remount.
   return (
-    <SortedRecordsProvider>
-      <AppShell
-        mainClassName={cn(
-          "gap-y-0! pl-3 sm:grid-rows-[0.75rem_minmax(0,1fr)_0.75rem]",
-          "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
-          sidebarCollapsed
-            ? "sm:grid-cols-[4rem_19rem_minmax(0,1fr)] xl:grid-cols-[4rem_24rem_minmax(0,1fr)]"
-            : "sm:grid-cols-[15rem_20rem_minmax(0,1fr)] xl:grid-cols-[15rem_24rem_minmax(0,1fr)]",
-        )}
-      >
-        <ShellPanel
-          id={sidebarId}
-          surface="ground"
-          className="row-start-2"
-          viewportClassName={cn("flex flex-col gap-3 p-0.5", !sidebarCollapsed && "pr-1.5")}
+    <>
+      {/* Phones: every route is its own page (`MobileVault`, `MobileRecordPage`). */}
+      {isMobile ? (
+        children
+      ) : (
+        <AppShell
+          mainClassName={cn(
+            "gap-y-0! pl-3 sm:grid-rows-[0.75rem_minmax(0,1fr)_0.75rem]",
+            "transition-[grid-template-columns] duration-200 ease-out motion-reduce:transition-none",
+            sidebarCollapsed
+              ? "sm:grid-cols-[4rem_19rem_minmax(0,1fr)] xl:grid-cols-[4rem_24rem_minmax(0,1fr)]"
+              : "sm:grid-cols-[15rem_20rem_minmax(0,1fr)] xl:grid-cols-[15rem_24rem_minmax(0,1fr)]",
+          )}
         >
-          <TooltipProvider>
-            <SidebarHeader
-              collapsed={sidebarCollapsed}
-              onCollapsedChange={setSidebarCollapsed}
-              controlsId={sidebarId}
-              toggleRef={toggleRef}
-            />
-            <CategorySidebar collapsed={sidebarCollapsed} />
-            <SidebarTagsRow collapsed={sidebarCollapsed} />
-            <div className={cn("mt-auto flex flex-col gap-2", sidebarCollapsed && "items-center")}>
-              <SidebarFooter collapsed={sidebarCollapsed} />
-              {sidebarCollapsed && (
-                <>
-                  {setSidebarCollapsed && (
-                    <SidebarToggle
-                      ref={toggleRef}
-                      collapsed
-                      onCollapsedChange={setSidebarCollapsed}
-                      controlsId={sidebarId}
-                    />
-                  )}
-                  <SidebarDivider collapsed />
-                </>
-              )}
-              <LockButton collapsed={sidebarCollapsed} onLock={lockVault} />
-            </div>
-          </TooltipProvider>
-        </ShellPanel>
-        <ShellPanel className="row-start-2" viewportClassName="scroll-pt-[10.25rem] scroll-pb-3">
-          <RecordList />
-        </ShellPanel>
-        <MainContent className="row-span-3">{children}</MainContent>
-      </AppShell>
-      <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />
+          <ShellPanel
+            id={sidebarId}
+            surface="ground"
+            className="row-start-2"
+            viewportClassName={cn("flex flex-col gap-3 p-0.5", !sidebarCollapsed && "pr-1.5")}
+          >
+            <TooltipProvider>
+              <SidebarHeader
+                collapsed={sidebarCollapsed}
+                onCollapsedChange={setSidebarCollapsed}
+                controlsId={sidebarId}
+                toggleRef={toggleRef}
+              />
+              <CategorySidebar collapsed={sidebarCollapsed} />
+              <SidebarTagsRow collapsed={sidebarCollapsed} />
+              <div
+                className={cn("mt-auto flex flex-col gap-2", sidebarCollapsed && "items-center")}
+              >
+                <SidebarFooter collapsed={sidebarCollapsed} />
+                {sidebarCollapsed && (
+                  <>
+                    {setSidebarCollapsed && (
+                      <SidebarToggle
+                        ref={toggleRef}
+                        collapsed
+                        onCollapsedChange={setSidebarCollapsed}
+                        controlsId={sidebarId}
+                      />
+                    )}
+                    <SidebarDivider collapsed />
+                  </>
+                )}
+                <LockButton collapsed={sidebarCollapsed} onLock={lockVault} />
+              </div>
+            </TooltipProvider>
+          </ShellPanel>
+          <ShellPanel className="row-start-2" viewportClassName="scroll-pt-[10.25rem] scroll-pb-3">
+            <RecordList />
+          </ShellPanel>
+          <MainContent className="row-span-3">{children}</MainContent>
+        </AppShell>
+      )}
+      {!isMobile && <ShortcutsHelpDialog open={helpOpen} onOpenChange={setHelpOpen} />}
       <BackupReminder />
       <VerifyEmailPrompt />
-    </SortedRecordsProvider>
+    </>
   );
 }

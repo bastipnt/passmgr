@@ -32,7 +32,7 @@ import { useScrollCollapse } from "@repo/ui/hooks/use-scroll-collapse";
 import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, StarIcon, UploadIcon } from "lucide-react";
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useId, useRef, useState } from "react";
 import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { ImportDialog } from "@/features/import";
@@ -59,7 +59,13 @@ type RecordRowProps = {
  * full-bleed table-view row with a hairline inset past the avatar and a
  * chevron — the record opens as its own page, so there is no active state.
  */
-function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowProps) {
+const RecordRow = memo(function RecordRow({
+  record,
+  active,
+  isMobile,
+  vault,
+  registerRef,
+}: RecordRowProps) {
   // scroll-mt: RecordLayout's scroll padding covers the bar without the chips.
   // --vault-mark-ring: the row's own fill (Item's hover / active tints over the list's).
   return (
@@ -70,7 +76,7 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
           ? "[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_10%,var(--sticky-bar-fill))] hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_15%,var(--sticky-bar-fill))] dark:[--vault-mark-ring:color-mix(in_oklab,var(--color-primary)_20%,var(--sticky-bar-fill))]"
           : "hover:[--vault-mark-ring:color-mix(in_oklab,var(--color-foreground)_5%,var(--sticky-bar-fill))]",
         "focus-visible:border-transparent focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset",
-        "group/row gap-3 rounded-2xl px-2.5 py-2 max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h)",
+        "group/row gap-3 rounded-2xl px-2.5 py-2 [contain-intrinsic-size:auto_3.625rem] [content-visibility:auto] max-sm:h-16 max-sm:gap-3.5 max-sm:rounded-none max-sm:py-0 max-sm:pr-0 max-sm:pl-5 max-sm:active:bg-foreground/5 sm:scroll-mt-(--list-chips-h) max-sm:[contain-intrinsic-size:auto_4rem]",
       )}
       render={
         <Link
@@ -104,7 +110,7 @@ function RecordRow({ record, active, isMobile, vault, registerRef }: RecordRowPr
       </ItemContent>
     </Item>
   );
-}
+});
 
 /** "By vault": the group's sticky label, with the vault, its record count and a fold toggle. */
 function VaultGroupHeader({
@@ -259,7 +265,8 @@ export default function RecordList() {
   const [, navigate] = useLocation();
   const { ready } = useGetRecords();
   const {
-    query,
+    searching,
+    searchPending,
     vaultFilter,
     categoryFilter,
     tagFilters,
@@ -339,10 +346,11 @@ export default function RecordList() {
       searchWasOpen.current = true;
       return;
     }
-    if (!searchWasOpen.current) return;
+    // Until then the rows are still the search's, about to be replaced.
+    if (!searchWasOpen.current || searchPending) return;
     searchWasOpen.current = false;
     if (highlightedId) recordRefs.current.get(highlightedId)?.scrollIntoView({ block: "center" });
-  }, [panel.open, highlightedId]);
+  }, [panel.open, highlightedId, searchPending]);
 
   // A filter that leaves the open record out of the list opens its first record
   // instead, or the empty page. Only on a filter change: a record opened from
@@ -350,7 +358,7 @@ export default function RecordList() {
   const filtersKey = [vaultFilter, categoryFilter, ...tagFilters].join("\u0000");
   const checkedFiltersKey = useRef(filtersKey);
   useEffect(() => {
-    if (isMobile || !ready || panel.open || query.trim()) return;
+    if (isMobile || !ready || panel.open || searching) return;
     if (checkedFiltersKey.current === filtersKey) return;
     checkedFiltersKey.current = filtersKey;
     const openId = params?.recordId;
@@ -365,7 +373,7 @@ export default function RecordList() {
     isMobile,
     ready,
     panel.open,
-    query,
+    searching,
     filtersKey,
     params?.recordId,
     recordGroups,
@@ -424,10 +432,9 @@ export default function RecordList() {
       </div>
     );
 
-  const hasQuery = query.trim().length > 0;
   // Folded "By vault" groups still count: they are listed, only collapsed.
   const listedCount = recordGroups.reduce((count, group) => count + group.records.length, 0);
-  const noResults = hasQuery && listedCount === 0;
+  const noResults = searching && listedCount === 0;
   const filtered = activeFilterCount(categoryFilter, tagFilters) > 0;
 
   return (
@@ -440,7 +447,7 @@ export default function RecordList() {
     >
       {isMobile ? (
         <>
-          <MobileListTitle title={listHeading(categoryFilter, hasQuery)} count={listedCount} />
+          <MobileListTitle title={listHeading(categoryFilter, searching)} count={listedCount} />
           <ActiveFilterChips />
         </>
       ) : (
@@ -453,7 +460,7 @@ export default function RecordList() {
           <RecordSearch panel={panel} listboxId={listboxId} />
           <div className="flex min-h-0 flex-1 items-center justify-between gap-2 px-1.5">
             <h2 className="flex min-w-0 items-baseline gap-1.5 font-bold font-display text-lg tracking-[-0.02em]">
-              <span className="truncate">{listHeading(categoryFilter, hasQuery)}</span>
+              <span className="truncate">{listHeading(categoryFilter, searching)}</span>
               <span className="font-normal font-sans text-muted-foreground text-sm tabular-nums tracking-normal">
                 {listedCount}
               </span>
@@ -511,16 +518,17 @@ export default function RecordList() {
                 hidden={recordGroup.folded}
                 className="gap-1 px-3 max-sm:gap-0 max-sm:px-0"
               >
-                {recordGroup.records.map((record) => (
-                  <RecordRow
-                    key={record.recordId}
-                    record={record}
-                    active={!isMobile && record.recordId === highlightedId}
-                    isMobile={isMobile}
-                    vault={rowVault(record)}
-                    registerRef={registerRef}
-                  />
-                ))}
+                {!recordGroup.folded &&
+                  recordGroup.records.map((record) => (
+                    <RecordRow
+                      key={record.recordId}
+                      record={record}
+                      active={!isMobile && record.recordId === highlightedId}
+                      isMobile={isMobile}
+                      vault={rowVault(record)}
+                      registerRef={registerRef}
+                    />
+                  ))}
               </ItemGroup>
             </section>
           ))}

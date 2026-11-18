@@ -1,4 +1,3 @@
-import { parseSearch } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -13,10 +12,10 @@ import { PlusIcon, SearchIcon, SearchXIcon, XIcon } from "lucide-react";
 import { useOpenCreateSheet } from "./CreateRecordSheet";
 
 export function NoSearchResults() {
-  const { query, setQuery, outsideScope, searchAllItems, tagSearch } = useSortedRecords();
+  const { query, search, setQuery, outsideScope, searchAllItems } = useSortedRecords();
   const openCreateSheet = useOpenCreateSheet();
   // A `#` typed on a phone isn't part of the title.
-  const title = parseSearch(query, tagSearch).text;
+  const title = search.text;
 
   return (
     <div className="flex h-full flex-col items-center justify-center">

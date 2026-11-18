@@ -1,4 +1,9 @@
-import { SessionContext, useAutoReconnect, useLinkDeviceCredential } from "@repo/client";
+import {
+  SessionContext,
+  SortedRecordsProvider,
+  useAutoReconnect,
+  useLinkDeviceCredential,
+} from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useContext } from "react";
 import { Redirect, Route, Switch } from "wouter";
@@ -25,30 +30,40 @@ export default function RecordRoutes() {
   // The welcome sends a device with vaults on to their unlock.
   if (!vaultUnlocked) return <Redirect to={authPaths.welcome} />;
 
+  // One provider above the phone / desktop branch: crossing 640px keeps the search and filters.
   return (
-    <RecordLayout>
-      <PageMeta title="Vault" noindex />
-      {/* Phones get their own pages, imported eagerly: a page that suspends
+    <SortedRecordsProvider>
+      <RecordLayout>
+        <PageMeta title="Vault" noindex />
+        {/* Phones get their own pages, imported eagerly: a page that suspends
           mid-transition would slide in blank. */}
-      <RouteErrorBoundary area="records">
-        <Switch>
-          <Route path={recordPaths.index} component={isMobile ? MobileVault : RecordsEmptyState} />
-          {/* Sub-routes are enumerated rather than matched with a wildcard:
+        <RouteErrorBoundary area="records">
+          <Switch>
+            <Route
+              path={recordPaths.index}
+              component={isMobile ? MobileVault : RecordsEmptyState}
+            />
+            {/* Sub-routes are enumerated rather than matched with a wildcard:
             a wildcard would render a bare RecordPage for any unknown sub-path
             and swallow the NotFound catch-all below. */}
-          <Route path={recordPaths.detail} component={isMobile ? MobileRecordPage : RecordPage} />
-          <Route path={recordPaths.edit} component={isMobile ? MobileRecordPage : RecordPage} />
-          <Route path={recordPaths.versions} component={isMobile ? MobileRecordPage : RecordPage} />
+            <Route path={recordPaths.detail} component={isMobile ? MobileRecordPage : RecordPage} />
+            <Route path={recordPaths.edit} component={isMobile ? MobileRecordPage : RecordPage} />
+            <Route
+              path={recordPaths.versions}
+              component={isMobile ? MobileRecordPage : RecordPage}
+            />
 
-          <Route>
-            <NotFound />
-          </Route>
-        </Switch>
-      </RouteErrorBoundary>
+            <Route>
+              <NotFound />
+            </Route>
+          </Switch>
+        </RouteErrorBoundary>
+      </RecordLayout>
 
-      {/* Siblings of the Switch: these outlive their own close navigation, so
-          they can animate out before the route changes. */}
+      {/* Outside the routes and the layout: it outlives its own close navigation
+          (so it can animate out before the route changes) and the desktop's
+          "no results" page, which replaces the routes. */}
       <CreateRecordSheet />
-    </RecordLayout>
+    </SortedRecordsProvider>
   );
 }
