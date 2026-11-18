@@ -1,6 +1,7 @@
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { createContext, type ReactNode, use } from "react";
+import { useLocation } from "wouter";
 
 const GroupHeadingContext = createContext<"h2" | "h3">("h3");
 
@@ -33,12 +34,14 @@ export function SettingsPage({
   className,
 }: SettingsPageProps) {
   const isMobile = useIsMobile();
+  const [path] = useLocation();
   // On a phone the page is the whole screen; on desktop the overlay's "Settings" is the h1.
   const Title = isMobile ? "h1" : "h2";
 
   return (
     <GroupHeadingContext value={isMobile ? "h2" : "h3"}>
       <div
+        data-settings-page={path}
         className={cn(
           "flex max-w-218 flex-col gap-8 px-14 py-10 max-sm:gap-7 max-sm:px-6 max-sm:pt-3 max-sm:pb-12",
           className,

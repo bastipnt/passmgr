@@ -66,7 +66,7 @@ type SettingsRowProps = RowTextProps & { className?: string } & (
   );
 
 const rowClassName =
-  "flex min-h-15 w-full items-center gap-4 px-5 py-3 text-left max-sm:min-h-14 max-sm:gap-3 max-sm:px-4.5 max-sm:py-2.5";
+  "flex min-h-15 w-full items-center gap-4 px-5 py-3 text-left transition-colors duration-500 data-highlighted:bg-primary/10 max-sm:min-h-14 max-sm:gap-3 max-sm:px-4.5 max-sm:py-2.5";
 
 const pressableRowClassName =
   "outline-none transition-colors hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
@@ -98,7 +98,9 @@ function RowText({
       )}
       <span className="flex min-w-0 flex-1 flex-col gap-0.5 max-sm:gap-0">
         <span className="font-medium text-sm leading-5 max-sm:font-normal max-sm:text-base max-sm:leading-6">
-          <span id={labelId}>{label}</span>
+          <span id={labelId} data-settings-label="">
+            {label}
+          </span>
           {status && (
             <>
               {" "}
@@ -146,6 +148,7 @@ function usePressableRow({
   return {
     ids,
     props: {
+      "data-settings-row": "",
       className: cn(rowClassName, pressableRowClassName, danger && "text-destructive", className),
       "aria-labelledby": ids.labelId,
       "aria-describedby": describedBy([
@@ -241,6 +244,7 @@ function ControlRow({
   };
   return (
     <div
+      data-settings-row=""
       className={cn(
         rowClassName,
         stackOnPhone && "max-sm:flex-col max-sm:items-stretch",

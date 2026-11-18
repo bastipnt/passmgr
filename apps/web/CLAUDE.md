@@ -88,7 +88,13 @@ Rules:
   search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the sync
   dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was opened
   from (never auth or an overlay), else the vault list; Esc (`OverlayHeader`) is left to a focused dialog, menu,
-  listbox or field. Phone: `/settings` is `SettingsHome` (the same groups as drill-down
+  listbox or field. Search (`SettingsSearch.tsx`, `settings-search.ts`): `SETTINGS_INDEX` lists the settings
+  (label, synonyms, the row / group it lands on by their rendered labels: rename both together) beside the sections;
+  `matchSettings` groups the matches by section (every query word begins a word of the label, a synonym or the section).
+  The field is a combobox (↑ / ↓, Enter opens, Esc clears then closes, `/` focuses it); the results replace the page
+  (desktop) or the list (phone: the query is in a history entry, so Back clears it and Back from a result brings them
+  back). Opening one navigates, then `revealSetting` scrolls its row into view and highlights it briefly
+  (`data-settings-row` / `data-settings-group` inside `data-settings-page`). Phone: `/settings` is `SettingsHome` (the same groups as drill-down
   rows with their values; its close steps back with `usePageBack`), each section a pushed page with "‹ Settings" back;
   pages are imported eagerly. Sections an account lacks are hidden (`useSettingsGroups`: Devices & activity is
   `linkedOnly`), Keyboard shortcuts is desktop only. Pass Monitor is not a section: it is its own overlay (`/pass-monitor`, `PassMonitorLayout`, same

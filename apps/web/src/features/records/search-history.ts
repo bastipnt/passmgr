@@ -1,4 +1,5 @@
 import type { CategoryFilter } from "@repo/client";
+import { historyState } from "@/lib/history-state";
 
 /** Kept in the history entry the phone search pushes, so Back from a record lands on it again. */
 export type SearchEntry = {
@@ -6,13 +7,6 @@ export type SearchEntry = {
   categoryBefore: CategoryFilter;
   scrollY: number;
 };
-
-function historyState(): Record<string, unknown> | undefined {
-  const state: unknown = history.state;
-  return typeof state === "object" && state !== null
-    ? (state as Record<string, unknown>)
-    : undefined;
-}
 
 export function currentSearchEntry(): SearchEntry | undefined {
   const entry = historyState()?.mobileSearch;

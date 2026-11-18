@@ -4,6 +4,11 @@ import { useGroupHeading } from "./SettingsPage";
 
 type GroupVariant = "default" | "danger";
 
+export const groupLabelClassName =
+  "px-1 font-medium text-muted-foreground text-xs uppercase tracking-[0.06em] max-sm:px-4";
+export const groupCardClassName =
+  "divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card";
+
 const GroupVariantContext = createContext<GroupVariant>("default");
 
 export function useGroupVariant() {
@@ -38,13 +43,20 @@ export function SettingsGroup({
   const Card = list ? "ul" : "div";
 
   return (
-    <section aria-labelledby={headingId} className={cn("flex flex-col gap-2", className)}>
+    <section
+      aria-labelledby={headingId}
+      data-settings-group=""
+      className={cn(
+        "flex flex-col gap-2",
+        cardless &&
+          "rounded-2xl transition-shadow duration-500 data-highlighted:ring-2 data-highlighted:ring-primary/50",
+        className,
+      )}
+    >
       <Heading
         id={headingId}
-        className={cn(
-          "px-1 font-medium text-muted-foreground text-xs uppercase tracking-[0.06em] max-sm:px-4",
-          variant === "danger" && "text-destructive",
-        )}
+        data-settings-group-label=""
+        className={cn(groupLabelClassName, variant === "danger" && "text-destructive")}
       >
         {label}
       </Heading>
@@ -54,7 +66,10 @@ export function SettingsGroup({
         <Card
           data-slot="settings-card"
           aria-labelledby={list ? headingId : undefined}
-          className="divide-y divide-border overflow-hidden rounded-2xl border border-border bg-card"
+          className={cn(
+            groupCardClassName,
+            "transition-shadow duration-500 data-highlighted:ring-2 data-highlighted:ring-primary/50",
+          )}
         >
           <GroupVariantContext value={variant}>{children}</GroupVariantContext>
         </Card>

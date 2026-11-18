@@ -17,6 +17,7 @@ export const SHORTCUTS = {
   editRecord: { key: "$mod+e", description: "Edit record", group: "vault" },
   lockVault: { key: "$mod+l", description: "Lock vault", group: "app" },
   showShortcuts: { key: "Shift+?", description: "Show keyboard shortcuts", group: "app" },
+  searchSettings: { key: "/", description: "Search settings", group: "app" },
   // Also a `KeyboardEvent.key`: `OverlayHeader` listens for it itself (`useShortcut` would prevent the default).
   closeSettings: { key: "Escape", description: "Close settings", group: "app" },
 } as const satisfies Record<string, ShortcutSpec>;

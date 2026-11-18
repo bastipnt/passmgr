@@ -1,10 +1,13 @@
 import { cn } from "@repo/ui/lib/utils";
 import { SearchIcon } from "lucide-react";
+import type { ComponentProps } from "react";
 
 type SettingsSearchFieldProps = {
   label?: string;
   placeholder?: string;
   className?: string;
+  /** Extra props of the input (a combobox's ref, ARIA and keys). */
+  inputProps?: Omit<ComponentProps<"input">, "type" | "value" | "onChange" | "placeholder">;
 } & (
   | { value: string; onValueChange: (value: string) => void }
   | { value?: never; onValueChange?: never }
@@ -17,6 +20,7 @@ export function SettingsSearchField({
   value,
   onValueChange,
   className,
+  inputProps,
 }: SettingsSearchFieldProps) {
   return (
     <label
@@ -27,6 +31,7 @@ export function SettingsSearchField({
     >
       <SearchIcon aria-hidden="true" className="size-4 shrink-0 max-sm:size-5" />
       <input
+        {...inputProps}
         type="search"
         placeholder={placeholder}
         aria-label={label}

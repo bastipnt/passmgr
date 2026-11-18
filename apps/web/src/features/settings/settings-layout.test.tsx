@@ -8,7 +8,7 @@ import { memoryLocation } from "wouter/memory-location";
 import { rememberOverlayReturn } from "@/app/overlay-return";
 import { settingsPaths } from "@/app/route-paths";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
-import { renderWithProviders, screen, within } from "@/test/render";
+import { act, renderWithProviders, screen, waitFor, within } from "@/test/render";
 import SettingsHome from "./SettingsHome";
 import SettingsLayout from "./SettingsLayout";
 
@@ -118,6 +118,56 @@ describe("settings overlay (desktop)", () => {
     expect(location.history).toEqual([settingsPaths.account]);
   });
 
+  it("searches from the header: / focuses, Enter opens the first match", async () => {
+    const location = renderAt(settingsPaths.account);
+    const field = screen.getByRole("combobox", { name: "Search settings" });
+
+    await userEvent.keyboard("/");
+    expect(field).toHaveFocus();
+    await userEvent.keyboard("lock");
+    expect(screen.queryByText("Page")).toBeNull();
+    const results = screen.getByRole("listbox", { name: "Matching settings" });
+    const option = within(results).getByRole("option", { name: "Security › Lock when idle" });
+    expect(option).toHaveAttribute("aria-selected", "true");
+    expect(field).toHaveAttribute("aria-activedescendant", option.id);
+
+    await userEvent.keyboard("{Enter}");
+    expect(location.history.at(-1)).toBe(settingsPaths.security);
+    expect(field).toHaveValue("");
+    expect(screen.getByText("Page")).toBeInTheDocument();
+  });
+
+  it("doesn't add a history entry for a match on the page in view", async () => {
+    const location = renderAt(settingsPaths.security);
+    await userEvent.type(screen.getByRole("combobox", { name: "Search settings" }), "lock{Enter}");
+    expect(location.history).toEqual([settingsPaths.security]);
+  });
+
+  it("moves through the matches with the arrow keys", async () => {
+    const location = renderAt(settingsPaths.account);
+    await userEvent.type(screen.getByRole("combobox", { name: "Search settings" }), "timeout");
+    await userEvent.keyboard("{ArrowDown}{ArrowDown}{ArrowDown}{ArrowUp}{Enter}");
+    expect(location.history.at(-1)).toBe(settingsPaths.security);
+  });
+
+  it("says when nothing matches", async () => {
+    renderAt(settingsPaths.account);
+    await userEvent.type(screen.getByRole("combobox", { name: "Search settings" }), "zzz");
+    expect(screen.getByRole("status")).toHaveTextContent("No settings match “zzz”");
+  });
+
+  it("clears the search on Esc, then closes", async () => {
+    const location = renderAt(settingsPaths.account);
+    const field = screen.getByRole("combobox", { name: "Search settings" });
+    await userEvent.type(field, "theme");
+
+    await userEvent.keyboard("{Escape}");
+    expect(field).toHaveValue("");
+    expect(location.history).toEqual([settingsPaths.account]);
+    await userEvent.keyboard("{Escape}");
+    expect(location.history.at(-1)).toBe("/");
+  });
+
   it("offers Sign out only to a synced account", () => {
     renderAt(settingsPaths.account);
     expect(screen.getByRole("button", { name: "Lock now" })).toBeInTheDocument();
@@ -162,5 +212,38 @@ describe("settings on a phone", () => {
     expect(screen.getByRole("button", { name: "Back to Settings" })).toBeInTheDocument();
     expect(screen.queryByRole("heading", { level: 1 })).toBeNull();
     expect(screen.queryByRole("button", { name: "Close settings" })).toBeNull();
+  });
+
+  it("replaces the list with the matches while typing; Back clears", async () => {
+    renderAt(settingsPaths.index, <SettingsHome />);
+    await userEvent.type(screen.getByRole("combobox", { name: "Search settings" }), "2fa");
+
+    expect(screen.queryByRole("region", { name: "Vault" })).toBeNull();
+    expect(
+      screen.getByRole("option", { name: "Account › Two-factor authentication" }),
+    ).toBeInTheDocument();
+
+    act(() => history.back());
+    await waitFor(() =>
+      expect(screen.getByRole("combobox", { name: "Search settings" })).toHaveValue(""),
+    );
+    expect(screen.getByRole("region", { name: "Vault" })).toBeInTheDocument();
+  });
+
+  it("drops the search's history entry once the field is emptied", async () => {
+    renderAt(settingsPaths.index, <SettingsHome />);
+    const field = screen.getByRole("combobox", { name: "Search settings" });
+    await userEvent.type(field, "ab");
+    expect(history.state).toEqual({ settingsSearch: "ab" });
+
+    await userEvent.clear(field);
+    await waitFor(() => expect(history.state).toBeNull());
+  });
+
+  it("opens a match by a tap", async () => {
+    const location = renderAt(settingsPaths.index, <SettingsHome />);
+    await userEvent.type(screen.getByRole("combobox", { name: "Search settings" }), "accent");
+    await userEvent.click(screen.getByRole("option", { name: "Appearance › Accent" }));
+    expect(location.history.at(-1)).toBe(settingsPaths.appearance);
   });
 });
