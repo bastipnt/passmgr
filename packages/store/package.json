@@ -48,7 +48,7 @@
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "catalog:",
     "drizzle-kit": "catalog:",
-    "playwright": "^1.61.1",
+    "playwright": "^1.65.0",
     "sqlocal": "^0.18.0",
     "vitest": "catalog:"
   }
