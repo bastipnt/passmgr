@@ -10,10 +10,10 @@ describe("gunzipBounded", () => {
   });
 
   it("stops a gzip bomb at the cap", () => {
-    const bomb = gzipSync(new Uint8Array(64 * 1024 * 1024));
+    const bomb = gzipSync(new Uint8Array(8 * 1024 * 1024));
 
-    expect(bomb.length).toBeLessThan(128 * 1024);
-    expect(() => gunzipBounded(bomb, 1024 * 1024)).toThrow(GzipTooLargeError);
+    expect(bomb.length).toBeLessThan(16 * 1024);
+    expect(() => gunzipBounded(bomb, 256 * 1024)).toThrow(GzipTooLargeError);
   });
 
   it("refuses truncated data", () => {
