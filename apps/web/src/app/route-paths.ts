@@ -57,36 +57,46 @@ export const recordPaths = {
   shortcuts: `/?${shortcutsParam}`,
 } as const;
 
+/** The settings overlay; on a phone `index` is the list of sections. */
 export const settingsPaths = {
   index: "/settings",
   account: "/settings/account",
+  /** Signed-in devices and account activity. */
+  devices: "/settings/devices",
+  /** Sync state and this device's storage. */
+  sync: "/settings/sync",
   /** Create, rename and delete vaults (ADR 0001 D6). */
   vaults: "/settings/vaults",
-  general: "/settings/general",
-  generator: "/settings/generator",
-  security: "/settings/security",
-  /** Deleted records: restore or delete for good. */
-  trash: "/settings/trash",
   /** Rename or remove a tag on every record. */
   tags: "/settings/tags",
+  /** Deleted records: restore or delete for good. */
+  trash: "/settings/trash",
+  /** Import & export: encrypted backups and other managers' files. */
+  backup: "/settings/backup",
+  security: "/settings/security",
+  /** Theme, accent and list defaults. */
+  appearance: "/settings/appearance",
+  generator: "/settings/generator",
+  /** Desktop only. */
+  shortcuts: "/settings/shortcuts",
 
   /** Prefix the app-level router hands to the settings feature. */
   any: "/settings/*?",
 } as const;
 
-/** Pass Monitor findings; rendered in the settings layout. */
+/** Pass Monitor findings: a screen of its own next to the vault. */
 export const passMonitorPaths = {
-  index: "/settings/pass-monitor",
-  weak: "/settings/pass-monitor/weak",
-  reused: "/settings/pass-monitor/reused",
-  duplicates: "/settings/pass-monitor/duplicates",
-  old: "/settings/pass-monitor/old",
-  breached: "/settings/pass-monitor/breached",
-  insecure: "/settings/pass-monitor/insecure",
-  twoFactor: "/settings/pass-monitor/two-factor",
+  index: "/pass-monitor",
+  weak: "/pass-monitor/weak",
+  reused: "/pass-monitor/reused",
+  duplicates: "/pass-monitor/duplicates",
+  old: "/pass-monitor/old",
+  breached: "/pass-monitor/breached",
+  insecure: "/pass-monitor/insecure",
+  twoFactor: "/pass-monitor/two-factor",
   /** One of the finding pages, below the overview. */
-  page: "/settings/pass-monitor/*",
-  any: "/settings/pass-monitor/*?",
+  page: "/pass-monitor/*",
+  any: "/pass-monitor/*?",
 } as const;
 
 /**
@@ -99,6 +109,7 @@ export const pageDepths = [
   // Edit and versions are sheets over the record, not pages: same depth.
   [recordPaths.detailAny, 1],
   [settingsPaths.index, 1],
-  [passMonitorPaths.page, 3],
   [settingsPaths.any, 2],
+  [passMonitorPaths.page, 2],
+  [passMonitorPaths.any, 1],
 ] as const;

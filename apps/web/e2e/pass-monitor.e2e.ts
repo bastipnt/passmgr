@@ -4,7 +4,7 @@ import { randomPassword } from "./helpers/auth";
 import { createLocalVault, createLogin, openPasswordIssues } from "./helpers/vault";
 
 /**
- * Pass Monitor (Settings → Pass Monitor): weak, reused, duplicate and old
+ * Pass Monitor (from the vault sidebar): weak, reused, duplicate and old
  * passwords, insecure websites and missing 2FA, checked on the device after
  * decryption; breached ones against a stubbed HIBP range API.
  */
@@ -19,7 +19,6 @@ test("finds a weak password reused by two logins and opens one of them", async (
   });
   await createLogin(page, { title: "Figma", username: "jana", password: "password1" });
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
 
   await expect(page.getByLabel("2 Weak passwords")).toBeVisible({ timeout: 15_000 });
@@ -59,7 +58,6 @@ test("checks passwords against HIBP only by hash prefix, once turned on", async 
   });
   await createLogin(page, { title: "Figma", username: "jana", password: randomPassword() });
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
   await expect(page.getByRole("link", { name: /Breached passwords/ })).toContainText("Off");
   expect(requests).toEqual([]);
@@ -103,7 +101,6 @@ test("flags plain HTTP websites and logins missing 2FA from the bundled list", a
     website: "https://github.com",
   });
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
   await expect(page.getByLabel("1 Insecure websites")).toBeVisible({ timeout: 15_000 });
   await expect(page.getByLabel("1 Missing 2FA")).toBeVisible();
@@ -113,7 +110,6 @@ test("flags plain HTTP websites and logins missing 2FA from the bundled list", a
   await page.getByRole("link", { name: /Router/ }).click();
   await expect(page).toHaveURL(new RegExp(`/record/${router}$`));
 
-  await page.getByRole("link", { name: "Settings", exact: true }).click();
   await page.getByRole("link", { name: /Pass Monitor/ }).click();
   await page.getByRole("link", { name: /Missing 2FA/ }).click();
   await expect(page.getByRole("link", { name: /GitHub/ })).toContainText("github.com supports 2FA");

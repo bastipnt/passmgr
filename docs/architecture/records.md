@@ -17,7 +17,7 @@ crossing 640px keeps search and filters.
 
 ## Pass Monitor and breach check
 
-Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web Settings → Pass Monitor, `features/pass-monitor/`): login and
+Pass Monitor (`usePassMonitor`, `records/pass-monitor.ts`; web: its own screen, `/pass-monitor` from the vault sidebar, `features/pass-monitor/`): login and
 Wi-Fi passwords (`monitoredPassword`) across every vault, on the device after decryption. Weak = zxcvbn score < 3 (rated
 in chunks, ratings cached per version, never the password). zxcvbn costs 100–500 ms a password: every rating goes through
 `strengthWorkerService` (`@repo/crypto/services`; a Web Worker on web, deferred on the JS thread on mobile), incl.
@@ -47,7 +47,7 @@ for passwords without a result or with one ≥ `BREACH_RECHECK_DAYS`. Results pe
 ## Website icons
 
 Favicons (`@repo/ui-shared` `useWebsiteAvatar`, web `WebsiteAvatar` and the form's `WebsiteFavicon`, native
-`WebsiteAvatar`) come from `icons.duckduckgo.com/ip3/<host>.ico`, only with Settings → General "Show website icons" on
+`WebsiteAvatar`) come from `icons.duckduckgo.com/ip3/<host>.ico`, only with Settings → Appearance "Show website icons" on
 (`useWebsiteIconsPreference`, `PREF_KEYS.websiteIcons`, per device, off by default). `PreferencesProvider` feeds it to
 `WebsiteIconsContext`; off, no request is made and the avatar is the hue-tinted initial. The website form keeps a row's
 icon at its value from when it was focused, so only blurred values are looked up, never keystrokes. The host is in the

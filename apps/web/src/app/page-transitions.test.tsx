@@ -66,7 +66,8 @@ describe("page direction", () => {
     expect(pt.directionBetween(recordPaths.index, recordPaths.record("a"))).toBe("push");
     expect(pt.directionBetween(recordPaths.record("a"), recordPaths.index)).toBe("pop");
     expect(pt.directionBetween(passMonitorPaths.index, passMonitorPaths.duplicates)).toBe("push");
-    expect(pt.directionBetween(settingsPaths.general, settingsPaths.index)).toBe("pop");
+    expect(pt.directionBetween(settingsPaths.appearance, settingsPaths.index)).toBe("pop");
+    expect(pt.directionBetween(passMonitorPaths.index, recordPaths.index)).toBe("pop");
   });
 
   it("doesn't animate between pages at the same depth or off the stack", () => {

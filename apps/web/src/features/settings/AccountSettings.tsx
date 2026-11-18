@@ -5,7 +5,6 @@ import {
   useEmailVerification,
   usePendingChangeCount,
   useRemoveFromDevice,
-  useSignOut,
   useStore,
 } from "@repo/client";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
@@ -20,7 +19,6 @@ import {
 import {
   CloudUploadIcon,
   KeyRoundIcon,
-  LogOutIcon,
   MailCheckIcon,
   TrashIcon,
   UserRoundXIcon,
@@ -43,15 +41,14 @@ const STATUS: Record<SessionMode, string> = {
 const reload = () => window.location.reload();
 
 /**
- * Account actions (ADR 0001 D2): sign out ends the server session and keeps
- * the vault on this device; removing the vault deletes the local copy. A
+ * Account actions (ADR 0001 D2): removing the vault deletes the local copy
+ * (Sign out is with Lock now, `SessionActions`). A
  * local vault can become an online account (D9). The master password changes
  * in both modes (D10). An online account can be deleted for good.
  */
 export default function AccountSettings() {
   const { mode } = useContext(SessionContext);
   const { profile, active } = useStore();
-  const { signOut, signingOut } = useSignOut();
   const { removeFromDevice, removing } = useRemoveFromDevice();
   const pendingChanges = usePendingChangeCount();
   const { required: verifyRequired } = useEmailVerification();
@@ -93,21 +90,11 @@ export default function AccountSettings() {
           )}
           {!demo && (
             <ChangePasswordDialog linked={linked}>
-              <Button variant="outline" disabled={signingOut || removing}>
+              <Button variant="outline" disabled={removing}>
                 <KeyRoundIcon />
                 Change password
               </Button>
             </ChangePasswordDialog>
-          )}
-          {linked && (
-            <Button
-              variant="outline"
-              disabled={signingOut || removing}
-              onClick={() => void signOut().then(reload)}
-            >
-              <LogOutIcon />
-              Sign out
-            </Button>
           )}
           <RemoveDialog
             title="Remove vault from this device?"
@@ -115,14 +102,14 @@ export default function AccountSettings() {
             removeTitle="Remove vault"
             onRemove={() => void removeFromDevice().then(reload)}
           >
-            <Button variant="destructive" disabled={signingOut || removing}>
+            <Button variant="destructive" disabled={removing}>
               <TrashIcon />
               Remove from device
             </Button>
           </RemoveDialog>
           {linked && (
             <DeleteAccountDialog onDeleted={reload}>
-              <Button variant="destructive" disabled={signingOut || removing}>
+              <Button variant="destructive" disabled={removing}>
                 <UserRoundXIcon />
                 Delete account
               </Button>

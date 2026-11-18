@@ -1,14 +1,9 @@
-import {
-  SessionContext,
-  SortedRecordsProvider,
-  useAutoReconnect,
-  useLinkDeviceCredential,
-} from "@repo/client";
+import { SortedRecordsProvider } from "@repo/client";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
-import { useContext } from "react";
-import { Redirect, Route, Switch } from "wouter";
-import { authPaths, recordPaths } from "@/app/route-paths";
+import { Route, Switch } from "wouter";
+import { recordPaths } from "@/app/route-paths";
 import { PageMeta } from "@/components/PageMeta";
+import { RequireUnlocked } from "@/components/RequireUnlocked";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
 import CreateRecordSheet from "./CreateRecordSheet";
@@ -22,13 +17,15 @@ const RecordsEmptyState = lazyPreload(() => import("./RecordsEmptyState"));
 const RecordPage = lazyPreload(() => import("./RecordPage"));
 
 export default function RecordRoutes() {
-  const { vaultUnlocked } = useContext(SessionContext);
-  useAutoReconnect();
-  useLinkDeviceCredential();
-  const isMobile = useIsMobile();
+  return (
+    <RequireUnlocked>
+      <Records />
+    </RequireUnlocked>
+  );
+}
 
-  // The welcome sends a device with vaults on to their unlock.
-  if (!vaultUnlocked) return <Redirect to={authPaths.welcome} />;
+function Records() {
+  const isMobile = useIsMobile();
 
   // One provider above the phone / desktop branch: crossing 640px keeps the search and filters.
   return (

@@ -39,6 +39,7 @@ test("idle timeout locks the vault and ends its server session", async ({ page, 
   await expectInApp(secondDevice);
   await secondDevice.getByRole("link", { name: "Settings", exact: true }).click();
   await expect(secondDevice).toHaveURL(/\/settings\/account$/);
+  await secondDevice.getByRole("link", { name: "Devices & activity" }).click();
   const devices = secondDevice.getByRole("list", { name: "Signed-in devices" });
   await expect(devices.getByRole("listitem")).toHaveCount(1);
   await expect(devices).toContainText("(this device)");

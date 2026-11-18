@@ -58,7 +58,7 @@ async function openSecuritySettings(page: Page): Promise<void> {
 }
 
 async function backToVault(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await expectInApp(page);
 }
 

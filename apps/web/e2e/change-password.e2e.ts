@@ -28,7 +28,6 @@ import {
 
 async function changePassword(page: Page, current: string, next: string): Promise<void> {
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "Account & sync", exact: true }).click();
   await expect(page).toHaveURL(/\/settings\/account$/);
   await page.getByRole("button", { name: "Change password", exact: true }).click();
 
@@ -40,7 +39,7 @@ async function changePassword(page: Page, current: string, next: string): Promis
   // Linked: a fresh login, a new registration, the Argon2 wrap and a login again.
   await expect(dialog).toHaveCount(0, { timeout: 60_000 });
 
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await expectInApp(page);
 }
 

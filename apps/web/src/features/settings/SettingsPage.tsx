@@ -34,7 +34,7 @@ export function SettingsPage({
     <GroupHeadingContext value={isMobile ? "h2" : "h3"}>
       <div
         className={cn(
-          "flex max-w-190 flex-col gap-8 px-14 py-10 max-sm:gap-7 max-sm:px-6 max-sm:pt-3 max-sm:pb-12",
+          "flex max-w-218 flex-col gap-8 px-14 py-10 max-sm:gap-7 max-sm:px-6 max-sm:pt-3 max-sm:pb-12",
           className,
         )}
       >

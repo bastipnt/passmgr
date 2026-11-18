@@ -2,7 +2,7 @@ import { applyStoredAccent, ThemeProvider } from "@repo/ui/providers/ThemeProvid
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
-import GeneralSettingsPage from "./GeneralSettingsPage";
+import AppearanceSettingsPage from "./AppearanceSettingsPage";
 
 const KEY = "test-theme";
 const ACCENT_KEY = `${KEY}-accent`;
@@ -12,7 +12,7 @@ const root = document.documentElement;
 function renderPage() {
   return renderWithProviders(
     <ThemeProvider storageKey={KEY}>
-      <GeneralSettingsPage />
+      <AppearanceSettingsPage />
     </ThemeProvider>,
   );
 }

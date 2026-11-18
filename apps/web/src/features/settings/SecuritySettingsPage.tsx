@@ -16,7 +16,6 @@ import {
 } from "@repo/ui/components/Select";
 import { useId } from "react";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
-import ExportSettings from "./ExportSettings";
 import TwoFactorSettings from "./TwoFactorSettings";
 
 type ChoiceSettingProps = {
@@ -84,8 +83,6 @@ export default function SecuritySettingsPage() {
           />
 
           <TwoFactorSettings />
-
-          <ExportSettings />
         </ItemGroup>
       </div>
     </>

@@ -17,7 +17,7 @@ Export (`useExport`, ADR 0001 D12 amended): encrypted backup (`ExportEnvelope`: 
 password + XChaCha20, `decryptExport` reads it back; moves `lastExportAt`) or plain JSON / CSV. Every format
 re-checks the master password. CSV escapes formulas in every cell, credentials included (a shared-vault member's
 `=HYPERLINK(…)` username): a leading `=`/`+`/`-`/`@`/tab/CR (after any `'`s) gets a `'`, which this app's own CSV
-import takes off again (`unescapeFormula`); another manager importing the file keeps it. Web: Settings → Security → Export.
+import takes off again (`unescapeFormula`); another manager importing the file keeps it. Web: Settings → Import & export → Export.
 Import (`useImport`, `importExportData`): an encrypted backup or plain JSON (`readExportFile` /
 `openExportEnvelope`) into the open profile, re-encrypted per target vault and written through
 `RecordRepository.writeImport` (outbox, batches of `IMPORT_BATCH_SIZE`). A record keeps its id only in the vault
@@ -52,7 +52,7 @@ fills it with `demoSeed()` (`@repo/schema`: the dev seed's example records over 
 every version dated back (`RecordRepository.writeImport` / `delete` take an `at`, `Vault.writeLocalChanges` a `now`).
 A new demo replaces the device's old one (removed once the new one is active). A demo profile never links:
 `useLinkAccount` refuses it (`demo`), whatever the browser's demo mode; local profiles never sync anyway. Its sync
-summary is "Demo (local only)" (`summarizeSync`'s `demo`, `DEMO_VAULT_NOTICE`); Settings → Account & sync and the
+summary is "Demo (local only)" (`summarizeSync`'s `demo`, `DEMO_VAULT_NOTICE`); Settings → Account and the
 phone's account sheet show the notice and offer no account or password change. In demo mode, import (every
 `ImportDialog` trigger), create, account login, restore and recovery are gone (their routes go to the welcome);
 export stays.

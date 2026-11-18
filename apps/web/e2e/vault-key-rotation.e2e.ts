@@ -26,7 +26,7 @@ async function rotatePersonalVaultKey(page: Page): Promise<void> {
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: "Rotate key" }).click();
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await expectInApp(page);
 }
 

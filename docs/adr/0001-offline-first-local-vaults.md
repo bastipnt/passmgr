@@ -711,7 +711,7 @@ to another vault is re-encrypted anyway (D6).
 >   shared vault); this app's own CSV import takes it off again. Reading an export back (`decryptExport`) checks each
 >   record's id, vault and type, not its fields: one odd record must not make a backup unreadable.
 > - The encrypted export counts once saved (`useExport().markSaved`), not when it is built.
-> - Web: Settings → Security → Export; the reminder's "Back up" leads there. Mobile has no export
+> - Web: Settings → Import & export → Export; the reminder's "Back up" leads there. Mobile has no export
 >   UI yet (`useExport` is shared; saving the file needs a share sheet).
 >
 > **Amended 2026-10-12** (import from other password managers):

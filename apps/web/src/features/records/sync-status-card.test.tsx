@@ -180,7 +180,7 @@ describe("SyncStatusPopup", () => {
     status = { ...status, phase: "offline" };
     renderMenu("offline");
     await userEvent.click(screen.getByRole("button", { name: /^Sync status:/ }));
-    await screen.findByRole("menuitem", { name: "Account & sync" });
+    await screen.findByRole("menuitem", { name: "Sync & storage" });
     expect(screen.queryByRole("menuitem", { name: "Connect now" })).toBeNull();
   });
 });

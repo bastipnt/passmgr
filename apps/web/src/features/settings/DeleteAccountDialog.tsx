@@ -82,7 +82,7 @@ export default function DeleteAccountDialog({
               </DialogDescription>
               <DialogDescription>
                 Want a copy?{" "}
-                <Link href={settingsPaths.security} className="underline underline-offset-4">
+                <Link href={settingsPaths.backup} className="underline underline-offset-4">
                   Export your vault
                 </Link>{" "}
                 first.

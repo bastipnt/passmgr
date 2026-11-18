@@ -99,7 +99,7 @@ export function summarizeSync(
       state: "offline",
       title: "Sync paused",
       detail:
-        "Verify your email address to start syncing: enter the code we sent you in Account & sync. Everything you do is saved on this device meanwhile.",
+        "Verify your email address to start syncing: enter the code we sent you under Settings → Account. Everything you do is saved on this device meanwhile.",
     };
 
   if (offline && pendingRecovery)

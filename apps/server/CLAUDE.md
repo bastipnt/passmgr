@@ -35,7 +35,7 @@ per user) — never `UPDATE` key material in place.
 - `vault` → `vaultRouter` (list, create, updateMeta, rotateKey, delete — owner only, never the personal vault; sharing:
   invite, invitations, acceptKey, declineInvite, members, setMemberRole, removeMember, leave, transferOwnership) — `verifiedProcedure`
 - `session` → `sessionRouter` (list, revoke, revokeOthers — the signed-in devices; listed by a hash of the session id, never the id;
-  a revoked device locks: `signedout:<sessionId>` marker, see Session modes in `docs/architecture/auth.md`) — `protectedProcedure`. UI: `useSessions`, web Settings → Account & sync (`SessionsSettings`),
+  a revoked device locks: `signedout:<sessionId>` marker, see Session modes in `docs/architecture/auth.md`) — `protectedProcedure`. UI: `useSessions`, web Settings → Devices & activity (`SessionsSettings`),
   mobile Settings (`SessionsSection`)
 - `activity` → `activityRouter` (list — the account's security log, `account_events`, see Account activity in
   `docs/architecture/auth.md`) — `protectedProcedure`. Record a new event type with `recordAccountEvent` / `recordAction`

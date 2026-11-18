@@ -9,8 +9,7 @@ const TOAST_ID = "backup-reminder";
 /**
  * Recurring reminder for a local-only vault (ADR 0001 D12): its only copy is
  * this browser's storage. Shown while the vault is open once the reminder is
- * due; "Back up" leads to the export and "Create online account" (Settings →
- * Security). Its buttons and swiping it away put it off for another interval;
+ * due; "Back up" leads to Settings → Import & export. Its buttons and swiping it away put it off for another interval;
  * an encrypted export resets it.
  * Renders nothing.
  */
@@ -32,7 +31,7 @@ export default function BackupReminder() {
         label: "Back up",
         onClick: () => {
           snooze();
-          navigate(settingsPaths.security);
+          navigate(settingsPaths.backup);
         },
       },
       cancel: { label: "Later", onClick: snooze },

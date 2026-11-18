@@ -13,8 +13,6 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@repo/ui/components/Item";
-import { Kbd } from "@repo/ui/components/Kbd";
-import Link from "@repo/ui/components/Link";
 import {
   Select,
   SelectContent,
@@ -26,11 +24,9 @@ import {
 } from "@repo/ui/components/Select";
 import { Switch } from "@repo/ui/components/Switch";
 import { ToggleGroup, ToggleGroupItem } from "@repo/ui/components/ToggleGroup";
-import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { useTheme } from "@repo/ui/providers/ThemeProvider";
 import { ACCENT_HINT, WEBSITE_ICONS_HINT } from "@repo/ui-shared";
 import { Monitor, Moon, Sun } from "lucide-react";
-import { recordPaths } from "@/app/route-paths";
 import { PanelHeader, PanelTitle } from "@/components/AppShell";
 
 const themes = [
@@ -51,16 +47,15 @@ const sortOptions = (Object.keys(SORT_LABELS) as SortOption[]).map((value) => ({
   value,
 }));
 
-export default function GeneralSettingsPage() {
+export default function AppearanceSettingsPage() {
   const { theme, setTheme } = useTheme();
   const [sort, setSort] = useSortPreference();
   const [websiteIcons, setWebsiteIcons] = useWebsiteIconsPreference();
-  const isMobile = useIsMobile();
 
   return (
     <>
       <PanelHeader>
-        <PanelTitle>General Settings</PanelTitle>
+        <PanelTitle>Appearance</PanelTitle>
       </PanelHeader>
       <div className="px-4 pb-4">
         <section aria-labelledby="appearance-heading" className="mb-6">
@@ -159,22 +154,6 @@ export default function GeneralSettingsPage() {
               </Select>
             </ItemContent>
           </Item>
-
-          {!isMobile && (
-            <Item variant="outline">
-              <ItemContent>
-                <ItemTitle>Keyboard shortcuts</ItemTitle>
-                <ItemDescription>
-                  Press <Kbd>?</Kbd> in your vault to list them.
-                </ItemDescription>
-              </ItemContent>
-              <ItemActions>
-                <Link variant="outline" size="sm" href={recordPaths.shortcuts}>
-                  Show
-                </Link>
-              </ItemActions>
-            </Item>
-          )}
         </ItemGroup>
       </div>
     </>

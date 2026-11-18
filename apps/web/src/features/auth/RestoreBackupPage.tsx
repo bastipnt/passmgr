@@ -174,14 +174,14 @@ export default function RestoreBackupPage() {
                 toast.error(
                   `Your vault was created, but the import into it failed. ${
                     (outcome.stopped && importStoppedMessage(outcome.stopped)) ??
-                    "Import the file again under Settings → Security."
+                    "Import the file again under Settings → Import & export."
                   }`,
                 );
             } else if (outcome.ok)
               toast.success(`Backup restored: ${outcome.result.created} record(s).`);
             else
               toast.error(
-                "Your vault was created, but the backup couldn't be restored into it. Import the file again under Settings → Security.",
+                "Your vault was created, but the backup couldn't be restored into it. Import the file again under Settings → Import & export.",
               );
           });
         }}
@@ -291,7 +291,7 @@ export default function RestoreBackupPage() {
                 (restoreError === "failed" || restoreError === "unlock_failed") && (
                   <CreateErrorBox
                     error={restoreError}
-                    afterUnlock=" and import the file under Settings → Security."
+                    afterUnlock=" and import the file under Settings → Import & export."
                   />
                 )
               }

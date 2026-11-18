@@ -153,7 +153,7 @@ signing in again finds no account.
 Client: `SyncManager` `isPaused` → `SyncStatus.paused` (no retries, no sync on writes; the periodic sync still checks, so
 a device picks up a verification made elsewhere; the SSE stream waits for the first round that goes through); the sync indicator says "Sync paused". `useEmailVerification` (status, `verify`,
 `resend`; a verify, or the status found verified, syncs at once). Web: `VerifyEmailPrompt` (`components/VerifyEmailDialog.tsx`)
-opens the dialog once per account and page load in the records and settings layouts; Account & sync has "Verify email".
+opens the dialog once per account and page load in the records and settings layouts; Settings → Account has "Verify email".
 Mobile has no verify UI yet: an account made there syncs once verified on the web.
 
 ## Two-factor
@@ -167,7 +167,7 @@ Gates the server only: a cached profile still unlocks with the password. Recover
 
 ## Account activity
 
-A security log the account owner sees (`useAccountActivity`, `linked` + `online` only; web Settings → Account & sync
+A security log the account owner sees (`useAccountActivity`, `linked` + `online` only; web Settings → Devices & activity
 `ActivitySettings`, mobile `ActivitySection`; labels in `packages/client/src/util/account-event-label.ts`). Server:
 `account_events` (`apps/server/src/user/account-events.ts`), written best-effort after the action it records
 (`recordAccountEvent`, never throws), read by `activity.list` (newest first, `ACCOUNT_EVENTS_PAGE_SIZE` per page, cursor
@@ -190,7 +190,7 @@ account deletion cascades.
 
 ## Account deletion
 
-Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account & sync): a fresh OPAQUE login
+Account deletion (`useDeleteAccount`, `linked` + `online` only; web Settings → Account): a fresh OPAQUE login
 (`freshLogin`) then `user.deleteAccount` (`apps/server/src/user/delete-account.ts`), a hard delete in one transaction:
 user row → cascades to key sets, keypair, memberships and every vault it owns (the personal one) with their
 records. Shared vaults: nobody else active → deleted; the user is the only active owner of one others are in →

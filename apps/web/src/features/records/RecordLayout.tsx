@@ -69,7 +69,7 @@ function MainContent({ children, className }: { children: ReactNode; className?:
 export default function RecordLayout({ children }: RecordLayoutProps) {
   const [, navigate] = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  // A one-shot request (Settings → General): read once, then dropped, so a reload doesn't reopen it.
+  // A one-shot request (Settings → Keyboard shortcuts): read once, then dropped, so a reload doesn't reopen it.
   const [helpOpen, setHelpOpen] = useState(() => searchParams.has(recordPaths.shortcutsParam));
   useEffect(() => {
     if (!searchParams.has(recordPaths.shortcutsParam)) return;

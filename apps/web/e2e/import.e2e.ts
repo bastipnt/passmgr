@@ -3,13 +3,13 @@ import { expect, test } from "@playwright/test";
 import { randomPassword } from "./helpers/auth";
 import { createLocalVault, expectInApp } from "./helpers/vault";
 
-/** Import from another password manager (Settings → Security → Import): a Chrome CSV. */
+/** Import from another password manager (Settings → Import & export → Import): a Chrome CSV. */
 test("imports a Chrome password export into the vault", async ({ page }) => {
   test.setTimeout(90_000);
   await createLocalVault(page, "Import", randomPassword());
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "Security", exact: true }).click();
+  await page.getByRole("link", { name: "Import & export", exact: true }).click();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
   await page.getByLabel("Export file").setInputFiles({
@@ -27,7 +27,7 @@ test("imports a Chrome password export into the vault", async ({ page }) => {
   await expect(dialog.getByText("Imported 2 items from Chrome / Edge.")).toBeVisible();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
 
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await expectInApp(page);
   await expect(page.getByRole("link", { name: /Mail jana$/ })).toBeVisible();
   await expect(page.getByRole("link", { name: /Bank jana@example\.com$/ })).toBeVisible();
@@ -42,7 +42,7 @@ test("imports a KeePass database with its password and key file", async ({ page 
   await createLocalVault(page, "KeePass", randomPassword());
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "Security", exact: true }).click();
+  await page.getByRole("link", { name: "Import & export", exact: true }).click();
   await page.getByRole("button", { name: "Import", exact: true }).click();
 
   const dialog = page.getByRole("dialog");
@@ -60,7 +60,7 @@ test("imports a KeePass database with its password and key file", async ({ page 
   await expect(dialog.getByText("Delete it now", { exact: false })).toHaveCount(0);
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
 
-  await page.getByRole("button", { name: "Back", exact: true }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await expectInApp(page);
   await expect(page.getByRole("link", { name: /Sample Entry User Name$/ })).toBeVisible();
 });

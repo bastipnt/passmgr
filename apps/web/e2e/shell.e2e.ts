@@ -18,7 +18,7 @@ import {
  * search panel, and a login's detail (email, password health).
  */
 
-test("accent: picked in Settings → General, kept over a reload, used by the auth screen and the logo", async ({
+test("accent: picked in Settings → Appearance, kept over a reload, used by the auth screen and the logo", async ({
   page,
 }) => {
   const password = randomPassword();
@@ -26,7 +26,7 @@ test("accent: picked in Settings → General, kept over a reload, used by the au
   await expect(page.locator("html")).toHaveAttribute("data-accent", "berry");
 
   await page.getByRole("link", { name: "Settings", exact: true }).click();
-  await page.getByRole("link", { name: "General Settings" }).click();
+  await page.getByRole("link", { name: "Appearance", exact: true }).click();
   await page
     .getByRole("radiogroup", { name: "Accent" })
     .getByRole("radio", { name: "Pine" })
@@ -35,7 +35,7 @@ test("accent: picked in Settings → General, kept over a reload, used by the au
   await expectAccessible(page);
 
   // Web lock reloads the page: the unlock screen shows the stored accent.
-  await page.getByRole("button", { name: "Back" }).click();
+  await page.getByRole("button", { name: "Close settings" }).click();
   await lockFromSidebar(page);
   await expect(page.locator("html")).toHaveAttribute("data-accent", "pine");
   const logo = page.locator('[data-slot="brand-mark"]').first();

@@ -72,7 +72,7 @@ describe("BackupReminder", () => {
     await waitFor(() => expect(toast.warning).toHaveBeenCalledOnce());
     shown().action.onClick();
 
-    expect(navigate).toHaveBeenCalledWith(settingsPaths.security);
+    expect(navigate).toHaveBeenCalledWith(settingsPaths.backup);
   });
 
   it("stays quiet before the interval and for linked profiles", () => {

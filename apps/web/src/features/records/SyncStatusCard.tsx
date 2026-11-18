@@ -81,10 +81,17 @@ function SyncStatusPopup({ trigger, align = "end", side }: SyncStatusPopupProps)
             Sync now
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem render={<Link href={settingsPaths.account} />}>
-          <UserRoundIcon />
-          {summary.state === "local" && !summary.demo ? "Create online account" : "Account & sync"}
-        </DropdownMenuItem>
+        {summary.state === "local" && !summary.demo ? (
+          <DropdownMenuItem render={<Link href={settingsPaths.account} />}>
+            <UserRoundIcon />
+            Create online account
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem render={<Link href={settingsPaths.sync} />}>
+            <UserRoundIcon />
+            Sync &amp; storage
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

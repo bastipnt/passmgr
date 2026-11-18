@@ -16,6 +16,8 @@ const RowLabelContext = createContext<RowLabel | null>(null);
 type RowStatus = { label: string; tone: StatusTone };
 
 type RowTextProps = {
+  /** A tile before the text (the phone's section list). */
+  icon?: LucideIcon;
   label: ReactNode;
   hint?: ReactNode;
   /** Shown after the label ("Two-factor authentication · Off"): describes the control, doesn't name it. */
@@ -53,6 +55,7 @@ const pressableRowClassName =
   "outline-none transition-colors hover:bg-foreground/5 focus-visible:bg-foreground/5 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset";
 
 function RowText({
+  icon: Icon,
   label,
   hint,
   status,
@@ -61,29 +64,40 @@ function RowText({
   hintId,
 }: RowTextProps & { labelId: string; statusId: string; hintId: string }) {
   return (
-    <span className="flex min-w-0 flex-1 flex-col gap-0.5 max-sm:gap-0">
-      <span className="font-medium text-sm leading-5 max-sm:font-normal max-sm:text-base max-sm:leading-6">
-        <span id={labelId}>{label}</span>
-        {status && (
-          <>
-            {" "}
-            <span id={statusId} className={cn("font-medium", toneTextClassName[status.tone])}>
-              · {status.label}
-            </span>
-          </>
-        )}
-      </span>
-      {hint != null && (
-        <span id={hintId} className="text-[13px] text-muted-foreground leading-4.5">
-          {hint}
+    <>
+      {Icon && (
+        <span
+          aria-hidden="true"
+          className="grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-primary-text max-sm:size-7.5 max-sm:rounded-[10px] [&_svg]:size-4"
+        >
+          <Icon />
         </span>
       )}
-    </span>
+      <span className="flex min-w-0 flex-1 flex-col gap-0.5 max-sm:gap-0">
+        <span className="font-medium text-sm leading-5 max-sm:font-normal max-sm:text-base max-sm:leading-6">
+          <span id={labelId}>{label}</span>
+          {status && (
+            <>
+              {" "}
+              <span id={statusId} className={cn("font-medium", toneTextClassName[status.tone])}>
+                · {status.label}
+              </span>
+            </>
+          )}
+        </span>
+        {hint != null && (
+          <span id={hintId} className="text-[13px] text-muted-foreground leading-4.5">
+            {hint}
+          </span>
+        )}
+      </span>
+    </>
   );
 }
 
 /** Label and one-line hint on the left, a control (or a drill-down) on the right. */
 export function SettingsRow({
+  icon,
   label,
   hint,
   status,
@@ -114,6 +128,7 @@ export function SettingsRow({
   };
   const text = (
     <RowText
+      icon={icon}
       label={label}
       hint={hint}
       status={status}
