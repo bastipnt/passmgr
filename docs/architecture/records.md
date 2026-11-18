@@ -57,7 +57,7 @@ for passwords without a result or with one ≥ `BREACH_RECHECK_DAYS`. Results pe
 ## Website icons
 
 Favicons (`@repo/ui-shared` `useWebsiteAvatar`, web `WebsiteAvatar` and the form's `WebsiteFavicon`, native
-`WebsiteAvatar`) come from `icons.duckduckgo.com/ip3/<host>.ico`, only with Settings → Appearance "Show website icons" on
+`WebsiteAvatar`) come from `icons.duckduckgo.com/ip3/<host>.ico`, only with Settings → Security "Show website icons" on
 (`useWebsiteIconsPreference`, `PREF_KEYS.websiteIcons`, per device, off by default). `PreferencesProvider` feeds it to
 `WebsiteIconsContext`; off, no request is made and the avatar is the hue-tinted initial. The website form keeps a row's
 icon at its value from when it was focused, so only blurred values are looked up, never keystrokes. The host is in the

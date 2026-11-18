@@ -10,6 +10,7 @@ import type { RecordFormValues } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
+import { SHORTCUTS } from "@/lib/shortcuts";
 import { useCopyField } from "./record-utils";
 
 type UseRecordActionsProps = {
@@ -52,9 +53,9 @@ export function useRecordActions({ recordId, actionCb }: UseRecordActionsProps) 
 }
 
 export const RECORD_SHORTCUTS = {
-  copyPassword: "$mod+Shift+c",
-  copyUsername: "$mod+Shift+u",
-  edit: "$mod+e",
+  copyPassword: SHORTCUTS.copyPassword.key,
+  copyUsername: SHORTCUTS.copyUsername.key,
+  edit: SHORTCUTS.editRecord.key,
 } as const;
 
 /**
@@ -75,13 +76,13 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
   const username = record?.type === "login" ? record.username : undefined;
 
   useShortcut(RECORD_SHORTCUTS.copyPassword, () => copyField(password, "Password"), {
-    description: "Copy password",
+    description: SHORTCUTS.copyPassword.description,
     enabled: ready && !!password,
     allowInInput: true,
   });
 
   useShortcut(RECORD_SHORTCUTS.copyUsername, () => copyField(username, "Username"), {
-    description: "Copy username",
+    description: SHORTCUTS.copyUsername.description,
     enabled: ready && !!username,
     allowInInput: true,
   });
@@ -90,7 +91,7 @@ export function useRecordShortcuts({ recordId }: { recordId: string }) {
     RECORD_SHORTCUTS.edit,
     () => navigate(recordPaths.editRecord(recordId), { replace: true }),
     {
-      description: "Edit record",
+      description: SHORTCUTS.editRecord.description,
       enabled: ready && !!record,
       allowInInput: true,
     },

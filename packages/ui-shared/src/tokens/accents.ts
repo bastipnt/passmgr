@@ -16,8 +16,9 @@ export const ACCENT_LABELS: Record<AccentPreset, string> = {
   graphite: "Graphite",
 };
 
-export const ACCENT_HINT =
-  "Logo, buttons, selection and links use the accent. Green, amber and red keep their meaning in every option.";
+export const ACCENT_MEANING_HINT = "Green, amber and red keep their meaning in every accent.";
+
+export const ACCENT_HINT = `Used for the logo, buttons, selection and links. ${ACCENT_MEANING_HINT}`;
 
 /** A stored value that is unknown (or a preset since removed) falls back to the default. */
 export function parseAccent(value: unknown): AccentPreset {

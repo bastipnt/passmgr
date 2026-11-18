@@ -35,6 +35,7 @@ import { Link, useLocation, useRoute } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { ImportDialog } from "@/features/import";
 import { VaultTile } from "@/features/vaults";
+import { SHORTCUTS } from "@/lib/shortcuts";
 import { ActiveFilterChips } from "./ActiveFilterChips";
 import { createSheetSearch } from "./CreateRecordSheet";
 import { RecordAvatar } from "./RecordAvatar";
@@ -384,14 +385,14 @@ export default function RecordList() {
     if (params?.recordId && !panel.open) noteOpened(params.recordId);
   }, [params?.recordId, panel.open, noteOpened]);
 
-  useShortcut("ArrowDown", () => navigateByOffset(1), {
-    description: "Next record",
+  useShortcut(SHORTCUTS.nextRecord.key, () => navigateByOffset(1), {
+    description: SHORTCUTS.nextRecord.description,
     enabled: ready && sortedRecords.length > 0 && !panel.open,
     allowInInput: true,
   });
 
-  useShortcut("ArrowUp", () => navigateByOffset(-1), {
-    description: "Previous record",
+  useShortcut(SHORTCUTS.previousRecord.key, () => navigateByOffset(-1), {
+    description: SHORTCUTS.previousRecord.description,
     enabled: ready && sortedRecords.length > 0 && !panel.open,
     allowInInput: true,
   });

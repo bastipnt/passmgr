@@ -7,13 +7,17 @@ import {
 import { useContext } from "react";
 import { useIdleLock } from "@/hooks/use-idle-lock";
 import { useLockVault } from "@/hooks/use-lock-vault";
+import { SHORTCUTS } from "@/lib/shortcuts";
 
 function UnlockedVaultLock() {
   const lockVault = useLockVault();
   const [autoLockMinutes] = useChoicePreference(AUTO_LOCK_PREFERENCE);
 
   useIdleLock(autoLockMinutes, lockVault);
-  useShortcut("$mod+l", lockVault, { description: "Lock vault", allowInInput: true });
+  useShortcut(SHORTCUTS.lockVault.key, lockVault, {
+    description: SHORTCUTS.lockVault.description,
+    allowInInput: true,
+  });
 
   return null;
 }

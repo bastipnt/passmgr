@@ -1,39 +1,44 @@
-import {
-  Item,
-  ItemActions,
-  ItemContent,
-  ItemDescription,
-  ItemGroup,
-  ItemTitle,
-} from "@repo/ui/components/Item";
-import { Kbd } from "@repo/ui/components/Kbd";
-import Link from "@repo/ui/components/Link";
-import { recordPaths } from "@/app/route-paths";
-import { PanelHeader, PanelTitle } from "@/components/AppShell";
+import { Kbd, KbdGroup } from "@repo/ui/components/Kbd";
+import { formatShortcut, modKey } from "@/lib/formatShortcut";
+import { SHORTCUT_GROUPS, SHORTCUTS } from "@/lib/shortcuts";
+import { SettingsGroup } from "./SettingsGroup";
+import { SettingsPage } from "./SettingsPage";
+import { SettingsRow } from "./SettingsRow";
 
+const shortcuts = Object.values(SHORTCUTS);
+
+/** Every shortcut, from the same list the `?` dialog reads (desktop only). */
 export default function ShortcutsSettingsPage() {
   return (
-    <>
-      <PanelHeader>
-        <PanelTitle>Keyboard shortcuts</PanelTitle>
-      </PanelHeader>
-      <div className="px-4 pb-4">
-        <ItemGroup>
-          <Item variant="outline">
-            <ItemContent>
-              <ItemTitle>Keyboard shortcuts</ItemTitle>
-              <ItemDescription>
-                Press <Kbd>?</Kbd> in your vault to list them.
-              </ItemDescription>
-            </ItemContent>
-            <ItemActions>
-              <Link variant="outline" size="sm" href={recordPaths.shortcuts}>
-                Show
-              </Link>
-            </ItemActions>
-          </Item>
-        </ItemGroup>
-      </div>
-    </>
+    <SettingsPage
+      title="Keyboard shortcuts"
+      description={
+        <>
+          Press <Kbd>?</Kbd> anywhere in the vault to see this list.
+          {modKey === "⌘" && " On Windows and Linux, use Ctrl instead of ⌘."}
+        </>
+      }
+    >
+      {SHORTCUT_GROUPS.map(({ group, label }) => (
+        <SettingsGroup key={group} label={label} list>
+          {shortcuts
+            .filter((shortcut) => shortcut.group === group)
+            .map((shortcut) => (
+              <li key={shortcut.key}>
+                <SettingsRow
+                  label={shortcut.description}
+                  control={
+                    <KbdGroup>
+                      {formatShortcut(shortcut.key).map((token) => (
+                        <Kbd key={token}>{token}</Kbd>
+                      ))}
+                    </KbdGroup>
+                  }
+                />
+              </li>
+            ))}
+        </SettingsGroup>
+      ))}
+    </SettingsPage>
   );
 }

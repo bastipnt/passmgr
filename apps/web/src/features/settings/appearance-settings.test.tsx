@@ -1,8 +1,14 @@
 import { applyStoredAccent, ThemeProvider } from "@repo/ui/providers/ThemeProvider";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { renderWithProviders, screen } from "@/test/render";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { renderWithProviders, screen, waitFor } from "@/test/render";
 import AppearanceSettingsPage from "./AppearanceSettingsPage";
+
+const viewport = vi.hoisted(() => ({ mobile: false }));
+vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
+  useIsMobile: () => viewport.mobile,
+  isMobile: () => viewport.mobile,
+}));
 
 const KEY = "test-theme";
 const ACCENT_KEY = `${KEY}-accent`;
@@ -18,6 +24,7 @@ function renderPage() {
 }
 
 beforeEach(() => {
+  viewport.mobile = false;
   localStorage.clear();
   delete root.dataset.accent;
 });
@@ -73,5 +80,39 @@ describe("accent picker", () => {
 
     renderPage();
     expect(screen.getByRole("radio", { name: "Berry" })).toHaveAttribute("aria-checked", "true");
+  });
+});
+
+describe("Appearance page", () => {
+  it("picks the theme from the segmented control", async () => {
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Dark" }));
+
+    expect(localStorage.getItem(KEY)).toBe("dark");
+    expect(screen.getByRole("button", { name: "Dark" })).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("offers English only, the language picker turned off", () => {
+    renderPage();
+
+    expect(screen.getByRole("combobox", { name: "Language" })).toBeDisabled();
+    expect(screen.getByText("More languages are coming.")).toBeTruthy();
+    expect(screen.queryByText(/website icons/i)).toBeNull();
+  });
+
+  it("picks the sort order from a sheet on a phone", async () => {
+    viewport.mobile = true;
+    const user = userEvent.setup();
+    renderPage();
+
+    await user.click(screen.getByRole("button", { name: "Default sort order" }));
+    await user.click(await screen.findByRole("button", { name: "Alphabetical" }));
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(screen.getByRole("button", { name: "Default sort order" })).toHaveAccessibleDescription(
+      "Alphabetical",
+    );
   });
 });

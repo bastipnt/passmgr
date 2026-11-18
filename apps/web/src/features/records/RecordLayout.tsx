@@ -15,6 +15,7 @@ import { VerifyEmailPrompt } from "@/components/VerifyEmailDialog";
 import { useLockVault } from "@/hooks/use-lock-vault";
 import { useOneShotParam } from "@/hooks/use-one-shot-param";
 import { modKey } from "@/lib/formatShortcut";
+import { SHORTCUTS } from "@/lib/shortcuts";
 import BackupReminder from "./BackupReminder";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import { createSheetSearch } from "./CreateRecordSheet";
@@ -78,12 +79,12 @@ export default function RecordLayout({ children }: RecordLayoutProps) {
   const [sidebarCollapsed, setSidebarCollapsed, toggleRef] = useSidebarCollapsed();
   const sidebarId = useId();
 
-  useShortcut("$mod+Shift+n", () => navigate(createSheetSearch()), {
-    description: "Create new record",
+  useShortcut(SHORTCUTS.createRecord.key, () => navigate(createSheetSearch()), {
+    description: SHORTCUTS.createRecord.description,
   });
 
-  useShortcut("Shift+?", () => setHelpOpen((o) => !o), {
-    description: "Show keyboard shortcuts",
+  useShortcut(SHORTCUTS.showShortcuts.key, () => setHelpOpen((o) => !o), {
+    description: SHORTCUTS.showShortcuts.description,
     allowInInput: false,
   });
 

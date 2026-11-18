@@ -15,6 +15,7 @@ import { Kbd } from "@repo/ui/components/Kbd";
 import { counted } from "@repo/util";
 import { SearchIcon, TagIcon, XIcon } from "lucide-react";
 import { modKey } from "@/lib/formatShortcut";
+import { SHORTCUTS } from "@/lib/shortcuts";
 import type { SearchPanelState } from "./use-search-panel";
 
 export function optionDomId(listboxId: string, index: number) {
@@ -77,8 +78,8 @@ export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; li
   // The field's own mode, from what it holds: the panel's `search` can trail it.
   const { tagMode } = parseSearch(query, tagSearch);
   const label = `Search ${vaultFilter === "all" ? "all vaults" : getVault(vaultFilter)?.name}`;
-  useShortcut("$mod+k", () => searchInputRef.current?.focus(), {
-    description: "Focus search",
+  useShortcut(SHORTCUTS.focusSearch.key, () => searchInputRef.current?.focus(), {
+    description: SHORTCUTS.focusSearch.description,
     allowInInput: true,
   });
   const value = tagMode ? query.trimStart().slice(TAG_SEARCH_PREFIX.length) : query;

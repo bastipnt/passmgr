@@ -19,7 +19,7 @@ test.describe("security headers", () => {
     expect(csp).toMatch(/script-src[^;]*'wasm-unsafe-eval'/);
     // The breach check's only third-party call (HIBP range API).
     expect(csp).toMatch(/connect-src[^;]* https:\/\/api\.pwnedpasswords\.com[ ;]/);
-    // Opt-in website icons (Settings → General).
+    // Opt-in website icons (Settings → Security).
     expect(csp).toMatch(/img-src[^;]* https:\/\/icons\.duckduckgo\.com[ ;]/);
   });
 

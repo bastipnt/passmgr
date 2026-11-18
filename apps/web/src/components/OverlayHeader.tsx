@@ -2,6 +2,7 @@ import { Button } from "@repo/ui/components/Button";
 import { cn } from "@repo/ui/lib/utils";
 import { XIcon } from "lucide-react";
 import { type ReactNode, useEffect, useEffectEvent } from "react";
+import { SHORTCUTS } from "@/lib/shortcuts";
 
 // Esc belongs to these while one has focus (they close themselves, or clear), not to the overlay.
 const OWNS_ESCAPE =
@@ -33,7 +34,7 @@ export function OverlayHeader({
   // A plain listener, not `useShortcut`: that one prevents the default, which would keep
   // a native dialog from closing on the same Esc.
   const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key !== "Escape" || event.defaultPrevented) return;
+    if (event.key !== SHORTCUTS.closeSettings.key || event.defaultPrevented) return;
     if (event.target instanceof Element && event.target.closest(OWNS_ESCAPE)) return;
     onClose();
   });
