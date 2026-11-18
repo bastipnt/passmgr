@@ -243,5 +243,6 @@ describe("openKdbx", () => {
       expect(error).not.toBeInstanceOf(KdbxInvalidKeyError);
       expect(error).not.toBeInstanceOf(KdbxUnsupportedError);
     }
-  });
+    // Five real key derivations (Argon2 / AES-KDF): too slow for the 5s default on CI.
+  }, 60_000);
 });
