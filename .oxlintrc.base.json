@@ -3,6 +3,7 @@
   "plugins": ["import", "typescript", "unicorn", "eslint", "oxc"],
   "rules": {
     "react/rules-of-hooks": "error",
+    "no-warning-comments": "warn",
     "no-restricted-properties": [
       "error",
       {

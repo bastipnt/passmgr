@@ -119,6 +119,17 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
 - **Drizzle**: Using a beta version (`1.0.0-beta.15-*`) with `defineRelationsPart` API — this differs from stable Drizzle docs.
 - **Docs**: when you change a flow, update its `docs/architecture/` file or nested `CLAUDE.md`, not this file.
 
+## Code Comments
+
+- A comment says **why**, where the code can't (security invariant, protocol or ordering rule, platform quirk), in
+  at most two lines. Never restate the name, the type or the next line; no section banners, no commented-out code.
+- A flow or design that needs more goes in `docs/architecture/`, a decision with trade-offs in `docs/adr/`, a
+  package rule in its `CLAUDE.md`; the code links to it (`see docs/architecture/auth.md`, `ADR 0001 D5`).
+- No "keep in sync with X": share the constant, or add a test that fails when the copies drift.
+- The same comment needed in several places means a helper or a default is missing: write that instead.
+- No TODO / FIXME in code (`no-warning-comments`): put the task on the tracker.
+- A lint or type suppression carries `-- reason`; the same one three times means fixing the component.
+
 ## Security Invariants
 
 - The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in `packages/client/src/register.ts`).
