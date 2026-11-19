@@ -1,7 +1,7 @@
 # Authentication, sessions and account security
 
 Cross-cutting flows (`packages/client`, `packages/store`, `apps/server`, web + mobile UI). Server request signing and the
-router list are in `apps/server/CLAUDE.md`; the key hierarchy in the root `CLAUDE.md`.
+router list are in `apps/server/CLAUDE.md`; the key hierarchy in the root `AGENTS.md`.
 
 ## OPAQUE
 

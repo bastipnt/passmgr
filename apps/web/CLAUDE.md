@@ -1,6 +1,6 @@
 # apps/web
 
-Web-specific guidance. Cross-cutting rules are in the root `CLAUDE.md`; feature flows in `docs/architecture/`.
+Web-specific guidance. Cross-cutting rules are in the root `AGENTS.md`; feature flows in `docs/architecture/`.
 
 ## Web app structure (`apps/web/src`)
 

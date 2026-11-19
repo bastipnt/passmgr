@@ -59,7 +59,7 @@ pnpm typegen:css
 - **Crypto**: do not add ad-hoc crypto in app code. All primitives belong in `@repo/crypto`. Get a second pair of eyes on anything that touches the key hierarchy.
 - **Drizzle**: this repo runs a Drizzle 1.0 beta with the `defineRelationsPart` API — that differs from the current stable docs.
 
-For more context on the codebase, see [CLAUDE.md](./CLAUDE.md) and [AGENTS.md](./AGENTS.md). They are written for AI coding assistants but are useful for human contributors too.
+For more context on the codebase, see [AGENTS.md](./AGENTS.md) and the nested `CLAUDE.md` files in apps and packages. They are written for AI coding assistants but are useful for human contributors too.
 
 ## Pull requests
 

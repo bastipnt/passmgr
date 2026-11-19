@@ -1,6 +1,6 @@
 # packages/crypto
 
-The key hierarchy diagram is in the root `CLAUDE.md`.
+The key hierarchy diagram is in the root `AGENTS.md`.
 
 ## Password KEK params and Argon2
 

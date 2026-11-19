@@ -1,7 +1,7 @@
 # apps/mobile
 
 Mobile-specific guidance (also covers `packages/ui-native` styling). Cross-cutting rules are in the root
-`CLAUDE.md`; feature flows in `docs/architecture/`.
+`AGENTS.md`; feature flows in `docs/architecture/`.
 
 ## Mobile styling (Uniwind)
 

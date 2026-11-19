@@ -1,6 +1,6 @@
 # apps/server
 
-Server-specific guidance. Cross-cutting rules are in the root `CLAUDE.md`; the login, recovery, sync and sharing
+Server-specific guidance. Cross-cutting rules are in the root `AGENTS.md`; the login, recovery, sync and sharing
 flows (client + server) are in `docs/architecture/`.
 
 ## Request Authentication
