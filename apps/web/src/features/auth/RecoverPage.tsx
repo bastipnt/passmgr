@@ -55,13 +55,7 @@ import StoredAccountRow from "./StoredAccountRow";
 
 type Step = "key" | "password";
 
-/**
- * Reset a forgotten password with the recovery key: the key, then a new
- * password, then the new key is shown and the vault opens with the new
- * password. A vault on this device resets there (ADR 0001 D10): the unlock
- * card's local vault (`recoverActive`) for good, an account's with the server
- * finishing it once online; an account new to this device through the server.
- */
+/** Reset a forgotten password with the recovery key, per vault kind: see docs/architecture/auth.md (recovery). */
 export default function RecoverPage() {
   return useStore().loaded ? <RecoverFlow /> : null;
 }

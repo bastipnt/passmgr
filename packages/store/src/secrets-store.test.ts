@@ -823,7 +823,6 @@ describe("sharing (ADR 0001 D7)", () => {
     return { keyPair, privateKey: unwrapUserPrivateKey(accountKey, keyPair) };
   }
 
-  /** Unlock with a keyring and a keypair. */
   function unlockAsMember() {
     const ring = unlockWithKeyring();
     const keyPair = createUserKeyPair(ring.accountKey);

@@ -12,17 +12,8 @@ import RecordList from "./RecordList";
 import { RecordSortMenu } from "./RecordSortMenu";
 
 /**
- * Phone vault page, shaped like a native app rather than a shrunken desktop:
- * the list runs edge to edge over the ground under a large title (which
- * collapses into the bar on scroll) and the filters that are on, and the
- * controls float over it: the vault pill and the account button on top;
- * filter, search, sort and "new" in a bottom dock. Records open as pushed
- * pages (`MobileRecordPage`).
- *
- * The document scrolls, so Safari can run the list under its bars and
- * collapse its toolbar. Chrome is sticky rather than fixed: `DrawerProvider`'s
- * indent wrapper has `contain: layout`, which makes it the containing block
- * for `position: fixed`, so "fixed" chrome would scroll away with the page.
+ * The document scrolls (Safari collapses its bars). Chrome is sticky, not fixed: `DrawerProvider`'s indent wrapper
+ * has `contain: layout`, the containing block for `position: fixed`, so fixed chrome would scroll away with the page.
  */
 export default function MobileVault() {
   const { hasGroupLabels } = useSortedRecords();

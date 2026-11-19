@@ -57,7 +57,6 @@ test.describe("forgotten password → recover with recovery key", () => {
     await expect(page).toHaveURL(/\/(\?.*)?$/);
 
     await simulateLogout(page);
-    // Old password is gone.
     await expectLoginRejected(page, oldPassword, email);
 
     await loginUser(page, email, newPassword);

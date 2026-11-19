@@ -180,7 +180,6 @@ describe("protectedProcedure — rejections", () => {
       path: "echo",
       input: { msg: "x" },
     });
-    // Flip first byte of the base64-decoded signature.
     const sigBytes = Buffer.from(headers.signature, "base64");
     sigBytes[0] = sigBytes[0]! ^ 0x01;
     const tampered = { ...headers, signature: sigBytes.toString("base64") };
