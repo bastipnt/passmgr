@@ -1,7 +1,7 @@
 import type { ExportResult } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
 import BackupSettingsPage from "./BackupSettingsPage";
@@ -17,6 +17,12 @@ const exportHook = vi.hoisted(() => ({
 vi.mock("@repo/client/src/hooks/use-export", async (importActual) => ({
   ...(await importActual<object>()),
   useExport: () => exportHook,
+}));
+
+// The page's import drop zone mounts ImportDialog, whose `useImport` needs a RecordsProvider.
+vi.mock("@repo/client/src/hooks/use-import", async (importActual) => ({
+  ...(await importActual<object>()),
+  useImport: () => ({ busy: false }),
 }));
 
 const store = createFakeStore();
@@ -146,6 +152,12 @@ describe("ExportDialog", () => {
 
 describe("Import & export page", () => {
   const PROFILE = { profileId: "p-local", mode: "local", email: null, userId: null } as const;
+
+  // The drop zone's lazy ImportDialog mounts whenever its chunk lands, mid-test or not:
+  // loading it first makes that the same on every run.
+  beforeAll(async () => {
+    await import("@/features/import/ImportDialog");
+  });
 
   beforeEach(() => {
     store.profile = PROFILE;
