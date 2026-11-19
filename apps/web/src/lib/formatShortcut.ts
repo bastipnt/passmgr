@@ -1,4 +1,3 @@
-// fallow-ignore-file unused-file
 const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/i.test(navigator.platform);
 export const modKey = isMac ? "⌘" : "Ctrl";
 

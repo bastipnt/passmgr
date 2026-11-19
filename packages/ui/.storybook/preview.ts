@@ -5,7 +5,6 @@ import { withThemeByClassName } from "@storybook/addon-themes";
 import { definePreview } from "@storybook/react-vite";
 
 export default definePreview({
-  // 👇 Add your addons here
   addons: [addonA11y(), addonDocs()],
   decorators: [
     withThemeByClassName({

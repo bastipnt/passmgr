@@ -71,13 +71,6 @@ export default function RecordFormSheet<T extends RecordType>({
 
   return (
     <View className="flex-1">
-      {/*
-       * The sheet's own native header. The actions have to be real
-       * `UIBarButtonItem`s — a React element in the header is wrapped in a
-       * liquid glass capsule of UIKit's own, which our glass buttons would then
-       * sit on top of instead of the content behind them. The bar stays
-       * transparent so the list scrolls under it, as before.
-       */}
       <Stack.Screen
         options={{
           headerShown: true,

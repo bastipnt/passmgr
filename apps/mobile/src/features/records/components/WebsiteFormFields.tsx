@@ -61,11 +61,6 @@ export default function WebsiteFormFields({ control, setValue }: WebsiteFieldsPr
                 placeholder="example.com"
                 hideLabel
                 addon={<EarthIcon size={20} color={iconColor} />}
-                // TODO: adjust to mobile
-                // onBlur={(e) => normalizeRow(index, e.target.value)}
-                // onKeyDown={(e) => {
-                //   if (e.key === "Enter") normalizeRow(index, e.currentTarget.value);
-                // }}
               />
             </ButtonGroup>
 

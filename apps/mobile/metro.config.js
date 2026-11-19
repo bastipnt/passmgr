@@ -15,26 +15,12 @@ config.resolver.nodeModulesPaths = [
   path.resolve(workspaceRoot, "node_modules"),
 ];
 
-// config.resolver.disableHierarchicalLookup = true;
-
 // Required for @cloudflare/opaque-ts → @noble/hashes which exposes
 // subpaths (e.g. "@noble/hashes/lib/scrypt") only via the `exports` map.
 config.resolver.unstable_enablePackageExports = true;
 
-// Module aliases:
-// - `sqlocal` (browser SQLite WASM) → runtime stub. Mobile vault persistence
-//   uses expo-sqlite instead.
-// Note: @repo/crypto worker services resolve to their `.native.ts` (main-thread)
-// variants via the package's `react-native` export condition, so the Vite
-// `?worker` imports never reach Metro on mobile.
-// Note: @serenity-kit/opaque alias removed — OPAQUE now uses
-// @cloudflare/opaque-ts (pure TS) which runs natively in RN provided a
-// crypto.subtle polyfill (e.g. react-native-quick-crypto) is loaded at entry.
-// @cloudflare/opaque-ts depends on @noble/hashes@0.4.4 which is nested under
-// its own node_modules. Because `disableHierarchicalLookup` is on, Metro only
-// looks at the top-level node_modules where @noble/hashes is v2.x with no
-// `lib/` subpath, so imports like `@noble/hashes/lib/scrypt` fail. Resolve
-// those explicitly to the nested copy until cloudflare/opaque-ts updates.
+// `sqlocal` (browser SQLite WASM) → a stub: mobile uses expo-sqlite. `@noble/hashes/lib/*` exists only
+// in the @noble/hashes@0.4.4 nested under @cloudflare/opaque-ts (the top-level one is v2.x): resolved there.
 const cfNobleHashesDir = path.resolve(
   workspaceRoot,
   "node_modules/@cloudflare/opaque-ts/node_modules/@noble/hashes",

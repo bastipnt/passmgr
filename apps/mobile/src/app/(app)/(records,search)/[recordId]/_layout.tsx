@@ -20,19 +20,8 @@ export default function RecordLayout() {
           // The screen sets the title itself once its hero scrolls away.
           title: "",
           headerTransparent: true,
-          /*
-           * The header buttons have to be native `UIBarButtonItem`s. A React
-           * element passed to `headerLeft`/`headerRight` is wrapped in a
-           * custom-view bar item, and iOS 26 paints its own liquid glass
-           * capsule behind that — a glass button of ours would then sit *on*
-           * that capsule and sample it instead of the content scrolling under
-           * the transparent header. Only the real bar items track the scroll
-           * view.
-           *
-           * The back item has to be ours: this screen is the first route of
-           * its own stack, so `canGoBack` is false here and the system back
-           * button never renders — `router.back()` pops the parent stack.
-           */
+          // Our own back item: as the first route of its own stack, the system one never
+          // renders (`canGoBack` is false); `router.back()` pops the parent stack.
           unstable_headerLeftItems: () => [
             {
               type: "button",

@@ -1,60 +1,41 @@
 import type { Href } from "expo-router";
 
 /**
- * Every route string in one place, mirroring `apps/web/src/app/route-paths.ts`.
- *
- * It sits at `src/` rather than `src/app/` like web's: expo-router turns every
- * file under `src/app/` into a route, so a constants module there would show
- * up as `/route-paths`.
- *
- * The URLs differ from web's on purpose: they are expo-router's file-based
- * routes (see `src/app/(app)/(records,search)/`), which carry no `/record`
- * prefix. Typed routes are on, so the builders return `Href` rather than
- * `string` — the cast is what a template literal costs.
+ * At `src/`, not `src/app/`: expo-router turns every file under `src/app/` into a route. The URLs are
+ * expo-router's file-based routes, so they differ from web's; typed routes make the builders cast to `Href`.
  */
 export const recordPaths = {
   index: "/" as Href,
   search: "/search" as Href,
 
   create: "/new" as Href,
-  /** The generator opened from the create sheet. */
   createGeneratePassword: "/generate-password" as Href,
 
   createLogin: (website?: string) =>
     (website
       ? `/new?type=login&website=${encodeURIComponent(website)}`
       : "/new?type=login") as Href,
-  /** "New item" as a copy of `recordId`. */
   duplicate: (recordId: string) => `/new?duplicate=${recordId}` as Href,
   record: (recordId: string) => `/${recordId}` as Href,
   editRecord: (recordId: string) => `/${recordId}/edit` as Href,
-  /** The generator opened from a record's edit sheet. */
   generatePassword: (recordId: string) => `/${recordId}/generate-password` as Href,
   recordVersions: (recordId: string) => `/${recordId}/versions` as Href,
   version: (recordId: string, version: number) => `/${recordId}/versions/${version}` as Href,
 } as const;
 
-/** Mirrors web's `settingsPaths`; the tab root is `index`. */
 export const settingsPaths = {
   index: "/settings" as Href,
   general: "/settings/general" as Href,
   generator: "/settings/generator" as Href,
   security: "/settings/security" as Href,
   vaults: "/settings/vaults" as Href,
-  /** Deleted records: restore or delete for good. */
   trash: "/settings/trash" as Href,
-  /** Every tag in use (web's Settings → Tags). */
   tags: "/settings/tags" as Href,
-  /** The sheet for one tag: rename, remove. */
   tag: (tag: string) => `/settings/tag?tag=${encodeURIComponent(tag)}` as Href,
-  /** The vault form sheet: a new vault, or the one given to edit. */
   vault: (vaultId?: string) =>
     (vaultId ? `/settings/vault?vaultId=${vaultId}` : "/settings/vault") as Href,
-  /** A shared vault's members (web's `VaultMembersDialog`). */
   vaultMembers: (vaultId: string) => `/settings/members?vaultId=${vaultId}` as Href,
-  /** The sheet for one member: role, hand over, remove. */
   vaultMember: (vaultId: string, userId: string) =>
     `/settings/member?vaultId=${vaultId}&userId=${userId}` as Href,
-  /** The invite sheet (web's `InviteMemberDialog`). */
   inviteMember: (vaultId: string) => `/settings/invite?vaultId=${vaultId}` as Href,
 } as const;
