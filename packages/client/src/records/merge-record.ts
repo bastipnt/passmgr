@@ -18,21 +18,8 @@ const TAGS = "tags";
 const PASSWORD_DATE = "passwordChangedAt";
 
 /**
- * Three-way, field-level merge of a record edited on two sides (ADR 0001 D5).
- * `local` and `remote` are each side's versions since `base`, oldest first,
- * never empty.
- *
- * - A field changed on one side only takes that side's value.
- * - A field changed on both sides to different values takes the later edit
- *   (`editedAt` of the last version on that side that changed it; a tie goes
- *   to `remote`, the server's copy). Tag lists merge per tag (without case) instead.
- * - A record type changed on either side makes the whole record one field:
- *   the side whose head was edited later wins.
- * - Edit vs. delete: the edit wins, so the result is deleted only when both
- *   heads are tombstones. A tombstone keeps the content it deleted, so edits
- *   made before the delete still merge.
- * - `passwordChangedAt` follows the password: the date of whichever side's
- *   password won (the later one when both sides hold it).
+ * `local` and `remote`: each side's versions since `base`, oldest first, never empty. The rules:
+ * ADR 0001 D5, see docs/architecture/vaults-and-sync.md (conflict merge).
  *
  * Fields are a record's payload keys rather than its `getRecordFieldSpecs`:
  * those leave out favourite and tags and format values.

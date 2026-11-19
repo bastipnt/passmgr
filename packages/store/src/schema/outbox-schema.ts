@@ -147,16 +147,8 @@ async function insertPending(
 }
 
 /**
- * Delete a record for good (the trash's "delete permanently"): every version
- * and unsent change of it goes. A record the server has gets a `purged`
- * tombstone without content on top of the last synced version, pushed as a
- * purge, so the server and the other devices drop their copies too. A linked
- * profile's record with unsent changes only gets one on top of the newest of
- * them: they may be on their way (a push in flight), and the server answers a
- * purge of a record it never got `not_found`, which counts as done. Only a
- * `local` profile's record just goes (it never syncs). A record that's gone or
- * purged already (e.g. a purge pulled meanwhile) is skipped. Run inside a
- * transaction.
+ * A linked record with only unsent changes still gets a tombstone: they may be in flight. See
+ * docs/architecture/vaults-and-sync.md (Trash). Run inside a transaction.
  */
 export async function purgeRecord(
   recordId: string,
@@ -200,16 +192,8 @@ export async function purgeRecord(
 const PURGED_CONTENT = { encryptedData: "", encryptionNonce: "" };
 
 /**
- * Pulled tombstones (another device deleted these records): a pending chain
- * here that ends in a delete goes, it wanted the same, so no second tombstone
- * goes on top of the first (a delete rebased on a `moved` one would put the
- * moved record in the trash). A local purge on a tombstone that isn't a purge
- * stays: it still drops the history. Unsent edits stay (an edit beats a
- * delete, D5): they move on top of the tombstone and restore the record. Only
- * a tombstone that is the record's newest version counts: an old one (a full
- * re-pull of a record restored since) leaves a delete made after the restore
- * alone. Run inside a transaction, before the rows are rebased;
- * `dropPurgedHistory` after they are written.
+ * A delete rebased on a `moved` tombstone would put the moved record in the trash; see
+ * docs/architecture/vaults-and-sync.md (pending versions on a pull). Run before the rows are rebased.
  */
 export async function dropDeletesOfTombstones(
   incoming: readonly EncryptedRecordSchema[],
@@ -494,17 +478,8 @@ export type ConflictResolver = (
 type RebaseOptions = { resolve?: ConflictResolver; receivedAt?: string };
 
 /**
- * Make room for server versions that collide with local pending ones: a pulled
- * row takes its (recordId, version) slot, and the record's pending chain moves
- * up above the newest pulled version, keeping its order (and its outbox
- * entries in step). Nothing is lost; both edits stay in the history.
- *
- * With `resolve`, the two sides are then merged field by field (D5) and the
- * merge is appended as one more pending version, so the server ends up with
- * the server head, the local edits (pushed first, kept as history) and the
- * merge on top. A conflict that can't be merged (no base version here, or the
- * resolver throws, e.g. a vault key that doesn't open it) keeps the plain move.
- * Run inside a transaction, before the pulled rows are written.
+ * Nothing is lost: the pending chain moves above the pulled versions, both edits stay in the history.
+ * See docs/architecture/vaults-and-sync.md (pending versions on a pull). Run before the rows are written.
  */
 export async function rebasePendingVersions(
   incoming: readonly EncryptedRecordSchema[],
