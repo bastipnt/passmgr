@@ -289,6 +289,14 @@ Rejected alternatives:
 > an edit (stale) goes on top of it after the pull (no base to merge): the purge wins, the edit's
 > versions are dropped. Offline purges queue like any write.
 
+> **Amended 2026-11-19** (clock skew): `clientUpdatedAt` is a device clock, so the merge clamps it before comparing
+> (`resolveRecordConflict`): a local edit counts as no later than the pull that brought the conflict (the server's
+> `receivedAt`), a server version as no later than its arrival there (`created_at`). That only catches a clock running
+> past those times; a clock off by less, or running behind, can still win or lose a field it shouldn't. Only a server
+> timestamp per field edit would fix that, and none is kept. The merge's own time is the later of the two heads, so in
+> a later merge every field it took from the server side counts as edited then, a little later than it may have been;
+> that only matters when another conflict hits before the merge is pushed.
+
 ### D6 — Vaults in the data model
 
 **Local** (part of schema v2):
