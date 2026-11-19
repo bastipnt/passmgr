@@ -1,19 +1,5 @@
-// Android Auto Backup rules (ADR 0001 D12): the profile databases go into the
-// backup, the SecureStore values don't.
-//
-// The databases (expo-sqlite, `files/SQLite/`) are encrypted with the account
-// key and are a local vault's only copy, so they are backed up. SecureStore
-// values are sealed by an Android Keystore key that never leaves the device:
-// restored elsewhere they can't be decrypted, so they are left out (what
-// expo-secure-store's own rules do; those include nothing but shared prefs,
-// which is why they are replaced here, `configureAndroidBackup: false`).
-//
-// iOS needs nothing: expo-sqlite keeps the databases in `Documents/SQLite`,
-// which iCloud / Finder backups include, and the Keychain items are
-// `*_THIS_DEVICE_ONLY`.
-//
-// Written at prebuild: an existing `android/` needs `expo prebuild --clean`.
-// Auto Backup skips the app entirely above 25 MB of data.
+// Backs up the profile databases, never the SecureStore values: see docs/security/threat-model-inputs.md.
+// Written at prebuild: an existing `android/` needs `expo prebuild --clean`. Auto Backup skips apps above 25 MB.
 const fs = require("node:fs");
 const path = require("node:path");
 const { AndroidConfig, withAndroidManifest, withDangerousMod } = require("expo/config-plugins");
