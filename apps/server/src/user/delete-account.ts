@@ -5,23 +5,8 @@ import { keepOwnerIdActive, lockVaults } from "../vault/access";
 import { SOLE_OWNER, SoleOwnerCause } from "./sole-owner";
 
 /**
- * Delete an account and everything stored for it, for good (no `deleted_at`):
- * the OPAQUE record, every key set, the keypair, the personal vault with all
- * its record versions and tombstones, its memberships and the invites it
- * sent that weren't accepted yet.
- *
- * Shared vaults:
- * - nobody else active in it: deleted with its records (pending invites go too)
- * - the user is its only active owner and others are in it: refused with
- *   PRECONDITION_FAILED (`SOLE_OWNER`, the vaults in `data.vaultIds`),
- *   nothing is deleted; they hand it over
- *   (`transferOwnership`) or delete it first
- * - otherwise the user leaves it like `vault.leave` (marked for a key
- *   rotation); its records stay with the vault, their author becomes null
- *
- * A key the user sealed to a member after a rotation and not yet accepted
- * can't be opened any more (its sender's keypair is gone, `keyUpdates` leaves
- * it out); the rotation the deletion triggers seals a new one.
+ * A hard delete (no `deleted_at`), refused with `SOLE_OWNER` before anything goes; shared vaults:
+ * see docs/architecture/auth.md (Account deletion).
  *
  * @returns the user's email hash and the shared vaults they left
  */
