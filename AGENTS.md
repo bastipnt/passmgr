@@ -85,7 +85,7 @@ changing one of these flows:**
   merge, trash / purge, key rotation, sharing, vault UI
 - `records.md` — Pass Monitor, security score, breach check, login email, favorites, duplicate, tags and search
 
-Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`. Sync cursor: `docs/architecture/sync-cursor.md`.
+Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`; OPAQUE library choice: `docs/adr/0002-opaque-library.md`. Sync cursor: `docs/architecture/sync-cursor.md`.
 
 ### Key Hierarchy
 
