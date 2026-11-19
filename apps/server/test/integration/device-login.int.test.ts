@@ -25,9 +25,8 @@ import {
   register,
 } from "./_helpers";
 
-// Device login (web biometric unlock): a WebAuthn credential registered by a
-// fresh password login logs in without the password; nothing that logs in is
-// stored on the device.
+// Device login (web biometric unlock): nothing that logs in is stored on the device. Flow: docs/architecture/auth.md
+// (Web biometric unlock and device login); scope: docs/testing.md (Layer 2).
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";

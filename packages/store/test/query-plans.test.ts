@@ -7,9 +7,8 @@ import { getAllRecordsLatest, getDeletedRecords } from "../src/schema/records-sc
 import { createTestDriver } from "./node-sqlite-driver";
 
 /**
- * The record queries that run on every sync or list render use the indexes of
- * `tables.ts` instead of reading every version (C-16): checked on the plans
- * SQLite picks for the statements Drizzle sends.
+ * The record queries run on every sync or list render must use the indexes of `tables.ts`, checked on the
+ * plans SQLite picks for what Drizzle sends; see packages/store/CLAUDE.md.
  */
 let driver: SqlDriver;
 let sent: { sql: string; params: unknown[] }[];

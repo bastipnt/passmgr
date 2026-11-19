@@ -7,9 +7,8 @@ import { memoryLocation } from "wouter/memory-location";
 import { renderWithProviders, screen } from "@/test/render";
 import RecordLayout from "./RecordLayout";
 
-// Every lock entry point goes through `useLockVault` (it ends the server session);
-// the hook itself is covered in use-lock-vault.test.ts, the phone's (AccountSheet) in
-// sync-status-card.test.tsx, the shortcut and idle lock in app/vault-lock.test.tsx.
+// Every lock entry point goes through `useLockVault` (Session modes, docs/architecture/auth.md); the hook, AccountSheet
+// and the shortcut / idle lock have their own tests (use-lock-vault, sync-status-card, app/vault-lock).
 const lockVault = vi.hoisted(() => vi.fn(async () => undefined));
 vi.mock("@/hooks/use-lock-vault", () => ({ useLockVault: () => lockVault }));
 
