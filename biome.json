@@ -9,7 +9,6 @@
     "includes": [
       "**",
       "!**/pnpm-lock.yaml",
-      "!**/*.css.d.ts",
       "!packages/db/drizzle/**",
       "!packages/store/drizzle/**",
       "!packages/store/drizzle-registry/**",
