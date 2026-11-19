@@ -258,14 +258,10 @@ export const loginRouter = router({
         denyLogin(log, "startLogin", "decode_failed", emailHash);
       }
 
-      // Unknown emails get a KE2 built from a fake record rather than an error,
-      // so startLogin doesn't reveal which accounts exist. The client's
-      // authFinish fails the same way it does for a wrong password.
       if (!res) log?.warn({ stage: "startLogin", emailHash }, "auth.login.unknown_user");
 
-      // credential_identifier = email (mirrors prior serenity userIdentifier).
-      // client_identity = email is mixed into MAC transcripts — must match what
-      // the client passes to authFinish.
+      // credential_identifier = email. client_identity = email is mixed into MAC
+      // transcripts — must match what the client passes to authFinish.
       const initResult = await opaqueServer.authInit(ke1, record, email, email);
       if (initResult instanceof Error) {
         denyLogin(log, "startLogin", "opaque_start_failed", emailHash);

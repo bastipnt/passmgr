@@ -241,14 +241,7 @@ export const userRouter = router({
       return { ok: true } as const;
     }),
 
-  // Re-wrap the account key under new Argon2 params. The client re-derives the
-  // password KEK and re-encrypts the account key locally (zero-knowledge — the
-  // server never sees the plaintext key or password).
-  //
-  // Requires a fresh OPAQUE login, and never overwrites: the active key set is
-  // closed (valid_to) and a new version inserted with the new password-side
-  // material and the unchanged recovery-KEK copy, so a bad or malicious rekey
-  // can be rolled back until the closed set is purged (`purgeClosedKeySets`).
+  // Re-wrap the account key under new Argon2 params (wrapped on the client), versioned as in `replacePasswordWrap`.
   rekeyPasswordKeys: freshAuthProcedure
     .input(passwordKeySchema)
     .mutation(async ({ ctx, input }) => {

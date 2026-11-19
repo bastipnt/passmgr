@@ -66,7 +66,7 @@ export const registrationRouter = router({
         throw new TRPCError({ code: "BAD_REQUEST", message: "invalid registration request" });
       }
 
-      // credential_identifier = email matches the prior serenity userIdentifier.
+      // credential_identifier = email (login and recovery use the same).
       const resp = await opaqueServer.registerInit(req, email);
       if (resp instanceof Error) {
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "registration failed" });

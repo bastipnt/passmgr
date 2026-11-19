@@ -21,9 +21,6 @@ import { allowedOrigins } from "./util/allowed-origins";
 
 const isDev = !serverEnv.production;
 
-// Comma-separated IPs/CIDRs (or proxy-addr names like `loopback`, `uniquelocal`)
-// of the reverse proxies whose X-Forwarded-For to trust, so `req.ip` (the
-// rate-limit key) is the real client rather than the proxy.
 const trustProxy = serverEnv.TRUST_PROXY || false;
 
 export const server = fastify({

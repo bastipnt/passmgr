@@ -6,13 +6,13 @@ import { emitSessionEnded, emitSessionSignedOut } from "../events/record-events"
 import { redis } from "../redis";
 import { DAY_MS } from "./time";
 
-const SESSION_TTL_SECONDS = 60 * 60 * 24; // 24h idle
+const SESSION_TTL_SECONDS = 60 * 60 * 24; // idle
 // Hard cap from the OPAQUE login, however active the session stays.
 export const SESSION_MAX_AGE_MS = 30 * DAY_MS;
 const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
 const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
 const TOTP_ENROLLMENT_TTL_SECONDS = 10 * 60; // 10min to scan and confirm
-export const INVITE_TTL_SECONDS = 60 * 60 * 24; // 24h
+export const INVITE_TTL_SECONDS = 60 * 60 * 24;
 // A new login past this signs out the user's least recently active sessions.
 export const MAX_SESSIONS_PER_USER = 50;
 
@@ -24,7 +24,7 @@ export const MAX_SESSIONS_PER_USER = 50;
 // LOGIN_MAX_BACKOFF_MS; the cap keeps that a nuisance rather than a lockout.
 export const LOGIN_FREE_ATTEMPTS = 5;
 const LOGIN_BASE_BACKOFF_MS = 1_000;
-const LOGIN_MAX_BACKOFF_MS = 15 * 60_000; // 15min
+const LOGIN_MAX_BACKOFF_MS = 15 * 60_000;
 const LOGIN_THROTTLE_WINDOW_SECONDS = 60 * 60; // 1h without starts resets the counter
 
 type Session = {
@@ -439,7 +439,6 @@ export async function endDeletedUserSessions(
   await redis.del(emailVerifiedKey(userId));
 }
 
-/** Store a login attempt and return its id (handed to the client for finishLogin). */
 export async function setLoginAttempt(loginAttempt: LoginAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();
   await redis.set(
@@ -459,7 +458,6 @@ export async function takeLoginAttempt(attemptId: string): Promise<LoginAttempt 
   return JSON.parse(rawLoginAttempt);
 }
 
-/** Store a device login attempt and return its id (for finishDeviceLogin). */
 export async function setDeviceLoginAttempt(attempt: DeviceLoginAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();
   await redis.set(
@@ -503,7 +501,6 @@ export async function linkSessionCredential(sessionId: string, credentialId: str
   await redis.set(sessionKey(sessionId), JSON.stringify(session), "KEEPTTL", "XX");
 }
 
-/** Store a second-factor challenge and return its id (for verifySecondFactor). */
 export async function setSecondFactorChallenge(challenge: SecondFactorChallenge): Promise<string> {
   const challengeId = crypto.randomUUID();
   const key = secondFactorKey(challengeId);
@@ -569,7 +566,6 @@ export async function deleteTotpEnrollment(userId: string): Promise<void> {
   await redis.del(totpEnrollmentKey(userId));
 }
 
-/** Store a recovery attempt and return its id (handed to the client for finishRecovery). */
 export async function setRecoveryAttempt(attempt: RecoveryAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();
   await redis.set(recoveryKey(attemptId), JSON.stringify(attempt), "EX", LOGIN_ATTEMPT_TTL_SECONDS);
@@ -584,7 +580,6 @@ export async function takeRecoveryAttempt(attemptId: string): Promise<RecoveryAt
   return JSON.parse(raw);
 }
 
-/** Store a password change attempt and return its id (for finishPasswordChange). */
 export async function setPasswordChangeAttempt(attempt: PasswordChangeAttempt): Promise<string> {
   const attemptId = crypto.randomUUID();
   await redis.set(

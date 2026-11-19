@@ -5,7 +5,7 @@ export default defineConfig({
     environment: "node",
     include: ["src/**/*.test.ts", "test/**/*.test.ts"],
     exclude: ["test/integration/**", "**/node_modules/**", "**/dist/**"],
-    // testcontainers + opaque WASM init need process isolation
+    // testcontainers need process isolation
     pool: "forks",
     // All server-side suites share one Postgres container; run files sequentially
     // so per-test truncateAll() in one file doesn't wipe another file's mid-test rows.
