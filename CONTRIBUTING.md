@@ -53,12 +53,6 @@ pnpm test          # Vitest unit tests
 
 Lefthook runs the lint + typecheck gate automatically on `pre-push`.
 
-If you change CSS modules in the web app, regenerate the typings:
-
-```bash
-pnpm typegen:css
-```
-
 ## Code conventions
 
 - **Workspace imports**: use `@repo/*` prefix (e.g. `@repo/crypto`, `@repo/ui`). Each package exposes a barrel `index.ts`.

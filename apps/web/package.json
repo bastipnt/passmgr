@@ -15,7 +15,6 @@
     "lint": "oxlint --type-aware",
     "preview": "vite preview",
     "typecheck": "tsc7 -b --noEmit",
-    "typegen:css": "tcm src",
     "brand:render": "bun scripts/render-brand.ts",
     "screenshot:render": "bun scripts/render-screenshot.ts",
     "verify:deployment": "bun scripts/verify-deployment.ts",
@@ -64,7 +63,6 @@
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
     "rollup-plugin-visualizer": "^7.1.1",
-    "typed-css-modules": "^0.9.1",
     "typescript": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:"
