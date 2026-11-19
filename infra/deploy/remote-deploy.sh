@@ -1,12 +1,6 @@
 #!/usr/bin/env bash
-# Runs on the deploy host, piped over SSH by .github/workflows/release.yml.
-# Requires DEPLOY_PATH and IMAGE_TAG; CI also sets WEB_DIGEST and SERVER_DIGEST (without them
-# the tag is pulled as is). Backs up Postgres, rolls out the images and rolls back to the
-# previously deployed ones if the stack doesn't become healthy.
-#
-# Migrations run as their own step (`migrate` service) before the rollout. The rollback restores
-# the old images only: if the failed release applied a migration the old server can't handle,
-# restore the pre-deploy backup.
+# Runs on the deploy host, piped over SSH by .github/workflows/release.yml. Steps, inputs and what a
+# rollback restores (images only, not the database): see docs/ops/deploy.md (Releases and rollback).
 set -euo pipefail
 
 cd "$DEPLOY_PATH"

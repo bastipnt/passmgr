@@ -58,6 +58,22 @@ compose up -d --remove-orphans --wait
 
 The server itself connects as `passmgr_app` (data access only) and never migrates.
 
+### Releases and rollback
+
+CI (`.github/workflows/release.yml`) pipes `infra/deploy/remote-deploy.sh` over SSH to the deploy host. It needs
+`DEPLOY_PATH` and `IMAGE_TAG`; CI also sets `WEB_DIGEST` and `SERVER_DIGEST` (without them the tag is pulled as is).
+In order:
+
+1. Pulls the images, then takes a `pg_dump` of the running database (see [Backups](#backups)).
+2. Runs the migrations (`migrate` service). A failure here stops the deploy and leaves the old release running untouched.
+3. Rolls out the new images and waits for the stack to become healthy. On success it records the release in
+   `.deployed-tag` and `.deployed-digests`.
+4. If the stack doesn't become healthy, it prints the server's last log lines and rolls back to the previously
+   deployed images (by digest, or by tag for a release deployed before digests were recorded). The deploy still fails.
+
+The rollback restores the old images only, not the database. If the failed release applied a migration the old server
+can't handle, restore the pre-deploy backup.
+
 ### Backups
 
 `infra/deploy/remote-deploy.sh` takes a `pg_dump` before each migrate step (kept on the host, last 10). That is not an
