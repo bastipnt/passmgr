@@ -117,10 +117,6 @@ async function ownUserId(vault: Vault): Promise<string> {
   return profile.userId;
 }
 
-/**
- * INVITES
- */
-
 /** Someone to invite: their current public key and its fingerprint, to compare out of band. */
 export type Invitee = { email: string; publicKey: UserPublicKey; fingerprint: string };
 
@@ -228,10 +224,6 @@ export async function declineInvitation(trpc: TrpcClient, vaultId: string): Prom
   await trpc.vault.declineInvite.mutate({ vaultId });
 }
 
-/**
- * MEMBERS
- */
-
 /** A member with their key's fingerprint and whether it's the one this device pinned. */
 export type MemberInfo = VaultMember & {
   fingerprint: string;
@@ -332,10 +324,6 @@ export async function leaveVault({ vault, trpc }: SharingDeps, vaultId: string):
 }
 
 /**
- * ROTATION
- */
-
-/**
  * Rotate a vault's key (ADR 0001 D7; owners and managers): a new key for
  * everything written from now on, the old one kept under it for the history,
  * and, for a linked profile, the new key sealed to every other member, each
@@ -413,10 +401,6 @@ async function otherMembers(deps: SharingDeps, vaultId: string) {
   if (unverified.length > 0) throw new UnverifiedMembersError(unverified);
   return others;
 }
-
-/**
- * SYNC TASKS
- */
 
 /** What a pull hands the client to do for sharing (`record.sync`). */
 export type SharingTasks = { keyUpdates: VaultKeyUpdate[]; rotationsDue: string[] };

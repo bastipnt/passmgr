@@ -1,18 +1,12 @@
-// Utils
-
-// Account
 export * from "./src/account/account-sign-in";
 export { DEMO_VAULT_NAME } from "./src/account/demo-vault";
 export * from "./src/account/emergency-kit";
 
-// Errors
 export * from "./src/errors";
 
-// Export
 export * from "./src/export/collect-export";
 export * from "./src/export/export-file";
 export * from "./src/export/import-export";
-// Hooks
 export * from "./src/hooks/use-account-activity";
 export * from "./src/hooks/use-app-config";
 export * from "./src/hooks/use-auto-reconnect";
@@ -71,13 +65,11 @@ export * from "./src/hooks/use-update-record";
 export * from "./src/hooks/use-vault-sharing";
 export * from "./src/hooks/use-vaults";
 export * from "./src/hooks/use-website-icons";
-// Import from other password managers
 export * from "./src/import/foreign-import";
 export type { ParseXml, XmlElement } from "./src/import/keepass";
 export * from "./src/import/read-import-file";
 export type { SecondFactorPrompt } from "./src/login";
 export * from "./src/preferences/PreferencesStore";
-// Preferences
 export * from "./src/preferences/preference-keys";
 export * from "./src/preferences/security-choices";
 export {
@@ -101,9 +93,7 @@ export {
   useShortcutLayerDepth,
 } from "./src/providers/ShortcutProvider";
 export * from "./src/providers/SortedRecordsProvider";
-// Providers
 export * from "./src/providers/StoreProvider";
-// Records
 export * from "./src/records/breach-check";
 export * from "./src/records/card";
 export * from "./src/records/diff-fields";
@@ -140,6 +130,5 @@ export * from "./src/util/session-label";
 export { useTRPC, useTRPCClient } from "./src/util/trpc";
 export * from "./src/vaults/revoked";
 export * from "./src/vaults/sharing";
-// Vaults
 export * from "./src/vaults/vault-info";
 export * from "./src/vaults/vault-labels";

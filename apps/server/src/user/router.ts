@@ -362,7 +362,6 @@ export const userRouter = router({
     return { ok: true } as const;
   }),
 
-  // Two-factor (TOTP + backup codes) for the server login, opt-in.
   twoFactorStatus: protectedProcedure.output(twoFactorStatusSchema).query(async ({ ctx }) => {
     return await twoFactorStatus(ctx.userId);
   }),

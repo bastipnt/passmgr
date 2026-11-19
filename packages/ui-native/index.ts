@@ -1,11 +1,9 @@
-// *** COMPONENTS ***
 export * from "./src/components/Avatar";
 export * from "./src/components/Badge";
 export * from "./src/components/BlurView";
 export * from "./src/components/BottomSheet";
 export * from "./src/components/Button";
 export * from "./src/components/ButtonGroup";
-// *** BLOCKS ***
 export * from "./src/components/blocks/AccentPicker";
 export * from "./src/components/blocks/BiometricGlyph";
 export * from "./src/components/blocks/BiometricUnlockButton";
@@ -26,7 +24,6 @@ export * from "./src/components/forms/ControlledExtraField";
 export * from "./src/components/forms/ControlledInput";
 export * from "./src/components/forms/ControlledPasswordInput";
 export * from "./src/components/forms/ControlledTextarea";
-// *** Form Elements ***
 export * from "./src/components/forms/Field";
 export * from "./src/components/forms/FormLock";
 export * from "./src/components/forms/OptionToggle";
@@ -43,15 +40,12 @@ export * from "./src/components/Slider";
 export * from "./src/components/Spinner";
 export * from "./src/components/Toast";
 export * from "./src/components/WebsiteAvatar";
-// *** FEATURE COMPONENTS ***
 // record-list
 export * from "./src/features/record-list/RecordGroupLabel";
 export * from "./src/features/record-list/RecordListItem";
 
-// *** LIB ***
 export { FONT } from "./src/lib/fonts";
 export { oklch } from "./src/lib/oklch";
 export { cn } from "./src/lib/utils";
 
-// *** FORM ***
 // export * from "react-hook-form";

@@ -126,8 +126,6 @@ export async function decryptExport(file: string, password: string): Promise<Exp
   return await openExportEnvelope(contents.envelope, password);
 }
 
-// ── CSV ──────────────────────────────────────────────────────────────────────
-
 /** Fields with a column of their own; the rest of a type's fields go into `fields`. */
 export const CSV_COLUMNS = [
   "vault",
@@ -223,8 +221,6 @@ export function exportToCsv(data: ExportData): string {
   const rows = [[...CSV_COLUMNS], ...data.records.map((r) => csvRow(r, vaultNames))];
   return `${rows.map((row) => row.map(csvCell).join(",")).join("\r\n")}\r\n`;
 }
-
-// ── File ─────────────────────────────────────────────────────────────────────
 
 export type ExportFile = { fileName: string; mimeType: string; content: string };
 

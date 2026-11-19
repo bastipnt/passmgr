@@ -20,7 +20,6 @@ export const recordPaths = {
   /** The generator opened from the create sheet. */
   createGeneratePassword: "/generate-password" as Href,
 
-  // ── builders ──
   createLogin: (website?: string) =>
     (website
       ? `/new?type=login&website=${encodeURIComponent(website)}`

@@ -37,7 +37,6 @@ export const recordPaths = {
   /** One pattern for both: no `:version` → the list, `:version` → that revision */
   versions: "/record/:recordId/versions/:version?",
 
-  // ── builders ──
   record: (recordId: string) => `/record/${recordId}`,
   editRecord: (recordId: string) => `/record/${recordId}/edit`,
   recordVersions: (recordId: string) => `/record/${recordId}/versions`,

@@ -8,13 +8,7 @@ import { decryptXChaChaWithAAD, encryptXChaChaWithAAD } from "./encryption";
 import { hkdf } from "./hash";
 import { genKey, wipe } from "./util/secrets-utils";
 
-/*
- * The user's X25519 keypair (ADR 0001 D7): the public key is published so
- * others can seal a vault key to it; the private key is wrapped by the account
- * key like a vault key. It is generated once (registration or local vault
- * creation) and survives password changes and recovery, which only rewrap the
- * account key.
- */
+// The user's X25519 keypair (ADR 0001 D7), created once (packages/crypto/CLAUDE.md, Wraps).
 
 const KEY_BYTES = 32;
 const NONCE_BYTES = 24;

@@ -315,10 +315,6 @@ export class Vault {
   }
 
   /**
-   * RECORDS
-   */
-
-  /**
    * Store server rows. Pending local versions they collide with move up first,
    * as in a pull (`applySync`), so no unsynced change is overwritten.
    */
@@ -363,10 +359,6 @@ export class Vault {
     await this.ready();
     return await getRecordHistory(recordId, this.db);
   }
-
-  /**
-   * LOCAL WRITES + OUTBOX (ADR 0001 D1, D8)
-   */
 
   /**
    * Write changes as new `pending` record versions and enqueue them for the
@@ -482,10 +474,6 @@ export class Vault {
   }
 
   /**
-   * VAULT KEY ROTATION
-   */
-
-  /**
    * Pending versions with content under an older key than their vault's
    * current one, oldest first per record: re-encrypt them before a push.
    */
@@ -544,18 +532,10 @@ export class Vault {
     await clearRekeyTarget(vaultId, keyVersion, this.db);
   }
 
-  /**
-   * PROFILE (whose vault this is, ADR 0001 D2)
-   */
-
   async getProfile(): Promise<LocalProfile | null> {
     await this.ready();
     return await getProfile(this.db);
   }
-
-  /**
-   * ACCOUNT KEY + VAULT KEYS (what an unlock without the server needs)
-   */
 
   /**
    * Store the account key wrap and the vaults (with their key wraps) together,
@@ -734,10 +714,6 @@ export class Vault {
     });
   }
 
-  /**
-   * BIOMETRIC KEY
-   */
-
   async setBiometricKeyMaterial(biometricKey: BiometricKeyMaterial): Promise<void> {
     await this.ready();
     await upsertBiometricKey(biometricKey, this.db);
@@ -752,10 +728,6 @@ export class Vault {
     await this.ready();
     await clearBiometricKey(this.db);
   }
-
-  /**
-   * SYNC META
-   */
 
   /** vaultId → pull cursor, for every vault synced before. */
   async getSyncCursors(): Promise<Record<string, number>> {
@@ -822,10 +794,6 @@ export class Vault {
   }
 
   /**
-   * SHARING (ADR 0001 D7)
-   */
-
-  /**
    * Vaults the user lost access to while this device had unsent changes in
    * them, each with those changes (the latest version of each record), until
    * they are copied elsewhere or discarded (`discardRevokedVault`).
@@ -883,10 +851,6 @@ export class Vault {
     await setPeerKey(userId, key, this.db);
   }
 
-  /**
-   * BREACH CHECK
-   */
-
   async isBreachCheckEnabled(): Promise<boolean> {
     await this.ready();
     return await isBreachCheckEnabled(this.db);
@@ -925,10 +889,6 @@ export class Vault {
       if (current) await retainBreachChecks(current, tx);
     });
   }
-
-  /**
-   * CLEANUP
-   */
 
   async clear(): Promise<void> {
     await this.ready();

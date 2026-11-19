@@ -11,18 +11,6 @@ export {
   encryptXChaChaWithAAD,
 } from "./util/aead";
 
-/**
- * -------------------------- Application specific -------------------------------------------------
- */
-
-/**
- * Encrypt the users email
- *
- * @param serverKey
- * @param email
- *
- * @returns encryptedEmail, nonce, salt
- */
 export async function encryptEmail(
   serverKey: Uint8Array,
   email: string,

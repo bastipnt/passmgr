@@ -1,10 +1,5 @@
-// Native Argon2id implementation for React Native via react-native-argon2.
-// Backed by the reference Argon2 (argon2kt on Android, Argon2Swift on iOS) —
-// RFC 9106 compliant, so output is byte-identical to the WASM / @noble one in
-// `argon2-impl.ts`, including parallelism p>1. Replaces it on mobile, so
-// vault-unlock at login doesn't lock the UI thread. `argon2Async` sends what the
-// native library can't take (Argon2d, binary passwords) to @noble on the JS thread.
-// Metro auto-picks this file over `argon2-impl.ts` for ios/android bundles.
+// RFC 9106 reference Argon2, byte-identical to `argon2-impl.ts`, off the UI thread; what it
+// can't take (Argon2d, binary passwords) runs on @noble (packages/crypto/CLAUDE.md).
 
 import { argon2dAsync, argon2idAsync as nobleArgon2idAsync } from "@noble/hashes/argon2.js";
 import { bytesToHex, hexToBytes } from "@noble/hashes/utils.js";

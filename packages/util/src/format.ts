@@ -17,16 +17,10 @@ function checkIfBase64(testStr: string): boolean {
   return base64regex.test(testStr);
 }
 
-/**
- * Convert a string to Uint8Array
- */
 export function fromString(input?: string): Uint8Array {
   return new TextEncoder().encode(input);
 }
 
-/**
- * Convert base64 string to Uint8Array
- */
 export function fromBase64(input: string): Uint8Array {
   if (!checkIfBase64(input)) throw new EncodingError();
   if (typeof Uint8Array.fromBase64 === "function") {
@@ -39,9 +33,6 @@ export function fromBase64(input: string): Uint8Array {
   return out;
 }
 
-/**
- * Convert Uint8Array to base64 string
- */
 export function toBase64(input: Uint8Array): string {
   if (typeof input.toBase64 === "function") return input.toBase64();
   // Hermes (React Native) fallback via btoa.

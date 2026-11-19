@@ -5,22 +5,7 @@ import { hkdfInfo } from "./util/constants";
 import { genSalt, wipe } from "./util/secrets-utils";
 import { normalize, normalizeEmail } from "./util/string-utils";
 
-/**
- * -------------------------- Key Derivation Functions (KDF) ---------------------------------------
- */
-
-/**
- * HMAC-based Key Derivation Function (HKDF)
- * using sha256
- *
- * default length is 32
- *
- * @param inputKey
- * @param info
- * @param salt - optional
- *
- * @returns new key based on inputKey, info, and salt
- */
+/** HKDF-SHA256 with the info string registered for `info`, 32-byte output. */
 export async function hkdf(
   inputKey: Uint8Array,
   info: keyof typeof hkdfInfo,
@@ -57,32 +42,11 @@ export async function deriveSessionSecret(sessionKey: Uint8Array): Promise<Uint8
   }
 }
 
-/**
- * -------------------------- Generation of Message Authentication Codes (MACs) --------------------
- */
-
-/**
- * HMAC-SHA-256
- *
- * @param key
- * @param message
- *
- * @returns MAC
- */
 export async function signHmac(key: Uint8Array, message: string): Promise<Uint8Array> {
   const msg = new TextEncoder().encode(message);
   return await hmac(sha256, key, msg);
 }
 
-/**
- * Verify the mac signature
- *
- * @param key
- * @param signature
- * @param message
- *
- * @returns boolean
- */
 export async function verifyHmac(
   key: Uint8Array,
   signature: Uint8Array,
@@ -104,18 +68,6 @@ export async function verifyHmac(
   );
 }
 
-/**
- * -------------------------- Application specific -------------------------------------------------
- */
-
-/**
- * Create a hash from the users email to store in the db
- *
- * @param serverKey
- * @param email
- *
- * @returns hashed normalized email
- */
 export async function hashEmail(serverKey: Uint8Array, email: string): Promise<Uint8Array> {
   const normalizedEmail = normalize(email);
   const emailHashKey = await hkdf(serverKey, "emailHashKey");
@@ -278,13 +230,7 @@ export type DeriveArgon2 = (
   params: ArgonOpts,
 ) => Promise<Uint8Array>;
 
-/**
- * Generate Password Root Key (PRK), over the password's NFKC form (a new wrap).
- *
- * @param password
- *
- * @returns PRK, params and salt
- */
+/** A password KEK for a new wrap, derived from the password's NFKC form. */
 export async function genPasswordKek(
   password: string,
   passwordKekParams: ArgonOpts = activePasswordKekParams,
@@ -303,15 +249,6 @@ export async function genPasswordKek(
   return { passwordKek, passwordKekParams, passwordKekSaltData };
 }
 
-/**
- * Retrieve Password Root Key (PRK)
- *
- * @param password
- * @param passwordKekSaltData
- * @param passwordKekParams
- *
- * @returns PRK
- */
 export async function retrievePRK(
   password: string,
   passwordKekSaltData: Uint8Array,
