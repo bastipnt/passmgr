@@ -19,6 +19,13 @@ vi.mock("@repo/client/src/hooks/use-export", async (importActual) => ({
   useExport: () => exportHook,
 }));
 
+// The page's import drop zone mounts the lazy ImportDialog whenever its chunk lands, mid-test
+// or not, and its `useImport` needs a RecordsProvider.
+vi.mock("@repo/client/src/hooks/use-import", async (importActual) => ({
+  ...(await importActual<object>()),
+  useImport: () => ({ busy: false }),
+}));
+
 const store = createFakeStore();
 vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
