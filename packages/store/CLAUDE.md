@@ -7,7 +7,8 @@ pnpm --filter @repo/store test:browser          # web driver on real SQLocal (Vi
 
 One SQLite database **per profile** (`Vault`) plus a device-level profile registry (`ProfileStore`,
 `src/profiles.ts`; ADR 0001 D2, amended 2026-10-07). Drizzle (sqlite) schema in `src/schema/tables.ts`
-(profile DB) and `src/schema/registry-tables.ts` (registry); drizzle-kit writes `drizzle/` and
+(profile DB) and `src/schema/registry-tables.ts` (registry, no key material). `ProfileStore` keeps an opened `Vault` until
+`close` / `remove`, so a profile is never open twice; `remove` deletes the profile's database file. drizzle-kit writes `drizzle/` and
 `drizzle-registry/`, bundled into `src/migrations.generated.ts` / `src/registry-migrations.generated.ts`
 (never edit either by hand; a test fails if they drift). A migration's version is its position in the
 sorted folder list, so `test/migrations.test.ts` pins the applied names: append the new one there, and regenerate
