@@ -38,10 +38,12 @@ vault list plus at most `MAX_SYNC_RECORDS` versions (and `SYNC_PAGE_MAX_BYTES`, 
 order, one snapshot, `hasMore` when the page is full (`SyncManager` pulls and applies page after page); the cursor is the vault's `records.seq`, taken from `vaults.lastSeq` (`takeVaultSeqs`, row
 lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
 cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`): one transaction,
-vaults locked first (`lockVaults`, `lock_timeout` → `SERVICE_UNAVAILABLE`, the client retries), then
+vaults locked first (`lockVaults`, `lock_timeout`, or a new record id a concurrent push took → `SERVICE_UNAVAILABLE`, the client retries), then
 compare-and-swap per change on `baseVersion`; each change answers `applied` / `stale` / `rejected`,
 a record's changes in a batch apply all or nothing, and `clientChangeId` (unique per record) makes a
-retry return the stored version. `SyncManager` sends each record's chain in one batch (`pushBatches`, bounded by `MAX_PUSH_CHANGES` and `MAX_PUSH_BYTES`).
+retry return the stored version (unless another push's purge dropped it meanwhile: the retry is then `stale`; a
+retried change below a version the server stored was covered by it and answers with that version). The new versions are
+planned in memory and written with one seq bump per vault and one insert, so the vaults stay locked briefly. `SyncManager` sends each record's chain in one batch (`pushBatches`, bounded by `MAX_PUSH_CHANGES` and `MAX_PUSH_BYTES`).
 Limits (`@repo/schema` `record-limits.ts`): per-field max lengths and list sizes in the record schemas (forms show them; a
 foreign import skips an item over them as `too_large`), the whole payload ≤ `MAX_RECORD_PAYLOAD_BYTES` (`encryptRecord`
 throws `RecordTooLargeError`, `recordErrorMessage` shows it), `record.push` caps the ciphertext, the server body is
@@ -56,7 +58,7 @@ less); `vault.invite` refuses (`PRECONDITION_FAILED` `too many invites`) past `M
 invites for the invitee, `MAX_PENDING_INVITES_FROM_ONE_SENDER` of them from this inviter (so one account can't fill
 someone's list) or `MAX_PENDING_INVITES_PER_SENDER` sent by the inviter (`vault_members.invitedByUserId`, which a
 rotation's reseal leaves alone); unlocked counts, so concurrent invites can go a few past. The invitee cap bounds
-`vault.invitations`. A push that waited on a vault's lock while it was deleted answers `not_found`. A chain of deletes may go `DELETE_HEADROOM_BYTES` (10 % of the quota, `record/quota.ts`) past it, since a tombstone carries its content; a chain ending in a purge always applies; a chain of puts rewriting a record still under a rotated-out key is exempt. Every byte a version stores is one its change sent, so a delete can't multiply a record's ciphertext. The ack stores the server's copy; a retry answered with a version stored before a pull moved the chain up moves the record's later pending versions down to the server's numbering (`ackPendingChange`). Writes trigger a debounced sync; a failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes, is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; web Settings → Sync & storage; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+`vault.invitations`. A push that waited on a vault's lock while it was deleted answers `not_found`. A chain of deletes may go `DELETE_HEADROOM_BYTES` (10 % of the quota, `record/quota.ts`) past it, since a tombstone carries its content; a chain ending in a purge always applies; a chain of puts rewriting a record still under a rotated-out key is exempt. Every byte a version stores is one its change sent, so a delete can't multiply a record's ciphertext. The ack stores the server's copy; a retry answered with a version stored before a pull moved the chain up moves the record's later pending versions down to the server's numbering (`ackPendingChange`). Writes trigger a debounced sync. A round (`SyncManager`, ADR 0001 D8) pushes the outbox, pulls page by page and, when a change wasn't applied, pushes once more: a `stale` change goes through once the pull has moved it above the server's versions and merged both sides. A failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes (a `stale` answer never counts: the pull resolves it), is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; web Settings → Sync & storage; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 **Vault list continuity** (`checkVaultList` in `packages/store/src/vault.ts`): the server's list is plaintext and
 untrusted, so a pulled page (checked before its keys are loaded, `Vault.checkVaultList`, and again inside
 `applySync`'s transaction) and a login's list (`setAccountKeyMaterial`) are refused whole (`VaultListRejectedError`,
@@ -72,16 +74,39 @@ open), so that page isn't stored either; keys loaded for a page that then fails 
 list's. A refusal caused by this device moving a vault on during the pull (its own rotation) reruns the round quietly.
 A pull that collides with pending local versions merges field by field (ADR 0001 D5, `mergeRecord` /
 `resolveRecordConflict`): the later `clientUpdatedAt` wins a field changed on both sides, an edit beats a
-delete, and the local edits stay in the history below the merged version.
+delete, and the local edits stay in the history below the merged version. A field changed on one side only takes that
+side's value; changed on both, the side whose last version changing it is later wins (a tie goes to the server's copy).
+Tags merge per tag (without case); websites and custom fields have no stable item ids and count as one field each. A
+record type changed on either side makes the whole record one field (the later head wins). A tombstone keeps the content
+it deleted, so edits made before the delete still merge; the result is deleted only when both heads are tombstones.
+`passwordChangedAt` follows whichever password won. Edit times are clamped against clock skew (ADR 0001 D5).
+**Pending versions on a pull** (`packages/store/src/schema/outbox-schema.ts`), in one transaction (`Vault.applySync` /
+`upsertRecords`), in this order:
+1. `dropDeletesOfTombstones`: a pulled tombstone that is the record's newest version (and not below one this device
+   has synced) drops a pending chain here that ends in a delete: it wanted the same, and a delete rebased on a `moved`
+   tombstone would put the moved record in the trash. A local purge on a tombstone that isn't a purge stays (it still
+   drops the history); unsent edits stay and move on top, restoring the record (an edit beats a delete). An older
+   tombstone (a full re-pull of a record restored since) leaves a delete made after the restore alone.
+2. `rebasePendingVersions`: a pulled row takes its `(recordId, version)` slot, and the record's pending chain moves up
+   above the newest pulled version in its order, outbox entries with it, so both edits stay in the history. With
+   `applySync`'s resolver (`resolveRecordConflict`) both sides are then merged and the merge is appended as one more
+   pending version: the server ends up with its head, the local edits (pushed first, kept as history) and the merge
+   on top. A conflict that can't be merged (no base version here, or the resolver throws, e.g. a key that doesn't
+   open it) keeps the plain move.
+3. The pulled rows are written, then `dropPurgedHistory` drops what is left below a purged tombstone.
 
 ## Trash
 
 Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`: Restore per row, delete for good beside it (phone: the row's ⋯ sheet), Empty trash; mobile `settings/trash`): a
 tombstone's `tombstoneKind` is null for a delete (in the trash), `moved` for a move's source, `purged` for
 a record deleted for good. Restore = update with the tombstone's content (`RecordRepository.restore`).
-Purge (`RecordRepository.purge` → `Vault.purgeRecords`) drops every local version + unsent change; a
+Purge (`RecordRepository.purge` → `Vault.purgeRecords` → `purgeRecord`) drops every local version + unsent change; a
 record the server has leaves a `purged` tombstone, sealed with empty content and pushed as `delete` + `tombstoneKind`,
-and the server (and every device that pulls it) drops all versions below it (`dropPurgedHistory`).
+and the server (and every device that pulls it) drops all versions below it (`dropPurgedHistory`). The tombstone goes on
+top of the last synced version; a linked profile's record with only unsent changes gets one on top of the newest of
+them, since they may be on their way (a push in flight): the server answers a purge of a record it never got
+`not_found`, which the client takes as done. Only a `local` profile's record just goes (it never syncs). A record
+already gone or purged (a purge pulled meanwhile) is skipped.
 
 ## Key rotation
 
@@ -89,7 +114,7 @@ Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / 
 `keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`
 loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Every record version carries the
 `keyVersion` it is encrypted with; `vault.rotateKey` is a CAS on `vaults.keyVersion`, after which `record.push`
-rejects a put under another key (`key_version`, the client retries it re-encrypted). Before every push
+rejects a put or a delete under another key (`key_version`, the client retries it re-encrypted). Before every push
 `SyncManager`'s `prepareOutbox` (`reencryptForPush`, `vaults/rekey.ts`) re-encrypts pending versions under an old
 key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
 resumable). History keeps the old key. The new key is sealed to every other member and invitee (`memberKeys`; exactly

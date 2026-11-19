@@ -5,23 +5,8 @@ import { encryptRecord } from "../util/encrypt-record";
 import { type MergeVersion, mergeRecord, sameRecordData } from "./merge-record";
 
 /**
- * Merge a record edited here and on the server (ADR 0001 D5): decrypt all
- * three sides, merge field by field, and encrypt the merge as the record's
- * next version. Null when the local head already is the merge, so nothing
- * needs appending. Needs the vault keys (sync only runs unlocked); throws
- * when a version doesn't open, which leaves the local edit on top.
- *
- * Edit times are device clocks, clamped so no edit counts as later than the
- * server saw it: a local edit not after the pull (`receivedAt`), a server
- * version not after its arrival (`created_at`). That only catches a clock
- * running past those; a clock off by less, or running behind, can still win
- * or lose a field it shouldn't. Nothing short of a server timestamp per field
- * edit would fix that.
- *
- * The merge's own time is the later of the two heads, so in a later merge
- * every field taken from the server side counts as edited then, a little
- * later than it may have been (it only matters when another conflict hits
- * before the merge is pushed).
+ * Null when the local head already is the merge; throws when a version doesn't open, which leaves
+ * the local edit on top. Edit times are clamped to server times, which bounds clock skew only: ADR 0001 D5.
  */
 export function resolveRecordConflict({
   base,

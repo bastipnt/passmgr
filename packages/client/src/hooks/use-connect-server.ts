@@ -66,16 +66,8 @@ let inFlight: { epoch: number; result: Promise<ConnectResult> } | null = null;
 type SessionParams = Parameters<LoginSessionFn>;
 
 /**
- * Attach server auth to an already unlocked, linked vault (ADR 0001 D2):
- * `offline` → `online`. Logs in for the profile's email (OPAQUE, or the
- * device credential behind the biometric unlock) and only attaches the new
- * session once it is known to be this vault's account and the vault is still
- * unlocked: an attached session makes the mode `online`, which starts a sync,
- * and a sync with another account's session would replace this vault's data
- * with that account's. The vault stays unlocked whatever happens here.
- *
- * `onSecondFactor`: how a login with two-factor on asks for the code
- * (default: the app's `SecondFactorPromptProvider`).
+ * Attaches a session only once it is this vault's account and the vault is still unlocked; see
+ * docs/architecture/auth.md (login, reconnect). `onSecondFactor` defaults to `SecondFactorPromptProvider`.
  */
 export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
   const { attachServer } = useContext(SessionContext);
@@ -253,11 +245,8 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
   }
 
   /**
-   * A password reset made on this device while offline goes to the server
-   * first (ADR 0001 D10 amended): until it has, only the old password logs in.
-   * A refusal ends it for good: the recovery key changed on another device, or
-   * an earlier try went through unanswered (then the login below works).
-   * Throttled or unreachable: it stays for the next connect.
+   * Before the login: until the server has the reset, only the old password logs in. See
+   * docs/architecture/auth.md (Recovery, linked profile).
    */
   async function finishPendingReset(email: string, opaquePassword: Uint8Array) {
     const active = storeRef.current.current();

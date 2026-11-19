@@ -54,20 +54,8 @@ export const CHANGE_PASSWORD_ERROR_MESSAGES: Record<ChangePasswordError, string>
 };
 
 /**
- * Change the master password of the unlocked profile (ADR 0001 D10), the same
- * call for both modes:
- *
- * - `local`: rewrap the account key on the device, no server.
- * - `linked`: needs the server (`online`); offline it is refused (`blocked`).
- *   A new OPAQUE registration and password wrap replace the server's, which
- *   signs out every device, then this one logs in again with the new password.
- *
- * `onSecondFactor`: how the logins ask for a two-factor code (default: the
- * app's `SecondFactorPromptProvider`).
- *
- * Either way only the account key wrap changes: vault keys, records and the
- * recovery key stay. Biometric unlock is dropped (it holds the old password)
- * and offered again at the next unlock.
+ * Only the account key wrap changes, in both modes; a linked profile needs `online`. See
+ * docs/architecture/auth.md (Password change). `onSecondFactor` defaults to `SecondFactorPromptProvider`.
  */
 export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
   const [changeError, setChangeError] = useState<ChangePasswordError>();

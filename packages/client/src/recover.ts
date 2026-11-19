@@ -70,14 +70,7 @@ export function parseRecoveryKey(input: string): Uint8Array {
 }
 
 /**
- * Reset the master password with the recovery key.
- *
- * Proves possession of the recovery key (HKDF-derived auth key, checked
- * against the server's verifier), unwraps the existing account key with it and
- * re-wraps that same key under the new password and a fresh recovery key. Vault
- * keys (wrapped by the account key) stay untouched, so all records stay
- * readable. The server swaps the OPAQUE record and key set and revokes every
- * existing session.
+ * Rewraps the same account key, so vault keys and records stay; see docs/architecture/auth.md (Recovery).
  *
  * @returns the new recoveryKey (show once, never send to the server; the
  *   old one no longer works)
@@ -221,12 +214,8 @@ export type LinkedRecovery = {
 };
 
 /**
- * Reset the master password of a `linked` profile on the device (ADR 0001 D10
- * amended), with the recovery wrap cached from its last login: the same new
- * wraps as `recoverLocalVault`, and the server's recovery to finish once
- * online (`finishPendingRecovery`), sealed under the account key. Its proof is
- * the recovery key the server still knows: an earlier pending reset's, when
- * there is one (the key entered now may be the one that reset issued).
+ * The proof is the key the server still knows: an earlier pending reset's, when there is one; see
+ * docs/architecture/auth.md (Recovery, linked profile).
  *
  * Throws like `recoverLocalVault`.
  */

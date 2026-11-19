@@ -253,12 +253,8 @@ export const userRouter = router({
       await recordAction(ctx, "password_keys_updated");
     }),
 
-  // Change the master password of an account (ADR 0001 D10, linked mode).
-  // Two steps, like a registration: a new OPAQUE registration for the new
-  // password, then the swap of the OPAQUE record and the password wrap of the
-  // account key (re-wrapped on the client; the recovery wrap and the vault keys
-  // stay). Requires a fresh OPAQUE login with the current password; the swap
-  // revokes every session, so the client logs in again with the new one.
+  // Needs a fresh OPAQUE login with the current password; the swap revokes every session.
+  // See docs/architecture/auth.md (Password change).
   startPasswordChange: freshAuthProcedure
     .input(startPasswordChangeInputSchema)
     .output(startPasswordChangeOutputSchema)

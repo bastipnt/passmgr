@@ -1,11 +1,5 @@
-// Shared by the app module and the credential provider extension
-// (`targets/autofill/AutofillVault.swift` is a symlink to this file).
-//
-// The app encrypts each profile's logins to the public half of a P-256 key in the
-// Secure Enclave (ECIES, no prompt needed); the private half only works after a
-// biometric match on the current enrollment, so only the extension, after Face ID /
-// Touch ID, can read them back. Files and key are shared through the app group and
-// keychain access group named in both Info.plists.
+// Shared with the credential provider extension (`targets/autofill/AutofillVault.swift` is a symlink).
+// Logins are encrypted to a biometric-gated Secure Enclave key: see docs/security/threat-model-inputs.md.
 import AuthenticationServices
 import Foundation
 import LocalAuthentication

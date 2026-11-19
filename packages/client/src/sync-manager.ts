@@ -174,19 +174,8 @@ type SyncManagerOptions = {
 };
 
 /**
- * One sync cycle (ADR 0001 D8): push the outbox in batches, then pull page by page. A
- * record's pending changes always go in one batch, which the server applies
- * all or nothing, so no other device pulls half of them (e.g. a losing edit
- * without the merge on top). A change that wasn't applied stays queued. When
- * one wasn't, the outbox is pushed once more after the pull: a stale change
- * (another device wrote first) goes through once the pull has moved it above
- * the server's versions and merged both sides.
- *
- * A round that fails, or leaves changes queued, is retried with exponential
- * backoff while enabled. A change failing `MAX_PUSH_ATTEMPTS` pushes (a stale
- * answer doesn't count: the pull resolves it), or rejected by the server, is parked: it and its record's later changes stay
- * local until `retryParked`, so they don't hold up the rest of the outbox. A
- * change rejected for an old vault key is retried instead, re-encrypted.
+ * A record's pending changes always go in one batch, which the server applies all or nothing; the
+ * round, retries and parking: see docs/architecture/vaults-and-sync.md (ADR 0001 D8).
  */
 export class SyncManager {
   private syncing = false;

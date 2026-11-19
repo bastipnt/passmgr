@@ -31,11 +31,8 @@ export const EMAIL_VERIFICATION_ERROR_MESSAGES: Record<EmailVerificationError, s
 };
 
 /**
- * Verifying the account's email, on a server that sends codes (`linked` +
- * `online` only). Until it is verified the server neither syncs nor shares
- * (`SyncStatus.paused`). Registration mailed the first code; `resend` mails
- * another, `verify(code)` checks it and syncs right away. Verified elsewhere
- * (another device), the next status check resumes syncing here too.
+ * Until the email is verified the server neither syncs nor shares (`SyncStatus.paused`); see
+ * docs/architecture/auth.md (Email verification).
  */
 export function useEmailVerification() {
   const { emailVerification } = useAppConfig();

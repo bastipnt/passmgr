@@ -74,12 +74,8 @@ data class PendingLogin(
 class AutofillKeyInvalidatedException : Exception()
 
 /**
- * Each profile's logins, encrypted to an RSA key in the Android Keystore: a fresh
- * AES-GCM key per write, wrapped with the public half (no prompt needed). The
- * private half only works for a short while after a strong biometric match and
- * dies with a new enrollment, so only `AutofillAuthActivity` reads them back.
- * Files live in `noBackupFilesDir`: the key never leaves the device, a backup of
- * them would be unreadable anyway.
+ * Logins encrypted to a biometric-gated Keystore key, read back only by `AutofillAuthActivity`;
+ * see docs/security/threat-model-inputs.md (mobile autofill entries).
  */
 object AutofillVault {
   private const val KEY_ALIAS = "passmgr.autofill.key"

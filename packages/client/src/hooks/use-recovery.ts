@@ -105,12 +105,8 @@ export function useRecovery() {
   const clearRecoveryError = useCallback(() => setRecoveryError(undefined), []);
 
   /**
-   * Reset an account's master password with the recovery key. On this device
-   * first when it has the account's recovery wrap (ADR 0001 D10 amended): the
-   * vault opens with the new password at once. Online the server takes the
-   * reset right away (refused: nothing changes); offline, or unreachable, the
-   * next connect finishes it. Otherwise (or when that wrap no longer matches
-   * the key, online) through the server, which needs a connection.
+   * On this device first when it has the account's recovery wrap, else through the server; see
+   * docs/architecture/auth.md (Recovery).
    *
    * @returns the new recovery key (show once, then wipe), or undefined on failure
    */
@@ -137,14 +133,8 @@ export function useRecovery() {
       return;
     }
 
-    // This device's profile of the account is now stale: the local wrap needs
-    // the old password and biometric material holds it. Remove it so the next
-    // login starts clean. Other profiles are left alone. Changes that never
-    // reached the server exist only here, so then the profile stays: the next
-    // login with the new password replaces the stale wrap (the local one
-    // doesn't open, so the unlock goes through the server). Only the quick
-    // unlocks go, so nothing opens it without a password. The vault is locked
-    // here (recovery is a locked-screen flow), so removing never needs a lock.
+    // The stale profile goes unless it holds unsent changes (docs/architecture/auth.md, Recovery).
+    // Recovery is a locked-screen flow, so removing it never needs a lock.
     const stale = store.profiles.find(
       (p) => p.mode === "linked" && p.email === normalizeEmail(email),
     );

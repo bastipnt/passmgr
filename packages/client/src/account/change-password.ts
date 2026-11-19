@@ -79,16 +79,8 @@ export async function changeLocalPassword(
 }
 
 /**
- * Change the master password of an account (ADR 0001 D10, linked mode), online
- * only. Needs the unlocked vault.
- *
- * 1. A fresh OPAQUE login with the current password (the server's proof that
- *    it is still known, `freshAuthProcedure`); its session is attached with
- *    `attach`, once it is known to be `account.userId`'s.
- * 2. A new OPAQUE registration for the new password and the account key
- *    rewrapped under it (recovery wrap and vault keys stay).
- * 3. The server swaps both and revokes every session, this one included: the
- *    caller logs in again with the new password.
+ * The fresh login's session is attached only once it is known to be `account.userId`'s; the flow:
+ * see docs/architecture/auth.md (Password change).
  *
  * Throws `WrongPasswordError`, `LoginThrottledError`, a second-factor error
  * (see `freshLogin`), `PasswordChangeFailedError` (nothing changed on the server) or

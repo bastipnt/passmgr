@@ -39,15 +39,8 @@ function denyRecovery(
 }
 
 /**
- * Account recovery with the recovery key (forgotten master password).
- *
- * The client proves possession of the recovery key with an HKDF-derived auth
- * key, which the server checks against the stored SHA-256 verifier — the
- * recovery key itself never leaves the client. On success the client gets the
- * recovery-wrapped account key back, re-wraps the same account key under the new
- * password and a fresh recovery key, and finishes a new OPAQUE registration.
- * The server then swaps the OPAQUE record and key set atomically and revokes
- * all existing sessions.
+ * The server only checks a verifier of an HKDF-derived proof: the recovery key never leaves the
+ * client. See docs/architecture/auth.md (Recovery).
  */
 export const recoveryRouter = router({
   startRecovery: loggedProcedure

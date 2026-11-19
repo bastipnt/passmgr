@@ -332,10 +332,8 @@ export const loginRouter = router({
       });
     }),
 
-  // Device login (web biometric unlock): the server hands out a nonce and an
-  // ephemeral X25519 key; the WebAuthn challenge covers both and the client's
-  // key, so the signed assertion vouches for the key agreement the session
-  // key comes from. Nothing password-equivalent is stored on the device.
+  // The WebAuthn challenge covers the nonce and both X25519 keys, so the assertion vouches for the
+  // key agreement the session key comes from; see docs/architecture/auth.md (device login).
   startDeviceLogin: loggedProcedure
     .input(startDeviceLoginInputSchema)
     .output(startDeviceLoginOutputSchema)
@@ -436,12 +434,8 @@ export const loginRouter = router({
       });
     }),
 
-  // The second login step of an account with two-factor on: a TOTP code or a
-  // backup code for the challenge finishLogin handed out. Every code is
-  // claimed against the login throttle right before it is checked, so parallel
-  // guesses can't pass the lock; a right one resets it. A device login's codes
-  // use their own throttle, never the password's. SECOND_FACTOR_MAX_ATTEMPTS
-  // wrong ones burn the challenge (the login starts over).
+  // Each code claims a throttle attempt right before it is checked, so parallel guesses can't pass
+  // the lock; see docs/architecture/auth.md (login, second factor).
   verifySecondFactor: loggedProcedure
     .input(verifySecondFactorInputSchema)
     .output(verifySecondFactorOutputSchema)

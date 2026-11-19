@@ -47,47 +47,8 @@ type Appended = { index: number; version: NewVersion }[];
 export type PushOutcome = { results: PushResult[]; writtenVaultIds: string[] };
 
 /**
- * Apply a batch of changes (ADR 0001 D5/D8) in one transaction, answering each
- * change on its own. Every vault written to is locked first, so the
- * compare-and-swap on `baseVersion` is decided under the lock: two racing
- * pushes queue up and the second gets a clean `stale`.
- *
- * A record's changes are a chain: they apply all together or not at all, so
- * no other device ever pulls half of it (e.g. a losing edit without the merge
- * on top). A change whose `clientChangeId` the record already has answers with
- * the stored version, so a retry after a lost response appends nothing (unless
- * another push's purge dropped that version meanwhile: the retry is then stale).
- *
- * Every change is sealed (ADR 0001 D11): its ciphertext is bound to the
- * version the client numbered it, so an applied change always appends exactly
- * that version, a delete included (it brings its tombstone's ciphertext, and
- * every byte of it counts against the quota). On a retry, a change below one
- * the server stored was covered by it (a version a purge dropped) and answers
- * with that stored version.
- *
- * A purge (`tombstoneKind: "purged"`) appends a tombstone with empty content and
- * drops every version below it, in the same transaction: the history is gone
- * for good, and the tombstone (with its seq) tells the other devices to drop
- * their copies. A put on it starts the record over (an edit beats a delete).
- *
- * A put must be encrypted under the vault's current key: one under a key a
- * rotation replaced is rejected (`key_version`), so nothing new is written that
- * a removed member's old key would open. So must a delete.
- *
- * A chain with a put that would take the vault owner past their storage quota
- * is rejected (`quota`), unless it only rewrites a record still under a
- * rotated-out key: a rotation must finish however full the vault is. A chain of
- * deletes may go past the quota by `DELETE_HEADROOM_BYTES` (a tombstone carries
- * its content and so takes space), a chain ending in a purge always applies:
- * only a purge frees space. A move's source tombstone (`moved`) is rejected too
- * when the batch had a put over quota, which may be the move's target: the
- * record must not leave its vault without arriving in the other.
- *
- * The new versions are planned in memory and written with one seq bump per
- * vault and one insert, keeping the time the vaults stay locked short.
- *
- * Throws SERVICE_UNAVAILABLE when a vault stays locked past `LOCK_TIMEOUT`, or
- * a new record id raced into the same id elsewhere: the client retries later.
+ * Every vault written to is locked first, so the compare-and-swap on `baseVersion` is decided under
+ * the lock. Chains, sealing, purge, quota: see docs/architecture/vaults-and-sync.md (ADR 0001 D5/D8).
  */
 export async function pushChanges(userId: string, changes: PushChange[]): Promise<PushOutcome> {
   try {
