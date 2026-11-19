@@ -13,9 +13,8 @@ type SecondFactorStepProps = {
 };
 
 /**
- * Web's `SecondFactorForm`: the second login step of an account with
- * two-factor on, in place of a sheet's form. The authenticator app's code, or
- * a backup code.
+ * Web's `SecondFactorForm`, in place of a sheet's form: an authenticator or backup code. Flow: Two-factor in
+ * docs/architecture/auth.md.
  */
 export function SecondFactorStep({ request, onSubmit, onCancel }: SecondFactorStepProps) {
   const [backup, setBackup] = useState(false);

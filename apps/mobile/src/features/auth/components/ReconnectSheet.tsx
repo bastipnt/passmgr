@@ -36,9 +36,8 @@ type ReconnectSheetProps = {
 };
 
 /**
- * Sign in again while the vault is unlocked `offline` (ADR 0001 D2): the
- * server session expired, and a restored mobile session has no password in
- * memory to reconnect with. Only attaches server auth; the vault stays as it is.
+ * Only attaches server auth; the vault stays unlocked as it is. Why mobile needs it: Session modes in
+ * docs/architecture/auth.md.
  */
 export function ReconnectSheet({ ref }: ReconnectSheetProps) {
   const sheetRef = useRef<BottomSheetRef>(null);

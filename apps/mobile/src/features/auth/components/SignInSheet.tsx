@@ -55,10 +55,8 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
   const { unlock, unlockLocal, unlockByEmail, unlockError, clearUnlockError } = useUnlock();
   const [loading, setLoading] = useState(false);
   const { active, profiles } = useStore();
-  // The active profile opens with the password alone (ADR 0001 D2); "Use
-  // another account" signs in by email instead (a profile on the device for
-  // that email unlocks as if picked, another account adds one). May flip once
-  // the profile loads: the resolver is read on every render.
+  // "Use another account" signs in by email (ADR 0001 D2, login semantics). May flip once the profile
+  // loads: the resolver is read on every render.
   const unlockable = active?.profile && active.accountKeyMaterial ? active.profile : null;
   const [otherAccount, setOtherAccount] = useState(false);
   const unlocking = unlockable !== null && !otherAccount;

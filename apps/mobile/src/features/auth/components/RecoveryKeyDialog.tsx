@@ -10,11 +10,8 @@ import { FullWindowOverlay } from "react-native-screens";
 import { useCopySecret } from "@/lib/clipboard";
 
 /**
- * Hosts the recovery-key dialog above the app. iOS avoids RN's `Modal`:
- * presenting an `@expo/ui` BottomSheet installs a window-level gesture recogniser
- * that outlives the sheet and cancels touches inside `RCTModalHostView`, so the
- * dialog's buttons would reach `onPressIn` but never fire `onPress`.
- * `FullWindowOverlay` renders through RN's own surface, which is unaffected.
+ * Not RN's `Modal` on iOS: an `@expo/ui` BottomSheet's window-level gesture recogniser outlives the sheet and
+ * cancels touches in `RCTModalHostView` (no `onPress`); `FullWindowOverlay` is unaffected.
  */
 function DialogPortal({
   visible,
@@ -61,10 +58,8 @@ type RecoveryKeyDialogProps = {
 };
 
 /**
- * Shows a freshly issued recovery key once; "I saved it" unlocks after copying
- * it, or on iOS after printing the emergency kit (a PDF built on the device;
- * the print sheet also saves or shares it). Android's print dialog resolves on
- * cancel too, so there only copying counts.
+ * "I saved it" unlocks after copying the key, or on iOS after printing the kit (Android's print resolves on
+ * cancel too). See Emergency kit in docs/architecture/auth.md.
  */
 export function RecoveryKeyDialog({
   recoveryKey,

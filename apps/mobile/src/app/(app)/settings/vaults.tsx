@@ -26,11 +26,7 @@ import { Fingerprint } from "@/features/vaults/Fingerprint";
 import { VaultTile } from "@/features/vaults/VaultTile";
 import { settingsPaths } from "@/route-paths";
 
-/**
- * Web's Settings → Vaults: every vault and a new one. A shared vault opens its
- * members (and from there its form sheet), the personal one its form sheet.
- * Invites, changes from lost vaults and the user's own security code show too.
- */
+/** Web's Settings → Vaults as a page; what it holds: docs/architecture/vaults-and-sync.md (Vault UI). */
 export default function VaultsScreen() {
   const router = useRouter();
   const { vaults } = useVaults();
