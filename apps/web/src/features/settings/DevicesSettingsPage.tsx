@@ -5,7 +5,6 @@ import ChangePasswordDialog from "./ChangePasswordDialog";
 import SessionsSettings from "./SessionsSettings";
 import { SettingsPage } from "./SettingsPage";
 
-/** Signed-in devices and the account's activity. */
 export default function DevicesSettingsPage() {
   const linked = useStore().profile?.mode === "linked";
 

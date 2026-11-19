@@ -13,7 +13,6 @@ export type BrandGlyphProps = {
   color?: string;
 };
 
-/** The bare shield glyph, drawn on a 24x24 grid. */
 export function BrandGlyph({ size = 24, color = "#ffffff" }: BrandGlyphProps) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
@@ -23,13 +22,11 @@ export function BrandGlyph({ size = 24, color = "#ffffff" }: BrandGlyphProps) {
 }
 
 export type BrandMarkProps = {
-  /** Tile edge in px. Web default is 36. */
   size?: number;
   /** Tile and glyph colors; default the current accent (`primary`, `primary-foreground`). */
   colors?: { tile: string; glyph: string };
 };
 
-/** Shield on a solid accent tile — RN port of web's `BrandMark`. */
 export function BrandMark({ size = 36, colors }: BrandMarkProps) {
   const [primary, onPrimary] = useCSSVariable([
     "--color-primary",
@@ -57,7 +54,6 @@ export type BrandLockupProps = {
   size?: number;
 };
 
-/** Brand mark plus the "passmgr" wordmark. */
 export function BrandLockup({ className, size = 36 }: BrandLockupProps) {
   return (
     <View className={cn("flex-row items-center gap-3", className)}>

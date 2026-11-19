@@ -29,7 +29,6 @@ type FieldProps = {
   setValue: UseFormSetValue<AnyFormValues>;
   /** Phone width: a field's `shortLabel` shows in place of its label. */
   compact?: boolean;
-  /** The password field opens its generator right away. */
   openGenerator?: boolean;
 };
 

@@ -10,7 +10,6 @@ const OWNS_ESCAPE =
 
 type OverlayHeaderProps = {
   title: string;
-  /** Before the title. */
   icon?: ReactNode;
   titleClassName?: string;
   /** After the title (a search field, a status line). */

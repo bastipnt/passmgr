@@ -80,8 +80,6 @@ export default function RecordsScreen() {
           headerShown: true,
           headerTransparent: true,
           headerTitleStyle,
-          // Web's collapsing page title: the big one scrolls away with the
-          // list, then the bar picks it up between the sort and add buttons.
           title: titleInBar ? title : "",
           unstable_headerLeftItems: () => [
             {

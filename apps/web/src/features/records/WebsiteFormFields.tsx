@@ -96,7 +96,6 @@ export default function WebsiteFormFields<T extends WebsiteFormValues>(
   );
 }
 
-/** The site's favicon, or a globe. */
 function WebsiteFavicon({ website }: { website: string }) {
   const { src, status } = useWebsiteAvatar({ title: "", websites: [{ value: website }] });
 

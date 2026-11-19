@@ -13,7 +13,6 @@ type GeneratePasswordButtonProps = {
   fieldLabel: string;
   /** `icon`: a round button without the text, for tight rows (always so on phones). */
   size?: "default" | "icon";
-  /** Opens the generator right after mounting. */
   openOnMount?: boolean;
   className?: string;
 };

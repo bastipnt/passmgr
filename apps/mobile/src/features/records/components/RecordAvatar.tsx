@@ -12,7 +12,6 @@ import {
   Wifi,
 } from "lucide-react-native";
 
-/** Web's `RECORD_TYPE_ICONS`. */
 export const RECORD_TYPE_ICONS: Record<RecordType, LucideIcon> = {
   login: KeyRound,
   card: CreditCard,

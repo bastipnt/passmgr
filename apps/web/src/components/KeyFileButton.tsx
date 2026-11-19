@@ -1,7 +1,6 @@
 import { FilePickerButton } from "@repo/ui/components/FilePickerButton";
 import { FileKeyIcon } from "lucide-react";
 
-/** A KeePass key file, read into memory once picked. */
 export default function KeyFileButton({
   keyFile,
   onKeyFile,

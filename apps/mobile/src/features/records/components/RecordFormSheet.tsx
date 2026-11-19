@@ -18,7 +18,6 @@ type RecordFormSheetProps<T extends RecordType> = {
   generatorPath: Href;
   /** Label of the submit button, and of the sheet's header. */
   action: string;
-  /** Title shown in the sheet's header. */
   title: string;
   serverError?: string;
   /** A save is in flight: locks the form and its submit action. */
