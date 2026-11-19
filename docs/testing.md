@@ -100,6 +100,13 @@ These tests use the real testcontainers Postgres + Redis (no `crypto-mock.ts`, n
 - `apps/server/src/record/router.test.ts`
   - Unauthenticated call → 401 smoke test only. CRUD round-trip lives in `apps/server/test/integration/record.int.test.ts`.
 
+**`packages/client/test/`** — node environment, no React
+
+The suite runs in Vitest's `node` environment, so its coverage (`packages/client/vitest.config.ts`) only counts what
+it can own: the pure record helpers (`src/records/`), the account flows (`src/account/`), registration
+(`src/register.ts`) and `SyncManager`. The hooks and providers need a React environment: the web component tests
+(Layer 3, e.g. `apps/web/src/features/auth/use-recovery.test.tsx`) and E2E cover them.
+
 **Deleted from Layer 1**
 
 - `packages/client/src/register.test.ts` and `packages/client/src/login.test.ts` — they mocked `@repo/crypto` and the tRPC caller, duplicating `opaque-flow.int.test.ts`. The one assertion that was uniquely valuable (recoveryKey + password never appear in any outbound tRPC payload) moves to `apps/server/test/integration/no-secret-leak.int.test.ts`, where it runs against the real client crypto.
