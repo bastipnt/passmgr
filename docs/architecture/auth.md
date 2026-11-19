@@ -213,5 +213,5 @@ PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a 
 master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
 only where a recovery key is issued (`RecoveryKeyDialog`: register, local vault, restore, recovery): it can't be made
 later, the key isn't kept (so Settings → Account has no Emergency kit row). Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
-dialog hidden meanwhile on iOS), which counts only on iOS, where a cancelled print rejects (copying the key counts on both). The server is printed
+dialog hidden meanwhile on iOS; the sheet also saves or shares the PDF), which counts only on iOS, where a cancelled print rejects (copying the key counts on both). The server is printed
 as a full URL (web may be configured with a path, `/trpc`).

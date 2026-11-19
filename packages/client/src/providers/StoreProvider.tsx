@@ -396,7 +396,7 @@ export function StoreProvider({
             pushOutputSchema,
             await request(() => trpcRef.current.record.push.mutate({ changes })),
           ).results,
-        // Only a 4xx about the batch itself is split down to the bad change; any other failure stops the
+        // Only a 4xx about the batch itself is split down to the bad record; any other failure stops the
         // round (docs/architecture/vaults-and-sync.md, Vaults and sync).
         stopsRound: (e) =>
           !isServerAnswer(e) ||
