@@ -124,6 +124,8 @@ Location: `apps/server/test/integration/`. Spun up with **testcontainers-node** 
 - `email-encryption.int.test.ts` — same email registered twice via different clients → second insert blocked by `emailHash` unique index; encrypted columns differ across registrations (nonce/salt random); fresh nonce + ciphertext entropy per call; `hashEmail` determinism.
 - `no-secret-leak.int.test.ts` *(new)* — captures every outbound tRPC body during a real register + login flow and deep-greps for the plaintext password and the recoveryKey hex. Asserts neither string ever appears in any captured payload. This is the migrated, more authoritative version of the assertion that previously lived in `packages/client/src/register.test.ts` against a mocked tRPC caller.
 - `record.int.test.ts` *(new)* — CRUD round-trip on records for an authenticated session (signed requests). Replaces the colocated `apps/server/src/record/router.test.ts` happy-path coverage.
+- `device-login.int.test.ts` — device login (web biometric unlock): a WebAuthn credential registered by a fresh password login logs in without the password; nothing that logs in is stored on the device.
+- `sharing.int.test.ts` — sharing a vault between accounts: invites sealed to the invitee's public key, accepting, roles, removal / leaving and the rotation that follows, key updates for the members who stay.
 
 ### Layer 3 — Web component tests (Vitest + @testing-library/react + jsdom)
 

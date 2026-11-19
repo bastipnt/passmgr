@@ -18,9 +18,8 @@ type ProfileListProps = {
 };
 
 /**
- * The profiles on this device (ADR 0001 D2), each a shortcut to its unlock,
- * and a way to remove them all. Shown on the welcome screen once there is
- * more than one profile (a single one is the "Unlock" button's).
+ * Shown on the welcome screen from two profiles on (a single one is the "Unlock" button's). Login
+ * semantics: ADR 0001 D2 (amended 2026-10-07).
  */
 export function ProfileList({ onPick }: ProfileListProps) {
   const { profiles, active } = useStore();

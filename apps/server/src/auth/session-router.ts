@@ -28,9 +28,8 @@ function publicSessionId(sessionId: string): string {
 }
 
 /**
- * The user's signed-in devices (server sessions): list them, end one, or end
- * all but this one. A revoked device is refused with SESSION_SIGNED_OUT and
- * its record stream ends with `signedOut`: it locks like a sign-out.
+ * A revoked device is refused with SESSION_SIGNED_OUT and locks like a sign-out: Session modes in
+ * docs/architecture/auth.md.
  */
 export const sessionRouter = router({
   list: protectedProcedure.output(listSessionsOutputSchema).query(async ({ ctx }) => {

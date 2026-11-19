@@ -396,10 +396,8 @@ export function StoreProvider({
             pushOutputSchema,
             await request(() => trpcRef.current.record.push.mutate({ changes })),
           ).results,
-        // Offline, a network failure, an unsigned request (locked), a rejected
-        // session, a busy, throttling or failing server: every other batch would
-        // fail the same way. Only an answer about the batch itself (a 4xx) is
-        // split down to the bad change and counted against it.
+        // Only a 4xx about the batch itself is split down to the bad record; any other failure stops the
+        // round (docs/architecture/vaults-and-sync.md, Vaults and sync).
         stopsRound: (e) =>
           !isServerAnswer(e) ||
           isUnauthorized(e) ||

@@ -75,6 +75,9 @@ switch while unlocked, `app/VaultLock.tsx`, so every page locks) ends the server
 (the persisted bundle restores it). Losing the network does **not** change `mode`: it sets the separate `networkOffline` flag (`navigator.onLine`
 / `online`·`offline` events), which pauses sync and SSE; `summarizeSync` combines both. Writes go to the local
 database + outbox in every mode; the `online` event (or attaching server auth) syncs.
+Mobile: a restored session has no password in memory, so once it expires the vault stays unlocked `offline` until the
+user signs in again in `ReconnectSheet` (only attaches server auth). Its welcome screen lists the device's profiles
+(`ProfileList`: each a shortcut to its unlock, Remove all) from two profiles on; a single one is the Unlock button's.
 
 ## Demo vault unlock
 
@@ -110,6 +113,8 @@ an account without a cached wrap still needs the server (`offline`).
 Web `RecoverPage` (`authPaths.recover` from the account login, `recoverActive` from the unlock card): key step
 (`checkRecoveryKey(key, email?)`: unwrapped when the device has the wrap, else format only and the server checks it with
 the new password), then the new password, the new key (`RecoveryKeyDialog`), then the vault opens with the new password.
+Mobile `RecoverSheet` ("Forgot password?"): a local vault's reset stays on the device, a linked profile on the device
+resets there too (the server follows once online), any other account needs the server.
 
 ## Password change
 
@@ -208,5 +213,5 @@ PDF (pdf-lib, loaded on demand) with the email + server (an account; none for a 
 master password and the recovery key (`recoveryKeyChunks`, the groups both dialogs show). Built on the device only, and
 only where a recovery key is issued (`RecoveryKeyDialog`: register, local vault, restore, recovery): it can't be made
 later, the key isn't kept (so Settings → Account has no Emergency kit row). Web downloads it (counts as saved once handed over); mobile opens the print sheet (`expo-print`, data URI, the
-dialog hidden meanwhile on iOS), which counts only on iOS, where a cancelled print rejects. The server is printed
+dialog hidden meanwhile on iOS; the sheet also saves or shares the PDF), which counts only on iOS, where a cancelled print rejects (copying the key counts on both). The server is printed
 as a full URL (web may be configured with a path, `/trpc`).

@@ -27,9 +27,8 @@ import { lockVaults } from "../../src/vault/access";
 import { truncateAll } from "../setup/db-helpers";
 import { callSigned, loginAndGetAuthKey, putChange, register } from "./_helpers";
 
-// Sharing a vault between accounts (ADR 0001 D7): invites sealed to the
-// invitee's public key, accepting, roles, removal / leaving and the rotation
-// that follows, key updates for the members who stay.
+// Sharing a vault between accounts (ADR 0001 D7). Flow: docs/architecture/vaults-and-sync.md (Sharing, Key rotation);
+// scope: docs/testing.md (Layer 2).
 
 type User = Awaited<ReturnType<typeof loginAndGetAuthKey>> & {
   email: string;

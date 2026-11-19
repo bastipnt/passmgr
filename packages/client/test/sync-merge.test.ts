@@ -21,9 +21,8 @@ type ServerRow = EncryptedRecordSchema & { clientChangeId: string };
 type Failure = Extract<PushResult, { status: "stale" | "rejected" }>;
 
 /**
- * Two devices of one user syncing through an in-memory server that applies
- * pushes like `record.push`: compare-and-swap per change, a record's changes
- * in a batch all or nothing, a retried change answered with what it stored.
+ * Two devices of one user through an in-memory server that answers pushes like `record.push`
+ * (docs/architecture/vaults-and-sync.md, Vaults and sync).
  */
 class FakeServer {
   rows: ServerRow[] = [];

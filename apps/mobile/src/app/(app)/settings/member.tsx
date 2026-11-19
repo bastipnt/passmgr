@@ -23,9 +23,8 @@ import { confirmVerify } from "@/features/vaults/confirm-verify";
 import { Fingerprint } from "@/features/vaults/Fingerprint";
 
 /**
- * One member of a shared vault, for owners and managers (web's member row in
- * `VaultMembersDialog`): their security code, their role, hand the vault over
- * (owners), remove them or withdraw the invite (which rotates the vault's key).
+ * Web's member row in `VaultMembersDialog`, for owners and managers; removing someone rotates the key:
+ * docs/architecture/vaults-and-sync.md (Vault UI, Sharing).
  */
 export default function MemberScreen() {
   const { vaultId, userId } = useLocalSearchParams<{ vaultId: string; userId: string }>();

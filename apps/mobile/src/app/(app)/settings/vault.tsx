@@ -28,9 +28,8 @@ import { VAULT_ICON_COMPONENTS, VaultTile } from "@/features/vaults/VaultTile";
 // TODO: share logic with web
 
 /**
- * Web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog` as one
- * form sheet: a new vault, or (`?vaultId=`) rename one, change its icon and
- * colour, rotate its key, or delete it after typing its name.
+ * Web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog` as one form sheet (`?vaultId=` edits
+ * one): docs/architecture/vaults-and-sync.md (Vault UI).
  */
 export default function VaultFormScreen() {
   const { vaultId } = useLocalSearchParams<{ vaultId?: string }>();

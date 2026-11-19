@@ -1,9 +1,6 @@
 /**
- * Applies ./drizzle as the database owner, then creates or updates the role the server connects as:
- * login, data access on the app's tables, no DDL, never a superuser. Runs before every deploy
- * (`migrate` service, docker-compose.prod.yml), so the grants cover tables new migrations add.
- *
- *   DATABASE_URL=<owner url> APP_DB_USER=passmgr_app APP_DB_PASSWORD=… bun packages/db/migrate.ts
+ * Migrates as the owner, then creates / updates the app role: DML only, no DDL, never superuser.
+ * Runs before every deploy; usage and migration rules: packages/db/CLAUDE.md.
  */
 import { createHash, createHmac, pbkdf2Sync, randomBytes } from "node:crypto";
 import { fileURLToPath } from "node:url";

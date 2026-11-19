@@ -31,9 +31,8 @@ type RecoverSheetProps = {
 };
 
 /**
- * "Forgot password?": reset the master password with the recovery key. A
- * local vault's stays on the device; an account on this device resets here
- * too and the server follows once online; any other account needs the server.
+ * "Forgot password?": a local vault's or this device's account's reset happens here, the server following once
+ * online. Flow: Recovery in docs/architecture/auth.md.
  */
 export function RecoverSheet({
   ref,

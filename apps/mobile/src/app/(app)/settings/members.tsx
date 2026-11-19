@@ -36,10 +36,8 @@ import { VaultTile } from "@/features/vaults/VaultTile";
 import { settingsPaths } from "@/route-paths";
 
 /**
- * Web's `VaultMembersDialog` as a page: a shared vault's members with their
- * security codes; owners and managers invite (header) and open a member's
- * sheet; anyone but the last owner leaves. A local profile is offered an
- * online account first, offline it waits for the connection.
+ * Web's `VaultMembersDialog` as a page; who may do what: docs/architecture/vaults-and-sync.md (Vault UI,
+ * Sharing).
  */
 export default function MembersScreen() {
   const { vaultId } = useLocalSearchParams<{ vaultId: string }>();

@@ -91,19 +91,8 @@ export const vaultRouter = router({
     }),
 
   /**
-   * Rotate a vault's key (owners and managers holding its current key): the
-   * next key version, the caller's wrap of it, the current key wrapped under it
-   * (so members keep reading the history), the metadata re-encrypted, and the
-   * new key sealed to every other member and invitee from the caller's keypair
-   * (each accepts it with `acceptKey`). From the commit on, `record.push`
-   * takes puts under the new key only; the caller re-encrypts the records
-   * through its outbox. Clears `keyRotationNeeded`.
-   *
-   * CONFLICT when the vault isn't at `keyVersion - 1` any more (another rotation
-   * won) or the caller doesn't hold that key yet. PRECONDITION_FAILED when
-   * `memberKeys` aren't exactly the other members, each sealed to their current
-   * public key, or the caller's keypair isn't the current one: the members
-   * changed, so the caller fetches them again (`members`) and retries.
+   * From the commit on, `record.push` takes changes under the new key only. CONFLICT and
+   * PRECONDITION_FAILED cases: docs/architecture/vaults-and-sync.md (Key rotation), ADR 0001 D7.
    */
   rotateKey: verifiedProcedure.input(rotateVaultKeyInputSchema).mutation(async ({ ctx, input }) => {
     const { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce, previousKey } = input;

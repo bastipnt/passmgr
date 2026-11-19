@@ -57,15 +57,8 @@ export const vaultsTable = pgTable(
 );
 
 /**
- * A user's access to a vault. `encryptedVaultKey` is the vault key wrapped
- * under that member's account key (AAD: vaultId + keyVersion). Only `active`
- * members get access; `pending` is an invite not yet accepted (ADR 0001 D7).
- *
- * A key another member hands over is sealed to the member's public key
- * (`sealedVaultKey`, version `sealedKeyVersion`) by the sender's keypair: the
- * invite of a `pending` member (who has no wrap yet), or the new key after a
- * rotation by someone else (the member's wrap stays at the version they had).
- * The member turns it into their own wrap (`vault.acceptKey`), which clears it.
+ * Only `active` members get access. A sealed key (an invite, or someone else's rotation) waits until the
+ * member turns it into their own wrap (`vault.acceptKey`): docs/architecture/vaults-and-sync.md (Sharing).
  */
 export const vaultMembersTable = pgTable(
   "vault_members",

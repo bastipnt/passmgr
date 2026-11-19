@@ -151,11 +151,8 @@ export async function pushChanges(userId: string, changes: PushChange[]): Promis
 }
 
 /**
- * Pass 1 for one record's chain, without writing: each change is checked
- * against the head the changes before it would leave. When one can't apply,
- * none of the chain's new versions are written, and those changes all get the
- * first failure. Changes the server already stored still answer as applied,
- * and so does one below them that isn't stored: the stored one covered it.
+ * Pass 1 for one record's chain, without writing: a change that can't apply fails the whole chain with the
+ * first failure. Retries a stored version covers: docs/architecture/vaults-and-sync.md (Vaults and sync).
  */
 function decideChain(
   chain: Indexed[],

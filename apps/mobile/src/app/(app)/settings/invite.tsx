@@ -19,9 +19,8 @@ import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { Fingerprint } from "@/features/vaults/Fingerprint";
 
 /**
- * Web's `InviteMemberDialog` as a form sheet: look someone up by email and
- * pick a role, then compare their security code before the vault key is
- * sealed to them.
+ * Web's `InviteMemberDialog` as a form sheet: the security code is compared before the vault key is sealed
+ * (docs/architecture/vaults-and-sync.md, Sharing).
  */
 export default function InviteScreen() {
   const { vaultId } = useLocalSearchParams<{ vaultId: string }>();
