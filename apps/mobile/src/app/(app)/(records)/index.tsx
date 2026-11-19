@@ -74,20 +74,12 @@ export default function RecordsScreen() {
 
   return (
     <Screen>
-      {/*
-       * Native `UIBarButtonItem`s rather than views floating over the list: only
-       * real bar items get the iOS 26 glass that samples the content scrolling
-       * under the transparent header. The sort picker is a `UIMenu` with one
-       * checked action — `multiselectable` defaults to false, so it behaves as
-       * a single select.
-       */}
+      {/* The sort picker is a `UIMenu` with one checked action: `multiselectable` defaults to false. */}
       <Stack.Screen
         options={{
           headerShown: true,
           headerTransparent: true,
           headerTitleStyle,
-          // Web's collapsing page title: the big one scrolls away with the
-          // list, then the bar picks it up between the sort and add buttons.
           title: titleInBar ? title : "",
           unstable_headerLeftItems: () => [
             {

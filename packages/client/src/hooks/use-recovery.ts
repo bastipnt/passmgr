@@ -28,7 +28,6 @@ import { useTRPCClient } from "../util/trpc";
  */
 export type RecoveryError = "invalid_key" | "failed" | "wrong_key" | "throttled" | "offline";
 
-/** User-facing text for each recovery error (web + mobile). */
 export const RECOVERY_ERROR_MESSAGES: Record<RecoveryError, string> = {
   invalid_key: "That doesn't look like a recovery key. Paste it exactly as it was shown.",
   failed: "Recovery failed. Check the email and recovery key and try again.",

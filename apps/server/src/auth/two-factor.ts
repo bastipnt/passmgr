@@ -58,7 +58,6 @@ export function newTotpEnrollment(email: string): { secret: string; uri: string 
   return { secret, uri: totpUri(secret, OPAQUE_SERVER_IDENTITY, email) };
 }
 
-/** Whether the user has two-factor on (a TOTP secret is stored). */
 export async function hasTotp(userId: string): Promise<boolean> {
   const row = await db.query.userTotpTable.findFirst({
     columns: { userId: true },

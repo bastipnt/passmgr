@@ -6,13 +6,7 @@ import { settingsPaths } from "@/app/route-paths";
 
 const TOAST_ID = "backup-reminder";
 
-/**
- * Recurring reminder for a local-only vault (ADR 0001 D12): its only copy is
- * this browser's storage. Shown while the vault is open once the reminder is
- * due; "Back up" leads to Settings → Import & export. Its buttons and swiping it away put it off for another interval;
- * an encrypted export resets it.
- * Renders nothing.
- */
+/** Recurring backup reminder for a local-only vault, its only copy (ADR 0001 D12); an export resets it. */
 export default function BackupReminder() {
   const { due, snooze } = useBackupReminder();
   const [, navigate] = useLocation();

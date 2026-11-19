@@ -4,17 +4,6 @@ import { xchacha20poly1305 } from "@noble/ciphers/chacha.js";
 import { randomBytes } from "@noble/hashes/utils.js";
 import { fromBase64, fromString, toBase64 } from "@repo/util";
 
-/**
- * -------------------------- Encryption functions -------------------------------------------------
- */
-
-/**
- * AEAD encryption with XChaCha20-Poly1305
- *
- * @param key
- * @param inputData
- * @returns [encryptedData, nonce]
- */
 export function encryptXChaCha(
   key: Uint8Array,
   inputData: string | Uint8Array,

@@ -17,7 +17,6 @@ const FADE = 16;
 /** Scroll distance over which the frost fades in once the first label pins (web: 2rem). */
 const FROST_FADE_IN = 32;
 
-/** Full blur strength of the frost. */
 const BLUR_INTENSITY = 80;
 
 /**
@@ -35,10 +34,8 @@ const AnimatedBlurView = Animated.createAnimatedComponent(BlurView);
 type StickyContextValue = {
   /** Content offset under the bar's bottom edge (see `useScrollTitle`). */
   scrollY: SharedValue<number>;
-  /** Where the list starts inside the scroll content. */
   listY: SharedValue<number>;
   listHeight: SharedValue<number>;
-  /** Layout y of each label inside the list, by index. */
   labelYs: SharedValue<Record<number, number>>;
   labelHeight: SharedValue<number>;
   /** `labelHeight` for the JS thread (the frost's gradient stops). */
@@ -52,7 +49,6 @@ const StickyContext = createContext<StickyContextValue | null>(null);
 
 type StickyListProps = {
   scrollY: SharedValue<number>;
-  /** How many `StickyLabel`s the list renders. */
   count: number;
   /** Labels and rows as flat siblings — zIndex only orders siblings. */
   children: ReactNode;

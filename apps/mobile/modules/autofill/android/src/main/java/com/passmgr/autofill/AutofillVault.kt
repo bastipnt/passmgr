@@ -118,8 +118,6 @@ object AutofillVault {
 
   fun hasEntries(context: Context) = files(context).isNotEmpty()
 
-  // App
-
   fun write(context: Context, profileId: String, payload: String) {
     seal(publicKey(context), payload, file(context, profileId))
   }

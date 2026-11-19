@@ -31,6 +31,10 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with
   the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once
   scrolled). Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one shared frost).
+- **Header buttons are native `UIBarButtonItem`s** (`unstable_headerLeftItems` / `unstable_headerRightItems`), never
+  React views in `headerLeft` / `headerRight` or floating over the content: iOS 26 wraps a React element in a
+  custom-view bar item with its own liquid glass capsule, so a glass button of ours would sample that capsule instead of
+  the content scrolling under the transparent header. Only real bar items get UIKit's glass and track the scroll view.
 - **Fonts**: Bricolage Grotesque (display) + JetBrains Mono are vendored in `apps/mobile/assets/fonts`
   (named by PostScript name so iOS and Android resolve the same family) and embedded via the
   `expo-font` plugin. Classes `font-display`, `font-display-bold`, `font-mono`; `FONT` constant for

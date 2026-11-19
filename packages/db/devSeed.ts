@@ -67,13 +67,12 @@ async function seed() {
 
   const serverKey = fromString(OPAQUE_SERVER_SETUP);
 
-  // 1. Bring the schema up to date (reset only truncates), then reset data
+  // `reset` only truncates: the schema has to be migrated first.
   console.log("Applying migrations...");
   await migrate(db, { migrationsFolder: `${import.meta.dirname}/drizzle` });
   console.log("Resetting database...");
   await reset(db, schema);
 
-  // 2. OPAQUE registration (client + server in one process)
   console.log("Registering user...");
   const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
   const akePrivBytes = fromBase64(OPAQUE_AKE_PRIVATE_KEY);
@@ -96,7 +95,7 @@ async function seed() {
   if (finished instanceof Error) throw finished;
   const registrationRecord = toBase64(Uint8Array.from(finished.record.serialize()));
 
-  // 3. Generate key hierarchy (same code path as client registration)
+  // The same code path as a client registration.
   const accountKey = genKey();
   const { recoveryKey, ...userKeys } = await generateUserKeys(PASSWORD, accountKey);
   const vaults = SEED_VAULTS.map((seedVault) => {
@@ -105,11 +104,9 @@ async function seed() {
   });
   const userKeyPair = createUserKeyPair(accountKey);
 
-  // 4. Encrypt email
   const [encryptedEmail, emailNonce, emailEncryptionKeySalt] = await encryptEmail(serverKey, EMAIL);
   const emailHash = toBase64(await hashEmail(serverKey, EMAIL));
 
-  // 5. Insert user
   const [user] = await db
     .insert(usersTable)
     .values({
@@ -129,7 +126,6 @@ async function seed() {
   const { userId } = user;
   console.log(`User created: ${userId}`);
 
-  // 6. Insert keys, the keypair + the vaults
   await db.insert(keysTable).values({ userId, ...userKeys });
   await db.insert(userKeyPairsTable).values({ userId, ...userKeyPair });
   for (const { vault, kind } of vaults) {
@@ -140,7 +136,6 @@ async function seed() {
     await db.insert(vaultMembersTable).values({ vaultId, userId, role: "owner", ...vaultKeyWrap });
   }
 
-  // 7. Encrypt and insert seed records
   const seedRecords: RecordData[] = [
     ...exampleLoginRecords,
     ...exampleTypedRecords,

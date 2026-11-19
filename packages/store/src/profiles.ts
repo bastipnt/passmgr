@@ -44,15 +44,8 @@ export class ProfileExistsError extends Error {
 }
 
 /**
- * The profiles on this device (ADR 0001 D2, amended 2026-10-07): each one is
- * its own SQLite database (a `Vault`: data, keys, outbox, sync state), and a
- * small registry database lists them. Removing a profile deletes its database
- * file. The registry holds no key material.
- *
- * Opened vaults are kept until `close` / `remove`, so a profile is never open
- * twice. Writes span two databases and can't be atomic: a profile's database
- * is written before its registry row and deleted before it, so a crash leaves
- * at worst an unlisted file, never a listed profile without data.
+ * Not atomic across the two databases: a profile's database is written before its registry
+ * row and deleted before it, so a crash leaves at worst an unlisted file (packages/store/CLAUDE.md).
  */
 export class ProfileStore {
   private readonly openDatabase: OpenDatabase;

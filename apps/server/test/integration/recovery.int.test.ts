@@ -153,7 +153,6 @@ describe("account recovery (real Postgres + Redis)", () => {
     // Nothing reached the server yet.
     await expect(loginAndGetAuthKey(email, newPassword)).rejects.toThrow();
 
-    // Online again.
     const pending = parsePendingRecovery(openPendingRecovery(accountKey, onDevice.pending));
     const opaquePassword = await deriveOpaquePassword(newPassword, email);
     await finishPendingRecovery(recoveryClient(), email, opaquePassword, pending);

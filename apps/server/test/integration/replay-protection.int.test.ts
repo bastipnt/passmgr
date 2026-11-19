@@ -47,7 +47,6 @@ describe("replay protection", () => {
       input,
     });
 
-    // First call succeeds and claims the nonce.
     const first = createCaller(buildTestContext(headers));
     await expect(first.record.push(input)).resolves.toMatchObject({
       results: [{ status: "applied" }],

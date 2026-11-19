@@ -60,7 +60,6 @@ function ListsAndLanguage() {
   );
 }
 
-/** How the app looks and how the vault lists items, on this device. */
 export default function AppearanceSettingsPage() {
   const isMobile = useIsMobile();
 

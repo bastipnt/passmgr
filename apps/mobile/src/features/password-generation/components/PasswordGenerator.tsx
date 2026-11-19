@@ -78,8 +78,6 @@ export default function PasswordGenerator() {
 
   return (
     <View className="flex-1">
-      {/* Native bar items rather than views floating over the sheet — only real
-          `UIBarButtonItem`s get UIKit's glass instead of sitting on top of it. */}
       <Stack.Screen
         options={{
           headerShown: true,

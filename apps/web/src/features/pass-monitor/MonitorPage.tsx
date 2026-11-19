@@ -12,11 +12,9 @@ type MonitorPageProps = {
   empty: string;
   /** Shown instead of the findings when the check couldn't run. */
   error?: string;
-  /** Next to the title. */
   actions?: ReactNode;
   /** Below the description, whatever the findings. */
   status?: ReactNode;
-  /** Under the findings. */
   footnote?: ReactNode;
   children: ReactNode;
 };

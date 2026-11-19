@@ -36,7 +36,6 @@ export type MenuSelectOption<T extends string> = {
 };
 
 export type MenuSelectProps<T extends string> = {
-  /** Currently selected option — marked in the menu. */
   value: T;
   options: readonly MenuSelectOption<T>[];
   onChange: (value: T) => void;
@@ -44,7 +43,6 @@ export type MenuSelectProps<T extends string> = {
   systemImage: SFSymbolName;
   /** Trigger icon for the RN fallback (Android). */
   icon?: ReactNode;
-  /** Section title above the options. */
   title?: string;
   accessibilityLabel: string;
   className?: string;

@@ -69,7 +69,6 @@ class DecryptWorkerService {
     if (this.worker) {
       this.worker.postMessage({ type: "wipe" });
     }
-    // Reject any in-flight requests
     for (const [, callbacks] of this.pending) {
       callbacks.reject(new Error("Session wiped"));
     }

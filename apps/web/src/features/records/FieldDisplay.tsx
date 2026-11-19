@@ -129,7 +129,6 @@ export default function FieldDisplay({
   }
 }
 
-/** A link button among a field's actions that opens `href` in a new tab. */
 export function OpenLink({ href, label }: { href: string; label: string }) {
   return (
     <ExternalLink

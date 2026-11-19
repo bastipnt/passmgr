@@ -200,9 +200,7 @@ const NativeHost = withUniwind(Host);
 export type ButtonProps = Omit<PressableProps, "children"> &
   VariantProps<typeof buttonVariants> & {
     className?: string;
-    /** Extra classes for the auto-wrapped text child. */
     textClassName?: string;
-    /** Leading node (icon / spinner) rendered before the label. */
     icon?: ReactNode;
     /**
      * Swaps the leading icon for a spinner and disables the button. Prefer this

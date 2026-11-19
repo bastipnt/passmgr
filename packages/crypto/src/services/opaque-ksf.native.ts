@@ -1,13 +1,5 @@
-// OPAQUE key-stretching function (KSF), React Native variant.
-//
-// The default ScryptMemHardFn in @cloudflare/opaque-ts runs pure-JS @noble
-// scrypt (N=32768 → 32MB) on the JS thread. On Hermes (no JIT) that takes
-// ~20-30s inside authFinish — the dominant mobile login cost. react-native-
-// quick-crypto provides a native scrypt; with identical params the output is
-// byte-identical to the pure-JS version, so existing registrations and the web
-// client stay compatible — only execution moves to native code.
-//
-// Metro auto-picks this file over `opaque-ksf.ts` for ios/android bundles.
+// Native scrypt: pure-JS scrypt takes ~20-30 s on Hermes. Same params, byte-identical output
+// (packages/crypto/CLAUDE.md, OPAQUE KSF).
 import { scryptSync } from "react-native-quick-crypto";
 
 export interface OpaqueKsf {

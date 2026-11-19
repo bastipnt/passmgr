@@ -116,7 +116,6 @@ export async function createRecord(
   return submitCreateForm(page);
 }
 
-/** Create a login record through the create sheet; returns its record id. */
 export async function createLogin(page: Page, fields: LoginFields): Promise<string> {
   await openCreateForm(page, "Login");
   await fillLoginForm(page, fields);
@@ -172,7 +171,6 @@ export async function openRecord(page: Page, recordId: string): Promise<void> {
   await expect(page).toHaveURL(new RegExp(`/record/${recordId}$`));
 }
 
-/** Open the record's edit sheet. */
 export async function openEditForm(page: Page, recordId: string): Promise<void> {
   await openRecord(page, recordId);
   await page.getByRole("button", { name: "Edit", exact: true }).click();
@@ -186,7 +184,6 @@ export async function submitEditForm(page: Page): Promise<void> {
   await expect(recordSheet(page)).toHaveCount(0);
 }
 
-/** Change fields of a record through the edit sheet. */
 export async function editRecord(
   page: Page,
   recordId: string,

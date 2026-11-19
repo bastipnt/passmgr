@@ -38,10 +38,6 @@ async function getEntries(keys: readonly string[], db: LocalDb): Promise<Record<
   return Object.fromEntries(rows.map((r) => [r.key, r.value]));
 }
 
-/**
- * ACCOUNT KEY (password wrap + email + keypair, for offline unlock)
- */
-
 export async function upsertAccountKey(material: AccountKeyMaterial, db: LocalDb): Promise<void> {
   await upsertEntries(
     // `passwordKekParams` and `userKeyPair` are structured; `getAccountKey` parses them back.
@@ -140,10 +136,6 @@ export async function getPendingRecovery(db: LocalDb): Promise<SealedPendingReco
 export async function clearPendingRecovery(db: LocalDb): Promise<void> {
   await db.delete(keyMaterial).where(eq(keyMaterial.key, PENDING_RECOVERY_KEY));
 }
-
-/**
- * BIOMETRIC KEYS
- */
 
 export async function upsertBiometricKey(
   biometricKey: BiometricKeyMaterial,

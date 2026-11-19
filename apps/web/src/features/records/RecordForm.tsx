@@ -44,7 +44,6 @@ type RecordFormProps<T extends RecordType> = {
   header?: ReactNode;
   /** After the last section (the phone drawer's Delete). */
   footer?: ReactNode;
-  /** The password field opens its generator right away. */
   openGenerator?: boolean;
   ref?: Ref<RecordFormHandle>;
 };

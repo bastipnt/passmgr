@@ -37,7 +37,6 @@ export function useShortcut(
   // the depth inside the effect below would register at the parent's layer.
   const layer = useShortcutLayerDepth();
 
-  // Keep handler ref stable so we don't re-register on every render
   const handlerRef = useRef(handler);
   handlerRef.current = handler;
 

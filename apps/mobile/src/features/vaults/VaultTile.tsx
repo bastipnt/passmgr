@@ -15,7 +15,6 @@ import {
   Wallet,
 } from "lucide-react-native";
 
-/** Web's `VAULT_ICON_COMPONENTS`. */
 export const VAULT_ICON_COMPONENTS: Record<VaultIcon, LucideIcon> = {
   vault: Vault,
   briefcase: Briefcase,

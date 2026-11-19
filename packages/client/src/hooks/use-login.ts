@@ -26,7 +26,6 @@ export type LoginError = "credentials" | "unreachable" | "throttled" | "second_f
 
 export type SignInErrorMessage = { title: string; detail: string; warning?: boolean };
 
-/** User-facing text for a failed sign-in or unlock (web + mobile). */
 export function signInErrorMessage(
   loginError: LoginError | undefined,
   unlockError: UnlockError | undefined,

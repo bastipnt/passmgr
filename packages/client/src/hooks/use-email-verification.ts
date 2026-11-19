@@ -22,7 +22,6 @@ const EMAIL_VERIFICATION_KEY = "account-email-verification";
  */
 export type EmailVerificationError = "wrong_code" | "expired" | "throttled" | "offline" | "failed";
 
-/** User-facing text for each email verification error (web + mobile). */
 export const EMAIL_VERIFICATION_ERROR_MESSAGES: Record<EmailVerificationError, string> = {
   wrong_code: "That code doesn't match. Check the email and try again.",
   expired: "That code is no longer valid. Send a new one.",

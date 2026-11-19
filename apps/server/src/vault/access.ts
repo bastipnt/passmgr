@@ -16,7 +16,6 @@ import { TRPCError } from "@trpc/server";
 import { and, asc, desc, eq, exists, inArray, isNotNull, max, notExists, sql } from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
-/** The db handle or a transaction on it. */
 export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 /** Access is via an active membership (ADR 0001 D6). */

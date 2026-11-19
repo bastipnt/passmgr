@@ -16,7 +16,6 @@ describe("migration round-trip", () => {
   });
 
   it("every migration file applies cleanly on a fresh schema", async () => {
-    // Drop and recreate the public schema, then re-apply every migration sequentially.
     await client.query("DROP SCHEMA public CASCADE");
     await client.query("CREATE SCHEMA public");
 

@@ -1,4 +1,3 @@
-/** `authPaths.recoverActive`'s query. */
 export const recoverActiveSearch = "vault=active";
 
 export const authPaths = {
@@ -37,7 +36,6 @@ export const recordPaths = {
   /** One pattern for both: no `:version` → the list, `:version` → that revision */
   versions: "/record/:recordId/versions/:version?",
 
-  // ── builders ──
   record: (recordId: string) => `/record/${recordId}`,
   editRecord: (recordId: string) => `/record/${recordId}/edit`,
   recordVersions: (recordId: string) => `/record/${recordId}/versions`,
@@ -66,20 +64,14 @@ export const recordPaths = {
 export const settingsPaths = {
   index: "/settings",
   account: "/settings/account",
-  /** Signed-in devices and account activity. */
   devices: "/settings/devices",
-  /** Sync state and this device's storage. */
   sync: "/settings/sync",
   /** Create, rename and delete vaults (ADR 0001 D6). */
   vaults: "/settings/vaults",
-  /** Rename or remove a tag on every record. */
   tags: "/settings/tags",
-  /** Deleted records: restore or delete for good. */
   trash: "/settings/trash",
-  /** Import & export: encrypted backups and other managers' files. */
   backup: "/settings/backup",
   security: "/settings/security",
-  /** Theme, accent and list defaults. */
   appearance: "/settings/appearance",
   generator: "/settings/generator",
   /** Desktop only. */

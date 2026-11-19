@@ -1,4 +1,3 @@
-// fallow-ignore-file unused-file
 // Offline-first app shell: every file of the build (all lazy route chunks, workers, the sqlite
 // wasm) is downloaded on install, so a page never opened online still loads offline.
 // `vite-plugin-build-integrity.ts` replaces the marker below with the build's files (each with its

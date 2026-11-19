@@ -39,7 +39,6 @@ export type TwoFactorError =
   | "expired"
   | "failed";
 
-/** User-facing text for each two-factor error (web + mobile). */
 export const TWO_FACTOR_ERROR_MESSAGES: Record<TwoFactorError, string> = {
   wrong_password: "That's not your password.",
   offline: "Two-factor settings need a connection to the server. Try again once you're online.",

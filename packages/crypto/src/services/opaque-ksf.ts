@@ -1,9 +1,4 @@
-// OPAQUE key-stretching function (KSF), web/default variant.
-//
-// Injected into OpaqueClient in place of the library's ScryptMemHardFn (same
-// value, `opaqueScrypt`). Pure-JS scrypt over 32 MB takes seconds, so the web
-// runs it in the Argon2 worker; our patch of @cloudflare/opaque-ts awaits
-// `harden`. The mobile (.native.ts) variant swaps in native scrypt.
+// The web runs the KSF in the Argon2 worker (packages/crypto/CLAUDE.md, OPAQUE KSF).
 import { opaqueScrypt } from "../util/opaque-scrypt";
 import { argon2WorkerService } from "./argon2-worker-service";
 

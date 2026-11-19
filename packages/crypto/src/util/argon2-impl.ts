@@ -1,7 +1,4 @@
-// Default Argon2 implementation (web + Node + tests): WASM with a pure-JS
-// fallback. Mobile gets a native
-// override via the sibling `argon2-impl.native.ts` (Metro picks `.native.ts`
-// automatically for iOS/Android bundles).
+// WASM with a pure-JS fallback; mobile uses `argon2-impl.native.ts`.
 import {
   type ArgonOpts,
   argon2dAsync as nobleArgon2dAsync,

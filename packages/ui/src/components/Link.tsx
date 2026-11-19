@@ -1,5 +1,3 @@
-// fallow-ignore-file unused-file
-
 import { Button, buttonVariants } from "@repo/ui/components/Button";
 import { type VariantProps } from "class-variance-authority";
 import { ArrowUpRightIcon } from "lucide-react";

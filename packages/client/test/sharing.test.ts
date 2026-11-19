@@ -37,7 +37,6 @@ let local: Awaited<ReturnType<typeof generateLocalVault>>;
 let work: MemberVault;
 let vault: Vault;
 
-/** Another user with a keypair. */
 function otherUser() {
   const accountKey = crypto.getRandomValues(new Uint8Array(32));
   const keyPair = createUserKeyPair(accountKey);

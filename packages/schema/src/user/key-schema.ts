@@ -66,9 +66,6 @@ export const argonParamsSchema = z
 
 export type ArgonParams = z.infer<typeof argonParamsSchema>;
 
-// Key hierarchy (ADR 0001 D3): the password KEK and the recovery KEK each wrap
-// the account key; the account key wraps one key per vault.
-
 // The recovery-key-wrapped copy of the account key (handed back during recovery).
 export const recoveryWrapSchema = z.object({
   recoveryKekSalt: z.base64().length(44),

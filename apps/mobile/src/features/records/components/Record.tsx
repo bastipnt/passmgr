@@ -68,7 +68,6 @@ function Hero({ record }: { record: DecryptedRecord }) {
   );
 }
 
-/** Web's `RecordTags`. */
 function TagsSection({ tags }: { tags: string[] }) {
   const muted = useCSSVariable("--color-muted-foreground") as string;
   const { showTag } = useSortedRecords();

@@ -142,7 +142,6 @@ function getDateBucket(ts: string | null, now: Date): (typeof BUCKET_ORDER)[numb
   if (!ts) return "Older";
   const then = new Date(ts);
 
-  // Today
   if (
     now.getFullYear() === then.getFullYear() &&
     now.getMonth() === then.getMonth() &&
@@ -150,7 +149,6 @@ function getDateBucket(ts: string | null, now: Date): (typeof BUCKET_ORDER)[numb
   )
     return "Today";
 
-  // Yesterday
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 1);
   if (
@@ -168,11 +166,9 @@ function getDateBucket(ts: string | null, now: Date): (typeof BUCKET_ORDER)[numb
   if (thenDay >= mondayThisWeek) return "This week";
   if (thenDay >= mondayLastWeek) return "Last week";
 
-  // This month
   if (now.getFullYear() === then.getFullYear() && now.getMonth() === then.getMonth())
     return "This month";
 
-  // Last month
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
   if (lastMonth.getFullYear() === then.getFullYear() && lastMonth.getMonth() === then.getMonth())
     return "Last month";

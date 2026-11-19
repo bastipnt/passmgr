@@ -217,7 +217,6 @@ export type LinkedRecovery = {
   pending: SealedPendingRecovery;
   /** `pending` opened, for finishing it right away when online. */
   serverRecovery: PendingRecovery;
-  /** Plaintext: the caller shows it once, then wipes it. Never sent anywhere. */
   recoveryKey: Uint8Array;
 };
 

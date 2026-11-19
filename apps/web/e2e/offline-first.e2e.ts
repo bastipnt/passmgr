@@ -76,10 +76,7 @@ test.describe("offline-first", () => {
       note: "first note",
     });
 
-    // Concurrent edits: the phone edits offline first, the laptop edits the
-    // same record later while online. Field by field (ADR 0001 D5): the later
-    // edit wins a field changed on both sides, a field changed on one side
-    // keeps that change.
+    // Concurrent edits, merged field by field (ADR 0001 D5).
     await phone.context().setOffline(true);
     await expectSyncStatus(phone, "Offline");
     await editLogin(phone, recordId, { username: "phone-user", note: "phone note" });

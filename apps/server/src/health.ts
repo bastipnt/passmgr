@@ -41,10 +41,6 @@ export async function runHealthChecks(
   };
 }
 
-/**
- * `GET /health` (200 / 503 with each dependency's status; errors only go to the
- * log) and `GET /metrics` (Prometheus text), on the ops listener (`OPS_PORT`).
- */
 export function registerHealthRoutes(
   app: FastifyInstance,
   { checks, registry }: { checks: Record<string, HealthCheck>; registry: Registry },

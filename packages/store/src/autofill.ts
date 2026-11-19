@@ -17,18 +17,14 @@ export async function writeAutofillEntries(
   _profileLabel: string,
   _entries: readonly AutofillEntry[],
   _generator: PasswordOptions,
-): Promise<void> {
-  // no-op on web
-}
+): Promise<void> {}
 
 /** For best-effort clears: the profile's other cleanup must still run. */
 export function logAutofillClearError(error: unknown): void {
   console.error("Autofill entries not removed", error);
 }
 
-export async function clearAutofillEntries(_profileId: string): Promise<void> {
-  // no-op on web
-}
+export async function clearAutofillEntries(_profileId: string): Promise<void> {}
 
 export async function hasPendingAutofillLogins(_profileId: string): Promise<boolean> {
   return false;
@@ -43,6 +39,4 @@ export async function readPendingAutofillLogins(
 export async function removePendingAutofillLogins(
   _profileId: string,
   _ids?: readonly string[],
-): Promise<void> {
-  // no-op on web
-}
+): Promise<void> {}

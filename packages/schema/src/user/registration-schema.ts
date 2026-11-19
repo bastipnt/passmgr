@@ -4,9 +4,6 @@ import { emailSchema } from "./email-schema";
 import { userKeyPairSchema, userKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
 
-/**
- * Start registration
- */
 export const startRegistrationInputSchema = z.object({
   email: emailSchema,
   registrationRequest: opaqueMessageSchema,

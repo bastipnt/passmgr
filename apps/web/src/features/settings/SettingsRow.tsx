@@ -290,7 +290,6 @@ export function useSettingsButtonSize() {
 }
 
 type SettingsActionRowProps = Pick<RowTextProps, "label" | "hint"> & {
-  /** The shorter hint a phone row shows. */
   phoneHint?: ReactNode;
   /** Wraps the trigger in its dialog: `(trigger) => <ChangePasswordDialog>{trigger}</ChangePasswordDialog>`. */
   dialog: (trigger: ReactElement) => ReactElement;

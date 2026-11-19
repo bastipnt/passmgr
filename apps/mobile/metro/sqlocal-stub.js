@@ -1,6 +1,5 @@
-// Stub for `sqlocal` (browser-only SQLite WASM client). Mobile auth-only
-// milestone never instantiates `Vault`, but the import is evaluated when the
-// `@repo/store` barrel is loaded. Stub the constructor so the bundle works.
+// Mobile never creates an `SQLocal` (browser-only, the web driver's), but loading the `@repo/store`
+// barrel evaluates its import.
 class SQLocal {
   constructor() {
     throw new Error("SQLocal instantiated on React Native. Use expo-sqlite when porting Vault.");

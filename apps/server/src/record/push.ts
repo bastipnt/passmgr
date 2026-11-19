@@ -397,7 +397,6 @@ async function vaultAccess(
   return access;
 }
 
-/** The newest version of each record, deleted or not. */
 async function latestVersions(recordIds: string[], tx: DbExecutor) {
   const rows = await tx
     .selectDistinctOn([recordsTable.recordId])

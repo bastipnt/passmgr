@@ -39,7 +39,6 @@ export type LinkAccountError =
   | "unreachable"
   | "failed";
 
-/** User-facing text for each link error (web + mobile). */
 export const LINK_ACCOUNT_ERROR_MESSAGES: Record<LinkAccountError, string> = {
   demo: "A demo vault can't be linked to an account.",
   wrong_password: "That isn't this vault's password.",

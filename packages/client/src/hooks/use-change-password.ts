@@ -41,7 +41,6 @@ export type ChangePasswordError =
   | "failed"
   | "unconfirmed";
 
-/** User-facing text for each password change error (web + mobile). */
 export const CHANGE_PASSWORD_ERROR_MESSAGES: Record<ChangePasswordError, string> = {
   wrong_password: "That's not your current password.",
   offline:

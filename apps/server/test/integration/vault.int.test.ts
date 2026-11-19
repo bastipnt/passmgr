@@ -625,7 +625,7 @@ describe("record.push under the vault lock", () => {
   it("numbers a batch's versions per vault in batch order, with one seq run each", async () => {
     const alice = await signUp("alice@example.com");
     const work = await createVaultFor(alice);
-    await createRecord(alice, alice.personalVaultId); // seq 1
+    await createRecord(alice, alice.personalVaultId);
 
     const a = putChange(alice.personalVaultId);
     const results = await push(

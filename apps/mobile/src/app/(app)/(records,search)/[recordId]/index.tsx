@@ -63,8 +63,6 @@ export default function RecordScreen() {
 
   return (
     <Screen>
-      {/* The hero carries the title; the bar only picks it up once the hero has
-          scrolled away — the native take on web's collapsing page title. */}
       <Stack.Screen
         options={{
           title: titleInBar ? (record?.title ?? "") : "",

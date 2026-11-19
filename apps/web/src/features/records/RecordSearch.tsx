@@ -43,11 +43,7 @@ function CloseChip({ onClose }: { onClose: () => void }) {
   );
 }
 
-/**
- * Tag mode's way back to the list, the records the picked tags keep: Esc does
- * the same, so the pill carries its hint in place of the esc chip. Short
- * ("Show 4"): the list panel's field also holds the Tags badge and the text.
- */
+/** Tag mode's way back to the list. Esc does the same, so the pill carries the esc hint; short, the field is shared. */
 function ShowRecordsButton({ onShow }: { onShow: () => void }) {
   const { countSearch, tagFilters } = useSortedRecords();
   const label = `Show ${counted(countSearch({ text: "", tags: tagFilters }), "record", "records")}`;
