@@ -14,7 +14,6 @@ import { seo } from "./vite-plugin-seo";
 // never have to reach the server's localhost URL.
 const LAN_API_PREFIX = "/api";
 
-// https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd());
   const lan = mode === "lan";

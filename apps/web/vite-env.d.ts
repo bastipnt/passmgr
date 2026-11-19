@@ -6,7 +6,6 @@ interface ImportMetaEnv {
   readonly VITE_APP_VERSION?: string;
   /** "true": the public demo build (`features/demo`) */
   readonly VITE_DEMO_MODE?: string;
-  // more env variables...
 }
 
 interface ImportMeta {

@@ -10,11 +10,7 @@ type UseMoveRecordOpts = {
   onError?: (error: Error) => void;
 };
 
-/**
- * Move a record to another vault (ADR 0001 D6). It is re-encrypted under the
- * target vault's key as a new record (new id); the source is tombstoned and
- * keeps its history, so the history never reaches the target vault's members.
- */
+/** Moves a record to another vault: see `RecordRepository.move` (ADR 0001 D6). */
 export function useMoveRecord({ onSuccess, onError }: UseMoveRecordOpts) {
   const store = useStore();
   const refreshRecord = useRefreshRecord();

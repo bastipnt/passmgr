@@ -32,7 +32,6 @@ export type ImportError =
   | "failed"
   | UnsupportedFileReason;
 
-/** User-facing text for each import error (web + mobile). */
 export const IMPORT_ERROR_MESSAGES: Record<ImportError, string> = {
   invalid_file: "This file isn't a backup or export of this app.",
   too_large: "This file is too large to import.",

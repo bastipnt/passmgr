@@ -40,7 +40,6 @@ export type DeleteAccountError =
   | "unconfirmed"
   | "maybe_deleted";
 
-/** User-facing text for each account deletion error (web + mobile). */
 export const DELETE_ACCOUNT_ERROR_MESSAGES: Record<DeleteAccountError, string> = {
   wrong_password: "That's not your password.",
   offline: "Deleting your account needs a connection to the server. Try again once you're online.",

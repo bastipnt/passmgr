@@ -11,7 +11,6 @@ import { useStore } from "../providers/StoreProvider";
  */
 export type ExportError = "wrong_password" | "failed";
 
-/** User-facing text for each export error (web + mobile). */
 export const EXPORT_ERROR_MESSAGES: Record<ExportError, string> = {
   wrong_password: "That's not your passmgr password.",
   failed: "The export couldn't be created. Please try again.",

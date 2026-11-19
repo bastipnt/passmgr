@@ -82,7 +82,6 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
       setVaults((current) => (sameVaultInfos(current, nextVaults) ? current : nextVaults));
       const activeIds = new Set<string>();
 
-      // Find records that are new or changed
       const toDecrypt: LocalRecordVersion[] = [];
       for (const record of encrypted) {
         if (record.deleted_at) continue;
@@ -119,7 +118,6 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
         if (failed > 0) logError(`${failed} record(s) could not be decrypted and are hidden`);
       }
 
-      // Remove deleted records
       for (const id of recordsMapRef.current.keys()) {
         if (!activeIds.has(id)) {
           recordsMapRef.current.delete(id);
@@ -168,7 +166,6 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     };
   }, [vaultUnlocked, vault, decryptAll]);
 
-  // Re-decrypt on sync
   useEffect(() => {
     if (!vaultUnlocked || !syncManager) return;
     return syncManager.onSync(() => void decryptAll());
