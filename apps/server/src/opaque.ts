@@ -8,10 +8,8 @@ import { OPAQUE_SERVER_IDENTITY } from "@repo/crypto";
 import { fromBase64, fromString } from "@repo/util";
 import { serverEnv } from "./env";
 
-// Cloudflare opaque-ts is pure TypeScript (uses crypto.subtle, no WASM) so the
-// same package runs on the Bun server, web (Vite), and React Native (with a
-// crypto.subtle polyfill like react-native-quick-crypto). This replaces
-// @serenity-kit/opaque whose 0.8 ↔ 1.x split caused mobile login failures.
+// Pure TypeScript on crypto.subtle, so one package runs on Bun, web and React Native.
+// Why not @serenity-kit/opaque: docs/adr/0002-opaque-library.md.
 //
 // BREAKING: the wire format and registration record encoding differ from
 // serenity v1. Existing users must re-register after this migration.
