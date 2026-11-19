@@ -479,7 +479,7 @@ the history must not leak into the target.
 > takes `cursors: vaultId → seq` and returns the next `cursors` (highest seq pulled per vault);
 > `serverTimestamp` stays only as the clock cap for the merge. The device stores them as
 > `pullSeq:<vaultId>` in `sync_meta`; the old `lastSyncedAt:` rows are ignored (one full pull).
-> Walkthrough: [`docs/sync-cursor.md`](../sync-cursor.md).
+> Walkthrough: [`docs/architecture/sync-cursor.md`](../architecture/sync-cursor.md).
 
 > **Amended 2026-10-06** (`record.push`): `record.push({ changes })` replaces `create`, `update`,
 > `delete`, `move`, `all` and `getById` (`history` stays). A change is `op: "put" | "delete"` with

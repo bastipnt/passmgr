@@ -134,7 +134,7 @@ export const recordRouter = router({
     .input(syncInputSchema)
     .output(syncOutputSchema)
     .query(async ({ ctx, input }) =>
-      // One snapshot for the page (docs/sync-cursor.md): a seq it sees implies every lower one.
+      // One snapshot for the page (docs/architecture/sync-cursor.md): a seq it sees implies every lower one.
       db.transaction(
         async (tx) => {
           const serverTimestamp = new Date().toISOString();

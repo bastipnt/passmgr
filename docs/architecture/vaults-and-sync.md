@@ -1,7 +1,7 @@
 # Vaults, sync and sharing
 
 Vault model, server access, sync / push, limits and quota, conflict merge, trash, key rotation, sharing and the vault UI.
-Sync cursor background: `docs/sync-cursor.md`.
+Sync cursor background: `docs/architecture/sync-cursor.md`.
 
 ## Vaults and sync
 

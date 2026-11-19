@@ -21,6 +21,14 @@ pnpm dev          # all apps in watch mode
 
 Required env vars are documented in each app's README.
 
+### Troubleshooting
+
+If `pnpm dev` fails on macOS with a native module error (`ssh2`, `cpu-features`):
+
+```bash
+pnpm rebuild ssh2 cpu-features
+```
+
 ## Commits
 
 This repo uses [Conventional Commits](https://www.conventionalcommits.org/) and enforces them via commitlint (see `commitlint.config.js`). Pre-push hooks run via Lefthook.
