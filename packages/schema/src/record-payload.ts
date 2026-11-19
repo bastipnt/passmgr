@@ -111,14 +111,8 @@ export const pushInputSchema = z.object({
 });
 
 /**
- * The answer for one change, never an error for the whole batch:
- * - `applied`: the server holds it (now, or from an earlier try); `record` is its copy.
- * - `stale`: the record moved on (`headVersion`); pull, merge and push again.
- * - `rejected`: it can never apply as sent (no write access, unknown record),
- *   or not under this key: `key_version`, encrypted with a key the vault no longer
- *   uses (rotated meanwhile); seal under the current one and push again.
- *   `quota`: the vault owner's storage is full; deletes still apply up to a
- *   headroom past it, purges always.
+ * One answer per change, never an error for the whole batch. What each status and reason asks of the
+ * client: docs/architecture/vaults-and-sync.md (Vaults and sync).
  */
 export const pushResultSchema = z.discriminatedUnion("status", [
   z.object({

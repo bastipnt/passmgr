@@ -39,8 +39,11 @@ order, one snapshot, `hasMore` when the page is full (`SyncManager` pulls and ap
 lock → commit order = seq order); every record insert must take one, never use `updated_at` as a
 cursor. `record.push` is the only record write (`apps/server/src/record/push.ts`): one transaction,
 vaults locked first (`lockVaults`, `lock_timeout`, or a new record id a concurrent push took → `SERVICE_UNAVAILABLE`, the client retries), then
-compare-and-swap per change on `baseVersion`; each change answers `applied` / `stale` / `rejected`,
-a record's changes in a batch apply all or nothing, and `clientChangeId` (unique per record) makes a
+compare-and-swap per change on `baseVersion`; each change answers on its own, never as an error for the whole batch:
+`applied` (the server holds it, now or from an earlier try), `stale` (the record moved on to `headVersion`: pull, merge,
+push again) or `rejected` (it can never apply as sent: `not_found`, `forbidden`, `key_version` (sealed under a key the
+vault no longer uses: re-encrypt under the current one and push again) or `quota`). A record's changes in a batch apply
+all or nothing (one that can't apply gives all of them its failure), and `clientChangeId` (unique per record) makes a
 retry return the stored version (unless another push's purge dropped it meanwhile: the retry is then `stale`; a
 retried change below a version the server stored was covered by it and answers with that version). The new versions are
 planned in memory and written with one seq bump per vault and one insert, so the vaults stay locked briefly. `SyncManager` sends each record's chain in one batch (`pushBatches`, bounded by `MAX_PUSH_CHANGES` and `MAX_PUSH_BYTES`).
@@ -58,7 +61,10 @@ less); `vault.invite` refuses (`PRECONDITION_FAILED` `too many invites`) past `M
 invites for the invitee, `MAX_PENDING_INVITES_FROM_ONE_SENDER` of them from this inviter (so one account can't fill
 someone's list) or `MAX_PENDING_INVITES_PER_SENDER` sent by the inviter (`vault_members.invitedByUserId`, which a
 rotation's reseal leaves alone); unlocked counts, so concurrent invites can go a few past. The invitee cap bounds
-`vault.invitations`. A push that waited on a vault's lock while it was deleted answers `not_found`. A chain of deletes may go `DELETE_HEADROOM_BYTES` (10 % of the quota, `record/quota.ts`) past it, since a tombstone carries its content; a chain ending in a purge always applies; a chain of puts rewriting a record still under a rotated-out key is exempt. Every byte a version stores is one its change sent, so a delete can't multiply a record's ciphertext. The ack stores the server's copy; a retry answered with a version stored before a pull moved the chain up moves the record's later pending versions down to the server's numbering (`ackPendingChange`). Writes trigger a debounced sync. A round (`SyncManager`, ADR 0001 D8) pushes the outbox, pulls page by page and, when a change wasn't applied, pushes once more: a `stale` change goes through once the pull has moved it above the server's versions and merged both sides. A failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes (a `stale` answer never counts: the pull resolves it), is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; web Settings → Sync & storage; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
+`vault.invitations`. A push that waited on a vault's lock while it was deleted answers `not_found`. A chain of deletes may go `DELETE_HEADROOM_BYTES` (10 % of the quota, `record/quota.ts`) past it, since a tombstone carries its content; a chain ending in a purge always applies; a chain of puts rewriting a record still under a rotated-out key is exempt. Every byte a version stores is one its change sent, so a delete can't multiply a record's ciphertext. The ack stores the server's copy; a retry answered with a version stored before a pull moved the chain up moves the record's later pending versions down to the server's numbering (`ackPendingChange`). Writes trigger a debounced sync. A round (`SyncManager`, ADR 0001 D8) pushes the outbox, pulls page by page and, when a change wasn't applied, pushes once more: a `stale` change goes through once the pull has moved it above the server's versions and merged both sides. A push failure every other batch would share (offline, a network failure, an unsigned request while
+locked, a rejected session, an unverified email, a busy, throttling or failing server) stops the round (`stopsRound`);
+only an answer about the batch itself (a 4xx) is split by record, down to the record whose changes it refuses, and
+counted against them. A failed or incomplete round retries with backoff; a rejected change, or one failing `MAX_PUSH_ATTEMPTS` pushes (a `stale` answer never counts: the pull resolves it), is parked (`outbox.parkedAt`, with its record's later changes) until `retryParked`; status via `useSyncStatus`; indicators (web `SyncStatusCard`, `syncCardLines`: desktop sidebar footer, phone `AccountSheet`, plus a dot on the phone's account button; web Settings → Sync & storage; mobile `useSyncHeaderItem`, Settings → Account & sync) read `useSyncSummary` / `summarizeSync` (offline is a state, not an error). `Vault.applySync` drops vaults the user lost (records + cursor) and a changed list reloads the keys into `secretsStore` and the decrypt worker (`SyncManager`'s `onVaultsChanged`).
 **Vault list continuity** (`checkVaultList` in `packages/store/src/vault.ts`): the server's list is plaintext and
 untrusted, so a pulled page (checked before its keys are loaded, `Vault.checkVaultList`, and again inside
 `applySync`'s transaction) and a login's list (`setAccountKeyMaterial`) are refused whole (`VaultListRejectedError`,
@@ -113,13 +119,15 @@ already gone or purged (a purge pulled meanwhile) is skipped.
 Key rotation (`useVaultActions().rotateVaultKey`, ADR 0001 D7 amended; owners / managers): a new key at
 `keyVersion + 1`, the old one wrapped under it (`vault_key_links` → `MemberVault.previousKeys`, `secretsStore`
 loads the whole chain, keys looked up by `vaultKeyId(vaultId, keyVersion)`). Every record version carries the
-`keyVersion` it is encrypted with; `vault.rotateKey` is a CAS on `vaults.keyVersion`, after which `record.push`
+`keyVersion` it is encrypted with; `vault.rotateKey` is a CAS on `vaults.keyVersion` (it also re-encrypts the vault's metadata and clears
+`keyRotationNeeded`), after which `record.push`
 rejects a put or a delete under another key (`key_version`, the client retries it re-encrypted). Before every push
 `SyncManager`'s `prepareOutbox` (`reencryptForPush`, `vaults/rekey.ts`) re-encrypts pending versions under an old
 key in place, and the rotating device rewrites the live records as new versions (`rekey:` marker in `sync_meta`,
 resumable). History keeps the old key. The new key is sealed to every other member and invitee (`memberKeys`; exactly
-the server's member set, else `PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the
-current key (`CONFLICT` otherwise). Web: Settings → Vaults (a vault's ⋯ menu → Rotate key; on a phone its row's sheet); mobile: `settings/vault` sheet.
+the server's member set, each sealed to their current public key from the rotator's current keypair, else
+`PRECONDITION_FAILED` and the client refetches them once), and the rotator must hold the current key, the one the vault
+is still at (`CONFLICT` otherwise: another rotation won, or the key isn't accepted yet). Web: Settings → Vaults (a vault's ⋯ menu → Rotate key; on a phone its row's sheet); mobile: `settings/vault` sheet.
 
 ## Sharing
 
@@ -156,5 +164,13 @@ rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` 
 first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
 it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
 Settings → Vaults: "New vault", one row per vault with Members (shared) and a ⋯ menu (Edit, Rotate key, Delete; on a
-phone the row opens `SettingsActionsSheet` with all four), then the user's security code to read out); mobile:
-Settings → Vaults + `settings/vault` form sheet, vault submenu in the records header menu.
+phone the row opens `SettingsActionsSheet` with all four), then the user's security code to read out); mobile: web's
+screens as pages and sheets: `settings/vaults` (every vault and New vault; a shared vault opens its members, the personal
+one its form sheet; invitations, changes from lost vaults and the user's security code), `settings/vault` form sheet
+(web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog`: a new vault, or `?vaultId=` rename, icon and colour,
+rotate the key, delete after typing its name), `settings/members` page (`VaultMembersDialog`: members with their
+security codes; owners and managers invite and open a member, anyone but the last owner leaves; a local profile is
+offered an online account first, offline it waits for the connection), `member` sheet (owners and managers: security
+code, role, hand the vault over (owners), remove or withdraw the invite, which rotates the key), `invite` sheet
+(`InviteMemberDialog`: look up by email, pick a role, compare the security code before the key is sealed); a vault
+submenu in the records header menu.

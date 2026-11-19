@@ -42,14 +42,8 @@ import {
 } from "./access";
 
 /*
- * Sharing a vault (ADR 0001 D7): invites, accepting a key sealed to the user,
- * members and their roles, leaving and removal. The vault key never reaches
- * the server: an invite carries it sealed to the invitee's public key, which
- * their device turns into its own wrap (`acceptKey`).
- *
- * Whoever leaves or is removed still knows the current key, so the vault is
- * marked `keyRotationNeeded`: the next owner or manager online rotates it
- * (`rotationsDue` in `record.sync`, `vault.rotateKey` clears it).
+ * The vault key never reaches the server: an invite carries it sealed to the invitee's public key.
+ * Roles, leaving and the rotation after it: docs/architecture/vaults-and-sync.md (Sharing), ADR 0001 D7.
  */
 
 const ANY_ROLE = vaultRoleSchema.options;

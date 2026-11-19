@@ -736,19 +736,8 @@ export class Vault {
   }
 
   /**
-   * Apply one pull atomically: vaults the user lost access to are dropped with
-   * their records, unsent changes and cursors (the latest unsent version of
-   * each record kept aside first, `getRevokedVaults`), the vault list is replaced,
-   * pending local versions that collide with pulled ones move up (and, with
-   * `resolve`, get merged with them, ADR 0001 D5), records are upserted and
-   * every vault's cursor advanced. Resolves whether the vault list changed (the
-   * keys in memory then need reloading).
-   *
-   * Throws, applying nothing, for a vault list that breaks continuity
-   * (`VaultListRejectedError`) or drops several vaults at once
-   * (`VaultsMissingError`) unless `allowVaultLoss` holds them. Rows the
-   * server may not send are left out (`withoutForgedRows`, checked with
-   * `isSealed`; `secretsStore` by default).
+   * Apply one pull atomically; resolves whether the vault list changed (the keys then need reloading).
+   * Refusals, lost vaults, pending versions: docs/architecture/vaults-and-sync.md (Vaults and sync).
    */
   async applySync(
     { records, vaults, cursors, serverTimestamp }: SyncBatch,
