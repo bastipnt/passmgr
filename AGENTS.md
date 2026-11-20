@@ -5,7 +5,9 @@ loads it too.
 
 ## Project Overview
 
-A full-stack, cross-platform password manager built as a TypeScript monorepo using pnpm workspaces and Turborepo. It uses **OPAQUE** (an asymmetric password-authenticated key exchange protocol) for zero-knowledge authentication — the server never sees the user's plaintext password.
+A full-stack, cross-platform password manager built as a TypeScript monorepo using pnpm workspaces and Turborepo. It
+uses **OPAQUE** (an asymmetric password-authenticated key exchange protocol) for zero-knowledge authentication — the
+server never sees the user's plaintext password.
 
 ## Commands
 
@@ -32,7 +34,8 @@ pnpm --filter mobile start     # Expo dev server
 
 ### Testing
 
-Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages `crypto`, `schema`, `db`, `store`, `ui-shared`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
+Tests use **Vitest** (`pnpm --filter <name> test`, or `test:watch`). Configured in `server`, `web`, and packages
+`crypto`, `schema`, `db`, `store`, `ui-shared`. Test files live in `test/` dirs or alongside source as `*.test.ts`.
 Web E2E (Playwright): `pnpm --filter web e2e`, see `apps/web/CLAUDE.md`.
 
 **Keep E2E tests few.** E2E covers only the most important flows of the app (e.g. one for searching, not one per
@@ -66,9 +69,10 @@ packages/
 
 Nested `CLAUDE.md` files load when you work in their directory:
 
-- `apps/web/CLAUDE.md` — folder / import rules, record list + form layout, theme presets, phone pages, E2E, served-code trust
+- `apps/web/CLAUDE.md` — folder / import rules, record list + form layout, theme presets, phone pages, E2E, served-code
+  trust
 - `apps/mobile/CLAUDE.md` — Uniwind styling, fonts, scroll title and sticky labels, tab stacks, auto-lock, record
-  stream (SSE), autofill, share extension
+  stream (SSE), autofill, share extension, error handling
 - `apps/server/CLAUDE.md` — request signing, tRPC routers, ops routes, env vars
 - `packages/store/CLAUDE.md` — on-device SQLite, migrations, transactions
 - `packages/db/CLAUDE.md` — Postgres dev reset, Drizzle beta
@@ -82,11 +86,12 @@ changing one of these flows:**
   enrollment, account deletion, emergency kit
 - `local-vaults.md` — local vaults, durability, export / import, import from other managers (CSV, Bitwarden, 1PUX,
   KeePass), linking a local vault to an account
-- `vaults-and-sync.md` — vault model, membership access, `record.sync` / `record.push`, limits and storage quota, conflict
-  merge, trash / purge, key rotation, sharing, vault UI
+- `vaults-and-sync.md` — vault model, membership access, `record.sync` / `record.push`, limits and storage quota,
+  conflict merge, trash / purge, key rotation, sharing, vault UI
 - `records.md` — Pass Monitor, security score, breach check, login email, favorites, duplicate, tags and search
 
-Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`; OPAQUE library choice: `docs/adr/0002-opaque-library.md`. Sync cursor: `docs/architecture/sync-cursor.md`.
+Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`; OPAQUE library choice:
+`docs/adr/0002-opaque-library.md`. Sync cursor: `docs/architecture/sync-cursor.md`.
 
 ### Key Hierarchy
 
@@ -113,10 +118,12 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
 
 - **Linting**: OXLint (`--type-aware`) is primary; ESLint for specific rules. Runs on pre-push via Lefthook.
 - **Commits**: Conventional Commits enforced via commitlint (`feat`, `fix`, `refactor`, `chore`, etc.)
-- **Styling**: Tailwind CSS v4. Use `cn()` from `@repo/ui/theme` for conditional classes. Design tokens: `primary-500`, `surface-3`, `text-primary`.
+- **Styling**: Tailwind CSS v4. Use `cn()` from `@repo/ui/theme` for conditional classes. Design tokens: `primary-500`,
+  `surface-3`, `text-primary`.
 - **Imports**: Workspace packages use `@repo/` prefix. Use barrel `index.ts` exports.
 - **Vite**: Overridden globally to `rolldown-vite` via pnpm overrides.
-- **Drizzle**: Using a beta version (`1.0.0-beta.15-*`) with `defineRelationsPart` API — this differs from stable Drizzle docs.
+- **Drizzle**: Using a beta version (`1.0.0-beta.15-*`) with `defineRelationsPart` API — this differs from stable
+  Drizzle docs.
 - **Docs**: when you change a flow, update its `docs/architecture/` file or nested `CLAUDE.md`, not this file.
 
 ## Code Comments
@@ -132,8 +139,12 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
 
 ## Security Invariants
 
-- The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in `packages/client/src/register.ts`).
-- `secretsStore` (singleton in `packages/store/src/secrets-store.ts`) holds all sensitive key material in memory. Call `wipe()` on key buffers when done.
+- The `recoveryKey` is generated client-side and must **never** be sent to the server (see comment in
+  `packages/client/src/register.ts`).
+- `secretsStore` (singleton in `packages/store/src/secrets-store.ts`) holds all sensitive key material in memory. Call
+  `wipe()` on key buffers when done.
 - Key sets are versioned (`valid_from`/`valid_to`, one active per user) — never `UPDATE` key material in place.
-- `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).
-- What a device copy exposes (local-only vaults, device loss, backups, exports): `docs/security/threat-model-inputs.md`. Keep it current when on-device storage or key caching changes.
+- `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all
+  user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).
+- What a device copy exposes (local-only vaults, device loss, backups, exports): `docs/security/threat-model-inputs.md`.
+  Keep it current when on-device storage or key caching changes.

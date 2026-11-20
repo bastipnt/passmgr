@@ -63,8 +63,8 @@ into it; it follows the bar and fades in once the first label pins.
 
 ## Tab stacks
 
-Tab stacks: `useResetStackOnTabBlur` pops a stack to its root when its tab loses focus, so re-entering the tab starts
-at the root, not a record opened before.
+`useResetStackOnTabBlur` pops a stack to its root when its tab loses focus, so re-entering the tab starts at the
+root, not a record opened before.
 
 ## Auto-lock
 
