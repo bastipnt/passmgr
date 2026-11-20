@@ -18,8 +18,8 @@ a new privilege for the app (a sequence elsewhere, a function) must add it to `g
 the previous release still serves, so a migration must work with the old server too (expand first; drop or rename a
 column only a release after the code stops using it). Dev keeps `pnpm db:migrate` (drizzle-kit) and the superuser.
 
-Environment: `DATABASE_URL`, read from `apps/server/.env` (`index.ts`, `drizzle.config.ts`, `devSeed.ts`); the package has no `.env` of its own.
-`index.ts` skips that file when `NODE_ENV=production` and throws without `DATABASE_URL`.
+Environment: `DATABASE_URL`, read from `apps/server/.env` (`index.ts`, `drizzle.config.ts`, `devSeed.ts`); the package
+has no `.env` of its own. `index.ts` skips that file when `NODE_ENV=production` and throws without `DATABASE_URL`.
 
 Pool (`index.ts`): at most 20 connections, 10 s to get one, `statement_timeout` 30 s,
 `idle_in_transaction_session_timeout` 60 s, session `TimeZone=UTC`.

@@ -29,8 +29,9 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   formSheets `bg-popover`. Lists and field groups are flush (`Section` / `SectionGroup`,
   `RecordListItem`, `RecordDetailsItem` — whole row copies), not boxed cards. Prefer native chrome:
   header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with
-  the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once
-  scrolled). Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one shared frost).
+  the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once scrolled).
+  Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one
+  shared frost).
 - **Header buttons are native `UIBarButtonItem`s** (`unstable_headerLeftItems` / `unstable_headerRightItems`), never
   React views in `headerLeft` / `headerRight` or floating over the content: iOS 26 wraps a React element in a
   custom-view bar item with its own liquid glass capsule, so a glass button of ours would sample that capsule instead of
@@ -60,6 +61,8 @@ frost there is no hand-over between labels, so it never blinks. The frost is web
 blur from under the bar down through the label, washed with the page's edge tint, then a tint fade below so rows ease
 into it; it follows the bar and fades in once the first label pins.
 
+## Tab stacks
+
 Tab stacks: `useResetStackOnTabBlur` pops a stack to its root when its tab loses focus, so re-entering the tab starts
 at the root, not a record opened before.
 
@@ -81,31 +84,32 @@ nothing reconnecting); and its own reconnect is off, `StoreProvider` owns retry 
 
 ## Autofill
 
-Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the unlocked
-tree) writes the open profile's `autofillEntries` (logins with a password) through `@repo/store` `writeAutofillEntries`
-while the OS has the app's autofill on (`autofillState`), else drops them; sign out, `signedOut` and profile removal drop
-them too (as does `forgetQuickUnlock`), a lock keeps them. Writes and clears of one profile run in order. Native side `apps/mobile/modules/autofill` (Expo module, `PassmgrAutofill`): encrypts to a
-biometric-gated device key (iOS Secure Enclave ECIES, Android Keystore RSA + AES-GCM), so writes never prompt and only the
-extension / `AutofillAuthActivity` reads them after a biometric match (the app reads only pending logins, see below). iOS extension `apps/mobile/targets/autofill`
-(`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups from `plugins/with-autofill.js`;
-needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state and opens the OS setting.
-"Create login" (Proton-style, both platforms native, no RN in the extension: option A): the iOS
-extension's list always ends with "Create login for <host>" (SwiftUI form, generated password from the profile's generator
-defaults sent along in the entries payload, "Create & AutoFill"); Android's fill list ends with the same row
+Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the
+unlocked tree) writes the open profile's `autofillEntries` (logins with a password) through `@repo/store`
+`writeAutofillEntries` while the OS has the app's autofill on (`autofillState`), else drops them; sign out, `signedOut`
+and profile removal drop them too (as does `forgetQuickUnlock`), a lock keeps them. Writes and clears of one profile run
+in order. Native side `apps/mobile/modules/autofill` (Expo module, `PassmgrAutofill`): encrypts to a biometric-gated
+device key (iOS Secure Enclave ECIES, Android Keystore RSA + AES-GCM), so writes never prompt and only the extension /
+`AutofillAuthActivity` reads them after a biometric match (the app reads only pending logins, see below). iOS extension
+`apps/mobile/targets/autofill` (`@bacons/apple-targets`; `AutofillVault.swift` is a symlink to the module's), groups
+from `plugins/with-autofill.js`; needs `expo prebuild --clean`. Settings → Security `AutofillSection` shows the state
+and opens the OS setting. "Create login" (Proton-style, both platforms native, no RN in the extension: option A): the
+iOS extension's list always ends with "Create login for <host>" (SwiftUI form, generated password from the profile's
+generator defaults sent along in the entries payload, "Create & AutoFill"); Android's fill list ends with the same row
 (`AutofillCreateActivity`), and `SaveInfo` (login + sign-up forms, `FLAG_DELAY_SAVE` for multi-step) offers "Save to
 Passmgr?" into the same form. The login fills at once and is written encrypted to the autofill device key as a pending
 login; `useAutofillSync` imports them on the next foreground unlock (`importPendingAutofillLogins`, biometric prompt,
-personal vault, id kept so a repeat skips it) and deletes them. iOS also declares `ProvidesTextToInsert` (AutoFill context
-menu: inserts a username or password; "Create login" there asks for the website, the menu doesn't say, and inserts the
-password).
+personal vault, id kept so a repeat skips it) and deletes them. iOS also declares `ProvidesTextToInsert` (AutoFill
+context menu: inserts a username or password; "Create login" there asks for the website, the menu doesn't say, and
+inserts the password).
 
 ## Share
 
 Mobile share ("save login from other apps"): the iOS share extension (`apps/mobile/targets/share`, no app group, nothing
-stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobile/modules/share`, `ACTION_SEND` text) only
-open `passmgr://share?text=…`. `src/app/+native-intent.tsx` makes it `recordPaths.createLogin(sharedWebsite(text))` (new login,
-website + host title; `@repo/client` `records/shared-login.ts`); while locked `routeSharedLogin` sends it home and holds it
-until the unlocked tree mounts (`useOpenSharedLogin`).
+stored; needs `expo prebuild --clean`) and Android's `ShareActivity` (`apps/mobile/modules/share`, `ACTION_SEND` text)
+only open `passmgr://share?text=…`. `src/app/+native-intent.tsx` makes it `recordPaths.createLogin(sharedWebsite(text))`
+(new login, website + host title; `@repo/client` `records/shared-login.ts`); while locked `routeSharedLogin` sends it
+home and holds it until the unlocked tree mounts (`useOpenSharedLogin`).
 
 ## Error handling
 

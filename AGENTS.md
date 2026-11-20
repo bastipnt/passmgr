@@ -67,7 +67,8 @@ packages/
 Nested `CLAUDE.md` files load when you work in their directory:
 
 - `apps/web/CLAUDE.md` — folder / import rules, record list + form layout, theme presets, phone pages, E2E, served-code trust
-- `apps/mobile/CLAUDE.md` — Uniwind styling, fonts, autofill, share extension
+- `apps/mobile/CLAUDE.md` — Uniwind styling, fonts, scroll title and sticky labels, tab stacks, auto-lock, record
+  stream (SSE), autofill, share extension
 - `apps/server/CLAUDE.md` — request signing, tRPC routers, ops routes, env vars
 - `packages/store/CLAUDE.md` — on-device SQLite, migrations, transactions
 - `packages/db/CLAUDE.md` — Postgres dev reset, Drizzle beta
