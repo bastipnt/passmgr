@@ -44,8 +44,7 @@
     "**/.svn": true,
     "**/.hg": true,
     "**/.DS_Store": true,
-    "**/Thumbs.db": true,
-    "**/*.css.d.ts": true
+    "**/Thumbs.db": true
   },
   "files.associations": {
     "*.css": "tailwindcss"
