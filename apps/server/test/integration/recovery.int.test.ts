@@ -25,7 +25,7 @@ import { truncateAll } from "../setup/db-helpers";
 import { clientStartRegistration } from "../setup/opaque-client";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
-import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
+import { callSigned, createCaller, loginAndGetAuthKey, memberWrap, register } from "./_helpers";
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";
@@ -111,7 +111,7 @@ describe("account recovery (real Postgres + Redis)", () => {
     const accountKeyAfter = await accountKeyViaPassword(newPassword);
     expect(accountKeyAfter).toEqual(accountKeyBefore);
     expect(await db.select().from(vaultMembersTable)).toEqual([personalVault]);
-    expect(unwrapVaultKey(accountKeyAfter, personalVault)).toHaveLength(32);
+    expect(unwrapVaultKey(accountKeyAfter, memberWrap(personalVault))).toHaveLength(32);
 
     // OPAQUE record replaced: old password fails, new one works.
     await expect(loginAndGetAuthKey(email, password)).rejects.toThrow();

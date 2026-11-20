@@ -2,9 +2,11 @@ import { genKey, getToken } from "@repo/crypto";
 import {
   type MemberVault,
   type PasswordKeySchema,
+  type PushChange,
   RECORD_CRYPTO_VERSION,
   type RecoveryWrapSchema,
   type UserKeyPair,
+  type VaultKeyWrap,
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { expect } from "vitest";
@@ -119,7 +121,12 @@ export async function enableTwoFactor(session: { sessionId: string; authKey: Uin
 /** A `record.push` change writing new ciphertext on top of `baseVersion` (0: a new record). */
 export function putChange(
   vaultId: string,
-  { recordId = crypto.randomUUID(), baseVersion = 0, data = "ENC", keyVersion = 1 } = {},
+  {
+    recordId = crypto.randomUUID(),
+    baseVersion = 0,
+    data = "ENC",
+    keyVersion = 1,
+  }: { recordId?: string; baseVersion?: number; data?: string; keyVersion?: number } = {},
 ) {
   return {
     op: "put" as const,
@@ -132,7 +139,7 @@ export function putChange(
     cryptoVersion: RECORD_CRYPTO_VERSION,
     keyVersion,
     clientUpdatedAt: new Date().toISOString(),
-  };
+  } satisfies PushChange;
 }
 
 /** A `record.push` change tombstoning the record on top of `baseVersion`, with its sealed content `data`. */
@@ -153,5 +160,19 @@ export function deleteChange(
     cryptoVersion: RECORD_CRYPTO_VERSION,
     keyVersion,
     clientUpdatedAt: new Date().toISOString(),
-  };
+  } satisfies PushChange;
+}
+
+/** The key wrap of a `vault_members` row; a pending invite has none yet. */
+export function memberWrap(row: {
+  vaultId: string;
+  keyVersion: number;
+  encryptedVaultKey: string | null;
+  vaultKeyEncryptionNonce: string | null;
+}): VaultKeyWrap {
+  const { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce } = row;
+  if (encryptedVaultKey === null || vaultKeyEncryptionNonce === null) {
+    throw new Error(`vault ${vaultId}: member has no key wrap`);
+  }
+  return { vaultId, keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce };
 }

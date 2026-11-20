@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "dotenvx run -- bun run --watch index.ts",
-    "typecheck": "tsc7 --noEmit",
+    "typecheck": "tsc7 --noEmit && tsc7 --noEmit -p test/tsconfig.json",
     "lint": "oxlint --type-aware",
     "invite": "dotenvx run -- bun scripts/create-invite.ts",
     "test": "vitest run",

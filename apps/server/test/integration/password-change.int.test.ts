@@ -19,7 +19,7 @@ import { clientStartRegistration } from "../setup/opaque-client";
 import { deriveAuthKey } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
-import { callSigned, createCaller, loginAndGetAuthKey, register } from "./_helpers";
+import { callSigned, createCaller, loginAndGetAuthKey, memberWrap, register } from "./_helpers";
 
 // The real Argon2 derivation, in-process (no workers in node).
 vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
@@ -177,7 +177,7 @@ describe("password change (real Postgres + Redis)", () => {
       recoveryVerifier: before.recoveryVerifier,
     });
     expect(await db.select().from(vaultMembersTable)).toEqual([personalVault]);
-    expect(unwrapVaultKey(accountKey, personalVault)).toHaveLength(32);
+    expect(unwrapVaultKey(accountKey, memberWrap(personalVault))).toHaveLength(32);
 
     // No device logs in with a credential registered under the old password.
     expect(await db.select().from(deviceCredentialsTable)).toEqual([]);

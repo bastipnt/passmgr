@@ -153,8 +153,7 @@ describe("session lifecycle (real Redis)", () => {
     });
     const ccB = createCaller(buildTestContext(headers));
     const stream = (await ccB.record.onRecordChange())[Symbol.asyncIterator]();
-    // A server-side caller sees `tracked()` events as [id, data, marker].
-    expect((await stream.next()).value[1]).toEqual({ type: "connected" });
+    expect(await nextEvent(stream)).toEqual({ type: "connected" });
 
     const list = await callSigned(a.sessionId, a.authKey, "query", "session.list", undefined);
     const other = (await list.session.list()).find((s) => !s.current)!;
@@ -162,7 +161,7 @@ describe("session lifecycle (real Redis)", () => {
     const cc = await callSigned(a.sessionId, a.authKey, "mutation", "session.revoke", input);
     await cc.session.revoke(input);
 
-    expect((await stream.next()).value[1]).toEqual({ type: "signedOut" });
+    expect(await nextEvent(stream)).toEqual({ type: "signedOut" });
     expect((await stream.next()).done).toBe(true);
   });
 
@@ -179,11 +178,20 @@ describe("session lifecycle (real Redis)", () => {
     ]();
   }
 
+  /** The data of the stream's next `tracked()` event. */
+  async function nextEvent(stream: Awaited<ReturnType<typeof openStream>>) {
+    const { done, value } = await stream.next();
+    // A server-side caller gets the raw envelope [id, data, marker], not the typed `{ id, data }`.
+    if (done || !Array.isArray(value)) throw new Error("expected a tracked event");
+    const data: unknown = value[1];
+    return data;
+  }
+
   it("ends the record stream on logout, without a signedOut event", async () => {
     await register(email, password);
     const a = await loginAndGetAuthKey(email, password);
     const stream = await openStream(a);
-    expect((await stream.next()).value[1]).toEqual({ type: "connected" });
+    expect(await nextEvent(stream)).toEqual({ type: "connected" });
 
     const cc = await callSigned(a.sessionId, a.authKey, "mutation", "login.logout", undefined);
     await cc.login.logout();
@@ -201,7 +209,7 @@ describe("session lifecycle (real Redis)", () => {
       await register(email, password);
       const a = await loginAndGetAuthKey(email, password);
       const stream = await openStream(a);
-      expect((await stream.next()).value[1]).toEqual({ type: "connected" });
+      expect(await nextEvent(stream)).toEqual({ type: "connected" });
 
       await redis.del(`session:${a.sessionId}`);
       const next = stream.next();
@@ -226,7 +234,7 @@ describe("session lifecycle (real Redis)", () => {
 
     await streams[0]!.return?.();
     const again = await openStream(a);
-    expect((await again.next()).value[1]).toEqual({ type: "connected" });
+    expect(await nextEvent(again)).toEqual({ type: "connected" });
     for (const stream of [...streams, again]) await stream.return?.();
   });
 

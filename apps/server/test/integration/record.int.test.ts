@@ -192,7 +192,11 @@ describe("record.push", () => {
   });
 
   describe("deletes bring their sealed ciphertext (ADR 0001 D11)", () => {
-    const seal = (data: string) => ({
+    type Seal = Pick<
+      PushChange,
+      "encryptedData" | "encryptionNonce" | "cryptoVersion" | "keyVersion"
+    >;
+    const seal = (data: string): Seal => ({
       encryptedData: data,
       encryptionNonce: "N",
       cryptoVersion: RECORD_CRYPTO_VERSION,
@@ -259,9 +263,11 @@ describe("record.push", () => {
           ...seal("X".repeat(MAX_PURGE_SEAL_LENGTH + 1)),
         }),
       ).rejects.toThrow();
+      // Invalid on purpose: the push schema refuses both.
       const { encryptionNonce: _nonce, ...partial } = base;
       await expect(push(alice, partial as PushChange)).rejects.toThrow();
-      await expect(push(alice, { ...base, cryptoVersion: 2 } as PushChange)).rejects.toThrow();
+      const unknownVersion: unknown = { ...base, cryptoVersion: 2 };
+      await expect(push(alice, unknownVersion as PushChange)).rejects.toThrow();
     });
   });
 
