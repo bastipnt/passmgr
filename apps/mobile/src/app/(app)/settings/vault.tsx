@@ -25,8 +25,6 @@ import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { VAULT_ICON_COMPONENTS, VaultTile } from "@/features/vaults/VaultTile";
 
-// TODO: share logic with web
-
 /**
  * Web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog` as one form sheet (`?vaultId=` edits
  * one): docs/architecture/vaults-and-sync.md (Vault UI).
