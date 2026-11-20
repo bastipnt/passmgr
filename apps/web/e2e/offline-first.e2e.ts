@@ -61,7 +61,8 @@ test.describe("offline-first", () => {
       timeout: 30_000,
     });
     await verifyEmail(page, email);
-    await expect(page.getByText(/changes sync with your account/i)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create online account" })).toHaveCount(0);
+    await expect(page.getByText("Not verified")).toHaveCount(0);
     await backToVault(page);
     await expectSynced(page);
 
