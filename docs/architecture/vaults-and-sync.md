@@ -171,21 +171,22 @@ connection counts all as pending), or one this device rotated whose records aren
 ## Vault UI
 
 Vault UI (`useVaults` / `useVaultActions`, `packages/client/src/hooks/use-vaults.ts`): the decrypted list comes with the
-records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search keeps to it; a switch resets the category). Create /
-rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` / `removeVault`), linked on the server
-first and only `online` (`VaultsOfflineError`); a create then syncs with `syncManager.syncFresh()` so no older pull drops
-it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu, phone bar pill opening `VaultSheet`; picker in the create sheet,
-Settings → Vaults: "New vault", one row per vault with Members (shared) and a ⋯ menu (Edit, Rotate key, Delete; on a
-phone the row opens `SettingsActionsSheet` with all four), then the user's security code to read out); mobile: web's
-screens as pages and sheets: `settings/vaults` (every vault and New vault; a shared vault opens its members, the personal
-one its form sheet; invitations, changes from lost vaults and the user's security code), `settings/vault` form sheet
-(web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog`: a new vault, or `?vaultId=` rename, icon and colour,
-rotate the key, delete after typing its name; both apps' forms run on `useVaultForm` / `useRotateVaultKey` /
-`useDeleteVault`, `packages/client/src/hooks/use-vault-settings.ts`, and show actions by `vaultSettingsActions`), `settings/members` page (`VaultMembersDialog`: members with their
-security codes; both apps' members screens take who may manage, the last-owner guard and the verify prompt from
-`vaultMembersRules` and each row's actions from `memberActions`, `packages/client/src/vaults/vault-settings.ts`;
-owners and managers invite and open a member, anyone but the last owner leaves; a local profile is
-offered an online account first, offline it waits for the connection), `member` sheet (owners and managers: security
-code, role, hand the vault over (owners), remove or withdraw the invite, which rotates the key), `invite` sheet
-(`InviteMemberDialog`: look up by email, pick a role, compare the security code before the key is sealed); a vault
-submenu in the records header menu.
+records (`RecordsProvider`), the list filter is `SortedRecordsProvider`'s `vaultFilter` (a search keeps to it; a switch
+resets the category). Create / rename / delete: `local` on the device only (`Vault.saveVault` / `setVaultMeta` /
+`removeVault`), linked on the server first and only `online` (`VaultsOfflineError`); a create then syncs with
+`syncManager.syncFresh()` so no older pull drops it. Web: `features/vaults/` (`VaultSwitcher`: desktop sidebar menu,
+phone bar pill opening `VaultSheet`; picker in the create sheet, Settings → Vaults: "New vault", one row per vault with
+Members (shared) and a ⋯ menu (Edit, Rotate key, Delete; on a phone the row opens `SettingsActionsSheet` with all four),
+then the user's security code to read out); mobile: web's screens as pages and sheets: `settings/vaults` (every vault
+and New vault; a shared vault opens its members, the personal one its form sheet; invitations, changes from lost vaults
+and the user's security code), `settings/vault` form sheet (web's `VaultDialog` + `RotateVaultKeyDialog` +
+`DeleteVaultDialog`: a new vault, or `?vaultId=` rename, icon and colour, rotate the key, delete after typing its name;
+both apps' forms run on `useVaultForm` / `useRotateVaultKey` / `useDeleteVault`,
+`packages/client/src/hooks/use-vault-settings.ts`, and show actions by `vaultSettingsActions`), `settings/members` page
+(`VaultMembersDialog`: members with their security codes; both apps' members screens take who may manage, the last-owner
+guard and the verify prompt from `vaultMembersRules` and each row's actions from `memberActions`,
+`packages/client/src/vaults/vault-settings.ts`; owners and managers invite and open a member, anyone but the last owner
+leaves; a local profile is offered an online account first, offline it waits for the connection), `member` sheet (owners
+and managers: security code, role, hand the vault over (owners), remove or withdraw the invite, which rotates the key),
+`invite` sheet (`InviteMemberDialog`: look up by email, pick a role, compare the security code before the key is
+sealed); a vault submenu in the records header menu.
