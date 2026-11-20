@@ -1,4 +1,5 @@
-import { canManageVault } from "@repo/schema";
+import { canAssignRole, canManageVault, type VaultRole } from "@repo/schema";
+import type { MemberInfo } from "./sharing";
 import type { VaultInfo } from "./vault-info";
 
 export type VaultSettingsActions = { edit: boolean; rotateKey: boolean; delete: boolean };
@@ -15,5 +16,39 @@ export function vaultSettingsActions(
     edit: manage,
     rotateKey: manage,
     delete: vault.kind !== "personal" && vault.role === "owner",
+  };
+}
+
+type MemberFacts = Pick<MemberInfo, "role" | "status" | "isSelf" | "keyVerified">;
+
+export type VaultMembersRules = { manage: boolean; lastOwner: boolean; verifyPrompt: boolean };
+
+/**
+ * The members screens' rules (ADR 0001 D7). Without `members` (the list didn't load) the last owner
+ * is unknown: the server refuses them anyway.
+ */
+export function vaultMembersRules(
+  vault: Pick<VaultInfo, "role">,
+  members?: readonly MemberFacts[],
+): VaultMembersRules {
+  const manage = canManageVault(vault.role);
+  const owners = members?.filter((m) => m.role === "owner" && m.status === "active").length;
+  return {
+    manage,
+    lastOwner: vault.role === "owner" && owners !== undefined && owners <= 1,
+    verifyPrompt: manage && (members ?? []).some((m) => !m.isSelf && !m.keyVerified),
+  };
+}
+
+export type MemberActions = { manage: boolean; transfer: boolean; verify: boolean };
+
+/** What the user may do to one member: never above their own role (`canAssignRole`). */
+export function memberActions(actorRole: VaultRole, member: MemberFacts): MemberActions {
+  const other = !member.isSelf;
+  return {
+    manage: other && canAssignRole(actorRole, member.role),
+    transfer:
+      other && actorRole === "owner" && member.status === "active" && member.role !== "owner",
+    verify: other && !member.keyVerified,
   };
 }

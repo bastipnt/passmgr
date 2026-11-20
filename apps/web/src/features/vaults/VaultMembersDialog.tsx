@@ -2,6 +2,7 @@ import {
   assignableRoles,
   LAST_OWNER_MESSAGE,
   type MemberInfo,
+  memberActions,
   ROTATION_PENDING_NOTICE,
   type SharingRefusals,
   sharingErrorMessage,
@@ -13,8 +14,9 @@ import {
   VAULT_ROLE_LABELS,
   type VaultInfo,
   VERIFY_FAILED_MESSAGE,
+  vaultMembersRules,
 } from "@repo/client";
-import { canAssignRole, canManageVault, type VaultRole } from "@repo/schema";
+import type { VaultRole } from "@repo/schema";
 import { toast } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Badge } from "@repo/ui/components/Badge";
@@ -93,11 +95,11 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
   const [confirm, setConfirm] = useState<Pending>();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
-  const manages = canManageVault(vault.role);
-  const someUnverified = members.some((m) => !m.isSelf && !m.keyVerified);
-  const owners = members.filter((m) => m.role === "owner" && m.status === "active").length;
-  // Unknown while the list didn't load: the server refuses the last owner anyway.
-  const lastOwner = vault.role === "owner" && !loadError && owners <= 1;
+  const {
+    manage: manages,
+    lastOwner,
+    verifyPrompt,
+  } = vaultMembersRules(vault, loadError ? undefined : members);
 
   function ask(next: Pending) {
     setError(undefined);
@@ -230,7 +232,7 @@ export function VaultMembersDialog({ vault, open, onOpenChange, onLeft }: VaultM
                 ))}
               </ItemGroup>
             )}
-            {manages && someUnverified && !isPending && !loadError && (
+            {verifyPrompt && !isPending && (
               <p className="text-muted-foreground text-xs">{UNVERIFIED_MEMBERS_NOTICE}</p>
             )}
             {error && <FieldError variant="box">{error}</FieldError>}
@@ -332,14 +334,12 @@ function MemberRow({
   onRemove,
   onTransfer,
 }: MemberRowProps) {
-  const manageable = !member.isSelf && canAssignRole(actorRole, member.role);
-  const canTransfer =
-    !member.isSelf &&
-    actorRole === "owner" &&
-    member.status === "active" &&
-    member.role !== "owner";
+  const {
+    manage: manageable,
+    transfer: canTransfer,
+    verify: unverified,
+  } = memberActions(actorRole, member);
   const invited = member.status === "pending";
-  const unverified = !member.isSelf && !member.keyVerified;
 
   return (
     <Item variant="outline" size="sm" className="flex-nowrap">

@@ -1,6 +1,7 @@
 import {
   LAST_OWNER_MESSAGE,
   type MemberInfo,
+  memberActions,
   ROTATION_PENDING_NOTICE,
   SessionContext,
   sharingErrorMessage,
@@ -13,8 +14,8 @@ import {
   VAULT_ROLE_LABELS,
   type VaultInfo,
   VERIFY_FAILED_MESSAGE,
+  vaultMembersRules,
 } from "@repo/client";
-import { canAssignRole, canManageVault } from "@repo/schema";
 import {
   Badge,
   type BottomSheetRef,
@@ -59,7 +60,7 @@ function Members({ vault }: { vault: VaultInfo }) {
     "--color-primary",
     "--color-foreground",
   ]) as string[];
-  const manages = canManageVault(vault.role);
+  const manages = vaultMembersRules(vault).manage;
   const online = mode === "online";
 
   return (
@@ -139,9 +140,7 @@ function MemberList({ vault }: { vault: VaultInfo }) {
   const [error, setError] = useState<string>();
   const muted = useCSSVariable("--color-muted-foreground") as string;
 
-  const owners = members.filter((m) => m.role === "owner" && m.status === "active").length;
-  // Unknown while the list didn't load: the server refuses the last owner anyway.
-  const lastOwner = vault.role === "owner" && !loadError && owners <= 1;
+  const { lastOwner, verifyPrompt } = vaultMembersRules(vault, loadError ? undefined : members);
 
   async function leave() {
     setError(undefined);
@@ -183,7 +182,7 @@ function MemberList({ vault }: { vault: VaultInfo }) {
         flush
         title="Members"
         description={
-          canManageVault(vault.role) && members.some((m) => !m.isSelf && !m.keyVerified)
+          verifyPrompt
             ? `Compare a security code with its person before you trust it. ${UNVERIFIED_MEMBERS_NOTICE}`
             : "Compare a security code with its person before you trust it."
         }
@@ -206,8 +205,7 @@ function MemberList({ vault }: { vault: VaultInfo }) {
         ) : (
           <SectionGroup>
             {members.map((member) => {
-              const manageable = !member.isSelf && canAssignRole(vault.role, member.role);
-              const unverified = !member.isSelf && !member.keyVerified;
+              const { manage: manageable, verify: unverified } = memberActions(vault.role, member);
               return (
                 <Pressable
                   key={member.userId}

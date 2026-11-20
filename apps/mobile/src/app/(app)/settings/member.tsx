@@ -2,6 +2,7 @@ import {
   assignableRoles,
   LAST_OWNER_MESSAGE,
   type MemberInfo,
+  memberActions,
   type SharingRefusals,
   sharingErrorMessage,
   TRANSFER_REFUSED_MESSAGE,
@@ -47,7 +48,7 @@ function MemberForm({ vault, member }: { vault: VaultInfo; member: MemberInfo })
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const foreground = useCSSVariable("--color-foreground") as string;
   const invited = member.status === "pending";
-  const canTransfer = vault.role === "owner" && !invited && member.role !== "owner";
+  const { transfer: canTransfer } = memberActions(vault.role, member);
 
   async function run(
     action: () => Promise<void>,
