@@ -1,14 +1,12 @@
 import react from "@vitejs/plugin-react";
-import path from "path";
 import { defineConfig } from "vitest/config";
+import { webAlias } from "./alias";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     dedupe: ["react", "react-dom"],
-    alias: {
-      "@": path.resolve(__dirname, "./src"),
-    },
+    alias: webAlias,
   },
   define: {
     "import.meta.env.VITE_SERVER_URL": JSON.stringify("http://localhost/trpc"),

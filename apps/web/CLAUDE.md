@@ -37,8 +37,8 @@ Rules:
 - **Inside a feature, use relative `./` imports.** Importing your own feature via `@/features/...`
   creates a cycle through the barrel.
 - **One alias: `@/` → `src/`.** (`@pages`, `@components`, `@features`, `@utils` were removed.)
-  Declared in three places that must stay in sync: `vite.config.ts`, `vitest.config.ts`,
-  `tsconfig.app.json`.
+  Declared once in `alias.ts` (used by `vite.config.ts` and `vitest.config.ts`); `tsconfig.app.json` `paths` mirrors
+  it, and a drifted entry fails `pnpm typecheck`.
 - Web `features/records/` matches mobile's `features/records/` naming.
 - **Phone pages are real routes that scroll the document**, never drawers. The push/pop slide is
   `app/page-transitions.ts` (View Transitions, driven by the router's location hook; a slide that doesn't play, skipped
@@ -51,38 +51,44 @@ Rules:
   leaves `/record/a` twice), so Back and the browser's back agree. A new page gets an entry in `pageDepths`
   (`app/route-paths.ts`) and its back button uses `usePageBack(fallback)`. Import phone pages eagerly — a page that
   suspends mid-transition slides in blank.
-- **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar
-  sits on the ground (`ShellPanel surface="ground"`): `SidebarHeader` (`VaultSwitcher`, collapse toggle, New record),
+- **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar sits
+  on the ground (`ShellPanel surface="ground"`): `SidebarHeader` (`VaultSwitcher`, collapse toggle, New record),
   `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
   `SidebarTagsRow` (tag count or "N on"; opens the search in tag mode, `searchTags`), `SidebarFooter` (Pass Monitor,
-  Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` + heading
-  + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all in a `ChipLane`; `SearchPanel` while searching);
-  the record sits on the ground, one column (`RecordDetail`: the form at rest, `@repo/client` `recordDetailLayout`
-  builds it from `RECORD_FORM_FIELDS` / `RECORD_FORM_LAYOUT`: the same sections in the same order, fields paired where
-  the form pairs them (`DetailFieldRow`), empty ones left out, then websites, extra fields (two per row), note, Version
-  history; a secure note starts with its note. Machine values mono, card number masked to first / last 4 + network,
-  expiry chip (`cardExpiryStatus`), identity address as one block (Copy address), SSH key Type · Fingerprint, private
-  key blurred (`DetailCodeBlock concealable`, nothing of it in the DOM until shown) + download, API secret keeps its
-  prefix (`apiSecretPrefix`), Wi-Fi QR full screen only while the page is in view; previous secrets fold into one
-  row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` /
-  `warning` counts as a corner badge / dot), the expand toggle moving to its foot above Lock.
-  Phone: `MobileVault`: bar with the vault pill and `AccountButton` (`AccountSheet`: the same pages, sync card, Lock),
-  the list's large title over `ActiveFilterChips` (a `ChipLane` from `@repo/ui`: one scrolling row, edges fade where chips are cut off, Clear all pinned from two filters on), and a bottom dock (`FilterButton` → `FilterSheet`, its Show N button pinned to the drawer bottom; search, sort, new). The dock's search pill opens
-  `MobileSearchOverlay` (`MobileSearch.tsx`): a full-screen layer portaled to `<body>` (no z-index, so sheets opened
-  from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the page behind `inert`;
-  `useViewportLayer` pins it to the visual viewport (iOS pans that under the keyboard) and drops drags that scroll nothing in it, which would scroll the list behind. Its open state is a
-  history entry over the list (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it
-  reopens it with the field focused (the record's Back tap holds the keyboard, `@repo/ui` `holdKeyboard` /
-  `handOffKeyboard`). Cancel / Back restores the filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. Kept simple for
+  Account & sync, Settings, `SyncStatusCard`), Lock vault. `RecordList` is the only raised panel (`RecordSearch` +
+  heading + `RecordSortMenu`, then `ActiveFilterChips variant="desktop"`: neutral chips + Clear all in a `ChipLane`;
+  `SearchPanel` while searching); the record sits on the ground, one column (`RecordDetail`: the form at rest,
+  `@repo/client` `recordDetailLayout` builds it from `RECORD_FORM_FIELDS` / `RECORD_FORM_LAYOUT`: the same sections in
+  the same order, fields paired where the form pairs them (`DetailFieldRow`), empty ones left out, then websites, extra
+  fields (two per row), note, Version history; a secure note starts with its note. Machine values mono, card number
+  masked to first / last 4 + network, expiry chip (`cardExpiryStatus`), identity address as one block (Copy address),
+  SSH key Type · Fingerprint, private key blurred (`DetailCodeBlock concealable`, nothing of it in the DOM until shown)
+  + download, API secret keeps its prefix (`apiSecretPrefix`), Wi-Fi QR full screen only while the page is in view;
+  previous secrets fold into one row, `PreviousSecretsRow`). Collapsed, the sidebar is a rail of icons
+  (`SidebarItem collapsed`: label and tally in a tooltip, only `primary` / `warning` counts as a corner badge / dot),
+  the expand toggle moving to its foot above Lock. Phone: `MobileVault`: bar with the vault pill and `AccountButton`
+  (`AccountSheet`: the same pages, sync card, Lock), the list's large title over `ActiveFilterChips` (a `ChipLane` from
+  `@repo/ui`: one scrolling row, edges fade where chips are cut off, Clear all pinned from two filters on), and a bottom
+  dock (`FilterButton` → `FilterSheet`, its Show N button pinned to the drawer bottom; search, sort, new). The dock's
+  search pill opens `MobileSearchOverlay` (`MobileSearch.tsx`): a full-screen layer portaled to `<body>` (no z-index, so
+  sheets opened from it cover it), always mounted so the tap can `focus()` it (iOS raises the keyboard only then), the
+  page behind `inert`; `useViewportLayer` pins it to the visual viewport (iOS pans that under the keyboard) and drops
+  drags that scroll nothing in it, which would scroll the list behind. Its open state is a history entry over the list
+  (`mobileSearch` in `history.state`): Back closes it, Back from a record opened in it reopens it with the field focused
+  (the record's Back tap holds the keyboard, `@repo/ui` `holdKeyboard` / `handOffKeyboard`). Cancel / Back restores the
+  filters it opened with. Empty, it lists recent searches (tap reruns text + tags) and recently opened. Kept simple for
   a phone keyboard: records only (no tag rows, no tag pill bar), no `#` tag mode (the overlay sets the provider's
   `tagSearch` off while mounted; tags still match as part of a record). Taps in it prevent `pointerdown` so they never
-  blur the field, and a tap that blurred it anyway (iOS) focuses it again. Tags picked in `FilterSheet` show in the scope row as
-  `#tag` chips like desktop (`SearchScope`), never in the field; `SearchScope lane` puts them in a `ChipLane` under "Searching in" + the count; filtered (a vault counts too), Search all (`SearchAllButton
-  shortcut={false}`) is pinned at its end runs past them for the query, the filters staying picked (no Clear all in the search: the list's chips have it); with nothing typed their records list under "Tagged #a".
+  blur the field, and a tap that blurred it anyway (iOS) focuses it again. Tags picked in `FilterSheet` show in the
+  scope row as `#tag` chips like desktop (`SearchScope`), never in the field; `SearchScope lane` puts them in a
+  `ChipLane` under "Searching in" + the count; filtered (a vault counts too), Search all
+  (`SearchAllButton shortcut={false}`) is pinned at its end runs past them for the query, the filters staying picked
+  (no Clear all in the search: the list's chips have it); with nothing typed their records list under "Tagged #a".
   Dragging the results drops the keyboard (`@repo/ui` `useBlurOnDrag`; a tap's jitter doesn't). In landscape (layout
-  under 500px high) the scope row (unless filtered) gives way to the results. `search-history.ts` holds the history helpers and, in memory, the results' scroll for Back
-  from a record (`@repo/ui` `restoreScroll`, shared with `page-transitions`); `searchReturnState` keeps the `fromSearch` marker on entries that replace a record (move) or are pushed over the
-  search (create), so Back from them still raises the keyboard.
+  under 500px high) the scope row (unless filtered) gives way to the results. `search-history.ts` holds the history
+  helpers and, in memory, the results' scroll for Back from a record (`@repo/ui` `restoreScroll`, shared with
+  `page-transitions`); `searchReturnState` keeps the `fromSearch` marker on entries that replace a record (move) or are
+  pushed over the search (create), so Back from them still raises the keyboard.
 - **Record form** (`features/records/RecordForm.tsx`): one form for every type, create and edit. `@repo/client`
   `RECORD_FORM_FIELDS` lists each type's inputs (login included; title, tags, note, websites, extra fields are common)
   and `RECORD_FORM_LAYOUT` places the common parts (`noteFirst`, `websites`, `actions`); `RecordFormField` maps a
@@ -92,42 +98,50 @@ Rules:
   Delete / Back left, Cancel + submit right; phone: `SheetFormBar`, the record header and Delete in the content). The
   create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead.
 - **Settings** (`features/settings`): desktop, a full-screen overlay (`SettingsLayout`: header with "Settings", the
-  search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the sync
-  dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was opened
-  from (never auth or an overlay), else the vault list; Esc (`OverlayHeader`) is left to a focused dialog, menu,
-  listbox or field. Search (`SettingsSearch.tsx`, `settings-search.ts`): `SETTINGS_INDEX` lists the settings
-  (label, synonyms, the row / group it lands on by their rendered labels: rename both together) beside the sections;
+  search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the
+  sync dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was
+  opened from (never auth or an overlay), else the vault list; Esc (`OverlayHeader`) is left to a focused dialog, menu,
+  listbox or field. Search (`SettingsSearch.tsx`, `settings-search.ts`): `SETTINGS_INDEX` lists the settings (label,
+  synonyms, the row / group it lands on by their rendered labels: rename both together) beside the sections;
   `matchSettings` groups the matches by section (every query word begins a word of the label, a synonym or the section).
   The field is a combobox (↑ / ↓, Enter opens, Esc clears then closes, `/` focuses it); the results replace the page
   (desktop) or the list (phone: the query is in a history entry, so Back clears it and Back from a result brings them
   back). Opening one navigates, then `revealSetting` scrolls its row into view and highlights it briefly
-  (`data-settings-row` / `data-settings-group` inside `data-settings-page`). Phone: `/settings` is `SettingsHome` (the same groups as drill-down
-  rows with their values; its close steps back with `usePageBack`), each section a pushed page with "‹ Settings" back;
-  pages are imported eagerly. Sections an account lacks are hidden (`useSettingsGroups`: Devices & activity is
-  `linkedOnly`), Keyboard shortcuts is desktop only. Pass Monitor is not a section: it is its own overlay (`/pass-monitor`, `PassMonitorLayout`, same
-  `OverlayHeader` / `BackToButton` / `CloseButton`; flow in `docs/architecture/records.md`). Both overlays close to
-  `overlayReturnPath()` (`app/overlay-return.ts`, `OverlayReturnTracker`: the last pathname outside them and auth, a
-  record's sheet routes collapsed to the record, no query).
-- **Settings pages** compose the `features/settings` primitives (every section): `SettingsPage` (display title, description,
-  optional action, `toolbar` under the title, `stickyHeader`: it stays while the content fades out under it; h1 on a phone, h2 under the overlay's "Settings" on desktop), `SettingsGroup` (uppercase label over
-  one hairline-split card, footnote, `variant="danger"`, `list`: the card is a `<ul>` named by the label, rows in `<li>`s; `cardless`: the child is its own card, the import drop zone), `SettingsRow` (label + hint, `status` "· Off" after the
-  label; `icon` + `iconTone` tile or `media` (a vault tile); `control`, `stackOnPhone` puts it full width under the text; or `href` / `onClick` for a whole-row drill-down named by its label). `SettingsRowButton` is that whole-row button on its own, so it can be a dialog trigger (`<ChangePasswordDialog><SettingsRowButton …/>`): phone rows open dialogs that way, desktop rows have a button. A phone row with several actions opens `SettingsActionsSheet` (vaults, tags); the chosen one runs once the sheet has closed. Controls in a row
-  (`SettingsSwitch`, `SettingsSegmented`, `SettingsSelectTrigger`) take their name and description from the row.
-  `SettingsChoiceRow`: one value from a few choices (Security's durations, sort order), a select on desktop, on a phone a
-  drill-down row with the value opening the choices in a sheet. Keyboard shortcuts come from `lib/shortcuts.ts`
-  (`SHORTCUTS`: binding, text, group): every `useShortcut` and `OverlayHeader`'s Esc read it, the `?` dialog lists what the screen registered,
-  the settings page all of them.
-  Status pills: `@repo/ui` `StatusPill`; status text / tile colors: `@repo/ui/lib/tone`.
+  (`data-settings-row` / `data-settings-group` inside `data-settings-page`). Phone: `/settings` is `SettingsHome` (the
+  same groups as drill-down rows with their values; its close steps back with `usePageBack`), each section a pushed page
+  with "‹ Settings" back; pages are imported eagerly. Sections an account lacks are hidden (`useSettingsGroups`: Devices
+  & activity is `linkedOnly`), Keyboard shortcuts is desktop only. Pass Monitor is not a section: it is its own overlay
+  (`/pass-monitor`, `PassMonitorLayout`, same `OverlayHeader` / `BackToButton` / `CloseButton`; flow in
+  `docs/architecture/records.md`). Both overlays close to `overlayReturnPath()` (`app/overlay-return.ts`,
+  `OverlayReturnTracker`: the last pathname outside them and auth, a record's sheet routes collapsed to the record, no
+  query).
+- **Settings pages** compose the `features/settings` primitives (every section): `SettingsPage` (display title,
+  description, optional action, `toolbar` under the title, `stickyHeader`: it stays while the content fades out under
+  it; h1 on a phone, h2 under the overlay's "Settings" on desktop), `SettingsGroup` (uppercase label over one
+  hairline-split card, footnote, `variant="danger"`, `list`: the card is a `<ul>` named by the label, rows in `<li>`s;
+  `cardless`: the child is its own card, the import drop zone), `SettingsRow` (label + hint, `status` "· Off" after the
+  label; `icon` + `iconTone` tile or `media` (a vault tile); `control`, `stackOnPhone` puts it full width under the
+  text; or `href` / `onClick` for a whole-row drill-down named by its label). `SettingsRowButton` is that whole-row
+  button on its own, so it can be a dialog trigger (`<ChangePasswordDialog><SettingsRowButton …/>`): phone rows open
+  dialogs that way, desktop rows have a button. A phone row with several actions opens `SettingsActionsSheet` (vaults,
+  tags); the chosen one runs once the sheet has closed. Controls in a row (`SettingsSwitch`, `SettingsSegmented`,
+  `SettingsSelectTrigger`) take their name and description from the row. `SettingsChoiceRow`: one value from a few
+  choices (Security's durations, sort order), a select on desktop, on a phone a drill-down row with the value opening
+  the choices in a sheet. Keyboard shortcuts come from `lib/shortcuts.ts` (`SHORTCUTS`: binding, text, group): every
+  `useShortcut` and `OverlayHeader`'s Esc read it, the `?` dialog lists what the screen registered, the settings page
+  all of them. Status pills: `@repo/ui` `StatusPill`; status text / tile colors: `@repo/ui/lib/tone`.
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
   `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
   one wins). Picked in Settings → Appearance (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,
-  `<themeKey>-accent`; `applyStoredAccent` in `main.tsx` sets it before React renders). List: `@repo/ui-shared` `ACCENT_PRESETS`. Accent as text is `text-primary-text`, never `text-primary`
-  (that's the fill: buttons, the TOTP ring). Meaning colors (strength, warnings, destructive) never take the accent.
-  The light field is for auth screens only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`,
-  `data-ground="flat"` on `<html>`), which gives the flat ground and turns `glass` / `glass-popover` solid without blur.
-  The logo (`BrandMark`) is a `bg-primary` tile, so it follows the accent (auth screens too).
+  `<themeKey>-accent`; `applyStoredAccent` in `main.tsx` sets it before React renders). List: `@repo/ui-shared`
+  `ACCENT_PRESETS`. Accent as text is `text-primary-text`, never `text-primary` (that's the fill: buttons, the TOTP
+  ring). Meaning colors (strength, warnings, destructive) never take the accent. The light field is for auth screens
+  only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`, `data-ground="flat"` on `<html>`), which
+  gives the flat ground and turns `glass` / `glass-popover` solid without blur. The logo (`BrandMark`) is a `bg-primary`
+  tile, so it follows the accent (auth screens too).
 - **Full-height phone layouts use `dvh`, never `100vh` / `min-h-screen`**: on iOS Safari `vh` is the large viewport
-  (toolbar hidden), so a `min-h-screen` box makes every page scroll by the toolbar's height (`#root` in `index.html` too).
+  (toolbar hidden), so a `min-h-screen` box makes every page scroll by the toolbar's height (`#root` in `index.html`
+  too).
 - **Phone buttons are 48px**: sheet actions (`ResponsiveSheet` `actions`) use `size="lg"` for text,
   `SheetIconAction` for icons, `SheetCloseAction` for the X (`@repo/ui/complex-components/ResponsiveSheet`);
   floating page-bar buttons use `size="icon-xl"` / `"lg"`. Bottom-dock FABs stay `fab` (56px). The bars'
@@ -138,29 +152,30 @@ Rules:
 `VITE_DEMO_MODE=true` (`.env.production`, `Dockerfile.web`'s default; `docker-compose.test.yml` builds with `false`)
 makes the public demo: `features/demo` (`isDemoBuild`, `isDemoMode`, `useDemoMode`; always check `isDemoMode()`, never
 the env var). `passmgr:demo-override` in `localStorage`, toggled by 7 taps on the welcome or unlock page, turns it off
-in that browser. Run it locally: `.claude/launch.json` `web-demo` (port 5179). Flow: `docs/architecture/local-vaults.md`.
+in that browser. Run it locally: `.claude/launch.json` `web-demo` (port 5179). Flow:
+`docs/architecture/local-vaults.md`.
 
 ## E2E tests
 
-Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and
-starts `docker-compose.test.yml` (web + server + migrate + Postgres + Redis + Mailpit, hardened like prod, fresh OPAQUE secrets; mailed codes are read from
-the Mailpit API, `verifyEmail`) and tears it down
-after; `E2E_KEEP_STACK=1` leaves it running. Web keys live in memory, so after an unlock navigate by
-clicking, never `page.goto` (it reloads → locked). A second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`);
-offline = `context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts`
-(local vault, create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login
-shortcuts with websites and tags), the listed records, desktop search + its options, password issues,
-Lock from the sidebar, sync status), `e2e/helpers/a11y.ts` (`expectAccessible`: axe, WCAG 2.1 A / AA, in the
-current theme; called inside existing flows, not a spec of its own). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`). Global setup builds and starts
+`docker-compose.test.yml` (web + server + migrate + Postgres + Redis + Mailpit, hardened like prod, fresh OPAQUE
+secrets; mailed codes are read from the Mailpit API, `verifyEmail`) and tears it down after; `E2E_KEEP_STACK=1` leaves
+it running. Web keys live in memory, so after an unlock navigate by clicking, never `page.goto` (it reloads → locked). A
+second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`); offline =
+`context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts` (local vault,
+create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login shortcuts
+with websites and tags), the listed records, desktop search + its options, password issues, Lock from the sidebar, sync
+status), `e2e/helpers/a11y.ts` (`expectAccessible`: axe, WCAG 2.1 A / AA, in the current theme; called inside existing
+flows, not a spec of its own). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
 
 ## Web served-code trust
 
-Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bundle is written): SRI on the asset tags
-of `index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs with
-`integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
+Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bundle is written): SRI on the asset tags of
+`index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs
+with `integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
 (`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS> [Caddyfile]` checks a deployment against it
-(files, SPA fallback routes, CSP / COOP / COEP), hourly and after each deploy (`.github/workflows/web-served-code.yml`). What it does and doesn't protect against:
-`docs/security/web-served-code-trust.md`.
+(files, SPA fallback routes, CSP / COOP / COEP), hourly and after each deploy (`.github/workflows/web-served-code.yml`).
+What it does and doesn't protect against: `docs/security/web-served-code-trust.md`.
 
 Updates (`src/register-sw.ts`): navigations are served cache-first, so a release found during a visit installs in the
 background and is offered by a "New version available" toast (Reload locks the vault); never activated mid-session

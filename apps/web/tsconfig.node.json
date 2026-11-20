@@ -23,6 +23,7 @@
     "noUncheckedSideEffectImports": true
   },
   "include": [
+    "alias.ts",
     "vite.config.ts",
     "vite-plugin-seo.ts",
     "vite-plugin-build-integrity.ts",

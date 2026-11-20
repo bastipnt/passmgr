@@ -4,6 +4,7 @@
     "apps/web/src/main.{ts,tsx}",
     "apps/web/src/App.{ts,tsx}",
     "apps/web/public/sw.js",
+    "scripts/*.mjs",
     "apps/server/src/server.ts",
     "apps/mobile/app/**/*.{ts,tsx}",
     "packages/*/index.{ts,tsx}",

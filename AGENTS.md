@@ -116,7 +116,7 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
 
 ## Code Conventions
 
-- **Linting**: OXLint (`--type-aware`) is primary; ESLint for specific rules. Runs on pre-push via Lefthook.
+- **Linting**: OXLint (`--type-aware`). Runs on pre-push via Lefthook.
 - **Commits**: Conventional Commits enforced via commitlint (`feat`, `fix`, `refactor`, `chore`, etc.)
 - **Styling**: Tailwind CSS v4. Use `cn()` from `@repo/ui/theme` for conditional classes. Design tokens: `primary-500`,
   `surface-3`, `text-primary`.

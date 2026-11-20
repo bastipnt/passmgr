@@ -1,9 +1,4 @@
 {
-  "eslint.workingDirectories": [
-    {
-      "mode": "auto"
-    }
-  ],
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "cSpell.words": ["biome", "biomejs", "fastify", "oxlint", "oxlintrc", "trpc"],
   "editor.codeActionsOnSave": {
@@ -79,16 +74,8 @@
     "ListHeaderComponentClassName"
   ],
   "tailwindCSS.classFunctions": ["cn", "cva", "useResolveClassNames"],
-  /*
-   * Two Tailwind v4 entry points live in this monorepo. Without an explicit
-   * map the extension auto-detects both and serves whichever it found first,
-   * so mobile-only tokens (--spacing-md, px-based --text-*) leak into web
-   * files and vice versa. Keys = entry CSS, values = globs (relative to the
-   * workspace root) of files that resolve against that entry.
-   *
-   * NOTE: once this setting exists, files matched by NO glob get no
-   * IntelliSense at all — add new UI dirs here.
-   */
+  // Maps each Tailwind v4 entry CSS to its files; a file no glob matches gets no IntelliSense.
+  // Why and how to extend: docs/editor-setup.md
   "tailwindCSS.experimental.configFile": {
     "packages/ui/src/styles/globals.css": [
       "apps/web/src/**",

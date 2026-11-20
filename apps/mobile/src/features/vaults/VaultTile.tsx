@@ -30,8 +30,6 @@ export const VAULT_ICON_COMPONENTS: Record<VaultIcon, LucideIcon> = {
 
 const ICON_SIZES = { default: 18, md: 20, lg: 28 } as const;
 
-// TODO: move to ui-mobile
-
 /** The vault's icon on a tile tinted with its colour (web's `VaultTile`). */
 export function VaultTile({
   vault,
