@@ -74,8 +74,8 @@ export type BiometricEnrollOptions = {
   userName: string;
 };
 
-/** Stores only the account key, wrapped with the PRF output; server login goes through the
- * credential (`devicePublicKey`), never a stored password equivalent (docs/architecture/auth.md). */
+/** Stores only the account key, wrapped with the PRF output; server login uses the credential
+ * (`devicePublicKey`), never a stored password equivalent (docs/architecture/auth.md). */
 export async function enrollBiometric(
   accountKey: Uint8Array,
   { rpName, userName }: BiometricEnrollOptions,
@@ -184,7 +184,7 @@ function credentialPublicKey(
   return { publicKey: toBase64(new Uint8Array(publicKey)), algorithm };
 }
 
-/** One prompt opens the account key and, given a device login's `challenge` (`deviceLoginChallenge`),
+/** One prompt opens the account key and, for a device login's `challenge` (`deviceLoginChallenge`),
  * returns the signed assertion for the server (docs/architecture/auth.md). */
 export async function authenticateBiometric(
   material: BiometricKeyMaterial,

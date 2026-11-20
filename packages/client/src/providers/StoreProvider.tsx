@@ -107,7 +107,7 @@ type StoreContextValue = {
     accountKey: Uint8Array,
   ) => Promise<ActiveProfile>;
   /** Named, so a background write (a rekey) lands where it was made for even after a switch.
-   * Atomic; `vaults` null keeps the stored list, a login's `recoveryWrap` ends a pending recovery. */
+   * Atomic; `vaults` null keeps the stored list, a login's `recoveryWrap` ends pending recovery. */
   saveAccount: (
     profileId: string,
     material: AccountKeyMaterial,
@@ -291,7 +291,8 @@ export function StoreProvider({
   const trpcRef = useRef(trpc);
   trpcRef.current = trpc;
 
-  /** Lock (keys wiped first), forget the persisted mobile login and autofill entries, then tell the app. */
+  /** Lock (keys wiped first), forget the persisted mobile login and autofill entries,
+   * then tell the app. */
   const signedOut = useCallback(async () => {
     const profileId = activeRef.current?.entry.profileId;
     lockRef.current();
@@ -340,8 +341,8 @@ export function StoreProvider({
             pushOutputSchema,
             await request(() => trpcRef.current.record.push.mutate({ changes })),
           ).results,
-        // Only a 4xx about the batch itself is split down to the bad record; any other failure stops the
-        // round (docs/architecture/vaults-and-sync.md, Vaults and sync).
+        // Only a 4xx about the batch itself is split down to the bad record; any other failure
+        // stops the round (docs/architecture/vaults-and-sync.md, Vaults and sync).
         stopsRound: (e) =>
           !isServerAnswer(e) ||
           isUnauthorized(e) ||
@@ -356,8 +357,8 @@ export function StoreProvider({
         resolveConflict: resolveRecordConflict,
         // Changes under a rotated-out vault key, and the records of a rotation this device started.
         prepareOutbox: () => reencryptForPush(vault),
-        // Keys sealed to this user after a rotation, rotations due after a member left (ADR 0001 D7).
-        // Through `request`: offline fails fast, a rejected session detaches.
+        // Keys sealed to this user after a rotation, rotations due after a member left
+        // (ADR 0001 D7). Through `request`: offline fails fast, a rejected session detaches.
         onSharingTasks: (tasks) =>
           request(() => runSharingTasks({ vault, trpc: trpcRef.current, reloadVaultKeys }, tasks)),
       });
@@ -447,7 +448,7 @@ export function StoreProvider({
     };
   }, [refreshEntries, activate, switchLock]);
 
-  // Only `online`, never right after the OPAQUE login: a sync before the unlock opened the account's
+  // Only `online`, not right after the OPAQUE login: a sync before the unlock opened the account's
   // profile would write into another (docs/architecture/vaults-and-sync.md, Live updates).
   const online = mode === "online";
   const syncManager = active?.syncManager ?? null;
@@ -530,7 +531,6 @@ export function StoreProvider({
     subscribe();
 
     void syncManager.sync();
-    // Fallback polling at 5 minutes (SSE handles real-time)
     syncManager.startPeriodicSync(5 * 60_000);
 
     return () => {

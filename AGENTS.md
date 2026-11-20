@@ -86,8 +86,8 @@ changing one of these flows:**
   enrollment, account deletion, emergency kit
 - `local-vaults.md` — local vaults, durability, export / import, import from other managers (CSV, Bitwarden, 1PUX,
   KeePass), linking a local vault to an account
-- `vaults-and-sync.md` — vault model, membership access, `record.sync` / `record.push`, limits and storage quota,
-  conflict merge, trash / purge, key rotation, sharing, vault UI
+- `vaults-and-sync.md` — vault model, membership access, `record.sync` / `record.push`, live updates (SSE), limits
+  and storage quota, conflict merge, trash / purge, key rotation, sharing, vault UI
 - `records.md` — Pass Monitor, security score, breach check, login email, favorites, duplicate, tags and search
 
 Design decisions ("ADR 0001 Dn"): `docs/adr/0001-offline-first-local-vaults.md`; OPAQUE library choice:

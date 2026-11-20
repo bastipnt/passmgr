@@ -110,8 +110,8 @@ function onLocationChange(event: Event) {
   // `flushSync` commits the new page — and `PageTransitions`' scroll
   // restore — before the browser takes its "after" picture.
   const transition = document.startViewTransition(() => flushSync(publish));
-  // `ready` rejects whenever the slide doesn't play (the next navigation skipped it, a hidden tab, a
-  // resize): no error. A failing update rejects all three promises; `finished` alone reports it.
+  // `ready` rejects whenever the slide doesn't play (the next navigation skipped it, a hidden tab,
+  // a resize): no error. A failing update rejects all three promises; `finished` alone reports it.
   void transition.ready.catch(() => {});
   void transition.updateCallbackDone.catch(() => {});
   void transition.finished.finally(() => {

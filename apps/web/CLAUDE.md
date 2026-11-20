@@ -44,13 +44,13 @@ Rules:
   `app/page-transitions.ts` (View Transitions, driven by the router's location hook; a slide that doesn't play, skipped
   by the next navigation, rejects only `ready`, which is ignored; a failing update is reported once, by `finished`). The
   module is the router's location source (`usePageLocation` / `usePageSearch`) and publishes a route change only inside
-  the transition's update callback, so the browser can snapshot the old page first (CSS in `@repo/ui/styles/globals.css`,
-  keyed off `html[data-nav]`). The direction comes from the depth
-  table, never from how the navigation happened (links, redirects, Back and the browser's back slide alike).
-  `usePageBack` steps back through history to the nearest shallower page, skipping same-depth entries (a closed sheet:
-  `/record/a/edit` → `/record/a` leaves `/record/a` twice), so Back and the browser's back agree. A new page
-  gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
-  `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
+  the transition's update callback, so the browser can snapshot the old page first (CSS in
+  `@repo/ui/styles/globals.css`, keyed off `html[data-nav]`). The direction comes from the depth table, never from how
+  the navigation happened (links, redirects, Back and the browser's back slide alike). `usePageBack` steps back through
+  history to the nearest shallower page, skipping same-depth entries (a closed sheet: `/record/a/edit` → `/record/a`
+  leaves `/record/a` twice), so Back and the browser's back agree. A new page gets an entry in `pageDepths`
+  (`app/route-paths.ts`) and its back button uses `usePageBack(fallback)`. Import phone pages eagerly — a page that
+  suspends mid-transition slides in blank.
 - **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar
   sits on the ground (`ShellPanel surface="ground"`): `SidebarHeader` (`VaultSwitcher`, collapse toggle, New record),
   `CategorySidebar` (collapsible to icons, `useSidebarCollapsed`; neutral selection, the accent marks the list's),
