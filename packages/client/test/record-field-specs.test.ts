@@ -169,7 +169,6 @@ describe("form helpers", () => {
       websites: undefined,
       favorite: true,
       tags: ["work"],
-      attachments: undefined,
     });
   });
 

@@ -51,8 +51,8 @@ function normalizeFormValues<T extends RecordType>(
 
 /**
  * The record data to save from a form of `type`. The forms only hold some of
- * a record's fields, so the ones they don't edit (favourite, attachments, and
- * tags when the values leave them out) are carried over from the current
+ * a record's fields, so the ones they don't edit (favourite, and tags when
+ * the values leave them out) are carried over from the current
  * version. A record keeps its type: saving it through another type's form
  * would drop its fields.
  */
@@ -70,7 +70,6 @@ export function recordFromForm<T extends RecordType>(
   const tags = formTags === undefined ? current?.tags : normalizeTags(formTags);
   return {
     favorite: current?.favorite,
-    attachments: current?.attachments,
     importedFrom: current?.importedFrom,
     ...fields,
     ...(tags?.length ? { tags } : {}),
@@ -85,7 +84,6 @@ export function recordFormDefaults<T extends RecordType>(
   const {
     type: _type,
     favorite: _favorite,
-    attachments: _attachments,
     importedFrom: _importedFrom,
     passwordChangedAt: _passwordChangedAt,
     ...values

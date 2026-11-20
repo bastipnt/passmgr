@@ -53,7 +53,6 @@ type DecryptedRecordsProviderProps = {
 };
 
 export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
-  // TODO: why vault ready in SessionsContext, refactor SessionsContext to also have hook form
   const { vaultUnlocked } = useContext(SessionContext);
   const { vault, syncManager } = useStore();
 

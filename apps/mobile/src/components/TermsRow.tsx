@@ -8,7 +8,7 @@ export type TermsRowProps = {
   onChange: (next: boolean) => void;
 };
 
-/** Checkbox + agreement copy; the "Terms" word is a presentational link for now. */
+/** Checkbox + agreement copy; the "Terms" word is a presentational link. */
 export function TermsRow({ checked, onChange }: TermsRowProps) {
   const checkColor = useCSSVariable("--color-primary-foreground") as string;
 

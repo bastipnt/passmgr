@@ -40,8 +40,6 @@ type RecordTypeTileProps = {
   className?: string;
 };
 
-// TODO: move to ui
-
 /** The type's icon on a tile tinted with its hue (the avatar's fallback colours). */
 export function RecordTypeTile({ type, size = "default", className }: RecordTypeTileProps) {
   const Icon = RECORD_TYPE_ICONS[type];

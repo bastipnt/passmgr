@@ -26,7 +26,6 @@ const ICON_SIZES = { default: 18, md: 20, lg: 28 } as const;
 
 type Size = keyof typeof ICON_SIZES;
 
-// TODO: move to component library
 /** The type's icon on a tile tinted with its hue. */
 export function RecordTypeTile({ type, size = "default" }: { type: RecordType; size?: Size }) {
   const Icon = RECORD_TYPE_ICONS[type];

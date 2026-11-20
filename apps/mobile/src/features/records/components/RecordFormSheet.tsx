@@ -106,7 +106,6 @@ export default function RecordFormSheet<T extends RecordType>({
         contentContainerClassName="grow gap-6 px-5 py-6"
         bottomOffset={24}
       >
-        {/* TODO: login should also use TypedRecordForm */}
         {type === "login" ? (
           <LoginRecordForm {...(formProps as unknown as FormProps<"login">)} />
         ) : (

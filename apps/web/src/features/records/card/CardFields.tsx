@@ -23,8 +23,6 @@ type CardFieldProps = {
 /** Shortest card number: below it the checksum says nothing yet. */
 const MIN_CARD_DIGITS = 12;
 
-// TODO: move to ui and share logic with mobile
-
 /**
  * The number grouped as printed on the card while typing; the record stores
  * the digits (`recordFromForm`). The detected network sits next to the label; a hint below

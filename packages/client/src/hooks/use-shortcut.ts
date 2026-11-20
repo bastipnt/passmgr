@@ -6,7 +6,7 @@ import {
 } from "../providers/ShortcutProvider";
 
 interface UseShortcutOptions {
-  /** Human-readable description (for future help dialog / Kbd hints) */
+  /** Human-readable description (for the help dialog / Kbd hints) */
   description?: string;
   /** Whether the shortcut is active. Defaults to true. */
   enabled?: boolean;

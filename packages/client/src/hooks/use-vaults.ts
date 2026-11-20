@@ -66,8 +66,6 @@ export function useVaultActions() {
   const trpc = useTRPCClient();
   const { reload } = useRecordsContext();
 
-  // TODO: why not offline-first here?
-
   /** The server is asked first, unless the profile has none. */
   function viaServer(): boolean {
     if (mode === "local") return false;

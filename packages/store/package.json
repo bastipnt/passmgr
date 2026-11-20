@@ -11,6 +11,7 @@
     "./testing": "./test/node-sqlite-driver.ts"
   },
   "scripts": {
+    "lint": "oxlint --type-aware",
     "typecheck": "tsc7 --noEmit",
     "test": "vitest run",
     "test:browser": "vitest run --config vitest.browser.config.ts",
@@ -48,6 +49,8 @@
     "@vitest/browser-playwright": "^4.1.10",
     "@vitest/coverage-v8": "catalog:",
     "drizzle-kit": "catalog:",
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:",
     "playwright": "^1.61.1",
     "sqlocal": "^0.18.0",
     "vitest": "catalog:"

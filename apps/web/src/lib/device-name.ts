@@ -1,5 +1,3 @@
-// TODO: why is this not shared with mobile?
-
 // Order matters: Edge and Opera also claim Chrome, Chrome also claims Safari.
 const BROWSERS: [RegExp, string][] = [
   [/Edg(e|A|iOS)?\//, "Edge"],

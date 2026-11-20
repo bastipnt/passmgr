@@ -139,11 +139,6 @@ describe("recordDataSchema", () => {
       false,
     );
   });
-
-  it("keeps attachments empty until attachments exist", () => {
-    expect(recordDataSchema.safeParse({ ...MIN_LOGIN, attachments: [] }).success).toBe(true);
-    expect(recordDataSchema.safeParse({ ...MIN_LOGIN, attachments: [{}] }).success).toBe(false);
-  });
 });
 
 describe("isRecordType", () => {

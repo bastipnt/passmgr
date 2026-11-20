@@ -108,8 +108,6 @@ function WithIcon({ icon, children }: { icon: ReactNode; children: ReactNode }) 
 /** Shortest card number: below it the checksum says nothing yet. */
 const MIN_CARD_DIGITS = 12;
 
-// TODO: inputs should go in separate files (mobile ui blocks)
-
 /** Web's `CardNumberField`: grouped while typing, the network or a typo hint below. */
 function CardNumberInput({ spec, control, iconColor }: FieldProps) {
   // The caret before the edit, and where to put it after regrouping: a

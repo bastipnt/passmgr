@@ -49,8 +49,6 @@ const baseRecordShape = {
     .array(customFieldSchema)
     .max(MAX_CUSTOM_FIELDS, `At most ${MAX_CUSTOM_FIELDS} custom fields`)
     .optional(),
-  // Placeholder for encrypted file attachments: reserves the key, holds nothing yet.
-  attachments: z.array(z.never()).optional(),
   // Set on a record an import created under a new id: the id it had in the file, so importing
   // that file (or a copy exported from this record) again finds it. Never leaves the ciphertext.
   importedFrom: z.object({ recordId: z.uuid() }).optional(),
@@ -221,7 +219,7 @@ export function isRecordType<R extends { type: RecordType }, T extends RecordTyp
 }
 
 /** Base fields no form edits; `recordFromForm` carries them over from the current version. */
-const FORM_OMIT = { type: true, favorite: true, attachments: true, importedFrom: true } as const;
+const FORM_OMIT = { type: true, favorite: true, importedFrom: true } as const;
 /** Not carried over by `recordFromForm`: `RecordRepository.update` takes it from the stored version. */
 const PASSWORD_FORM_OMIT = { ...FORM_OMIT, passwordChangedAt: true } as const;
 
