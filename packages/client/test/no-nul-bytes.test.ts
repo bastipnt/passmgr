@@ -1,24 +1,53 @@
-import { readdirSync, readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+import { execFileSync } from "node:child_process";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  unlinkSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = join(import.meta.dirname, "../../..");
 const WORKSPACES = ["apps", "packages"];
 
-function sourceFiles(dir: string): string[] {
-  return readdirSync(dir, { withFileTypes: true }).flatMap((entry) => {
-    if (entry.name === "node_modules" || entry.name.startsWith(".")) return [];
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) return sourceFiles(path);
-    return /\.(ts|tsx)$/.test(entry.name) ? [path] : [];
+// Only git-tracked files: generated output (dist/, untracked files) never reaches a diff.
+function nulOffenders(root: string): string[] {
+  const listed = execFileSync("git", ["ls-files", "-z", "--", ...WORKSPACES], {
+    cwd: root,
+    encoding: "utf8",
   });
+  return listed
+    .split("\0")
+    .filter((file) => /\.(ts|tsx)$/.test(file))
+    .filter((file) => existsSync(join(root, file)) && readFileSync(join(root, file)).includes(0));
 }
 
 describe("source files", () => {
   it("hold no raw NUL byte, which makes git treat them as binary and hides their diffs", () => {
-    const offenders = WORKSPACES.flatMap((dir) => sourceFiles(join(ROOT, dir)))
-      .filter((file) => readFileSync(file).includes(0))
-      .map((file) => relative(ROOT, file));
-    expect(offenders).toEqual([]);
+    expect(nulOffenders(ROOT)).toEqual([]);
+  });
+
+  it("flags tracked files only and skips tracked files missing from the working tree", () => {
+    const repo = mkdtempSync(join(tmpdir(), "no-nul-bytes-"));
+    try {
+      const git = (...args: string[]) => execFileSync("git", args, { cwd: repo });
+      git("init", "-q");
+      mkdirSync(join(repo, "packages/a/dist"), { recursive: true });
+      writeFileSync(join(repo, "packages/a/bad.tsx"), "a\0b");
+      writeFileSync(join(repo, "packages/a/good.ts"), "ok");
+      writeFileSync(join(repo, "packages/a/gone.ts"), "x\0");
+      git("add", "packages");
+      unlinkSync(join(repo, "packages/a/gone.ts"));
+      writeFileSync(join(repo, "packages/a/dist/out.ts"), "x\0");
+      writeFileSync(join(repo, "packages/a/untracked.ts"), "x\0");
+      expect(nulOffenders(repo)).toEqual(["packages/a/bad.tsx"]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });
