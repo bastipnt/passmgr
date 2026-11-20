@@ -3,7 +3,7 @@ import { Button } from "@repo/ui/components/Button";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { act, renderWithProviders, screen, waitFor } from "@/test/render";
 import BackupSettingsPage from "./BackupSettingsPage";
 import ExportDialog from "./ExportDialog";
 
@@ -179,6 +179,16 @@ describe("Import & export page", () => {
       "data-tone",
       "neutral",
     );
+  });
+
+  // Waits for the import dialog's chunk, so the race the `useImport` mock guards against happens every run.
+  it("keeps the page up once the import dialog's chunk lands", async () => {
+    store.profiles = [profileEntry(PROFILE)];
+    renderWithProviders(<BackupSettingsPage />);
+
+    await act(() => vi.dynamicImportSettled());
+
+    expect(screen.getByRole("button", { name: "Choose file" })).toBeTruthy();
   });
 
   it("says when the last backup was, and opens each export from its row", async () => {
