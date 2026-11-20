@@ -4,8 +4,6 @@
       "mode": "auto"
     }
   ],
-  // "eslint.format.enable": true,
-  // "eslint.lintTask.enable": true,
   "js/ts.tsdk.path": "node_modules/typescript/lib",
   "cSpell.words": ["biome", "biomejs", "fastify", "oxlint", "oxlintrc", "trpc"],
   "editor.codeActionsOnSave": {
