@@ -11,12 +11,15 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],
-      // Hooks and providers need React and are covered by the apps: see docs/testing.md (Layer 1).
+      // Most hooks need the app's providers and are covered by the apps; one tested here opts into
+      // jsdom: see docs/testing.md (Layer 1).
       include: [
         "src/records/**/*.ts",
         "src/account/*.ts",
         "src/register.ts",
         "src/sync-manager.ts",
+        "src/hooks/use-vault-settings.ts",
+        "src/vaults/vault-settings.ts",
       ],
     },
   },

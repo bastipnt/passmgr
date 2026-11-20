@@ -100,12 +100,15 @@ These tests use the real testcontainers Postgres + Redis (no `crypto-mock.ts`, n
 - `apps/server/src/record/router.test.ts`
   - Unauthenticated call → 401 smoke test only. CRUD round-trip lives in `apps/server/test/integration/record.int.test.ts`.
 
-**`packages/client/test/`** — node environment, no React
+**`packages/client/test/`** — node environment, React only where a file opts in
 
 The suite runs in Vitest's `node` environment, so its coverage (`packages/client/vitest.config.ts`) only counts what
 it can own: the pure record helpers (`src/records/`), the account flows (`src/account/`), registration
-(`src/register.ts`) and `SyncManager`. The hooks and providers need a React environment: the web component tests
-(Layer 3, e.g. `apps/web/src/features/auth/use-recovery.test.tsx`) and E2E cover them.
+(`src/register.ts`), `SyncManager` and the vault settings helper and hooks (`src/vaults/vault-settings.ts`,
+`src/hooks/use-vault-settings.ts`). Most hooks and providers need the app's providers: the web component tests
+(Layer 3, e.g. `apps/web/src/features/auth/use-recovery.test.tsx`) and E2E cover them. A hook that takes its
+dependencies as arguments can be tested here: the file opts into jsdom with `// @vitest-environment jsdom` and renders
+the hook with a small `createRoot` `renderHook` (`test/vault-settings-hooks.test.ts`), no Testing Library needed.
 
 **Deleted from Layer 1**
 

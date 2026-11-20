@@ -14,8 +14,8 @@ import {
   VAULT_ROLE_LABELS,
   vaultAccessLabel,
   vaultErrorMessage,
+  vaultSettingsActions,
 } from "@repo/client";
-import { canManageVault } from "@repo/schema";
 import { Button, FieldError, Screen, SectionGroup, SettingsSection } from "@repo/ui-native";
 import { Stack, useRouter } from "expo-router";
 import { ChevronRight } from "lucide-react-native";
@@ -80,7 +80,7 @@ export default function VaultsScreen() {
             {vaults.map((vault) => {
               const access = vaultAccessLabel(vault);
               const shared = vault.kind === "shared";
-              const editable = canChangeVaults && canManageVault(vault.role);
+              const editable = canChangeVaults && vaultSettingsActions(vault).edit;
               const opens = shared || editable;
               return (
                 <Pressable

@@ -180,7 +180,8 @@ phone the row opens `SettingsActionsSheet` with all four), then the user's secur
 screens as pages and sheets: `settings/vaults` (every vault and New vault; a shared vault opens its members, the personal
 one its form sheet; invitations, changes from lost vaults and the user's security code), `settings/vault` form sheet
 (web's `VaultDialog` + `RotateVaultKeyDialog` + `DeleteVaultDialog`: a new vault, or `?vaultId=` rename, icon and colour,
-rotate the key, delete after typing its name), `settings/members` page (`VaultMembersDialog`: members with their
+rotate the key, delete after typing its name; both apps' forms run on `useVaultForm` / `useRotateVaultKey` /
+`useDeleteVault`, `packages/client/src/hooks/use-vault-settings.ts`, and show actions by `vaultSettingsActions`), `settings/members` page (`VaultMembersDialog`: members with their
 security codes; owners and managers invite and open a member, anyone but the last owner leaves; a local profile is
 offered an online account first, offline it waits for the connection), `member` sheet (owners and managers: security
 code, role, hand the vault over (owners), remove or withdraw the invite, which rotates the key), `invite` sheet

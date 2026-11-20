@@ -1,4 +1,4 @@
-import { useVaultActions, type VaultInfo, vaultErrorMessage } from "@repo/client";
+import { useRotateVaultKey, useVaultActions, type VaultInfo } from "@repo/client";
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -12,7 +12,6 @@ import {
 } from "@repo/ui/components/Dialog";
 import { FieldError } from "@repo/ui/components/Field";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { useState } from "react";
 
 type RotateVaultKeyDialogProps = {
   vault: VaultInfo;
@@ -25,18 +24,16 @@ type RotateVaultKeyDialogProps = {
  * key, so a copy of the old one opens nothing written from now on.
  */
 export function RotateVaultKeyDialog({ vault, open, onOpenChange }: RotateVaultKeyDialogProps) {
-  const { rotateVaultKey, pending } = useVaultActions();
-  const [error, setError] = useState<string>();
-
-  async function rotate() {
-    try {
-      await rotateVaultKey(vault.vaultId);
+  const actions = useVaultActions();
+  const { pending } = actions;
+  const { error, rotate, clearError } = useRotateVaultKey({
+    vault,
+    actions,
+    onRotated: () => {
       toast.success(`New key for “${vault.name}”`);
       onOpenChange(false);
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The key couldn't be rotated. Try again."));
-    }
-  }
+    },
+  });
 
   return (
     <Dialog
@@ -46,7 +43,7 @@ export function RotateVaultKeyDialog({ vault, open, onOpenChange }: RotateVaultK
         onOpenChange(next);
       }}
       onOpenChangeComplete={(next) => {
-        if (!next) setError(undefined);
+        if (!next) clearError();
       }}
     >
       <DialogContent className="sm:max-w-md">

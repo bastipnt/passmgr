@@ -6,8 +6,8 @@ import {
   useVaults,
   type VaultInfo,
   vaultAccessLabel,
+  vaultSettingsActions,
 } from "@repo/client";
-import { canManageVault } from "@repo/schema";
 import { Badge } from "@repo/ui/components/Badge";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -115,17 +115,22 @@ export default function VaultsSettingsPage() {
               run: () => membersDialog.show(vault),
             },
       );
-    if (canChangeVaults && canManageVault(vault.role))
-      actions.push(
-        { key: "edit", label: "Edit", icon: PencilLineIcon, run: () => editDialog.show(vault) },
-        {
-          key: "rotate",
-          label: "Rotate key",
-          icon: KeyRoundIcon,
-          run: () => rotateDialog.show(vault),
-        },
-      );
-    if (canChangeVaults && vault.kind !== "personal" && vault.role === "owner")
+    const allowed = vaultSettingsActions(vault);
+    if (canChangeVaults && allowed.edit)
+      actions.push({
+        key: "edit",
+        label: "Edit",
+        icon: PencilLineIcon,
+        run: () => editDialog.show(vault),
+      });
+    if (canChangeVaults && allowed.rotateKey)
+      actions.push({
+        key: "rotate",
+        label: "Rotate key",
+        icon: KeyRoundIcon,
+        run: () => rotateDialog.show(vault),
+      });
+    if (canChangeVaults && allowed.delete)
       actions.push({
         key: "delete",
         label: "Delete",

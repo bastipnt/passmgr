@@ -1,22 +1,19 @@
 import {
-  DEFAULT_VAULT_COLOR,
-  DEFAULT_VAULT_ICON,
+  useDeleteVault,
   useGetRecords,
+  useRotateVaultKey,
   useSortedRecords,
   useVaultActions,
+  useVaultForm,
   useVaults,
   VAULT_COLOR_LABELS,
   VAULT_COLORS,
   VAULT_ICON_LABELS,
   VAULT_ICONS,
   type VaultColor,
-  type VaultIcon,
   type VaultInfo,
-  vaultColor,
-  vaultErrorMessage,
-  vaultIcon,
+  vaultSettingsActions,
 } from "@repo/client";
-import { canManageVault, vaultMetaSchema } from "@repo/schema";
 import { Button, FieldError, Input, oklch, SettingsSection } from "@repo/ui-native";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { useState } from "react";
@@ -41,37 +38,23 @@ export default function VaultFormScreen() {
 function VaultForm({ vault }: { vault?: VaultInfo }) {
   const router = useRouter();
   const actions = useVaultActions();
-  const { createVault, renameVault, pending } = actions;
+  const { pending } = actions;
   const { setVaultFilter } = useSortedRecords();
-  const [name, setName] = useState(vault?.name ?? "");
-  const [icon, setIcon] = useState<VaultIcon>(vault ? vaultIcon(vault) : DEFAULT_VAULT_ICON);
-  const [color, setColor] = useState<VaultColor>(vault ? vaultColor(vault) : DEFAULT_VAULT_COLOR);
-  const [error, setError] = useState<string>();
+  const { name, setName, icon, setIcon, color, setColor, error, save } = useVaultForm({
+    vault,
+    actions,
+    onSaved: (saved) => {
+      // Show the new vault right away, as web does.
+      if (saved.created) setVaultFilter(saved.vaultId);
+      router.back();
+    },
+  });
+  const allowed = vault && vaultSettingsActions(vault);
   const headerTitleStyle = useResolveClassNames("text-foreground");
   const [foreground, primary] = useCSSVariable([
     "--color-foreground",
     "--color-primary",
   ]) as string[];
-
-  async function save() {
-    const parsed = vaultMetaSchema.safeParse({ name, icon, color });
-    if (!parsed.success) {
-      setError("Give the vault a name (up to 64 characters).");
-      return;
-    }
-    setError(undefined);
-    try {
-      if (vault) {
-        await renameVault(vault.vaultId, parsed.data);
-      } else {
-        // Show the new vault right away, as web does.
-        setVaultFilter(await createVault(parsed.data));
-      }
-      router.back();
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The vault couldn't be saved. Try again."));
-    }
-  }
 
   return (
     <View className="flex-1">
@@ -183,13 +166,9 @@ function VaultForm({ vault }: { vault?: VaultInfo }) {
           </View>
         )}
 
-        {vault && canManageVault(vault.role) && (
-          <RotateKeySection vault={vault} actions={actions} />
-        )}
+        {vault && allowed?.rotateKey && <RotateKeySection vault={vault} actions={actions} />}
 
-        {vault && vault.kind !== "personal" && vault.role === "owner" && (
-          <DeleteVaultSection vault={vault} actions={actions} />
-        )}
+        {vault && allowed?.delete && <DeleteVaultSection vault={vault} actions={actions} />}
       </KeyboardAwareScrollView>
     </View>
   );
@@ -203,19 +182,9 @@ function RotateKeySection({
   vault: VaultInfo;
   actions: ReturnType<typeof useVaultActions>;
 }) {
-  const { rotateVaultKey, pending } = actions;
-  const [error, setError] = useState<string>();
+  const { pending } = actions;
   const [done, setDone] = useState(false);
-
-  async function rotate() {
-    setError(undefined);
-    try {
-      await rotateVaultKey(vault.vaultId);
-      setDone(true);
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The key couldn't be rotated. Try again."));
-    }
-  }
+  const { error, rotate } = useRotateVaultKey({ vault, actions, onRotated: () => setDone(true) });
 
   function confirm() {
     Alert.alert(
@@ -260,25 +229,16 @@ function DeleteVaultSection({
 }) {
   const router = useRouter();
   const { records } = useGetRecords();
-  const { deleteVault, pending } = actions;
-  const [typed, setTyped] = useState("");
-  const [error, setError] = useState<string>();
-  const count = records.filter((record) => record.vaultId === vault.vaultId).length;
-
-  async function remove() {
-    try {
-      await deleteVault(vault.vaultId);
-      router.back();
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The vault couldn't be deleted. Try again."));
-    }
-  }
+  const { pending } = actions;
+  const { typed, setTyped, summary, confirmed, error, remove } = useDeleteVault({
+    vault,
+    actions,
+    records,
+    onDeleted: () => router.back(),
+  });
 
   return (
-    <SettingsSection
-      title="Delete vault"
-      description={`${count === 1 ? "Its 1 item" : `Its ${count} items`} and their history are deleted with it, on every device. This can't be undone.`}
-    >
+    <SettingsSection title="Delete vault" description={summary}>
       <View className="gap-3">
         <Input
           label="Type the vault's name to confirm"
@@ -293,7 +253,7 @@ function DeleteVaultSection({
         <Button
           size="lg"
           variant="destructive"
-          disabled={typed.trim() !== vault.name || pending}
+          disabled={!confirmed || pending}
           loading={pending}
           onPress={() => void remove()}
         >

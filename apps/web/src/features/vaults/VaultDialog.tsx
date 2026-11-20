@@ -1,19 +1,13 @@
 import {
-  DEFAULT_VAULT_COLOR,
-  DEFAULT_VAULT_ICON,
   useVaultActions,
+  useVaultForm,
   VAULT_COLOR_LABELS,
   VAULT_COLORS,
   VAULT_ICON_LABELS,
   VAULT_ICONS,
   type VaultColor,
-  type VaultIcon,
   type VaultInfo,
-  vaultColor,
-  vaultErrorMessage,
-  vaultIcon,
 } from "@repo/client";
-import { vaultMetaSchema } from "@repo/schema";
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -84,34 +78,25 @@ type VaultFormProps = {
 };
 
 function VaultForm({ vault, actions, onDone, onCreated }: VaultFormProps) {
-  const { createVault, renameVault, pending } = actions;
-  const [name, setName] = useState(vault?.name ?? "");
-  const [icon, setIcon] = useState<VaultIcon>(vault ? vaultIcon(vault) : DEFAULT_VAULT_ICON);
-  const [color, setColor] = useState<VaultColor>(vault ? vaultColor(vault) : DEFAULT_VAULT_COLOR);
-  const [error, setError] = useState<string>();
+  const { pending } = actions;
+  const { name, setName, icon, setIcon, color, setColor, error, save } = useVaultForm({
+    vault,
+    actions,
+    onSaved: (saved) => {
+      if (saved.created) {
+        toast.success(`Vault “${saved.name}” created`);
+        onCreated?.(saved.vaultId);
+      } else {
+        toast.success("Vault saved");
+      }
+      onDone();
+    },
+  });
   const nameId = useId();
 
   async function submit(event: SubmitEvent<HTMLFormElement>) {
     event.preventDefault();
-    const parsed = vaultMetaSchema.safeParse({ name, icon, color });
-    if (!parsed.success) {
-      setError("Give the vault a name (up to 64 characters).");
-      return;
-    }
-    setError(undefined);
-    try {
-      if (vault) {
-        await renameVault(vault.vaultId, parsed.data);
-        toast.success("Vault saved");
-      } else {
-        const vaultId = await createVault(parsed.data);
-        toast.success(`Vault “${parsed.data.name}” created`);
-        onCreated?.(vaultId);
-      }
-      onDone();
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The vault couldn't be saved. Try again."));
-    }
+    await save();
   }
 
   return (

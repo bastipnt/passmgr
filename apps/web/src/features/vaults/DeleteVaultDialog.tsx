@@ -1,4 +1,4 @@
-import { useGetRecords, useVaultActions, type VaultInfo, vaultErrorMessage } from "@repo/client";
+import { useDeleteVault, useGetRecords, useVaultActions, type VaultInfo } from "@repo/client";
 import { toast } from "@repo/ui";
 import { Button } from "@repo/ui/components/Button";
 import {
@@ -13,7 +13,7 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Spinner } from "@repo/ui/components/Spinner";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 
 type DeleteVaultDialogProps = {
   vault: VaultInfo;
@@ -32,25 +32,24 @@ export function DeleteVaultDialog({
   onOpenChange,
   onDeleted,
 }: DeleteVaultDialogProps) {
-  const { deleteVault, pending } = useVaultActions();
+  const actions = useVaultActions();
+  const { pending } = actions;
   const { records } = useGetRecords();
-  const [typed, setTyped] = useState("");
-  const [error, setError] = useState<string>();
-  const inputId = useId();
-  const count = records.filter((record) => record.vaultId === vault.vaultId).length;
-  const confirmed = typed.trim() === vault.name;
-
-  async function submit(event: SubmitEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!confirmed) return;
-    try {
-      await deleteVault(vault.vaultId);
+  const { typed, setTyped, summary, confirmed, error, remove, reset } = useDeleteVault({
+    vault,
+    actions,
+    records,
+    onDeleted: () => {
       toast.success(`Vault “${vault.name}” deleted`);
       onOpenChange(false);
       onDeleted?.();
-    } catch (e) {
-      setError(vaultErrorMessage(e, "The vault couldn't be deleted. Try again."));
-    }
+    },
+  });
+  const inputId = useId();
+
+  async function submit(event: SubmitEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await remove();
   }
 
   return (
@@ -61,19 +60,14 @@ export function DeleteVaultDialog({
         onOpenChange(next);
       }}
       onOpenChangeComplete={(next) => {
-        if (next) return;
-        setTyped("");
-        setError(undefined);
+        if (!next) reset();
       }}
     >
       <DialogContent className="sm:max-w-md">
         <form onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Delete “{vault.name}”?</DialogTitle>
-            <DialogDescription>
-              {count === 1 ? "Its 1 item" : `Its ${count} items`} and their history are deleted with
-              it, on every device. This can't be undone.
-            </DialogDescription>
+            <DialogDescription>{summary}</DialogDescription>
           </DialogHeader>
 
           <FieldGroup className="my-4 gap-4">
