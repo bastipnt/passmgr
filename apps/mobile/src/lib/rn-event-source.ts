@@ -1,9 +1,6 @@
 import RNEventSource, { type EventSourceEvent } from "react-native-sse";
 
-/**
- * `react-native-sse` tracks connection state on an undeclared `status` field
- * using these values (`ERROR` is its own addition, not part of the DOM spec).
- */
+// react-native-sse's undeclared `status` values; ERROR (-1) is its own, not in the DOM spec.
 const RN_ERROR = -1;
 const CONNECTING = 0;
 const OPEN = 1;
@@ -15,28 +12,7 @@ type EventSourceInit = {
 
 type ListenerLike = (event: never) => void;
 
-/**
- * `EventSource` ponyfill for React Native — RN has no `EventSource` global, so
- * tRPC's `httpSubscriptionLink` (which falls back to `globalThis.EventSource`)
- * cannot open a subscription without one.
- *
- * `react-native-sse` covers most of the contract tRPC's SSE consumer needs
- * (custom event types, `data`, `lastEventId`), but differs in three ways this
- * adapter reconciles:
- *
- * 1. It exposes `status`, not `readyState`.
- * 2. On failure it sets `status = ERROR (-1)`, which is not `CLOSED`. tRPC uses
- *    `readyState === CLOSED` to tell a fatal error from a retryable one, so the
- *    error state is mapped to `CLOSED` — otherwise tRPC would sit in "connecting"
- *    forever while nothing reconnects.
- * 3. It reconnects on its own by default. That is disabled here; `StoreProvider`
- *    owns the retry/backoff policy.
- *
- * Note that a *graceful* stream end (HTTP 2xx, request done) dispatches no event
- * at all in `react-native-sse`. Recovery from that relies on the server's SSE
- * pings plus `sse.client.reconnectAfterInactivityMs` (see `apps/server/src/trpc.ts`),
- * which makes tRPC recreate the stream after a period of silence.
- */
+/** `EventSource` for tRPC's SSE link (RN has none): "Record stream (SSE)", apps/mobile/CLAUDE.md */
 export class RNEventSourcePonyfill {
   readonly CONNECTING = CONNECTING;
   readonly OPEN = OPEN;
@@ -57,7 +33,8 @@ export class RNEventSourcePonyfill {
   }
 
   get readyState(): number {
-    // `status` is set by react-native-sse but missing from its type definitions.
+    // `status` is missing from react-native-sse's types. ERROR maps to CLOSED: tRPC reads CLOSED as
+    // fatal, anything else as "still connecting", and nothing would reconnect.
     const status = (this.es as unknown as { status: number }).status;
     return status === RN_ERROR ? CLOSED : status;
   }

@@ -33,10 +33,7 @@ const newPassword = "a brand new master password";
 
 type CapturedCall = { path: string; input: unknown };
 
-/**
- * Shim with the shape `recoverAccount` uses, forwarding to the in-process
- * server caller and recording every input that crosses the boundary.
- */
+/** `recoverAccount`'s client: forwards to the in-process caller, recording every input. */
 function recoveryClient(captured: CapturedCall[] = []): RecoveryTRPCClient {
   const caller = createCaller(buildTestContext(undefined));
   const trpc = {

@@ -2,11 +2,8 @@ import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { SqlDriver } from "../src/driver";
 
-/**
- * Stand-in for an expo-sqlite connection, backed by node:sqlite. Every call
- * yields to the event loop first, like the real bridge does, so queries from
- * concurrent callers interleave unless the driver serializes them.
- */
+// expo-sqlite on node:sqlite. Each call yields first, like the real bridge, so concurrent queries
+// interleave unless the driver serializes them.
 function fakeExpoDatabase(db: DatabaseSync) {
   const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
   const exec = async (sql: string) => {

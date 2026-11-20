@@ -333,9 +333,8 @@ export function StoreProvider({
     setPreferencesRevision((r) => r + 1);
   }
 
-  // The server no longer accepts the session. Expired: go offline instead of
-  // locking, and stop persisting the dead session. Signed out from elsewhere:
-  // lock like a sign-out (the vault stays on the device).
+  // Session refused: expired goes offline (not locked), signed out elsewhere locks like a sign-out.
+  // See Session modes in docs/architecture/auth.md.
   const detachRef = useRef(detachServer);
   detachRef.current = detachServer;
   const lockRef = useRef(lock);
@@ -369,10 +368,8 @@ export function StoreProvider({
         if (profileId) void persistSession(profileId);
       }
 
-      // Requests fail fast offline, and an expired session detaches the server.
-      // Only the session the request was signed with: a late answer to an old
-      // one (a password change revokes every session, then logs in again) must
-      // not detach its successor.
+      // Fails fast offline. Only the session it was signed with detaches: a late answer to an old
+      // one (a password change revokes all, then logs in again) must not detach its successor.
       async function request<T>(send: () => Promise<T>): Promise<T> {
         if (typeof navigator !== "undefined" && navigator.onLine === false)
           throw new Error("offline");

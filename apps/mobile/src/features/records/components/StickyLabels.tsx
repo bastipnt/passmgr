@@ -19,11 +19,7 @@ const FROST_FADE_IN = 32;
 
 const BLUR_INTENSITY = 80;
 
-/**
- * Tint washed over the blur, under the bar / behind the label. Kept light so
- * the frost stays see-through; dark mode's edge tint is darker than the field
- * it sits on, so it gets less.
- */
+// Light so the frost stays see-through; dark mode's edge tint is darker than its field, so less.
 const WASH_OPACITY = {
   light: { bar: 0.5, label: 0.4 },
   dark: { bar: 0.3, label: 0.2 },
@@ -54,15 +50,7 @@ type StickyListProps = {
   children: ReactNode;
 };
 
-/**
- * A list whose `StickyLabel`s pin under the header while their rows scroll by
- * and get pushed out by the next label — web's `sticky-label`.
- *
- * Labels and rows must be direct (flat) children: the one shared frost sits
- * between them in z-order (rows < frost < labels), which RN can only do for
- * siblings. A single frost also means no hand-over between labels, so it never
- * blinks while a label is pushed out.
- */
+/** Web's `sticky-label`. Labels and rows: flat children ("Sticky labels", apps/mobile/CLAUDE.md) */
 export function StickyList({ scrollY, count, children }: StickyListProps) {
   const listY = useSharedValue(0);
   const listHeight = useSharedValue(0);
@@ -138,14 +126,8 @@ export function StickyLabel({ index, children }: StickyLabelProps) {
   );
 }
 
-/**
- * The pinned labels' ground — web's masked sticky-bar frost: a native blur
- * from under the bar down through the label, washed with the page's edge
- * tint, and a tint fade below it so rows ease into the frost rather than
- * meeting a bare edge. It follows the bar and fades in (blur intensity + wash
- * opacity, never the blur view's own opacity, which UIKit renders wrong) once
- * the first label pins.
- */
+// Fades in by blur intensity + wash opacity, never the blur view's own opacity (UIKit renders it
+// wrong). Layers: "Sticky labels" in apps/mobile/CLAUDE.md.
 function ListFrost() {
   const { scrollY, listY, labelYs, labelHeight, labelHeightJs } = useContext(StickyContext)!;
   const headerHeight = useHeaderHeight();

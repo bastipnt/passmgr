@@ -8,32 +8,14 @@ import { scheduleOnRN } from "react-native-worklets";
 
 const IOS = Platform.OS === "ios";
 
-/**
- * Drives web's collapsing page title under a transparent native header: the
- * screen renders its big title in the content, and once that has scrolled
- * `threshold` px under the bar, `titleInBar` flips so the header can show it.
- *
- * `scrollY` is the content offset measured from the bar's bottom edge — 0 at
- * rest on both platforms. iOS insets the scroll view by the transparent
- * header itself (`contentInsetAdjustmentBehavior`), so it rests at
- * -headerHeight; Android has no such inset, so the content pads itself with
- * `contentTopPadding` and rests at 0.
- *
- * Spread `scrollProps` onto a reanimated `Animated.ScrollView`. Tapping the
- * active tab scrolls back to the real top (RN's own scroll-to-top targets
- * offset 0, which on iOS leaves the title under the bar).
- */
+/** Web's collapsing page title under a transparent bar: "Scroll title", apps/mobile/CLAUDE.md. */
 export function useScrollTitle(threshold: number) {
   const headerHeight = useHeaderHeight();
   const scrollRef = useAnimatedRef<Animated.ScrollView>();
   const anchorRef = useRef<View>(null);
   const measured = useRef(false);
-  /*
-   * Offset the scroll view rests at. On iOS that is minus the inset UIKit adds
-   * for the transparent bar, which `useHeaderHeight` only estimates (it runs
-   * ~12pt short of the iOS 26 bar), so it is measured once at mount from where
-   * the first piece of content lands on screen.
-   */
+  // iOS rests at minus UIKit's bar inset, which `useHeaderHeight` underestimates (~12pt on iOS 26):
+  // measured once at mount from where the first content lands.
   const restOffset = useSharedValue(IOS ? -headerHeight : 0);
 
   const measureRest = useCallback(() => {
@@ -82,10 +64,7 @@ export function useScrollTitle(threshold: number) {
     scrollToTop,
     /** Android only: room for the transparent header iOS insets for us. */
     contentTopPadding: IOS ? 0 : headerHeight,
-    /**
-     * Render as the scroll content's first child (zero-size): measures where
-     * the content rests under the bar.
-     */
+    /** Render as the scroll content's first child (zero-size): measures where the content rests. */
     restAnchor: <View ref={anchorRef} onLayout={measureRest} pointerEvents="none" />,
     scrollProps: {
       ref: scrollRef,

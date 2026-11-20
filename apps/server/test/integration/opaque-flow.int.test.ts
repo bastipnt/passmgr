@@ -28,11 +28,8 @@ const vaultKeyAad = (vaultId: string, keyVersion: number) =>
 const privateKeyAad = (keyVersion: number) =>
   fromString(`passmgr/user-private-key/v1/${keyVersion}`);
 
-/**
- * Register a user the same way the client does, but keep the account key, the
- * personal vault key and the recovery key in scope, so the test can re-derive
- * every KEK and verify each unwrap path independently.
- */
+// Registers like the client but keeps the account, personal vault and recovery keys, so each
+// unwrap path can be checked on its own.
 async function registerCapturingKeys(email: string, password: string) {
   const caller = createCaller(buildTestContext(undefined));
 

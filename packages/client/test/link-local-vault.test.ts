@@ -37,10 +37,8 @@ type FinishInput = Parameters<LinkTRPCClient["register"]["finishRegistration"]["
 const PASSWORD = "correct horse battery staple";
 const EMAIL = "alice@example.com";
 
-/**
- * A fake `register` + `login` router backed by a real in-process OPAQUE
- * server. Like the real one, a second registration of an email changes nothing.
- */
+// `register` + `login` on a real in-process OPAQUE server; like the real one, a second
+// registration of an email changes nothing.
 async function fakeServer() {
   const cfg = getOpaqueConfig(OpaqueID.OPAQUE_P256);
   const ake = await cfg.ake.generateAuthKeyPair();

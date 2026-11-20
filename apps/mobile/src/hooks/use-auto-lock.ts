@@ -2,18 +2,7 @@ import { AUTO_LOCK_PREFERENCE, useChoicePreference, useLock } from "@repo/client
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 
-/**
- * Locks the vault when the app comes back after `minutes` in the background.
- * `0` disables it.
- *
- * The web counterpart (`apps/web/src/hooks/use-idle-lock.ts`) watches input
- * events, because a browser tab stays interactive while it sits untouched. A
- * phone does not: the OS suspends timers the moment the app leaves the
- * foreground, so how long it was away is both the measurable signal and the one
- * that matters.
- *
- * This is a lock, not a sign-out — the vault and the persisted login stay on the device.
- */
+/** Locks (never signs out) after `minutes` away, `0` = off: "Auto-lock", apps/mobile/CLAUDE.md. */
 export function useAutoLock() {
   const [minutes] = useChoicePreference(AUTO_LOCK_PREFERENCE);
   const lock = useLock();
@@ -29,9 +18,8 @@ export function useAutoLock() {
 
     const subscription = AppState.addEventListener("change", (state) => {
       if (state !== "active") {
-        // "inactive" (the iOS app switcher, an incoming call) precedes
-        // "background" — keep the first timestamp so a quick peek at the
-        // switcher does not reset the clock.
+        // "inactive" (iOS app switcher, a call) precedes "background": keep the first timestamp,
+        // so a peek at the switcher does not reset the clock.
         leftAt ??= Date.now();
         return;
       }

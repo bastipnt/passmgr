@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 
-/**
- * Stand-in for SQLocal's Drizzle client: like the real one, `driver` answers a
- * `get` that matched nothing with an empty array, not `undefined`.
- */
+// SQLocal's Drizzle client: like the real one, `driver` answers a `get` that matched nothing
+// with an empty array, not `undefined`.
 vi.mock("sqlocal/drizzle", () => ({
   SQLocalDrizzle: class {
     driver = async (sql: string, _params: unknown[], method: string) => ({

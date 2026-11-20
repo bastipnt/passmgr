@@ -15,10 +15,7 @@ type PageTransitionsModule = typeof import("./page-transitions");
 let pt: PageTransitionsModule;
 let scrollY = 0;
 
-/**
- * The module keeps its stack and scroll memory at module level, so each test
- * gets a fresh copy, starting at `path`.
- */
+/** A fresh module per test (stack and scroll memory are module-level), starting at `path`. */
 async function setup(path: string = recordPaths.index) {
   history.replaceState(null, "", path);
   vi.resetModules();

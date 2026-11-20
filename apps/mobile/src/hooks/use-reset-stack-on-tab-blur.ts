@@ -1,17 +1,7 @@
 import { useNavigation } from "expo-router";
 import { useEffect, useRef } from "react";
 
-/**
- * Pops this screen's stack back to its root whenever the tab hosting it loses
- * focus, so re-entering the tab always starts at the root screen instead of a
- * previously opened record.
- *
- * Listens on the parent (the tab this stack belongs to) rather than on the
- * screen itself: pushing a record blurs the screen too, and resetting there
- * would immediately undo the push.
- *
- * @param onBlur Extra cleanup to run alongside the reset.
- */
+/** Pops the stack to its root when its tab loses focus; `onBlur` runs alongside the reset. */
 export function useResetStackOnTabBlur(onBlur?: () => void) {
   const navigation = useNavigation();
 
@@ -20,6 +10,7 @@ export function useResetStackOnTabBlur(onBlur?: () => void) {
   onBlurRef.current = onBlur;
 
   useEffect(() => {
+    // The parent tab, not the screen: pushing a record blurs the screen too, undoing the push.
     const tab = navigation.getParent();
     if (!tab) return;
 

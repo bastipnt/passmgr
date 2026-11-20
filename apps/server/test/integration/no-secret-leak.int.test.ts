@@ -25,13 +25,7 @@ const createCaller = createCallerFactory(appRouter);
 
 type CapturedCall = { path: string; input: unknown };
 
-/**
- * Build a minimal TRPCClient-shaped shim that records every (path, input) the
- * client passes across the boundary, then forwards to the in-process server
- * caller. The integration test runs the REAL client code (`registerNewUser`,
- * `loginUser`) against this shim, so anything the client packages into a
- * request body gets recorded and can be grepped for known secrets.
- */
+/** TRPCClient-shaped shim: records every (path, input) the real client sends, then forwards. */
 function captureClient(): {
   trpc: {
     register: {
@@ -95,8 +89,6 @@ describe("no-secret-leak — real client code, real server (in-process)", () => 
 
     const { trpc, captured } = captureClient();
 
-    // Drive the REAL client code so anything it bundles into a request body
-    // is what gets captured.
     // @ts-expect-error — our shim matches the structural subset registerNewUser uses.
     const recoveryKey = await registerNewUser(trpc, email, password);
 

@@ -43,6 +43,42 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   `className` prop augmentations come from `uniwind/types` (referenced in the
   `*-env.d.ts` files).
 
+## Scroll title and sticky labels
+
+Scroll title (`hooks/use-scroll-title.tsx`): the screen renders its big title in the content; once that has scrolled
+`threshold` px under the transparent bar, `titleInBar` flips so the header shows it. `scrollY` is the offset from the
+bar's bottom edge, 0 at rest on both platforms: iOS insets the scroll view by the header
+(`contentInsetAdjustmentBehavior`) and rests at minus that inset (measured at mount by `restAnchor`, the scroll
+content's first child); Android has no inset, pads with `contentTopPadding` and rests at 0. Spread `scrollProps` onto a
+reanimated `Animated.ScrollView`. Tapping the active tab scrolls to the rest offset: RN's own scroll-to-top targets
+offset 0, which on iOS leaves the title under the bar.
+
+Sticky labels (`features/records/components/StickyLabels.tsx`): in a `StickyList`, each `StickyLabel` pins under the
+header while its rows scroll by and is pushed out by the next one. Labels and rows are direct (flat) children: one
+shared frost sits between them in z-order (rows < frost < labels), which RN can only do for siblings, and with one
+frost there is no hand-over between labels, so it never blinks. The frost is web's masked sticky-bar frost: a native
+blur from under the bar down through the label, washed with the page's edge tint, then a tint fade below so rows ease
+into it; it follows the bar and fades in once the first label pins.
+
+Tab stacks: `useResetStackOnTabBlur` pops a stack to its root when its tab loses focus, so re-entering the tab starts
+at the root, not a record opened before.
+
+## Auto-lock
+
+`useAutoLock` locks the vault when the app comes back after the `AUTO_LOCK_PREFERENCE` minutes in the background; a
+lock, not a sign-out (vault and persisted login stay). Web's `use-idle-lock.ts` watches input instead, since a tab
+stays interactive while untouched; a phone suspends timers once the app leaves the foreground, so time away is both
+what can be measured and what matters.
+
+## Record stream (SSE)
+
+RN has no `EventSource`, so tRPC's `httpSubscriptionLink` gets `RNEventSourcePonyfill` (`src/lib/rn-event-source.ts`)
+over `react-native-sse`. That library exposes `status`, not `readyState`; on failure it sets `ERROR` (-1), which the
+adapter maps to `CLOSED` (tRPC tells fatal from retryable by `CLOSED`, and would otherwise sit in "connecting" with
+nothing reconnecting); and its own reconnect is off, `StoreProvider` owns retry and backoff. A graceful stream end
+(HTTP 2xx, request done) dispatches no event at all: the server's SSE pings plus
+`sse.client.reconnectAfterInactivityMs` (`apps/server/src/trpc.ts`) make tRPC recreate the stream after silence.
+
 ## Autofill
 
 Mobile autofill (iOS credential provider extension + Android `AutofillService`): `useAutofillSync` (mounted in the unlocked

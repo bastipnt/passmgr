@@ -33,10 +33,7 @@ const newPassword = "a brand new master password";
 
 type CapturedCall = { path: string; input: unknown };
 
-/**
- * Shim with the shape `changeAccountPassword` uses: the login goes to the
- * public procedures, `user.*` is signed with the session `attach` received.
- */
+/** `changeAccountPassword`'s client: public login, `user.*` signed with `attach`'s session. */
 function passwordChangeClient(captured: CapturedCall[] = []) {
   const caller = createCaller(buildTestContext(undefined));
   let session: { sessionId: string; authKey: Uint8Array } | undefined;

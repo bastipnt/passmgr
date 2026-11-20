@@ -9,9 +9,8 @@ import {
   isPrfSupported,
 } from "../src/biometric";
 
-// Minimal WebAuthn mock: a fake authenticator that returns a deterministic
-// PRF output for a given (credentialId, prfSalt) pair so enroll + authenticate
-// can round-trip without touching real platform APIs.
+// Fake authenticator: a deterministic PRF output per (credentialId, prfSalt), so enroll and
+// authenticate round-trip without platform APIs.
 
 type CredentialRecord = {
   rawId: Uint8Array;
@@ -20,11 +19,8 @@ type CredentialRecord = {
 const fakeAuthenticatorState = {
   credentials: new Map<string, CredentialRecord>(),
   prfSupported: true,
-  /**
-   * If true, navigator.credentials.create returns `{enabled: true}` without
-   * `results.first`, forcing enrollBiometric to make a separate get() call to
-   * obtain the PRF output (covers the fallback branch in biometric.ts).
-   */
+  // `create` answers `{ enabled: true }` without `results.first`: enrollBiometric's fallback
+  // get() for the PRF output.
   deferPrfToGet: false,
   shouldCancelCreate: false,
   shouldCancelGet: false,
