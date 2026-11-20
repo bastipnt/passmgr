@@ -42,7 +42,13 @@ Rules:
 - Web `features/records/` matches mobile's `features/records/` naming.
 - **Phone pages are real routes that scroll the document**, never drawers. The push/pop slide is
   `app/page-transitions.ts` (View Transitions, driven by the router's location hook; a slide that doesn't play, skipped
-  by the next navigation, rejects only `ready`, which is ignored; a failing update is reported once, by `finished`). A new page
+  by the next navigation, rejects only `ready`, which is ignored; a failing update is reported once, by `finished`). The
+  module is the router's location source (`usePageLocation` / `usePageSearch`) and publishes a route change only inside
+  the transition's update callback, so the browser can snapshot the old page first (CSS in `@repo/ui/styles/globals.css`,
+  keyed off `html[data-nav]`). The direction comes from the depth
+  table, never from how the navigation happened (links, redirects, Back and the browser's back slide alike).
+  `usePageBack` steps back through history to the nearest shallower page, skipping same-depth entries (a closed sheet:
+  `/record/a/edit` → `/record/a` leaves `/record/a` twice), so Back and the browser's back agree. A new page
   gets an entry in `pageDepths` (`app/route-paths.ts`) and its back button uses
   `usePageBack(fallback)`. Import phone pages eagerly — a page that suspends mid-transition slides in blank.
 - **Record list layout** (`features/records/RecordLayout.tsx`). Desktop: no header bar, three columns. The sidebar

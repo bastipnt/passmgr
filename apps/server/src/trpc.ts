@@ -6,10 +6,8 @@ export const INTERNAL_ERROR_MESSAGE = "Internal server error";
 
 const t = initTRPC.context<Context>().create({
   sse: {
-    // `record.onRecordChange` is silent between record changes. Without pings a
-    // mobile carrier/NAT drops the connection with no FIN and neither side
-    // notices; `reconnectAfterInactivityMs` makes the client recreate the stream
-    // once the pings stop arriving.
+    // Mobile NATs drop a silent stream without a FIN: pings keep it alive, the client recreates it
+    // once they stop (docs/architecture/vaults-and-sync.md, Live updates).
     ping: { enabled: true, intervalMs: 15_000 },
     client: { reconnectAfterInactivityMs: 45_000 },
   },

@@ -53,11 +53,8 @@ import { runSharingTasks } from "../vaults/sharing";
 import { usePreferences } from "./PreferencesProvider";
 import { SessionContext } from "./SessionProvider";
 
-/**
- * The profile this app works on (ADR 0001 D2, amended 2026-10-07): its open
- * database, the sync and record access bound to it, and what it holds for an
- * unlock. One at a time; switching closes the previous one.
- */
+/** The open profile (ADR 0001 D2, amended 2026-10-07): its database, sync and record access and
+ * what it holds for an unlock. One at a time; switching closes the previous one. */
 export type ActiveProfile = {
   entry: ProfileEntry;
   vault: Vault;
@@ -80,10 +77,8 @@ type StoreContextValue = {
   loaded: boolean;
   /** The selected profile; null while the device holds none (or none is picked yet). */
   active: ActiveProfile | null;
-  /**
-   * The active profile as of now, not as of the caller's render: async flows
-   * that switch profiles (sign in, create a vault) read it after the switch.
-   */
+  /** The active profile as of now, not of the caller's render: async flows that switch profiles
+   * (sign in, create a vault) read it after the switch. */
   current: () => ActiveProfile | null;
 
   // The active profile's, for convenience. Null without one.
@@ -99,20 +94,11 @@ type StoreContextValue = {
   needsBiometricEnrollFor: (profile: ActiveProfile) => boolean;
   setBiometricDismissed: (dismissed: boolean) => void;
 
-  /**
-   * Make another profile the active one. Only while locked: the keys in memory
-   * belong to the active profile (lock first, `useLock`). Resolves the newly
-   * active profile.
-   */
+  /** Only while locked: the keys in memory belong to the active profile (lock first, `useLock`).
+   * Resolves the newly active profile. */
   selectProfile: (profileId: string) => Promise<ActiveProfile>;
-  /**
-   * After an online login: open the account's profile (same `userId`), or add
-   * one for an account this device hasn't seen, and store the account key wrap
-   * and the vaults in it. Never touches another profile. Locked only.
-   * Throws, storing nothing, unless the keys belong to `accountKey` (the one
-   * `material` opened to) and, for a known profile, to its stored vaults
-   * (`verifyServerKeyring`).
-   */
+  /** After an online login: the account's profile (same `userId`) or a new one, never another.
+   * Locked only; stores nothing unless `verifyServerKeyring` passes (docs/architecture/auth.md). */
   openAccountProfile: (
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
@@ -120,32 +106,22 @@ type StoreContextValue = {
     recoveryWrap: RecoveryWrapSchema | null,
     accountKey: Uint8Array,
   ) => Promise<ActiveProfile>;
-  /**
-   * Store the account key wrap and the vaults (and, when given, a changed
-   * profile row, or a login's recovery wrap, which ends a pending recovery) in
-   * a profile, atomically, and update the state to match. The profile is
-   * named: a background write (a rekey) lands in the profile it was made for,
-   * even when another one was opened meanwhile. `vaults` null keeps the stored list.
-   */
+  /** Named, so a background write (a rekey) lands where it was made for even after a switch.
+   * Atomic; `vaults` null keeps the stored list, a login's `recoveryWrap` ends a pending recovery. */
   saveAccount: (
     profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[] | null,
     options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
   ) => Promise<void>;
-  /**
-   * Replace both account key wraps of a `local` profile (local recovery, ADR
-   * 0001 D10), atomically, and update the state to match.
-   */
+  /** Both account key wraps of a `local` profile, atomically (local recovery, ADR 0001 D10). */
   saveLocalKeyMaterial: (
     profileId: string,
     material: AccountKeyMaterial,
     recovery: RecoveryKeySchema,
   ) => Promise<void>;
-  /**
-   * A `linked` profile's password reset while offline (ADR 0001 D10 amended):
-   * the new wraps and the pending server recovery, atomically.
-   */
+  /** A `linked` profile's password reset while offline (ADR 0001 D10 amended): the new wraps and
+   * the pending server recovery, atomically. */
   saveLinkedRecovery: (
     profileId: string,
     material: AccountKeyMaterial,
@@ -154,11 +130,8 @@ type StoreContextValue = {
   ) => Promise<void>;
   /** The server took a profile's pending recovery (or refused it for good). */
   clearPendingRecovery: (profileId: string) => Promise<void>;
-  /**
-   * Add a profile with a vault on this device only (`local`, ADR 0001 D2) next
-   * to the others and make it the active one. Locked only. `demo` marks a demo
-   * vault (never linked).
-   */
+  /** A `local` profile (ADR 0001 D2) next to the others, made active; locked only. `demo` marks a
+   * demo vault (never linked). */
   createLocalVault: (
     material: AccountKeyMaterial,
     recovery: RecoveryKeySchema,
@@ -167,17 +140,11 @@ type StoreContextValue = {
     name?: string,
     demo?: boolean,
   ) => Promise<void>;
-  /**
-   * How many changes of a profile haven't reached the server (what removing it
-   * would lose). Opens it briefly when it isn't the active one.
-   */
+  /** Changes of a profile not yet on the server (what removing it would lose); opens it briefly
+   * when it isn't the active one. */
   countPendingChanges: (profileId: string) => Promise<number>;
-  /**
-   * Remove a profile from this device: its database, persisted login and
-   * biometric enrollment. Doesn't lock: an unlocked caller locks first
-   * (`useRemoveFromDevice`). Removing the active profile activates the next
-   * most recently used one, if any.
-   */
+  /** Its database, persisted login and biometric enrollment. Doesn't lock (`useRemoveFromDevice`
+   * does); removing the active profile activates the next most recently used one. */
   removeProfile: (profileId: string) => Promise<void>;
   /** Remove every profile (see `removeProfile`). Locked only. */
   removeAllProfiles: () => Promise<void>;
@@ -185,27 +152,18 @@ type StoreContextValue = {
   markExported: (profileId: string) => Promise<void>;
   /** Store the active profile's biometric enrollment (web, WebAuthn PRF). */
   saveBiometricKeyMaterial: (material: BiometricKeyMaterial) => Promise<void>;
-  /**
-   * Forget what unlocks a profile (default: the active one) without the
-   * password: its biometric enrollment, persisted login and autofill entries.
-   * Keeps its data.
-   */
+  /** What unlocks a profile (default: the active one) without the password: biometric enrollment,
+   * persisted login, autofill entries. Keeps its data. */
   forgetQuickUnlock: (profileId?: string) => Promise<void>;
-  /**
-   * The server says this device was signed out from elsewhere: lock, drop the
-   * persisted mobile login and autofill entries and call `onSignedOut`. Sync handles it itself.
-   */
+  /** Signed out from elsewhere: lock, drop the persisted mobile login and autofill entries, then
+   * `onSignedOut`. Sync handles it itself (docs/architecture/auth.md, Session modes). */
   signedOut: () => Promise<void>;
 };
 
 const StoreContext = createContext<StoreContextValue | null>(null);
 
-/**
- * The vault list changed (a vault added, removed, renamed, rekeyed): load its
- * keys into memory and the decrypt worker. A vault whose wrap doesn't open is
- * skipped (its records stay hidden); a broken personal vault throws and keeps
- * the keys loaded before.
- */
+/** A vault whose wrap doesn't open is skipped (its records stay hidden); a broken personal vault
+ * throws and keeps the keys loaded before (see docs/architecture/auth.md). */
 function loadChangedVaultKeys(vaults: readonly MemberVault[]) {
   if (!secretsStore.isVaultUnlocked) return;
   const skipped = secretsStore.loadVaultKeys(vaults);
@@ -237,19 +195,15 @@ export function requireActive(store: Pick<StoreContextValue, "current">): Active
   return active;
 }
 
-/**
- * A linked profile's enrollment whose credential the server doesn't hold (made
- * while it was local) can't log in after a biometric unlock: offered again.
- */
+/** A linked profile's enrollment whose credential the server doesn't hold (made while local) can't
+ * log in after a biometric unlock: offered again. */
 function biometricComplete({ profile, biometricKeyMaterial }: ActiveProfile) {
   if (!biometricKeyMaterial) return false;
   return profile?.mode !== "linked" || biometricKeyMaterial.biometricDeviceLogin !== undefined;
 }
 
-/**
- * A linked profile's enrollment registers its credential with the server: it
- * needs server auth, attached or reachable with the OPAQUE password in memory.
- */
+/** A linked profile's enrollment registers its credential with the server: it needs server auth,
+ * attached or reachable with the OPAQUE password in memory. */
 export function canEnrollBiometric(profile: LocalProfile | null): boolean {
   return (
     profile?.mode === "local" || secretsStore.hasServerSession || secretsStore.hasOpaquePassword
@@ -262,21 +216,14 @@ function assertLocked() {
 
 type StoreProviderProps = {
   profiles: ProfileStore;
-  /**
-   * Gates the SSE subscription and periodic sync. Mobile passes the app's
-   * foreground state — the OS suspends sockets and timers in the background, so
-   * the stream has to be torn down and re-established rather than left to rot.
-   */
+  /** Mobile passes its foreground state: the OS suspends sockets and timers in the background, so
+   * the stream is rebuilt, not left to rot (docs/architecture/vaults-and-sync.md, Live updates). */
   syncEnabled?: boolean;
-  /**
-   * Called after the vault locked because another device signed this one out
-   * (or the password changed elsewhere): tell the user, reload on web.
-   */
+  /** After the vault locked because another device signed this one out (or the password changed
+   * elsewhere): tell the user, reload on web. */
   onSignedOut?: () => void;
-  /**
-   * Whether this device can enroll a biometric unlock (web: WebAuthn PRF). Until
-   * it resolves `true`, no enrollment is offered and no OPAQUE password is kept for one.
-   */
+  /** Web: WebAuthn PRF. Until it resolves `true`, no enrollment is offered and no OPAQUE password
+   * is kept for one. */
   biometricSupport?: () => Promise<boolean>;
   children: ReactNode;
 };
@@ -500,11 +447,8 @@ export function StoreProvider({
     };
   }, [refreshEntries, activate, switchLock]);
 
-  // Sync once the vault is unlocked with a server session (`online`) + start
-  // periodic sync + SSE subscription + resync when back online. Not right after
-  // the OPAQUE login: the unlock still has to open the account's profile, and
-  // a sync that lands before that would write into another profile. `local`
-  // and `offline` never reach the server.
+  // Only `online`, never right after the OPAQUE login: a sync before the unlock opened the account's
+  // profile would write into another (docs/architecture/vaults-and-sync.md, Live updates).
   const online = mode === "online";
   const syncManager = active?.syncManager ?? null;
   useEffect(() => {

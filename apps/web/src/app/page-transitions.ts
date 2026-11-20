@@ -5,23 +5,8 @@ import { flushSync } from "react-dom";
 import { matchRoute, useRouter } from "wouter";
 import { navigate } from "wouter/use-browser-location";
 
-/**
- * Phone page stack: routes are real pages that scroll the document, and moving
- * between stack depths slides like a native push/pop — the outgoing page slides
- * left while the new one comes in from the right, reversed on the way back.
- *
- * Only one page is mounted at a time. The slide is a View Transition: the
- * browser snapshots the page before and after the route change and animates
- * the two pictures (CSS in `@repo/ui/styles/globals.css`, keyed off
- * `html[data-nav]`). To get a "before" picture at all, the route change has to
- * be held back until the transition asks for it — so this module is the
- * router's location source (`usePageLocation`/`usePageSearch`), and publishes a
- * new location to React only inside the transition's update callback.
- *
- * Direction comes from the depth table (`pageDepths` in `route-paths.ts`), not
- * from how the navigation happened: Links, redirects, back buttons and the
- * browser's own back all animate the same way.
- */
+// Phone push/pop slide as a View Transition (apps/web/CLAUDE.md, phone pages): the router reads its
+// location here, so a route change is held back until the transition has its "before" picture.
 
 type Direction = "push" | "pop";
 export type PageDepths = readonly (readonly [pattern: string, depth: number])[];
@@ -141,11 +126,6 @@ if (typeof window !== "undefined") {
   }
 }
 
-/**
- * Scrolls to `top`. A page still loading in (a lazy chunk, a Suspense
- * fallback) may be too short to get there yet: keep retrying as it grows,
- * until it fits, the user takes over, or it times out.
- */
 function subscribe(listener: () => void) {
   listeners.add(listener);
   return () => {
@@ -166,13 +146,8 @@ export function usePageSearch(): string {
   return useSyncExternalStore(subscribe, getSearch);
 }
 
-/**
- * Registers the depth table and applies scroll restoration. Render once,
- * before the routes, inside a
- * `<Router hook={usePageLocation} searchHook={usePageSearch}>`. Its layout
- * effects run before the routes' own, so a redirect on first render already
- * sees the table.
- */
+/** Render once, before the routes, in `<Router hook={usePageLocation} searchHook={usePageSearch}>`:
+ * its layout effects run first, so a first-render redirect already sees the depth table. */
 export function PageTransitions({ pageDepths }: { pageDepths: PageDepths }) {
   const router = useRouter();
   const [path] = usePageLocation();
@@ -191,13 +166,8 @@ export function PageTransitions({ pageDepths }: { pageDepths: PageDepths }) {
   return null;
 }
 
-/**
- * Back button for a pushed page: steps back through history to the nearest
- * shallower page, so Back and the browser's back agree and history doesn't
- * grow — skipping entries at the same depth, like a closed sheet
- * (`/record/a/edit` → `/record/a` leaves `/record/a` twice). With none in
- * reach (deep link, reload) it replaces the page with `fallback`.
- */
+/** Steps back to the nearest shallower entry, so history doesn't grow (apps/web/CLAUDE.md, phone
+ * pages); with none in reach (deep link, reload) it replaces the page with `fallback`. */
 export function usePageBack(fallback: string) {
   return () => {
     const depth = depthOf(stack[stack.length - 1]);

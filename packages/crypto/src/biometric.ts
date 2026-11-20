@@ -12,10 +12,8 @@ export const BIOMETRIC_REQUIRED_KEY = [
 
 export const BIOMETRIC_KEY = [...BIOMETRIC_REQUIRED_KEY, "biometricDeviceLogin"] as const;
 
-/**
- * `biometricDeviceLogin` is set once the server holds the credential's public
- * key (linked profiles): the same prompt then also logs in to the server.
- */
+/** `biometricDeviceLogin`: set once the server holds the credential's public key (linked profiles),
+ * so the same prompt also logs in to the server. */
 export type BiometricKeyMaterial = Record<(typeof BIOMETRIC_REQUIRED_KEY)[number], string> & {
   biometricDeviceLogin?: string;
 };
@@ -49,12 +47,8 @@ type CredentialWithCapabilities = typeof PublicKeyCredential & {
   getClientCapabilities?: () => Promise<ClientCapabilities>;
 };
 
-/**
- * Whether this browser can enroll a biometric unlock: a user-verifying platform
- * authenticator and, where the browser reports it, the PRF extension. Browsers
- * without `getClientCapabilities` can't tell PRF support upfront; enrolling
- * still fails cleanly there.
- */
+/** A user-verifying platform authenticator and, where reported, PRF. Without
+ * `getClientCapabilities` PRF support can't be told upfront; enrolling then fails cleanly. */
 export async function isPrfSupported(): Promise<boolean> {
   if (typeof window === "undefined" || !window.PublicKeyCredential) return false;
   const credential = window.PublicKeyCredential as CredentialWithCapabilities;
@@ -80,11 +74,8 @@ export type BiometricEnrollOptions = {
   userName: string;
 };
 
-/**
- * Only the account key is stored, wrapped with the PRF output. Logging in to
- * the server again goes through the credential itself (`devicePublicKey`,
- * registered with the server), never a stored password or password equivalent.
- */
+/** Stores only the account key, wrapped with the PRF output; server login goes through the
+ * credential (`devicePublicKey`), never a stored password equivalent (docs/architecture/auth.md). */
 export async function enrollBiometric(
   accountKey: Uint8Array,
   { rpName, userName }: BiometricEnrollOptions,
@@ -170,10 +161,8 @@ export async function enrollBiometric(
   return { material, devicePublicKey: credentialPublicKey(credential) };
 }
 
-/**
- * The biometric KEK from a PRF output, which is wiped: it opens the account
- * key as much as the KEK does. Zeroes the buffer the browser handed over, not a copy.
- */
+/** Wipes the PRF output, which opens the account key as much as the KEK does: the browser's buffer,
+ * not a copy (packages/crypto/CLAUDE.md, Key buffers). */
 export async function biometricKekFrom(prfOutput: BufferSource): Promise<Uint8Array> {
   const bytes = ArrayBuffer.isView(prfOutput)
     ? new Uint8Array(prfOutput.buffer, prfOutput.byteOffset, prfOutput.byteLength)
@@ -195,11 +184,8 @@ function credentialPublicKey(
   return { publicKey: toBase64(new Uint8Array(publicKey)), algorithm };
 }
 
-/**
- * One prompt: the PRF output opens the account key, and with a `challenge`
- * (a device login's, `deviceLoginChallenge`) the signed assertion comes back
- * for the server.
- */
+/** One prompt opens the account key and, given a device login's `challenge` (`deviceLoginChallenge`),
+ * returns the signed assertion for the server (docs/architecture/auth.md). */
 export async function authenticateBiometric(
   material: BiometricKeyMaterial,
   challenge?: Uint8Array,

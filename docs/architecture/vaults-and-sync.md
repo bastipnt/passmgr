@@ -101,6 +101,18 @@ it deleted, so edits made before the delete still merge; the result is deleted o
    open it) keeps the plain move.
 3. The pulled rows are written, then `dropPurgedHistory` drops what is left below a purged tombstone.
 
+## Live updates
+
+`StoreProvider` syncs only while the mode is `online` (not `networkOffline`, see Session modes in `auth.md`): a first
+round, polling every 5 minutes, a round on the `online` event and the `record.onRecordChange` SSE stream (a `changed`
+event syncs). It starts once the unlock has opened the account's profile, never right after the OPAQUE login: a sync
+that lands before would write into another profile. Mobile passes its foreground state as `syncEnabled`: the OS
+suspends sockets and timers in the background, so the stream is torn down and rebuilt rather than left to rot. The
+server pings the stream every 15 s and the client recreates it after 45 s without one (`apps/server/src/trpc.ts`): a
+mobile carrier / NAT drops a silent connection without a FIN and neither side notices. A dropped stream resubscribes
+with backoff (5 s doubling to 60 s, reset only by a `changed` event, so a server that accepts then drops never pins a
+5 s loop) and syncs on its next `connected`.
+
 ## Trash
 
 Trash (`useTrash`, ADR 0001 D5 amended; web Settings → Trash `TrashPage`: Restore per row, delete for good beside it (phone: the row's ⋯ sheet), Empty trash; mobile `settings/trash`): a
