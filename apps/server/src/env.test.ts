@@ -5,7 +5,7 @@ import { parseServerEnv } from "./env";
 const valid = {
   OPAQUE_OPRF_SEED: randomBytes(32).toString("base64"),
   OPAQUE_AKE_PRIVATE_KEY: randomBytes(32).toString("base64"),
-  OPAQUE_SERVER_SETUP: randomBytes(32).toString("base64"),
+  SERVER_DATA_KEY: randomBytes(32).toString("base64"),
 };
 
 describe("parseServerEnv", () => {
@@ -20,15 +20,20 @@ describe("parseServerEnv", () => {
     ["empty", ""],
     ["shorter than 32 bytes", randomBytes(16).toString("base64")],
     ["blank", " ".repeat(40)],
-  ])("refuses an OPAQUE_SERVER_SETUP that is %s", (_, value) => {
-    expect(() => parseServerEnv({ ...valid, OPAQUE_SERVER_SETUP: value })).toThrow(
-      /OPAQUE_SERVER_SETUP/,
-    );
+  ])("refuses an SERVER_DATA_KEY that is %s", (_, value) => {
+    expect(() => parseServerEnv({ ...valid, SERVER_DATA_KEY: value })).toThrow(/SERVER_DATA_KEY/);
   });
 
-  it("uses OPAQUE_SERVER_SETUP as given, whatever its encoding", () => {
+  it("uses SERVER_DATA_KEY as given, whatever its encoding", () => {
     const hex = `${randomBytes(32).toString("hex")}\n`;
-    expect(parseServerEnv({ ...valid, OPAQUE_SERVER_SETUP: hex }).OPAQUE_SERVER_SETUP).toBe(hex);
+    expect(parseServerEnv({ ...valid, SERVER_DATA_KEY: hex }).SERVER_DATA_KEY).toBe(hex);
+  });
+
+  it("reads the old OPAQUE_SERVER_SETUP name when SERVER_DATA_KEY is unset", () => {
+    const { SERVER_DATA_KEY: key, ...rest } = valid;
+    expect(parseServerEnv({ ...rest, OPAQUE_SERVER_SETUP: key }).SERVER_DATA_KEY).toBe(key);
+    const other = randomBytes(32).toString("base64");
+    expect(parseServerEnv({ ...valid, OPAQUE_SERVER_SETUP: other }).SERVER_DATA_KEY).toBe(key);
   });
 
   it.each([

@@ -90,7 +90,7 @@ export default function WelcomePage() {
   useDemoEscapeHatch();
 
   if (!loaded) return null;
-  if (profiles.length > 0 && !demo.preparing) return <Redirect to={authPaths.login} replace />;
+  if (profiles.length > 0 && !demo.preparing) return <Redirect to={authPaths.unlock} replace />;
 
   const createHref =
     invite === null ? authPaths.create : `${authPaths.create}?${new URLSearchParams({ invite })}`;

@@ -32,10 +32,8 @@ export const opaqueServer = new OpaqueServer(
   OPAQUE_SERVER_IDENTITY,
 );
 
-// The key for email hashing and encryption (hashEmail / encryptEmail): not part of
-// OPAQUE despite the env var's name, and changing it breaks every email lookup.
-export const serverSetup = serverEnv.OPAQUE_SERVER_SETUP;
-export const serverKey = fromString(serverSetup);
+// Key for email hashing and encryption (hashEmail / encryptEmail); changing it breaks every email lookup.
+export const serverKey = fromString(serverEnv.SERVER_DATA_KEY);
 
 export function bytesToB64(bytes: number[]): string {
   return Buffer.from(bytes).toString("base64");

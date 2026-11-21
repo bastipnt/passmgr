@@ -52,6 +52,6 @@ describe("WelcomePage", () => {
   it("a device with a vault goes to its unlock", async () => {
     store.profiles = [profileEntry(LOCAL)];
     const location = renderWelcome();
-    await waitFor(() => expect(location.history.at(-1)).toBe(authPaths.login));
+    await waitFor(() => expect(location.history.at(-1)).toBe(authPaths.unlock));
   });
 });

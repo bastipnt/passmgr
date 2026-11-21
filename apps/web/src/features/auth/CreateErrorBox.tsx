@@ -17,7 +17,7 @@ export default function CreateErrorBox({
       {error === "unlock_failed" ? (
         <span>
           Your vault was created, but it couldn&apos;t be opened.{" "}
-          <AuthTextLink href={authPaths.login}>Unlock it with your password</AuthTextLink>
+          <AuthTextLink href={authPaths.unlock}>Unlock it with your password</AuthTextLink>
           {afterUnlock}
         </span>
       ) : (

@@ -40,7 +40,7 @@ export default function AuthRoutes() {
         <Suspense fallback={null}>
           <Switch>
             <Route path={authPaths.welcome} component={WelcomePage} />
-            <Route path={authPaths.login} component={LoginPage} />
+            <Route path={authPaths.unlock} component={LoginPage} />
             <Route path={authPaths.accountLogin} component={AccountLoginPage} />
             <Route path={authPaths.enrollBiometric} component={BiometricEnrollPage} />
             <Route path={authPaths.recover} component={RecoverPage} />
@@ -48,7 +48,7 @@ export default function AuthRoutes() {
             <Route path={authPaths.restore} component={RestoreBackupPage} />
 
             <Route>
-              <Redirect to={authPaths.login} />
+              <Redirect to={authPaths.unlock} />
             </Route>
           </Switch>
         </Suspense>

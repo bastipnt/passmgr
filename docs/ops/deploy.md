@@ -32,7 +32,7 @@ cp .env.production.example .env.production
 
 ```bash
 bun apps/server/scripts/opaque-cf-bootstrap.ts   # OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY
-openssl rand -base64 32                          # OPAQUE_SERVER_SETUP
+openssl rand -base64 32                          # SERVER_DATA_KEY
 openssl rand -hex 32                             # POSTGRES_PASSWORD, POSTGRES_APP_PASSWORD, REDIS_PASSWORD (one each)
 ```
 
@@ -95,7 +95,7 @@ All variables go in `.env.production` (root of the repo). `.env.production.examp
 | `POSTGRES_APP_PASSWORD` | Password of `passmgr_app`, the server's data-only role (created by the migrate step). |
 | `REDIS_PASSWORD` | Redis `requirepass`. Redis holds live session keys. No quotes or backslashes. |
 | `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` | OPAQUE server secrets (`opaque-cf-bootstrap.ts`). Must stay stable. |
-| `OPAQUE_SERVER_SETUP` | Key for email hashing, email at rest, TOTP secrets and backup codes. Must stay stable. |
+| `SERVER_DATA_KEY` | Key for email hashing, email at rest, TOTP secrets and backup codes. Must stay stable. |
 
 ### Optional
 

@@ -158,8 +158,8 @@ but no authenticator can't pull the password wrap or the vault ciphertext from t
   The code is asked only when the device talks to the server (sign-in, reconnect, fresh login).
 - **No help against a compromised server or database**, and not phishing-resistant: a code typed
   into a fake page can be relayed live within its window.
-- At rest the TOTP secret is encrypted under HKDF(`OPAQUE_SERVER_SETUP`, `totp-secret`); backup
-  codes are stored as HMACs under HKDF(`OPAQUE_SERVER_SETUP`, `backup-code`). A database dump alone
+- At rest the TOTP secret is encrypted under HKDF(`SERVER_DATA_KEY`, `totp-secret`); backup
+  codes are stored as HMACs under HKDF(`SERVER_DATA_KEY`, `backup-code`). A database dump alone
   yields neither; with the server key, both.
 - A wrong code counts against the account's login throttle (`loginlock:<emailHash>`); five burn the
   challenge. Recovery keeps two-factor on (a lost authenticator → backup code).

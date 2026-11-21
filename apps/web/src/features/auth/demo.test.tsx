@@ -99,7 +99,7 @@ describe("demo mode", () => {
     store.profiles = [{ ...profileEntry(DEMO, "Demo vault"), demo: true }];
     store.profile = DEMO;
     store.accountKeyMaterial = {} as typeof store.accountKeyMaterial;
-    renderAt(authPaths.login, <LoginPage />);
+    renderAt(authPaths.unlock, <LoginPage />);
 
     expect(screen.queryByLabelText("Password")).toBeNull();
     expect(screen.queryByText(/Forgot password/)).toBeNull();
@@ -113,7 +113,7 @@ describe("demo mode", () => {
     store.profiles = [{ ...profileEntry(DEMO, "Demo vault"), demo: true }];
     store.profile = DEMO;
     store.accountKeyMaterial = {} as typeof store.accountKeyMaterial;
-    renderAt(authPaths.login, <LoginPage />);
+    renderAt(authPaths.unlock, <LoginPage />);
 
     await userEvent.click(screen.getByRole("button", { name: /Switch/ }));
     expect(await screen.findByRole("list", { name: "Vaults on this device" })).toBeTruthy();

@@ -87,7 +87,7 @@ validates the OPAQUE secrets, `PREFIX`, `TRUST_PROXY`, `CORS_ORIGIN` (parsed by 
   (`packages/db/migrate.ts`, see `packages/db/CLAUDE.md`)
 - `REDIS_HOST`, `REDIS_PORT`, `REDIS_PASSWORD` (`requirepass`; required by `docker-compose.prod.yml`, empty = no auth)
 - `OPAQUE_OPRF_SEED`, `OPAQUE_AKE_PRIVATE_KEY` — OPAQUE server secrets, base64 of 32 bytes each (generate with `bun apps/server/scripts/opaque-cf-bootstrap.ts`; must be stable)
-- `OPAQUE_SERVER_SETUP` — key for email hashing, email-at-rest, TOTP secret and backup-code keys (must be stable;
+- `SERVER_DATA_KEY` (old name `OPAQUE_SERVER_SETUP`, read as fallback for one release) — key for email hashing, email-at-rest, TOTP secret and backup-code keys (must be stable;
   ≥ 32 bytes, `openssl rand -base64 32`; the key is the string's UTF-8 bytes as given, never trimmed or decoded)
 - `REGISTRATION_DISABLED` — `true` requires an invite (`apps/server/scripts/create-invite.ts`)
 - `SMTP_URL` (e.g. `smtps://user:pass@smtp.example.com`), `MAIL_FROM` — mail for email verification codes; unset = no

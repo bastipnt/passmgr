@@ -117,7 +117,7 @@ const session: ContextType<typeof SessionContext> = {
 };
 
 function renderPage({ networkOffline = true, Page = LoginPage } = {}) {
-  const location = memoryLocation({ path: authPaths.login, record: true });
+  const location = memoryLocation({ path: authPaths.unlock, record: true });
   renderWithProviders(
     <Router hook={location.hook}>
       <SessionContext.Provider value={{ ...session, networkOffline }}>

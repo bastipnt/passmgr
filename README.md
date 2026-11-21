@@ -115,7 +115,7 @@ need `apps/server/.env.keys`, which is gitignored, see `apps/server/CLAUDE.md`):
 | `REDIS_HOST`          | e.g. `localhost`                                                                   |
 | `REDIS_PORT`          | e.g. `6379`                                                                        |
 | `REDIS_PASSWORD`      | Redis `requirepass`; empty = no auth. Required in production.                      |
-| `OPAQUE_SERVER_SETUP` | base64 OPAQUE server setup. **Must stay stable** — rotating invalidates all users. |
+| `SERVER_DATA_KEY` | Key for email hashing and at-rest encryption (formerly `OPAQUE_SERVER_SETUP`, still read as fallback). **Must stay stable** — rotating breaks email lookup. |
 | `SMTP_URL`            | Mail for email verification; dev: `smtp://localhost:1025` (Mailpit). [docs/ops/email.md](./docs/ops/email.md) |
 | `MAIL_FROM`           | Sender address, required with `SMTP_URL`                                           |
 

@@ -65,7 +65,7 @@ const envSchema = z
     OPAQUE_AKE_PRIVATE_KEY: opaqueSecret,
     // Used as raw UTF-8 bytes, never trimmed or decoded: any change to the string re-keys every email hash,
     // email-at-rest, TOTP and backup-code ciphertext. Unset, it used to key them with an empty, public key.
-    OPAQUE_SERVER_SETUP: z
+    SERVER_DATA_KEY: z
       .string()
       .refine((v) => v.trim() !== "" && fromString(v).length >= MIN_SERVER_KEY_BYTES, {
         message: `must be at least ${MIN_SERVER_KEY_BYTES} bytes of random (openssl rand -base64 32)`,
@@ -156,7 +156,11 @@ const envSchema = z
 export type ServerEnv = z.output<typeof envSchema>;
 
 export function parseServerEnv(env: Record<string, string | undefined>): ServerEnv {
-  const result = envSchema.safeParse(env);
+  // Old name, read for one release so existing deployments keep their key.
+  const result = envSchema.safeParse({
+    ...env,
+    SERVER_DATA_KEY: env.SERVER_DATA_KEY ?? env.OPAQUE_SERVER_SETUP,
+  });
   if (!result.success) {
     const problems = result.error.issues.map(
       (issue) => `${issue.path.join(".")}: ${issue.message}`,

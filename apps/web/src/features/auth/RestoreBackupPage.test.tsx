@@ -240,7 +240,7 @@ describe("RestoreBackupPage", () => {
     const user = userEvent.setup();
     const withVaults = renderPage();
     await user.click(screen.getByRole("button", { name: /^back$/i }));
-    expect(withVaults.history.at(-1)).toBe(authPaths.login);
+    expect(withVaults.history.at(-1)).toBe(authPaths.unlock);
   });
 
   it("goes back to welcome without vaults", async () => {

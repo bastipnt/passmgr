@@ -145,6 +145,6 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
   `wipe()` on key buffers when done.
 - Key sets are versioned (`valid_from`/`valid_to`, one active per user) — never `UPDATE` key material in place.
 - `OPAQUE_OPRF_SEED` / `OPAQUE_AKE_PRIVATE_KEY` are effectively the server's master keys — rotating them invalidates all
-  user registrations. Rotating `OPAQUE_SERVER_SETUP` breaks email lookup (email hash).
+  user registrations. Rotating `SERVER_DATA_KEY` breaks email lookup (email hash).
 - What a device copy exposes (local-only vaults, device loss, backups, exports): `docs/security/threat-model-inputs.md`.
   Keep it current when on-device storage or key caching changes.

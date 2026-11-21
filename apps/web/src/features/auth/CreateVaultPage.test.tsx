@@ -259,7 +259,7 @@ describe("CreateVaultPage", () => {
     await saveRecoveryKey();
     expect(screen.getByRole("link", { name: /unlock it with your password/i })).toHaveAttribute(
       "href",
-      authPaths.login,
+      authPaths.unlock,
     );
 
     await userEvent.click(screen.getByRole("button", { name: /^create vault$/i }));

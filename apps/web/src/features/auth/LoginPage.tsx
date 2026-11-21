@@ -97,7 +97,7 @@ export default function LoginPage() {
       <PageMeta
         title="Unlock"
         description="Unlock your passmgr vault. Your password never leaves this device."
-        canonicalPath={authPaths.login}
+        canonicalPath={authPaths.unlock}
       />
       <div className="flex w-full flex-col gap-4 sm:col-span-full sm:mx-auto sm:max-w-md">
         {((unlockable && active?.entry.demo) || demo.preparing) && (

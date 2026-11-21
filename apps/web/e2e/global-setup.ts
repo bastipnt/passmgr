@@ -48,8 +48,7 @@ export default async function globalSetup() {
   const ake = await cfg.ake.generateAuthKeyPair();
   const opaqueOprfSeed = Buffer.from(oprfSeed).toString("base64");
   const opaqueAkePrivateKey = Buffer.from(Uint8Array.from(ake.private_key)).toString("base64");
-  // Stable secret used only for email HMAC/encryption — independent of OPAQUE.
-  const opaqueServerSetup = randomBytes(32).toString("base64");
+  const serverDataKey = randomBytes(32).toString("base64");
   const postgresPassword = randomBytes(24).toString("base64url");
   const postgresAppPassword = randomBytes(24).toString("base64url");
   const redisPassword = randomBytes(24).toString("hex");
@@ -59,7 +58,7 @@ export default async function globalSetup() {
     [
       `OPAQUE_OPRF_SEED=${opaqueOprfSeed}`,
       `OPAQUE_AKE_PRIVATE_KEY=${opaqueAkePrivateKey}`,
-      `OPAQUE_SERVER_SETUP=${opaqueServerSetup}`,
+      `SERVER_DATA_KEY=${serverDataKey}`,
       `POSTGRES_PASSWORD=${postgresPassword}`,
       `POSTGRES_APP_PASSWORD=${postgresAppPassword}`,
       `REDIS_PASSWORD=${redisPassword}`,
@@ -79,7 +78,7 @@ export default async function globalSetup() {
   await waitForUrl(`http://localhost:${WEB_PORT}/trpc/appConfig.getConfig`, 60_000);
 
   const env = readFileSync(envLocalFile, "utf8");
-  for (const key of ["OPAQUE_OPRF_SEED", "OPAQUE_AKE_PRIVATE_KEY", "OPAQUE_SERVER_SETUP"]) {
+  for (const key of ["OPAQUE_OPRF_SEED", "OPAQUE_AKE_PRIVATE_KEY", "SERVER_DATA_KEY"]) {
     if (!env.includes(`${key}=`)) {
       throw new Error(`${key} missing from .env.test.local`);
     }

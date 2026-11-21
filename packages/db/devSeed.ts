@@ -57,15 +57,17 @@ const WITH_EDGE_CASES = process.argv.includes("--edge-cases");
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 async function seed() {
-  const { OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY, OPAQUE_SERVER_SETUP } = process.env;
-  if (!OPAQUE_OPRF_SEED || !OPAQUE_AKE_PRIVATE_KEY || !OPAQUE_SERVER_SETUP) {
+  const { OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY } = process.env;
+  // Old name read as fallback for one release.
+  const SERVER_DATA_KEY = process.env.SERVER_DATA_KEY ?? process.env.OPAQUE_SERVER_SETUP;
+  if (!OPAQUE_OPRF_SEED || !OPAQUE_AKE_PRIVATE_KEY || !SERVER_DATA_KEY) {
     console.error(
-      "OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY and OPAQUE_SERVER_SETUP env vars are required. Copy them from apps/server/.env (generate via bun apps/server/scripts/opaque-cf-bootstrap.ts).",
+      "OPAQUE_OPRF_SEED, OPAQUE_AKE_PRIVATE_KEY and SERVER_DATA_KEY env vars are required. Copy them from apps/server/.env (generate via bun apps/server/scripts/opaque-cf-bootstrap.ts).",
     );
     process.exit(1);
   }
 
-  const serverKey = fromString(OPAQUE_SERVER_SETUP);
+  const serverKey = fromString(SERVER_DATA_KEY);
 
   // `reset` only truncates: the schema has to be migrated first.
   console.log("Applying migrations...");

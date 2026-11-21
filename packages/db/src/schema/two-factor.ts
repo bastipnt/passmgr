@@ -5,7 +5,7 @@ import { usersTable } from "./users";
 /**
  * A user's TOTP second factor for the server login. A row means two-factor is
  * on; no row, password-only. The secret is encrypted at rest with a key
- * derived from the server key (`OPAQUE_SERVER_SETUP`).
+ * derived from the server key (`SERVER_DATA_KEY`).
  */
 export const userTotpTable = pgTable("user_totp", {
   userId: varchar()

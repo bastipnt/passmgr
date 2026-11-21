@@ -29,9 +29,7 @@ export async function setup() {
   process.env.OPAQUE_AKE_PRIVATE_KEY = Buffer.from(Uint8Array.from(ake.private_key)).toString(
     "base64",
   );
-  // Still required by apps/server/src/opaque.ts as the email HMAC/encryption key.
-  // Independent of the OPAQUE protocol — any stable secret works.
-  process.env.OPAQUE_SERVER_SETUP = randomBytes(32).toString("base64");
+  process.env.SERVER_DATA_KEY = randomBytes(32).toString("base64");
 
   [pgContainer, redisContainer] = await Promise.all([
     startWithRetry(() => new PostgreSqlContainer("postgres:16-alpine").start()),

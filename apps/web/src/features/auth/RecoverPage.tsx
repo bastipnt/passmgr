@@ -79,7 +79,7 @@ function RecoverFlow() {
   const { profile } = origin;
   const local = profile?.mode === "local";
   const profileEmail = profile?.mode === "linked" ? profile.email : undefined;
-  const loginPath = fromUnlock ? authPaths.login : authPaths.accountLogin;
+  const loginPath = fromUnlock ? authPaths.unlock : authPaths.accountLogin;
   const loginEmail = useRecoverEmail();
 
   const { checkRecoveryKey, recover, recoverLocal, recoveryError, clearRecoveryError } =
@@ -170,7 +170,7 @@ function RecoverFlow() {
     setLoading(false);
     reset();
     toast("Password reset. Log in with your new password.");
-    navigate(local ? authPaths.login : authPaths.accountLogin);
+    navigate(local ? authPaths.unlock : authPaths.accountLogin);
   };
 
   const pasteRecoveryKey = async () => {

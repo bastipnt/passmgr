@@ -28,6 +28,7 @@
       "cache": false,
       "dependsOn": ["^build"],
       "env": [
+        "SERVER_DATA_KEY",
         "OPAQUE_SERVER_SETUP",
         "POSTGRES_PASSWORD",
         "REDIS_PASSWORD",

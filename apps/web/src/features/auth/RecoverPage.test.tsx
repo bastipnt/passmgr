@@ -373,7 +373,7 @@ describe("RecoverPage from an account's unlock card", () => {
   it("goes back to the unlock", async () => {
     renderPage();
     await userEvent.click(screen.getByRole("button", { name: /^back$/i }));
-    expect(navigate).toHaveBeenCalledWith(authPaths.login);
+    expect(navigate).toHaveBeenCalledWith(authPaths.unlock);
   });
 });
 

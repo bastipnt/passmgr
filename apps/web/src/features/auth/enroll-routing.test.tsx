@@ -21,7 +21,7 @@ vi.mock("@repo/client/src/hooks/use-app-config", () => ({
 const unlocked = { vaultUnlocked: true } as ContextType<typeof SessionContext>;
 
 function renderAuthRoutes() {
-  const location = memoryLocation({ path: authPaths.login, record: true });
+  const location = memoryLocation({ path: authPaths.unlock, record: true });
   renderWithProviders(
     <SessionContext.Provider value={unlocked}>
       <Router hook={location.hook} searchHook={location.searchHook}>
