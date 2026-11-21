@@ -11,7 +11,7 @@ import {
   FormLock,
   StrengthMeter,
 } from "@repo/ui-native";
-import { type Ref, useImperativeHandle, useRef, useState } from "react";
+import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import { Text, View } from "react-native";
 import z from "zod";
@@ -55,7 +55,8 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
   });
 
   const [email, password] = useWatch({ control, name: ["email", "password"] });
-  const strength = usePasswordStrength(password, [email]);
+  const strengthInputs = useMemo(() => (email ? [email] : undefined), [email]);
+  const strength = usePasswordStrength(password, strengthInputs);
 
   const onSubmit = async ({ email, password }: FormValues) => {
     setLoading(true);

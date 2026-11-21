@@ -7,27 +7,25 @@ import { logError } from "../errors/log-error";
  * Strength of a password; `null` while empty or before its first rating. Rated off the main
  * thread, so the last rating stays while the next runs (no flicker while typing). A component
  * showing different records' passwords should remount per record (`key`) to not show the
- * previous one's meanwhile.
+ * previous one's meanwhile. `userInputs` must keep its identity between renders (memoize it).
  */
 export function usePasswordStrength(
   password: string | undefined,
-  userInputs?: string[],
+  userInputs?: readonly string[],
 ): PasswordStrength | null {
   const [strength, setStrength] = useState<PasswordStrength | null>(null);
-  // Callers pass a fresh array every render: compare the inputs by content.
-  const inputsKey = userInputs?.filter(Boolean).join("\n") ?? "";
 
   useEffect(() => {
     if (!password) return;
     let active = true;
     strengthWorkerService
-      .rate(password, inputsKey ? inputsKey.split("\n") : [])
+      .rate(password, userInputs ? [...userInputs] : [])
       .then((rated) => active && setStrength(rated))
       .catch((error: unknown) => logError("Failed to rate the password strength", error));
     return () => {
       active = false;
     };
-  }, [password, inputsKey]);
+  }, [password, userInputs]);
 
   return password ? strength : null;
 }

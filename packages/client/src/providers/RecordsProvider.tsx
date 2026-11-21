@@ -14,6 +14,7 @@ import { logError } from "../errors/log-error";
 import { forgetPasswordRatings } from "../records/password-ratings";
 import { decryptRecordRow } from "../util/decrypt-record";
 import { timed } from "../util/perf";
+import { useRevision } from "../util/use-revision";
 import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-info";
 import { SessionContext } from "./SessionProvider";
 import { useStore } from "./StoreProvider";
@@ -63,7 +64,7 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   const generationRef = useRef(0);
   const unlockedRef = useRef(vaultUnlocked);
 
-  const [revision, setRevision] = useState(0);
+  const { revision, bump: bumpRevision } = useRevision();
   // The list keeps its identity until a record changes: a sync that brought nothing new must
   // not rerun every filter, sort and search downstream.
   const [records, setRecords] = useState<DecryptedRecord[]>(NO_RECORDS);
@@ -126,10 +127,10 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
       }
 
       if (changed) setRecords(Array.from(recordsMapRef.current.values()));
-      setRevision((r) => r + 1);
+      bumpRevision();
       setReady(true);
     },
-    [vault],
+    [vault, bumpRevision],
   );
 
   // Serialize runs: the initial-unlock and on-sync effects can both fire before
@@ -158,12 +159,12 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
     setRecords(NO_RECORDS);
     setVaults([]);
     setReady(false);
-    setRevision((r) => r + 1);
+    bumpRevision();
     if (vaultUnlocked) void decryptAll();
     return () => {
       if (vault) forgetPasswordRatings(vault);
     };
-  }, [vaultUnlocked, vault, decryptAll]);
+  }, [vaultUnlocked, vault, decryptAll, bumpRevision]);
 
   useEffect(() => {
     if (!vaultUnlocked || !syncManager) return;
@@ -196,16 +197,19 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
       }
 
       setRecords(Array.from(recordsMapRef.current.values()));
-      setRevision((r) => r + 1);
+      bumpRevision();
     },
-    [vault],
+    [vault, bumpRevision],
   );
 
   // Gated in render too: the render where the lock lands comes before the effect that clears the maps.
+  const recordsById = useMemo(
+    () => new Map(records.map((record) => [record.recordId, record])),
+    [records],
+  );
   const getRecord = useCallback(
-    (id: string) => (vaultUnlocked ? recordsMapRef.current.get(id) : undefined),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [revision, vaultUnlocked],
+    (id: string) => (vaultUnlocked ? recordsById.get(id) : undefined),
+    [recordsById, vaultUnlocked],
   );
 
   const value = useMemo<RecordsContextValue>(

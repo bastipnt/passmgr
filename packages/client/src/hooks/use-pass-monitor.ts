@@ -135,17 +135,20 @@ export function usePassMonitor(): PassMonitor {
     [snapshot, ready, directory],
   );
 
-  return {
-    monitored: cheap?.monitored ?? null,
-    weak,
-    weakFailed,
-    reused: cheap?.reused ?? null,
-    duplicates: cheap?.duplicates ?? null,
-    old: cheap?.old ?? null,
-    insecure: cheap?.insecure ?? null,
-    missingTwoFactor,
-    twoFactorFailed,
-  };
+  return useMemo(
+    () => ({
+      monitored: cheap?.monitored ?? null,
+      weak,
+      weakFailed,
+      reused: cheap?.reused ?? null,
+      duplicates: cheap?.duplicates ?? null,
+      old: cheap?.old ?? null,
+      insecure: cheap?.insecure ?? null,
+      missingTwoFactor,
+      twoFactorFailed,
+    }),
+    [cheap, weak, weakFailed, missingTwoFactor, twoFactorFailed],
+  );
 }
 
 /**

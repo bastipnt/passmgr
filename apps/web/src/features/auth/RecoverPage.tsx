@@ -36,7 +36,7 @@ import {
   TriangleAlertIcon,
   WifiOffIcon,
 } from "lucide-react";
-import { useContext, useEffect, useId, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useState } from "react";
 import { type Control, useWatch } from "react-hook-form";
 import { useLocation, useSearchParams } from "wouter";
 import { authPaths, recoverActiveSearch } from "@/app/route-paths";
@@ -436,7 +436,8 @@ function OfflineNote() {
 
 function NewPasswordHint({ control }: { control: Control<RecoverFormValues> }) {
   const [email, password] = useWatch({ control, name: ["email", "password"] });
-  return <PasswordStrengthMeter password={password ?? ""} userInputs={[email]} />;
+  const userInputs = useMemo(() => (email ? [email] : undefined), [email]);
+  return <PasswordStrengthMeter password={password ?? ""} userInputs={userInputs} />;
 }
 
 function PasswordsMatch({ control }: { control: Control<RecoverFormValues> }) {

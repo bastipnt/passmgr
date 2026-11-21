@@ -48,6 +48,7 @@ import {
   isUnauthorized,
   parseServerResponse,
 } from "../util/trpc-errors";
+import { useRevision } from "../util/use-revision";
 import { reencryptForPush } from "../vaults/rekey";
 import { runSharingTasks } from "../vaults/sharing";
 import { usePreferences } from "./PreferencesProvider";
@@ -245,7 +246,7 @@ export function StoreProvider({
   const [active, setActiveState] = useState<ActiveProfile | null>(null);
   const activeRef = useRef<ActiveProfile | null>(null);
   // Bumped to re-read the (synchronous) preferences after a write.
-  const [, setPreferencesRevision] = useState(0);
+  const { bump: bumpPreferences } = useRevision();
 
   const setActive = useCallback((next: ActiveProfile | null) => {
     activeRef.current = next;
@@ -277,7 +278,7 @@ export function StoreProvider({
     const key = biometricDismissedKey(profile.entry.profileId);
     if (dismissed) preferences.set(key, "1");
     else preferences.remove(key);
-    setPreferencesRevision((r) => r + 1);
+    bumpPreferences();
   }
 
   // Session refused: expired goes offline (not locked), signed out elsewhere locks like a sign-out.

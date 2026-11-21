@@ -17,12 +17,7 @@ const MonitorContext = createContext<Monitor | null>(null);
 export function PassMonitorProvider({ children }: { children: ReactNode }) {
   const monitor = usePassMonitor();
   const breach = useBreachCheck();
-  // Both hooks return a new object each render; their fields are memoized, so key on those.
-  const value = useMemo(
-    () => ({ monitor, breach }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [...Object.values(monitor), ...Object.values(breach)],
-  );
+  const value = useMemo(() => ({ monitor, breach }), [monitor, breach]);
   return <MonitorContext value={value}>{children}</MonitorContext>;
 }
 

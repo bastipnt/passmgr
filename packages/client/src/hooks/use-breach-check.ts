@@ -1,6 +1,14 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, breachCheckKey, type Vault } from "@repo/store";
-import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
@@ -193,16 +201,19 @@ export function useBreachCheck(): BreachCheckState {
     };
   }, [enabled, ready, monitored, checks]);
 
-  return {
-    enabled,
-    setEnabled,
-    breached,
-    checking,
-    failed,
-    offline: networkOffline,
-    lastCheckedAt,
-    recheck,
-  };
+  return useMemo(
+    () => ({
+      enabled,
+      setEnabled,
+      breached,
+      checking,
+      failed,
+      offline: networkOffline,
+      lastCheckedAt,
+      recheck,
+    }),
+    [enabled, setEnabled, breached, checking, failed, networkOffline, lastCheckedAt, recheck],
+  );
 }
 
 /** The stored breach count of a record's current password; `null` when off or not checked. */
@@ -210,12 +221,15 @@ export function useStoredBreachCount(record: DecryptedRecord): number | null {
   const { vault } = useStore();
   const [found, setFound] = useState<{ key: string; count: number | null } | null>(null);
   const key = breachCheckKey(record);
+  // Re-reads for the password's key only, not for every new `record` object.
+  const readCheck = useEffectEvent((openVault: Vault) =>
+    openVault.getBreachCheck(breachVersion(record)),
+  );
 
   useEffect(() => {
     if (!vault) return;
     let cancelled = false;
-    void vault
-      .getBreachCheck(breachVersion(record))
+    void readCheck(vault)
       .then((check) => {
         if (!cancelled) setFound({ key, count: check?.count ?? null });
       })
@@ -223,7 +237,6 @@ export function useStoredBreachCount(record: DecryptedRecord): number | null {
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [vault, key]);
 
   return found?.key === key ? found.count : null;

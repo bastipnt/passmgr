@@ -4,8 +4,9 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useRef,
+  useMemo,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { tinykeys } from "tinykeys";
 
@@ -68,43 +69,78 @@ interface ShortcutProviderProps {
   children: ReactNode;
 }
 
+interface Registry {
+  entries: ReadonlyMap<string, ShortcutEntry>;
+  // Multiset of active layer depths: two overlays can share a depth.
+  layers: ReadonlyMap<number, number>;
+}
+
 export default function ShortcutProvider({ children }: ShortcutProviderProps) {
-  const entriesRef = useRef<Map<string, ShortcutEntry>>(new Map());
-  // Multiset of active layer depths — two overlays can share a depth.
-  const layersRef = useRef<Map<number, number>>(new Map());
-  const [revision, setRevision] = useState(0);
-
-  const register = useCallback((entry: ShortcutEntry) => {
-    // Keyed by layer + key so an overlay can rebind a key the base app owns
-    // without destroying it (and without its cleanup deleting the wrong entry).
-    const id = `${entry.layer}\0${entry.key}`;
-    entriesRef.current.set(id, entry);
-    setRevision((r) => r + 1);
-
-    return () => {
-      entriesRef.current.delete(id);
-      setRevision((r) => r + 1);
+  // Replaced, never mutated, so the snapshot's identity says whether the registry changed.
+  const [store] = useState(() => {
+    let registry: Registry = { entries: new Map(), layers: new Map() };
+    const listeners = new Set<() => void>();
+    return {
+      subscribe: (listener: () => void) => {
+        listeners.add(listener);
+        return () => void listeners.delete(listener);
+      },
+      read: () => registry,
+      update: (change: (current: Registry) => Registry) => {
+        registry = change(registry);
+        for (const listener of listeners) listener();
+      },
     };
-  }, []);
+  });
+  const { entries, layers } = useSyncExternalStore(store.subscribe, store.read);
 
-  const pushLayer = useCallback((depth: number) => {
-    layersRef.current.set(depth, (layersRef.current.get(depth) ?? 0) + 1);
-    setRevision((r) => r + 1);
+  const register = useCallback(
+    (entry: ShortcutEntry) => {
+      // Keyed by layer + key so an overlay can rebind a key the base app owns
+      // without destroying it (and without its cleanup deleting the wrong entry).
+      const id = `${entry.layer}\0${entry.key}`;
+      store.update((current) => ({
+        ...current,
+        entries: new Map(current.entries).set(id, entry),
+      }));
 
-    return () => {
-      const next = (layersRef.current.get(depth) ?? 1) - 1;
-      if (next > 0) layersRef.current.set(depth, next);
-      else layersRef.current.delete(depth);
-      setRevision((r) => r + 1);
-    };
-  }, []);
+      return () => {
+        store.update((current) => {
+          const next = new Map(current.entries);
+          next.delete(id);
+          return { ...current, entries: next };
+        });
+      };
+    },
+    [store],
+  );
+
+  const pushLayer = useCallback(
+    (depth: number) => {
+      store.update((current) => ({
+        ...current,
+        layers: new Map(current.layers).set(depth, (current.layers.get(depth) ?? 0) + 1),
+      }));
+
+      return () => {
+        store.update((current) => {
+          const next = new Map(current.layers);
+          const count = (next.get(depth) ?? 1) - 1;
+          if (count > 0) next.set(depth, count);
+          else next.delete(depth);
+          return { ...current, layers: next };
+        });
+      };
+    },
+    [store],
+  );
 
   // Bind/rebind tinykeys whenever the registry changes
   useEffect(() => {
-    const topLayer = Math.max(0, ...layersRef.current.keys());
+    const topLayer = Math.max(0, ...layers.keys());
     const bindings: Record<string, (e: KeyboardEvent) => void> = {};
 
-    for (const entry of entriesRef.current.values()) {
+    for (const entry of entries.values()) {
       // Only the topmost active layer is live; anything below is covered by an
       // overlay and must not fire.
       if (entry.layer !== topLayer) continue;
@@ -117,17 +153,18 @@ export default function ShortcutProvider({ children }: ShortcutProviderProps) {
       };
     }
 
-    const unsubscribe = tinykeys(window, bindings);
-    return unsubscribe;
-    // revision is used to trigger rebinding
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revision]);
+    return tinykeys(window, bindings);
+  }, [entries, layers]);
 
   // Every registered shortcut, regardless of layer: this is the app's own
   // documentation (help dialog), not the set that happens to be live.
-  const shortcuts = Array.from(entriesRef.current.values());
+  const shortcuts = useMemo(() => Array.from(entries.values()), [entries]);
+  const value = useMemo(
+    () => ({ register, pushLayer, shortcuts }),
+    [register, pushLayer, shortcuts],
+  );
 
-  return <ShortcutContext value={{ register, pushLayer, shortcuts }}>{children}</ShortcutContext>;
+  return <ShortcutContext value={value}>{children}</ShortcutContext>;
 }
 
 interface ShortcutLayerProps {

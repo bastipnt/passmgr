@@ -19,7 +19,8 @@ export type PasswordHealthSummary = {
 export function usePasswordHealth(record: DecryptedRecord): PasswordHealthSummary | null {
   const { records } = useGetRecords();
   const health = useMemo(() => getPasswordHealth(record, records), [record, records]);
-  const strength = usePasswordStrength(monitoredPassword(record), strengthInputs(record));
+  const inputs = useMemo(() => strengthInputs(record), [record]);
+  const strength = usePasswordStrength(monitoredPassword(record), inputs);
   const breachCount = useStoredBreachCount(record);
   const twoFactorSite = useMissingTwoFactor(record);
 
