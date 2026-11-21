@@ -18,7 +18,6 @@ WORKDIR /app
 
 # Copy workspace config and lockfile
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
-COPY types.d.ts ./
 
 # Copy all package.json files to leverage Docker layer caching
 COPY apps/server/package.json apps/server/

@@ -21,6 +21,6 @@
     "lib": ["esnext", "dom", "dom.iterable"],
     "types": ["vite/client"]
   },
-  "include": ["**/*.ts", "../../types.d.ts"],
+  "include": ["**/*.ts"],
   "exclude": ["node_modules"]
 }

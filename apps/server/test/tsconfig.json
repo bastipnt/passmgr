@@ -4,5 +4,5 @@
     "rootDir": "../../..",
     "types": ["node", "vite/client"]
   },
-  "include": ["**/*.ts", "../../../types.d.ts"]
+  "include": ["**/*.ts"]
 }

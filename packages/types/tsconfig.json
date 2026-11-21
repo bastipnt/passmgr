@@ -20,6 +20,6 @@
     "sourceMap": true,
     "lib": ["esnext", "dom"]
   },
-  "include": ["**/*.ts", "../../types.d.ts"],
+  "include": ["**/*.ts"],
   "exclude": ["node_modules"]
 }

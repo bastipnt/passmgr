@@ -9,7 +9,6 @@ RUN npm install -g pnpm@11.22.0
 
 # Copy workspace config and lockfile
 COPY pnpm-workspace.yaml package.json pnpm-lock.yaml turbo.json ./
-COPY types.d.ts ./
 
 # Copy all package.json files for dependency resolution
 COPY apps/web/package.json apps/web/

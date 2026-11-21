@@ -33,9 +33,9 @@ export class RNEventSourcePonyfill {
   }
 
   get readyState(): number {
-    // `status` is missing from react-native-sse's types. ERROR maps to CLOSED: tRPC reads CLOSED as
-    // fatal, anything else as "still connecting", and nothing would reconnect.
-    const status = (this.es as unknown as { status: number }).status;
+    // ERROR maps to CLOSED: tRPC reads CLOSED as fatal, anything else as "still connecting", and
+    // nothing would reconnect.
+    const status = this.es.status;
     return status === RN_ERROR ? CLOSED : status;
   }
 

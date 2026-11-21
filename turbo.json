@@ -16,7 +16,6 @@
     },
     "typecheck": {
       "dependsOn": ["transit"],
-      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/types.d.ts"],
       "outputs": []
     },
     "test": {},

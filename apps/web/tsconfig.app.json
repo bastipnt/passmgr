@@ -3,7 +3,7 @@
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.app.tsbuildinfo",
     "target": "ES2022",
     "useDefineForClassFields": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2022", "DOM", "DOM.Iterable", "esnext.typedarrays"],
     "module": "ESNext",
     "types": ["vite/client"],
     "skipLibCheck": true,
@@ -32,7 +32,6 @@
     "src",
     "src/**/*.d.ts",
     "vite-env.d.ts",
-    "../../types.d.ts",
     "../../packages/client/src/providers/SortedItemsProvider.tsx",
     "../../packages/client/src/tinykeys.d.ts"
   ],
