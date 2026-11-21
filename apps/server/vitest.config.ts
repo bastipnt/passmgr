@@ -1,35 +1,23 @@
-import { defineConfig } from "vitest/config";
+import { defineConfig, mergeConfig } from "vitest/config";
+import { serverVitestBase } from "./vitest.base";
 
-export default defineConfig({
-  test: {
-    environment: "node",
-    include: ["src/**/*.test.ts", "test/**/*.test.ts"],
-    exclude: ["test/integration/**", "**/node_modules/**", "**/dist/**"],
-    // testcontainers need process isolation
-    pool: "forks",
-    // All server-side suites share one Postgres container; run files sequentially
-    // so per-test truncateAll() in one file doesn't wipe another file's mid-test rows.
-    fileParallelism: false,
-    testTimeout: 60_000,
-    hookTimeout: 120_000,
-    globalSetup: ["./test/setup/global-setup.ts"],
-    setupFiles: ["./test/setup/argon2-fast.ts"],
-    // @repo/db loads apps/server/.env via dotenv/config; dotenv never overrides
-    // vars already set, so pin flags here to keep a local dev .env from leaking in.
-    env: {
-      REGISTRATION_DISABLED: "false",
-      SMTP_URL: "",
-      APP_VERSION: "",
-      CLIENT_VERSIONS: "v1.2.3",
+export default mergeConfig(
+  serverVitestBase,
+  defineConfig({
+    test: {
+      include: ["src/**/*.test.ts", "test/**/*.test.ts"],
+      exclude: ["test/integration/**", "**/node_modules/**", "**/dist/**"],
+      testTimeout: 60_000,
+      hookTimeout: 120_000,
+      // Coverage for the server is enforced by the integration suite
+      // (vitest.integration.config.ts); the slimmed unit suite only exercises
+      // narrow edge-case branches and would never meet a breadth threshold.
+      coverage: {
+        provider: "v8",
+        reporter: ["text", "html", "lcov"],
+        include: ["src/**/*.ts"],
+        exclude: ["src/server.ts", "src/events/**"],
+      },
     },
-    // Coverage for the server is enforced by the integration suite
-    // (vitest.integration.config.ts); the slimmed unit suite only exercises
-    // narrow edge-case branches and would never meet a breadth threshold.
-    coverage: {
-      provider: "v8",
-      reporter: ["text", "html", "lcov"],
-      include: ["src/**/*.ts"],
-      exclude: ["src/server.ts", "src/events/**"],
-    },
-  },
-});
+  }),
+);

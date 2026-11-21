@@ -17,6 +17,7 @@ import {
   recordActiveUser,
   touchSession,
 } from "../util/redis-utils";
+import { REQUEST_TIMESTAMP_WINDOW_MS } from "../util/time";
 
 // Key changes need an OPAQUE login this recent; a restored or stolen
 // long-lived session can't rewrite key material.
@@ -28,7 +29,7 @@ const TIMESTAMP_PATTERN = /^\d{13}$/;
 
 function checkTimestamp(timestamp: string): boolean {
   if (!TIMESTAMP_PATTERN.test(timestamp)) return false;
-  return Math.abs(Date.now() - Number(timestamp)) <= 5 * 60_000;
+  return Math.abs(Date.now() - Number(timestamp)) <= REQUEST_TIMESTAMP_WINDOW_MS;
 }
 
 type AuthFailReason =

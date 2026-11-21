@@ -193,15 +193,15 @@ function decideChain(
 }
 
 /** One change of a chain: access, then a retry, then the key, then compare-and-swap. */
-function decideChange(
+export function decideChange(
   change: PushChange,
   head: SimulatedHead,
   dbHeadVersion: number,
   { access, keyVersions }: VaultState,
   stored: Map<string, RecordType>,
 ): Outcome {
-  // Every vault of the batch was checked; a missing entry would be a bug, so it denies.
-  const denied = access.has(change.vaultId) ? access.get(change.vaultId) : "not_found";
+  const denied = access.get(change.vaultId);
+  if (denied === undefined) throw new Error("push: vault missing from the access check");
   if (denied) return { kind: "failed", status: "rejected", reason: denied };
 
   const row = stored.get(`${change.recordId}/${change.clientChangeId}`);

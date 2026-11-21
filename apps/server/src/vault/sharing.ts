@@ -35,8 +35,8 @@ import {
   currentPublicKeys,
   type DbExecutor,
   keepOwnerIdActive,
+  lockUserThenVaults,
   lockVaultForRole,
-  lockVaults,
   notifyVaultMembers,
   requireVaultRole,
 } from "./access";
@@ -504,14 +504,8 @@ export const sharingProcedures = {
 
       await db.transaction(async (tx) => {
         await requireVaultRole(ctx.userId, vaultId, ["owner"], tx);
-        // Their user row first, then the vault (the order of `vault.create` and
-        // `deleteAccount`): their count and usage hold until this commits.
-        await tx
-          .select({ userId: usersTable.userId })
-          .from(usersTable)
-          .where(eq(usersTable.userId, userId))
-          .for("no key update");
-        await lockVaults(tx, [vaultId]);
+        // Their count and usage hold until this commits.
+        await lockUserThenVaults(tx, userId, [vaultId]);
         const own = await ownMembership(tx, ctx.userId, vaultId);
         if (own.status !== "active") throw new TRPCError({ code: "NOT_FOUND" });
         if (own.role !== "owner" || own.kind !== "shared") {

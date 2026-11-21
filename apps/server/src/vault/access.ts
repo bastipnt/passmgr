@@ -1,6 +1,7 @@
 import {
   db,
   userKeyPairsTable,
+  usersTable,
   vaultKeyLinksTable,
   vaultMembersTable,
   vaultsTable,
@@ -13,10 +14,27 @@ import {
   type VaultRole,
 } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
-import { and, asc, desc, eq, exists, inArray, isNotNull, max, notExists, sql } from "drizzle-orm";
+import {
+  type AnyColumn,
+  and,
+  asc,
+  desc,
+  eq,
+  exists,
+  inArray,
+  isNotNull,
+  max,
+  notExists,
+  sql,
+} from "drizzle-orm";
 import { emitRecordsChanged } from "../events/record-events";
 
 export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/** A nullable column the query filters on `isNotNull`, typed as such. */
+function nonNull(column: AnyColumn) {
+  return sql<string>`${column}`;
+}
 
 /** Access is via an active membership (ADR 0001 D6). */
 function activeMembership(userId: string) {
@@ -32,8 +50,8 @@ export async function memberVaults(userId: string, tx: DbExecutor = db): Promise
     .select({
       vaultId: vaultMembersTable.vaultId,
       keyVersion: vaultMembersTable.keyVersion,
-      encryptedVaultKey: vaultMembersTable.encryptedVaultKey,
-      vaultKeyEncryptionNonce: vaultMembersTable.vaultKeyEncryptionNonce,
+      encryptedVaultKey: nonNull(vaultMembersTable.encryptedVaultKey),
+      vaultKeyEncryptionNonce: nonNull(vaultMembersTable.vaultKeyEncryptionNonce),
       role: vaultMembersTable.role,
       kind: vaultsTable.kind,
       encryptedMeta: vaultsTable.encryptedMeta,
@@ -41,7 +59,13 @@ export async function memberVaults(userId: string, tx: DbExecutor = db): Promise
     })
     .from(vaultMembersTable)
     .innerJoin(vaultsTable, eq(vaultsTable.vaultId, vaultMembersTable.vaultId))
-    .where(activeMembership(userId));
+    .where(
+      and(
+        activeMembership(userId),
+        isNotNull(vaultMembersTable.encryptedVaultKey),
+        isNotNull(vaultMembersTable.vaultKeyEncryptionNonce),
+      ),
+    );
   if (vaults.length === 0) return [];
 
   const links = await tx
@@ -61,21 +85,12 @@ export async function memberVaults(userId: string, tx: DbExecutor = db): Promise
     list.push({ keyVersion, encryptedVaultKey, vaultKeyEncryptionNonce });
     previousKeys.set(vaultId, list);
   }
-  return vaults.flatMap(({ encryptedVaultKey, vaultKeyEncryptionNonce, ...vault }) =>
-    // An active member always has a wrap (`acceptKey` sets it with the status).
-    encryptedVaultKey && vaultKeyEncryptionNonce
-      ? [
-          {
-            ...vault,
-            encryptedVaultKey,
-            vaultKeyEncryptionNonce,
-            previousKeys: (previousKeys.get(vault.vaultId) ?? []).filter(
-              (link) => link.keyVersion < vault.keyVersion,
-            ),
-          },
-        ]
-      : [],
-  );
+  return vaults.map((vault) => ({
+    ...vault,
+    previousKeys: (previousKeys.get(vault.vaultId) ?? []).filter(
+      (link) => link.keyVersion < vault.keyVersion,
+    ),
+  }));
 }
 
 /**
@@ -345,6 +360,29 @@ export async function lockVaults(tx: DbExecutor, vaultIds: Iterable<string>): Pr
       .where(eq(vaultsTable.vaultId, vaultId))
       .for("update");
   }
+}
+
+/**
+ * Row-lock the user, then the vaults (`lockVaults`): the one order every
+ * transaction touching both takes, so none can deadlock. `vaultIds` may be a
+ * function, for ids that can only be read once the user is locked. Resolves
+ * the user's email hash (undefined when there is no such user).
+ *
+ * NO KEY UPDATE: a concurrent record insert's FK check (KEY SHARE) on the user
+ * row must not wait on us while we wait on its vault lock.
+ */
+export async function lockUserThenVaults(
+  tx: DbExecutor,
+  userId: string,
+  vaultIds: Iterable<string> | (() => Promise<Iterable<string>>),
+): Promise<{ emailHash: string } | undefined> {
+  const [user] = await tx
+    .select({ emailHash: usersTable.emailHash })
+    .from(usersTable)
+    .where(eq(usersTable.userId, userId))
+    .for("no key update");
+  await lockVaults(tx, typeof vaultIds === "function" ? await vaultIds() : vaultIds);
+  return user;
 }
 
 /**

@@ -4,13 +4,14 @@ import type { ChainableCommander, Result } from "ioredis";
 import { serverEnv } from "../env";
 import { emitSessionEnded, emitSessionSignedOut } from "../events/record-events";
 import { redis } from "../redis";
-import { DAY_MS } from "./time";
+import { DAY_MS, REQUEST_TIMESTAMP_WINDOW_MS } from "./time";
 
 const SESSION_TTL_SECONDS = 60 * 60 * 24; // idle
 // Hard cap from the OPAQUE login, however active the session stays.
 export const SESSION_MAX_AGE_MS = 30 * DAY_MS;
-const LOGIN_ATTEMPT_TTL_SECONDS = 5 * 60; // 5min — matches OPAQUE replay window
-const NONCE_TTL_SECONDS = 6 * 60; // 6min — slightly outlives the ±5min timestamp window
+const LOGIN_ATTEMPT_TTL_SECONDS = REQUEST_TIMESTAMP_WINDOW_MS / 1000;
+// A minute past the window, so a nonce outlives the timestamps it could replay.
+const NONCE_TTL_SECONDS = LOGIN_ATTEMPT_TTL_SECONDS + 60;
 const TOTP_ENROLLMENT_TTL_SECONDS = 10 * 60; // 10min to scan and confirm
 export const INVITE_TTL_SECONDS = 60 * 60 * 24;
 // A new login past this signs out the user's least recently active sessions.
@@ -114,20 +115,6 @@ function sessionKey(sessionId: string) {
   return `session:${sessionId}`;
 }
 
-// Keyed by a random per-attempt id (not the userId) so a third party calling
-// startLogin with the victim's email can't overwrite the victim's attempt.
-function loginKey(attemptId: string) {
-  return `login:${attemptId}`;
-}
-
-function deviceLoginKey(attemptId: string) {
-  return `devicelogin:${attemptId}`;
-}
-
-function recoveryKey(attemptId: string) {
-  return `recovery:${attemptId}`;
-}
-
 // A hash: the challenge's fields plus an `attempts` counter.
 function secondFactorKey(challengeId: string) {
   return `login2fa:${challengeId}`;
@@ -138,10 +125,6 @@ function totpEnrollmentKey(userId: string) {
   return `totpenroll:${userId}`;
 }
 
-function passwordChangeKey(attemptId: string) {
-  return `passwordchange:${attemptId}`;
-}
-
 // Unix ms before which every session of this user is invalid (see
 // revokeUserSessions). No TTL: sliding sessions can outlive any fixed window.
 function sessionEpochKey(userId: string) {
@@ -149,8 +132,7 @@ function sessionEpochKey(userId: string) {
 }
 
 // Set once a request found the user's email verified, so `verifiedProcedure`
-// reads it with the session instead of asking Postgres. Nothing unverifies an
-// email; anything that ever clears `emailVerifiedAt` must delete this key.
+// reads it with the session instead of asking Postgres.
 function emailVerifiedKey(userId: string) {
   return `emailverified:${userId}`;
 }
@@ -212,6 +194,10 @@ export async function getSession(
   }
 
   return { ...session, emailVerified: emailVerified !== null };
+}
+
+export async function forgetEmailVerified(userId: string): Promise<void> {
+  await redis.del(emailVerifiedKey(userId));
 }
 
 export async function cacheEmailVerified(userId: string): Promise<void> {
@@ -436,47 +422,48 @@ export async function endDeletedUserSessions(
 ): Promise<void> {
   await revokeUserSessions(userId, exceptSessionId);
   await redis.pexpire(sessionEpochKey(userId), SESSION_MAX_AGE_MS);
-  await redis.del(emailVerifiedKey(userId));
+  await forgetEmailVerified(userId);
 }
 
-export async function setLoginAttempt(loginAttempt: LoginAttempt): Promise<string> {
-  const attemptId = crypto.randomUUID();
-  await redis.set(
-    loginKey(attemptId),
-    JSON.stringify(loginAttempt),
-    "EX",
-    LOGIN_ATTEMPT_TTL_SECONDS,
-  );
-  return attemptId;
+/**
+ * Short-lived state between the two steps of a flow, keyed by a random attempt
+ * id (not the userId, so a third party calling startLogin with the victim's email
+ * can't overwrite the victim's attempt). `take` fetches and deletes atomically,
+ * so each attempt finishes at most once.
+ */
+function attemptStore<T>(prefix: string, ttlSeconds: number) {
+  return {
+    async set(attempt: T): Promise<string> {
+      const attemptId = crypto.randomUUID();
+      await redis.set(`${prefix}:${attemptId}`, JSON.stringify(attempt), "EX", ttlSeconds);
+      return attemptId;
+    },
+    async take(attemptId: string): Promise<T | undefined> {
+      const raw = await redis.getdel(`${prefix}:${attemptId}`);
+      return raw === null ? undefined : JSON.parse(raw);
+    },
+  };
 }
 
-/** Atomically fetch and delete a login attempt — each attempt finishes at most once. */
-export async function takeLoginAttempt(attemptId: string): Promise<LoginAttempt | undefined> {
-  const rawLoginAttempt = await redis.getdel(loginKey(attemptId));
-  if (rawLoginAttempt === null) return undefined;
+const loginAttempts = attemptStore<LoginAttempt>("login", LOGIN_ATTEMPT_TTL_SECONDS);
+const deviceLoginAttempts = attemptStore<DeviceLoginAttempt>(
+  "devicelogin",
+  LOGIN_ATTEMPT_TTL_SECONDS,
+);
+const recoveryAttempts = attemptStore<RecoveryAttempt>("recovery", LOGIN_ATTEMPT_TTL_SECONDS);
+const passwordChangeAttempts = attemptStore<PasswordChangeAttempt>(
+  "passwordchange",
+  LOGIN_ATTEMPT_TTL_SECONDS,
+);
 
-  return JSON.parse(rawLoginAttempt);
-}
-
-export async function setDeviceLoginAttempt(attempt: DeviceLoginAttempt): Promise<string> {
-  const attemptId = crypto.randomUUID();
-  await redis.set(
-    deviceLoginKey(attemptId),
-    JSON.stringify(attempt),
-    "EX",
-    LOGIN_ATTEMPT_TTL_SECONDS,
-  );
-  return attemptId;
-}
-
-/** Atomically fetch and delete a device login attempt — each finishes at most once. */
-export async function takeDeviceLoginAttempt(
-  attemptId: string,
-): Promise<DeviceLoginAttempt | undefined> {
-  const raw = await redis.getdel(deviceLoginKey(attemptId));
-  if (raw === null) return undefined;
-  return JSON.parse(raw);
-}
+export const setLoginAttempt = loginAttempts.set;
+export const takeLoginAttempt = loginAttempts.take;
+export const setDeviceLoginAttempt = deviceLoginAttempts.set;
+export const takeDeviceLoginAttempt = deviceLoginAttempts.take;
+export const setRecoveryAttempt = recoveryAttempts.set;
+export const takeRecoveryAttempt = recoveryAttempts.take;
+export const setPasswordChangeAttempt = passwordChangeAttempts.set;
+export const takePasswordChangeAttempt = passwordChangeAttempts.take;
 
 /** A session's device: its credential (see Session.deviceCredentialId) and name. Live or not. */
 export async function sessionDevice(
@@ -564,41 +551,6 @@ export async function getTotpEnrollment(userId: string): Promise<string | undefi
 
 export async function deleteTotpEnrollment(userId: string): Promise<void> {
   await redis.del(totpEnrollmentKey(userId));
-}
-
-export async function setRecoveryAttempt(attempt: RecoveryAttempt): Promise<string> {
-  const attemptId = crypto.randomUUID();
-  await redis.set(recoveryKey(attemptId), JSON.stringify(attempt), "EX", LOGIN_ATTEMPT_TTL_SECONDS);
-  return attemptId;
-}
-
-/** Atomically fetch and delete a recovery attempt — each attempt finishes at most once. */
-export async function takeRecoveryAttempt(attemptId: string): Promise<RecoveryAttempt | undefined> {
-  const raw = await redis.getdel(recoveryKey(attemptId));
-  if (raw === null) return undefined;
-
-  return JSON.parse(raw);
-}
-
-export async function setPasswordChangeAttempt(attempt: PasswordChangeAttempt): Promise<string> {
-  const attemptId = crypto.randomUUID();
-  await redis.set(
-    passwordChangeKey(attemptId),
-    JSON.stringify(attempt),
-    "EX",
-    LOGIN_ATTEMPT_TTL_SECONDS,
-  );
-  return attemptId;
-}
-
-/** Atomically fetch and delete a password change attempt — each finishes at most once. */
-export async function takePasswordChangeAttempt(
-  attemptId: string,
-): Promise<PasswordChangeAttempt | undefined> {
-  const raw = await redis.getdel(passwordChangeKey(attemptId));
-  if (raw === null) return undefined;
-
-  return JSON.parse(raw);
 }
 
 // One script so parallel attempts can't all pass the lock check before any of

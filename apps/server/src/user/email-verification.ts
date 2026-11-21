@@ -15,6 +15,7 @@ import {
   claimMailSend,
   deleteEmailCodes,
   endDeletedUserSessions,
+  forgetEmailVerified,
   releaseEmailCodeSend,
   resetLoginThrottle,
   setEmailCode,
@@ -122,6 +123,22 @@ export async function sendVerificationCode(userId: string): Promise<void> {
   recordEmailVerification("code_sent");
 }
 
+/**
+ * The one writer of `emailVerifiedAt`. Verifying keeps the first time; clearing
+ * (null) also drops the Redis cache that `verifiedProcedure` trusts over Postgres.
+ */
+export async function setEmailVerifiedAt(userId: string, at: Date | null): Promise<void> {
+  if (at === null) {
+    await db.update(usersTable).set({ emailVerifiedAt: null }).where(eq(usersTable.userId, userId));
+    await forgetEmailVerified(userId);
+    return;
+  }
+  await db
+    .update(usersTable)
+    .set({ emailVerifiedAt: at })
+    .where(and(eq(usersTable.userId, userId), isNull(usersTable.emailVerifiedAt)));
+}
+
 /** Verify the user's email with a code from `sendVerificationCode`. */
 export async function verifyEmail(userId: string, code: string): Promise<void> {
   if (await isEmailVerified(userId)) return;
@@ -140,10 +157,7 @@ export async function verifyEmail(userId: string, code: string): Promise<void> {
     throw new TRPCError({ code: "BAD_REQUEST", message: EMAIL_CODE_EXPIRED });
   }
 
-  await db
-    .update(usersTable)
-    .set({ emailVerifiedAt: new Date() })
-    .where(and(eq(usersTable.userId, userId), isNull(usersTable.emailVerifiedAt)));
+  await setEmailVerifiedAt(userId, new Date());
   await deleteEmailCodes(userId);
   recordEmailVerification("verified");
 }

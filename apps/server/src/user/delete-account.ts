@@ -1,7 +1,7 @@
 import { db, usersTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import { TRPCError } from "@trpc/server";
 import { and, eq, inArray, or } from "drizzle-orm";
-import { keepOwnerIdActive, lockVaults } from "../vault/access";
+import { keepOwnerIdActive, lockUserThenVaults } from "../vault/access";
 import { SOLE_OWNER, SoleOwnerCause } from "./sole-owner";
 
 /**
@@ -14,30 +14,22 @@ export async function deleteAccount(
   userId: string,
 ): Promise<{ emailHash: string; leftVaultIds: string[] }> {
   return await db.transaction(async (tx) => {
-    // NO KEY UPDATE: a concurrent record insert's FK check (KEY SHARE) on this
-    // row must not wait on us while we wait on its vault lock.
-    const [user] = await tx
-      .select({ emailHash: usersTable.emailHash })
-      .from(usersTable)
-      .where(eq(usersTable.userId, userId))
-      .for("no key update");
-    if (!user) throw new TRPCError({ code: "NOT_FOUND" });
-
     // Every vault the user is in (any status) or is recorded as owner of
-    // (deleting the user row would cascade into it). Locked first, the user's membership rows after
-    // (the order `removeMember` takes), so no invite is accepted meanwhile.
-    const memberOf = tx
-      .select({ vaultId: vaultMembersTable.vaultId })
-      .from(vaultMembersTable)
-      .where(eq(vaultMembersTable.userId, userId));
-    const candidates = await tx
-      .select({ vaultId: vaultsTable.vaultId })
-      .from(vaultsTable)
-      .where(or(eq(vaultsTable.ownerId, userId), inArray(vaultsTable.vaultId, memberOf)));
-    await lockVaults(
-      tx,
-      candidates.map((v) => v.vaultId),
-    );
+    // (deleting the user row would cascade into it). Locked before the user's
+    // membership rows (the order `removeMember` takes), so no invite is accepted meanwhile.
+    let candidates: { vaultId: string }[] = [];
+    const user = await lockUserThenVaults(tx, userId, async () => {
+      const memberOf = tx
+        .select({ vaultId: vaultMembersTable.vaultId })
+        .from(vaultMembersTable)
+        .where(eq(vaultMembersTable.userId, userId));
+      candidates = await tx
+        .select({ vaultId: vaultsTable.vaultId })
+        .from(vaultsTable)
+        .where(or(eq(vaultsTable.ownerId, userId), inArray(vaultsTable.vaultId, memberOf)));
+      return candidates.map((v) => v.vaultId);
+    });
+    if (!user) throw new TRPCError({ code: "NOT_FOUND" });
     const own = await tx
       .select({ vaultId: vaultMembersTable.vaultId, status: vaultMembersTable.status })
       .from(vaultMembersTable)

@@ -1,4 +1,4 @@
-import { db, usersTable, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
+import { db, vaultKeyLinksTable, vaultMembersTable, vaultsTable } from "@repo/db";
 import {
   createVaultInputSchema,
   deleteVaultInputSchema,
@@ -18,6 +18,7 @@ import { router } from "../trpc";
 import { isUniqueViolation } from "../util/general";
 import {
   currentKeyPairVersions,
+  lockUserThenVaults,
   lockVaultForRole,
   memberVaults,
   notifyVaultMembers,
@@ -43,12 +44,7 @@ export const vaultRouter = router({
     await db
       .transaction(async (tx) => {
         // Concurrent creates queue up here, so they can't all pass the count.
-        // NO KEY UPDATE, as in `deleteAccount`: record inserts' FK checks don't wait.
-        await tx
-          .select({ userId: usersTable.userId })
-          .from(usersTable)
-          .where(eq(usersTable.userId, ctx.userId))
-          .for("no key update");
+        await lockUserThenVaults(tx, ctx.userId, []);
         if ((await ownedUsage(tx, ctx.userId)).vaults >= MAX_VAULTS_PER_USER) {
           throw new TRPCError({ code: "PRECONDITION_FAILED", message: "too many vaults" });
         }
