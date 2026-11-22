@@ -2,6 +2,7 @@ import type { SessionInfo } from "@repo/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useContext } from "react";
 import { SessionContext } from "../providers/SessionProvider";
+import { localQueryOptions } from "../util/local-query-options";
 import { useTRPCClient } from "../util/trpc";
 import { ACCOUNT_ACTIVITY_KEY } from "./use-account-activity";
 
@@ -28,7 +29,7 @@ export function useSessions() {
   });
 
   const mutation = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async (run: () => Promise<unknown>) => await run(),
     onSettled: () =>
       Promise.all([

@@ -7,6 +7,7 @@ import {
   deleteAccount,
   SoleVaultOwnerError,
 } from "../account/delete-account";
+import { removeProfile } from "../account/remove-profile";
 import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
@@ -117,12 +118,8 @@ export function useDeleteAccount() {
       return "failed";
     }
 
-    // Lock first: it stops the sync, so nothing writes into the database
-    // while it's being deleted.
-    const { profileId } = active.entry;
-    lock();
     try {
-      await store.removeProfile(profileId);
+      await removeProfile({ lock, store }, { profileId: active.entry.profileId });
     } catch (e) {
       // The account is gone either way; the profile can be removed from the list.
       logError("Removing the deleted account's profile failed", e);

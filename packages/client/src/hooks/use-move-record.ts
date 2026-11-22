@@ -2,6 +2,7 @@ import type { DecryptedRecord } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { recordDataOf } from "../util/decrypt-record";
+import { localQueryOptions } from "../util/local-query-options";
 import { useRefreshRecord } from "./use-records";
 
 type UseMoveRecordOpts = {
@@ -20,8 +21,7 @@ export function useMoveRecord({ onSuccess, onError }: UseMoveRecordOpts) {
     error: mutationError,
     isPending,
   } = useMutation({
-    // Local only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: ({ record, targetVaultId }: { record: DecryptedRecord; targetVaultId: string }) =>
       requireActive(store).records.move(record, recordDataOf(record), targetVaultId),
     onSuccess: async (moved, { record, targetVaultId }) => {

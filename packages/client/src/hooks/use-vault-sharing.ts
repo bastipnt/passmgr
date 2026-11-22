@@ -9,6 +9,7 @@ import {
   requireActive,
   useStore,
 } from "../providers/StoreProvider";
+import { localQueryOptions } from "../util/local-query-options";
 import { useTRPCClient } from "../util/trpc";
 import { copyRevokedRecords, getRevokedVaults } from "../vaults/revoked";
 import {
@@ -51,7 +52,7 @@ export function useVaultInvitations() {
   const opened = useQuery({
     queryKey: [INVITATIONS_KEY, "opened", boxes],
     enabled: listed.data !== undefined,
-    networkMode: "always",
+    ...localQueryOptions,
     queryFn: () => openInvitations(listed.data ?? []),
   });
   return {
@@ -84,7 +85,7 @@ export function useRevokedVaults() {
   const { revision } = useRecordsContext();
   const { data } = useQuery({
     queryKey: [REVOKED_KEY, revision],
-    networkMode: "always",
+    ...localQueryOptions,
     queryFn: () => getRevokedVaults(requireActive(store).vault),
   });
   return data ?? [];
@@ -121,7 +122,7 @@ export function useVaultSharing() {
   }
 
   const mutation = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async (run: () => Promise<unknown>) => await run(),
   });
 

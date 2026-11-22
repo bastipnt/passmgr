@@ -1,4 +1,4 @@
-import { canWriteVault, type RecordData, tagSchema } from "@repo/schema";
+import { type RecordData, tagSchema } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { requireActive, useStore } from "../providers/StoreProvider";
@@ -6,6 +6,7 @@ import type { RecordRepository } from "../records/record-repository";
 import { itemCount } from "../records/record-summary";
 import { collectTags, hasTag, removeTagFrom, renameTagIn, type TagCount } from "../records/tags";
 import { decryptRecord } from "../util/decrypt-record";
+import { localQueryOptions } from "../util/local-query-options";
 import type { VaultFilter } from "../vaults/vault-info";
 import { useGetRecords, useReloadRecords } from "./use-records";
 import { useVaults } from "./use-vaults";
@@ -35,12 +36,11 @@ export type TagEditResult = {
 export function useTagActions() {
   const store = useStore();
   const { records } = useGetRecords();
-  const { getVault } = useVaults();
+  const { canWrite } = useVaults();
   const reload = useReloadRecords();
 
   const mutation = useMutation({
-    // Local only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async ({
       tag,
       edit,
@@ -49,11 +49,7 @@ export function useTagActions() {
       edit: (tags: string[]) => string[];
     }): Promise<TagEditResult> => {
       const tagged = records.filter((record) => hasTag(record, tag));
-      const writable = tagged.filter((record) => {
-        const vault = getVault(record.vaultId);
-        // Not listed (yet): leave it to the server, which checks every change.
-        return !vault || canWriteVault(vault.role);
-      });
+      const writable = tagged.filter((record) => canWrite(record.vaultId));
       const repository = requireActive(store).records;
       const updates: Parameters<RecordRepository["updateMany"]>[0][number][] = [];
       for (const { recordId } of writable) {

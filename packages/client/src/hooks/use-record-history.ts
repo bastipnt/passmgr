@@ -6,6 +6,7 @@ import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { previousSecrets } from "../records/previous-secrets";
 import { decryptRecordRow } from "../util/decrypt-record";
+import { localQueryOptions } from "../util/local-query-options";
 
 /**
  * Every stored revision of a record, newest first, decrypted client-side.
@@ -29,8 +30,7 @@ export function useRecordHistory(recordId: string | undefined) {
     placeholderData: (previous, previousQuery) =>
       previousQuery?.queryKey[1] === recordId ? previous : undefined,
     enabled: !!recordId,
-    // Reads the local vault only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     queryFn: async (): Promise<DecryptedRecord[]> => {
       const encrypted = await requireActive(store).records.history(recordId!);
       const results = await Promise.allSettled(

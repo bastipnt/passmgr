@@ -1,10 +1,8 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { useMemo } from "react";
-import { useRecordsContext } from "../providers/RecordsProvider";
+import { type RecordsContextValue, useRecordsContext } from "../providers/RecordsProvider";
 
-export function useGetRecords(): {
-  records: DecryptedRecord[];
-  ready: boolean;
+export function useGetRecords(): Pick<RecordsContextValue, "records" | "ready"> & {
   recordsNumber: number;
 } {
   const { records, ready } = useRecordsContext();

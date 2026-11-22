@@ -16,6 +16,7 @@ vi.mock("@repo/client/src/hooks/use-vaults", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client/src/hooks/use-vaults")>()),
   useVaults: () => ({
     getVault: (vaultId: string) => ({ vaultId, name: "Team", role: mocks.role }),
+    canWrite: () => mocks.role !== "read",
     hasSeveralVaults: true,
     writableVaults: [],
   }),

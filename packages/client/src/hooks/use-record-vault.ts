@@ -1,4 +1,4 @@
-import { canWriteVault, type DecryptedRecord } from "@repo/schema";
+import type { DecryptedRecord } from "@repo/schema";
 import { useVaults } from "./use-vaults";
 
 /**
@@ -7,12 +7,10 @@ import { useVaults } from "./use-vaults";
  * (more than one exists), and where it can be moved or copied to.
  */
 export function useRecordVault(record: Pick<DecryptedRecord, "vaultId"> | undefined) {
-  const { getVault, hasSeveralVaults, writableVaults } = useVaults();
-  const vault = record ? getVault(record.vaultId) : undefined;
+  const { getVault, canWrite, hasSeveralVaults, writableVaults } = useVaults();
   return {
-    vault,
-    // Not listed (yet): leave it to the server, which checks every change.
-    writable: vault ? canWriteVault(vault.role) : true,
+    vault: record ? getVault(record.vaultId) : undefined,
+    writable: record ? canWrite(record.vaultId) : true,
     showVault: hasSeveralVaults,
     /** The other vaults it can move to. */
     moveTargets: writableVaults.filter((target) => target.vaultId !== record?.vaultId),

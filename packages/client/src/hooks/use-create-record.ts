@@ -1,6 +1,7 @@
 import type { RecordData } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { requireActive, useStore } from "../providers/StoreProvider";
+import { localQueryOptions } from "../util/local-query-options";
 import { useRefreshRecord } from "./use-records";
 
 type UseCreateRecordOpts = {
@@ -17,8 +18,7 @@ export function useCreateRecord({ onSuccess, onError }: UseCreateRecordOpts) {
     error: mutationError,
     isPending,
   } = useMutation({
-    // Local only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: ({ data, vaultId }: { data: RecordData; vaultId?: string }) =>
       requireActive(store).records.create(data, vaultId),
     onSuccess: async (created) => {

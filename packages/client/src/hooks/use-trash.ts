@@ -5,6 +5,7 @@ import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { requireActive, useStore } from "../providers/StoreProvider";
 import { decryptRecordRow, recordDataOf } from "../util/decrypt-record";
+import { localQueryOptions } from "../util/local-query-options";
 import { useRefreshRecord } from "./use-records";
 import { useVaults } from "./use-vaults";
 
@@ -35,8 +36,7 @@ export function useTrash() {
   const { data, isPending, error } = useQuery({
     queryKey: [TRASH_KEY, revision],
     placeholderData: (previous) => previous,
-    // Reads the local vault only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     queryFn: async () => {
       const rows = await requireActive(store).records.getDeleted();
       const results = await Promise.allSettled(
@@ -65,7 +65,7 @@ export function useTrash() {
   );
 
   const restore = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: (record: TrashedRecord) =>
       requireActive(store).records.restore(record, recordDataOf(record)),
     // Bumps the revision, which re-reads the trash.
@@ -73,7 +73,7 @@ export function useTrash() {
   });
 
   const purge = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: (recordIds: readonly string[]) => requireActive(store).records.purge(recordIds),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: [TRASH_KEY] }),
   });

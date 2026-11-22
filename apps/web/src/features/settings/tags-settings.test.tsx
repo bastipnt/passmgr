@@ -24,7 +24,7 @@ vi.mock("@repo/client/src/hooks/use-records", () => ({
 }));
 vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   useVaults: () => ({
-    getVault: (vaultId: string) => ({ vaultId, role: vaultId === "v-read" ? "read" : "write" }),
+    canWrite: (vaultId: string) => vaultId !== "v-read",
   }),
 }));
 vi.mock("@repo/client/src/providers/StoreProvider", async (importOriginal) => ({

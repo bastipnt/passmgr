@@ -1,4 +1,4 @@
-import { canWriteVault, MAX_VAULTS_PER_USER, type MemberVault, type VaultMeta } from "@repo/schema";
+import { MAX_VAULTS_PER_USER, type MemberVault, type VaultMeta } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useMutation } from "@tanstack/react-query";
 import { useContext, useMemo } from "react";
@@ -10,11 +10,12 @@ import {
   requireActive,
   useStore,
 } from "../providers/StoreProvider";
+import { localQueryOptions } from "../util/local-query-options";
 import { useTRPCClient } from "../util/trpc";
 import { isPreconditionFailed } from "../util/trpc-errors";
 import { reencryptForPush } from "../vaults/rekey";
 import { rotateVault, VaultKeyRotatedElsewhereError } from "../vaults/sharing";
-import type { VaultInfo } from "../vaults/vault-info";
+import { vaultLookups } from "../vaults/vault-info";
 
 /** A linked profile changes its vaults on the server: without a session it can't. */
 export class VaultsOfflineError extends Error {
@@ -29,17 +30,7 @@ export class TooManyVaultsError extends Error {
 /** The unlocked profile's vaults (personal first), and lookups over them. */
 export function useVaults() {
   const { vaults } = useRecordsContext();
-  return useMemo(() => {
-    const byId = new Map(vaults.map((vault) => [vault.vaultId, vault]));
-    return {
-      vaults,
-      /** The vaults the user may write records into (create, move targets). */
-      writableVaults: vaults.filter((vault) => canWriteVault(vault.role)),
-      getVault: (vaultId: string): VaultInfo | undefined => byId.get(vaultId),
-      /** Whether the list should tell vaults apart at all: more than one exists. */
-      hasSeveralVaults: vaults.length > 1,
-    };
-  }, [vaults]);
+  return useMemo(() => vaultLookups(vaults), [vaults]);
 }
 
 /** How many records each vault holds, by `vaultId`. */
@@ -80,7 +71,7 @@ export function useVaultActions() {
   }
 
   const create = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async (meta: VaultMeta): Promise<string> => {
       const active = requireActive(store);
       const server = viaServer();
@@ -104,7 +95,7 @@ export function useVaultActions() {
   });
 
   const rename = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async ({ vaultId, meta }: { vaultId: string; meta: VaultMeta }) => {
       const active = requireActive(store);
       const server = viaServer();
@@ -121,7 +112,7 @@ export function useVaultActions() {
   });
 
   const remove = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async (vaultId: string) => {
       const active = requireActive(store);
       if (vaultId === secretsStore.defaultVaultId)
@@ -144,7 +135,7 @@ export function useVaultActions() {
    * re-encrypted as new versions and pushed through the outbox.
    */
   const rotate = useMutation({
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: async (vaultId: string) => {
       const active = requireActive(store);
       const server = viaServer();

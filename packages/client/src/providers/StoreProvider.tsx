@@ -144,8 +144,8 @@ type StoreContextValue = {
   /** Changes of a profile not yet on the server (what removing it would lose); opens it briefly
    * when it isn't the active one. */
   countPendingChanges: (profileId: string) => Promise<number>;
-  /** Its database, persisted login and biometric enrollment. Doesn't lock (`useRemoveFromDevice`
-   * does); removing the active profile activates the next most recently used one. */
+  /** Its database, persisted login and biometric enrollment; `account/remove-profile` locks first.
+   * Removing the active profile activates the next most recently used one. */
   removeProfile: (profileId: string) => Promise<void>;
   /** Remove every profile (see `removeProfile`). Locked only. */
   removeAllProfiles: () => Promise<void>;

@@ -28,7 +28,12 @@ vi.mock("@repo/client/src/hooks/use-records", () => ({
   useGetRecords: () => ({ records: [record], ready: true, recordsNumber: 1 }),
 }));
 vi.mock("@repo/client/src/hooks/use-vaults", () => ({
-  useVaults: () => ({ getVault: () => ({ vaultId: "v1" }), vaults: [], writableVaults: [] }),
+  useVaults: () => ({
+    getVault: () => ({ vaultId: "v1" }),
+    canWrite: () => false,
+    vaults: [],
+    writableVaults: [],
+  }),
 }));
 vi.mock("./use-record-actions", () => ({
   useRecordActions: () => ({ record, ready: true, deleteRecord: vi.fn() }),

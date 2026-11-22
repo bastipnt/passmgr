@@ -1,6 +1,7 @@
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { useMutation } from "@tanstack/react-query";
 import { requireActive, useStore } from "../providers/StoreProvider";
+import { localQueryOptions } from "../util/local-query-options";
 import { useRefreshRecord } from "./use-records";
 
 type UseUpdateRecordOpts = {
@@ -17,8 +18,7 @@ export function useUpdateRecord({ onSuccess, onError }: UseUpdateRecordOpts) {
     error: mutationError,
     isPending,
   } = useMutation({
-    // Local only (ADR 0001 D1): never paused while the browser reports offline.
-    networkMode: "always",
+    ...localQueryOptions,
     mutationFn: ({ record, data }: { record: DecryptedRecord; data: RecordData }) =>
       requireActive(store).records.update(record, data),
     onSuccess: async (updated) => {

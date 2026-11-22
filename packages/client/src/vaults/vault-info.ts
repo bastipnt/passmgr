@@ -1,4 +1,10 @@
-import type { MemberVault, VaultKind, VaultMeta, VaultRole } from "@repo/schema";
+import {
+  canWriteVault,
+  type MemberVault,
+  type VaultKind,
+  type VaultMeta,
+  type VaultRole,
+} from "@repo/schema";
 import { secretsStore } from "@repo/store";
 
 /** A vault as the UI shows it: its decrypted metadata with the user's role in it. */
@@ -109,6 +115,25 @@ export function decryptVaults(rows: readonly MemberVault[]): VaultInfo[] {
       Number(b.kind === "personal") - Number(a.kind === "personal") ||
       a.name.localeCompare(b.name, undefined, { sensitivity: "base" }),
   );
+}
+
+/** The lookups `useVaults` offers over the unlocked profile's vaults (personal first). */
+export function vaultLookups(vaults: VaultInfo[]) {
+  const byId = new Map(vaults.map((vault) => [vault.vaultId, vault]));
+  return {
+    vaults,
+    /** The vaults the user may write records into (create, move targets). */
+    writableVaults: vaults.filter((vault) => canWriteVault(vault.role)),
+    getVault: (vaultId: string): VaultInfo | undefined => byId.get(vaultId),
+    /** Whether the user may change records in the vault: not as a `read` member. One not listed
+     * (yet) counts as writable: the server checks every change. */
+    canWrite: (vaultId: string): boolean => {
+      const vault = byId.get(vaultId);
+      return !vault || canWriteVault(vault.role);
+    },
+    /** Whether the list should tell vaults apart at all: more than one exists. */
+    hasSeveralVaults: vaults.length > 1,
+  };
 }
 
 /** Whether two decrypted lists show the same vaults, in the same order, the same way. */

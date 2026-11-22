@@ -49,10 +49,7 @@ const versionKey = (record: DecryptedRecord) =>
   `${record.recordId}|${record.version}|${record.clientUpdatedAt}`;
 
 function useCheapFindings() {
-  const { records, ready } = useRecordsContext();
-
-  // `records` keeps its identity until a record changes (RecordsProvider).
-  const snapshot = records;
+  const { records: snapshot, ready } = useRecordsContext();
 
   const cheap = useMemo(
     () =>

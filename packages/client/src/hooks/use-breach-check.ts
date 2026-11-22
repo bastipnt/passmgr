@@ -89,11 +89,9 @@ export function useBreachCheck(): BreachCheckState {
   const enabled = current?.enabled ?? null;
   const checks = current?.checks;
 
-  // `records` keeps its identity until a record changes (RecordsProvider).
-  const snapshot = records;
   const monitored = useMemo(
-    () => (ready ? snapshot.filter((record) => monitoredPassword(record)) : []),
-    [snapshot, ready],
+    () => (ready ? records.filter((record) => monitoredPassword(record)) : []),
+    [records, ready],
   );
 
   useEffect(() => {

@@ -19,7 +19,9 @@ import { decryptVaults, sameVaultInfos, type VaultInfo } from "../vaults/vault-i
 import { SessionContext } from "./SessionProvider";
 import { useStore } from "./StoreProvider";
 
-type RecordsContextValue = {
+export type RecordsContextValue = {
+  /** Keeps its identity until a record is added, changed or dropped: a sync that brought nothing
+   * new reruns no memo, filter or effect keyed on it. */
   records: DecryptedRecord[];
   getRecord: (id: string) => DecryptedRecord | undefined;
   ready: boolean;
@@ -65,8 +67,6 @@ export function RecordsProvider({ children }: DecryptedRecordsProviderProps) {
   const unlockedRef = useRef(vaultUnlocked);
 
   const { revision, bump: bumpRevision } = useRevision();
-  // The list keeps its identity until a record changes: a sync that brought nothing new must
-  // not rerun every filter, sort and search downstream.
   const [records, setRecords] = useState<DecryptedRecord[]>(NO_RECORDS);
   const [ready, setReady] = useState(false);
   const [vaults, setVaults] = useState<VaultInfo[]>([]);

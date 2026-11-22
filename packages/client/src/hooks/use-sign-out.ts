@@ -5,6 +5,7 @@ import {
   secretsStore,
 } from "@repo/store";
 import { useState } from "react";
+import { type ProfileRemoval, removeProfile } from "../account/remove-profile";
 import { logError } from "../errors/log-error";
 import { useStore } from "../providers/StoreProvider";
 import { endServerSession } from "../util/end-server-session";
@@ -55,7 +56,7 @@ export function useRemoveFromDevice() {
   const lock = useLock();
   const [removing, setRemoving] = useState(false);
 
-  async function remove(action: () => Promise<void>, removesActive: boolean) {
+  async function remove(which: ProfileRemoval, removesActive: boolean) {
     if (removing) return;
     setRemoving(true);
     try {
@@ -65,10 +66,7 @@ export function useRemoveFromDevice() {
       }
     } finally {
       try {
-        // Lock first: it stops the sync, so nothing writes into the database
-        // while it's being deleted.
-        lock();
-        await action();
+        await removeProfile({ lock, store }, which);
       } finally {
         setRemoving(false);
       }
@@ -90,15 +88,11 @@ export function useRemoveFromDevice() {
   }
 
   async function removeFromDevice(profileId = store.current()?.entry.profileId) {
-    if (profileId)
-      await remove(
-        () => store.removeProfile(profileId),
-        profileId === store.current()?.entry.profileId,
-      );
+    if (profileId) await remove({ profileId }, profileId === store.current()?.entry.profileId);
   }
 
   async function removeAll() {
-    await remove(() => store.removeAllProfiles(), true);
+    await remove("all", true);
   }
 
   return { removeFromDevice, removeAll, removing };

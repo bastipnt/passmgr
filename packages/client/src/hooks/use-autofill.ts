@@ -45,7 +45,6 @@ export function useAutofillSync(appActive: boolean) {
   const generator = useMemo(() => ({ ...PASSWORD_DEFAULTS, ...pwOpts }), [pwOpts]);
   usePendingAutofillLogins(appActive);
 
-  // `records` keeps its identity until a record changes (RecordsProvider).
   const entries = useMemo(() => autofillEntries(records), [records]);
 
   useEffect(() => {
