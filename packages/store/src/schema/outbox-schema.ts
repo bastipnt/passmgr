@@ -3,6 +3,7 @@ import { logWarning } from "@repo/util";
 import { and, asc, desc, eq, gt, inArray, isNotNull, isNull, lt, max, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
 import { secretsStore } from "../secrets-store";
+import { chunkByParams } from "./chunk-by-params";
 import { getProfile } from "./profile-schema";
 import {
   isSealedBySecretsStore,
@@ -227,16 +228,12 @@ export async function dropDeletesOfTombstones(
 export async function dropPurgedHistory(recordIds: Iterable<string>, db: LocalDb): Promise<void> {
   const ids = [...new Set(recordIds)];
   // One lookup per chunk, not per record: a pull page holds hundreds, purges are rare.
-  for (let i = 0; i < ids.length; i += PURGE_LOOKUP_CHUNK_SIZE) {
+  // "purged" binds one parameter beside the ids.
+  for (const chunk of chunkByParams(ids, 1, 1)) {
     const purges = await db
       .select({ recordId: records.recordId, version: max(records.version) })
       .from(records)
-      .where(
-        and(
-          inArray(records.recordId, ids.slice(i, i + PURGE_LOOKUP_CHUNK_SIZE)),
-          eq(records.tombstoneKind, "purged"),
-        ),
-      )
+      .where(and(inArray(records.recordId, chunk), eq(records.tombstoneKind, "purged")))
       .groupBy(records.recordId);
     for (const { recordId, version } of purges) {
       if (version === null) continue;
@@ -252,9 +249,6 @@ export async function dropPurgedHistory(recordIds: Iterable<string>, db: LocalDb
     }
   }
 }
-
-// Well below SQLite's bound-variable limit per statement.
-const PURGE_LOOKUP_CHUNK_SIZE = 500;
 
 function selectPendingChanges(db: LocalDb) {
   return db

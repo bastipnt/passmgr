@@ -1,6 +1,12 @@
 import type { DecryptedRecord, IdentityRecord, RecordData, RecordType } from "@repo/schema";
 import { counted, isDefined, textStats } from "@repo/util";
-import { CARD_BRAND_LABELS, cardDigits, detectCardBrand, isCardNumberLike } from "./card";
+import {
+  CARD_BRAND_LABELS,
+  cardDigits,
+  detectCardBrand,
+  isCardNumberLike,
+  MIN_CARD_DIGITS,
+} from "./card";
 import { type FieldSpec, getRecordFieldSpecs, RECORD_TYPE_LABELS } from "./record-field-specs";
 import {
   type FormFieldSpec,
@@ -90,7 +96,7 @@ export function sshPrivateKeyFileName(publicKey: string | undefined): string {
 export function maskedCardNumber(number: string | undefined): string | undefined {
   if (!isCardNumberLike(number)) return undefined;
   const digits = cardDigits(number);
-  if (digits.length < 12) return undefined;
+  if (digits.length < MIN_CARD_DIGITS) return undefined;
   return `${digits.slice(0, 4)} •••• •••• ${digits.slice(-4)}`;
 }
 

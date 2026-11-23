@@ -9,6 +9,7 @@ import "../global.css";
 import {
   ClientErrorReporter,
   ClientProvider,
+  deviceNameFromPlatform,
   PreferencesProvider,
   SessionContext,
   SessionProvider,
@@ -18,7 +19,7 @@ import {
 import { Toaster } from "@repo/ui-native";
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { useResolveClassNames } from "uniwind";
@@ -36,11 +37,14 @@ import {
   getStoredTheme,
   useThemePreference,
 } from "@/hooks/use-theme-preference";
-import { deviceName } from "@/lib/device-name";
 import { RNEventSourcePonyfill } from "@/lib/rn-event-source";
 
 const serverUrl = process.env.EXPO_PUBLIC_SERVER_URL ?? "http://localhost:3000";
-const DEVICE_NAME = deviceName();
+const DEVICE_NAME = deviceNameFromPlatform({
+  os: Platform.OS,
+  version: Platform.Version,
+  release: (Platform.constants as { Release?: string }).Release,
+});
 
 /** After the lock (`StoreProvider`): another device signed this one out, or the password changed. */
 function onSignedOutElsewhere() {

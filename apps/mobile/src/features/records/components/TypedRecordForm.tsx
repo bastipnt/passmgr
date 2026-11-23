@@ -1,13 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
   CARD_BRAND_LABELS,
-  cardDigits,
-  caretAfterDigits,
+  cardChecksumFails,
+  caretAfterRegroup,
   detectCardBrand,
   type FormFieldSpec,
   formatCardExpiry,
   formatCardNumber,
-  isLuhnValid,
   RECORD_FORM_FIELDS,
 } from "@repo/client";
 import { generateSshKeyPair, sshKeyFingerprint } from "@repo/crypto";
@@ -105,9 +104,6 @@ function WithIcon({ icon, children }: { icon: ReactNode; children: ReactNode }) 
   );
 }
 
-/** Shortest card number: below it the checksum says nothing yet. */
-const MIN_CARD_DIGITS = 12;
-
 /** Web's `CardNumberField`: grouped while typing, the network or a typo hint below. */
 function CardNumberInput({ spec, control, iconColor }: FieldProps) {
   // The caret before the edit, and where to put it after regrouping: a
@@ -122,8 +118,7 @@ function CardNumberInput({ spec, control, iconColor }: FieldProps) {
       render={({ field, fieldState }) => {
         const number = (field.value as string | undefined) ?? "";
         const brand = detectCardBrand(number);
-        const digits = cardDigits(number);
-        const checksumFails = digits.length >= MIN_CARD_DIGITS && !isLuhnValid(digits);
+        const checksumFails = cardChecksumFails(number);
 
         return (
           <View className="flex-row items-start gap-2">
@@ -144,13 +139,8 @@ function CardNumberInput({ spec, control, iconColor }: FieldProps) {
                 field.onChange(formatted);
                 // Where the caret is now: past what was typed, or at the deletion.
                 const caret = caretRef.current + (text.length - previous.length);
-                if (formatted !== text && caret < text.length) {
-                  const position = caretAfterDigits(
-                    formatted,
-                    cardDigits(text.slice(0, Math.max(caret, 0))).length,
-                  );
-                  setSelection({ start: position, end: position });
-                }
+                const position = caretAfterRegroup(text, formatted, caret);
+                if (position !== undefined) setSelection({ start: position, end: position });
               }}
               onBlur={field.onBlur}
               error={fieldState.error?.message}

@@ -1,10 +1,9 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { LocalDb } from "../local-db";
+import { chunkByParams, columnCount } from "./chunk-by-params";
 import { breachChecks, profileSettings } from "./tables";
 
 const BREACH_CHECK_SETTING = "breachCheck";
-// Bound parameters per statement stay well under SQLite's limit.
-const CHUNK = 200;
 
 /** One record version's breach check result. */
 export type BreachCheck = {
@@ -21,12 +20,6 @@ export type BreachCheckVersion = Pick<BreachCheck, "recordId" | "version" | "cli
 
 export const breachCheckKey = (v: BreachCheckVersion) =>
   `${v.recordId}|${v.version}|${v.clientUpdatedAt}`;
-
-function chunks<T>(items: readonly T[]): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += CHUNK) out.push(items.slice(i, i + CHUNK));
-  return out;
-}
 
 const atVersion = (v: BreachCheckVersion) =>
   and(
@@ -77,7 +70,7 @@ export async function getBreachCheck(
 }
 
 export async function upsertBreachChecks(checks: readonly BreachCheck[], db: LocalDb) {
-  for (const batch of chunks(checks)) {
+  for (const batch of chunkByParams(checks, columnCount(breachChecks))) {
     await db
       .insert(breachChecks)
       .values(batch)
@@ -89,13 +82,13 @@ export async function upsertBreachChecks(checks: readonly BreachCheck[], db: Loc
 }
 
 export async function deleteBreachChecksOf(recordIds: Iterable<string>, db: LocalDb) {
-  for (const batch of chunks([...recordIds])) {
+  for (const batch of chunkByParams([...recordIds], 1)) {
     await db.delete(breachChecks).where(inArray(breachChecks.recordId, batch));
   }
 }
 
 export async function deleteVaultBreachChecks(vaultIds: readonly string[], db: LocalDb) {
-  for (const batch of chunks(vaultIds)) {
+  for (const batch of chunkByParams(vaultIds, 1)) {
     await db.delete(breachChecks).where(inArray(breachChecks.vaultId, batch));
   }
 }

@@ -20,6 +20,12 @@ export const CARD_BRAND_LABELS: Record<CardBrand, string> = {
   maestro: "Maestro",
 };
 
+/** Shortest card number: below it the checksum says nothing yet. */
+export const MIN_CARD_DIGITS = 12;
+
+/** Longest card number (ISO/IEC 7812). */
+const MAX_CARD_DIGITS = 19;
+
 /** The digits of a card number, without the spaces or dashes it was typed with. */
 export function cardDigits(number: string | undefined): string {
   return number?.replace(/\D/g, "") ?? "";
@@ -57,6 +63,20 @@ export function caretAfterDigits(formatted: string, digitCount: number): number 
     if (seen === digitCount) return i + 1;
   }
   return formatted.length;
+}
+
+/**
+ * Where the caret goes once `text`, typed with the caret at `caret`, shows as
+ * `formatted`: after the same digit. `undefined` when the input keeps its own
+ * caret (nothing regrouped, or the caret at the end).
+ */
+export function caretAfterRegroup(
+  text: string,
+  formatted: string,
+  caret: number,
+): number | undefined {
+  if (formatted === text || caret >= text.length) return undefined;
+  return caretAfterDigits(formatted, cardDigits(text.slice(0, Math.max(caret, 0))).length);
 }
 
 function prefixIn(digits: string, length: number, from: number, to: number): boolean {
@@ -97,12 +117,11 @@ export function detectCardBrand(number: string | undefined): CardBrand | undefin
 
 /**
  * Whether the number passes the Luhn checksum every card number carries. A
- * failing number is almost always a typo; `false` for anything shorter than
- * the shortest card number (12 digits).
+ * failing number is almost always a typo; `false` outside card number lengths.
  */
 export function isLuhnValid(number: string | undefined): boolean {
   const digits = cardDigits(number);
-  if (digits.length < 12 || digits.length > 19) return false;
+  if (digits.length < MIN_CARD_DIGITS || digits.length > MAX_CARD_DIGITS) return false;
 
   let sum = 0;
   for (let i = 0; i < digits.length; i++) {
@@ -114,6 +133,14 @@ export function isLuhnValid(number: string | undefined): boolean {
     sum += digit;
   }
   return sum % 10 === 0;
+}
+
+/**
+ * Whether to flag the number as a likely typo: long enough for the checksum
+ * to mean something, and failing it. Only a hint; the number saves as typed.
+ */
+export function cardChecksumFails(number: string | undefined): boolean {
+  return cardDigits(number).length >= MIN_CARD_DIGITS && !isLuhnValid(number);
 }
 
 /** Digit group sizes as printed on the card: 4-6-5 (Amex), 4-6-4 (Diners), else fours. */

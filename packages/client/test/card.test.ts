@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  cardChecksumFails,
   caretAfterDigits,
+  caretAfterRegroup,
   detectCardBrand,
   formatCardExpiry,
   formatCardNumber,
@@ -84,5 +86,33 @@ describe("caretAfterDigits", () => {
     expect(caretAfterDigits("4111 1111 1111", 5)).toBe(6);
     expect(caretAfterDigits("4111 1", 0)).toBe(0);
     expect(caretAfterDigits("4111 1", 9)).toBe(6);
+  });
+});
+
+describe("caretAfterRegroup", () => {
+  it("keeps the caret after the digit just typed in the middle", () => {
+    expect(caretAfterRegroup("41119 1111", "4111 9111 1", 5)).toBe(6);
+  });
+
+  it("keeps the caret at a deletion", () => {
+    expect(caretAfterRegroup("4111 111 1111", "4111 1111 111", 8)).toBe(8);
+    expect(caretAfterRegroup("111 1111", "1111 111", -1)).toBe(0);
+  });
+
+  it("leaves the caret to the input when nothing regrouped or it sits at the end", () => {
+    expect(caretAfterRegroup("4111 1", "4111 1", 3)).toBeUndefined();
+    expect(caretAfterRegroup("41111", "4111 1", 5)).toBeUndefined();
+  });
+});
+
+describe("cardChecksumFails", () => {
+  it("flags a full-length number that fails the checksum", () => {
+    expect(cardChecksumFails("4111 1111 1111 1112")).toBe(true);
+  });
+
+  it("says nothing about a valid, short or empty number", () => {
+    expect(cardChecksumFails("4111 1111 1111 1111")).toBe(false);
+    expect(cardChecksumFails("4111 1111 111")).toBe(false);
+    expect(cardChecksumFails(undefined)).toBe(false);
   });
 });

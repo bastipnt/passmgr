@@ -1,6 +1,7 @@
 import {
   ClientErrorReporter,
   ClientProvider,
+  deviceNameFromUserAgent,
   PreferencesProvider,
   RecordsProvider,
   SessionProvider,
@@ -13,7 +14,6 @@ import { ErrorBoundary } from "react-error-boundary";
 import { onSignedOutElsewhere, SecondFactorPromptRoot } from "@/features/auth";
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
 import { useProfileStore } from "@/hooks/use-profile-store";
-import { deviceNameFromUserAgent } from "@/lib/device-name";
 import { reportWebError } from "@/lib/error-report";
 import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";

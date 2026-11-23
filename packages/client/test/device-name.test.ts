@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deviceNameFromUserAgent } from "./device-name";
+import { deviceNameFromPlatform, deviceNameFromUserAgent } from "../src/util/device-name";
 
 describe("deviceNameFromUserAgent", () => {
   it.each([
@@ -22,5 +22,21 @@ describe("deviceNameFromUserAgent", () => {
     ["curl/8.0", "Browser"],
   ])("%s → %s", (ua, expected) => {
     expect(deviceNameFromUserAgent(ua)).toBe(expected);
+  });
+});
+
+describe("deviceNameFromPlatform", () => {
+  it("names an iPhone by its iOS version", () => {
+    expect(deviceNameFromPlatform({ os: "ios", version: "18.1" })).toBe("iPhone (iOS 18.1)");
+  });
+
+  it("names an Android phone by its release, not its API level", () => {
+    expect(deviceNameFromPlatform({ os: "android", version: 34, release: "14" })).toBe(
+      "Android (Android 14)",
+    );
+  });
+
+  it("falls back to the API level when the release is missing", () => {
+    expect(deviceNameFromPlatform({ os: "android", version: 34 })).toBe("Android (Android 34)");
   });
 });

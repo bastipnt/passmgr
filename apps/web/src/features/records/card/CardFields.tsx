@@ -1,11 +1,10 @@
 import {
   CARD_BRAND_LABELS,
-  cardDigits,
-  caretAfterDigits,
+  cardChecksumFails,
+  caretAfterRegroup,
   detectCardBrand,
   formatCardExpiry,
   formatCardNumber,
-  isLuhnValid,
 } from "@repo/client";
 import type { RecordFormValues } from "@repo/schema";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
@@ -20,9 +19,6 @@ type CardFieldProps = {
   label: string;
 };
 
-/** Shortest card number: below it the checksum says nothing yet. */
-const MIN_CARD_DIGITS = 12;
-
 /**
  * The number grouped as printed on the card while typing; the record stores
  * the digits (`recordFromForm`). The detected network sits next to the label; a hint below
@@ -31,8 +27,7 @@ const MIN_CARD_DIGITS = 12;
 export function CardNumberField({ control, setValue, label }: CardFieldProps) {
   const number = useWatch({ control, name: "number" }) ?? "";
   const brand = detectCardBrand(number);
-  const digits = cardDigits(number);
-  const checksumFails = digits.length >= MIN_CARD_DIGITS && !isLuhnValid(digits);
+  const checksumFails = cardChecksumFails(number);
 
   return (
     <ControlledBoxedInput
@@ -53,17 +48,17 @@ export function CardNumberField({ control, setValue, label }: CardFieldProps) {
       value={formatCardNumber(number)}
       onChange={(event) => {
         const input = event.target;
-        const caret = input.selectionStart ?? input.value.length;
-        const digitsBeforeCaret = cardDigits(input.value.slice(0, caret)).length;
         const formatted = formatCardNumber(input.value);
+        const position = caretAfterRegroup(
+          input.value,
+          formatted,
+          input.selectionStart ?? input.value.length,
+        );
         setValue("number", formatted, { shouldDirty: true });
-        // Regrouping moves the text under the caret; put it back after the
-        // same digit, once React has written the new value.
-        if (formatted !== input.value && caret < input.value.length) {
-          requestAnimationFrame(() => {
-            const position = caretAfterDigits(formatted, digitsBeforeCaret);
-            input.setSelectionRange(position, position);
-          });
+        // Regrouping moves the text under the caret: put it back once React
+        // has written the new value.
+        if (position !== undefined) {
+          requestAnimationFrame(() => input.setSelectionRange(position, position));
         }
       }}
       hint={

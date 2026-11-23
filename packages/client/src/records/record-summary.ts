@@ -1,5 +1,6 @@
 import type { LoginRecord, RecordData } from "@repo/schema";
 import { parseWebsite } from "@repo/util";
+import { cardDigits } from "./card";
 
 /** Who a login signs in as: its username, else its email. */
 export function loginAccountName(login: LoginRecord): string | undefined {
@@ -18,7 +19,7 @@ export function getRecordSubtitle(record: RecordData): string | undefined {
     case "login":
       return loginAccountName(record);
     case "card": {
-      const digits = record.number?.replace(/\D/g, "") ?? "";
+      const digits = cardDigits(record.number);
       return digits.length >= 4 ? `•••• ${digits.slice(-4)}` : undefined;
     }
     case "identity":

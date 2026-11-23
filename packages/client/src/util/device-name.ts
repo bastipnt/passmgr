@@ -25,3 +25,16 @@ export function deviceNameFromUserAgent(userAgent: string): string {
   const system = match(SYSTEMS, userAgent);
   return system ? `${browser} on ${system}` : browser;
 }
+
+/** What React Native's `Platform` reports: `release` is Android's `Platform.constants.Release`. */
+export type NativePlatform = { os: string; version: string | number; release?: string };
+
+/**
+ * How this phone is named in the account's session list: platform and system
+ * only. Not `Constants.deviceName`: the name the user gave the phone often
+ * holds their real name, and the server would keep it in plaintext.
+ */
+export function deviceNameFromPlatform({ os, version, release }: NativePlatform): string {
+  if (os === "ios") return `iPhone (iOS ${version})`;
+  return `Android (Android ${release ?? version})`;
+}

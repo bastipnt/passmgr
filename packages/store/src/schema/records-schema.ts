@@ -3,11 +3,9 @@ import { and, desc, eq, inArray, isNotNull, isNull, max, min, type SQL, sql } fr
 import { alias } from "drizzle-orm/sqlite-core";
 import type { LocalDb } from "../local-db";
 import { secretsStore } from "../secrets-store";
+import { chunkByParams, columnCount } from "./chunk-by-params";
 import type { LocalRecordVersion } from "./outbox-schema";
 import { records } from "./tables";
-
-// 12 bound columns per row: well below SQLite's variable limit per statement.
-const UPSERT_CHUNK_SIZE = 500;
 
 /**
  * Server-sent rows replace the local copy of the same (recordId, version). A
@@ -61,8 +59,8 @@ export async function withoutForgedRows(
   isSealed: SealCheck = isSealedBySecretsStore,
 ): Promise<EncryptedRecordSchema[]> {
   const synced = new Map<string, { encryptedData: string; encryptionNonce: string }>();
-  for (let i = 0; i < incoming.length; i += UPSERT_CHUNK_SIZE) {
-    const chunk = incoming.slice(i, i + UPSERT_CHUNK_SIZE);
+  // Each row adds its recordId and its version to the two IN lists; "synced" binds one more.
+  for (const chunk of chunkByParams(incoming, 2, 1)) {
     const slots = await db
       .select({
         recordId: records.recordId,
@@ -103,8 +101,8 @@ export async function withoutForgedRows(
 
 /** Run inside a transaction: large inputs span several statements. */
 export async function upsertRecords(rows: EncryptedRecordSchema[], db: LocalDb): Promise<void> {
-  for (let i = 0; i < rows.length; i += UPSERT_CHUNK_SIZE) {
-    const chunk = rows.slice(i, i + UPSERT_CHUNK_SIZE).map((r) => ({
+  for (const batch of chunkByParams(rows, columnCount(records))) {
+    const chunk = batch.map((r) => ({
       recordId: r.recordId,
       vaultId: r.vaultId,
       encryptedData: r.encryptedData,

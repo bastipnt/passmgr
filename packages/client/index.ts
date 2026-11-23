@@ -121,6 +121,7 @@ export type { SyncStatus } from "./src/sync-manager";
 export * from "./src/sync-summary";
 export * from "./src/util/account-event-label";
 export * from "./src/util/decrypt-record";
+export * from "./src/util/device-name";
 export * from "./src/util/encrypt-record";
 export { endServerSession } from "./src/util/end-server-session";
 export { generateAuthHeaders } from "./src/util/headers";
