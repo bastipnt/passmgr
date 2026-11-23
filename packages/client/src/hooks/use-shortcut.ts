@@ -12,6 +12,11 @@ interface UseShortcutOptions {
   enabled?: boolean;
   /** Fire even when an input/textarea is focused. Defaults to false. */
   allowInInput?: boolean;
+  /**
+   * Call `preventDefault()` before the handler. Defaults to true; pass false to leave the key
+   * to the browser as well (Esc still closing a native dialog).
+   */
+  preventDefault?: boolean;
 }
 
 /**
@@ -31,7 +36,7 @@ export function useShortcut(
   handler: (e: KeyboardEvent) => void,
   options: UseShortcutOptions = {},
 ) {
-  const { description, enabled = true, allowInInput = false } = options;
+  const { description, enabled = true, allowInInput = false, preventDefault = true } = options;
   const { register } = useShortcutContext();
   // Read during render: child effects run before parent effects, so resolving
   // the depth inside the effect below would register at the parent's layer.
@@ -47,10 +52,11 @@ export function useShortcut(
       key,
       description,
       allowInInput,
+      preventDefault,
       layer,
       handler: (e) => handlerRef.current(e),
     };
 
     return register(entry);
-  }, [key, description, enabled, allowInInput, layer, register]);
+  }, [key, description, enabled, allowInInput, preventDefault, layer, register]);
 }

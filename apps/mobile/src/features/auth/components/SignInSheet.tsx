@@ -16,6 +16,7 @@ import {
   Button,
   ControlledInput,
   ControlledPasswordInput,
+  dismissThenPresent,
   FieldError,
   FieldWarning,
   FormLock,
@@ -189,10 +190,7 @@ export function SignInSheet({ ref, onForgotPassword }: SignInSheetProps) {
               <Pressable
                 className="mt-1 self-end"
                 hitSlop={8}
-                onPress={() => {
-                  sheetRef.current?.triggerShowHide(false);
-                  onForgotPassword(localVault);
-                }}
+                onPress={() => dismissThenPresent(sheetRef, () => onForgotPassword(localVault))}
               >
                 <Text className="text-muted-foreground text-xs underline">Forgot password?</Text>
               </Pressable>

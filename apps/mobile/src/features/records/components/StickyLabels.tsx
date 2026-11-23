@@ -1,6 +1,6 @@
 import { BlurView } from "expo-blur";
 import { useHeaderHeight } from "expo-router/react-navigation";
-import { createContext, type ReactNode, useContext, useState } from "react";
+import { createContext, Fragment, type ReactNode, useContext, useState } from "react";
 import { useColorScheme, View } from "react-native";
 import Animated, {
   type SharedValue,
@@ -43,20 +43,37 @@ type StickyContextValue = {
 
 const StickyContext = createContext<StickyContextValue | null>(null);
 
-type StickyListProps = {
-  scrollY: SharedValue<number>;
-  count: number;
-  /** Labels and rows as flat siblings — zIndex only orders siblings. */
-  children: ReactNode;
+export type StickySection = {
+  key: string;
+  /** Pins under the header while the section's rows scroll by. */
+  label?: ReactNode;
+  /** Keyed elements, one per row. */
+  rows: readonly ReactNode[];
 };
 
-/** Web's `sticky-label`. Labels and rows: flat children ("Sticky labels", apps/mobile/CLAUDE.md) */
-export function StickyList({ scrollY, count, children }: StickyListProps) {
+type StickyListProps = {
+  scrollY: SharedValue<number>;
+  sections: readonly StickySection[];
+};
+
+/**
+ * Web's `sticky-label`. Takes sections, not children, so labels and rows always render as flat
+ * siblings: zIndex only orders siblings ("Sticky labels", apps/mobile/CLAUDE.md).
+ */
+export function StickyList({ scrollY, sections }: StickyListProps) {
   const listY = useSharedValue(0);
   const listHeight = useSharedValue(0);
   const labelYs = useSharedValue<Record<number, number>>({});
   const labelHeight = useSharedValue(0);
   const [labelHeightJs, setLabelHeightJs] = useState(0);
+
+  let count = 0;
+  const items = sections.map(({ key, label, rows }) => (
+    <Fragment key={key}>
+      {label != null && <StickyLabel index={count++}>{label}</StickyLabel>}
+      {rows}
+    </Fragment>
+  ));
 
   return (
     <StickyContext
@@ -77,7 +94,7 @@ export function StickyList({ scrollY, count, children }: StickyListProps) {
           listHeight.value = event.nativeEvent.layout.height;
         }}
       >
-        {children}
+        {items}
         {count > 0 && <ListFrost />}
       </View>
     </StickyContext>
@@ -89,11 +106,9 @@ type StickyLabelProps = {
   children: ReactNode;
 };
 
-/** A group label that pins under the header inside a `StickyList`. */
-export function StickyLabel({ index, children }: StickyLabelProps) {
-  const sticky = useContext(StickyContext);
-  if (!sticky) throw new Error("StickyLabel must be rendered inside a StickyList");
-  const { scrollY, listY, listHeight, labelYs, labelHeight, setLabelHeightJs, count } = sticky;
+function StickyLabel({ index, children }: StickyLabelProps) {
+  const { scrollY, listY, listHeight, labelYs, labelHeight, setLabelHeightJs, count } =
+    useContext(StickyContext)!;
 
   const style = useAnimatedStyle(() => {
     const top = labelYs.value[index] ?? 0;

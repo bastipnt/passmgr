@@ -14,6 +14,7 @@ import {
   Button,
   ControlledInput,
   ControlledPasswordInput,
+  dismissThenPresent,
   FieldError,
   FormLock,
 } from "@repo/ui-native";
@@ -70,11 +71,11 @@ export function RecoverSheet({
       setLoading(false);
     }
     if (!key) return;
-    // Dismiss the form sheet, then present the new key over the welcome screen.
-    sheetRef.current?.triggerShowHide(false);
-    reset();
-    setRecoveredEmail(local ? "" : email);
-    setNewRecoveryKey(key);
+    dismissThenPresent(sheetRef, () => {
+      reset();
+      setRecoveredEmail(local ? "" : email);
+      setNewRecoveryKey(key);
+    });
   };
 
   return (

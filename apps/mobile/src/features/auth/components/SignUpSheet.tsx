@@ -7,6 +7,7 @@ import {
   Button,
   ControlledInput,
   ControlledPasswordInput,
+  dismissThenPresent,
   FieldError,
   FormLock,
   StrengthMeter,
@@ -67,10 +68,10 @@ export function SignUpSheet({ ref, onSwitchToSignIn }: SignUpSheetProps) {
       setLoading(false);
     }
     if (!key) return;
-    // Dismiss the form sheet, then present the recovery key over the welcome screen.
-    sheetRef.current?.triggerShowHide(false);
-    setRegisteredEmail(email);
-    setRecoveryKey(key);
+    dismissThenPresent(sheetRef, () => {
+      setRegisteredEmail(email);
+      setRecoveryKey(key);
+    });
   };
 
   return (

@@ -1,7 +1,8 @@
+import { useShortcut } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import { cn } from "@repo/ui/lib/utils";
 import { XIcon } from "lucide-react";
-import { type ReactNode, useEffect, useEffectEvent } from "react";
+import type { ReactNode } from "react";
 import { SHORTCUTS } from "@/lib/shortcuts";
 
 // Esc belongs to these while one has focus (they close themselves, or clear), not to the overlay.
@@ -30,17 +31,16 @@ export function OverlayHeader({
   closeLabel,
   onClose,
 }: OverlayHeaderProps) {
-  // A plain listener, not `useShortcut`: that one prevents the default, which would keep
-  // a native dialog from closing on the same Esc.
-  const onKeyDown = useEffectEvent((event: KeyboardEvent) => {
-    if (event.key !== SHORTCUTS.closeSettings.key || event.defaultPrevented) return;
-    if (event.target instanceof Element && event.target.closest(OWNS_ESCAPE)) return;
-    onClose();
-  });
-  useEffect(() => {
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  // The default stays: a native dialog closes on the same Esc.
+  useShortcut(
+    SHORTCUTS.closeSettings.key,
+    (event) => {
+      if (event.defaultPrevented) return;
+      if (event.target instanceof Element && event.target.closest(OWNS_ESCAPE)) return;
+      onClose();
+    },
+    { preventDefault: false },
+  );
 
   return (
     <header className="flex h-16 shrink-0 items-center gap-4 border-border border-b bg-card px-6">

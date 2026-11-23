@@ -1,3 +1,4 @@
+export * from "./src/components/AnimatedView";
 export * from "./src/components/Avatar";
 export * from "./src/components/Badge";
 export * from "./src/components/BlurView";
@@ -40,6 +41,7 @@ export * from "./src/components/Slider";
 export * from "./src/components/Spinner";
 export * from "./src/components/Toast";
 export * from "./src/components/WebsiteAvatar";
+export * from "./src/components/WindowOverlay";
 // record-list
 export * from "./src/features/record-list/RecordGroupLabel";
 export * from "./src/features/record-list/RecordListItem";

@@ -1,12 +1,12 @@
 import { useEffect } from "react";
-import Animated, {
+import {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withRepeat,
   withTiming,
 } from "react-native-reanimated";
-import { useCSSVariable } from "uniwind";
+import { AnimatedView } from "../AnimatedView";
 
 export type SpinnerRingProps = {
   size?: number;
@@ -15,12 +15,6 @@ export type SpinnerRingProps = {
 /** Continuously rotating ring: faint border with a solid top edge. */
 export function SpinnerRing({ size = 26 }: SpinnerRingProps) {
   const rotation = useSharedValue(0);
-  // Resolve token colors to concrete strings — className on an Animated.View
-  // isn't intercepted by Uniwind, so we drive border colors via style instead.
-  const [borderColor, topColor] = useCSSVariable([
-    "--color-border",
-    "--color-background",
-  ]) as string[];
 
   useEffect(() => {
     rotation.value = withRepeat(
@@ -35,18 +29,9 @@ export function SpinnerRing({ size = 26 }: SpinnerRingProps) {
   }));
 
   return (
-    <Animated.View
-      style={[
-        {
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          borderWidth: 2.5,
-          borderColor,
-          borderTopColor: topColor,
-        },
-        animatedStyle,
-      ]}
+    <AnimatedView
+      className="border-[2.5px] border-border border-t-background"
+      style={[{ width: size, height: size, borderRadius: size / 2 }, animatedStyle]}
     />
   );
 }

@@ -78,4 +78,32 @@ describe("ShortcutProvider", () => {
     expect(base).toHaveBeenCalledTimes(1);
     expect(overlay).toHaveBeenCalledTimes(1);
   });
+
+  it("prevents the default unless the shortcut opts out", () => {
+    const seen: boolean[] = [];
+    function OptOut() {
+      useShortcut("e", (e) => seen.push(e.defaultPrevented), { preventDefault: false });
+      return null;
+    }
+    render(
+      <ShortcutProvider>
+        <Shortcut keyName="d" handler={() => {}} />
+        <OptOut />
+      </ShortcutProvider>,
+    );
+    const pressed = (key: string) => {
+      const event = new KeyboardEvent("keydown", {
+        key,
+        code: `Key${key.toUpperCase()}`,
+        bubbles: true,
+        cancelable: true,
+      });
+      act(() => void window.dispatchEvent(event));
+      return event.defaultPrevented;
+    };
+
+    expect(pressed("d")).toBe(true);
+    expect(pressed("e")).toBe(false);
+    expect(seen).toEqual([false]);
+  });
 });

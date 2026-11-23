@@ -21,6 +21,8 @@ export interface ShortcutEntry {
    * element is focused. Defaults to false.
    */
   allowInInput?: boolean;
+  /** Call `preventDefault()` before the handler. Defaults to true. */
+  preventDefault?: boolean;
   /**
    * Nesting depth of the overlay this shortcut was registered under. 0 is the
    * base app; each active `<ShortcutLayer>` above it adds one. Only entries on
@@ -148,7 +150,7 @@ export default function ShortcutProvider({ children }: ShortcutProviderProps) {
       bindings[entry.key] = (e: KeyboardEvent) => {
         // Suppress shortcuts when typing in inputs (unless explicitly allowed)
         if (!entry.allowInInput && isEditableElement(e.target)) return;
-        e.preventDefault();
+        if (entry.preventDefault !== false) e.preventDefault();
         entry.handler(e);
       };
     }

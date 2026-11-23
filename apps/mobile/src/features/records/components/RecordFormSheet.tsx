@@ -4,6 +4,7 @@ import { type ReactNode, type Ref, useRef } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
+import { GeneratorPathContext } from "./generator-path";
 import LoginRecordForm from "./LoginRecordForm";
 import TypedRecordForm, { type OtherRecordType } from "./TypedRecordForm";
 
@@ -32,7 +33,6 @@ type FormProps<T extends RecordType> = {
   serverError?: string;
   disabled: boolean;
   defaultValues?: Partial<RecordFormValues<T>>;
-  generatorPath: Href;
   ref: Ref<RecordFormHandle>;
 };
 
@@ -64,7 +64,6 @@ export default function RecordFormSheet<T extends RecordType>({
     serverError,
     disabled: pending,
     defaultValues,
-    generatorPath,
     ref: formRef,
   };
 
@@ -106,14 +105,16 @@ export default function RecordFormSheet<T extends RecordType>({
         contentContainerClassName="grow gap-6 px-5 py-6"
         bottomOffset={24}
       >
-        {type === "login" ? (
-          <LoginRecordForm {...(formProps as unknown as FormProps<"login">)} />
-        ) : (
-          <TypedRecordForm
-            type={type as OtherRecordType}
-            {...(formProps as unknown as FormProps<OtherRecordType>)}
-          />
-        )}
+        <GeneratorPathContext value={generatorPath}>
+          {type === "login" ? (
+            <LoginRecordForm {...(formProps as unknown as FormProps<"login">)} />
+          ) : (
+            <TypedRecordForm
+              type={type as OtherRecordType}
+              {...(formProps as unknown as FormProps<OtherRecordType>)}
+            />
+          )}
+        </GeneratorPathContext>
 
         {children}
       </KeyboardAwareScrollView>

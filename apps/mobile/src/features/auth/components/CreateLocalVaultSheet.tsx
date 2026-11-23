@@ -7,6 +7,7 @@ import {
   Button,
   ControlledInput,
   ControlledPasswordInput,
+  dismissThenPresent,
   FieldError,
   FormLock,
   StrengthMeter,
@@ -66,10 +67,10 @@ export function CreateLocalVaultSheet({ ref }: CreateLocalVaultSheetProps) {
       setLoading(false);
     }
     if (!key) return;
-    // Dismiss the form sheet, then present the recovery key over the welcome screen.
-    sheetRef.current?.triggerShowHide(false);
-    setVaultName(name);
-    setRecoveryKey(key);
+    dismissThenPresent(sheetRef, () => {
+      setVaultName(name);
+      setRecoveryKey(key);
+    });
   };
 
   return (

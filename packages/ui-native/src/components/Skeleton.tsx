@@ -1,12 +1,7 @@
 import { useEffect } from "react";
 import type { DimensionValue, ViewStyle } from "react-native";
-import Animated, {
-  useAnimatedStyle,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-} from "react-native-reanimated";
-import { useCSSVariable } from "uniwind";
+import { useAnimatedStyle, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
+import { AnimatedView } from "./AnimatedView";
 
 export type SkeletonProps = {
   width?: DimensionValue;
@@ -16,7 +11,6 @@ export type SkeletonProps = {
 };
 
 export function Skeleton({ width = "100%", height = 16, borderRadius = 6, style }: SkeletonProps) {
-  const backgroundColor = useCSSVariable("--color-muted") as string;
   const opacity = useSharedValue(0.5);
 
   useEffect(() => {
@@ -28,17 +22,9 @@ export function Skeleton({ width = "100%", height = 16, borderRadius = 6, style 
   }));
 
   return (
-    <Animated.View
-      style={[
-        {
-          width,
-          height,
-          borderRadius,
-          backgroundColor,
-        },
-        animatedStyle,
-        style,
-      ]}
+    <AnimatedView
+      className="bg-muted"
+      style={[{ width, height, borderRadius }, animatedStyle, style]}
     />
   );
 }

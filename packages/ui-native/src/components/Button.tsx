@@ -25,9 +25,10 @@ import { useCSSVariable, withUniwind } from "uniwind";
 
 import { cn } from "../lib/utils";
 import { Spinner } from "./Spinner";
+import { useInWindowOverlay } from "./WindowOverlay";
 
 /*
- * The pressable fallback (Android, RN-node children, `native={false}`) mirrors
+ * The pressable fallback (Android, RN-node children, a `WindowOverlay`) mirrors
  * web's `Button` (packages/ui): solid violet primary, frosted white outline,
  * round floating glass.
  */
@@ -220,13 +221,6 @@ export type ButtonProps = Omit<PressableProps, "children"> &
      * host has no intrinsic width of its own.
      */
     hug?: boolean;
-    /**
-     * Opt out of the native iOS button and always render the RN pressable.
-     * Required inside a `FullWindowOverlay`: its container hangs off the
-     * `UIWindow`, so the SwiftUI host finds no parent view controller and
-     * never mounts its content.
-     */
-    native?: boolean;
   };
 
 export function Button({
@@ -240,9 +234,9 @@ export function Button({
   disabled,
   systemImage,
   hug = false,
-  native = true,
   ...props
 }: ButtonProps) {
+  const inWindowOverlay = useInWindowOverlay();
   const nativeVariant = nativeVariants[variant ?? "default"];
   const tintColor = useCSSVariable(nativeVariant.tintVariable) as string;
   const contentColor = useCSSVariable(nativeVariant.contentVariable ?? nativeVariant.tintVariable);
@@ -258,7 +252,7 @@ export function Button({
   const label = typeof children === "string" ? children : undefined;
   const iconOnly = children == null && systemImage != null;
   const useNativeButton =
-    Platform.OS === "ios" && native && icon == null && (label != null || iconOnly);
+    Platform.OS === "ios" && !inWindowOverlay && icon == null && (label != null || iconOnly);
 
   if (useNativeButton) {
     const { onPress, accessibilityLabel } = props;

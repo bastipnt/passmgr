@@ -3,7 +3,7 @@ import {
   type BottomSheetProps as BottomSheetPrimitiveProps,
   RNHostView,
 } from "@expo/ui";
-import { ReactNode, Ref, useImperativeHandle, useState } from "react";
+import { ReactNode, Ref, RefObject, useImperativeHandle, useState } from "react";
 import { View } from "react-native";
 import { KeyboardAwareScrollView } from "react-native-keyboard-controller";
 import { cn } from "../lib/utils";
@@ -69,4 +69,13 @@ function BottomSheet({
   );
 }
 
-export { BottomSheet, type BottomSheetRef };
+/**
+ * Hands off from a sheet to what follows it (another sheet, a dialog): the sheet goes first,
+ * so the next one presents over the screen under it, not over the sheet on its way out.
+ */
+function dismissThenPresent(sheet: RefObject<BottomSheetRef | null>, present: () => void) {
+  sheet.current?.triggerShowHide(false);
+  present();
+}
+
+export { BottomSheet, type BottomSheetRef, dismissThenPresent };

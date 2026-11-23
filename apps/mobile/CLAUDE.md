@@ -23,15 +23,15 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   must equal `presets.css`, a test checks it). Applied in a layout effect on launch, so no flash.
 - Read tokens in JS via `useCSSVariable(name)` (in components) or
   `Uniwind.getCSSVariable(name)` (outside). Wrap non-core third-party components with
-  `withUniwind` to give them `className`.
+  `withUniwind` to give them `className`; reanimated's view is wrapped once, `AnimatedView` (`@repo/ui-native`).
 - **Look = web at phone width.** Screens wrap in `Screen` (`@repo/ui-native`; flat ground, `field` on auth
   renders the `LightField` blob backdrop). Stack `contentStyle`: pages `bg-edge-tint`,
   formSheets `bg-popover`. Lists and field groups are flush (`Section` / `SectionGroup`,
   `RecordListItem`, `RecordDetailsItem` — whole row copies), not boxed cards. Prefer native chrome:
   header bar items and `SegmentedControl` (SwiftUI picker). No bottom `Stack.Toolbar`: it collides with
   the tab bar. Page titles scroll into the bar via `useScrollTitle` (big title in content, bar title once scrolled).
-  Record-list group labels pin under the bar via `StickyList`/`StickyLabel` (labels and rows as flat siblings, one
-  shared frost).
+  Record-list group labels pin under the bar via `StickyList` (takes `sections`; labels and rows render as flat
+  siblings, one shared frost).
 - **Header buttons are native `UIBarButtonItem`s** (`unstable_headerLeftItems` / `unstable_headerRightItems`), never
   React views in `headerLeft` / `headerRight` or floating over the content: iOS 26 wraps a React element in a
   custom-view bar item with its own liquid glass capsule, so a glass button of ours would sample that capsule instead of
@@ -55,10 +55,11 @@ content's first child); Android has no inset, pads with `contentTopPadding` and 
 reanimated `Animated.ScrollView`. Tapping the active tab scrolls to the rest offset: RN's own scroll-to-top targets
 offset 0, which on iOS leaves the title under the bar.
 
-Sticky labels (`features/records/components/StickyLabels.tsx`): in a `StickyList`, each `StickyLabel` pins under the
-header while its rows scroll by and is pushed out by the next one. Labels and rows are direct (flat) children: one
-shared frost sits between them in z-order (rows < frost < labels), which RN can only do for siblings, and with one
-frost there is no hand-over between labels, so it never blinks. The frost is web's masked sticky-bar frost: a native
+Sticky labels (`features/records/components/StickyLabels.tsx`): in a `StickyList`, each section's label pins under the
+header while its rows scroll by and is pushed out by the next one. It takes `sections` (label + keyed rows), not
+children, and renders labels and rows as direct (flat) children: one shared frost sits between them in z-order
+(rows < frost < labels), which RN can only do for siblings, and with one frost there is no hand-over between labels,
+so it never blinks. The frost is web's masked sticky-bar frost: a native
 blur from under the bar down through the label, washed with the page's edge tint, then a tint fade below so rows ease
 into it; it follows the bar and fades in once the first label pins.
 

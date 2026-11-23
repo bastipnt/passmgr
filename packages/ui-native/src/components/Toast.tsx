@@ -1,10 +1,11 @@
 import { CircleAlert, CircleCheck, TriangleAlert } from "lucide-react-native";
 import { type ReactNode, useEffect, useSyncExternalStore } from "react";
 import { AccessibilityInfo, Platform, Pressable, Text, View } from "react-native";
-import Animated, { FadeInUp, FadeOutUp } from "react-native-reanimated";
+import { FadeInUp, FadeOutUp } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { FullWindowOverlay } from "react-native-screens";
 import { useCSSVariable } from "uniwind";
+import { AnimatedView } from "./AnimatedView";
+import { WindowOverlay } from "./WindowOverlay";
 
 export type ToastKind = "success" | "error" | "warning";
 
@@ -115,9 +116,7 @@ function Overlay({ children }: { children: ReactNode }) {
   }
   // The native default makes VoiceOver ignore everything outside the overlay.
   return (
-    <FullWindowOverlay unstable_accessibilityContainerViewIsModal={false}>
-      {children}
-    </FullWindowOverlay>
+    <WindowOverlay unstable_accessibilityContainerViewIsModal={false}>{children}</WindowOverlay>
   );
 }
 
@@ -126,11 +125,10 @@ function ToastCard({ item }: { item: ToastItem }) {
   const Icon = ICONS[item.kind];
 
   return (
-    <Animated.View
+    <AnimatedView
       entering={FadeInUp.duration(200)}
       exiting={FadeOutUp.duration(150)}
-      // Uniwind doesn't style reanimated components: `className` would be dropped here.
-      style={{ width: "100%", maxWidth: 448 }}
+      className="w-full max-w-[448px]"
     >
       <Pressable
         accessibilityRole="alert"
@@ -159,6 +157,6 @@ function ToastCard({ item }: { item: ToastItem }) {
           )}
         </View>
       </Pressable>
-    </Animated.View>
+    </AnimatedView>
   );
 }

@@ -6,7 +6,7 @@ import { Text, View } from "react-native";
 import type { SharedValue } from "react-native-reanimated";
 import { recordPaths } from "@/route-paths";
 import { RecordAvatar } from "./RecordAvatar";
-import { StickyLabel, StickyList } from "./StickyLabels";
+import { StickyList, type StickySection } from "./StickyLabels";
 
 type RecordsListProps = {
   recordGroups: RecordGroup[];
@@ -30,53 +30,39 @@ export function RecordsList({ recordGroups, onSelect, scrollY, showVault }: Reco
     if (!vault) return text;
     return text ? `${vault.name} · ${text}` : vault.name;
   };
-  let labelIndex = 0;
+  const sections: StickySection[] = recordGroups.map((recordGroup) => ({
+    key: recordGroup.label ?? "all",
+    label: recordGroup.label ? <RecordGroupLabel text={recordGroup.label} /> : undefined,
+    rows: recordGroup.records.map((record, index) => (
+      <RecordListItem
+        key={record.recordId}
+        first={index === 0}
+        title={record.title}
+        favorite={record.favorite}
+        username={subtitle(record)}
+        websites={getRecordWebsites(record)}
+        avatar={record.type === "login" ? undefined : <RecordAvatar record={record} size="md" />}
+        // [recordId] lives in the (records,search) group, so the same href
+        // resolves inside whichever tab is currently active.
+        onClick={() => {
+          onSelect?.(record.recordId);
+          router.navigate(recordPaths.record(record.recordId));
+        }}
+      />
+    )),
+  }));
 
-  // Labels and rows are rendered flat (fragments add no views): `StickyList`
-  // layers its frost between them, which RN's zIndex only does for siblings.
-  const items = recordGroups.map((recordGroup) => {
-    const label = recordGroup.label ? (
-      scrollY ? (
-        <StickyLabel index={labelIndex++}>
-          <RecordGroupLabel text={recordGroup.label} />
-        </StickyLabel>
-      ) : (
-        <RecordGroupLabel text={recordGroup.label} />
-      )
-    ) : null;
-
-    return (
-      <Fragment key={recordGroup.label ?? "all"}>
-        {label}
-        {recordGroup.records.map((record, index) => (
-          <RecordListItem
-            key={record.recordId}
-            first={index === 0}
-            title={record.title}
-            favorite={record.favorite}
-            username={subtitle(record)}
-            websites={getRecordWebsites(record)}
-            avatar={
-              record.type === "login" ? undefined : <RecordAvatar record={record} size="md" />
-            }
-            // [recordId] lives in the (records,search) group, so the same href
-            // resolves inside whichever tab is currently active.
-            onClick={() => {
-              onSelect?.(record.recordId);
-              router.navigate(recordPaths.record(record.recordId));
-            }}
-          />
-        ))}
-      </Fragment>
-    );
-  });
-
-  if (!scrollY) return <View>{items}</View>;
+  if (scrollY) return <StickyList scrollY={scrollY} sections={sections} />;
 
   return (
-    <StickyList scrollY={scrollY} count={labelIndex}>
-      {items}
-    </StickyList>
+    <View>
+      {sections.map(({ key, label, rows }) => (
+        <Fragment key={key}>
+          {label}
+          {rows}
+        </Fragment>
+      ))}
+    </View>
   );
 }
 

@@ -9,7 +9,6 @@ import {
   FieldSet,
   FormLock,
 } from "@repo/ui-native";
-import type { Href } from "expo-router";
 import { LockIcon, MailIcon, NotebookPenIcon, TagIcon, UserIcon } from "lucide-react-native";
 import { type Ref, useImperativeHandle } from "react";
 import { useForm } from "react-hook-form";
@@ -22,8 +21,6 @@ import type { RecordFormHandle } from "./RecordFormSheet";
 
 type LoginRecordFormProps = {
   onSubmit: (data: FormValues) => void;
-  /** Route of the generator sheet the password field opens. */
-  generatorPath: Href;
   serverError?: string;
   /** Locks every field while a save is in flight. */
   disabled?: boolean;
@@ -36,7 +33,6 @@ export default function LoginRecordForm({
   serverError,
   disabled = false,
   defaultValues,
-  generatorPath,
   ref,
 }: LoginRecordFormProps) {
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
@@ -90,7 +86,7 @@ export default function LoginRecordForm({
             icon={<MailIcon size={18} color={iconColor} />}
           />
 
-          <PasswordField control={control} setValue={setValue} generatorPath={generatorPath} />
+          <PasswordField control={control} setValue={setValue} />
 
           <ControlledInput
             control={control}

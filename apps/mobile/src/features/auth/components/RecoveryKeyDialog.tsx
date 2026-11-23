@@ -1,12 +1,11 @@
 import { recoveryKeyChunks, useEmergencyKit } from "@repo/client";
 import { wipe } from "@repo/crypto";
-import { Button } from "@repo/ui-native";
+import { Button, WindowOverlay } from "@repo/ui-native";
 import { toBase64 } from "@repo/util";
 import * as Print from "expo-print";
 import { KeyRound } from "lucide-react-native";
 import { type ReactNode, useMemo } from "react";
 import { Alert, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
-import { FullWindowOverlay } from "react-native-screens";
 import { useCopySecret } from "@/lib/clipboard";
 
 /**
@@ -25,9 +24,9 @@ function DialogPortal({
   if (Platform.OS === "ios") {
     if (!visible) return null;
     return (
-      <FullWindowOverlay>
+      <WindowOverlay>
         <View style={StyleSheet.absoluteFill}>{children}</View>
-      </FullWindowOverlay>
+      </WindowOverlay>
     );
   }
 
@@ -134,22 +133,14 @@ export function RecoveryKeyDialog({
               ))}
             </Text>
           </Pressable>
-          {/* `native={false}`: SwiftUI hosts stay unmounted inside a
-              `FullWindowOverlay` — see the note in `RemoveDialog`. */}
           <View className="gap-2.5">
-            <Button native={false} variant="outline" size="lg" onPress={onCopy}>
+            <Button variant="outline" size="lg" onPress={onCopy}>
               {copied ? "Copied" : "Copy to clipboard"}
             </Button>
-            <Button
-              native={false}
-              variant="outline"
-              size="lg"
-              loading={kitBusy}
-              onPress={onSaveKit}
-            >
+            <Button variant="outline" size="lg" loading={kitBusy} onPress={onSaveKit}>
               {kitSaved ? "Emergency kit saved" : "Print or save emergency kit"}
             </Button>
-            <Button native={false} size="lg" onPress={onConfirm} disabled={!saved}>
+            <Button size="lg" onPress={onConfirm} disabled={!saved}>
               I saved it
             </Button>
           </View>

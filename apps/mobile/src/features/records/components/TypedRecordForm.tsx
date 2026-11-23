@@ -31,7 +31,6 @@ import {
   SegmentedControl,
   Textarea,
 } from "@repo/ui-native";
-import type { Href } from "expo-router";
 import {
   CalendarDays,
   CreditCard,
@@ -73,7 +72,6 @@ type FieldProps = {
   spec: FormFieldSpec;
   control: Control<AnyFormValues>;
   setValue: UseFormSetValue<AnyFormValues>;
-  generatorPath: Href;
   iconColor: string;
 };
 
@@ -247,7 +245,7 @@ function SecretTextarea({ spec, control }: FieldProps) {
 }
 
 function FormField(props: FieldProps) {
-  const { spec, control, setValue, generatorPath, iconColor } = props;
+  const { spec, control, setValue, iconColor } = props;
   const keyboardType = spec.input ? KEYBOARDS[spec.input] : undefined;
 
   switch (spec.kind) {
@@ -282,7 +280,7 @@ function FormField(props: FieldProps) {
       );
 
     case "password":
-      return <PasswordField control={control} setValue={setValue} generatorPath={generatorPath} />;
+      return <PasswordField control={control} setValue={setValue} />;
 
     case "multiline":
       return (
@@ -406,8 +404,6 @@ function GenerateSshKey({
 type TypedRecordFormProps<T extends OtherRecordType> = {
   type: T;
   onSubmit: (data: RecordFormValues<T>) => void;
-  /** Route of the generator sheet a password field opens. */
-  generatorPath: Href;
   serverError?: string;
   /** Locks every field while a save is in flight. */
   disabled?: boolean;
@@ -422,7 +418,6 @@ type TypedRecordFormProps<T extends OtherRecordType> = {
 export default function TypedRecordForm<T extends OtherRecordType>({
   type,
   onSubmit,
-  generatorPath,
   serverError,
   disabled = false,
   defaultValues,
@@ -471,7 +466,6 @@ export default function TypedRecordForm<T extends OtherRecordType>({
               spec={spec}
               control={control}
               setValue={setValue}
-              generatorPath={generatorPath}
               iconColor={iconColor}
             />
           ))}

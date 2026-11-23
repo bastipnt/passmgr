@@ -1,12 +1,13 @@
 import { usePasswordStrength } from "@repo/client";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
 import { formSlice } from "@repo/ui-shared";
-import { type Href, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { KeyIcon, WandSparkles } from "lucide-react-native";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import { Pressable } from "react-native";
 import { useCSSVariable } from "uniwind";
 import { usePasswordGenerator } from "@/features/password-generation/PasswordGeneratorContext";
+import { useGeneratorPath } from "./generator-path";
 
 /** Any form with a `password` field: a login, a Wi-Fi network. */
 type PasswordFormValues = { password?: string };
@@ -14,14 +15,13 @@ type PasswordFormValues = { password?: string };
 type PasswordFieldProps<T extends PasswordFormValues> = {
   control: Control<T>;
   setValue: UseFormSetValue<T>;
-  /** Route of the generator sheet — differs per screen (create vs. edit). */
-  generatorPath: Href;
 };
 
 const passwordSlice = formSlice<PasswordFormValues>();
 
 export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
-  const { control, setValue, generatorPath } = passwordSlice(props);
+  const { control, setValue } = passwordSlice(props);
+  const generatorPath = useGeneratorPath();
   const router = useRouter();
   const { registerTarget } = usePasswordGenerator();
 

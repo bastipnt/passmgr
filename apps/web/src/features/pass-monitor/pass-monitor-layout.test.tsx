@@ -1,5 +1,5 @@
 import type { BreachCheckState, PassMonitor } from "@repo/client";
-import { SessionContext } from "@repo/client";
+import { SessionContext, ShortcutProvider } from "@repo/client";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -56,7 +56,9 @@ function renderAt(path: string) {
   renderWithProviders(
     <Router hook={location.hook}>
       <SessionContext.Provider value={session}>
-        <PassMonitorRoutes />
+        <ShortcutProvider>
+          <PassMonitorRoutes />
+        </ShortcutProvider>
       </SessionContext.Provider>
     </Router>,
   );
