@@ -1,6 +1,6 @@
 import { VaultsOfflineError } from "@repo/client";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import { DeleteVaultDialog } from "./DeleteVaultDialog";
 
@@ -15,11 +15,6 @@ vi.mock("@repo/client", async (importOriginal) => ({
 }));
 
 const work = { vaultId: "v-work", name: "Work", kind: "shared", role: "owner" } as const;
-
-// Braces: a returned function would run as the hook's teardown.
-beforeEach(() => {
-  mocks.deleteVault.mockReset();
-});
 
 describe("DeleteVaultDialog", () => {
   it("deletes only once the vault's name is typed", async () => {

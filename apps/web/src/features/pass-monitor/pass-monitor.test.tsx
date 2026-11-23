@@ -67,7 +67,6 @@ const breachOff: BreachCheckState = {
   recheck: vi.fn(),
 };
 
-// Braces: a returned function would run as the hook's teardown.
 beforeEach(() => {
   mocks.monitor = checking;
   mocks.breach = breachOff;

@@ -1,6 +1,6 @@
 import { VaultMembersChangedError } from "@repo/client";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import { RotateVaultKeyDialog } from "./RotateVaultKeyDialog";
 
@@ -12,11 +12,6 @@ vi.mock("@repo/client", async (importOriginal) => ({
 }));
 
 const work = { vaultId: "v-work", name: "Work", kind: "shared", role: "owner" } as const;
-
-// Braces: a returned function would run as the hook's teardown.
-beforeEach(() => {
-  mocks.rotateVaultKey.mockReset();
-});
 
 describe("RotateVaultKeyDialog", () => {
   it("rotates the vault's key and closes", async () => {

@@ -11,7 +11,7 @@ configure({ asyncUtilTimeout: 5_000 });
 relaxArgonBounds();
 
 if (typeof window !== "undefined" && !window.matchMedia) {
-  window.matchMedia = vi.fn().mockImplementation((query: string) => ({
+  window.matchMedia = vi.fn((query: string) => ({
     matches: false,
     media: query,
     onchange: null,

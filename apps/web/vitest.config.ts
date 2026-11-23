@@ -21,6 +21,8 @@ export default defineConfig({
     // `--localstorage-file`), which shadows jsdom's.
     execArgv: ["--no-experimental-webstorage"],
     testTimeout: 10_000,
+    mockReset: true,
+    restoreMocks: true,
     coverage: {
       provider: "v8",
       reporter: ["text", "html", "lcov"],

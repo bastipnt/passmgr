@@ -43,11 +43,7 @@ function trashed(recordId: string, title: string, writable = true) {
   };
 }
 
-// Braces: a returned function would run as the hook's teardown.
 beforeEach(() => {
-  mocks.restore.mockReset();
-  mocks.purge.mockReset();
-  mocks.emptyTrash.mockReset();
   mocks.records = [];
   viewport.mobile = false;
 });
