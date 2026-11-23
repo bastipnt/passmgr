@@ -36,7 +36,20 @@ values in the release tag's `Caddyfile`, on every response (`sw.js` and the work
 their own response), so a dropped or weakened CSP fails too.
 
 `web-served-code.yml` runs it hourly and after each deploy, with the sums and the `Caddyfile` of the
-release tag (never from the site), and keeps an issue open while it fails.
+release tag (never from the site), and keeps an issue open while it fails. The script tells two kinds
+of failure apart:
+
+- **Mismatch** (exit 1): a file, a fallback route or a pinned header differs, or a file the release
+  lists is missing (a 4xx). The issue "Served web code does not match the release" opens at once and
+  calls it a possible web-host compromise.
+- **Unreachable** (exit 3): only fetches failed (network error, timeout, HTTP 5xx), so nothing was
+  compared. The issue "Served-code check could not reach production" opens only after 3 scheduled
+  runs failed in a row (about two hours on the hourly cron) and says it is not by itself evidence of
+  tampering. A host that keeps failing only some of the release's files still needs explaining.
+
+One mismatch outweighs any number of unreachable files, and a run is a mismatch once every candidate
+release mismatched in one of its two attempts. While an issue is open, each failing run of its kind
+comments on it instead.
 
 ## Images
 

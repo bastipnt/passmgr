@@ -5,13 +5,15 @@
  *
  *   pnpm --filter web verify:deployment https://vault.example.com ./SHA256SUMS [./Caddyfile]
  *
- * Without a Caddyfile argument the one in this checkout is used.
+ * Without a Caddyfile argument the one in this checkout is used. Exits 1 on a mismatch (digest,
+ * fallback route, header, a 4xx), 3 when only fetches failed (network error, timeout, 5xx), 2 on usage.
  */
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const CONCURRENCY = 8;
+const FETCH_TIMEOUT_MS = 30_000;
 // Caddy serves a precompressed copy per encoding (`scripts/precompress.ts`), each its own file on
 // the host: check every variant a browser can get, not just the one this runtime asks for.
 const ENCODINGS = ["identity", "gzip", "br"] as const;
@@ -24,38 +26,20 @@ const PINNED_HEADERS = [
   "Cross-Origin-Embedder-Policy",
 ] as const;
 
-const [
-  siteUrl,
-  sumsPath,
-  caddyfilePath = fileURLToPath(new URL("../../../Caddyfile", import.meta.url)),
-] = process.argv.slice(2);
-if (!siteUrl || !sumsPath) {
-  console.error("usage: verify-deployment <site-url> <SHA256SUMS> [Caddyfile]");
-  process.exit(2);
+export const EXIT_CODES = { mismatch: 1, usage: 2, unreachable: 3 } as const;
+
+export type FailureKind = "mismatch" | "unreachable";
+export type Failure = { kind: FailureKind; message: string };
+export type PinnedHeader = { name: string; value: string };
+export type Check = { digest: string; file: string; encoding: (typeof ENCODINGS)[number] };
+
+// One mismatch outweighs any number of unreachable files: it was compared and differs.
+export function verdict(failures: readonly Failure[]): FailureKind | undefined {
+  if (failures.some(({ kind }) => kind === "mismatch")) return "mismatch";
+  return failures.length > 0 ? "unreachable" : undefined;
 }
 
-const expected = (await readFile(sumsPath, "utf8"))
-  .split("\n")
-  .filter(Boolean)
-  .map((line) => {
-    const match = /^([0-9a-f]{64}) {2}(.+)$/.exec(line);
-    if (!match) throw new Error(`malformed line in ${sumsPath}: ${line}`);
-    return { digest: match[1], file: match[2] };
-  });
-
-const index = expected.find(({ file }) => file === "index.html");
-if (!index) throw new Error(`${sumsPath} has no index.html`);
-// Browsers load the app from "/", not "/index.html"; a host could serve another document there.
-for (const file of ["", ...FALLBACK_ROUTES]) expected.push({ digest: index.digest, file });
-
-const expectedHeaders = parseHeaders(await readFile(caddyfilePath, "utf8"));
-
-const site = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
-const failures: string[] = [];
-
-type Check = (typeof expected)[number] & { encoding: (typeof ENCODINGS)[number] };
-
-function parseHeaders(caddyfile: string) {
+function parseHeaders(caddyfile: string, caddyfilePath: string): PinnedHeader[] {
   return PINNED_HEADERS.map((name) => {
     const values = [
       ...caddyfile.matchAll(new RegExp(`^\\s*${name}\\s+(?:"([^"]*)"|(\\S+))\\s*$`, "gm")),
@@ -66,16 +50,34 @@ function parseHeaders(caddyfile: string) {
   });
 }
 
-async function check({ digest, file, encoding }: Check) {
+export async function check(
+  site: string,
+  expectedHeaders: readonly PinnedHeader[],
+  { digest, file, encoding }: Check,
+): Promise<Failure[]> {
   const label = `${file || "/"} (${encoding})`;
-  const response = await fetch(new URL(file, site), {
-    cache: "no-store",
-    headers: { "Accept-Encoding": encoding },
+  const mismatch = (message: string): Failure => ({
+    kind: "mismatch",
+    message: `${label}: ${message}`,
   });
-  if (!response.ok) {
-    failures.push(`${label}: HTTP ${response.status}`);
-    return;
+  let response: Response;
+  let body: ArrayBuffer;
+  try {
+    response = await fetch(new URL(file, site), {
+      cache: "no-store",
+      headers: { "Accept-Encoding": encoding },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    });
+    // A reset mid-body is as unreachable as one before the headers.
+    body = await response.arrayBuffer();
+  } catch (error) {
+    return [{ kind: "unreachable", message: `${label}: ${String(error)}` }];
   }
+  if (response.status >= 500)
+    return [{ kind: "unreachable", message: `${label}: HTTP ${response.status}` }];
+  if (!response.ok) return [mismatch(`HTTP ${response.status}`)];
+
+  const failures: Failure[] = [];
   // Caddy sends them on every response, and sw.js and the workers get their CSP and COEP from
   // their own response, not the page's. Headers don't vary by encoding: check them once per path.
   if (encoding === "identity") {
@@ -83,33 +85,67 @@ async function check({ digest, file, encoding }: Check) {
       const served = response.headers.get(name);
       if (served !== value)
         failures.push(
-          `${label}: ${name} is ${JSON.stringify(served)}, expected ${JSON.stringify(value)}`,
+          mismatch(`${name} is ${JSON.stringify(served)}, expected ${JSON.stringify(value)}`),
         );
     }
   }
   const served = response.headers.get("content-encoding") ?? "identity";
-  if (served !== encoding && served !== "identity") {
-    failures.push(`${label}: served as ${served}`);
-    return;
-  }
+  if (served !== encoding && served !== "identity")
+    return [...failures, mismatch(`served as ${served}`)];
   // fetch decodes the body, so every variant hashes to the file's own digest.
-  const actual = createHash("sha256")
-    .update(Buffer.from(await response.arrayBuffer()))
-    .digest("hex");
-  if (actual !== digest) failures.push(`${label}: sha256 ${actual}, expected ${digest}`);
+  const actual = createHash("sha256").update(Buffer.from(body)).digest("hex");
+  if (actual !== digest) failures.push(mismatch(`sha256 ${actual}, expected ${digest}`));
+  return failures;
 }
 
-const checks = expected.flatMap((entry) => ENCODINGS.map((encoding) => ({ ...entry, encoding })));
+async function main() {
+  const [
+    siteUrl,
+    sumsPath,
+    caddyfilePath = fileURLToPath(new URL("../../../Caddyfile", import.meta.url)),
+  ] = process.argv.slice(2);
+  if (!siteUrl || !sumsPath) {
+    console.error("usage: verify-deployment <site-url> <SHA256SUMS> [Caddyfile]");
+    process.exit(EXIT_CODES.usage);
+  }
 
-for (let i = 0; i < checks.length; i += CONCURRENCY) {
-  await Promise.all(checks.slice(i, i + CONCURRENCY).map(check));
+  const expected = (await readFile(sumsPath, "utf8"))
+    .split("\n")
+    .filter(Boolean)
+    .map((line) => {
+      const match = /^([0-9a-f]{64}) {2}(.+)$/.exec(line);
+      if (!match) throw new Error(`malformed line in ${sumsPath}: ${line}`);
+      return { digest: match[1], file: match[2] };
+    });
+
+  const index = expected.find(({ file }) => file === "index.html");
+  if (!index) throw new Error(`${sumsPath} has no index.html`);
+  // Browsers load the app from "/", not "/index.html"; a host could serve another document there.
+  for (const file of ["", ...FALLBACK_ROUTES]) expected.push({ digest: index.digest, file });
+
+  const expectedHeaders = parseHeaders(await readFile(caddyfilePath, "utf8"), caddyfilePath);
+  const site = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
+  const checks = expected.flatMap((entry) => ENCODINGS.map((encoding) => ({ ...entry, encoding })));
+
+  const failures: Failure[] = [];
+  for (let i = 0; i < checks.length; i += CONCURRENCY) {
+    const batch = checks
+      .slice(i, i + CONCURRENCY)
+      .map((entry) => check(site, expectedHeaders, entry));
+    failures.push(...(await Promise.all(batch)).flat());
+  }
+
+  const kind = verdict(failures);
+  if (kind) {
+    console.error(
+      `${failures.length} problems in ${checks.length} checks against the release (${kind}):`,
+    );
+    for (const { kind, message } of failures) console.error(`  [${kind}] ${message}`);
+    process.exit(EXIT_CODES[kind]);
+  }
+  console.log(
+    `All ${expected.length} paths match the release in every encoding, all with its ${PINNED_HEADERS.join(", ")}.`,
+  );
 }
 
-if (failures.length > 0) {
-  console.error(`${failures.length} problems in ${checks.length} checks against the release:`);
-  for (const failure of failures) console.error(`  ${failure}`);
-  process.exit(1);
-}
-console.log(
-  `All ${expected.length} paths match the release in every encoding, all with its ${PINNED_HEADERS.join(", ")}.`,
-);
+if (import.meta.main) await main();

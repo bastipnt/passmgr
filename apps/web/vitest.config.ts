@@ -14,7 +14,7 @@ export default defineConfig({
   test: {
     environment: "jsdom",
     globals: false,
-    include: ["src/**/*.test.{ts,tsx}", "vite-plugin-*.test.ts"],
+    include: ["src/**/*.test.{ts,tsx}", "vite-plugin-*.test.ts", "scripts/*.test.ts"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     setupFiles: ["./src/test/setup.ts"],
     // Node 25+ ships its own `localStorage` global (undefined without

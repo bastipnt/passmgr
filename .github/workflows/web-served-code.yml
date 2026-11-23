@@ -21,6 +21,8 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    outputs:
+      kind: ${{ steps.verify.outputs.kind }}
     permissions:
       contents: read
       actions: read
@@ -38,6 +40,7 @@ jobs:
 
       # The sums always come from the GitHub release, never from the site being checked.
       - name: Verify served files
+        id: verify
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE_URL: ${{ vars.SITE_URL }}
@@ -80,47 +83,90 @@ jobs:
             gh api -H "Accept: application/vnd.github.raw" "repos/${GITHUB_REPOSITORY}/contents/Caddyfile?ref=${tag}" > "sums/$tag/Caddyfile"
           done
 
-          # Two attempts so one network hiccup doesn't page anyone.
+          # Two attempts so one network hiccup doesn't page anyone. Exit 3 is "unreachable"
+          # (verify-deployment.ts); it is a mismatch once every candidate mismatched in one attempt.
+          kind=unreachable
           for attempt in 1 2; do
+            all_mismatched=true
             for tag in "${candidates[@]}"; do
               echo "Checking ${SITE_URL} against ${tag}"
-              if bun apps/web/scripts/verify-deployment.ts "$SITE_URL" "sums/$tag/passmgr-web.SHA256SUMS" "sums/$tag/Caddyfile"; then
+              status=0
+              bun apps/web/scripts/verify-deployment.ts "$SITE_URL" "sums/$tag/passmgr-web.SHA256SUMS" "sums/$tag/Caddyfile" || status=$?
+              if [ "$status" -eq 0 ]; then
                 if [ "$tag" != "${candidates[0]}" ]; then
                   echo "::warning::${SITE_URL} serves ${tag}; ${candidates[0]} is not deployed yet (release run: ${release_run:-none})"
                 fi
                 echo "${SITE_URL} serves ${tag}" >> "$GITHUB_STEP_SUMMARY"
                 exit 0
               fi
+              [ "$status" -eq 3 ] && all_mismatched=false
             done
+            [ "$all_mismatched" = true ] && kind=mismatch
             [ "$attempt" -eq 1 ] && sleep 60
           done
 
-          echo "::error::${SITE_URL} matches none of: ${candidates[*]}"
+          echo "kind=${kind}" >> "$GITHUB_OUTPUT"
+          echo "::error::${SITE_URL} matches none of: ${candidates[*]} (${kind})"
           exit 1
 
   # A failed scheduled run alone only notifies whoever last edited the cron, so keep an open issue.
+  # A mismatch opens it at once; unreachable only after UNREACHABLE_RUNS scheduled runs failed in a row.
   alert:
     needs: verify
     if: failure() && github.event_name != 'push'
     runs-on: ubuntu-latest
     permissions:
       issues: write
+      actions: read
     steps:
       - name: Open or update the alert issue
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TITLE: "Served web code does not match the release"
+          KIND: ${{ needs.verify.outputs.kind }}
+          EVENT: ${{ github.event_name }}
+          # Hourly cron: three runs is about two hours without reaching the site.
+          UNREACHABLE_RUNS: 3
         run: |
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions \
-            --search "\"${TITLE}\" in:title" --json number --jq '.[0].number // ""')
-          if [ -n "$issue" ]; then
-            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "Still failing: ${run_url}"
+          # No kind means the step failed before comparing anything; keep the cautious wording.
+          if [ "$KIND" = "unreachable" ]; then
+            title="Served-code check could not reach production"
+            body=$(cat <<EOF
+          The served-code check could not reach production (network error, timeout or HTTP 5xx) in ${UNREACHABLE_RUNS} scheduled runs in a row: ${run_url}
+
+          No file was compared, so this is not by itself evidence of tampering. A host that keeps failing only some files of the release still needs explaining. See docs/security/web-served-code-trust.md.
+          EOF
+            )
           else
-            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" --body "$(cat <<EOF
+            title="Served web code does not match the release"
+            body=$(cat <<EOF
           The files served by production don't match the published SHA256SUMS: ${run_url}
 
           Treat it as a possible web-host compromise until explained. See docs/security/web-served-code-trust.md.
           EOF
-          )"
+            )
           fi
+
+          issue=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --author app/github-actions \
+            --search "\"${title}\" in:title" --json number --jq '.[0].number // ""')
+          if [ -n "$issue" ]; then
+            gh issue comment "$issue" --repo "$GITHUB_REPOSITORY" --body "Still failing: ${run_url}"
+            exit 0
+          fi
+
+          if [ "$KIND" = "unreachable" ]; then
+            if [ "$EVENT" != "schedule" ]; then
+              echo "::notice::Unreachable outside a scheduled run: no issue"
+              exit 0
+            fi
+            # This run is still in progress, so the completed ones are the runs before it.
+            earlier=$((UNREACHABLE_RUNS - 1))
+            failed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow web-served-code.yml --event schedule \
+              --status completed --limit "$earlier" --json conclusion --jq '[.[] | select(.conclusion == "failure")] | length')
+            if [ "$failed" -lt "$earlier" ]; then
+              echo "::notice::Unreachable, but not ${UNREACHABLE_RUNS} failed scheduled runs in a row yet: no issue"
+              exit 0
+            fi
+          fi
+
+          gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body "$body"
