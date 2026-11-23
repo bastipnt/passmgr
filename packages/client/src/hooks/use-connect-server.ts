@@ -3,6 +3,7 @@ import type { AccountKeyMaterial, MemberVault, PendingRecovery } from "@repo/sch
 import { sameVaults, secretsStore } from "@repo/store";
 import { logError } from "@repo/util";
 import { useContext, useRef } from "react";
+import { HeldSession } from "../account/held-session";
 import { storeRekeyedWrap } from "../account/store-rekeyed-wrap";
 import { reconnectKeyMaterial, ServerKeyringMismatchError } from "../account/verify-server-keyring";
 import {
@@ -62,8 +63,6 @@ export type ServerLogin = (
 // count twice against the login throttle). Keyed by the lock epoch, so an
 // unlock after a lock never joins a connect of the previous one.
 let inFlight: { epoch: number; result: Promise<ConnectResult> } | null = null;
-
-type SessionParams = Parameters<LoginSessionFn>;
 
 /**
  * Attaches a session only once it is this vault's account and the vault is still unlocked; see
@@ -168,21 +167,15 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
 
     // Hold the session back until it's checked. A session that is never
     // attached is never used, and dies via its TTL.
-    let session: SessionParams | undefined;
+    const session = new HeldSession();
     try {
       let info: AccountLogin;
       try {
-        info = await login(
-          async (...params) => {
-            session = params;
-          },
-          profile.email,
-          prompt,
-        );
+        info = await login(session.hold, profile.email, prompt);
       } catch (e) {
         return { result: loginFailure(e) };
       }
-      if (!session) return { result: "unreachable" };
+      if (!session.isHeld) return { result: "unreachable" };
 
       // The email now belongs to another account (e.g. re-registered after a
       // server reset). Its keys and data must never meet this vault's.
@@ -216,7 +209,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
         if (!stillUnlocked(epoch)) return { result: "cancelled" };
         if (!sameVaults(cachedVaults, info.vaultKeys)) reloadVaultKeys(info.vaultKeys);
 
-        await attachServer(...session);
+        await session.attach(attachServer);
       } catch (e) {
         logError("Connecting to the server failed", e);
         return { result: "unreachable" };
@@ -225,8 +218,7 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
       await persistSession(profileId);
       return { result: "online", profileId, info };
     } finally {
-      // Not attached (refused, cancelled): its key is wiped here; `unlockSession` wiped an attached one.
-      if (session) wipe(session[1]);
+      session.release();
     }
   }
 

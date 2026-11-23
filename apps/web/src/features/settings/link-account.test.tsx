@@ -176,6 +176,39 @@ describe("useLinkAccount", () => {
     expect(result.current.linkError).toBeUndefined();
   });
 
+  it("wipes the session key when attaching it fails", async () => {
+    const sessionKey = new Uint8Array(32).fill(5);
+    registerLocalVault.mockImplementationOnce(async () => ({
+      info: (await registerLocalVault.getMockImplementation()!()).info,
+      session: ["s-1", sessionKey, new Uint8Array(32)],
+    }));
+    linkServer.mockRejectedValueOnce(new Error("hkdf failed"));
+    const { result } = renderLink();
+
+    await act(async () => {
+      await result.current.linkAccount("alice@example.com", PASSWORD);
+    });
+
+    expect(sessionKey.every((b) => b === 0)).toBe(true);
+  });
+
+  it("wipes another account's session key when a session is attached already", async () => {
+    await secretsStore.unlockSession("s-own", new Uint8Array(32).fill(1), new Uint8Array(32));
+    const sessionKey = new Uint8Array(32).fill(5);
+    registerLocalVault.mockRejectedValueOnce(
+      new LinkAccountMismatchError(["s-other", sessionKey, new Uint8Array(32)]),
+    );
+    const { result } = renderLink();
+
+    await act(async () => {
+      await result.current.linkAccount("alice@example.com", PASSWORD);
+    });
+
+    expect(sessionKey.every((b) => b === 0)).toBe(true);
+    expect(logout).not.toHaveBeenCalled();
+    expect(secretsStore.hasServerSession).toBe(true);
+  });
+
   it("reads a vault key past its first version as `failed`, before the server", async () => {
     store.vault.getVaults.mockResolvedValue([{ ...local.vaults[0]!, keyVersion: 2 }]);
     const { result } = renderLink();

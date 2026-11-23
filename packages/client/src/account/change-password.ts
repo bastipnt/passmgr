@@ -18,6 +18,7 @@ import { opaqueInputFor, registerOpaque } from "../opaque";
 import { unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { isServerAnswer, isThrottled } from "../util/trpc-errors";
+import { HeldSession } from "./held-session";
 import { wrapAccountKeyForPassword } from "./rekey-password-keys";
 
 export type PasswordChangeTRPCClient = Pick<TRPCClient<AppRouter>, "login" | "user">;
@@ -156,34 +157,28 @@ export async function freshLogin(
   failed: new () => Error,
   onSecondFactor: SecondFactorPrompt = noSecondFactor,
 ): Promise<void> {
-  let session: Parameters<LoginSessionFn> | undefined;
+  const session = new HeldSession();
   try {
-    const info = await loginUser(
-      trpc,
-      async (...params) => {
-        session = params;
-      },
-      account.email,
-      password,
-      onSecondFactor,
-    );
-    // The email now belongs to another account: never touch it.
-    if (info.userId !== account.userId || !session) throw new failed();
-  } catch (e) {
-    // Never attached (another account, or the login failed after it): its key is wiped here.
-    if (session) wipe(session[1]);
-    if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
-    if (
-      e instanceof LoginThrottledError ||
-      e instanceof SecondFactorCancelledError ||
-      e instanceof SecondFactorExpiredError ||
-      e instanceof failed
-    )
-      throw e;
-    throw new failed();
+    try {
+      const info = await loginUser(trpc, session.hold, account.email, password, onSecondFactor);
+      // The email now belongs to another account: never touch it.
+      if (info.userId !== account.userId || !session.isHeld) throw new failed();
+    } catch (e) {
+      if (e instanceof OpaqueLoginFailedError) throw new WrongPasswordError();
+      if (
+        e instanceof LoginThrottledError ||
+        e instanceof SecondFactorCancelledError ||
+        e instanceof SecondFactorExpiredError ||
+        e instanceof failed
+      )
+        throw e;
+      throw new failed();
+    }
+    if (secretsStore.hasServerSession) await endServerSession(trpc);
+    await session.attach(attach);
+  } finally {
+    session.release();
   }
-  if (secretsStore.hasServerSession) await endServerSession(trpc);
-  await attach(...session);
 }
 
 async function callServer<T>(send: () => Promise<T>): Promise<T> {

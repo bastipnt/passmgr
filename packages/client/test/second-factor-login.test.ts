@@ -398,4 +398,17 @@ describe("freshLogin — second factor", () => {
     ).rejects.toBeInstanceOf(WrongPasswordError);
     expect(prompt).not.toHaveBeenCalled();
   });
+
+  it("wipes the session key when attaching it fails", async () => {
+    const { trpc } = await fakeServer();
+    let sessionKey: Uint8Array | undefined;
+    const attach = vi.fn(async (_id: string, key: Uint8Array) => {
+      sessionKey = key;
+      throw new Error("not attached");
+    });
+
+    await expect(freshLogin(trpc, attach, account, PASSWORD, Failed)).rejects.toThrow();
+
+    expect(sessionKey?.every((b) => b === 0)).toBe(true);
+  });
 });

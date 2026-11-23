@@ -1,8 +1,9 @@
-import { normalizeEmail, wipe } from "@repo/crypto";
+import { normalizeEmail } from "@repo/crypto";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import { logError } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import { opensPasswordWrap } from "../account/change-password";
+import { HeldSession } from "../account/held-session";
 import {
   LinkAccountMismatchError,
   type LinkedAccount,
@@ -111,7 +112,8 @@ export function useLinkAccount() {
       return linkFailure(e);
     }
 
-    const { info, session } = linked;
+    const { info } = linked;
+    const session = HeldSession.of(linked.session);
     try {
       // Locked or switched meanwhile: the account exists, linking again finishes it.
       if (secretsStore.lockEpoch !== epoch || store.current()?.entry.profileId !== profileId)
@@ -137,7 +139,7 @@ export function useLinkAccount() {
       }
       try {
         // Online from here on: the sync uploads the outbox.
-        await linkServer(...session);
+        await session.attach(linkServer);
       } catch (e) {
         // Linked all the same: `offline` until the next sign-in, which uploads it then.
         logError("Attaching the new account's session failed", e);
@@ -145,8 +147,7 @@ export function useLinkAccount() {
       await persistSession(profileId);
       return undefined;
     } finally {
-      // Not attached (locked, refused, failed): its key is wiped here; `unlockSession` wiped an attached one.
-      wipe(session[1]);
+      session.release();
     }
   }
 
@@ -156,15 +157,20 @@ export function useLinkAccount() {
    * `local` profile has no session of its own, and the mode stays `local`, so
    * no sync ever runs with it.
    */
-  async function endForeignSession(session: LinkAccountMismatchError["session"]) {
-    if (secretsStore.hasServerSession) return;
+  async function endForeignSession(params: LinkAccountMismatchError["session"]) {
+    const session = HeldSession.of(params);
     try {
-      await secretsStore.unlockSession(...session);
-      await endServerSession(trpc);
-    } catch (e) {
-      logError("Ending the other account's session failed", e);
+      if (secretsStore.hasServerSession) return;
+      try {
+        await session.attach((...p) => secretsStore.unlockSession(...p));
+        await endServerSession(trpc);
+      } catch (e) {
+        logError("Ending the other account's session failed", e);
+      } finally {
+        secretsStore.detachServer();
+      }
     } finally {
-      secretsStore.detachServer();
+      session.release();
     }
   }
 

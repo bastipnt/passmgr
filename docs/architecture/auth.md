@@ -11,7 +11,10 @@ password: every registration, login, password change and recovery passes `derive
 `secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect (and to get online for a pending web
 biometric enrollment); it is never stored.
 The login's session key stays bytes up to `secretsStore.unlockSession` (`LoginSessionFn`, `deviceSessionKeyBytes`),
-which derives the session secret from its base64 text as the server does (`deriveSessionSecret`) and wipes it.
+which derives the session secret from its base64 text as the server does (`deriveSessionSecret`) and wipes it. A login
+whose session is attached only once checked holds it in a `HeldSession` (`packages/client`), whose `release` wipes the
+key unless `attach` handed it over: password change (`freshLogin`), reconnect (`useConnectServer`), link
+(`useLinkAccount`).
 
 Every password is NFKC-normalised (`@repo/crypto` `normalizePassword`) before Argon2 and OPAQUE (register, login,
 local vault, unlock, password change, rekey, recovery, reconnect, encrypted export), so a non-ASCII password typed
