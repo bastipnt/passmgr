@@ -7,6 +7,7 @@ import { RequireUnlocked } from "@/components/RequireUnlocked";
 import { RouteErrorBoundary } from "@/components/RouteErrorBoundary";
 import { lazyPreload } from "@/lib/lazy-preload";
 import CreateRecordSheet from "./CreateRecordSheet";
+import EditRecordSheet from "./EditRecordSheet";
 import MobileRecordPage from "./MobileRecordPage";
 import MobileVault from "./MobileVault";
 import RecordLayout from "./RecordLayout";
@@ -57,10 +58,11 @@ function Records() {
         </RouteErrorBoundary>
       </RecordLayout>
 
-      {/* Outside the routes and the layout: it outlives its own close navigation
-          (so it can animate out before the route changes) and the desktop's
-          "no results" page, which replaces the routes. */}
+      {/* Outside the routes and the layout: they outlive their own close navigation
+          (so they can animate out before the route changes), the desktop's
+          "no results" page, which replaces the routes, and the phone / desktop page swap. */}
       <CreateRecordSheet />
+      <EditRecordSheet />
     </SortedRecordsProvider>
   );
 }

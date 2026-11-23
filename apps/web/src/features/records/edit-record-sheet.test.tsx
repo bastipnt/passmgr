@@ -3,13 +3,16 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { renderWithProviders, screen, within } from "@/test/render";
+import { act, renderWithProviders, screen, within } from "@/test/render";
 import EditRecordSheet from "./EditRecordSheet";
 
 const mocks = vi.hoisted(() => ({
   mobile: false,
   deleteRecord: vi.fn(),
   handleSubmit: vi.fn(),
+  record: undefined as unknown,
+  /** The sheet's close after a save. */
+  actionCb: undefined as undefined | (() => void),
 }));
 
 vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
@@ -25,11 +28,16 @@ vi.mock("@repo/client", async (importOriginal) => ({
   useRecordVault: () => ({ writable: true }),
 }));
 vi.mock("./use-record-actions", () => ({
-  useRecordActions: () => ({
-    deleteRecord: mocks.deleteRecord,
-    handleSubmit: mocks.handleSubmit,
-    updatePending: false,
-  }),
+  useRecordActions: ({ actionCb }: { actionCb?: () => void }) => {
+    mocks.actionCb = actionCb;
+    return {
+      deleteRecord: mocks.deleteRecord,
+      handleSubmit: mocks.handleSubmit,
+      record: mocks.record,
+      ready: true,
+      updatePending: false,
+    };
+  },
 }));
 
 const record = {
@@ -44,13 +52,24 @@ function renderEdit() {
   const location = memoryLocation({ path: "/record/r-1/edit", record: true });
   renderWithProviders(
     <Router hook={location.hook} searchHook={location.searchHook}>
-      <EditRecordSheet record={record} />
+      <EditRecordSheet />
     </Router>,
   );
+  return location;
 }
+
+async function changeTitle() {
+  await userEvent.type(screen.getByRole("textbox", { name: "Title" }), " Gold");
+}
+
+const discardQuestion = () => screen.queryByRole("dialog", { name: "Discard changes?" });
+// The question is modal: the sheet behind it is hidden from the accessibility tree.
+const titleBehindQuestion = () => screen.getByRole("textbox", { name: "Title", hidden: true });
 
 beforeEach(() => {
   mocks.mobile = false;
+  mocks.record = record;
+  mocks.handleSubmit.mockImplementation(() => mocks.actionCb?.());
   mocks.deleteRecord.mockClear();
   mocks.handleSubmit.mockClear();
 });
@@ -63,6 +82,106 @@ describe("EditRecordSheet", () => {
     expect(screen.getByRole("button", { name: "Delete" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
     expect(screen.getByRole("textbox", { name: "Security code" })).toBeInTheDocument();
+  });
+
+  it("renders nothing outside its route", () => {
+    const location = memoryLocation({ path: "/record/r-1", record: true });
+    renderWithProviders(
+      <Router hook={location.hook} searchHook={location.searchHook}>
+        <EditRecordSheet />
+      </Router>,
+    );
+    expect(screen.queryByRole("heading", { name: "Edit credit card" })).not.toBeInTheDocument();
+  });
+
+  describe("with unsaved changes", () => {
+    it("asks before Cancel discards them; Keep editing keeps them", async () => {
+      const location = renderEdit();
+      await changeTitle();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(discardQuestion()).toBeInTheDocument();
+
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      await vi.waitFor(() => expect(discardQuestion()).not.toBeInTheDocument());
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Visa Gold");
+      expect(location.history.at(-1)).toBe("/record/r-1/edit");
+    });
+
+    it("closes on Discard", async () => {
+      const location = renderEdit();
+      await changeTitle();
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
+    });
+
+    it("asks on Esc", async () => {
+      renderEdit();
+      await changeTitle();
+
+      await userEvent.keyboard("{Escape}");
+      expect(discardQuestion()).toBeInTheDocument();
+      expect(titleBehindQuestion()).toHaveValue("Visa Gold");
+    });
+
+    it("holds the sheet open on Back and returns to it on Keep editing", async () => {
+      const location = renderEdit();
+      await changeTitle();
+
+      act(() => location.navigate("/record/r-1"));
+      expect(discardQuestion()).toBeInTheDocument();
+      expect(titleBehindQuestion()).toHaveValue("Visa Gold");
+
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      expect(location.history.at(-1)).toBe("/record/r-1/edit");
+      await vi.waitFor(() => expect(discardQuestion()).not.toBeInTheDocument());
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Visa Gold");
+    });
+
+    it("lets Back through on Discard", async () => {
+      const location = renderEdit();
+      await changeTitle();
+
+      act(() => location.navigate("/record/r-1"));
+      await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+      await vi.waitFor(() =>
+        expect(screen.queryByRole("heading", { name: "Edit credit card" })).not.toBeInTheDocument(),
+      );
+      expect(location.history.at(-1)).toBe("/record/r-1");
+    });
+
+    it("saves without asking", async () => {
+      const location = renderEdit();
+      await changeTitle();
+
+      await userEvent.click(screen.getByRole("button", { name: "Save changes" }));
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
+      expect(mocks.handleSubmit).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Visa Gold" }),
+      );
+      expect(discardQuestion()).not.toBeInTheDocument();
+    });
+
+    it("starts over from the record when opened again", async () => {
+      const location = renderEdit();
+      await changeTitle();
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
+
+      act(() => location.navigate("/record/r-1/edit"));
+      expect(await screen.findByRole("textbox", { name: "Title" })).toHaveValue("Visa");
+    });
+  });
+
+  it("closes an unchanged form without asking", async () => {
+    const location = renderEdit();
+
+    await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(discardQuestion()).not.toBeInTheDocument();
+    await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
   });
 
   describe("on a phone", () => {
@@ -89,6 +208,14 @@ describe("EditRecordSheet", () => {
       await userEvent.click(within(form).getByRole("button", { name: "Delete credit card" }));
       await userEvent.click(await screen.findByRole("button", { name: "Delete" }));
       expect(mocks.deleteRecord).toHaveBeenCalledWith("r-1");
+    });
+
+    it("asks before the close button discards changes", async () => {
+      renderEdit();
+      await changeTitle();
+
+      await userEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(discardQuestion()).toBeInTheDocument();
     });
 
     it("labels the security code CVC, keeping its accessible name", () => {

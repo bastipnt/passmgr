@@ -19,10 +19,11 @@ import { useLocation, useSearchParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { VaultPicker } from "@/features/vaults";
 import { RecordTypeTile } from "./RecordAvatar";
-import RecordForm, { type RecordFormHandle } from "./RecordForm";
+import { RecordFormFields, type RecordFormHandle, useRecordForm } from "./RecordForm";
 import RecordFormSheet from "./RecordFormSheet";
 import { RecordTypePicker } from "./RecordTypePicker";
 import { searchReturnState } from "./search-history";
+import { useDiscardGuard } from "./use-discard-guard";
 
 /**
  * Href that opens the create sheet over whatever is currently in view. Without
@@ -65,26 +66,35 @@ export function useOpenCreateSheet() {
 
 export default function CreateRecordSheet() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [, navigate] = useLocation();
+  const [location, navigate] = useLocation();
   const isMobile = useIsMobile();
   const formRef = useRef<RecordFormHandle>(null);
 
-  // Presence opens the sheet. The prefilled title lasts while it's open (type picker → form).
-  const open = searchParams.has(recordPaths.createParam);
+  // Presence opens the sheet. Its last URL is kept, so the sheet keeps its content while Back's
+  // "Discard changes?" holds it open, and Keep editing can go back to it.
+  const routeOpen = searchParams.has(recordPaths.createParam);
+  const lastOpen = useRef({ params: searchParams, href: "" });
+  if (routeOpen) lastOpen.current = { params: searchParams, href: `${location}?${searchParams}` };
+  const sheetParams = routeOpen ? searchParams : lastOpen.current.params;
+  const guard = useDiscardGuard({
+    routeOpen,
+    isDirty: () => isDirty,
+    reopen: () => navigate(lastOpen.current.href, { state: searchReturnState() }),
+  });
+  const { open } = guard;
+  // The prefilled title lasts while it's open (type picker → form).
   const initialTitle = open ? prefilledTitle : undefined;
   useEffect(() => {
     if (!open) prefillCreateSheet(undefined);
   }, [open]);
   // Also when the sheet goes away open, e.g. the vault locks: the title mustn't outlive it.
   useEffect(() => () => prefillCreateSheet(undefined), []);
-  const duplicateId = open ? searchParams.get(recordPaths.createDuplicateParam) : null;
+  const duplicateId = open ? sheetParams.get(recordPaths.createDuplicateParam) : null;
   const source = useDuplicateSource(duplicateId, () => {
     toast.error("This item is no longer available");
     close();
   });
-  const type = duplicateId
-    ? source?.type
-    : parseType(searchParams.get(recordPaths.createTypeParam));
+  const type = duplicateId ? source?.type : parseType(sheetParams.get(recordPaths.createTypeParam));
   const typeLabel = type ? RECORD_TYPE_LABELS[type].noun : undefined;
   const { vaultId, setVaultId, canPick } = useTargetVault(open, source?.vaultId);
 
@@ -96,8 +106,16 @@ export default function CreateRecordSheet() {
     setSearchParams(next, { replace: true });
   }
 
+  const { form, isDirty } = useRecordForm(
+    type,
+    source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined,
+    // A new type or copy starts the form over.
+    { open, key: `${type}:${duplicateId ?? ""}` },
+  );
+
   const { createRecord, createRecordError, createPending } = useCreateRecord({
     onSuccess: (recordId) => {
+      guard.allowClose();
       // Straight to the new record — this also drops the `?new` param.
       navigate(recordPaths.record(recordId), { replace: true, state: searchReturnState() });
       toast.success("Record created");
@@ -128,11 +146,8 @@ export default function CreateRecordSheet() {
 
   return (
     <RecordFormSheet
-      open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) close();
-      }}
-      onCancel={close}
+      guard={guard}
+      onClose={close}
       title={title}
       description={type ? description : "What would you like to save?"}
       media={
@@ -155,10 +170,9 @@ export default function CreateRecordSheet() {
       leading={backToPicker}
     >
       {type ? (
-        <RecordForm
-          // Remount on a new type or prefill so the form starts over.
-          key={`${type}:${initialTitle ?? ""}:${duplicateId ?? ""}`}
+        <RecordFormFields
           type={type}
+          form={form}
           onSubmit={(values) => handleSubmit(type, values)}
           serverError={createRecordError ? userMessage(createRecordError) : undefined}
           disabled={createPending}
@@ -167,9 +181,6 @@ export default function CreateRecordSheet() {
             vaultId && (
               <VaultPicker value={vaultId} onChange={setVaultId} disabled={createPending} />
             )
-          }
-          defaultValues={
-            source ? duplicateValues(source) : initialTitle ? { title: initialTitle } : undefined
           }
           header={
             isMobile && (

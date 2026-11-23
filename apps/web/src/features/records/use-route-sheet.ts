@@ -39,6 +39,8 @@ export function useRouteSheet<T extends RouteParams>(
 
   return {
     open,
+    /** Whether the URL still has it open: after Back it goes before `open`. */
+    match,
     params: lastParams.current,
     setOpen,
     onOpenChangeComplete: (nextOpen: boolean) => {

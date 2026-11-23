@@ -18,8 +18,8 @@ import { FormLock } from "@repo/ui/components/form/FormLock";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import { FileTextIcon, type LucideIcon, MapPinIcon } from "lucide-react";
-import { type ReactNode, type Ref, useImperativeHandle, useRef } from "react";
-import { type Control, type UseFormSetValue, useForm } from "react-hook-form";
+import { type ReactNode, type Ref, useImperativeHandle, useLayoutEffect, useRef } from "react";
+import { type Control, type UseFormReturn, type UseFormSetValue, useForm } from "react-hook-form";
 import ExtraFormFields from "./ExtraFormFields";
 import { RECORD_TYPE_ICONS } from "./RecordAvatar";
 import RecordFormField, { type AnyFormValues } from "./RecordFormField";
@@ -31,13 +31,15 @@ export type RecordFormHandle = {
   triggerSubmit: () => void;
 };
 
-type RecordFormProps<T extends RecordType> = {
+export type RecordFormInstance = UseFormReturn<AnyFormValues>;
+
+type RecordFormFieldsProps<T extends RecordType> = {
   type: T;
+  form: RecordFormInstance;
   onSubmit: (data: RecordFormValues<T>) => void;
   serverError?: string;
   /** Locks every field while a save is in flight. */
   disabled?: boolean;
-  defaultValues?: Partial<RecordFormValues<T>>;
   /** The target vault's field next to the tags; a create offers it, an edit moves instead. */
   vaultField?: ReactNode;
   /** Above the first section (the phone drawer's record header). */
@@ -48,6 +50,10 @@ type RecordFormProps<T extends RecordType> = {
   ref?: Ref<RecordFormHandle>;
 };
 
+type RecordFormProps<T extends RecordType> = Omit<RecordFormFieldsProps<T>, "form"> & {
+  defaultValues?: Partial<RecordFormValues<T>>;
+};
+
 const SECTION_ICONS: { [S in RecordFormSection]: ReactNode } = {
   address: <MapPinIcon />,
 };
@@ -56,24 +62,59 @@ const WIDTH_CLASSES = { half: "sm:col-span-3", third: "sm:col-span-2" } as const
 
 const gridClassName = "grid gap-2 sm:grid-cols-6 sm:gap-2.5";
 
-/** The create / edit form of every type; `RECORD_FORM_LAYOUT` places the common parts. */
+/**
+ * The record form's state. A sheet holds it above its phone / desktop swap, so the input survives
+ * crossing 640px. With `session`, each opening and each new `session.key` start over from `defaultValues`.
+ */
+export function useRecordForm(
+  type: RecordType | undefined,
+  defaultValues?: Partial<AnyFormValues>,
+  session?: { open: boolean; key?: string },
+) {
+  const form = useForm<AnyFormValues>({
+    resolver: type ? zodResolver(recordFormSchemas[type] as never) : undefined,
+    defaultValues,
+  });
+  // Read while rendering: RHF tracks `isDirty` only once a render has read it.
+  const { isDirty } = form.formState;
+
+  const latestDefaults = useRef(defaultValues);
+  latestDefaults.current = defaultValues;
+  const sessionId = session && (session.open ? (session.key ?? "") : null);
+  const lastSessionId = useRef(sessionId);
+  useLayoutEffect(() => {
+    if (sessionId === lastSessionId.current) return;
+    lastSessionId.current = sessionId;
+    if (sessionId !== null) form.reset(latestDefaults.current ?? {});
+  }, [sessionId, form]);
+
+  return { form, isDirty };
+}
+
+/** The create / edit form of every type, with its own state. */
 export default function RecordForm<T extends RecordType>({
+  defaultValues,
+  ...props
+}: RecordFormProps<T>) {
+  const { form } = useRecordForm(props.type, defaultValues as Partial<AnyFormValues>);
+  return <RecordFormFields {...props} form={form} />;
+}
+
+/** The create / edit form of every type on a held `form`; `RECORD_FORM_LAYOUT` places the common parts. */
+export function RecordFormFields<T extends RecordType>({
   type,
+  form,
   onSubmit,
   serverError,
   disabled = false,
-  defaultValues,
   vaultField,
   header,
   footer,
   openGenerator,
   ref,
-}: RecordFormProps<T>) {
+}: RecordFormFieldsProps<T>) {
   const isMobile = useIsMobile();
-  const { handleSubmit, control, setValue } = useForm<AnyFormValues>({
-    resolver: zodResolver(recordFormSchemas[type] as never),
-    defaultValues: defaultValues as Partial<AnyFormValues>,
-  });
+  const { handleSubmit, control, setValue } = form;
   const formRef = useRef<HTMLFormElement>(null);
   const layout = RECORD_FORM_LAYOUT[type];
   const fields = RECORD_FORM_FIELDS[type] as readonly FormFieldSpec[];

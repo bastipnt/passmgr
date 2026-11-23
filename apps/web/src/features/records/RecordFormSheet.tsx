@@ -1,16 +1,18 @@
 import { ShortcutLayer } from "@repo/client";
+import DiscardChangesDialog from "@repo/ui/complex-components/DiscardChangesDialog";
 import { ResponsiveSheet, SheetFormBar } from "@repo/ui/complex-components/ResponsiveSheet";
 import { Button } from "@repo/ui/components/Button";
 import { Spinner } from "@repo/ui/components/Spinner";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { cn } from "@repo/ui/lib/utils";
 import type { ReactNode } from "react";
+import type { DiscardGuard } from "./use-discard-guard";
 
 type RecordFormSheetProps = {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
+  /** Holds the sheet's open state; every close (Cancel, Esc, outside click, swipe) goes through it. */
+  guard: DiscardGuard;
+  onClose: () => void;
   onOpenChangeComplete?: (open: boolean) => void;
-  onCancel: () => void;
   title: string;
   description: ReactNode;
   media: ReactNode;
@@ -25,10 +27,9 @@ type RecordFormSheetProps = {
 
 /** The create and edit sheets' chrome: the record's header, then Cancel / submit (a page bar on phones). */
 export default function RecordFormSheet({
-  open,
-  onOpenChange,
+  guard,
+  onClose,
   onOpenChangeComplete,
-  onCancel,
   title,
   description,
   media,
@@ -38,6 +39,8 @@ export default function RecordFormSheet({
   children,
 }: RecordFormSheetProps) {
   const isMobile = useIsMobile();
+  const { open } = guard;
+  const requestClose = () => guard.requestClose(onClose);
 
   const submitButton = submit && (
     <Button
@@ -60,7 +63,7 @@ export default function RecordFormSheet({
         {footnote && (
           <span className="hidden text-muted-foreground text-xs md:inline">{footnote}</span>
         )}
-        <Button variant="outline" size="lg" type="button" onClick={onCancel}>
+        <Button variant="outline" size="lg" type="button" onClick={requestClose}>
           Cancel
         </Button>
         {submitButton}
@@ -72,7 +75,9 @@ export default function RecordFormSheet({
     <ShortcutLayer active={open}>
       <ResponsiveSheet
         open={open}
-        onOpenChange={onOpenChange}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) requestClose();
+        }}
         onOpenChangeComplete={onOpenChangeComplete}
         sheetClassName="sm:max-w-3xl!"
         title={title}
@@ -82,6 +87,7 @@ export default function RecordFormSheet({
         actions={actions}
       >
         {children}
+        <DiscardChangesDialog {...guard.confirm} />
       </ResponsiveSheet>
     </ShortcutLayer>
   );

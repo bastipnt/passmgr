@@ -96,7 +96,11 @@ Rules:
   wide screens, `phoneShare` keeps a row on phones (`phoneRows`). Websites and extra fields reorder by a row's handle
   (drag or ↑ / ↓, `SortableList`). Both sheets wrap it in `RecordFormSheet` (desktop: avatar + "Edit login" header,
   Delete / Back left, Cancel + submit right; phone: `SheetFormBar`, the record header and Delete in the content). The
-  create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead.
+  create sheet's Vault picker is a form field (`vaultField`); an edit moves with "Move to vault…" instead. Both sheets
+  sit outside the phone / desktop page branch (`routes.tsx`) and hold the form's state (`useRecordForm`) above
+  `ResponsiveSheet`'s Drawer / Dialog swap, so crossing 640px keeps the input. `useDiscardGuard` asks "Discard
+  changes?" (`@repo/ui` `DiscardChangesDialog`) before a changed form closes, by any way; on Back it holds the sheet
+  open, and Keep editing puts its URL back.
 - **Settings** (`features/settings`): desktop, a full-screen overlay (`SettingsLayout`: header with "Settings", the
   search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the
   sync dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was

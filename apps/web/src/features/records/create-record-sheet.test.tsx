@@ -4,7 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { renderWithProviders, screen, within } from "@/test/render";
+import { act, renderWithProviders, screen, within } from "@/test/render";
 import CreateRecordSheet, { prefillCreateSheet } from "./CreateRecordSheet";
 
 // The tag field offers the tags in use, which live in the records context.
@@ -15,7 +15,9 @@ vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
 
 const mocks = vi.hoisted(() => ({
   createRecord: vi.fn(),
-  createOpts: undefined as undefined | { onError?: (error: Error) => void },
+  createOpts: undefined as
+    | undefined
+    | { onSuccess?: (recordId: string) => void; onError?: (error: Error) => void },
   vaultFilter: "all",
   writableVaults: [] as { vaultId: string; name: string; kind: string; role: string }[],
   records: [] as DecryptedRecord[],
@@ -29,7 +31,7 @@ vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
 
 vi.mock("@repo/client", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client")>()),
-  useCreateRecord: (opts: { onError?: (error: Error) => void }) => {
+  useCreateRecord: (opts: typeof mocks.createOpts) => {
     mocks.createOpts = opts;
     return { createRecord: mocks.createRecord, createPending: false };
   },
@@ -130,6 +132,52 @@ describe("CreateRecordSheet", () => {
     renderAt("/?new=&type=note");
     mocks.createOpts?.onError?.(new Error("disk full"));
     expect(toast.error).toHaveBeenCalledWith("The item couldn't be saved");
+  });
+
+  describe("with unsaved changes", () => {
+    const discardQuestion = () => screen.queryByRole("dialog", { name: "Discard changes?" });
+
+    it("asks before Cancel discards them", async () => {
+      const location = renderAt("/?new=&type=note");
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(discardQuestion()).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+      await vi.waitFor(() => expect(location.history.at(-1)).not.toContain("new"));
+    });
+
+    it("holds the sheet open on Back and returns to it on Keep editing", async () => {
+      const location = renderAt("/?new=&type=note");
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
+
+      act(() => location.navigate("/"));
+      expect(discardQuestion()).toBeInTheDocument();
+      // Modal: the sheet behind it is hidden from the accessibility tree.
+      expect(screen.getByRole("textbox", { name: "Title", hidden: true })).toHaveValue("Wiki");
+
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+      expect(location.history.at(-1)).toBe("/?new=&type=note");
+      await vi.waitFor(() => expect(discardQuestion()).not.toBeInTheDocument());
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Wiki");
+    });
+
+    it("creates without asking", async () => {
+      const location = renderAt("/?new=&type=note");
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
+
+      act(() => mocks.createOpts?.onSuccess?.("r-9"));
+      expect(location.history.at(-1)).toBe("/record/r-9");
+      expect(discardQuestion()).not.toBeInTheDocument();
+    });
+
+    it("closes a prefilled form left as it was without asking", async () => {
+      const location = renderAt("/?new=&type=note", "Wiki");
+
+      await userEvent.click(screen.getByRole("button", { name: "Cancel" }));
+      expect(discardQuestion()).not.toBeInTheDocument();
+      await vi.waitFor(() => expect(location.history.at(-1)).not.toContain("new"));
+    });
   });
 
   describe("on a phone", () => {
