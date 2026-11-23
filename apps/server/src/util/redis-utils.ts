@@ -1,5 +1,9 @@
 import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
-import { EMAIL_CODE_MAX_ATTEMPTS, EMAIL_CODE_RESEND_SECONDS } from "@repo/schema";
+import {
+  DEVICE_LOGIN_TTL_MS,
+  EMAIL_CODE_MAX_ATTEMPTS,
+  EMAIL_CODE_RESEND_SECONDS,
+} from "@repo/schema";
 import type { ChainableCommander, Result } from "ioredis";
 import { serverEnv } from "../env";
 import { emitSessionEnded, emitSessionSignedOut } from "../events/record-events";
@@ -448,7 +452,7 @@ function attemptStore<T>(prefix: string, ttlSeconds: number) {
 const loginAttempts = attemptStore<LoginAttempt>("login", LOGIN_ATTEMPT_TTL_SECONDS);
 const deviceLoginAttempts = attemptStore<DeviceLoginAttempt>(
   "devicelogin",
-  LOGIN_ATTEMPT_TTL_SECONDS,
+  DEVICE_LOGIN_TTL_MS / 1000,
 );
 const recoveryAttempts = attemptStore<RecoveryAttempt>("recovery", LOGIN_ATTEMPT_TTL_SECONDS);
 const passwordChangeAttempts = attemptStore<PasswordChangeAttempt>(

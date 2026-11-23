@@ -2,7 +2,8 @@ import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } fro
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
-import { rekeyIfBelowFloor, rekeyLocalIfBelowFloor } from "../account/rekey-password-keys";
+import { rekeyLocalIfBelowFloor } from "../account/rekey-password-keys";
+import { storeRekeyedWrap } from "../account/store-rekeyed-wrap";
 import { logError } from "../errors/log-error";
 import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
@@ -88,14 +89,7 @@ export function useUnlock() {
     afterUnlock();
     await persistSession(opened.entry.profileId);
 
-    // Raise a wrap below the Argon2 floor. Best-effort; failures don't block login.
-    void rekeyIfBelowFloor(trpc, password, material).then(
-      async (rekeyed) => {
-        // Not the login's vault list: a sync may have moved a vault's key on meanwhile.
-        if (rekeyed) await store.saveAccount(opened.entry.profileId, rekeyed, null);
-      },
-      (e: unknown) => logError("Storing the rekeyed password wrap failed", e),
-    );
+    void storeRekeyedWrap(trpc, store, opened.entry.profileId, password, material);
     return true;
   }
 

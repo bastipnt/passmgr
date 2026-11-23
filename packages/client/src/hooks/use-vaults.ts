@@ -13,6 +13,7 @@ import {
 import { localQueryOptions } from "../util/local-query-options";
 import { useTRPCClient } from "../util/trpc";
 import { isPreconditionFailed } from "../util/trpc-errors";
+import { changeVaultOnServer } from "../vaults/change-vault-on-server";
 import { reencryptForPush } from "../vaults/rekey";
 import { rotateVault, VaultKeyRotatedElsewhereError } from "../vaults/sharing";
 import { vaultLookups } from "../vaults/vault-info";
@@ -78,11 +79,11 @@ export function useVaultActions() {
       const created = secretsStore.createVault(meta);
       const member: MemberVault = { ...created, kind: "shared", role: "owner" };
       if (server) {
-        await trpc.vault.create.mutate(created).catch((error: unknown) => {
-          throw isPreconditionFailed(error) ? new TooManyVaultsError() : error;
-        });
-        // A fresh round, so no pull from before the create drops it again.
-        await active.syncManager.syncFresh();
+        await changeVaultOnServer(active.syncManager, () =>
+          trpc.vault.create.mutate(created).catch((error: unknown) => {
+            throw isPreconditionFailed(error) ? new TooManyVaultsError() : error;
+          }),
+        );
         const listed = (await active.vault.getVaults()).some((v) => v.vaultId === created.vaultId);
         // The sync failed (offline meanwhile): show it now, the next sync confirms it.
         if (!listed) await active.vault.saveVault(member);
@@ -100,11 +101,10 @@ export function useVaultActions() {
       const active = requireActive(store);
       const server = viaServer();
       const encrypted = secretsStore.encryptVaultMeta(vaultId, meta);
-      if (server) {
-        await trpc.vault.updateMeta.mutate({ vaultId, ...encrypted });
-        // As for a create: a pull from before the rename would bring the old name back.
-        await active.syncManager.syncFresh();
-      }
+      if (server)
+        await changeVaultOnServer(active.syncManager, () =>
+          trpc.vault.updateMeta.mutate({ vaultId, ...encrypted }),
+        );
       // Already in place after a sync that went through; shown now if it didn't.
       await active.vault.setVaultMeta(vaultId, encrypted);
       await refresh(active);
@@ -117,11 +117,8 @@ export function useVaultActions() {
       const active = requireActive(store);
       if (vaultId === secretsStore.defaultVaultId)
         throw new Error("The personal vault can't be deleted");
-      if (viaServer()) {
-        await trpc.vault.delete.mutate({ vaultId });
-        // As for a create: a pull from before the delete would list the vault again.
-        await active.syncManager.syncFresh();
-      }
+      if (viaServer())
+        await changeVaultOnServer(active.syncManager, () => trpc.vault.delete.mutate({ vaultId }));
       // A sync that went through dropped it already: then this removes nothing.
       await active.vault.removeVault(vaultId);
       await refresh(active);
@@ -139,8 +136,17 @@ export function useVaultActions() {
     mutationFn: async (vaultId: string) => {
       const active = requireActive(store);
       const server = viaServer();
-      try {
+      const rotateKey = async () => {
         await rotateVault({ vault: active.vault, trpc: server ? trpc : null }, vaultId);
+        reloadVaultKeys(await active.vault.getVaults());
+      };
+      try {
+        if (server) {
+          await changeVaultOnServer(active.syncManager, rotateKey);
+        } else {
+          await rotateKey();
+          await reencryptForPush(active.vault);
+        }
       } catch (e) {
         if (e instanceof VaultKeyRotatedElsewhereError) {
           // The other rotation stands: pick up its key instead of retrying on top of it.
@@ -148,13 +154,6 @@ export function useVaultActions() {
           await reload();
         }
         throw e;
-      }
-      reloadVaultKeys(await active.vault.getVaults());
-      if (server) {
-        // A fresh round, so no pull from before the rotation brings the old key back.
-        await active.syncManager.syncFresh();
-      } else {
-        await reencryptForPush(active.vault);
       }
       await reload();
     },

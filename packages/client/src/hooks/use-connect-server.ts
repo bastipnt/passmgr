@@ -2,7 +2,7 @@ import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
 import { useContext, useRef } from "react";
-import { rekeyIfBelowFloor } from "../account/rekey-password-keys";
+import { storeRekeyedWrap } from "../account/store-rekeyed-wrap";
 import { reconnectKeyMaterial, ServerKeyringMismatchError } from "../account/verify-server-keyring";
 import { logError } from "../errors/log-error";
 import {
@@ -137,7 +137,10 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
         typeof credential === "string" ? credential : undefined,
       );
       if (result === "online" && typeof credential === "string" && profileId && info)
-        void rekeyAfterConnect(profileId, credential, info);
+        void storeRekeyedWrap(trpc, storeRef.current, profileId, credential, {
+          ...info.userPasswordKeys,
+          userKeyPair: info.userKeyPair,
+        });
       return result;
     } finally {
       if (credential instanceof Uint8Array) wipe(credential);
@@ -268,20 +271,6 @@ export function useConnectServer(onSecondFactor?: SecondFactorPrompt) {
       logError("The server refused the password reset made on this device");
     }
     await storeRef.current.clearPendingRecovery(active.entry.profileId);
-  }
-
-  /** Best-effort, see `rekeyIfBelowFloor`; never turns a connect into a failure. */
-  async function rekeyAfterConnect(profileId: string, password: string, info: AccountLogin) {
-    try {
-      const rekeyed = await rekeyIfBelowFloor(trpc, password, {
-        ...info.userPasswordKeys,
-        userKeyPair: info.userKeyPair,
-      });
-      // Not the login's vault list: a sync may have moved a vault's key on meanwhile.
-      if (rekeyed) await storeRef.current.saveAccount(profileId, rekeyed, null);
-    } catch (e) {
-      logError("Storing the rekeyed password wrap failed", e);
-    }
   }
 
   return { connect, connectWithDevice };

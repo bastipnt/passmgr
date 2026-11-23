@@ -1,4 +1,5 @@
 import { authenticateBiometric, type BiometricKeyMaterial, wipe } from "@repo/crypto";
+import { DEVICE_LOGIN_TTL_MS } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { useContext, useEffect, useRef } from "react";
 import { logError } from "../errors/log-error";
@@ -8,8 +9,8 @@ import { useStore } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";
 import type { ConnectResult, useConnectServer } from "./use-connect-server";
 
-/** Under the server's five minutes, so a prepared login is still there when it's used. */
-const PREPARED_MAX_AGE_MS = 4 * 60_000;
+/** A minute's margin, so a prepared login is still on the server when it's used. */
+export const PREPARED_MAX_AGE_MS = DEVICE_LOGIN_TTL_MS - 60_000;
 
 export function hasDeviceLogin(
   material: BiometricKeyMaterial | null | undefined,

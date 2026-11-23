@@ -5,6 +5,9 @@ import { finishLoginOutputSchema } from "./login-schema";
 const credentialIdSchema = z.base64().min(1).max(1400);
 const key32Schema = z.base64().length(44);
 
+/** How long the server keeps a started device login waiting for its signed assertion. */
+export const DEVICE_LOGIN_TTL_MS = 5 * 60_000;
+
 export const startDeviceLoginInputSchema = z.object({ credentialId: credentialIdSchema });
 
 export const startDeviceLoginOutputSchema = z.object({
