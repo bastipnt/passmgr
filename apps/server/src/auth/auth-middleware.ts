@@ -4,7 +4,7 @@ import {
   SUBSCRIPTION_SIGNATURE_PATH,
   verifyHmac,
 } from "@repo/crypto";
-import { fromBase64 } from "@repo/util";
+import { fromBase64, toBase64 } from "@repo/util";
 import { TRPCError } from "@trpc/server";
 import type { Context } from "../context";
 import { loggedProcedure, shortHash } from "../logger";
@@ -54,6 +54,18 @@ async function denyAuth(
   const sidHash = sessionId ? await shortHash(sessionId) : undefined;
   log?.warn({ reason, path, sidHash }, "auth.unauthorized");
   throw new TRPCError({ code, message });
+}
+
+// Decoders ignore the unused low bits of the last digit, so several strings map to one
+// signature; only the canonical one is accepted, or a header could be altered and still verify.
+function decodeCanonicalBase64(input: string): Uint8Array | undefined {
+  let bytes: Uint8Array;
+  try {
+    bytes = fromBase64(input);
+  } catch {
+    return undefined;
+  }
+  return toBase64(bytes) === input ? bytes : undefined;
 }
 
 /**
@@ -111,7 +123,9 @@ async function verifySignedRequest(opts: {
     input as unknown as Record<string, string>,
   );
 
-  const valid = await verifyHmac(fromBase64(session.rawAuthKey), fromBase64(signature), message);
+  const signatureBytes = decodeCanonicalBase64(signature);
+  if (!signatureBytes) return denyAuth(log, path, "invalid_signature", sessionId);
+  const valid = await verifyHmac(fromBase64(session.rawAuthKey), signatureBytes, message);
   if (!valid) return denyAuth(log, path, "invalid_signature", sessionId);
 
   // Atomic claim — fails if the nonce was already accepted within the active

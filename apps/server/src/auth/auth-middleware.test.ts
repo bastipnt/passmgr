@@ -187,6 +187,39 @@ describe("protectedProcedure — rejections", () => {
     await expectUnauthorized(() => caller.echo({ msg: "x" }));
   });
 
+  it("rejects a signature that differs from the canonical encoding only in unused trailing bits", async () => {
+    const { authKey } = await seedSession();
+    const headers = await signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "mutation",
+      path: "echo",
+      input: { msg: "x" },
+    });
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    // 32 bytes are 43 base64 digits plus "=": the last digit carries 2 unused low bits.
+    const last = headers.signature.length - 2;
+    const flipped = alphabet[alphabet.indexOf(headers.signature[last]!) ^ 0b01]!;
+    const signature =
+      headers.signature.slice(0, last) + flipped + headers.signature.slice(last + 1);
+    expect(Buffer.from(signature, "base64")).toEqual(Buffer.from(headers.signature, "base64"));
+    const caller = createCaller(buildTestContext({ ...headers, signature }));
+    await expectUnauthorized(() => caller.echo({ msg: "x" }));
+  });
+
+  it("rejects a signature that is not valid base64", async () => {
+    const { authKey } = await seedSession();
+    const headers = await signRequest({
+      authKey,
+      sessionId: SESSION_ID,
+      type: "mutation",
+      path: "echo",
+      input: { msg: "x" },
+    });
+    const caller = createCaller(buildTestContext({ ...headers, signature: "not base64!" }));
+    await expectUnauthorized(() => caller.echo({ msg: "x" }));
+  });
+
   it("rejects when the stored rawAuthKey does not match the signer's key", async () => {
     const wrongAuthKey = genKey();
     await redis.set(
