@@ -1,3 +1,4 @@
+import type { DecryptService } from "../decrypt-service";
 import type { RecordCipherContext } from "../vault-data";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import DecryptWorker from "../workers/decrypt.worker.ts?worker";
@@ -7,7 +8,7 @@ type PendingDecrypt = {
   reject: (reason: Error) => void;
 };
 
-class DecryptWorkerService {
+class DecryptWorkerService implements DecryptService {
   private worker: Worker | null = null;
   private pending = new Map<string, PendingDecrypt>();
   private nextRequestId = 0;
@@ -38,10 +39,7 @@ class DecryptWorkerService {
     return `req_${++this.nextRequestId}`;
   }
 
-  /**
-   * Hand the worker every vault key (`vaultKeyId` → key), replacing any it held.
-   * The buffers are transferred: the caller passes copies and loses them.
-   */
+  /** The buffers are transferred to the worker: the caller passes copies. */
   init(vaultKeys: Map<string, Uint8Array>): void {
     const keys = [...vaultKeys].map(([keyId, key]) => [keyId, key.buffer] as const);
     this.getWorker().postMessage(
@@ -50,7 +48,6 @@ class DecryptWorkerService {
     );
   }
 
-  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
   decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     const id = this.createRequestId();
     return new Promise((resolve, reject) => {

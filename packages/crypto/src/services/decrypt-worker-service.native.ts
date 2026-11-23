@@ -1,19 +1,17 @@
 // Main-thread record decryption for React Native. XChaCha20-Poly1305 decryption
 // is fast enough to run on the JS thread, so no web worker is needed here.
-// Mirrors the message contract of decrypt.worker.ts.
 
+import type { DecryptService } from "../decrypt-service";
 import { decryptRecordData, type RecordCipherContext, vaultKeyId } from "../vault-data";
 
-class DecryptNativeService {
+class DecryptNativeService implements DecryptService {
   private vaultKeys = new Map<string, Uint8Array>();
 
-  /** Take over the given vault keys (`vaultKeyId` → key), replacing any held. */
   init(vaultKeys: Map<string, Uint8Array>): void {
     this.wipe();
     this.vaultKeys = vaultKeys;
   }
 
-  /** The parsed JSON payload, unchecked: the caller upgrades and types it. */
   decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     const key = this.vaultKeys.get(vaultKeyId(context.vaultId, context.keyVersion));
     if (!key) return Promise.reject(new Error("No key for vault"));
