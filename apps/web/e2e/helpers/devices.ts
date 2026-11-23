@@ -1,6 +1,16 @@
-import { type Browser, test as base, type Page, type TestInfo } from "@playwright/test";
+import {
+  type Browser,
+  type BrowserContextOptions,
+  test as base,
+  type Page,
+  type TestInfo,
+} from "@playwright/test";
 
-type DeviceOptions = { browser: Browser; baseURL?: string; permissions?: string[] };
+type DeviceOptions = Pick<BrowserContextOptions, "baseURL" | "permissions"> & {
+  browser: Browser;
+  /** The config's `contextOptions` (reduced motion): `newContext` doesn't apply them. */
+  contextOptions: BrowserContextOptions;
+};
 
 /**
  * Another device: its own browser context, so its own OPFS and memory. Closes
@@ -9,11 +19,11 @@ type DeviceOptions = { browser: Browser; baseURL?: string; permissions?: string[
  */
 async function device(
   name: string,
-  { browser, baseURL, permissions }: DeviceOptions,
+  { browser, contextOptions, baseURL, permissions }: DeviceOptions,
   provide: (page: Page) => Promise<void>,
   testInfo: TestInfo,
 ): Promise<void> {
-  const context = await browser.newContext({ baseURL, permissions });
+  const context = await browser.newContext({ ...contextOptions, baseURL, permissions });
   const page = await context.newPage();
   try {
     await provide(page);
@@ -30,8 +40,8 @@ async function device(
 
 /** `test` with a second and a third device (only created when a test asks for them). */
 export const test = base.extend<{ secondDevice: Page; thirdDevice: Page }>({
-  secondDevice: async ({ browser, baseURL, permissions }, provide, testInfo) =>
-    device("second-device", { browser, baseURL, permissions }, provide, testInfo),
-  thirdDevice: async ({ browser, baseURL, permissions }, provide, testInfo) =>
-    device("third-device", { browser, baseURL, permissions }, provide, testInfo),
+  secondDevice: async ({ browser, baseURL, permissions, contextOptions }, provide, testInfo) =>
+    device("second-device", { browser, baseURL, permissions, contextOptions }, provide, testInfo),
+  thirdDevice: async ({ browser, baseURL, permissions, contextOptions }, provide, testInfo) =>
+    device("third-device", { browser, baseURL, permissions, contextOptions }, provide, testInfo),
 });

@@ -6,8 +6,11 @@ import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import { sql } from "drizzle-orm";
 import fastify from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
-import { loginUser } from "../../../../packages/client/src/login";
-import { registerNewUser } from "../../../../packages/client/src/register";
+import { loginUser, type PasswordLoginTRPCClient } from "../../../../packages/client/src/login";
+import {
+  type RegistrationTRPCClient,
+  registerNewUser,
+} from "../../../../packages/client/src/register";
 import { unwrapAccountKeyWithPassword } from "../../../../packages/client/src/util/derive-password-kek";
 import { logRedact, logSerializers } from "../../src/log-options";
 import { redis } from "../../src/redis";
@@ -26,52 +29,32 @@ const createCaller = createCallerFactory(appRouter);
 
 type CapturedCall = { path: string; input: unknown };
 
-/** TRPCClient-shaped shim: records every (path, input) the real client sends, then forwards. */
+/** The client calls of a register + login: records every (path, input) it sends, then forwards. */
 function captureClient(): {
-  trpc: {
-    register: {
-      startRegistration: { mutate: (input: unknown) => Promise<unknown> };
-      finishRegistration: { mutate: (input: unknown) => Promise<unknown> };
-    };
-    login: {
-      startLogin: { mutate: (input: unknown) => Promise<unknown> };
-      finishLogin: { mutate: (input: unknown) => Promise<unknown> };
-    };
-  };
+  trpc: RegistrationTRPCClient & PasswordLoginTRPCClient;
   captured: CapturedCall[];
 } {
   const captured: CapturedCall[] = [];
   const caller = createCaller(buildTestContext(undefined));
 
-  function record<T>(path: string, fn: (input: unknown) => Promise<T>) {
+  function record<I, O>(path: string, call: (input: I) => Promise<O>) {
     return {
-      mutate: async (input: unknown) => {
+      mutate: async (input: I) => {
         captured.push({ path, input });
-        return await fn(input);
+        return await call(input);
       },
     };
   }
 
   const trpc = {
     register: {
-      startRegistration: record("register.startRegistration", (input) =>
-        caller.register.startRegistration(
-          input as Parameters<typeof caller.register.startRegistration>[0],
-        ),
-      ),
-      finishRegistration: record("register.finishRegistration", (input) =>
-        caller.register.finishRegistration(
-          input as Parameters<typeof caller.register.finishRegistration>[0],
-        ),
-      ),
+      startRegistration: record("register.startRegistration", caller.register.startRegistration),
+      finishRegistration: record("register.finishRegistration", caller.register.finishRegistration),
     },
     login: {
-      startLogin: record("login.startLogin", (input) =>
-        caller.login.startLogin(input as Parameters<typeof caller.login.startLogin>[0]),
-      ),
-      finishLogin: record("login.finishLogin", (input) =>
-        caller.login.finishLogin(input as Parameters<typeof caller.login.finishLogin>[0]),
-      ),
+      startLogin: record("login.startLogin", caller.login.startLogin),
+      finishLogin: record("login.finishLogin", caller.login.finishLogin),
+      verifySecondFactor: record("login.verifySecondFactor", caller.login.verifySecondFactor),
     },
   };
 
@@ -90,10 +73,8 @@ describe("no-secret-leak — real client code, real server (in-process)", () => 
 
     const { trpc, captured } = captureClient();
 
-    // @ts-expect-error — our shim matches the structural subset registerNewUser uses.
     const recoveryKey = await registerNewUser(trpc, email, password);
 
-    // @ts-expect-error — our shim matches the structural subset loginUser uses.
     const unlock = await loginUser(trpc, async () => {}, email, password);
 
     expect(captured.length).toBeGreaterThan(0);

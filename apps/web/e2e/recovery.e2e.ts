@@ -6,7 +6,7 @@ import {
   randomEmail,
   randomPassword,
   registerUser,
-  simulateLogout,
+  signOut,
   skipBiometricIfShown,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
@@ -21,47 +21,53 @@ import {
 test.describe("forgotten password → recover with recovery key", () => {
   test("resets the password, rotates the recovery key and logs in with the new one", async ({
     page,
+    secondDevice,
   }) => {
     const email = randomEmail();
     const oldPassword = randomPassword();
     const newPassword = randomPassword();
 
     const recoveryKey = await registerUser(page, email, oldPassword);
-    await simulateLogout(page);
 
-    await page.locator('a[href="/recover"]').click();
-    await expect(page).toHaveURL(/\/recover$/);
+    // A device with nothing of the account on it: the recovery runs on the server alone.
+    const device = secondDevice;
+    await openAccountLogin(device);
+    await device.locator('a[href="/recover"]').click();
+    await expect(device).toHaveURL(/\/recover$/);
 
-    await page.locator('input[name="email"]').fill(email);
+    await device.locator('input[name="email"]').fill(email);
     // A paste into the first group spreads over all four.
-    await page.locator('input[name="recoveryKey-1"]').fill(recoveryKey);
-    await page.locator('form button[type="submit"]').click();
+    await device.locator('input[name="recoveryKey-1"]').fill(recoveryKey);
+    await device.locator('form button[type="submit"]').click();
 
-    await page.locator('input[name="password"]').fill(newPassword);
-    await page.locator('input[name="confirmPassword"]').fill(newPassword);
-    await page.locator('form button[type="submit"]').click();
+    await device.locator('input[name="password"]').fill(newPassword);
+    await device.locator('input[name="confirmPassword"]').fill(newPassword);
+    await device.locator('form button[type="submit"]').click();
 
     // A new recovery key replaces the old one (Argon2id re-wrap dominates timing).
-    await expect(page.getByText(/old recovery key no longer works/i)).toBeVisible({
+    await expect(device.getByText(/old recovery key no longer works/i)).toBeVisible({
       timeout: 30_000,
     });
-    const newRecoveryKey = (await page.locator("code").first().textContent())?.trim() ?? "";
+    const newRecoveryKey = (await device.locator("code").first().textContent())?.trim() ?? "";
     expect(newRecoveryKey).not.toBe("");
     expect(newRecoveryKey).not.toBe(recoveryKey);
-    await page.getByRole("button", { name: /copy to clipboard/i }).click();
-    await page.getByRole("button", { name: /i saved it/i }).click();
+    await device.getByRole("button", { name: /copy to clipboard/i }).click();
+    await device.getByRole("button", { name: /i saved it/i }).click();
 
     // The vault opens with the new password, no second entry.
-    await page.waitForURL((url) => !url.pathname.startsWith("/recover"), { timeout: 30_000 });
-    await skipBiometricIfShown(page);
-    await expect(page).toHaveURL(/\/(\?.*)?$/);
+    await device.waitForURL((url) => !url.pathname.startsWith("/recover"), { timeout: 30_000 });
+    await skipBiometricIfShown(device);
+    await expect(device).toHaveURL(/\/(\?.*)?$/);
 
-    await simulateLogout(page);
-    await expectLoginRejected(page, oldPassword, email);
+    await signOut(device);
+    await openAccountLogin(device);
+    await expectLoginRejected(device, oldPassword, email);
 
-    await loginUser(page, email, newPassword);
-    await skipBiometricIfShown(page);
-    await expect(page).toHaveURL(/\/(\?.*)?$/);
+    await loginUser(device, email, newPassword);
+    await skipBiometricIfShown(device);
+    await expect(device).toHaveURL(/\/(\?.*)?$/);
+    // The server takes the new password too, not only the device's copy.
+    await expectSynced(device);
   });
 });
 

@@ -147,7 +147,7 @@ Location: `apps/web/e2e/`. New `@playwright/test` dev-dep in `apps/web`. Bring u
 - `register-login.e2e.ts` — register a brand-new user, log out, log back in, see vault.
 - `recovery.e2e.ts` — register, capture recovery key, simulate forgotten password, recover via recovery key.
 - `lock-screen.e2e.ts` — idle timeout locks vault; signRequest fails after lock.
-- `csp-headers.e2e.ts` — request `/` and assert CSP, HSTS, X-Frame-Options, COOP/COEP headers present (defends against XSS chain to vault).
+- `csp-headers.e2e.ts` — request `/` and assert CSP, X-Frame-Options, COOP/COEP headers present (defends against XSS chain to vault). HSTS needs TLS, so the production proxy sets it (`docker-compose.prod.yml`), not this stack.
 - `network-leakage.e2e.ts` — Playwright intercepts every request during register+login; assert no request body or URL contains the user's password, recoveryKey, or vaultKey (string match on captured bodies).
 
 ### Layer 5 — Property-based & fuzz (fast-check)

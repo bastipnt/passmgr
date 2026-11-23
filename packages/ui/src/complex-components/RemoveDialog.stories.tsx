@@ -19,9 +19,14 @@ const meta = preview.meta({
 });
 
 export const Default = meta.story({
-  render: (args) => (
-    // @ts-expect-error args do not match
-    <RemoveDialog {...args}>
+  render: ({ title, description, removeTitle, removeVariant, onRemove }) => (
+    <RemoveDialog
+      title={title}
+      description={description}
+      removeTitle={removeTitle}
+      removeVariant={removeVariant}
+      onRemove={onRemove}
+    >
       <Button variant="destructive">Remove</Button>
     </RemoveDialog>
   ),

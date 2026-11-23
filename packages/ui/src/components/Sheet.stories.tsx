@@ -11,12 +11,13 @@ import {
   SheetTrigger,
 } from "./Sheet";
 
+// The panel is the component: its props (`side`) are the story's args.
 const meta = preview.meta({
   title: "Design System/Atoms/Sheet",
-  component: Sheet,
+  component: SheetContent,
   subcomponents: {
+    Sheet,
     SheetTrigger,
-    SheetContent,
     SheetHeader,
     SheetTitle,
     SheetDescription,
@@ -26,7 +27,6 @@ const meta = preview.meta({
   parameters: { layout: "centered" },
   tags: ["autodocs"],
   argTypes: {
-    // @ts-expect-error takes types from Sheet, but side is defined on SheetContent
     side: { control: "select", options: ["top", "right", "bottom", "left"] },
   },
 });
@@ -37,7 +37,6 @@ export const Default = meta.story({
       <SheetTrigger>
         <Button variant="secondary">Open sheet</Button>
       </SheetTrigger>
-      {/* @ts-expect-error takes types from Sheet, but side is defined on SheetContent */}
       <SheetContent side={args.side ?? "right"}>
         <SheetHeader>
           <SheetTitle>Edit profile</SheetTitle>

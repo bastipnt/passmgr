@@ -35,7 +35,7 @@ describe("records unique constraints", () => {
     ).resolves.toBeDefined();
   });
 
-  it("allows same recordId across distinct users at the same version", async () => {
+  it("rejects the same recordId at the same version across distinct users", async () => {
     // (recordId, version) is globally unique by index — this asserts current behaviour.
     const userA = await insertUser(client);
     const userB = await insertUser(client);

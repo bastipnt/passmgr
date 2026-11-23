@@ -6,7 +6,7 @@ import {
   randomEmail,
   randomPassword,
   registerUser,
-  simulateLogout,
+  signOut,
 } from "./helpers/auth";
 import { test } from "./helpers/devices";
 import { expectInApp, expectSynced, reloadAndSubmitUnlock } from "./helpers/vault";
@@ -182,8 +182,9 @@ test("two-factor: off by default, then every server login asks for a code until 
   await expect(dialog).toHaveCount(0, { timeout: 30_000 });
   await expect(page.getByText("· Off", { exact: true })).toBeVisible();
 
-  // Password-only again.
-  await simulateLogout(secondDevice);
+  // Password-only again: the sign-in after a sign out reaches the server without a code.
+  await signOut(secondDevice);
   await loginUser(secondDevice, email, password);
   await expectInApp(secondDevice);
+  await expectSynced(secondDevice);
 });

@@ -5,7 +5,19 @@ import type { TRPCClient } from "@trpc/client";
 import { generateKeyring } from "./account/new-keyring";
 import { opaqueInputFor, registerOpaque } from "./opaque";
 
-export type RegistrationTRPCClient = Pick<TRPCClient<AppRouter>, "register">;
+type RegisterProcedures = TRPCClient<AppRouter>["register"];
+
+/** The finish's answer is never read, so a client that answers it with anything will do. */
+export type RegistrationTRPCClient = {
+  register: {
+    startRegistration: RegisterProcedures["startRegistration"];
+    finishRegistration: {
+      mutate: (
+        input: Parameters<RegisterProcedures["finishRegistration"]["mutate"]>[0],
+      ) => Promise<unknown>;
+    };
+  };
+};
 
 export class RegistrationStartFailedError extends Error {
   override message = "RegistrationStartFailedError";

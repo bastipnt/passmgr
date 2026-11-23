@@ -58,7 +58,8 @@ const TYPES: { type: string; create: RecordFields; edit: RecordFields }[] = [
 
 /** Drag a sortable row by its handle onto the row of `target`'s handle. */
 async function dragHandle(page: Page, handle: Locator, target: Locator): Promise<void> {
-  // Rows measured while the sheet still slides in would be off by the slide.
+  // Rows measured while the sheet still slides in would be off by the slide (it ignores
+  // reduced motion).
   let last: string | undefined;
   await expect
     .poll(async () => {

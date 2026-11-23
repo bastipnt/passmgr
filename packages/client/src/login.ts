@@ -50,6 +50,11 @@ export {
 
 export type LoginTRPCClient = Pick<TRPCClient<AppRouter>, "login">;
 
+/** The calls of a password login, so a client of just these can run it. */
+export type PasswordLoginTRPCClient = {
+  login: Pick<LoginTRPCClient["login"], "startLogin" | "finishLogin" | "verifySecondFactor">;
+};
+
 /** `sessionKey`: the login's session key, bytes (`secretsStore.unlockSession` wipes them). */
 export type LoginSessionFn = (
   sessionId: string,
@@ -96,7 +101,7 @@ export class LoginUnreachableError extends Error {
  * get through or hit a 5xx is `LoginUnreachableError` instead).
  */
 export async function loginUser(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   loginSession: LoginSessionFn,
   rawEmail: string,
   password: string,
@@ -121,7 +126,7 @@ export type AccountLogin = Omit<VaultUnlockInfo, "password">;
 
 /** `loginUser` with the password already derived (`deriveOpaquePassword`). Same errors. */
 export async function loginWithOpaquePassword(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   loginSession: LoginSessionFn,
   rawEmail: string,
   opaquePassword: Uint8Array,
@@ -188,7 +193,7 @@ export async function loginWithOpaquePassword(
 }
 
 async function finishOpaqueLogin(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   email: string,
   attemptId: string,
   finishLoginRequest: string,
@@ -327,7 +332,7 @@ export async function startDeviceLogin(
 
 /** Ask for codes until one is right, the user cancels or the challenge is gone. */
 async function passSecondFactor(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   challengeId: string,
   onSecondFactor: SecondFactorPrompt,
 ): Promise<LoginSuccess> {
@@ -339,7 +344,7 @@ async function passSecondFactor(
 }
 
 async function askUntilVerified(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   challengeId: string,
   onSecondFactor: SecondFactorPrompt,
 ): Promise<LoginSuccess> {
@@ -362,7 +367,7 @@ async function askUntilVerified(
 
 /** The login, or undefined when the code was wrong. */
 async function verifyCode(
-  trpc: LoginTRPCClient,
+  trpc: PasswordLoginTRPCClient,
   challengeId: string,
   code: string,
 ): Promise<LoginSuccess | undefined> {

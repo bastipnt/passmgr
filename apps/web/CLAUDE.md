@@ -162,11 +162,13 @@ Web E2E: **Playwright** (`pnpm --filter web e2e`, specs `apps/web/e2e/*.e2e.ts`)
 secrets; mailed codes are read from the Mailpit API, `verifyEmail`) and tears it down after; `E2E_KEEP_STACK=1` leaves
 it running. Web keys live in memory, so after an unlock navigate by clicking, never `page.goto` (it reloads → locked). A
 second / third device = the `secondDevice` / `thirdDevice` fixtures (`test` from `e2e/helpers/devices.ts`); offline =
-`context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login), `e2e/helpers/vault.ts` (local vault,
-create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`; login shortcuts
-with websites and tags), the listed records, desktop search + its options, password issues, Lock from the sidebar, sync
-status), `e2e/helpers/a11y.ts` (`expectAccessible`: axe, WCAG 2.1 A / AA, in the current theme; called inside existing
-flows, not a spec of its own). The styled `Link` from `@repo/ui` has role `button`; plain wouter links stay `link`.
+`context.setOffline(true)`. Helpers: `e2e/helpers/auth.ts` (register / login / Sign out), `e2e/helpers/vault.ts`
+(local vault, create / edit / read a record of any type by input name (`createRecord`, `editRecord`, `expectRecord`;
+login shortcuts with websites and tags), the listed records, desktop search + its options, password issues, Lock from
+the sidebar, sync status), `e2e/helpers/a11y.ts` (`expectAccessible`: axe, WCAG 2.1 A / AA, in the current theme;
+called inside existing flows, not a spec of its own). The styled `Link` from `@repo/ui` has role `button`; plain wouter
+links stay `link`. Every context runs with reduced motion (`playwright.config.ts`, the device fixtures too): no
+sidebar collapse transition or sync spin. Sheet, dialog and menu animations ignore it: let them settle before measuring.
 
 ## Web served-code trust
 

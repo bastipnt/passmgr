@@ -1,11 +1,6 @@
-import { expect, test } from "@playwright/test";
-import {
-  loginUser,
-  randomEmail,
-  randomPassword,
-  registerUser,
-  simulateLogout,
-} from "./helpers/auth";
+import { expect } from "@playwright/test";
+import { loginUser, randomEmail, randomPassword, registerUser } from "./helpers/auth";
+import { test } from "./helpers/devices";
 
 /**
  * Capture every outbound request during a full register + login flow and
@@ -14,22 +9,26 @@ import {
  * server-side `no-secret-leak.int.test.ts` — same property, observed from
  * the browser.
  */
-test("no plaintext password or recoveryKey ever leaves the browser", async ({ page }) => {
+test("no plaintext password or recoveryKey ever leaves the browser", async ({
+  page,
+  secondDevice,
+}) => {
   const email = randomEmail();
   const password = randomPassword();
 
   const captured: Array<{ url: string; body: string }> = [];
 
-  page.on("request", (req) => {
-    const url = req.url();
-    if (!url.includes("/trpc/")) return;
-    captured.push({ url, body: req.postData() ?? "" });
-  });
+  for (const device of [page, secondDevice]) {
+    device.on("request", (req) => {
+      const url = req.url();
+      if (!url.includes("/trpc/")) return;
+      captured.push({ url, body: req.postData() ?? "" });
+    });
+  }
 
   const recoveryKey = await registerUser(page, email, password);
-  // A fresh device: the login below goes through OPAQUE, not the cached profile.
-  await simulateLogout(page);
-  await loginUser(page, email, password);
+  // A fresh device: its login goes through OPAQUE, not a profile on the device.
+  await loginUser(secondDevice, email, password);
 
   expect(captured.length).toBeGreaterThan(0);
 

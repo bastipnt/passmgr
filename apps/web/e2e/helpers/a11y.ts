@@ -5,7 +5,7 @@ const WCAG_AA = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 
 /** Fails on any WCAG 2.1 A / AA violation axe finds in the page as it is now (one theme). */
 export async function expectAccessible(page: Page): Promise<void> {
-  // A sheet or menu still fading in reads as low contrast.
+  // A sheet or menu still fading in reads as low contrast; their animations ignore reduced motion.
   await page.waitForFunction(() =>
     document
       .getAnimations()

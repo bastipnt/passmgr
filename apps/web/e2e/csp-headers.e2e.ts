@@ -35,12 +35,6 @@ test.describe("security headers", () => {
     expect(violations).toEqual([]);
   });
 
-  // HSTS is only meaningful behind TLS termination, which the host reverse
-  // proxy does in production — set it there, not in this Caddyfile.
-  test.skip("Strict-Transport-Security is set", () => {
-    // intentionally empty
-  });
-
   test("hardening headers are set", async ({ request }) => {
     const headers = (await request.get("/")).headers();
     expect(headers["x-frame-options"]).toBe("DENY");

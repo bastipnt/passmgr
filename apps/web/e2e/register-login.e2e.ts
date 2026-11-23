@@ -4,12 +4,13 @@ import {
   randomEmail,
   randomPassword,
   registerUser,
-  simulateLogout,
+  signOut,
   skipBiometricIfShown,
 } from "./helpers/auth";
+import { expectSynced } from "./helpers/vault";
 
-test.describe("register → simulated logout → login", () => {
-  test("a brand-new user can register, leave, and come back", async ({ page }) => {
+test.describe("register → sign out → login", () => {
+  test("a brand-new user can register, sign out, and come back", async ({ page }) => {
     const email = randomEmail();
     const password = randomPassword();
 
@@ -19,9 +20,11 @@ test.describe("register → simulated logout → login", () => {
     await skipBiometricIfShown(page);
     await expect(page).toHaveURL(/\/(\?.*)?$/);
 
-    await simulateLogout(page);
+    await signOut(page);
     await loginUser(page, email, password);
     await skipBiometricIfShown(page);
     await expect(page).toHaveURL(/\/(\?.*)?$/);
+    // Signed in to the server again, not only unlocked on the device.
+    await expectSynced(page);
   });
 });

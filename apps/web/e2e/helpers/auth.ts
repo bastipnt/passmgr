@@ -126,25 +126,14 @@ export async function skipBiometricIfShown(page: Page): Promise<void> {
 }
 
 /**
- * There is no logout UI yet. Drop the in-memory session by clearing local
- * storage + cookies + OPFS, then open the account login — equivalent to a
- * fresh tab on a different device.
+ * Desktop, from the unlocked app: Sign out at the foot of the settings. It ends the
+ * server session and reloads to the unlock screen; the vault stays on the device.
  */
-export async function simulateLogout(page: Page): Promise<void> {
-  await page.context().clearCookies();
-  await page.evaluate(async () => {
-    localStorage.clear();
-    sessionStorage.clear();
-    if ("storage" in navigator && "getDirectory" in navigator.storage) {
-      try {
-        const root = await navigator.storage.getDirectory();
-        for await (const [name] of root as unknown as AsyncIterable<[string]>) {
-          await root.removeEntry(name, { recursive: true }).catch(() => {});
-        }
-      } catch {
-        // OPFS may not be available in every context; ignore.
-      }
-    }
-  });
-  await openAccountLogin(page);
+export async function signOut(page: Page): Promise<void> {
+  await page.getByRole("link", { name: "Settings", exact: true }).click();
+  // The lock can show the unlock screen before the reload lands: wait for the reload.
+  const reloaded = page.waitForEvent("load");
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await reloaded;
+  await expect(page.locator('input[name="password"]')).toBeVisible({ timeout: 15_000 });
 }
