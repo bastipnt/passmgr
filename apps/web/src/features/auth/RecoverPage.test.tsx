@@ -296,7 +296,7 @@ describe("RecoverPage from the account login", () => {
     await enterKey();
 
     expect(await screen.findByText("Check this recovery key")).toBeInTheDocument();
-    expect(screen.getByText(/can't be reset/i)).toBeInTheDocument();
+    expect(screen.getByText(/check the email and recovery key/i)).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /check the key/i }));
     expect(screen.getByText("Reset your password")).toBeInTheDocument();
   });
@@ -422,7 +422,7 @@ describe("RecoverPage local vault", () => {
 
     expect(await screen.findByText("Recovery key accepted")).toBeInTheDocument();
     expect(screen.getByText(/recovery failed/i)).toBeInTheDocument();
-    expect(screen.queryByText(/can't be reset/i)).toBeNull();
+    expect(screen.queryByRole("button", { name: /check the key/i })).toBeNull();
   });
 
   it("explains the wrong_key error", () => {

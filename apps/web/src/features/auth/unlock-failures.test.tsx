@@ -98,6 +98,12 @@ const passwordKeys = {
   accountKeyEncryptionNonce: "nonce",
 };
 
+const recoveryWrap = {
+  recoveryKekSalt: "recovery-salt",
+  encryptedAccountKeyRecovery: "recovery-wrap",
+  accountKeyEncryptionNonceRecovery: "recovery-nonce",
+};
+
 const ALICE: LocalProfile = {
   profileId: "profile-alice",
   mode: "linked",
@@ -473,7 +479,7 @@ describe("biometricUnlock", () => {
         email: "alice@example.com",
         userId: ALICE.userId,
         userPasswordKeys: passwordKeys,
-        recoveryKeys: null,
+        recoveryKeys: recoveryWrap,
         vaultKeys: wraps,
         userKeyPair,
       };
@@ -596,7 +602,7 @@ describe("useEnrollBiometric", () => {
         userId: ALICE.userId,
         password: "pw",
         userPasswordKeys: passwordKeys,
-        recoveryKeys: null,
+        recoveryKeys: recoveryWrap,
         vaultKeys: wraps,
         userKeyPair,
       };
@@ -652,7 +658,7 @@ describe("useConnectServer", () => {
         userId,
         password: "pw",
         userPasswordKeys: passwordKeys,
-        recoveryKeys: null,
+        recoveryKeys: recoveryWrap,
         vaultKeys: wraps,
         userKeyPair,
       };
@@ -696,7 +702,7 @@ describe("useConnectServer", () => {
         userId: ALICE.userId,
         password: "pw",
         userPasswordKeys: passwordKeys,
-        recoveryKeys: null,
+        recoveryKeys: recoveryWrap,
         vaultKeys: foreign.wraps,
         userKeyPair: foreign.userKeyPair,
       };
@@ -977,7 +983,7 @@ describe("unlock: which profile?", () => {
       accountKeyEncryptionNonce,
     };
     vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
-    return { userPasswordKeys, recoveryKeys: null, wraps, userKeyPair };
+    return { userPasswordKeys, wraps, userKeyPair };
   }
 
   async function unlockWith(keys: ReturnType<typeof account>, userId = "user-alice") {
@@ -989,7 +995,7 @@ describe("unlock: which profile?", () => {
         userId,
         password: "pw",
         userPasswordKeys: keys.userPasswordKeys,
-        recoveryKeys: null,
+        recoveryKeys: recoveryWrap,
         vaultKeys: keys.wraps,
         userKeyPair: keys.userKeyPair,
       });
@@ -1006,7 +1012,7 @@ describe("unlock: which profile?", () => {
       { userId: ALICE.userId, email: "alice@example.com" },
       { ...keys.userPasswordKeys, userKeyPair: keys.userKeyPair },
       keys.wraps,
-      null,
+      recoveryWrap,
       expect.any(Uint8Array),
     );
     expect(store.profiles).toHaveLength(1);

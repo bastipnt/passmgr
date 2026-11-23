@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   getClient,
   insertKey,
+  insertKeyRow,
   insertUser,
   type KeyRow,
   makeKeyRow,
@@ -10,26 +11,7 @@ import {
 } from "../setup/db-helpers";
 
 const UNIQUE_VIOLATION = "23505";
-
-async function attemptInsert(client: Client, row: KeyRow): Promise<void> {
-  await client.query(
-    `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams",
-      "passwordKekSalt", "encryptedAccountKey", "accountKeyEncryptionNonce",
-      "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-    [
-      row.keySetId,
-      row.userId,
-      row.recoveryKekSalt,
-      JSON.stringify(row.passwordKekParams),
-      row.passwordKekSalt,
-      row.encryptedAccountKey,
-      row.accountKeyEncryptionNonce,
-      row.encryptedAccountKeyRecovery,
-      row.accountKeyEncryptionNonceRecovery,
-    ],
-  );
-}
+const NOT_NULL_VIOLATION = "23502";
 
 describe("keys unique constraints", () => {
   let client: Client;
@@ -58,7 +40,7 @@ describe("keys unique constraints", () => {
       const userB = await insertUser(client);
       const first = await insertKey(client, userA.userId);
       const dupe = makeKeyRow(userB.userId, { [field]: first[field] } as Partial<KeyRow>);
-      await expect(attemptInsert(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
+      await expect(insertKeyRow(client, dupe)).rejects.toMatchObject({ code: UNIQUE_VIOLATION });
     });
   }
 
@@ -79,15 +61,26 @@ describe("keys unique constraints", () => {
       recoveryKekSalt: first.recoveryKekSalt,
       encryptedAccountKeyRecovery: first.encryptedAccountKeyRecovery,
       accountKeyEncryptionNonceRecovery: first.accountKeyEncryptionNonceRecovery,
+      recoveryVerifier: first.recoveryVerifier,
     });
-    await expect(attemptInsert(client, next)).resolves.toBeUndefined();
+    await expect(insertKeyRow(client, next)).resolves.toBeUndefined();
   });
 
   it("rejects a second active key set for the same user", async () => {
     const user = await insertUser(client);
     await insertKey(client, user.userId);
-    await expect(attemptInsert(client, makeKeyRow(user.userId))).rejects.toMatchObject({
+    await expect(insertKeyRow(client, makeKeyRow(user.userId))).rejects.toMatchObject({
       code: UNIQUE_VIOLATION,
     });
+  });
+
+  it("rejects a key set without a recovery verifier", async () => {
+    const user = await insertUser(client);
+    await insertKey(client, user.userId);
+    await expect(
+      client.query(`UPDATE "keys" SET "recoveryVerifier" = NULL WHERE "userId" = $1`, [
+        user.userId,
+      ]),
+    ).rejects.toMatchObject({ code: NOT_NULL_VIOLATION });
   });
 });

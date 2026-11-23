@@ -169,10 +169,8 @@ function loginLockKey(emailHash: string, throttle: LoginThrottle = "password") {
 }
 
 function isLive(session: Session, epoch: string | null, now: number): boolean {
-  // `?? 0`: a session without a login time counts as oldest (expired).
-  const authenticatedAt = session.authenticatedAt ?? 0;
-  if (epoch !== null && authenticatedAt <= Number(epoch)) return false;
-  return now - authenticatedAt < SESSION_MAX_AGE_MS;
+  if (epoch !== null && session.authenticatedAt <= Number(epoch)) return false;
+  return now - session.authenticatedAt < SESSION_MAX_AGE_MS;
 }
 
 /** The sliding idle TTL, capped by what is left of the session's max age. */

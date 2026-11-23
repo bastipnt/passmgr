@@ -601,7 +601,7 @@ There is never a silent wipe.
 
 > **Amended 2026-10-23** (linked recovery offline): an account's password reset with the recovery
 > key no longer needs the server. Every login hands out the account's recovery wrap
-> (`loginSuccessSchema.recoveryKeys`, without the verifier; null for an account without one), and
+> (`loginSuccessSchema.recoveryKeys`, without the verifier), and
 > the profile caches it (`Vault.setAccountKeyMaterial`'s `recoveryWrap`). A reset of a linked
 > profile on the device is **always local-first**, online too (`useRecovery().recover` →
 > `recoverLinkedVault`): it unwraps the account key with the cached wrap, writes a new password

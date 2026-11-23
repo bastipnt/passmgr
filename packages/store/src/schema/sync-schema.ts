@@ -6,8 +6,6 @@ import { syncMeta } from "./tables";
 // pulled in full no matter how recently the others were synced. The cursor is
 // the highest server `seq` pulled from the vault.
 const CURSOR_PREFIX = "pullSeq:";
-// Timestamp cursors from before the sequence cursor; dropped on the next pull.
-const LEGACY_CURSOR_PREFIX = "lastSyncedAt:";
 // A key rotation this device started: its records still to re-encrypt once the
 // vault is at the key version stored (`getRekeyTargets`).
 const REKEY_PREFIX = "rekey:";
@@ -35,7 +33,6 @@ export async function getSyncCursors(db: LocalDb): Promise<Record<string, number
 
 /** Store the cursors (vaultId → cursor) of the vaults in `cursors`. */
 export async function setSyncCursors(cursors: Record<string, number>, db: LocalDb): Promise<void> {
-  await db.delete(syncMeta).where(like(syncMeta.key, `${LEGACY_CURSOR_PREFIX}%`));
   const entries = Object.entries(cursors);
   if (entries.length === 0) return;
   await db

@@ -220,7 +220,7 @@ export const userRouter = router({
         throw new TRPCError({ code: "NOT_FOUND" });
       }
       await linkSessionCredential(ctx.sessionId, input.credentialId);
-      if (!ctx.passwordless && ctx.authenticatedAt) {
+      if (!ctx.passwordless) {
         await refreshDeviceCredential(
           ctx.userId,
           input.credentialId,

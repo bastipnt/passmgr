@@ -675,7 +675,7 @@ describe("applySync", () => {
     expect(await vault.getSyncCursors()).toEqual({ "v-personal": 1 });
   });
 
-  it("skips a stored cursor that isn't a seq and drops legacy timestamp cursors", async () => {
+  it("skips a stored cursor that isn't a seq", async () => {
     const driver = createTestDriver();
     const store = new Vault(driver);
     await store.getSyncCursors(); // migrated
@@ -683,7 +683,6 @@ describe("applySync", () => {
       driver.query("INSERT INTO sync_meta (key, value) VALUES (?, ?)", [key, value], "run");
     await put("pullSeq:v-personal", "3");
     await put("pullSeq:v-work", "garbage");
-    await put("lastSyncedAt:v-personal", T1);
 
     // The broken cursor isn't sent; that vault is pulled in full.
     expect(await store.getSyncCursors()).toEqual({ "v-personal": 3 });
@@ -695,12 +694,6 @@ describe("applySync", () => {
       serverTimestamp: T2,
     });
     expect(await store.getSyncCursors()).toEqual({ "v-personal": 3, "v-work": 2 });
-    const legacy = await driver.query(
-      "SELECT key FROM sync_meta WHERE key LIKE 'lastSyncedAt:%'",
-      [],
-      "all",
-    );
-    expect(legacy.rows).toEqual([]);
     await store.destroy();
   });
 });

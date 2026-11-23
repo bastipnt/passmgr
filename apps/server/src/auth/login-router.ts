@@ -124,7 +124,6 @@ async function loginKeys(
       recoveryKekSalt: true,
       encryptedAccountKeyRecovery: true,
       accountKeyEncryptionNonceRecovery: true,
-      recoveryVerifier: true,
     },
     where: {
       userId,
@@ -155,13 +154,13 @@ async function loginKeys(
     recoveryKekSalt,
     encryptedAccountKeyRecovery,
     accountKeyEncryptionNonceRecovery,
-    recoveryVerifier,
     ...userPasswordKeys
   } = keyQueryRes;
-  // Without a verifier the server can't finish a recovery: no offline reset either.
-  const recoveryKeys = recoveryVerifier
-    ? { recoveryKekSalt, encryptedAccountKeyRecovery, accountKeyEncryptionNonceRecovery }
-    : null;
+  const recoveryKeys = {
+    recoveryKekSalt,
+    encryptedAccountKeyRecovery,
+    accountKeyEncryptionNonceRecovery,
+  };
 
   return { userPasswordKeys, recoveryKeys, vaultKeys, userKeyPair };
 }

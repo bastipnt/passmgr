@@ -1,0 +1,1 @@
+ALTER TABLE "keys" ALTER COLUMN "recoveryVerifier" SET NOT NULL;

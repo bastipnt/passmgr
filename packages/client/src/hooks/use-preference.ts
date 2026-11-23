@@ -31,18 +31,13 @@ function notify(key: string): void {
   for (const onChange of listeners.get(key) ?? []) onChange();
 }
 
-/**
- * Values are written as JSON. Keys written before this hook existed hold bare
- * strings ("most-recent"), which `JSON.parse` rejects — fall back to the raw
- * value when the caller expects a string so those survive. Anything else
- * malformed (localStorage is user-editable) falls back to the default.
- */
+/** Values are JSON; a malformed one (localStorage is user-editable) reads as `fallback`. */
 function parse<T>(raw: string | null, fallback: T): T {
   if (raw === null) return fallback;
   try {
     return JSON.parse(raw) as T;
   } catch {
-    return typeof fallback === "string" ? (raw as unknown as T) : fallback;
+    return fallback;
   }
 }
 
@@ -60,7 +55,7 @@ function read<T>(store: PreferencesStore, key: string, fallback: T): T {
  * Read and write one non-sensitive preference. Every component on the same key
  * re-renders together, so a settings control and the feature it configures stay
  * in sync without a reload. A stored value `isValid` rejects reads as `fallback`:
- * localStorage is user-editable, and older builds wrote unvalidated values.
+ * localStorage is user-editable.
  * Pass a stable `isValid` (module scope), it is a snapshot dependency.
  */
 export function usePreference<T>(

@@ -1,4 +1,3 @@
-import { PASSWORD_DEFAULTS } from "@repo/crypto";
 import {
   type AutofillState,
   autofillState,
@@ -40,9 +39,7 @@ export function useAutofillSync(appActive: boolean) {
   const { vaultUnlocked } = useContext(SessionContext);
   const store = useStore();
   const { state } = useAutofillState(appActive);
-  const { pwOpts } = useGeneratorDefaults();
-  // A preference saved by an older version may lack a key; iOS decodes the options strictly.
-  const generator = useMemo(() => ({ ...PASSWORD_DEFAULTS, ...pwOpts }), [pwOpts]);
+  const { pwOpts: generator } = useGeneratorDefaults();
   usePendingAutofillLogins(appActive);
 
   const entries = useMemo(() => autofillEntries(records), [records]);

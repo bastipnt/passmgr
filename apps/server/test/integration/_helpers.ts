@@ -57,7 +57,7 @@ export async function loginAndGetAuthKey(
   vaultKeys: MemberVault[];
   userKeyPair: UserKeyPair;
   userPasswordKeys: PasswordKeySchema;
-  recoveryKeys: RecoveryWrapSchema | null;
+  recoveryKeys: RecoveryWrapSchema;
 }> {
   const caller = createCaller(buildTestContext(undefined));
   const started = await clientStartLogin(password, email);

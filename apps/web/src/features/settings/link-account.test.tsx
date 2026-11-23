@@ -53,6 +53,8 @@ beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
 afterAll(() => setPasswordKekParams(previous));
 
 let local: NewLocalVault;
+// The login hands back the recovery wrap the link uploaded, without the verifier.
+const loginRecoveryWrap = ({ recoveryVerifier: _, ...wrap }: NewLocalVault["recovery"]) => wrap;
 const serverSession = ["s-1", new Uint8Array(32).fill(5), new Uint8Array(32)] as const;
 
 beforeEach(async () => {
@@ -72,7 +74,7 @@ beforeEach(async () => {
       userId: "u-alice",
       password: PASSWORD,
       userPasswordKeys: local.material,
-      recoveryKeys: null,
+      recoveryKeys: loginRecoveryWrap(local.recovery),
       vaultKeys: local.vaults,
       userKeyPair: local.material.userKeyPair,
     },
@@ -112,7 +114,7 @@ describe("useLinkAccount", () => {
           email: "alice@example.com",
           userId: "u-alice",
         },
-        recoveryWrap: null,
+        recoveryWrap: loginRecoveryWrap(local.recovery),
       },
     );
     expect(linkServer).toHaveBeenCalledWith(...serverSession);

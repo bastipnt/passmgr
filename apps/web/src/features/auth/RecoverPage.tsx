@@ -384,8 +384,7 @@ function RecoverFlow() {
                       ) : keyRejected ? (
                         <FieldError variant="box">
                           <span>
-                            {RECOVERY_ERROR_MESSAGES.failed} Accounts created before recovery keys
-                            existed can&apos;t be reset.{" "}
+                            {RECOVERY_ERROR_MESSAGES.failed}{" "}
                             <button
                               type="button"
                               onClick={() => goTo("key")}

@@ -3,6 +3,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import {
   getClient,
   insertKey,
+  insertKeyRow,
   insertRecord,
   insertUser,
   insertVault,
@@ -30,25 +31,7 @@ describe("foreign-key constraints", () => {
 
   it("rejects keys row with userId not in users", async () => {
     const orphan = makeKeyRow(crypto.randomUUID());
-    await expect(
-      client.query(
-        `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams",
-          "passwordKekSalt", "encryptedAccountKey", "accountKeyEncryptionNonce",
-          "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          orphan.keySetId,
-          orphan.userId,
-          orphan.recoveryKekSalt,
-          JSON.stringify(orphan.passwordKekParams),
-          orphan.passwordKekSalt,
-          orphan.encryptedAccountKey,
-          orphan.accountKeyEncryptionNonce,
-          orphan.encryptedAccountKeyRecovery,
-          orphan.accountKeyEncryptionNonceRecovery,
-        ],
-      ),
-    ).rejects.toMatchObject({ code: FK_VIOLATION });
+    await expect(insertKeyRow(client, orphan)).rejects.toMatchObject({ code: FK_VIOLATION });
   });
 
   it.each([

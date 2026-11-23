@@ -32,7 +32,7 @@ const SESSION_KEY = "deterministic-session-key";
 
 async function seedSession(
   userId = "user-A",
-  authenticatedAt: number | null = Date.now(),
+  authenticatedAt = Date.now(),
 ): Promise<{ authKey: Uint8Array }> {
   const authSalt = genKey();
   const authKey = await deriveAuthKey(SESSION_KEY, authSalt);
@@ -322,7 +322,7 @@ describe("protectedSubscriptionProcedure", () => {
 });
 
 describe("freshAuthProcedure", () => {
-  async function callFresh(authenticatedAt: number | null) {
+  async function callFresh(authenticatedAt: number) {
     const { authKey } = await seedSession("user-A", authenticatedAt);
     const headers = await signRequest({
       authKey,
@@ -341,10 +341,5 @@ describe("freshAuthProcedure", () => {
   it("rejects a session with stale authenticatedAt → FORBIDDEN", async () => {
     const stale = Date.now() - FRESH_AUTH_WINDOW_MS - 1_000;
     await expect(callFresh(stale)).rejects.toMatchObject({ code: "FORBIDDEN" });
-  });
-
-  // No login time: no anchor for the max age, so the session counts as expired.
-  it("rejects a session without authenticatedAt → UNAUTHORIZED", async () => {
-    await expect(callFresh(null)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

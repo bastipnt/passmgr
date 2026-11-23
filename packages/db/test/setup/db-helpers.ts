@@ -61,6 +61,7 @@ export function makeKeyRow(userId: string, overrides: Partial<KeyRow> = {}): Key
     accountKeyEncryptionNonce: `ak-nonce-${uniq}`,
     encryptedAccountKeyRecovery: `enc-ak-rec-${uniq}`,
     accountKeyEncryptionNonceRecovery: `ak-rec-nonce-${uniq}`,
+    recoveryVerifier: `rec-verifier-${uniq}`,
     ...overrides,
   };
 }
@@ -71,11 +72,17 @@ export async function insertKey(
   overrides: Partial<KeyRow> = {},
 ): Promise<KeyRow> {
   const row = makeKeyRow(userId, overrides);
+  await insertKeyRow(client, row);
+  return row;
+}
+
+export async function insertKeyRow(client: Client, row: KeyRow): Promise<void> {
   await client.query(
     `INSERT INTO "keys" ("keySetId", "userId", "recoveryKekSalt", "passwordKekParams", "passwordKekSalt",
                         "encryptedAccountKey", "accountKeyEncryptionNonce",
-                        "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery")
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+                        "encryptedAccountKeyRecovery", "accountKeyEncryptionNonceRecovery",
+                        "recoveryVerifier")
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)`,
     [
       row.keySetId,
       row.userId,
@@ -86,9 +93,9 @@ export async function insertKey(
       row.accountKeyEncryptionNonce,
       row.encryptedAccountKeyRecovery,
       row.accountKeyEncryptionNonceRecovery,
+      row.recoveryVerifier,
     ],
   );
-  return row;
 }
 
 export function makeRecordRow(userId: string, overrides: Partial<RecordRow> = {}): RecordRow {
@@ -170,6 +177,7 @@ export type KeyRow = {
   accountKeyEncryptionNonce: string;
   encryptedAccountKeyRecovery: string;
   accountKeyEncryptionNonceRecovery: string;
+  recoveryVerifier: string;
 };
 
 export type RecordRow = {

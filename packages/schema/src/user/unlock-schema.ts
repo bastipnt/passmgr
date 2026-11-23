@@ -6,7 +6,7 @@ export type VaultUnlockInfo = {
   userId: string;
   password: string;
   userPasswordKeys: PasswordKeySchema;
-  recoveryKeys: RecoveryWrapSchema | null;
+  recoveryKeys: RecoveryWrapSchema;
   vaultKeys: MemberVault[];
   userKeyPair: UserKeyPair;
 };

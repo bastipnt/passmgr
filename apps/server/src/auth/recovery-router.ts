@@ -25,7 +25,7 @@ import { deleteDeviceCredentials } from "./device-credentials";
 
 type RecoveryLog = { warn: (obj: object, msg: string) => void };
 
-// One error for every failure (unknown email, no verifier, wrong key, stale
+// One error for every failure (unknown email, wrong key, stale
 // attempt) so recovery doesn't reveal which accounts exist.
 function denyRecovery(
   log: RecoveryLog | undefined,
@@ -75,9 +75,6 @@ export const recoveryRouter = router({
         .limit(1);
       if (!found) denyRecovery(log, "startRecovery", "unknown_user", emailHash);
       const { userId, ...keys } = found;
-      // Accounts registered before recovery existed have no verifier.
-      if (!keys.recoveryVerifier) denyRecovery(log, "startRecovery", "no_verifier", emailHash);
-
       const stored = fromBase64(keys.recoveryVerifier);
       if (stored.length !== presented.length || !timingSafeEqual(stored, presented)) {
         denyRecovery(log, "startRecovery", "wrong_key", emailHash);

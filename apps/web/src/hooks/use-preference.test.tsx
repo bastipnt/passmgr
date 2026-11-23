@@ -69,7 +69,7 @@ describe("usePreference", () => {
     expect(screen.getByTestId("a").textContent).toBe(JSON.stringify({ length: 16 }));
   });
 
-  it("keeps bare strings written before values were JSON-encoded", () => {
+  it("reads a string that isn't JSON-encoded as the default", () => {
     localStorage.setItem(KEY, "alphabetical");
 
     renderWithProviders(
@@ -78,7 +78,7 @@ describe("usePreference", () => {
       </Wrapper>,
     );
 
-    expect(screen.getByTestId("a").textContent).toBe(JSON.stringify("alphabetical"));
+    expect(screen.getByTestId("a").textContent).toBe(JSON.stringify("most-recent"));
   });
 
   it("falls back to the default when the stored value fails validation", () => {

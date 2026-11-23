@@ -182,8 +182,7 @@ export const freshAuthProcedure = protectedProcedure.use(async (opts) => {
   const { ctx, path } = opts;
   const { authenticatedAt, passwordless } = ctx;
 
-  // Sessions created before `authenticatedAt` existed have none → stale.
-  if (passwordless || !authenticatedAt || Date.now() - authenticatedAt > FRESH_AUTH_WINDOW_MS) {
+  if (passwordless || Date.now() - authenticatedAt > FRESH_AUTH_WINDOW_MS) {
     return denyAuth(ctx.req?.log, path, "stale_auth", ctx.sessionId, "FORBIDDEN");
   }
 

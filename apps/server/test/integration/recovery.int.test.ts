@@ -136,7 +136,6 @@ describe("account recovery (real Postgres + Redis)", () => {
   it("finishes a reset made on the device while offline", async () => {
     const { recoveryKey, accountKey } = await register(email, password);
     const login = await loginAndGetAuthKey(email, password);
-    if (!login.recoveryKeys) throw new Error("the login gave no recovery wrap");
 
     // Offline: the device resets with the wrap its last login cached.
     const onDevice = await recoverLinkedVault(
@@ -234,10 +233,6 @@ describe("account recovery (real Postgres + Redis)", () => {
 
     await expect(probe(email)).rejects.toMatchObject(denied);
     await expect(probe("nobody@example.com")).rejects.toMatchObject(denied);
-
-    // Accounts registered before recovery existed have no verifier.
-    await db.update(keysTable).set({ recoveryVerifier: null });
-    await expect(probe(email)).rejects.toMatchObject(denied);
   });
 
   it("rejects a malformed recovery key before contacting the server", async () => {

@@ -50,7 +50,11 @@ const SUCCESS = {
     encryptedAccountKey: zeros(48),
     accountKeyEncryptionNonce: zeros(24),
   },
-  recoveryKeys: null,
+  recoveryKeys: {
+    recoveryKekSalt: zeros(32),
+    encryptedAccountKeyRecovery: zeros(48),
+    accountKeyEncryptionNonceRecovery: zeros(24),
+  },
   vaultKeys: [],
   userKeyPair: {
     keyVersion: 1,

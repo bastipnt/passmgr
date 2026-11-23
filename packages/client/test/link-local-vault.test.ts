@@ -104,10 +104,10 @@ async function fakeServer() {
           const account = accounts.get(attempt.email)!;
           const { userKeys, personalVault, userKeyPair, vaults = [] } = account;
           const {
-            recoveryKekSalt: _s,
+            recoveryKekSalt,
             recoveryVerifier: _v,
-            encryptedAccountKeyRecovery: _e,
-            accountKeyEncryptionNonceRecovery: _n,
+            encryptedAccountKeyRecovery,
+            accountKeyEncryptionNonceRecovery,
             ...userPasswordKeys
           } = userKeys;
           const vaultKeys: MemberVault[] = [
@@ -118,7 +118,11 @@ async function fakeServer() {
             sessionId: "s-1",
             userId: account.userId,
             userPasswordKeys,
-            recoveryKeys: null,
+            recoveryKeys: {
+              recoveryKekSalt,
+              encryptedAccountKeyRecovery,
+              accountKeyEncryptionNonceRecovery,
+            },
             vaultKeys,
             userKeyPair,
           };

@@ -30,9 +30,8 @@ export const loginSuccessSchema = z.object({
   // another account is noticed before its keys meet this device's data.
   userId: z.string(),
   userPasswordKeys: passwordKeySchema,
-  // Cached on the device for a password reset while offline; null for an
-  // account made before recovery keys existed.
-  recoveryKeys: recoveryWrapSchema.nullable(),
+  // Cached on the device for a password reset while offline.
+  recoveryKeys: recoveryWrapSchema,
   vaultKeys: z.array(memberVaultSchema),
   userKeyPair: userKeyPairSchema,
 });
