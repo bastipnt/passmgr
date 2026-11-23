@@ -19,8 +19,6 @@ import ErrorFallback from "./ErrorFallback";
 import Routes from "./routes";
 import { useGlobalErrorToast } from "./use-global-error-toast";
 
-export const THEME_STORAGE_KEY = "pass-mgr-theme";
-
 const DEVICE_NAME = deviceNameFromUserAgent(navigator.userAgent);
 
 /** Phones: toasts sit above the vault's bottom dock (56px FABs, `MobileVault`). */
@@ -36,7 +34,7 @@ function App() {
       FallbackComponent={ErrorFallback}
       onError={(error) => reportWebError(error, "render", "app")}
     >
-      <ThemeProvider storageKey={THEME_STORAGE_KEY}>
+      <ThemeProvider>
         <PreferencesProvider store={preferencesStore}>
           <SessionProvider>
             <ShortcutProvider>

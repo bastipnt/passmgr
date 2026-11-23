@@ -1,3 +1,4 @@
+import { SUPPORTED_COSE_ALGS } from "@repo/schema";
 import { fromBase64, toBase64 } from "@repo/util";
 import { hkdf } from "./hash";
 import { unwrapAccountKey, wrapAccountKey } from "./user-keys";
@@ -92,11 +93,7 @@ export async function enrollBiometric(
         name: userName,
         displayName: userName,
       },
-      pubKeyCredParams: [
-        { alg: -7, type: "public-key" }, // ES256
-        { alg: -8, type: "public-key" }, // EdDSA
-        { alg: -257, type: "public-key" }, // RS256
-      ],
+      pubKeyCredParams: SUPPORTED_COSE_ALGS.map((alg) => ({ alg, type: "public-key" })),
       authenticatorSelection: {
         authenticatorAttachment: "platform",
         userVerification: "required",

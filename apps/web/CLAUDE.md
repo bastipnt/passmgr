@@ -133,7 +133,7 @@ Rules:
 - **Theme presets** (`@repo/ui-shared/presets.css`): Berry on `:root`, Violet / Cobalt / Pine / Ember / Graphite via
   `data-accent` on `<html>` (or any element, for a swatch; a `light` / `dark` class on it picks the mode, the nearest
   one wins). Picked in Settings → Appearance (`AccentPicker`, `ThemeProvider`'s `accent`, per device next to the theme,
-  `<themeKey>-accent`; `applyStoredAccent` in `main.tsx` sets it before React renders). List: `@repo/ui-shared`
+  `ACCENT_STORAGE_KEY`; `applyStoredAccent` in `main.tsx` sets it before React renders). List: `@repo/ui-shared`
   `ACCENT_PRESETS`. Accent as text is `text-primary-text`, never `text-primary` (that's the fill: buttons, the TOTP
   ring). Meaning colors (strength, warnings, destructive) never take the accent. The light field is for auth screens
   only: unlocked shells call `useFlatGround` (`@repo/ui/hooks/use-flat-ground`, `data-ground="flat"` on `<html>`), which

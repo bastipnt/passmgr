@@ -1,8 +1,13 @@
 import { createHash, generateKeyPairSync, type KeyObject, sign } from "node:crypto";
+import { COSE_ALG } from "@repo/schema";
 
 type KeyType = "ec" | "ed25519" | "rsa";
 
-const ALGORITHM: Record<KeyType, number> = { ec: -7, ed25519: -8, rsa: -257 };
+const ALGORITHM: Record<KeyType, number> = {
+  ec: COSE_ALG.ES256,
+  ed25519: COSE_ALG.EdDSA,
+  rsa: COSE_ALG.RS256,
+};
 
 /**
  * A software WebAuthn authenticator: signs assertions the way a platform

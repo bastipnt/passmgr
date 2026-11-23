@@ -1,8 +1,10 @@
 import {
+  ACCENT_STORAGE_KEY,
   type AccentPreset,
   DEFAULT_ACCENT,
   parseAccent,
   parseThemePreference,
+  THEME_STORAGE_KEY,
   type ThemePreference,
 } from "@repo/ui-shared";
 import { createContext, useContext, useEffect, useLayoutEffect, useState } from "react";
@@ -32,30 +34,27 @@ const initialState: ThemeProviderState = {
 
 const ThemeProviderContext = createContext<ThemeProviderState>(initialState);
 
-const accentStorageKey = (storageKey: string) => `${storageKey}-accent`;
-
-const readStoredAccent = (storageKey: string) =>
-  parseAccent(safeLocalStorage.get(accentStorageKey(storageKey)));
+const readStoredAccent = () => parseAccent(safeLocalStorage.get(ACCENT_STORAGE_KEY));
 
 /**
  * Sets the stored accent on <html> before React renders, so the auth screens
  * don't flash Berry first. From the bundled entry, not an inline script: the
  * CSP allows no inline script and the build-integrity hashes cover the bundle.
  */
-export function applyStoredAccent(storageKey: string) {
-  document.documentElement.dataset.accent = readStoredAccent(storageKey);
+export function applyStoredAccent() {
+  document.documentElement.dataset.accent = readStoredAccent();
 }
 
 export function ThemeProvider({
   children,
   defaultTheme = "system",
-  storageKey = "vite-ui-theme",
+  storageKey = THEME_STORAGE_KEY,
   ...props
 }: ThemeProviderProps) {
   const [theme, setTheme] = useState<Theme>(() =>
     parseThemePreference(safeLocalStorage.get(storageKey), defaultTheme),
   );
-  const [accent, setAccent] = useState(() => readStoredAccent(storageKey));
+  const [accent, setAccent] = useState(readStoredAccent);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -86,7 +85,7 @@ export function ThemeProvider({
     },
     accent,
     setAccent: (accent: AccentPreset) => {
-      safeLocalStorage.set(accentStorageKey(storageKey), accent);
+      safeLocalStorage.set(ACCENT_STORAGE_KEY, accent);
       setAccent(accent);
     },
   };

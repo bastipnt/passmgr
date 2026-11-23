@@ -6,6 +6,7 @@ import {
   confirmTotpInputSchema,
   deviceCredentialInputSchema,
   emailVerificationStatusSchema,
+  emptyInputSchema,
   finishPasswordChangeInputSchema,
   type PasswordKeySchema,
   passwordKeySchema,
@@ -13,7 +14,6 @@ import {
   startPasswordChangeInputSchema,
   startPasswordChangeOutputSchema,
   startTotpEnrollmentOutputSchema,
-  twoFactorEmptyInputSchema,
   twoFactorStatusSchema,
   userPublicKeyInputSchema,
   userPublicKeySchema,
@@ -129,12 +129,10 @@ export const userRouter = router({
 
   // Mail a new code (finishRegistration sent the first). TOO_MANY_REQUESTS
   // within a minute of the last one or past five an hour.
-  sendVerificationCode: protectedProcedure
-    .input(twoFactorEmptyInputSchema)
-    .mutation(async ({ ctx }) => {
-      await sendVerificationCode(ctx.userId);
-      return { ok: true } as const;
-    }),
+  sendVerificationCode: protectedProcedure.input(emptyInputSchema).mutation(async ({ ctx }) => {
+    await sendVerificationCode(ctx.userId);
+    return { ok: true } as const;
+  }),
 
   // BAD_REQUEST: `EMAIL_CODE_INVALID` (try again) or `EMAIL_CODE_EXPIRED` (send a new one).
   verifyEmail: protectedProcedure.input(verifyEmailInputSchema).mutation(async ({ ctx, input }) => {
@@ -358,7 +356,7 @@ export const userRouter = router({
   // Turning it on, step 1: a new secret, kept aside until a code from the
   // authenticator app confirms it was enrolled (`confirmTotp`).
   startTotpEnrollment: freshAuthProcedure
-    .input(twoFactorEmptyInputSchema)
+    .input(emptyInputSchema)
     .output(startTotpEnrollmentOutputSchema)
     .mutation(async ({ ctx }) => {
       if (await hasTotp(ctx.userId)) {
@@ -403,7 +401,7 @@ export const userRouter = router({
     }),
 
   // Back to password-only.
-  disableTotp: secondFactorProcedure.input(twoFactorEmptyInputSchema).mutation(async ({ ctx }) => {
+  disableTotp: secondFactorProcedure.input(emptyInputSchema).mutation(async ({ ctx }) => {
     await disableTotp(ctx.userId);
     ctx.req?.log.info({}, "auth.two_factor.disabled");
     await recordAction(ctx, "two_factor_disabled");
@@ -412,7 +410,7 @@ export const userRouter = router({
 
   // New backup codes; the old ones stop working.
   regenerateBackupCodes: secondFactorProcedure
-    .input(twoFactorEmptyInputSchema)
+    .input(emptyInputSchema)
     .output(backupCodesOutputSchema)
     .mutation(async ({ ctx }) => {
       const backupCodes = await regenerateBackupCodes(ctx.userId);

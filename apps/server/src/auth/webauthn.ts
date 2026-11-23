@@ -1,8 +1,5 @@
 import { createHash, createPublicKey, type KeyObject, verify } from "node:crypto";
-
-const COSE_ES256 = -7;
-const COSE_EDDSA = -8;
-const COSE_RS256 = -257;
+import { COSE_ALG } from "@repo/schema";
 
 const FLAG_USER_PRESENT = 0x01;
 const FLAG_USER_VERIFIED = 0x04;
@@ -34,9 +31,10 @@ export function credentialKey(publicKey: Uint8Array, algorithm: number): KeyObje
     return undefined;
   }
   const { asymmetricKeyType: type, asymmetricKeyDetails: details } = key;
-  if (algorithm === COSE_ES256 && type === "ec" && details?.namedCurve === "prime256v1") return key;
-  if (algorithm === COSE_EDDSA && type === "ed25519") return key;
-  if (algorithm === COSE_RS256 && type === "rsa" && (details?.modulusLength ?? 0) >= 2048)
+  if (algorithm === COSE_ALG.ES256 && type === "ec" && details?.namedCurve === "prime256v1")
+    return key;
+  if (algorithm === COSE_ALG.EdDSA && type === "ed25519") return key;
+  if (algorithm === COSE_ALG.RS256 && type === "rsa" && (details?.modulusLength ?? 0) >= 2048)
     return key;
   return undefined;
 }
@@ -87,7 +85,7 @@ export function verifyAssertion(
   let valid: boolean;
   try {
     valid = verify(
-      credential.algorithm === COSE_EDDSA ? null : "sha256",
+      credential.algorithm === COSE_ALG.EdDSA ? null : "sha256",
       signed,
       key,
       Buffer.from(signature),

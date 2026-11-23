@@ -162,7 +162,7 @@ describe("blocked or corrupt storage", () => {
     vi.spyOn(Storage.prototype, "getItem").mockImplementation(blocked);
     vi.spyOn(Storage.prototype, "setItem").mockImplementation(blocked);
 
-    applyStoredAccent("theme-key");
+    applyStoredAccent();
     renderWithProviders(
       <ThemeProvider storageKey="theme-key" defaultTheme="dark">
         <ThemeReader />

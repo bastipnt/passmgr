@@ -39,9 +39,6 @@ export const confirmTotpInputSchema = z.object({ code: totpCodeSchema });
 /** Shown once: the server keeps only their hashes. */
 export const backupCodesOutputSchema = z.object({ backupCodes: z.array(z.string()) });
 
-/** Same as `logoutInputSchema`: clients send `{}` (a POST needs a body). */
-export const twoFactorEmptyInputSchema = z.object({}).strict().optional();
-
 /** Form: the code from the authenticator app, to finish turning two-factor on. */
 export const totpConfirmFormSchema = z.object({ code: totpCodeSchema });
 

@@ -19,6 +19,3 @@ export type SessionInfo = z.infer<typeof sessionInfoSchema>;
 export const listSessionsOutputSchema = z.array(sessionInfoSchema);
 
 export const revokeSessionInputSchema = z.object({ id: z.string().min(1).max(64) });
-
-/** Same as `logoutInputSchema`: clients send `{}` (a POST needs a body). */
-export const revokeOtherSessionsInputSchema = z.object({}).strict().optional();

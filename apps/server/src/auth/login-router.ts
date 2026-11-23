@@ -9,11 +9,11 @@ import {
 } from "@repo/crypto";
 import { db, deviceCredentialsTable, userKeyPairsTable } from "@repo/db";
 import {
+  emptyInputSchema,
   finishDeviceLoginInputSchema,
   finishDeviceLoginOutputSchema,
   finishLoginInputSchema,
   finishLoginOutputSchema,
-  logoutInputSchema,
   SECOND_FACTOR_EXPIRED,
   SECOND_FACTOR_INVALID,
   SECOND_FACTOR_MAX_ATTEMPTS,
@@ -506,7 +506,7 @@ export const loginRouter = router({
       return { sessionId, userId, ...keys };
     }),
 
-  logout: protectedProcedure.input(logoutInputSchema).mutation(async ({ ctx }) => {
+  logout: protectedProcedure.input(emptyInputSchema).mutation(async ({ ctx }) => {
     await deleteSession(ctx.sessionId, ctx.userId);
     ctx.req?.log?.info({ sidHash: await shortHash(ctx.sessionId) }, "auth.logout");
     return { ok: true } as const;

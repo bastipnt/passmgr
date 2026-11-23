@@ -1,4 +1,5 @@
 import { applyStoredAccent, ThemeProvider } from "@repo/ui/providers/ThemeProvider";
+import { ACCENT_STORAGE_KEY } from "@repo/ui-shared";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen, waitFor } from "@/test/render";
@@ -11,7 +12,6 @@ vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
 }));
 
 const KEY = "test-theme";
-const ACCENT_KEY = `${KEY}-accent`;
 
 const root = document.documentElement;
 
@@ -47,7 +47,7 @@ describe("accent picker", () => {
     await user.click(screen.getByRole("radio", { name: "Pine" }));
 
     expect(root.dataset.accent).toBe("pine");
-    expect(localStorage.getItem(ACCENT_KEY)).toBe("pine");
+    expect(localStorage.getItem(ACCENT_STORAGE_KEY)).toBe("pine");
     expect(screen.getByRole("radio", { name: "Pine" })).toHaveAttribute("aria-checked", "true");
     expect(screen.getByRole("radio", { name: "Berry" })).toHaveAttribute("aria-checked", "false");
   });
@@ -65,17 +65,17 @@ describe("accent picker", () => {
   });
 
   it("applies the stored accent before rendering", () => {
-    localStorage.setItem(ACCENT_KEY, "ember");
+    localStorage.setItem(ACCENT_STORAGE_KEY, "ember");
 
-    applyStoredAccent(KEY);
+    applyStoredAccent();
 
     expect(root.dataset.accent).toBe("ember");
   });
 
   it("falls back to Berry for an unknown stored accent", () => {
-    localStorage.setItem(ACCENT_KEY, "teal");
+    localStorage.setItem(ACCENT_STORAGE_KEY, "teal");
 
-    applyStoredAccent(KEY);
+    applyStoredAccent();
     expect(root.dataset.accent).toBe("berry");
 
     renderPage();

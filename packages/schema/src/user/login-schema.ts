@@ -56,10 +56,3 @@ export const verifySecondFactorInputSchema = z.object({
 });
 
 export const verifySecondFactorOutputSchema = loginSuccessSchema;
-
-/**
- * `logout` has nothing to send, but clients send `{}`: a POST without a body
- * is rejected by the HTTP adapter ("Unexpected end of JSON input") before the
- * procedure runs.
- */
-export const logoutInputSchema = z.object({}).strict().optional();

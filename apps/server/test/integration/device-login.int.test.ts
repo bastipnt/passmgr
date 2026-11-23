@@ -5,6 +5,7 @@ import {
   genKey,
 } from "@repo/crypto";
 import { db, deviceCredentialsTable, usersTable } from "@repo/db";
+import { COSE_ALG } from "@repo/schema";
 import { fromBase64, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
@@ -161,7 +162,7 @@ describe("device login (real Postgres + Redis)", () => {
   it("refuses an algorithm that doesn't match the key", async () => {
     await register(email, password);
     const session = await loginAndGetAuthKey(email, password);
-    const authenticator = { ...fakeAuthenticator("ec"), algorithm: -257 };
+    const authenticator = { ...fakeAuthenticator("ec"), algorithm: COSE_ALG.RS256 };
 
     await expect(enroll(session, authenticator)).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });

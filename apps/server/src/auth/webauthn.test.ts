@@ -1,4 +1,5 @@
 import { generateKeyPairSync } from "node:crypto";
+import { COSE_ALG } from "@repo/schema";
 import { fromBase64 } from "@repo/util";
 import { describe, expect, it } from "vitest";
 import { fakeAuthenticator } from "../../test/setup/fake-authenticator";
@@ -95,16 +96,16 @@ describe("verifyAssertion", () => {
 describe("credentialKey", () => {
   it("refuses a key that doesn't match its algorithm", () => {
     const ec = fakeAuthenticator("ec");
-    expect(credentialKey(fromBase64(ec.publicKey), -7)).toBeDefined();
-    expect(credentialKey(fromBase64(ec.publicKey), -257)).toBeUndefined();
-    expect(credentialKey(fromBase64(ec.publicKey), -8)).toBeUndefined();
+    expect(credentialKey(fromBase64(ec.publicKey), COSE_ALG.ES256)).toBeDefined();
+    expect(credentialKey(fromBase64(ec.publicKey), COSE_ALG.RS256)).toBeUndefined();
+    expect(credentialKey(fromBase64(ec.publicKey), COSE_ALG.EdDSA)).toBeUndefined();
   });
 
   it("refuses garbage and short RSA keys", () => {
-    expect(credentialKey(new Uint8Array(10), -7)).toBeUndefined();
+    expect(credentialKey(new Uint8Array(10), COSE_ALG.ES256)).toBeUndefined();
     const short = generateKeyPairSync("rsa", { modulusLength: 1024 }).publicKey;
     expect(
-      credentialKey(new Uint8Array(short.export({ format: "der", type: "spki" })), -257),
+      credentialKey(new Uint8Array(short.export({ format: "der", type: "spki" })), COSE_ALG.RS256),
     ).toBeUndefined();
   });
 });

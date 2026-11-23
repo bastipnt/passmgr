@@ -1,9 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  listSessionsOutputSchema,
-  revokeOtherSessionsInputSchema,
-  revokeSessionInputSchema,
-} from "@repo/schema";
+import { emptyInputSchema, listSessionsOutputSchema, revokeSessionInputSchema } from "@repo/schema";
 import { TRPCError } from "@trpc/server";
 import { shortHash } from "../logger";
 import { router } from "../trpc";
@@ -63,14 +59,12 @@ export const sessionRouter = router({
     return { ok: true } as const;
   }),
 
-  revokeOthers: protectedProcedure
-    .input(revokeOtherSessionsInputSchema)
-    .mutation(async ({ ctx }) => {
-      const revoked = await revokeOtherUserSessions(ctx.userId, ctx.sessionId);
-      // Including devices whose session already expired: none may log back in.
-      await deleteDeviceCredentials(ctx.userId, await sessionCredentialId(ctx.sessionId));
-      ctx.req?.log?.info({ revoked }, "auth.session.revoked_others");
-      await recordAction(ctx, "other_sessions_revoked");
-      return { revoked };
-    }),
+  revokeOthers: protectedProcedure.input(emptyInputSchema).mutation(async ({ ctx }) => {
+    const revoked = await revokeOtherUserSessions(ctx.userId, ctx.sessionId);
+    // Including devices whose session already expired: none may log back in.
+    await deleteDeviceCredentials(ctx.userId, await sessionCredentialId(ctx.sessionId));
+    ctx.req?.log?.info({ revoked }, "auth.session.revoked_others");
+    await recordAction(ctx, "other_sessions_revoked");
+    return { revoked };
+  }),
 });

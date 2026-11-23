@@ -7,29 +7,13 @@ import {
 import type { OpenDatabase, SqlDriver } from "./driver";
 import { createLocalDb, type LocalDb } from "./local-db";
 import { migrate, REGISTRY_MIGRATIONS } from "./migrations";
-import type { LocalProfile, ProfileMode } from "./schema/profile-schema";
+import type { LocalProfile } from "./schema/profile-schema";
 import { profiles } from "./schema/registry-tables";
 import { clearLoginBundle } from "./session-persistence";
 import { Vault } from "./vault";
 
 /** A profile on this device, as the registry lists it (ADR 0001 D2). */
-export type ProfileEntry = {
-  profileId: string;
-  mode: ProfileMode;
-  /** Linked profiles only, normalized. */
-  email: string | null;
-  /** Linked profiles only. */
-  userId: string | null;
-  /** Optional, tells local vaults apart. */
-  name: string | null;
-  databaseName: string;
-  createdAt: string;
-  lastUsedAt: string;
-  /** The last export from this device; null if never (ADR 0001 D12). */
-  lastExportAt: string | null;
-  /** A demo vault (web demo build): known password, never linked or synced. */
-  demo: boolean;
-};
+export type ProfileEntry = typeof profiles.$inferSelect;
 
 /** The registry's own database. */
 export const REGISTRY_DATABASE = "pass-mgr-profiles";

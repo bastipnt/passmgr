@@ -1,13 +1,13 @@
+import { ACCENT_STORAGE_KEY, THEME_STORAGE_KEY } from "@repo/ui-shared";
+
 /**
  * Every `PreferencesStore` key in one place. The values are the literals that
  * were already shipped — changing one silently resets that preference for
  * existing users.
  */
 export const PREF_KEYS = {
-  /** Read directly by `packages/ui` ThemeProvider and mobile `use-theme-preference`. */
-  theme: "pass-mgr-theme",
-  /** Same key as web's `ThemeProvider` (`<theme key>-accent`). */
-  accent: "pass-mgr-theme-accent",
+  theme: THEME_STORAGE_KEY,
+  accent: ACCENT_STORAGE_KEY,
   sort: "pass-mgr-sort",
   /** Web "All vaults" list: grouped by vault ("By vault" in the sort menu). */
   groupByVault: "pass-mgr-group-by-vault",
