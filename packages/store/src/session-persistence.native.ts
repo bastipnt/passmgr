@@ -3,8 +3,7 @@ import type { LoginBundle } from "./session-persistence.types";
 
 export type { LoginBundle };
 
-// Provided by the React Native / Expo runtime; not in this package's tsconfig libs.
-declare const __DEV__: boolean;
+// Inlined by Metro (EXPO_PUBLIC_*); this package's tsconfig has no Node types.
 declare const process: { env: Record<string, string | undefined> };
 
 /** One Keychain/Keystore item per profile (ADR 0001 D2). */
