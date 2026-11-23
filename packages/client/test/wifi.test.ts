@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { qrCodePath, wifiQrPayload } from "../src/records/wifi";
+import { QR_QUIET_ZONE, qrCodePath, wifiQrPayload } from "../src/records/wifi";
 
 describe("wifiQrPayload", () => {
   it("encodes a WPA network", () => {
@@ -36,5 +36,13 @@ describe("qrCodePath", () => {
     expect(size).toBeGreaterThanOrEqual(21);
     // Top-left finder: a run of 7 dark modules on the first row.
     expect(path.startsWith("M0 0h7v1h-7z")).toBe(true);
+  });
+
+  it("pads the code with a quiet zone of 4 modules", () => {
+    const { size, box, viewBox } = qrCodePath("WIFI:T:WPA;S:Home;P:pw;;");
+
+    expect(QR_QUIET_ZONE).toBe(4);
+    expect(box).toBe(size + 8);
+    expect(viewBox).toBe(`-4 -4 ${box} ${box}`);
   });
 });

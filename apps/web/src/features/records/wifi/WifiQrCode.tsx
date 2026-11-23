@@ -4,9 +4,7 @@ import { Button } from "@repo/ui/components/Button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from "@repo/ui/components/Dialog";
 import { Maximize2Icon, QrCodeIcon } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-
-/** Quiet zone around the code, in modules; scanners want at least 4. */
-const QUIET_ZONE = 4;
+import { QrCode } from "@/components/QrCode";
 
 function QrCodeSvg({ payload, ssid }: { payload: string; ssid: string }) {
   const qr = useMemo(() => {
@@ -22,16 +20,12 @@ function QrCodeSvg({ payload, ssid }: { payload: string; ssid: string }) {
       <p className="text-muted-foreground text-sm">This network can't be shown as a QR code.</p>
     );
 
-  const box = qr.size + QUIET_ZONE * 2;
   return (
-    <svg
-      viewBox={`${-QUIET_ZONE} ${-QUIET_ZONE} ${box} ${box}`}
-      className="aspect-square w-full max-w-[min(80vw,26rem)] rounded-xl bg-white"
-      shapeRendering="crispEdges"
-    >
-      <title>{`QR code to join ${ssid}`}</title>
-      <path d={qr.path} fill="#000" />
-    </svg>
+    <QrCode
+      qr={qr}
+      title={`QR code to join ${ssid}`}
+      className="aspect-square w-full max-w-[min(80vw,26rem)] rounded-xl"
+    />
   );
 }
 

@@ -31,12 +31,10 @@ import {
   ShieldCheckIcon,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { QrCode } from "@/components/QrCode";
 import { useCopySecret } from "@/lib/clipboard";
 import BackupCodes from "./BackupCodes";
 import TwoFactorPasswordForm from "./TwoFactorPasswordForm";
-
-/** Quiet zone around the code, in modules; scanners want at least 4. */
-const QUIET_ZONE = 4;
 
 type Step =
   | { kind: "password" }
@@ -48,16 +46,12 @@ const groupSecret = (secret: string) => secret.match(/.{1,4}/g)?.join(" ") ?? se
 
 function EnrollmentQr({ uri }: { uri: string }) {
   const qr = useMemo(() => qrCodePath(uri), [uri]);
-  const box = qr.size + QUIET_ZONE * 2;
   return (
-    <svg
-      viewBox={`${-QUIET_ZONE} ${-QUIET_ZONE} ${box} ${box}`}
-      className="mx-auto size-48 rounded-lg bg-white"
-      shapeRendering="crispEdges"
-    >
-      <title>QR code for your authenticator app</title>
-      <path d={qr.path} fill="#000" />
-    </svg>
+    <QrCode
+      qr={qr}
+      title="QR code for your authenticator app"
+      className="mx-auto size-48 rounded-lg"
+    />
   );
 }
 

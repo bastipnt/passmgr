@@ -29,10 +29,17 @@ export function wifiQrPayload(record: WifiRecord): string | undefined {
   return `WIFI:${parts.join(";")};;`;
 }
 
+/** Light margin around a QR code, in modules; scanners want at least 4. */
+export const QR_QUIET_ZONE = 4;
+
 export type QrCodePath = {
-  /** Modules per side (no quiet zone: the renderer pads it). */
+  /** Modules per side of the code itself. */
   size: number;
-  /** SVG path data in module units, one unit per module, for a `0 0 size size` viewBox. */
+  /** Modules per side with the quiet zone on both sides. */
+  box: number;
+  /** SVG viewBox that puts the quiet zone around the path. */
+  viewBox: string;
+  /** SVG path data in module units, one unit per module, the code's corner at 0 0. */
   path: string;
 };
 
@@ -55,5 +62,6 @@ export function qrCodePath(text: string): QrCodePath {
       path += `M${start} ${y}h${x - start}v1h${start - x}z`;
     }
   });
-  return { size, path };
+  const box = size + QR_QUIET_ZONE * 2;
+  return { size, box, viewBox: `${-QR_QUIET_ZONE} ${-QR_QUIET_ZONE} ${box} ${box}`, path };
 }

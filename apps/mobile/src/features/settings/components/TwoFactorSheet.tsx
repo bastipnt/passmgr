@@ -25,12 +25,9 @@ import {
 import { type Ref, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { Linking, Share, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import { QrCode } from "@/components/QrCode";
 import { SecondFactorStep } from "@/features/auth/components/SecondFactorStep";
 import { useCopySecret } from "@/lib/clipboard";
-
-/** Quiet zone around the QR code, in modules; scanners want at least 4. */
-const QUIET_ZONE = 4;
 
 export type TwoFactorAction = "enable" | "disable" | "regenerate";
 
@@ -62,21 +59,7 @@ const codesText = (codes: string[]) =>
 
 function EnrollmentQr({ uri }: { uri: string }) {
   const qr = useMemo(() => qrCodePath(uri), [uri]);
-  const box = qr.size + QUIET_ZONE * 2;
-  // A whole number of points per module: react-native-svg has no crispEdges.
-  const side = box * Math.max(3, Math.floor(200 / box));
-  return (
-    <View
-      accessible
-      accessibilityRole="image"
-      accessibilityLabel="QR code for your authenticator app"
-      className="self-center overflow-hidden rounded-lg bg-white"
-    >
-      <Svg width={side} height={side} viewBox={`${-QUIET_ZONE} ${-QUIET_ZONE} ${box} ${box}`}>
-        <Path d={qr.path} fill="#000" />
-      </Svg>
-    </View>
-  );
+  return <QrCode qr={qr} label="QR code for your authenticator app" className="self-center" />;
 }
 
 /**
