@@ -1,5 +1,5 @@
 import type { AccountKeyMaterial, MemberVault } from "@repo/schema";
-import { logError } from "../errors/log-error";
+import { logError } from "@repo/util";
 import { rekeyIfBelowFloor } from "./rekey-password-keys";
 
 type AccountStore = {

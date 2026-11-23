@@ -15,8 +15,8 @@ import {
   vaultMemberSchema,
 } from "@repo/schema";
 import { secretsStore, type Vault } from "@repo/store";
+import { logError, logWarning } from "@repo/util";
 import { TRPCClientError } from "@trpc/client";
-import { logError, logWarning } from "../errors/log-error";
 import type { SharingTasksResult } from "../sync-manager";
 import type { useTRPCClient } from "../util/trpc";
 import {

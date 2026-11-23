@@ -1,7 +1,7 @@
 import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { DecryptedRecord } from "@repo/schema";
+import { logError } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
-import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { useStore } from "../providers/StoreProvider";
 import { findBreachedPasswords } from "../records/breach-check";

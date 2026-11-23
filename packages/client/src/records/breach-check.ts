@@ -1,7 +1,7 @@
 import { pwnedPasswordHash } from "@repo/crypto";
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, type BreachCheckVersion, breachCheckKey } from "@repo/store";
-import { logWarning } from "../errors/log-error";
+import { logWarning } from "@repo/util";
 import { monitoredPassword } from "./password-health";
 
 export const PWNED_RANGE_URL = "https://api.pwnedpasswords.com/range/";

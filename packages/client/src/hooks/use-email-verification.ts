@@ -1,9 +1,9 @@
 import type { EmailVerificationStatus } from "@repo/schema";
 import { EMAIL_CODE_EXPIRED, EMAIL_CODE_INVALID } from "@repo/schema";
+import { logError } from "@repo/util";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useContext, useEffect, useState } from "react";
-import { logError } from "../errors/log-error";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { useTRPCClient } from "../util/trpc";

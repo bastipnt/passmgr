@@ -20,7 +20,7 @@ import {
   VaultListRejectedError,
   VaultsMissingError,
 } from "@repo/store";
-import { logError, logWarning } from "./errors/log-error";
+import { logError, logWarning } from "@repo/util";
 
 /**
  * One page of a pull; `hasMore`: the server has more changes past its cursors.

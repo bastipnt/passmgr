@@ -7,7 +7,7 @@ import {
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import { EXPORT_FORMAT } from "@repo/schema";
-import { logError } from "../errors/log-error";
+import { logError } from "@repo/util";
 import { type ExportFileContents, readExportFile } from "../export/export-file";
 import { importBitwarden, importBitwardenCsv, isBitwardenExport } from "./bitwarden";
 import { browserCsvSource, importBrowserCsv } from "./browser-csv";

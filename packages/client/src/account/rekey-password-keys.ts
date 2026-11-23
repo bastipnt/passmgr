@@ -9,9 +9,8 @@ import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service
 import type { AccountKeyMaterial } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import type { AppRouter } from "@repo/types";
-import { toBase64 } from "@repo/util";
+import { logError, toBase64 } from "@repo/util";
 import type { TRPCClient } from "@trpc/client";
-import { logError } from "../errors/log-error";
 import { timed } from "../util/perf";
 import { devicePasswordKekParams } from "./password-kek-params";
 

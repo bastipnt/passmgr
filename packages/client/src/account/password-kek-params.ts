@@ -1,7 +1,7 @@
 import { calibratePasswordKekParams, getPasswordKekParams } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { ArgonParams } from "@repo/schema";
-import { logError } from "../errors/log-error";
+import { logError } from "@repo/util";
 
 let calibration: Promise<ArgonParams> | undefined;
 

@@ -1,6 +1,6 @@
+import { logError } from "@repo/util";
 import { useState } from "react";
 import { opensPasswordWrap } from "../account/change-password";
-import { logError } from "../errors/log-error";
 import { collectExportData } from "../export/collect-export";
 import { type ExportFile, type ExportFormat, exportFile } from "../export/export-file";
 import { useStore } from "../providers/StoreProvider";

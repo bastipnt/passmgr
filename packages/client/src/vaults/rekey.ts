@@ -6,7 +6,7 @@ import {
   secretsStore,
   type Vault,
 } from "@repo/store";
-import { logWarning } from "../errors/log-error";
+import { logWarning } from "@repo/util";
 
 /**
  * Vault-key rotation, the record side (ADR 0001 D7): once a vault is at a new

@@ -4,9 +4,9 @@ import {
   logAutofillClearError,
   secretsStore,
 } from "@repo/store";
+import { logError } from "@repo/util";
 import { useState } from "react";
 import { type ProfileRemoval, removeProfile } from "../account/remove-profile";
-import { logError } from "../errors/log-error";
 import { useStore } from "../providers/StoreProvider";
 import { endServerSession } from "../util/end-server-session";
 import { useTRPCClient } from "../util/trpc";

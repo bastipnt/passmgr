@@ -1,6 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
+import { logError } from "@repo/util";
 import { useEffect, useMemo, useState } from "react";
-import { logError } from "../errors/log-error";
 import { missingTwoFactorOf } from "../records/pass-monitor";
 import {
   loadedTwoFactorDirectory,

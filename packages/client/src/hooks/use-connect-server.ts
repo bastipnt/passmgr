@@ -1,10 +1,10 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, MemberVault, PendingRecovery } from "@repo/schema";
 import { sameVaults, secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useContext, useRef } from "react";
 import { storeRekeyedWrap } from "../account/store-rekeyed-wrap";
 import { reconnectKeyMaterial, ServerKeyringMismatchError } from "../account/verify-server-keyring";
-import { logError } from "../errors/log-error";
 import {
   type AccountLogin,
   DeviceLoginRejectedError,

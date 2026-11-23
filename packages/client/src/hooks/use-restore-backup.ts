@@ -1,6 +1,6 @@
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useRef, useState } from "react";
-import { logError } from "../errors/log-error";
 import {
   type ImportOptions,
   type ImportResult,

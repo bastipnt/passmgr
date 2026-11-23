@@ -1,8 +1,8 @@
 import { deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { PendingRecovery } from "@repo/schema";
 import type { ProfileEntry } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
-import { logError } from "../errors/log-error";
 import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";

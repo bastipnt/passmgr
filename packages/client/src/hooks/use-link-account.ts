@@ -1,5 +1,6 @@
 import { normalizeEmail, wipe } from "@repo/crypto";
 import { type LocalProfile, secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import { opensPasswordWrap } from "../account/change-password";
 import {
@@ -9,7 +10,6 @@ import {
   localVaultKeyring,
   registerLocalVault,
 } from "../account/link-local-vault";
-import { logError } from "../errors/log-error";
 import { LoginThrottledError } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";

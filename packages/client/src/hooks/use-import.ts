@@ -1,6 +1,6 @@
 import type { ExportData } from "@repo/schema";
+import { logError } from "@repo/util";
 import { useState } from "react";
-import { logError } from "../errors/log-error";
 import { InvalidExportFileError, WrongExportPasswordError } from "../export/export-file";
 import {
   type ImportOptions,

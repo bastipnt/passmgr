@@ -7,8 +7,7 @@ import {
   readPendingAutofillLogins,
   removePendingAutofillLogins,
 } from "@repo/store";
-import { parseWebsite } from "@repo/util";
-import { logError } from "../errors/log-error";
+import { logError, parseWebsite } from "@repo/util";
 import type { ImportEntry } from "../export/import-export";
 import { loginHosts } from "./login-hosts";
 import type { RecordRepository } from "./record-repository";

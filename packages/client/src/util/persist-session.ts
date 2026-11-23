@@ -1,5 +1,5 @@
 import { isPersistentLoginAvailable, persistLoginBundle, secretsStore } from "@repo/store";
-import { logError } from "../errors/log-error";
+import { logError } from "@repo/util";
 
 /**
  * Persist the unlocked profile's account key (and the server session, if one is attached) to OS

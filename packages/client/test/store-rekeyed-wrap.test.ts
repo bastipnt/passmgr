@@ -1,11 +1,14 @@
 import type { AccountKeyMaterial } from "@repo/schema";
+import { logError } from "@repo/util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { rekeyIfBelowFloor } from "../src/account/rekey-password-keys";
 import { storeRekeyedWrap } from "../src/account/store-rekeyed-wrap";
-import { logError } from "../src/errors/log-error";
 
 vi.mock("../src/account/rekey-password-keys", () => ({ rekeyIfBelowFloor: vi.fn() }));
-vi.mock("../src/errors/log-error", () => ({ logError: vi.fn() }));
+vi.mock("@repo/util", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@repo/util")>()),
+  logError: vi.fn(),
+}));
 
 const trpc = {} as Parameters<typeof rekeyIfBelowFloor>[0];
 const material = { encryptedAccountKey: "old" } as AccountKeyMaterial;

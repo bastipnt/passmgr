@@ -1,10 +1,10 @@
 import { authenticateBiometric, deriveOpaquePassword, normalizeEmail, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, VaultUnlockInfo } from "@repo/schema";
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { rekeyLocalIfBelowFloor } from "../account/rekey-password-keys";
 import { storeRekeyedWrap } from "../account/store-rekeyed-wrap";
-import { logError } from "../errors/log-error";
 import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";

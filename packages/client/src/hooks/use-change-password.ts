@@ -1,6 +1,7 @@
 import { deriveOpaquePassword, wipe } from "@repo/crypto";
 import type { AccountKeyMaterial, PasswordKeySchema } from "@repo/schema";
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useState } from "react";
 import {
   changeAccountPassword,
@@ -9,7 +10,6 @@ import {
   PasswordChangeUnconfirmedError,
   WrongPasswordError,
 } from "../account/change-password";
-import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,

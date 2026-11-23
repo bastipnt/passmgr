@@ -6,8 +6,8 @@ import {
   secretsStore,
   writeAutofillEntries,
 } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";

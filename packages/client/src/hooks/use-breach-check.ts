@@ -1,5 +1,6 @@
 import type { DecryptedRecord } from "@repo/schema";
 import { type BreachCheck, breachCheckKey, type Vault } from "@repo/store";
+import { logError } from "@repo/util";
 import {
   useCallback,
   useContext,
@@ -9,7 +10,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { logError } from "../errors/log-error";
 import { useRecordsContext } from "../providers/RecordsProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";

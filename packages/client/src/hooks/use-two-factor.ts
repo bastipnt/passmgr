@@ -1,10 +1,10 @@
 import type { TwoFactorStatus } from "@repo/schema";
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { TRPCClientError } from "@trpc/client";
 import { useCallback, useContext, useState } from "react";
 import { freshLogin, WrongPasswordError } from "../account/change-password";
-import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,

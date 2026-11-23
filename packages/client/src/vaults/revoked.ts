@@ -1,6 +1,6 @@
 import { canWriteVault, type RecordPayload, upgradeRecordPayload } from "@repo/schema";
 import { type RevokedVault, secretsStore, type Vault } from "@repo/store";
-import { logWarning } from "../errors/log-error";
+import { logWarning } from "@repo/util";
 import { encryptRecord } from "../util/encrypt-record";
 
 /*

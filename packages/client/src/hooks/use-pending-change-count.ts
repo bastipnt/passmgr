@@ -1,6 +1,6 @@
 import type { ProfileEntry } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { logError } from "../errors/log-error";
 import { useStore } from "../providers/StoreProvider";
 
 /**

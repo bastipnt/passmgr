@@ -1,8 +1,8 @@
 import { authenticateBiometric, type BiometricKeyMaterial, wipe } from "@repo/crypto";
 import { DEVICE_LOGIN_TTL_MS } from "@repo/schema";
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useContext, useEffect, useRef } from "react";
-import { logError } from "../errors/log-error";
 import { DeviceLoginRejectedError, type PendingDeviceLogin, startDeviceLogin } from "../login";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";

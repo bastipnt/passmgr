@@ -1,7 +1,7 @@
 import { strengthWorkerService } from "@repo/crypto/services/strength-worker-service";
 import type { PasswordStrength } from "@repo/util";
+import { logError } from "@repo/util";
 import { useEffect, useState } from "react";
-import { logError } from "../errors/log-error";
 
 /**
  * Strength of a password; `null` while empty or before its first rating. Rated off the main

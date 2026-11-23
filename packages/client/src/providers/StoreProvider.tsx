@@ -19,6 +19,7 @@ import {
   secretsStore,
   type Vault,
 } from "@repo/store";
+import { logError } from "@repo/util";
 import {
   createContext,
   type ReactNode,
@@ -29,7 +30,6 @@ import {
   useState,
 } from "react";
 import { verifyServerKeyring } from "../account/verify-server-keyring";
-import { logError } from "../errors/log-error";
 import { useLock } from "../hooks/use-lock";
 import { backupReminderSnoozedKey, biometricDismissedKey } from "../preferences/preference-keys";
 import { RecordRepository } from "../records/record-repository";

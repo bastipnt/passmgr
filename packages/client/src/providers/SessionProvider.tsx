@@ -1,7 +1,7 @@
 import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { type LoginBundle, type ProfileMode, secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { logError } from "../errors/log-error";
 
 /**
  * The state of an unlocked session (ADR 0001 D2):

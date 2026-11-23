@@ -1,8 +1,8 @@
 import { wipe } from "@repo/crypto";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { generateLocalVault } from "../account/create-local-vault";
-import { logError } from "../errors/log-error";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
 import { initDecryptWorker } from "../util/decrypt-record";

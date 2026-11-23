@@ -1,4 +1,5 @@
 import { secretsStore } from "@repo/store";
+import { logError } from "@repo/util";
 import { useCallback, useContext, useRef, useState } from "react";
 import { WrongPasswordError } from "../account/change-password";
 import {
@@ -8,7 +9,6 @@ import {
   SoleVaultOwnerError,
 } from "../account/delete-account";
 import { removeProfile } from "../account/remove-profile";
-import { logError } from "../errors/log-error";
 import {
   LoginThrottledError,
   SecondFactorCancelledError,

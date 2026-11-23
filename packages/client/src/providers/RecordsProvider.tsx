@@ -1,5 +1,6 @@
 import type { DecryptedRecord, EncryptedRecordSchema } from "@repo/schema";
 import type { LocalRecordVersion } from "@repo/store";
+import { logError } from "@repo/util";
 import {
   createContext,
   type ReactNode,
@@ -10,7 +11,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { logError } from "../errors/log-error";
 import { forgetPasswordRatings } from "../records/password-ratings";
 import { decryptRecordRow } from "../util/decrypt-record";
 import { timed } from "../util/perf";
