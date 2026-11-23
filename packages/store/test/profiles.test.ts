@@ -8,8 +8,8 @@ import {
   REGISTRY_DATABASE,
 } from "../src/profiles";
 import type { LocalProfile } from "../src/schema/profile-schema";
-import { secretsStore } from "../src/secrets-store";
 import { clearLoginBundle } from "../src/session-persistence";
+import { installFakeSealer } from "./fake-sealer";
 import { createTestDatabases } from "./node-sqlite-driver";
 
 vi.mock("../src/session-persistence", () => ({ clearLoginBundle: vi.fn() }));
@@ -74,8 +74,7 @@ let store: ProfileStore;
 
 beforeEach(() => {
   vi.mocked(clearLoginBundle).mockClear();
-  // The rows here are stand-ins for sealed ones (the crypto: `secrets-store.test.ts`).
-  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
+  installFakeSealer();
   databases = createTestDatabases();
   store = new ProfileStore(databases.open);
 });

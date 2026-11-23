@@ -16,23 +16,14 @@ import {
   VaultListRejectedError,
   VaultsMissingError,
 } from "../src/vault";
+import { installFakeSealer } from "./fake-sealer";
 import { createTestDriver } from "./node-sqlite-driver";
 
 let vault: Vault;
 
 beforeEach(() => {
   vault = new Vault(createTestDriver());
-  // The rows here are stand-ins for sealed ones (the crypto: `secrets-store.test.ts`):
-  // a server row counts as sealed, a tombstone of a synced head copies its content.
-  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
-  vi.spyOn(secretsStore, "redraftRecord").mockImplementation(
-    ({ encryptedData, encryptionNonce, keyVersion }) => ({
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: 1,
-      keyVersion,
-    }),
-  );
+  installFakeSealer();
 });
 
 afterEach(async () => {

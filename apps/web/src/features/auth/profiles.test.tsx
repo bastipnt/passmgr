@@ -5,6 +5,7 @@ import { createUserKeyPair, genKey, wrapVaultKey } from "@repo/crypto";
 import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
 import { type LocalProfile, ProfileStore, secretsStore } from "@repo/store";
 import { createTestDatabases } from "@repo/store/testing";
+import { installFakeSealer } from "@repo/store/testing/fake-sealer";
 import { toBase64 } from "@repo/util";
 import { act, waitFor } from "@testing-library/react";
 import type { ContextType } from "react";
@@ -111,8 +112,7 @@ async function seed(profile: LocalProfile, recordId: string) {
 beforeEach(async () => {
   vi.clearAllMocks();
   secretsStore.lock();
-  // The records here are stand-ins for sealed ones (the crypto: @repo/store).
-  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
+  installFakeSealer();
   localStorage.clear();
   databases = createTestDatabases();
   profiles = new ProfileStore(databases.open);

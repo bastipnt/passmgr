@@ -8,7 +8,8 @@
     ".": "./index.ts",
     "./drivers/web": "./src/drivers/web.ts",
     "./drivers/native": "./src/drivers/native.ts",
-    "./testing": "./test/node-sqlite-driver.ts"
+    "./testing": "./test/node-sqlite-driver.ts",
+    "./testing/fake-sealer": "./test/fake-sealer.ts"
   },
   "scripts": {
     "lint": "oxlint --type-aware",

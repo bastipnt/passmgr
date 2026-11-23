@@ -13,6 +13,7 @@ import {
   VaultListRejectedError,
   VaultsMissingError,
 } from "@repo/store";
+import { fakeSealer } from "@repo/store/testing/fake-sealer";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MAX_PUSH_ATTEMPTS,
@@ -25,18 +26,7 @@ import {
 } from "../src/sync-manager";
 
 const vaults = [{ vaultId: "v1" } as MemberVault];
-/** Seals a draft as itself and has every key: the crypto is tested on its own. */
-const unsealed: RecordSealer = {
-  sealRecord: ({ encryptedData, encryptionNonce, keyVersion }) => ({
-    encryptedData,
-    encryptionNonce,
-    cryptoVersion: 1,
-    keyVersion,
-  }),
-  hasRecordKey: () => true,
-  isSealedRow: () => true,
-  sameRecordContent: () => true,
-};
+const unsealed: RecordSealer = fakeSealer;
 const batch: SyncPage = {
   records: [],
   vaults,

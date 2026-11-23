@@ -7,6 +7,7 @@ import {
   type ProfileStore,
   secretsStore,
 } from "@repo/store";
+import { installFakeSealer } from "@repo/store/testing/fake-sealer";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -95,18 +96,7 @@ function unauthorized(message = "UNAUTHORIZED") {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // No vault keys here: a draft is sealed as itself and every server row counts as
-  // sealed (sealing is tested in @repo/client and @repo/store).
-  vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(true);
-  vi.spyOn(secretsStore, "sameRecordContent").mockReturnValue(true);
-  vi.spyOn(secretsStore, "sealRecord").mockImplementation(
-    ({ encryptedData, encryptionNonce, keyVersion }) => ({
-      encryptedData,
-      encryptionNonce,
-      cryptoVersion: 1,
-      keyVersion,
-    }),
-  );
+  installFakeSealer();
   trpcClient.record.sync.query.mockResolvedValue({
     records: [],
     vaults: [],
@@ -255,7 +245,7 @@ describe("StoreProvider sync", () => {
     await waitFor(() => expect(trpcClient.record.sync.query).toHaveBeenCalled());
     const { clientUpdatedAt, encryptedData, encryptionNonce, keyVersion } = row;
     const common = { recordId: RECORD_ID, vaultId: VAULT_ID, clientUpdatedAt };
-    // Sealed as itself by the stub.
+    // Sealed as itself by `fakeSealer`.
     const ciphertext = { encryptedData, encryptionNonce, cryptoVersion: 1, keyVersion };
     expect(trpcClient.record.push.mutate).toHaveBeenCalledExactlyOnceWith({
       changes: [
