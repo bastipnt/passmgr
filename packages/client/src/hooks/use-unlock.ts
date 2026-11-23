@@ -85,6 +85,7 @@ export function useUnlock() {
       return false;
     }
 
+    // No OPAQUE password kept: enrolling uses the attached session.
     await persistSession(opened.entry.profileId);
 
     void storeRekeyedWrap(trpc, store, opened.entry.profileId, password, material);
@@ -115,11 +116,10 @@ export function useUnlock() {
       return false;
     }
 
-    // Kept for the reconnect: `useAutoReconnect` retries with it once online.
+    // Kept by the unlock for the reconnect (`useAutoReconnect`) and the biometric enrollment.
     const opaquePassword =
       profile.mode === "linked" ? await deriveOpaquePassword(password, profile.email) : undefined;
-    if (await unlockWithPassword(active, password)) {
-      afterUnlock(opaquePassword);
+    if (await unlockWithPassword(active, password, opaquePassword)) {
       await persistSession(active.entry.profileId);
       if (profile.mode === "local") void rekeyLocal(active, password, material);
       if (profile.mode === "linked" && !networkOffline)
@@ -182,8 +182,15 @@ export function useUnlock() {
     return undefined;
   }
 
-  /** Derive the KEK and open the local copy of the keyring. Resolves `false` on a wrong password. */
-  async function unlockWithPassword(active: ActiveProfile, password: string): Promise<boolean> {
+  /**
+   * Derive the KEK and open the local copy of the keyring; the unlock keeps `opaquePassword`
+   * (`unlockVault`). Resolves `false` on a wrong password, with it left to the caller.
+   */
+  async function unlockWithPassword(
+    active: ActiveProfile,
+    password: string,
+    opaquePassword?: Uint8Array,
+  ): Promise<boolean> {
     const { profile, accountKeyMaterial: material } = active;
     if (!profile || !material) return false;
     try {
@@ -195,6 +202,7 @@ export function useUnlock() {
         material.accountKeyEncryptionNonce,
         vaults,
         material.userKeyPair,
+        opaquePassword,
       );
       return true;
     } catch (e) {
@@ -212,15 +220,6 @@ export function useUnlock() {
     } catch (e) {
       logError("Storing the rekeyed password wrap failed", e);
     }
-  }
-
-  /**
-   * Same tick as the unlock, so the biometric enroll redirect already sees the
-   * OPAQUE password (an unlock without the server). An online unlock keeps
-   * none: enrolling uses the attached session.
-   */
-  function afterUnlock(opaquePassword?: Uint8Array) {
-    if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
   }
 
   function releaseIfDone(active: ActiveProfile) {

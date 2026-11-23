@@ -1,5 +1,5 @@
 import { SessionContext, SessionProvider } from "@repo/client";
-import { createUserKeyPair, genKey, wrapVaultKey } from "@repo/crypto";
+import { createUserKeyPair, genKey, wrapAccountKey, wrapVaultKey } from "@repo/crypto";
 import type { MemberVault } from "@repo/schema";
 import { secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
@@ -116,5 +116,72 @@ describe("SessionProvider modes (ADR 0001 D2)", () => {
 
     expect(result.current.mode).toBe("local");
     expect(secretsStore.hasServerSession).toBe(false);
+  });
+});
+
+describe("SessionProvider unlockVault and the OPAQUE password", () => {
+  function renderTracked() {
+    const renders: { unlocked: boolean; opaquePassword: boolean }[] = [];
+    const hook = renderHook(
+      () => {
+        const session = useContext(SessionContext);
+        renders.push({
+          unlocked: session.vaultUnlocked,
+          opaquePassword: secretsStore.hasOpaquePassword,
+        });
+        return session;
+      },
+      {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <SessionProvider>{children}</SessionProvider>
+        ),
+      },
+    );
+    return { ...hook, renders };
+  }
+
+  it("holds the password it is given from the first unlocked render on (the enroll redirect)", () => {
+    const { result, renders } = renderTracked();
+    const { accountKey, vaults, userKeyPair } = keyring();
+    const kek = genKey();
+    const [encrypted, nonce] = wrapAccountKey(kek, accountKey);
+    const opaquePassword = genKey();
+
+    act(() =>
+      result.current.unlockVault(
+        "linked",
+        kek,
+        encrypted,
+        nonce,
+        vaults,
+        userKeyPair,
+        opaquePassword,
+      ),
+    );
+
+    const unlockedRenders = renders.filter((r) => r.unlocked);
+    expect(unlockedRenders.length).toBeGreaterThan(0);
+    expect(unlockedRenders.every((r) => r.opaquePassword)).toBe(true);
+    expect(secretsStore.copyOpaquePassword()).toEqual(opaquePassword);
+  });
+
+  it("keeps nothing when the unlock fails", () => {
+    const { result } = renderTracked();
+    const { accountKey, vaults, userKeyPair } = keyring();
+    const [encrypted, nonce] = wrapAccountKey(genKey(), accountKey);
+
+    expect(() =>
+      result.current.unlockVault(
+        "linked",
+        genKey(),
+        encrypted,
+        nonce,
+        vaults,
+        userKeyPair,
+        genKey(),
+      ),
+    ).toThrow();
+    expect(secretsStore.hasOpaquePassword).toBe(false);
+    expect(result.current.vaultUnlocked).toBe(false);
   });
 });

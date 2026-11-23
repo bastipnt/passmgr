@@ -51,6 +51,9 @@ type SessionContextValue = {
   /**
    * Unwrap the account key with the password KEK. Throws (on a wrong password,
    * or a vault key or keypair that doesn't open) with nothing left in memory.
+   * `opaquePassword` (`deriveOpaquePassword`) is kept only once the vault is
+   * open, and then from its first unlocked render on (the biometric enroll
+   * redirect reads it); on a throw it stays the caller's to wipe.
    */
   unlockVault: (
     profileMode: ProfileMode,
@@ -59,6 +62,7 @@ type SessionContextValue = {
     accountKeyEncryptionNonceB64: string,
     vaultKeys: readonly MemberVault[],
     userKeyPair: UserKeyPair,
+    opaquePassword?: Uint8Array,
   ) => void;
   /** Unlock with an already decrypted account key (e.g. from biometrics). */
   unlockWithAccountKey: (
@@ -193,9 +197,11 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       accountKeyEncryptionNonceB64: string,
       vaultKeys: readonly MemberVault[],
       userKeyPair: UserKeyPair,
+      opaquePassword?: Uint8Array,
     ) => {
       secretsStore.unlockAccount(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64);
       openVault(vaultKeys, userKeyPair);
+      if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
       setProfileMode(mode);
     },
     [],

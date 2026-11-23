@@ -160,9 +160,11 @@ const session = {
       nonce: string,
       wraps: readonly MemberVault[],
       keyPair: UserKeyPair,
+      opaquePassword?: Uint8Array,
     ) => {
       secretsStore.unlockAccount(kek, encrypted, nonce);
       openVault(wraps, keyPair);
+      if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
     },
   ),
   lock: vi.fn(() => secretsStore.lock()),

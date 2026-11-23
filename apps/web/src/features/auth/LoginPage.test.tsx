@@ -215,6 +215,8 @@ describe("LoginPage offline", () => {
 
     await screen.findByText(/check your email and password/i);
     expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
+    // The password handed to the failed unlock is wiped, not left behind.
+    expect(unlockVault.mock.calls[0]?.[6]).toEqual(new Uint8Array(32));
     expect(loginUserCore).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByLabelText("Password")).toBeEnabled());
   });
@@ -235,9 +237,11 @@ describe("LoginPage offline", () => {
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
     expect(unlockVault.mock.calls[0]?.[0]).toBe("linked");
-    expect(secretsStore.keepOpaquePassword).toHaveBeenCalledWith(
+    // Handed to the unlock itself, so the enroll redirect never sees a vault unlocked without it.
+    expect(unlockVault.mock.calls[0]?.[6]).toEqual(
       await deriveOpaquePassword("right password", linkedProfile.email),
     );
+    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
     // No server: no login, and the key material isn't rewritten.
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(store.saveAccount).not.toHaveBeenCalled();
@@ -729,6 +733,7 @@ describe("LoginPage local vault", () => {
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(attachServer).not.toHaveBeenCalled();
     // Nothing to reconnect with: the password isn't kept.
+    expect(unlockVault.mock.calls[0]?.[6]).toBeUndefined();
     expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
   });
 
