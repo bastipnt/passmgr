@@ -1,10 +1,8 @@
 import type { HtmlTagDescriptor, Plugin } from "vite";
+import { authPaths } from "./src/app/route-paths";
 
-/**
- * Only the public entry pages are indexable; everything else is behind login.
- * Mirrors `authPaths.unlock` / `authPaths.create` in src/app/route-paths.ts.
- */
-const PUBLIC_PATHS = ["/login", "/create"];
+/** Only the public entry pages are indexable; everything else is behind login. */
+const PUBLIC_PATHS = [authPaths.unlock, authPaths.create];
 
 const OG_IMAGE = "/og-image.png";
 

@@ -43,7 +43,7 @@
    * family with fontWeight, so every weight is its own family — named after the
    * font's PostScript name (iOS resolves by it; Android by the file name, which
    * matches). Body text stays the system font so it blends with native chrome.
-   * Mirrored as `FONT` in packages/ui-native/src/lib/fonts.ts for raw styles.
+   * `FONT` in @repo/ui-shared names them for raw styles (a test checks both).
    */
   --font-display: BricolageGrotesque-ExtraBold;
   --font-display-bold: BricolageGrotesque-Bold;

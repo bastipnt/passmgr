@@ -1,6 +1,6 @@
 /**
- * Text-field surface, mirroring web's `field-styles.ts` (packages/ui): a soft
- * tinted well with a hairline border that lifts to white on focus.
+ * Text-field surface, as web's `fieldClassName` (packages/ui; ui-shared test/field-styles.test.ts
+ * checks the shared classes): a soft tinted well with a hairline border, white on focus.
  */
 export const fieldSurface =
   "rounded-lg border bg-field text-foreground text-[16px] dark:bg-white/5 focus:bg-white dark:focus:bg-white/8";

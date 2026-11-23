@@ -26,6 +26,7 @@
     "alias.ts",
     "vite.config.ts",
     "vite-plugin-seo.ts",
+    "vite-plugin-seo.test.ts",
     "vite-plugin-build-integrity.ts",
     "vite-plugin-preload-fonts.ts",
     "scripts"

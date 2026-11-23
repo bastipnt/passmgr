@@ -38,8 +38,9 @@ compile in the Metro transform via `withUniwindConfig` (`apps/mobile/metro.confi
   the content scrolling under the transparent header. Only real bar items get UIKit's glass and track the scroll view.
 - **Fonts**: Bricolage Grotesque (display) + JetBrains Mono are vendored in `apps/mobile/assets/fonts`
   (named by PostScript name so iOS and Android resolve the same family) and embedded via the
-  `expo-font` plugin. Classes `font-display`, `font-display-bold`, `font-mono`; `FONT` constant for
-  native options (`headerLargeTitleStyle`). Body text stays the system font.
+  `expo-font` plugin. Classes `font-display`, `font-display-bold`, `font-mono`; `FONT` constant
+  (`@repo/ui-shared`, a test checks it against `global.css` and `app.json`) for native options
+  (`headerLargeTitleStyle`). Body text stays the system font.
 - The generated `apps/mobile/src/uniwind-types.d.ts` (dtsFile) is git-ignored;
   `className` prop augmentations come from `uniwind/types` (referenced in the
   `*-env.d.ts` files).

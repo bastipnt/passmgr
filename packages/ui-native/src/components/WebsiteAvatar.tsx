@@ -1,4 +1,9 @@
-import { useWebsiteAvatar } from "@repo/ui-shared";
+import {
+  AVATAR_FALLBACK,
+  AVATAR_TILE,
+  type AvatarTileSize,
+  useWebsiteAvatar,
+} from "@repo/ui-shared";
 import { Image, Text, useColorScheme, View } from "react-native";
 
 import { oklch } from "../lib/oklch";
@@ -9,28 +14,23 @@ type Website = { value: string };
 export type WebsiteAvatarProps = {
   title: string;
   websites: Website[] | undefined;
-  size?: "default" | "md" | "lg";
+  size?: AvatarTileSize;
 };
 
-/** Tile edge, corner radius and favicon inset per size — web's `WebsiteAvatar`. */
-const SIZES = {
-  default: { box: 36, radius: 10, pad: 6, text: "font-semibold text-[16px]" },
-  md: { box: 42, radius: 12, pad: 8, text: "font-semibold text-[18px]" },
-  lg: { box: 56, radius: 16, pad: 10, text: "font-display text-[24px]" },
-} as const;
-
-/** Web's `--avatar-fallback-*` lightness/chroma per theme. */
-const FALLBACK = {
-  light: { bg: [0.92, 0.06], fg: [0.35, 0.12] },
-  dark: { bg: [0.28, 0.06], fg: [0.85, 0.1] },
-} as const;
+/** Favicon inset and initial per size, as web's `WebsiteAvatar`. */
+const CONTENT = {
+  default: { pad: 6, text: "font-semibold text-[16px]" },
+  md: { pad: 8, text: "font-semibold text-[18px]" },
+  lg: { pad: 10, text: "font-display text-[24px]" },
+} as const satisfies Record<AvatarTileSize, unknown>;
 
 /** Site favicon on a white rounded tile, or a hue-tinted initial. */
 export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvatarProps) {
   const { hue, src, status } = useWebsiteAvatar({ title, websites });
   const scheme = useColorScheme();
-  const { box, radius, pad, text } = SIZES[size];
-  const tone = FALLBACK[scheme === "dark" ? "dark" : "light"];
+  const { box, radius } = AVATAR_TILE[size];
+  const { pad, text } = CONTENT[size];
+  const { bg, fg } = AVATAR_FALLBACK[scheme === "dark" ? "dark" : "light"];
   const showImage = status === "ok" && src;
 
   return (
@@ -42,7 +42,7 @@ export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvat
         borderRadius: radius,
         borderCurve: "continuous",
         padding: showImage ? pad : 0,
-        backgroundColor: showImage ? "#ffffff" : oklch(tone.bg[0], tone.bg[1], hue),
+        backgroundColor: showImage ? "#ffffff" : oklch(bg.l, bg.c, hue),
       }}
     >
       {showImage ? (
@@ -52,7 +52,7 @@ export function WebsiteAvatar({ title, websites, size = "default" }: WebsiteAvat
           className="h-full w-full rounded-[3px]"
         />
       ) : (
-        <Text className={cn(text)} style={{ color: oklch(tone.fg[0], tone.fg[1], hue) }}>
+        <Text className={cn(text)} style={{ color: oklch(fg.l, fg.c, hue) }}>
           {title.charAt(0)}
         </Text>
       )}

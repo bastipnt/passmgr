@@ -1,4 +1,4 @@
-import { FONT } from "@repo/ui-native";
+import { FONT } from "@repo/ui-shared";
 import { router, Stack } from "expo-router";
 import { useCSSVariable, useResolveClassNames } from "uniwind";
 import { routeErrorFallback } from "@/components/RouteErrorFallback";

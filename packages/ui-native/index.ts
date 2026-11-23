@@ -44,7 +44,6 @@ export * from "./src/components/WebsiteAvatar";
 export * from "./src/features/record-list/RecordGroupLabel";
 export * from "./src/features/record-list/RecordListItem";
 
-export { FONT } from "./src/lib/fonts";
 export { oklch } from "./src/lib/oklch";
 export { cn } from "./src/lib/utils";
 

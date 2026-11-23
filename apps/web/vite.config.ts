@@ -1,3 +1,4 @@
+import { FONT_FACES } from "@repo/ui/lib/fonts";
 import tailwindcss from "@tailwindcss/vite";
 import basicSsl from "@vitejs/plugin-basic-ssl";
 import react from "@vitejs/plugin-react";
@@ -27,7 +28,7 @@ export default defineConfig(({ mode }) => {
       react(),
       tailwindcss(),
       seo(env.VITE_SITE_URL),
-      preloadFonts(["dm-sans-latin-wght-normal", "bricolage-grotesque-latin-wght-normal"]),
+      preloadFonts([FONT_FACES.sans.file, FONT_FACES.display.file]),
       buildIntegrity(),
       lan && basicSsl(),
       sqlocal({ coi: false }),

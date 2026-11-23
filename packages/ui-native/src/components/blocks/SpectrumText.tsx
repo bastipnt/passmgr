@@ -1,9 +1,7 @@
-import { FIELD_COLORS } from "@repo/ui-shared";
+import { FIELD_COLORS, FONT } from "@repo/ui-shared";
 import { useState } from "react";
 import { View } from "react-native";
 import Svg, { Defs, LinearGradient, Stop, Text as SvgText } from "react-native-svg";
-
-import { FONT } from "../../lib/fonts";
 
 export type SpectrumTextProps = {
   children: string;

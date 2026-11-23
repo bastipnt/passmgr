@@ -9,26 +9,21 @@ import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { chromium } from "@playwright/test";
+import { FONT_FACES } from "@repo/ui/lib/fonts";
 
 const webRoot = path.resolve(import.meta.dirname, "..");
 const brand = (file: string) => path.join(webRoot, "brand", file);
 const pub = (file: string) => path.join(webRoot, "public", file);
 
-// Same faces as the app (--font-display / --font-sans in packages/ui).
 const uiRequire = createRequire(path.resolve(webRoot, "../../packages/ui/package.json"));
-const fontFace = (family: string, pkg: string, file: string) => {
+const fontFace = (family: string, { pkg, file }: { pkg: string; file: string }) => {
   const dir = path.dirname(uiRequire.resolve(pkg));
-  const data = readFileSync(path.join(dir, "files", file)).toString("base64");
+  const data = readFileSync(path.join(dir, "files", `${file}.woff2`)).toString("base64");
   return `@font-face{font-family:"${family}";font-weight:100 900;src:url(data:font/woff2;base64,${data}) format("woff2")}`;
 };
-const fonts = [
-  fontFace(
-    "Display",
-    "@fontsource-variable/bricolage-grotesque",
-    "bricolage-grotesque-latin-wght-normal.woff2",
-  ),
-  fontFace("Sans", "@fontsource-variable/dm-sans", "dm-sans-latin-wght-normal.woff2"),
-].join("\n");
+const fonts = [fontFace("Display", FONT_FACES.display), fontFace("Sans", FONT_FACES.sans)].join(
+  "\n",
+);
 
 const svgPage = (svgFile: string) =>
   `<style>*{margin:0}html,body{width:100%;height:100%;overflow:hidden;background:transparent}img{display:block;width:100%;height:100%}</style>` +
