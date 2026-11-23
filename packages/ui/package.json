@@ -8,7 +8,7 @@
   "private": true,
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc7 --noEmit",
+    "typecheck": "tsc7 -b --noEmit",
     "storybook": "BROWSER=none storybook dev -p 6006",
     "build:storybook": "storybook build"
   },

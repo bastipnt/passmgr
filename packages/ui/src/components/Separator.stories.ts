@@ -14,7 +14,6 @@ const meta = preview.meta({
   tags: ["autodocs"],
   args: {
     orientation: "horizontal",
-    decorative: true,
   },
   decorators: [(Story) => wrap(createElement(Story))],
 });
@@ -22,7 +21,6 @@ const meta = preview.meta({
 export const Default = meta.story({
   args: {
     orientation: "horizontal",
-    decorative: true,
   },
 });
 

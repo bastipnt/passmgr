@@ -110,7 +110,7 @@ export const Scrollable = meta.story({
       <SelectTrigger className="w-48">
         <SelectValue placeholder="Pick a number" />
       </SelectTrigger>
-      <SelectContent position="popper" className="max-h-60">
+      <SelectContent alignItemWithTrigger={false} className="max-h-60">
         {Array.from({ length: 50 }, (_, i) => (
           <SelectItem key={i} value={`item-${i}`}>
             Item {i + 1}
