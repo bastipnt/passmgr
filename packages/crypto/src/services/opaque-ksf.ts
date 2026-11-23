@@ -1,5 +1,6 @@
 // The web runs the KSF in the Argon2 worker (packages/crypto/CLAUDE.md, OPAQUE KSF).
 import { opaqueScrypt } from "../util/opaque-scrypt";
+import { runOffThread } from "../util/worker-client";
 import { argon2WorkerService } from "./argon2-worker-service";
 
 export interface OpaqueKsf {
@@ -9,7 +10,10 @@ export interface OpaqueKsf {
 
 export const opaqueKsf: OpaqueKsf = {
   name: "scrypt",
-  // Node (tests, scripts) has no Worker; checked here so a test that mocks the service still runs.
+  // The Node fallback is chosen here, not in the service, so a test that mocks the service still runs.
   harden: (input) =>
-    typeof Worker === "undefined" ? opaqueScrypt(input) : argon2WorkerService.opaqueKsf(input),
+    runOffThread(
+      () => argon2WorkerService.opaqueKsf(input),
+      () => opaqueScrypt(input),
+    ),
 };

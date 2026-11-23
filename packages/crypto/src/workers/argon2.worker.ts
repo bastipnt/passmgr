@@ -1,7 +1,8 @@
 import { type Argon2Params, argon2Async } from "../util/argon2-impl";
 import { opaqueScrypt } from "../util/opaque-scrypt";
+import { serveOffThread } from "../util/worker-client";
 
-type KdfRequest =
+export type KdfRequest =
   | {
       type: "derive";
       password: string | Uint8Array;
@@ -17,15 +18,7 @@ async function run(msg: KdfRequest): Promise<Uint8Array> {
 }
 
 // Argon2 (password KEK) and OPAQUE's scrypt KSF: both too slow for the main thread.
-self.onmessage = async (event: MessageEvent<KdfRequest>) => {
-  try {
-    const result = await run(event.data);
-    // @ts-expect-error result buffer
-    self.postMessage({ type: "result", key: result.buffer }, [result.buffer]);
-  } catch (e) {
-    self.postMessage({
-      type: "error",
-      message: e instanceof Error ? e.message : "Key derivation failed",
-    });
-  }
-};
+serveOffThread<KdfRequest>(async (msg) => {
+  const key = (await run(msg)).buffer as ArrayBuffer;
+  return { result: key, transfer: [key] };
+}, "Key derivation failed");

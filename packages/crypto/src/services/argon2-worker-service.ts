@@ -1,82 +1,43 @@
 import { type Argon2Params, argon2Async } from "../util/argon2-impl";
+import { runOffThread, WorkerClient } from "../util/worker-client";
+import type { KdfRequest } from "../workers/argon2.worker";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import Argon2Worker from "../workers/argon2.worker.ts?worker";
 
-class Argon2WorkerService {
-  private worker: Worker | null = null;
-  private queue: Promise<unknown> = Promise.resolve();
+// Serial: two memory-hard derivations at once would hold both buffers in the one worker.
+const client = new WorkerClient(() => new Argon2Worker(), "Key derivation worker", {
+  serial: true,
+});
 
-  private getWorker(): Worker {
-    if (!this.worker) {
-      this.worker = new Argon2Worker();
-    }
-    return this.worker;
-  }
+function request(message: KdfRequest, transfer: ArrayBuffer): Promise<Uint8Array> {
+  return client.request<ArrayBuffer>(message, [transfer]).then((key) => new Uint8Array(key));
+}
 
-  // One worker with one onmessage handler: an overlapping call would steal the
-  // earlier one's result, so calls wait their turn.
+export const argon2WorkerService = {
   derive(
     password: string | Uint8Array,
     salt: Uint8Array,
     params: Argon2Params,
   ): Promise<Uint8Array> {
-    // Node (tests, scripts) has no Worker.
-    if (typeof Worker === "undefined") {
-      const { variant = "argon2id", ...opts } = params;
-      return argon2Async(variant, password, salt, opts);
-    }
-    const saltCopy = salt.slice();
-    return this.enqueue({ type: "derive", password, salt: saltCopy.buffer, params }, [
-      saltCopy.buffer,
-    ]);
-  }
+    return runOffThread(
+      () => {
+        const saltCopy = salt.slice().buffer;
+        return request({ type: "derive", password, salt: saltCopy, params }, saltCopy);
+      },
+      () => {
+        const { variant = "argon2id", ...opts } = params;
+        return argon2Async(variant, password, salt, opts);
+      },
+    );
+  },
 
-  /** OPAQUE's scrypt KSF (`opaqueScrypt`), off the main thread. Needs a `Worker`. */
+  /** OPAQUE's scrypt KSF (`opaqueScrypt`), off the main thread. Needs a `Worker`: see `opaqueKsf`. */
   opaqueKsf(input: Uint8Array): Promise<Uint8Array> {
-    const inputCopy = input.slice();
-    return this.enqueue({ type: "opaque-ksf", input: inputCopy.buffer }, [inputCopy.buffer]);
-  }
-
-  private enqueue(message: object, transfer: ArrayBuffer[]): Promise<Uint8Array> {
-    const result = this.queue.then(() => this.run(message, transfer));
-    this.queue = result.catch(() => {});
-    return result;
-  }
-
-  private run(message: object, transfer: ArrayBuffer[]): Promise<Uint8Array> {
-    return new Promise((resolve, reject) => {
-      const worker = this.getWorker();
-
-      worker.onmessage = (event: MessageEvent) => {
-        const msg = event.data as
-          | { type: "result"; key: ArrayBuffer }
-          | { type: "error"; message: string };
-
-        if (msg.type === "result") {
-          resolve(new Uint8Array(msg.key));
-        } else {
-          reject(new Error(msg.message));
-        }
-      };
-
-      // E.g. the worker script can't be fetched (offline, not yet cached). Without
-      // this the promise never settles. Drop the worker so the next call retries.
-      worker.onerror = (event: ErrorEvent) => {
-        event.preventDefault();
-        this.terminate();
-        reject(new Error(`Key derivation worker failed: ${event.message || "could not load"}`));
-      };
-
-      worker.postMessage(message, transfer);
-    });
-  }
+    const inputCopy = input.slice().buffer;
+    return request({ type: "opaque-ksf", input: inputCopy }, inputCopy);
+  },
 
   terminate(): void {
-    if (this.worker) {
-      this.worker.terminate();
-      this.worker = null;
-    }
-  }
-}
-
-export const argon2WorkerService = new Argon2WorkerService();
+    client.terminate();
+  },
+};

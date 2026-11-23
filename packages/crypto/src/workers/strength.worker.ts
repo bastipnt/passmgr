@@ -1,13 +1,9 @@
 import { getStrengthFromString, loadPasswordStrength } from "../password-strength";
+import { serveOffThread } from "../util/worker-client";
 
-type StrengthRequest = { id: number; password: string; userInputs: string[] };
+export type StrengthRequest = { password: string; userInputs: string[] };
 
-self.onmessage = async (event: MessageEvent<StrengthRequest>) => {
-  const { id, password, userInputs } = event.data;
-  try {
-    await loadPasswordStrength();
-    self.postMessage({ id, strength: getStrengthFromString(password, userInputs) });
-  } catch (e) {
-    self.postMessage({ id, error: e instanceof Error ? e.message : "Strength check failed" });
-  }
-};
+serveOffThread<StrengthRequest>(async ({ password, userInputs }) => {
+  await loadPasswordStrength();
+  return { result: getStrengthFromString(password, userInputs) };
+}, "Strength check failed");
