@@ -1,8 +1,6 @@
-import { retrievePRK, SESSION_SIGNED_OUT, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
+import { SESSION_SIGNED_OUT, unwrapVaultKey } from "@repo/crypto";
 import { db, deviceCredentialsTable, keysTable, usersTable, vaultMembersTable } from "@repo/db";
-import { fromBase64 } from "@repo/util";
-import { and, isNull } from "drizzle-orm";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   changeAccountPassword,
   PasswordChangeFailedError,
@@ -19,13 +17,15 @@ import { clientStartRegistration } from "../setup/opaque-client";
 import { deriveAuthKey } from "../setup/signed-request";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
-import { callSigned, createCaller, loginAndGetAuthKey, memberWrap, register } from "./_helpers";
-
-// The real Argon2 derivation, in-process (no workers in node).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
+import {
+  accountKeyViaPassword,
+  activeKeySet,
+  callSigned,
+  createCaller,
+  loginAndGetAuthKey,
+  memberWrap,
+  register,
+} from "./_helpers";
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";
@@ -86,22 +86,6 @@ function passwordChangeClient(captured: CapturedCall[] = []) {
     attach,
     session: () => session,
   };
-}
-
-async function activeKeySet() {
-  const [active] = await db
-    .select()
-    .from(keysTable)
-    .where(and(isNull(keysTable.valid_to), isNull(keysTable.deleted_at)));
-  if (!active) throw new Error("no active key set");
-  return active;
-}
-
-/** Unwrap the account key from the active key set with a master password. */
-async function accountKeyViaPassword(pw: string): Promise<Uint8Array> {
-  const keys = await activeKeySet();
-  const kek = await retrievePRK(pw, fromBase64(keys.passwordKekSalt), keys.passwordKekParams);
-  return unwrapAccountKey(kek, keys.encryptedAccountKey, keys.accountKeyEncryptionNonce);
 }
 
 /** Register Alice and unlock her account key in memory, as an unlocked vault would. */

@@ -7,16 +7,9 @@ import {
   generateLocalVault,
   type NewLocalVault,
 } from "@repo/client/src/account/create-local-vault";
-import {
-  deriveOpaquePassword,
-  getPasswordKekParams,
-  retrievePRK,
-  setPasswordKekParams,
-  unwrapAccountKey,
-} from "@repo/crypto";
-import type { AccountKeyMaterial } from "@repo/schema";
+import { unwrapAccountKeyWithPassword } from "@repo/client/src/util/derive-password-kek";
+import { deriveOpaquePassword, getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import { type LocalProfile, secretsStore } from "@repo/store";
-import { fromBase64 } from "@repo/util";
 import { act, renderHook } from "@testing-library/react";
 import type { ContextType, ReactNode } from "react";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -32,11 +25,6 @@ vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPC: () => ({}),
   useTRPCClient: () => ({}),
 }));
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
 const changeAccountPassword = vi.hoisted(() => vi.fn());
 vi.mock("@repo/client/src/account/change-password", async (importActual) => ({
   ...(await importActual<object>()),
@@ -65,16 +53,6 @@ function renderChange(mode: SessionMode, networkOffline = false) {
       <SessionContext.Provider value={session}>{children}</SessionContext.Provider>
     ),
   });
-}
-
-/** The account key a password opens in `material`; throws when it doesn't. */
-async function open(material: AccountKeyMaterial, password: string) {
-  const kek = await retrievePRK(
-    password,
-    fromBase64(material.passwordKekSalt),
-    material.passwordKekParams,
-  );
-  return unwrapAccountKey(kek, material.encryptedAccountKey, material.accountKeyEncryptionNonce);
 }
 
 const previous = getPasswordKekParams();
@@ -121,8 +99,8 @@ describe("useChangePassword — local vault", () => {
     const [profileId, material, vaults] = store.saveAccount.mock.calls[0]!;
     expect(profileId).toBe(local.profile.profileId);
     expect(vaults).toEqual(local.vaults);
-    expect(await open(material, NEW_PASSWORD)).toEqual(local.accountKey);
-    await expect(open(material, PASSWORD)).rejects.toThrow();
+    expect(await unwrapAccountKeyWithPassword(NEW_PASSWORD, material)).toEqual(local.accountKey);
+    await expect(unwrapAccountKeyWithPassword(PASSWORD, material)).rejects.toThrow();
     expect(material.userKeyPair).toEqual(local.material.userKeyPair);
     // Biometric unlock holds the old password: it goes.
     expect(store.forgetQuickUnlock).toHaveBeenCalledWith(local.profile.profileId);

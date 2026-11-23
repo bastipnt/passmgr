@@ -8,7 +8,7 @@ import {
 } from "@repo/crypto";
 import type { ExportRecord, ExportVault } from "@repo/schema";
 import { exportDataSchema, exportEnvelopeSchema } from "@repo/schema";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   buildExportData,
   decryptExport,
@@ -19,11 +19,6 @@ import {
   InvalidExportFileError,
   WrongExportPasswordError,
 } from "../src/export/export-file";
-
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
-  argon2WorkerService: { derive: retrievePRK },
-}));
 
 const PERSONAL = "11111111-1111-4111-8111-111111111111";
 const NOW = new Date("2026-10-08T12:00:00.000Z");

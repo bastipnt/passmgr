@@ -1,41 +1,12 @@
-import { createUserKeyPair, createVault, generateUserKeys, genKey, wipe } from "@repo/crypto";
+import { createKeyring } from "@repo/crypto";
 import { deriveArgon2InWorker } from "../util/derive-password-kek";
 import { devicePasswordKekParams } from "./password-kek-params";
 
-/** The default vault's metadata; the user can rename it later. */
-const PERSONAL_VAULT_META = { name: "Personal" };
-
 /**
- * A complete new keyring (ADR 0001 D3): a fresh account key wrapped under the
- * password and a fresh recovery key, the personal vault and the X25519 keypair,
- * both wrapped under the account key. Shared by registration and local vault
+ * A complete new keyring (`createKeyring`) with this device's password KEK
+ * params, derived in the Argon2 worker. Shared by registration and local vault
  * creation, so a local vault can later be linked to an account as it is.
- *
- * The caller owns (and wipes) `accountKey` and `recoveryKey`; the recovery key
- * is shown to the user once and never sent anywhere.
  */
 export async function generateKeyring(password: string) {
-  const passwordKekParams = await devicePasswordKekParams();
-  const accountKey = genKey();
-  let recoveryKey: Uint8Array | undefined;
-  try {
-    const { recoveryKey: newRecoveryKey, ...userKeys } = await generateUserKeys(
-      password,
-      accountKey,
-      passwordKekParams,
-      deriveArgon2InWorker,
-    );
-    recoveryKey = newRecoveryKey;
-    return {
-      accountKey,
-      recoveryKey,
-      userKeys,
-      personalVault: createVault(accountKey, PERSONAL_VAULT_META),
-      userKeyPair: createUserKeyPair(accountKey),
-    };
-  } catch (e) {
-    wipe(accountKey);
-    if (recoveryKey) wipe(recoveryKey);
-    throw e;
-  }
+  return createKeyring(password, await devicePasswordKekParams(), deriveArgon2InWorker);
 }

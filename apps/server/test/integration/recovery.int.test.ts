@@ -3,13 +3,10 @@ import {
   deriveRecoveryAuthKey,
   genKey,
   openPendingRecovery,
-  retrievePRK,
-  unwrapAccountKey,
   unwrapVaultKey,
 } from "@repo/crypto";
 import { db, keysTable, vaultMembersTable } from "@repo/db";
-import { fromBase64, toBase64 } from "@repo/util";
-import { and, isNull } from "drizzle-orm";
+import { toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   finishPendingRecovery,
@@ -25,7 +22,14 @@ import { truncateAll } from "../setup/db-helpers";
 import { clientStartRegistration } from "../setup/opaque-client";
 import { buildTestContext } from "../setup/test-context";
 import { buildUserKeys } from "../setup/user-keys";
-import { callSigned, createCaller, loginAndGetAuthKey, memberWrap, register } from "./_helpers";
+import {
+  accountKeyViaPassword,
+  callSigned,
+  createCaller,
+  loginAndGetAuthKey,
+  memberWrap,
+  register,
+} from "./_helpers";
 
 const email = "alice@example.com";
 const password = "correct horse battery staple";
@@ -53,22 +57,6 @@ function recoveryClient(captured: CapturedCall[] = []): RecoveryTRPCClient {
     },
   };
   return trpc as unknown as RecoveryTRPCClient;
-}
-
-async function activeKeySet() {
-  const [active] = await db
-    .select()
-    .from(keysTable)
-    .where(and(isNull(keysTable.valid_to), isNull(keysTable.deleted_at)));
-  if (!active) throw new Error("no active key set");
-  return active;
-}
-
-/** Unwrap the account key from the active key set with a master password. */
-async function accountKeyViaPassword(pw: string): Promise<Uint8Array> {
-  const keys = await activeKeySet();
-  const kek = await retrievePRK(pw, fromBase64(keys.passwordKekSalt), keys.passwordKekParams);
-  return unwrapAccountKey(kek, keys.encryptedAccountKey, keys.accountKeyEncryptionNonce);
 }
 
 /** Drive startRecovery by hand (for tests that need to interleave other calls). */

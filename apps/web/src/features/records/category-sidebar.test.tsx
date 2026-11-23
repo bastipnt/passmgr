@@ -1,9 +1,5 @@
 import { PREF_KEYS, ShortcutProvider } from "@repo/client";
-import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
-import {
-  SortedRecordsProvider,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -11,7 +7,7 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
-import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { SortedRecordsWrapper } from "@/test/sorted-records-wrapper";
 import { CategorySidebar, SidebarTagsRow } from "./CategorySidebar";
 import RecordList from "./RecordList";
 import RecordsEmptyState from "./RecordsEmptyState";
@@ -62,10 +58,6 @@ vi.mock("@/features/import", () => ({
   ImportDialog: ({ children }: { children: ReactNode }) => children,
 }));
 
-// jsdom has no `CSS.supports`; the scroll effects are out of scope here.
-vi.mock("@repo/ui/hooks/use-sticky-label-fade", () => ({ useStickyLabelFade: () => {} }));
-vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
-
 function Titles() {
   const { sortedRecords } = useSortedRecords();
   return (
@@ -74,14 +66,6 @@ function Titles() {
         <li key={record.recordId}>{record.title}</li>
       ))}
     </ul>
-  );
-}
-
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <PreferencesProvider store={usePreferencesStore()}>
-      <SortedRecordsProvider>{children}</SortedRecordsProvider>
-    </PreferencesProvider>
   );
 }
 
@@ -123,10 +107,10 @@ function setWindowWide(wide: boolean) {
 
 function renderSidebar() {
   render(
-    <Providers>
+    <SortedRecordsWrapper>
       <Sidebar />
       <Titles />
-    </Providers>,
+    </SortedRecordsWrapper>,
   );
   return userEvent.setup();
 }
@@ -258,11 +242,11 @@ function renderList() {
   render(
     <Router hook={location.hook}>
       <ShortcutProvider>
-        <Providers>
+        <SortedRecordsWrapper>
           <Sidebar />
           <TagPicks />
           <RecordList />
-        </Providers>
+        </SortedRecordsWrapper>
       </ShortcutProvider>
     </Router>,
   );
@@ -541,11 +525,11 @@ describe("filters", () => {
     render(
       <Router hook={location.hook}>
         <ShortcutProvider>
-          <Providers>
+          <SortedRecordsWrapper>
             <Sidebar />
             <TagPicks />
             <RecordsEmptyState />
-          </Providers>
+          </SortedRecordsWrapper>
         </ShortcutProvider>
       </Router>,
     );

@@ -40,7 +40,6 @@ vi.mock("./use-record-actions", () => ({
   useRecordShortcuts: () => {},
 }));
 vi.mock("./Record", () => ({ default: () => null }));
-vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
 const holdKeyboard = vi.hoisted(() => vi.fn());
 vi.mock("@repo/ui/lib/keyboard-handoff", () => ({ holdKeyboard }));
 vi.mock("./RecordActions", () => ({ FavoriteButton: () => null, MoreDropdown: () => null }));

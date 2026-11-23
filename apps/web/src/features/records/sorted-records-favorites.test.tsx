@@ -1,15 +1,12 @@
-import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
   FAVORITES_LABEL,
-  SortedRecordsProvider,
   useRecordSearch,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { act, renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { SortedRecordsWrapper } from "@/test/sorted-records-wrapper";
 
 function makeRecord(
   id: string,
@@ -47,14 +44,6 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   }),
 }));
 
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <PreferencesProvider store={usePreferencesStore()}>
-      <SortedRecordsProvider>{children}</SortedRecordsProvider>
-    </PreferencesProvider>
-  );
-}
-
 type Group = { label: string | null; records: DecryptedRecord[] };
 const shape = (groups: Group[]) =>
   groups.map((group) => [group.label, group.records.map((record) => record.recordId)]);
@@ -69,7 +58,7 @@ afterEach(() => vi.useRealTimers());
 
 describe("favorites group", () => {
   it("leads the most-recent list, its records out of their date group", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     expect(shape(result.current.recordGroups)).toEqual([
       // Ties break by title.
@@ -79,7 +68,7 @@ describe("favorites group", () => {
   });
 
   it("leads the A–Z list in A–Z order, and labels the non-letter group under it", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.handleSortChange("alphabetical"));
     expect(shape(result.current.recordGroups)).toEqual([
@@ -90,7 +79,7 @@ describe("favorites group", () => {
   });
 
   it("orders sortedRecords as shown, favorites first", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.handleSortChange("alphabetical"));
     expect(result.current.sortedRecords.map((record) => record.recordId)).toEqual([
@@ -103,7 +92,7 @@ describe("favorites group", () => {
   });
 
   it("follows the type and vault filters, and is gone when none is left", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setCategoryFilter("wifi"));
     expect(shape(result.current.recordGroups)).toEqual([[FAVORITES_LABEL, ["zoo"]]]);
@@ -119,7 +108,7 @@ describe("favorites group", () => {
   });
 
   it("is the whole list in the favorites category, grouped by the sort", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setCategoryFilter("favorites"));
     expect(shape(result.current.recordGroups)).toEqual([["Today", ["jira", "zoo", "bank"]]]);
@@ -130,7 +119,7 @@ describe("favorites group", () => {
   });
 
   it("is not part of a search, which stays one flat list", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setQuery("a"));
     expect(shape(result.current.recordGroups)).toEqual([
@@ -140,7 +129,7 @@ describe("favorites group", () => {
 
   it("leads useRecordSearch's browsing too, but not its search", () => {
     const { result, rerender } = renderHook(({ query }) => useRecordSearch(query), {
-      wrapper: Providers,
+      wrapper: SortedRecordsWrapper,
       initialProps: { query: "" },
     });
     expect(result.current[0]?.label).toBe(FAVORITES_LABEL);

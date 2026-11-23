@@ -5,6 +5,7 @@ import {
   setArgonBounds,
   userKeySchema,
 } from "../../src/user/key-schema";
+import { relaxArgonBounds } from "../../testing/relax-argon-bounds";
 
 function b64(bytes: number): string {
   return Buffer.from(new Uint8Array(bytes)).toString("base64");
@@ -87,7 +88,7 @@ describe("argon bounds setter", () => {
   });
 
   it("relaxing bounds lets previously-invalid params parse", () => {
-    setArgonBounds({ tMin: 1, mMin: 8, mMultipleOf: 1 });
+    relaxArgonBounds();
     const fast = { t: 1, m: 8, p: 1 };
     expect(() =>
       passwordKeySchema.parse({ ...VALID_PASSWORD_KEY, passwordKekParams: fast }),

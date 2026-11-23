@@ -25,11 +25,6 @@ vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPC: () => ({}),
   useTRPCClient: () => ({ login: { logout: { mutate: logout } } }),
 }));
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive: retrievePRK } };
-});
 const registerLocalVault = vi.hoisted(() => vi.fn());
 vi.mock("@repo/client/src/account/link-local-vault", async (importActual) => ({
   ...(await importActual<object>()),

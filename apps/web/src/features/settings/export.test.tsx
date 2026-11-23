@@ -21,11 +21,7 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
 }));
-// The real Argon2 derivation and decryption, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
+// The real decryption, on the main thread (no workers here).
 vi.mock("@repo/client/src/util/decrypt-record", async (importActual) => {
   const actual = await importActual<typeof import("@repo/client/src/util/decrypt-record")>();
   return { ...actual, decryptRecordWithWorker: async (row: never) => actual.decryptRecord(row) };

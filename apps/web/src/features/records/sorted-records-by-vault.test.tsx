@@ -1,13 +1,8 @@
-import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
-import {
-  SortedRecordsProvider,
-  useSortedRecords,
-} from "@repo/client/src/providers/SortedRecordsProvider";
+import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { act, renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { SortedRecordsWrapper } from "@/test/sorted-records-wrapper";
 
 function makeRecord(
   id: string,
@@ -57,21 +52,13 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   }),
 }));
 
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <PreferencesProvider store={usePreferencesStore()}>
-      <SortedRecordsProvider>{children}</SortedRecordsProvider>
-    </PreferencesProvider>
-  );
-}
-
 type Group = { label: string | null; records: DecryptedRecord[]; folded?: boolean };
 const shape = (groups: Group[]) =>
   groups.map((group) => [group.label, group.records.map((record) => record.recordId)]);
 const ids = (list: DecryptedRecord[]) => list.map((record) => record.recordId);
 
 function renderSorted() {
-  return renderHook(() => useSortedRecords(), { wrapper: Providers });
+  return renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 }
 
 beforeEach(() => {

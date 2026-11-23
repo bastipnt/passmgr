@@ -1,4 +1,5 @@
 import { genKey, getToken } from "@repo/crypto";
+import { db, keysTable } from "@repo/db";
 import {
   type MemberVault,
   type PasswordKeySchema,
@@ -9,7 +10,9 @@ import {
   type VaultKeyWrap,
 } from "@repo/schema";
 import { toBase64 } from "@repo/util";
+import { and, isNull } from "drizzle-orm";
 import { expect } from "vitest";
+import { unwrapAccountKeyWithPassword } from "../../../../packages/client/src/util/derive-password-kek";
 import { appRouter } from "../../src/router";
 import { createCallerFactory } from "../../src/trpc";
 import { clientStartLogin, clientStartRegistration } from "../setup/opaque-client";
@@ -102,6 +105,21 @@ export async function callSigned(
 ) {
   const headers = await signRequest({ authKey, sessionId, type, path, input });
   return createCaller(buildTestContext(headers));
+}
+
+/** The one key set in the database that is neither closed nor deleted. */
+export async function activeKeySet() {
+  const [active] = await db
+    .select()
+    .from(keysTable)
+    .where(and(isNull(keysTable.valid_to), isNull(keysTable.deleted_at)));
+  if (!active) throw new Error("no active key set");
+  return active;
+}
+
+/** Unwrap the account key from the active key set with a master password. */
+export async function accountKeyViaPassword(pw: string): Promise<Uint8Array> {
+  return unwrapAccountKeyWithPassword(pw, await activeKeySet());
 }
 
 /** Turn two-factor on from a fresh session; returns the secret and the backup codes. */

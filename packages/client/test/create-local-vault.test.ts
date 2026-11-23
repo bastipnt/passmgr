@@ -2,17 +2,16 @@ import {
   deriveRecoveryAuthKey,
   getPasswordKekParams,
   hashRecoveryAuthKey,
-  retrievePRK,
   setPasswordKekParams,
-  unwrapAccountKey,
   unwrapAccountKeyWithRecoveryKey,
   unwrapUserPrivateKey,
   unwrapVaultKey,
 } from "@repo/crypto";
 import { memberVaultSchema, passwordKeySchema, recoveryKeySchema } from "@repo/schema";
-import { fromBase64, toBase64 } from "@repo/util";
+import { toBase64 } from "@repo/util";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateLocalVault } from "../src/account/create-local-vault";
+import { unwrapAccountKeyWithPassword } from "../src/util/derive-password-kek";
 
 const PASSWORD = "correct horse battery staple";
 
@@ -39,17 +38,7 @@ describe("generateLocalVault", () => {
       true,
     );
 
-    const kek = await retrievePRK(
-      PASSWORD,
-      fromBase64(material.passwordKekSalt),
-      material.passwordKekParams,
-    );
-    const unwrapped = unwrapAccountKey(
-      kek,
-      material.encryptedAccountKey,
-      material.accountKeyEncryptionNonce,
-    );
-    expect(unwrapped).toEqual(accountKey);
+    expect(await unwrapAccountKeyWithPassword(PASSWORD, material)).toEqual(accountKey);
 
     expect(vaults).toHaveLength(1);
     const [personal] = vaults;

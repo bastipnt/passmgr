@@ -26,11 +26,6 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   ...(await importActual<object>()),
   useStore: () => store,
 }));
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
 
 const PERSONAL = "11111111-1111-4111-8111-111111111111";
 const OLD_VAULT = "44444444-4444-4444-8444-444444444444";

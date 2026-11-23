@@ -18,15 +18,16 @@ import {
   startDeviceLogin,
 } from "@repo/client/src/login";
 import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFactorPromptProvider";
+import { loadKeyringOrLock } from "@repo/client/src/providers/SessionProvider";
 import { finishPendingRecovery, RecoveryFailedError } from "@repo/client/src/recover";
 import {
   createUserKeyPair,
+  createVault,
   genKey,
   getPasswordKekParams,
   SESSION_SIGNED_OUT,
   sealPendingRecovery,
   wrapAccountKey,
-  wrapVaultKey,
 } from "@repo/crypto";
 import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault, PendingRecovery, UserKeyPair } from "@repo/schema";
@@ -61,16 +62,10 @@ vi.mock("@repo/crypto", async (importActual) => ({
   authenticateBiometric: vi.fn(),
   enrollBiometric: vi.fn(),
 }));
-// One mock for both entries: a typed password, or the kept OPAQUE password (connect).
-vi.mock("@repo/client/src/login", async (importActual) => {
-  const login = vi.fn();
-  return {
-    ...(await importActual<object>()),
-    loginUser: login,
-    loginWithOpaquePassword: login,
-    startDeviceLogin: vi.fn(),
-  };
-});
+vi.mock("@repo/client/src/login", async () => ({
+  ...(await (await import("@/test/login-mock")).loginMocks()),
+  startDeviceLogin: vi.fn(),
+}));
 vi.mock("@repo/client/src/recover", async (importActual) => ({
   ...(await importActual<object>()),
   finishPendingRecovery: vi.fn(),
@@ -123,33 +118,14 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
   useStore: () => store,
 }));
 
-const PERSONAL_ID = "0199a3c4-0000-7000-8000-00000000000a";
 const B64_32 = toBase64(new Uint8Array(32));
 
 function keyring() {
   const accountKey = genKey();
   const wraps: MemberVault[] = [
-    {
-      ...wrapVaultKey(accountKey, genKey(), PERSONAL_ID, 1),
-      kind: "personal",
-      role: "owner",
-      encryptedMeta: B64_32,
-      metaEncryptionNonce: B64_32,
-      previousKeys: [],
-    },
+    { ...createVault(accountKey, { name: "Personal" }), kind: "personal", role: "owner" },
   ];
   return { accountKey, wraps, userKeyPair: createUserKeyPair(accountKey) };
-}
-
-/** Mirrors SessionProvider: loading the vault keys + keypair may throw, which locks again. */
-function loadKeyringOrLock(wraps: readonly MemberVault[], keyPair: UserKeyPair) {
-  try {
-    secretsStore.loadVaultKeys(wraps);
-    secretsStore.loadUserKeyPair(keyPair);
-  } catch (e) {
-    secretsStore.lockVault();
-    throw e;
-  }
 }
 
 const session = {

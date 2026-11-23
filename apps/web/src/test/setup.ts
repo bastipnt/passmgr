@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { setArgonBounds } from "@repo/schema";
+import { relaxArgonBounds } from "@repo/schema/testing/relax-argon-bounds";
 import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll, vi } from "vitest";
 import { server } from "./msw/server";
@@ -8,9 +8,7 @@ import { server } from "./msw/server";
 // unlock's chain of awaits (worker, store, background login) can outlast it.
 configure({ asyncUtilTimeout: 5_000 });
 
-// The tests derive with t:1 m:8 (`setPasswordKekParams`); the schemas check what
-// comes back from the server, the disk and export files against these bounds.
-setArgonBounds({ tMin: 1, mMin: 8, mMultipleOf: 1 });
+relaxArgonBounds();
 
 if (typeof window !== "undefined" && !window.matchMedia) {
   window.matchMedia = vi.fn().mockImplementation((query: string) => ({
@@ -31,6 +29,11 @@ if (typeof window !== "undefined" && !window.ResizeObserver) {
     unobserve() {}
     disconnect() {}
   };
+}
+
+// jsdom's `CSS` has no `supports`; answering "unsupported" runs the hooks' JS fallbacks.
+if (typeof CSS !== "undefined" && !("supports" in CSS)) {
+  Object.defineProperty(CSS, "supports", { value: () => false });
 }
 
 // jsdom has no Web Animations API; base-ui's ScrollArea polls it after opening.

@@ -55,8 +55,6 @@ vi.mock("./VaultDialog", () => ({
   VaultDialog: ({ open }: { open: boolean }) => (open ? <dialog open>New vault</dialog> : null),
 }));
 vi.mock("@repo/ui/hooks/use-is-mobile", () => ({ useIsMobile: () => true }));
-// jsdom has no `CSS.supports`; the pill's collapse is out of scope here.
-vi.mock("@repo/ui/hooks/use-scroll-collapse", () => ({ useScrollCollapse: () => {} }));
 
 function ListProbe() {
   const { sortedRecords, categoryFilter, setCategoryFilter } = useSortedRecords();

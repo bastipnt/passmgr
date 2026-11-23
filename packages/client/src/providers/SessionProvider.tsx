@@ -92,7 +92,7 @@ export const SessionContext = createContext<SessionContextValue>({
  * Load the vault keys and the keypair (checked against its public key); on
  * failure wipe the account key again before rethrowing.
  */
-function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserKeyPair) {
+export function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserKeyPair) {
   try {
     const skipped = secretsStore.loadVaultKeys(vaultKeys);
     if (skipped.length > 0)

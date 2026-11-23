@@ -1,13 +1,14 @@
 import { Writable } from "node:stream";
-import { retrievePRK, unwrapAccountKey, unwrapVaultKey } from "@repo/crypto";
+import { unwrapVaultKey } from "@repo/crypto";
 import { db } from "@repo/db";
-import { fromBase64, toBase64 } from "@repo/util";
+import { toBase64 } from "@repo/util";
 import { fastifyTRPCPlugin } from "@trpc/server/adapters/fastify";
 import { sql } from "drizzle-orm";
 import fastify from "fastify";
 import { beforeEach, describe, expect, it } from "vitest";
 import { loginUser } from "../../../../packages/client/src/login";
 import { registerNewUser } from "../../../../packages/client/src/register";
+import { unwrapAccountKeyWithPassword } from "../../../../packages/client/src/util/derive-password-kek";
 import { logRedact, logSerializers } from "../../src/log-options";
 import { redis } from "../../src/redis";
 import { appRouter } from "../../src/router";
@@ -99,17 +100,7 @@ describe("no-secret-leak — real client code, real server (in-process)", () => 
 
     // Recover the plaintext keys the way the client does after login, so the
     // captured traffic can be searched for them.
-    const keys = unlock.userPasswordKeys;
-    const kek = await retrievePRK(
-      password,
-      fromBase64(keys.passwordKekSalt),
-      keys.passwordKekParams,
-    );
-    const accountKey = unwrapAccountKey(
-      kek,
-      keys.encryptedAccountKey,
-      keys.accountKeyEncryptionNonce,
-    );
+    const accountKey = await unwrapAccountKeyWithPassword(password, unlock.userPasswordKeys);
     const vaultKeys = unlock.vaultKeys.map((wrap) => unwrapVaultKey(accountKey, wrap));
     expect(vaultKeys).toHaveLength(1);
 

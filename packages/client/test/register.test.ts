@@ -8,13 +8,10 @@ import {
 import {
   getPasswordKekParams,
   OPAQUE_SERVER_IDENTITY,
-  retrievePRK,
   setPasswordKekParams,
-  unwrapAccountKey,
   unwrapUserPrivateKey,
   unwrapVaultKey,
 } from "@repo/crypto";
-import { fromBase64 } from "@repo/util";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateKeyring } from "../src/account/new-keyring";
 import { b64ToBytes, bytesToB64 } from "../src/opaque";
@@ -23,6 +20,7 @@ import {
   type RegistrationTRPCClient,
   registerNewUser,
 } from "../src/register";
+import { unwrapAccountKeyWithPassword } from "../src/util/derive-password-kek";
 
 vi.mock("../src/account/new-keyring", async (importActual) => {
   const actual = await importActual<typeof import("../src/account/new-keyring")>();
@@ -86,16 +84,7 @@ describe("registerNewUser", () => {
     if (!input) throw new Error("finishRegistration not called");
     const { userKeys, personalVault, userKeyPair } = input;
 
-    const kek = await retrievePRK(
-      PASSWORD,
-      fromBase64(userKeys.passwordKekSalt),
-      userKeys.passwordKekParams,
-    );
-    const accountKey = unwrapAccountKey(
-      kek,
-      userKeys.encryptedAccountKey,
-      userKeys.accountKeyEncryptionNonce,
-    );
+    const accountKey = await unwrapAccountKeyWithPassword(PASSWORD, userKeys);
 
     expect(userKeyPair.keyVersion).toBe(1);
     expect(unwrapUserPrivateKey(accountKey, userKeyPair)).toHaveLength(32);

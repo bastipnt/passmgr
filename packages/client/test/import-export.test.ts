@@ -1,4 +1,4 @@
-import { getPasswordKekParams, retrievePRK, setPasswordKekParams } from "@repo/crypto";
+import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import {
   type ExportData,
   type MemberVault,
@@ -29,11 +29,6 @@ import {
 import { readImportFile } from "../src/import/read-import-file";
 import { RecordRepository } from "../src/records/record-repository";
 import { decryptRecord } from "../src/util/decrypt-record";
-
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
-  argon2WorkerService: { derive: retrievePRK },
-}));
 
 const BACKUP_PASSWORD = "a backup password";
 const login = (title: string, password = "secret") =>

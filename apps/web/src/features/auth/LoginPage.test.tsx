@@ -81,11 +81,7 @@ vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPCClient: () => trpcClient,
 }));
 // The OPAQUE handshake itself; `useLogin` around it stays real.
-// One mock for both entries: a typed password, or the kept OPAQUE password (connect).
-vi.mock("@repo/client/src/login", async (importActual) => {
-  const login = vi.fn();
-  return { ...(await importActual<object>()), loginUser: login, loginWithOpaquePassword: login };
-});
+vi.mock("@repo/client/src/login", async () => (await import("@/test/login-mock")).loginMocks());
 vi.mock("@repo/client/src/hooks/use-app-config", () => ({
   useAppConfig: () => ({ registrationEnabled: true, isLoading: false }),
 }));

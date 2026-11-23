@@ -1,12 +1,7 @@
 import { genKey, setPasswordKekParams } from "@repo/crypto";
-import { beforeAll, describe, expect, it, vi } from "vitest";
+import { beforeAll, describe, expect, it } from "vitest";
 import { wrapGivenAccountKeyForPassword } from "../src/account/rekey-password-keys";
 import { unwrapAccountKeyWithPassword } from "../src/util/derive-password-kek";
-
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive: retrievePRK } };
-});
 
 // "é" as one code point and as "e" + combining accent.
 const COMPOSED = "caf\u{e9}";

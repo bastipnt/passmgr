@@ -1,17 +1,14 @@
 import { useSearchOptions } from "@repo/client/src/hooks/use-search-options";
-import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import {
   listHeading,
   listTitle,
-  SortedRecordsProvider,
   useRecordSearch,
   useSortedRecords,
 } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
 import { act, renderHook } from "@testing-library/react";
-import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { usePreferencesStore } from "@/hooks/use-preferences-store";
+import { SortedRecordsWrapper } from "@/test/sorted-records-wrapper";
 
 function makeRecord(id: string, data: RecordData): DecryptedRecord {
   return {
@@ -49,14 +46,6 @@ vi.mock("@repo/client/src/hooks/use-vaults", () => ({
   }),
 }));
 
-function Providers({ children }: { children: ReactNode }) {
-  return (
-    <PreferencesProvider store={usePreferencesStore()}>
-      <SortedRecordsProvider>{children}</SortedRecordsProvider>
-    </PreferencesProvider>
-  );
-}
-
 // The vault filter is a stored preference.
 beforeEach(() => localStorage.clear());
 
@@ -64,7 +53,7 @@ const ids = (list: DecryptedRecord[]) => list.map((record) => record.recordId).s
 
 describe("category filter", () => {
   it("narrows the list to one type", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     expect(ids(result.current.sortedRecords)).toEqual(["card", "login", "wifi", "work"]);
 
     act(() => result.current.setCategoryFilter("card"));
@@ -72,7 +61,7 @@ describe("category filter", () => {
   });
 
   it("scopes a search, counting the matches it hides until widened", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setCategoryFilter("card");
@@ -91,7 +80,7 @@ describe("category filter", () => {
   });
 
   it("ends Search all items once the filters change", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setCategoryFilter("card");
@@ -106,7 +95,7 @@ describe("category filter", () => {
   it("applies to useRecordSearch's browsing and search", () => {
     const { result, rerender } = renderHook(
       ({ query }) => useRecordSearch(query, { category: "wifi" }).flatMap((group) => group.records),
-      { wrapper: Providers, initialProps: { query: "" } },
+      { wrapper: SortedRecordsWrapper, initialProps: { query: "" } },
     );
     expect(ids(result.current)).toEqual(["wifi"]);
 
@@ -119,7 +108,7 @@ describe("category filter", () => {
 
 describe("vault filter", () => {
   it("narrows the list to one vault, and combines with the type filter", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setVaultFilter("v2"));
     expect(ids(result.current.sortedRecords)).toEqual(["work"]);
@@ -132,7 +121,7 @@ describe("vault filter", () => {
   });
 
   it("scopes a search to the vault in view", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setVaultFilter("v1");
@@ -145,7 +134,7 @@ describe("vault filter", () => {
   });
 
   it("Search all items runs past the vault too, and revealing a record shows its vault", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setVaultFilter("v1"));
     expect(result.current.canSearchAll).toBe(true);
@@ -163,7 +152,7 @@ describe("vault filter", () => {
   });
 
   it("resets the category on a switch", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setCategoryFilter("card"));
     act(() => result.current.setVaultFilter("v2"));
@@ -174,13 +163,13 @@ describe("vault filter", () => {
   it("scopes useRecordSearch's search too", () => {
     const { result } = renderHook(
       () => useRecordSearch("jira", { vault: "v1" }).flatMap((group) => group.records),
-      { wrapper: Providers },
+      { wrapper: SortedRecordsWrapper },
     );
     expect(ids(result.current)).toEqual([]);
   });
 
   it("reads a vault this profile doesn't have (another profile's, or deleted) as all vaults", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setVaultFilter("v-gone"));
     expect(result.current.vaultFilter).toBe("all");
@@ -190,7 +179,7 @@ describe("vault filter", () => {
   it("applies to useRecordSearch's browsing", () => {
     const { result } = renderHook(
       () => useRecordSearch("", { vault: "v2" }).flatMap((group) => group.records),
-      { wrapper: Providers },
+      { wrapper: SortedRecordsWrapper },
     );
     expect(ids(result.current)).toEqual(["work"]);
   });
@@ -198,7 +187,7 @@ describe("vault filter", () => {
 
 describe("tag filters", () => {
   it("narrows the list to the records carrying the tag, matched without case", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.toggleTag("WORK"));
     expect(ids(result.current.sortedRecords)).toEqual(["login", "work"]);
@@ -206,7 +195,7 @@ describe("tag filters", () => {
   });
 
   it("keeps the records carrying every selected tag, in the order picked", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.toggleTag("code"));
     act(() => result.current.toggleTag("work"));
@@ -230,7 +219,7 @@ describe("tag filters", () => {
   });
 
   it("combines with the vault and category filters", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setVaultFilter("v1");
@@ -243,7 +232,7 @@ describe("tag filters", () => {
   });
 
   it("offers the tags of the vault in view, selected first, counted against the filters", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     const shown = () => result.current.tags.map(({ tag, count }) => `${tag}:${count}`);
     // One "Work" and one "work": a tie keeps the first spelling seen.
     expect(shown()).toEqual(["bank:1", "code:1", "work:2"]);
@@ -259,7 +248,7 @@ describe("tag filters", () => {
   });
 
   it("drops a selected tag no record of the vault in view carries", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.toggleTag("bank");
@@ -274,7 +263,7 @@ describe("tag filters", () => {
   });
 
   it("scopes a search", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.toggleTag("work");
@@ -286,7 +275,7 @@ describe("tag filters", () => {
   });
 
   it("showTag selects only that tag, every other filter cleared", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setVaultFilter("v2");
@@ -305,7 +294,7 @@ describe("tag filters", () => {
   });
 
   it("clearFilters drops the category and every tag, keeping the vault", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.setVaultFilter("v1");
@@ -324,7 +313,7 @@ describe("tag filters", () => {
   it("applies to useRecordSearch's browsing", () => {
     const { result } = renderHook(
       () => useRecordSearch("", { tags: ["code"] }).flatMap((group) => group.records),
-      { wrapper: Providers },
+      { wrapper: SortedRecordsWrapper },
     );
     expect(ids(result.current)).toEqual(["login"]);
   });
@@ -332,7 +321,7 @@ describe("tag filters", () => {
 
 describe("category counts", () => {
   it("counts each category for the vault and tags in view", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     expect(result.current.categoryCounts).toMatchObject({
       all: 4,
       favorites: 0,
@@ -353,14 +342,14 @@ describe("category counts", () => {
 
 describe("search", () => {
   it("finds records by tag too", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setQuery("ban"));
     expect(ids(result.current.sortedRecords)).toEqual(["card"]);
   });
 
   it("matches only tags after a #", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => result.current.setQuery("#o"));
     expect(ids(result.current.sortedRecords)).toEqual(["login", "work"]);
@@ -400,7 +389,7 @@ describe("listHeading", () => {
 describe("useSearchOptions", () => {
   const render = () =>
     renderHook(() => ({ sorted: useSortedRecords(), options: useSearchOptions() }), {
-      wrapper: Providers,
+      wrapper: SortedRecordsWrapper,
     });
   const labels = (sections: { label: string; options: { id: string }[] }[]) =>
     sections.map(({ label, options }) => [label, options.map(({ id }) => id)]);
@@ -442,7 +431,7 @@ describe("useSearchOptions", () => {
 
 describe("recent searches", () => {
   it("notes, forgets and clears searches, counting each in the view under its own tags", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
 
     act(() => {
       result.current.noteSearched({ text: "git", tags: [] });
@@ -465,17 +454,17 @@ describe("recent searches", () => {
   });
 
   it("lives in memory only: gone with the provider (lock unmounts it), nothing stored", () => {
-    const first = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const first = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     act(() => first.result.current.noteSearched({ text: "bank", tags: ["finance"] }));
     first.unmount();
     expect(JSON.stringify({ ...localStorage })).not.toContain("bank");
 
-    const second = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const second = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     expect(second.result.current.recentSearches).toEqual([]);
   });
 
   it("offers only the searches whose tags the vault in view has", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     act(() => {
       result.current.noteSearched({ text: "visa", tags: ["bank"] });
       result.current.noteSearched({ text: "jira", tags: ["work"] });
@@ -485,7 +474,7 @@ describe("recent searches", () => {
   });
 
   it("setTags replaces the selected tags, keeping the same list when nothing changes", () => {
-    const { result } = renderHook(() => useSortedRecords(), { wrapper: Providers });
+    const { result } = renderHook(() => useSortedRecords(), { wrapper: SortedRecordsWrapper });
     act(() => result.current.toggleTag("code"));
     act(() => result.current.setTags(["bank", "work"]));
     expect(result.current.tagFilters).toEqual(["bank", "work"]);

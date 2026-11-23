@@ -3,18 +3,17 @@ import { generateLocalVault } from "@repo/client/src/account/create-local-vault"
 import { useRecovery } from "@repo/client/src/hooks/use-recovery";
 import { LoginUnreachableError } from "@repo/client/src/login";
 import { RecoveryFailedError } from "@repo/client/src/recover";
+import { unwrapAccountKeyWithPassword } from "@repo/client/src/util/derive-password-kek";
 import {
   deriveRecoveryAuthKey,
   getPasswordKekParams,
   openPendingRecovery,
-  retrievePRK,
   setPasswordKekParams,
-  unwrapAccountKey,
   unwrapAccountKeyWithRecoveryKey,
 } from "@repo/crypto";
-import { type AccountKeyMaterial, pendingRecoverySchema } from "@repo/schema";
+import { pendingRecoverySchema } from "@repo/schema";
 import type { LocalProfile } from "@repo/store";
-import { fromBase64, toBase64 } from "@repo/util";
+import { toBase64 } from "@repo/util";
 import { act, renderHook } from "@testing-library/react";
 import type { ContextType, ReactNode } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -29,11 +28,6 @@ vi.mock("@repo/client/src/recover", async (importActual) => ({
   recoverAccount,
   finishPendingRecovery,
 }));
-// The real Argon2 derivation, on the main thread (no workers here).
-vi.mock("@repo/crypto/services/argon2-worker-service", async () => {
-  const { retrievePRK: derive } = await import("@repo/crypto");
-  return { argon2WorkerService: { derive } };
-});
 vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPC: () => ({}),
   useTRPCClient: () => ({}),
@@ -163,15 +157,6 @@ describe("useRecovery — local vault", () => {
     store.vault.getVaults.mockResolvedValue(local.vaults);
   });
 
-  async function open(material: AccountKeyMaterial, password: string) {
-    const kek = await retrievePRK(
-      password,
-      fromBase64(material.passwordKekSalt),
-      material.passwordKekParams,
-    );
-    return unwrapAccountKey(kek, material.encryptedAccountKey, material.accountKeyEncryptionNonce);
-  }
-
   async function recoverLocal(recoveryKey: string) {
     const { result } = renderHook(() => useRecovery());
     let newKey: Uint8Array | undefined;
@@ -189,8 +174,8 @@ describe("useRecovery — local vault", () => {
     const [profileId, material, recovery] = store.saveLocalKeyMaterial.mock.calls[0]!;
     expect(profileId).toBe(local.profile.profileId);
     // Same account key: the vault keys (and every record) still open.
-    expect(await open(material, NEW_PASSWORD)).toEqual(local.accountKey);
-    await expect(open(material, PASSWORD)).rejects.toThrow();
+    expect(await unwrapAccountKeyWithPassword(NEW_PASSWORD, material)).toEqual(local.accountKey);
+    await expect(unwrapAccountKeyWithPassword(PASSWORD, material)).rejects.toThrow();
     expect(material.userKeyPair).toEqual(local.material.userKeyPair);
     // The new recovery key opens the new wrap; the old one doesn't.
     expect(await unwrapAccountKeyWithRecoveryKey(newKey!, recovery)).toEqual(local.accountKey);
@@ -339,14 +324,7 @@ describe("useRecovery — account vault on this device", () => {
     const call = store.saveLinkedRecovery.mock.calls[0]!;
     const [profileId, material, recoveryWrap] = call;
     expect(profileId).toBe(ALICE.profileId);
-    const kek = await retrievePRK(
-      NEW_PASSWORD,
-      fromBase64(material.passwordKekSalt),
-      material.passwordKekParams,
-    );
-    expect(
-      unwrapAccountKey(kek, material.encryptedAccountKey, material.accountKeyEncryptionNonce),
-    ).toEqual(keyring.accountKey);
+    expect(await unwrapAccountKeyWithPassword(NEW_PASSWORD, material)).toEqual(keyring.accountKey);
     expect(await unwrapAccountKeyWithRecoveryKey(newKey!, recoveryWrap)).toEqual(
       keyring.accountKey,
     );
