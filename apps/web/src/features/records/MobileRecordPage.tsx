@@ -61,7 +61,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
 
   return (
     <main className="relative isolate flex min-h-dvh flex-col">
-      <header className="sticky-bar sticky-bar-edge z-20 flex items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3">
+      <header className="sticky-bar sticky-bar-edge z-page-bar flex items-center gap-2 px-4 pt-(--page-bar-pad) pb-3">
         <Button variant="floating" size="icon-xl" onClick={onBack} aria-label="Back">
           <ChevronLeftIcon className="size-5" />
         </Button>
@@ -78,16 +78,12 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
         </div>
       </header>
 
-      {/* Sticky as a direct child of the page, so it can pin inside the bar,
-          vertically centered on its size-12 buttons ((3rem - h-9) / 2 = +0.375rem,
-          as `MobileListTitle`). It collapses over the scroll that carries it
-          from its hero spot (next to the avatar, 1rem under the 3.75rem bar;
-          centered on the avatar when there's no website line) up to there:
-          3.75rem - 0.375rem + that gap. Margins/size interpolate hero → bar. */}
+      {/* Sticky as a direct child of the page, so it can pin inside the bar at
+          --record-title-top, collapsing from its hero spot next to the avatar. */}
       <h1
         ref={titleRef}
         className={cn(
-          "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.75rem)] z-30 h-9 truncate font-display font-extrabold leading-9 tracking-tight",
+          "scroll-collapse pointer-events-none sticky top-(--record-title-top) z-page-title h-9 truncate font-display font-extrabold leading-9 tracking-tight",
           "ms-[calc(5.625rem-1.125rem*var(--scroll-collapse))] me-[calc(1.25rem+(var(--title-end,1rem)-1.25rem)*var(--scroll-collapse))] text-[calc(1.75rem-0.6875rem*var(--scroll-collapse))]",
           primaryWebsite
             ? "mt-4 [--scroll-collapse-range:4.375rem]"
@@ -122,11 +118,11 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
 
       {hasDock && (
         // Sticky, not fixed: see `MobileVault` on `DrawerProvider`'s containment.
-        <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-20 mx-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
+        <div className="sticky bottom-(--dock-inset) z-dock mx-4 mb-(--dock-inset) flex items-center gap-2.5">
           {password && (
             <Button
               size="lg"
-              className="h-14 flex-1 rounded-full bg-primary text-base"
+              className="h-(--dock-height) flex-1 rounded-full bg-primary text-base"
               onClick={() => copyField(password, "Password")}
             >
               <CopyIcon className="size-5" />

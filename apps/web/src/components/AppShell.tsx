@@ -29,7 +29,7 @@ export function AppShell({ header, children, mainClassName }: AppShellProps) {
       )}
     >
       {header && (
-        <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-20 max-sm:h-(--page-bar-h) sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
+        <header className="max-sm:sticky-bar max-sm:sticky-bar-edge sm:glass relative flex min-w-0 shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-2 max-sm:z-page-bar max-sm:h-(--page-bar-h) sm:h-16 sm:gap-3 sm:rounded-[20px] sm:py-0">
           {header}
         </header>
       )}

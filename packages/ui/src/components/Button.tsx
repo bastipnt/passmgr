@@ -42,7 +42,7 @@ const buttonVariants = cva(
         /** Icon-only companion to `lg` buttons (same height). */
         "icon-xl": "size-12",
         /** Round floating action button. */
-        fab: "size-14 rounded-full [&_svg:not([class*='size-'])]:size-6",
+        fab: "size-(--dock-height) rounded-full [&_svg:not([class*='size-'])]:size-6",
       },
     },
     defaultVariants: {

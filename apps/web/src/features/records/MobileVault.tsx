@@ -21,18 +21,15 @@ export default function MobileVault() {
   useFlatGround();
 
   return (
-    // --list-top: the bar's exact height (top pad + size-12 buttons + pb-3),
-    // so the list's group labels pin right beneath it. The bar's frost reaches
-    // down under them (they have none of their own): one blur for bar and label.
-    // --list-label-h sits here, not in RecordList, so the bar can read it.
+    // The bar's frost covers the list's labels too (one blur), so --list-label-h is set here.
     // Inert under the search, or iOS Safari's ▲ ▼ form bar steps into it.
     <main
       inert={search.open}
-      className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:calc(max(env(safe-area-inset-top),0.75rem)+3.75rem)]"
+      className="relative isolate flex min-h-dvh flex-col [--list-label-h:2.625rem] [--list-top:var(--vault-bar-h)]"
     >
       <header
         className={cn(
-          "sticky-bar sticky-bar-edge z-20 flex h-(--list-top) shrink-0 items-center gap-2 px-4 pt-[max(env(safe-area-inset-top),0.75rem)] pb-3",
+          "sticky-bar sticky-bar-edge z-page-bar flex h-(--list-top) shrink-0 items-center gap-2 px-4 pt-(--page-bar-pad) pb-3",
           hasGroupLabels && "[--sticky-bar-extend:var(--list-label-h)]",
         )}
       >
@@ -47,7 +44,7 @@ export default function MobileVault() {
 
       {/* Pinned to the viewport bottom while the list runs on beneath it, and
           resting at the same spot once it ends. */}
-      <div className="sticky bottom-[max(env(safe-area-inset-bottom),1rem)] z-25 mx-4 mt-4 mb-[max(env(safe-area-inset-bottom),1rem)] flex items-center gap-2.5">
+      <div className="sticky bottom-(--dock-inset) z-dock mx-4 mt-4 mb-(--dock-inset) flex items-center gap-2.5">
         <FilterButton />
         <MobileSearchButton onOpen={search.openSearch} />
         <RecordSortMenu variant="fab" />

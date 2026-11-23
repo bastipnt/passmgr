@@ -52,7 +52,7 @@ export function SettingsPage({
             "flex flex-col gap-6 max-sm:gap-4",
             // Covers the page's top padding while stuck; on a phone it sticks under the AppShell bar.
             stickyHeader &&
-              "sticky top-0 z-10 -mt-10 bg-background pt-10 pb-4 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background after:to-transparent max-sm:top-(--page-bar-h,0px) max-sm:-mt-3 max-sm:pt-3",
+              "sticky top-0 z-bar -mt-10 bg-background pt-10 pb-4 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-8 after:bg-linear-to-b after:from-background after:to-transparent max-sm:top-(--page-bar-h,0px) max-sm:-mt-3 max-sm:pt-3",
           )}
         >
           <div className="flex items-start gap-4 max-sm:px-1">

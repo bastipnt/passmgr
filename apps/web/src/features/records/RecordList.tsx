@@ -124,7 +124,7 @@ function VaultGroupHeader({
   onToggle: (vaultId: string) => void;
 }) {
   return (
-    <h3 className="sticky-label-interactive z-11 flex h-(--list-label-h) items-center px-3 [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:items-end max-sm:px-2.5 max-sm:pb-0.5">
+    <h3 className="sticky-label-interactive z-bar-label flex h-(--list-label-h) items-center px-3 max-sm:z-page-label max-sm:items-end max-sm:px-2.5 max-sm:pb-0.5">
       <button
         type="button"
         aria-expanded={!group.folded}
@@ -241,7 +241,7 @@ function MobileListTitle({ title, count }: { title: string; count: number }) {
     <h1
       ref={titleRef}
       className={cn(
-        "scroll-collapse pointer-events-none sticky top-[calc(max(env(safe-area-inset-top),0.75rem)+0.375rem)] z-30 mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:4.125rem]",
+        "scroll-collapse pointer-events-none sticky top-(--list-title-top) z-page-title mt-3 mb-1 flex h-9 flex-row items-center gap-1 whitespace-nowrap font-display font-extrabold leading-9 tracking-[-0.03em] [--scroll-collapse-range:4.125rem]",
         // Hero → bar: past the collapsed pill (px-4 + size-12 + 0.75rem). It clears
         // the pill sideways before rising level with it, so the two never overlap.
         // Not truncated (that clips descenders): "Wi-Fi networks n" is short enough.
@@ -440,7 +440,7 @@ export default function RecordList() {
     <div
       ref={listRef}
       className={cn(
-        "flex flex-col gap-2 pb-3 [--list-bar-h:calc(6.75rem+var(--list-chips-h))] [--list-chips-h:0px] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
+        "flex flex-col gap-2 pb-3 [--list-bar-h:calc(6.75rem+var(--list-chips-h))] [--list-chips-h:0px] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:gap-0 max-sm:pb-0 max-sm:[--list-bar-h:0px] sm:[--list-label-h:2.25rem]",
         filtered && "sm:[--list-chips-h:3rem]",
       )}
     >
@@ -491,9 +491,7 @@ export default function RecordList() {
           {recordGroups.map((recordGroup) => (
             <section key={recordGroup.vault?.vaultId ?? recordGroup.label ?? "all"}>
               {/* No frost of its own: the bar's reaches exactly --list-label-h
-                  under it. z-11 keeps the label above that frost (sticky-bar is z-10;
-                  on phones it's MobileVault's z-20 header, so z-21, under the z-25
-                  dock); sticky-label fades it out as the next group pushes it into
+                  under it; sticky-label fades it out as the next group pushes it into
                   the bar. Pushed up there it overlaps the bar's buttons, faded but
                   still hit-testable — hence pointer-events-none (the vault header:
                   sticky-label-interactive). */}
@@ -506,7 +504,7 @@ export default function RecordList() {
                 />
               ) : (
                 recordGroup.label && (
-                  <h3 className="sticky-label pointer-events-none z-11 h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] [--sticky-label-top:calc(var(--list-top,0px)+var(--list-bar-h))] max-sm:z-21 max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
+                  <h3 className="sticky-label pointer-events-none z-bar-label h-(--list-label-h) px-5 pt-3 pb-2 font-semibold text-[0.7rem] text-muted-foreground uppercase leading-4 tracking-[0.12em] max-sm:z-page-label max-sm:px-5 max-sm:pt-5 max-sm:pb-1.5 max-sm:text-xs max-sm:leading-4 max-sm:tracking-[0.08em]">
                     {recordGroup.label}
                   </h3>
                 )

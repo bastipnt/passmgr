@@ -144,7 +144,7 @@ export function MobileSearchButton({ onOpen }: { onOpen: () => void }) {
     <button
       type="button"
       onClick={onOpen}
-      className="flex h-14 min-w-0 flex-1 items-center gap-2 rounded-full border border-foreground/8 bg-white/50 pl-4 text-base text-muted-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_12px_30px_-12px_rgb(22_20_31/0.3)] backdrop-blur-2xl backdrop-saturate-180 dark:border-white/14 dark:bg-card/62 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_12px_30px_-12px_rgb(0_0_0/0.7)]"
+      className="flex h-(--dock-height) min-w-0 flex-1 items-center gap-2 rounded-full border border-foreground/8 bg-white/50 pl-4 text-base text-muted-foreground shadow-[inset_0_1px_0_rgb(255_255_255/0.9),0_12px_30px_-12px_rgb(22_20_31/0.3)] backdrop-blur-2xl backdrop-saturate-180 dark:border-white/14 dark:bg-card/62 dark:shadow-[inset_0_1px_0_rgb(255_255_255/0.12),0_12px_30px_-12px_rgb(0_0_0/0.7)]"
     >
       <SearchIcon className="size-5 shrink-0" aria-hidden />
       Search

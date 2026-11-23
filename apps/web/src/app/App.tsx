@@ -21,8 +21,8 @@ import { useGlobalErrorToast } from "./use-global-error-toast";
 
 const DEVICE_NAME = deviceNameFromUserAgent(navigator.userAgent);
 
-/** Phones: toasts sit above the vault's bottom dock (56px FABs, `MobileVault`). */
-const PHONE_TOAST_BOTTOM = "calc(max(env(safe-area-inset-bottom), 1rem) + 56px + 0.75rem)";
+/** Phones: toasts sit above the vault's bottom dock (`MobileVault`). */
+const PHONE_TOAST_BOTTOM = "calc(var(--dock-inset) + var(--dock-height) + 0.75rem)";
 
 function App() {
   const profileStore = useProfileStore();

@@ -53,6 +53,29 @@
   --avatar-fallback-c-fg: 0.12;
 }
 
+/* Phone page chrome: bars of 48px buttons, a bottom dock of 56px FABs (apps/web/CLAUDE.md). */
+:root {
+  --page-bar-pad: max(env(safe-area-inset-top), 0.75rem);
+  /* MobileVault's bar: the pad, size-12 buttons, pb-3. The list's labels pin under it. */
+  --vault-bar-h: calc(var(--page-bar-pad) + 3.75rem);
+  /* MobileListTitle pinned inside the bar: its h-9 line centered on the 3rem buttons. */
+  --list-title-top: calc(var(--page-bar-pad) + 0.375rem);
+  --record-title-top: calc(var(--page-bar-pad) + 0.75rem);
+  --dock-height: 3.5rem;
+  --dock-inset: max(env(safe-area-inset-bottom), 1rem);
+}
+
+/* Sticky chrome, bottom to top. A label sits over the bar whose frost reaches
+ * under it; on phones the dock covers both, and the collapsing title all. */
+@theme static {
+  --z-index-bar: 10;
+  --z-index-bar-label: 11;
+  --z-index-page-bar: 20;
+  --z-index-page-label: 21;
+  --z-index-dock: 25;
+  --z-index-page-title: 30;
+}
+
 /* Only the avatar-fallback vars differ by theme. */
 .dark {
   --avatar-fallback-l-bg: 0.28;
@@ -378,7 +401,7 @@
 
   position: sticky;
   top: 0;
-  z-index: 10;
+  z-index: var(--z-index-bar);
   isolation: isolate;
 
   &::before {
