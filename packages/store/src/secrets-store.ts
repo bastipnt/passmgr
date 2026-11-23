@@ -85,12 +85,21 @@ function decodeServerSession(server: ServerSessionBundle) {
   };
 }
 
+/** The request-signing keys of a server session, set and wiped together. */
+type ServerKeys = { authKey: Uint8Array; authSalt: Uint8Array; sessionSecret?: Uint8Array };
+
+/** The X25519 keypair (ADR 0001 D7), its private key checked against the public one on load. */
+type LoadedKeyPair = { privateKey: Uint8Array; publicKey: string; keyVersion: number };
+
+function wipeServerKeys(keys: ServerKeys) {
+  wipe(keys.authKey);
+  wipe(keys.authSalt);
+  if (keys.sessionSecret) wipe(keys.sessionSecret);
+}
+
 class SecretsStore {
-  // Session related keys
   sessionId?: string;
-  private sessionSecret?: Uint8Array;
-  private authKey?: Uint8Array;
-  private authSalt?: Uint8Array;
+  private serverKeys?: ServerKeys;
 
   // Vault related keys (ADR 0001 D3): the account key unwraps the vault keys,
   // each vault's current key its earlier ones (`vaultKeyId` → key).
@@ -99,10 +108,7 @@ class SecretsStore {
   // vaultId → the key version new records are encrypted with.
   private currentKeyVersions = new Map<string, number>();
   private personalVaultId?: string;
-  // The X25519 keypair (ADR 0001 D7), checked against each other on load.
-  private userPrivateKey?: Uint8Array;
-  private verifiedPublicKey?: string;
-  private userKeyPairVersion?: number;
+  private keyPair?: LoadedKeyPair;
 
   // The plaintext password is never kept: this is `deriveOpaquePassword`'s
   // output, for reconnecting (and getting online for a biometric enrollment).
@@ -135,14 +141,12 @@ class SecretsStore {
     }
     this.detachServer();
     this.sessionId = sessionId;
-    this.sessionSecret = sessionSecret;
-    this.authSalt = authSalt;
-    this.authKey = authKey;
+    this.serverKeys = { authKey, authSalt, sessionSecret };
   }
 
   /** Whether requests can be signed: a server session is attached. */
   get hasServerSession(): boolean {
-    return this.sessionId !== undefined && this.authKey !== undefined;
+    return this.sessionId !== undefined && this.serverKeys !== undefined;
   }
 
   /**
@@ -151,15 +155,8 @@ class SecretsStore {
    */
   detachServer() {
     this.sessionId = undefined;
-
-    if (this.sessionSecret) wipe(this.sessionSecret);
-    this.sessionSecret = undefined;
-
-    if (this.authKey) wipe(this.authKey);
-    this.authKey = undefined;
-
-    if (this.authSalt) wipe(this.authSalt);
-    this.authSalt = undefined;
+    if (this.serverKeys) wipeServerKeys(this.serverKeys);
+    this.serverKeys = undefined;
   }
 
   /**
@@ -254,20 +251,22 @@ class SecretsStore {
     if (!accountKey) throw new SessionLockedError();
     this.wipeUserKeyPair();
 
-    this.userPrivateKey = unwrapUserPrivateKey(accountKey, keyPair);
-    this.verifiedPublicKey = keyPair.publicKey;
-    this.userKeyPairVersion = keyPair.keyVersion;
+    this.keyPair = {
+      privateKey: unwrapUserPrivateKey(accountKey, keyPair),
+      publicKey: keyPair.publicKey,
+      keyVersion: keyPair.keyVersion,
+    };
   }
 
   /** The user's own public key, as proven by the private key (for the fingerprint). */
   get userPublicKey(): string | undefined {
-    return this.verifiedPublicKey;
+    return this.keyPair?.publicKey;
   }
 
   /** The loaded keypair's version: what members seal to, and what this user seals from. */
   get userKeyVersion(): number {
-    if (this.userKeyPairVersion === undefined) throw new SessionLockedError();
-    return this.userKeyPairVersion;
+    if (!this.keyPair) throw new SessionLockedError();
+    return this.keyPair.keyVersion;
   }
 
   /**
@@ -280,11 +279,11 @@ class SecretsStore {
     if (!this.accountKey) throw new SessionLockedError();
 
     const bundle: LoginBundle = { accountKeyB64: toBase64(this.accountKey) };
-    if (this.sessionId && this.authKey && this.authSalt) {
+    if (this.sessionId && this.serverKeys) {
       bundle.server = {
         sessionId: this.sessionId,
-        authKeyB64: toBase64(this.authKey),
-        authSaltB64: toBase64(this.authSalt),
+        authKeyB64: toBase64(this.serverKeys.authKey),
+        authSaltB64: toBase64(this.serverKeys.authSalt),
       };
     }
     return bundle;
@@ -305,8 +304,7 @@ class SecretsStore {
     this.detachServer();
     if (server) {
       this.sessionId = server.sessionId;
-      this.authKey = server.authKey;
-      this.authSalt = server.authSalt;
+      this.serverKeys = { authKey: server.authKey, authSalt: server.authSalt };
     }
     this.setAccountKey(accountKey);
   }
@@ -374,8 +372,8 @@ class SecretsStore {
   }
 
   async signRequest(message: string) {
-    if (!this.authKey) throw new SessionLockedError();
-    return await signHmac(this.authKey, message);
+    if (!this.serverKeys) throw new SessionLockedError();
+    return await signHmac(this.serverKeys.authKey, message);
   }
 
   /** The personal vault: where records go unless the user picks another vault. */
@@ -739,9 +737,9 @@ class SecretsStore {
     vaultKey: Uint8Array,
     { vaultId, keyVersion }: { vaultId: string; keyVersion: number },
   ): Promise<string> {
-    if (!this.userPrivateKey) throw new SessionLockedError();
+    if (!this.keyPair) throw new SessionLockedError();
     return await sealVaultKey(
-      this.userPrivateKey,
+      this.keyPair.privateKey,
       recipientPublicKey,
       vaultKey,
       vaultId,
@@ -754,12 +752,12 @@ class SecretsStore {
     vaultId: string,
     keyVersion: number,
   ): Promise<Uint8Array> {
-    if (!this.userPrivateKey) throw new SessionLockedError();
-    if (box.recipientKeyVersion !== this.userKeyPairVersion) {
+    if (!this.keyPair) throw new SessionLockedError();
+    if (box.recipientKeyVersion !== this.keyPair.keyVersion) {
       throw new Error("Sealed to another keypair");
     }
     return await openSealedVaultKey(
-      this.userPrivateKey,
+      this.keyPair.privateKey,
       box.sender.publicKey,
       box.sealedVaultKey,
       vaultId,
@@ -772,10 +770,14 @@ class SecretsStore {
    * server. Null when it is sealed to another keypair version or doesn't open.
    */
   async openAccountEventDeviceName(sealed: string, keyVersion: number): Promise<string | null> {
-    if (!this.userPrivateKey) throw new SessionLockedError();
-    if (keyVersion !== this.userKeyPairVersion) return null;
+    if (!this.keyPair) throw new SessionLockedError();
+    if (keyVersion !== this.keyPair.keyVersion) return null;
     try {
-      const name = await openAnonymousSeal(this.userPrivateKey, sealed, ACCOUNT_EVENT_DEVICE_AAD);
+      const name = await openAnonymousSeal(
+        this.keyPair.privateKey,
+        sealed,
+        ACCOUNT_EVENT_DEVICE_AAD,
+      );
       return new TextDecoder().decode(name);
     } catch {
       return null;
@@ -822,10 +824,8 @@ class SecretsStore {
   }
 
   private wipeUserKeyPair() {
-    if (this.userPrivateKey) wipe(this.userPrivateKey);
-    this.userPrivateKey = undefined;
-    this.verifiedPublicKey = undefined;
-    this.userKeyPairVersion = undefined;
+    if (this.keyPair) wipe(this.keyPair.privateKey);
+    this.keyPair = undefined;
   }
 }
 

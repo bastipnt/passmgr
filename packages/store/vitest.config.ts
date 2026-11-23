@@ -14,10 +14,7 @@ export default defineConfig({
       include: ["src/**/*.ts"],
       exclude: ["src/migrations.generated.ts", "src/schema/tables.ts"],
       thresholds: {
-        // 90% branch threshold accommodates two defensive guards in deriveAuthKey
-        // that are unreachable from public callers (sessionSecret / authSalt are
-        // always populated together by unlockSession).
-        "src/secrets-store.ts": { lines: 95, branches: 90, functions: 95 },
+        "src/secrets-store.ts": { lines: 95, branches: 95, functions: 95 },
         lines: 80,
         branches: 75,
         functions: 80,

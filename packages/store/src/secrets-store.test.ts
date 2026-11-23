@@ -9,6 +9,7 @@ import {
   openSealedVaultKey,
   rotateVaultKey,
   sealAnonymous,
+  sealPendingRecovery,
   sealVaultKey,
   unwrapAccountKey,
   unwrapUserPrivateKey,
@@ -18,7 +19,7 @@ import {
   wrapPreviousVaultKey,
   wrapVaultKey,
 } from "@repo/crypto";
-import type { MemberVault, VaultInvitation, VaultKeyUpdate } from "@repo/schema";
+import type { MemberVault, PasswordKeySchema, VaultInvitation, VaultKeyUpdate } from "@repo/schema";
 import { fromString, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type StoredRecordCiphertext, secretsStore } from "./secrets-store";
@@ -27,12 +28,12 @@ import { type StoredRecordCiphertext, secretsStore } from "./secrets-store";
 function peekBuffers() {
   // Element access reaches the private fields without a test hook on the shipped class.
   return {
-    sessionSecret: secretsStore["sessionSecret"],
-    authKey: secretsStore["authKey"],
-    authSalt: secretsStore["authSalt"],
+    sessionSecret: secretsStore["serverKeys"]?.sessionSecret,
+    authKey: secretsStore["serverKeys"]?.authKey,
+    authSalt: secretsStore["serverKeys"]?.authSalt,
     accountKey: secretsStore["accountKey"],
     vaultKeys: [...secretsStore["vaultKeys"].values()],
-    userPrivateKey: secretsStore["userPrivateKey"],
+    userPrivateKey: secretsStore["keyPair"]?.privateKey,
   };
 }
 
@@ -146,6 +147,16 @@ describe("unlockSession", () => {
     await secretsStore.unlockSession("sid-42", genKey(), genKey());
     expect(secretsStore.sessionId).toBe("sid-42");
   });
+
+  it("attaches nothing when the store is locked while it derives", async () => {
+    const unlocking = secretsStore.unlockSession("sid-late", genKey(), genKey());
+    secretsStore.lock();
+    await unlocking;
+
+    expect(secretsStore.hasServerSession).toBe(false);
+    expect(secretsStore.sessionId).toBeUndefined();
+    expect(peekBuffers().authKey).toBeUndefined();
+  });
 });
 
 describe("unlockAccount", () => {
@@ -251,6 +262,17 @@ describe("loadUserKeyPair", () => {
     expect(secretsStore.userPublicKey).toBeUndefined();
   });
 
+  it("userKeyVersion is the loaded keypair's, and throws without one", () => {
+    const accountKey = genKey();
+    secretsStore.unlockWithAccountKey(accountKey);
+    expect(() => secretsStore.userKeyVersion).toThrow(/SessionLocked/);
+
+    const keyPair = createUserKeyPair(accountKey);
+    secretsStore.loadUserKeyPair(keyPair);
+
+    expect(secretsStore.userKeyVersion).toBe(keyPair.keyVersion);
+  });
+
   it("lockVault wipes the private key", () => {
     const accountKey = genKey();
     secretsStore.unlockWithAccountKey(accountKey);
@@ -278,6 +300,13 @@ describe("openAccountEventDeviceName", () => {
     expect(await secretsStore.openAccountEventDeviceName(sealed, 2)).toBeNull();
     const other = await seal(createUserKeyPair(genKey()).publicKey);
     expect(await secretsStore.openAccountEventDeviceName(other, 1)).toBeNull();
+  });
+
+  it("throws without a keypair loaded", async () => {
+    secretsStore.unlockWithAccountKey(genKey());
+    await expect(secretsStore.openAccountEventDeviceName("sealed", 1)).rejects.toThrow(
+      /SessionLocked/,
+    );
   });
 });
 
@@ -439,6 +468,15 @@ describe("rotated vault keys", () => {
     expect(() => secretsStore.decryptRecord(sealUnder(key2, 2, "x"))).toThrow();
     expect(() => secretsStore.decryptRecord(sealUnder(workKey, 1, "x"))).toThrow();
     expect(secretsStore.currentKeyVersion(WORK_ID)).toBe(3);
+  });
+
+  it("stop at a missing link: the history below it stays closed", () => {
+    const { wraps, workKey, key2 } = rotatedTwice();
+    const work = wraps[1]!;
+    secretsStore.loadVaultKeys([wraps[0]!, { ...work, previousKeys: [work.previousKeys[0]!] }]);
+
+    expect(() => secretsStore.decryptRecord(sealUnder(key2, 2, "x"))).toThrow();
+    expect(() => secretsStore.decryptRecord(sealUnder(workKey, 1, "x"))).toThrow();
   });
 
   it("rotateVaultKey makes the next version, the current key wrapped under it", async () => {
@@ -648,6 +686,24 @@ describe("OPAQUE password", () => {
     expect(first).toEqual(new Uint8Array(1));
     expect(secretsStore.copyOpaquePassword()).toEqual(new Uint8Array([2]));
     secretsStore.clearOpaquePassword();
+  });
+
+  it("keeps the buffer and its password keys when the same one is kept again", () => {
+    const passwordKeys: PasswordKeySchema = {
+      passwordKekParams: { t: 3, m: 65536, p: 1 },
+      passwordKekSalt: toBase64(genKey()),
+      encryptedAccountKey: "",
+      accountKeyEncryptionNonce: "",
+    };
+    const kept = new Uint8Array([1, 2, 3]);
+    secretsStore.keepOpaquePassword(kept, passwordKeys);
+
+    secretsStore.keepOpaquePassword(kept);
+
+    expect(kept).toEqual(new Uint8Array([1, 2, 3]));
+    expect(secretsStore.keptPasswordKeys).toBe(passwordKeys);
+    secretsStore.clearOpaquePassword();
+    expect(secretsStore.keptPasswordKeys).toBeUndefined();
   });
 
   it("lock() wipes it", () => {
@@ -891,6 +947,17 @@ describe("sharing (ADR 0001 D7)", () => {
     ).rejects.toThrow("personal vault");
   });
 
+  it("refuses to seal or rotate without the keys it needs", async () => {
+    const { wraps } = unlockWithKeyring();
+    await expect(secretsStore.sealVaultKeyTo(WORK_ID, otherUser().keyPair)).rejects.toThrow(
+      /SessionLocked/,
+    );
+
+    secretsStore.lockVault();
+
+    await expect(secretsStore.rotateVaultKey(wraps[1]!)).rejects.toThrow(/SessionLocked/);
+  });
+
   describe("openInvitation", () => {
     async function invitation(sender = otherUser(), vaultKey = genKey()) {
       const vaultId = "0199a3c4-0000-7000-8000-0000000000cc";
@@ -926,6 +993,16 @@ describe("sharing (ADR 0001 D7)", () => {
       await expect(
         secretsStore.openInvitation({ ...invite, sender: { ...invite.sender, ...forger.keyPair } }),
       ).rejects.toThrow();
+    });
+
+    it("refuses while locked, and without a keypair", async () => {
+      const { accountKey } = unlockAsMember();
+      const { invite } = await invitation();
+      secretsStore.lockVault();
+
+      await expect(secretsStore.openInvitation(invite)).rejects.toThrow(/SessionLocked/);
+      secretsStore.unlockWithAccountKey(accountKey.slice());
+      await expect(secretsStore.openInvitation(invite)).rejects.toThrow(/SessionLocked/);
     });
 
     it("refuses a box sealed to another keypair version", async () => {
@@ -995,6 +1072,23 @@ describe("sharing (ADR 0001 D7)", () => {
       ).rejects.toThrow("missing");
     });
 
+    it("refuses a chain missing its newest link", async () => {
+      const { workKey } = unlockAsMember();
+      const { update } = await rotatedBy(workKey);
+
+      await expect(
+        secretsStore.openKeyUpdate({ ...update, links: update.links.slice(0, 1) }),
+      ).rejects.toThrow("missing");
+    });
+
+    it("refuses while locked", async () => {
+      const { workKey } = unlockAsMember();
+      const { update } = await rotatedBy(workKey);
+      secretsStore.lockVault();
+
+      await expect(secretsStore.openKeyUpdate(update)).rejects.toThrow(/SessionLocked/);
+    });
+
     it("refuses a key not newer than the held one", async () => {
       const { workKey } = unlockAsMember();
       const { update } = await rotatedBy(workKey);
@@ -1037,6 +1131,63 @@ describe("sharing (ADR 0001 D7)", () => {
     expect(wrongKey).toBeNull();
     // Not loaded as a side effect.
     expect(() => secretsStore.currentKeyVersion(lostId)).toThrow();
+  });
+
+  it("decryptWithWrap resolves null for metadata or a row that doesn't open", () => {
+    const { accountKey } = unlockAsMember();
+    const lostId = "0199a3c4-0000-7000-8000-0000000000dd";
+    const lost = {
+      ...memberVault(accountKey, genKey(), lostId, "shared"),
+      ...encryptVaultMeta(genKey(), lostId, { name: "Other key" }),
+    };
+    const [encryptedData, encryptionNonce] = encryptRecordData(
+      genKey(),
+      draftContext(lostId),
+      "unreadable",
+    );
+
+    const { meta, rows } = secretsStore.decryptWithWrap(lost, [
+      {
+        recordId: RECORD_ID,
+        vaultId: lostId,
+        cryptoVersion: 1,
+        version: 1,
+        keyVersion: 1,
+        syncState: "pending",
+        encryptedData,
+        encryptionNonce,
+      },
+    ]);
+
+    expect(meta).toBeNull();
+    expect(rows).toEqual([null]);
+    secretsStore.lockVault();
+    expect(() => secretsStore.decryptWithWrap(lost, [])).toThrow(/SessionLocked/);
+  });
+});
+
+describe("account key operations", () => {
+  it("openPendingRecovery opens what the account key sealed, and throws while locked", () => {
+    const sealed = sealPendingRecovery(genKey(), fromString("pending"));
+    expect(() => secretsStore.openPendingRecovery(sealed)).toThrow(/SessionLocked/);
+
+    const accountKey = genKey();
+    secretsStore.unlockWithAccountKey(accountKey.slice());
+
+    const mine = sealPendingRecovery(accountKey, fromString("pending"));
+    expect(new TextDecoder().decode(secretsStore.openPendingRecovery(mine))).toBe("pending");
+    expect(() => secretsStore.openPendingRecovery(sealed)).toThrow();
+  });
+
+  it("createVault wraps a fresh vault key under the account key, and throws while locked", () => {
+    expect(() => secretsStore.createVault({ name: "New" })).toThrow(/SessionLocked/);
+
+    const accountKey = genKey();
+    secretsStore.unlockWithAccountKey(accountKey.slice());
+    const vault = secretsStore.createVault({ name: "New" });
+
+    expect(vault.keyVersion).toBe(1);
+    expect(unwrapVaultKey(accountKey, vault)).toHaveLength(32);
   });
 });
 
@@ -1133,6 +1284,20 @@ describe("sealing records (ADR 0001 D11)", () => {
     );
     const tombstone = { ...draft, deleted_at: "2026-11-16T00:00:00Z" };
     expect(secretsStore.sameRecordContent(storedEarlier, tombstone)).toBe(false);
+  });
+
+  it("matches a sealed purge with any purge, and nothing when the draft's key isn't loaded", () => {
+    unlockWithKeyring();
+    const purge = {
+      ...draftRow("gone", { deleted_at: "2026-11-16T00:00:00Z" }),
+      tombstoneKind: "purged" as const,
+    };
+    const stored = sealed(draftRow("kept"));
+
+    expect(secretsStore.sameRecordContent(sealed(purge), { ...purge, version: 2 })).toBe(true);
+    expect(secretsStore.sameRecordContent(stored, { ...draftRow("kept"), keyVersion: 7 })).toBe(
+      false,
+    );
   });
 
   it("returns null for a draft that doesn't open, and throws without the vault's key", () => {
