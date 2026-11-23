@@ -37,17 +37,15 @@ import {
   claimLoginAttempt,
   countSecondFactorAttempt,
   deleteSession,
+  deviceLoginAttempts,
   getLoginLockMs,
   getSecondFactorChallenge,
   isLoginRevoked,
+  loginAttempts,
   resetLoginThrottle,
   SESSION_MAX_AGE_MS,
-  setDeviceLoginAttempt,
-  setLoginAttempt,
   setSecondFactorChallenge,
   setSession,
-  takeDeviceLoginAttempt,
-  takeLoginAttempt,
   takeSecondFactorChallenge,
 } from "../util/redis-utils";
 import { memberVaults } from "../vault/access";
@@ -269,7 +267,7 @@ export const loginRouter = router({
       const loginResponse = bytesToB64(initResult.ke2.serialize());
       const expected = bytesToB64(initResult.expected.serialize());
 
-      const attemptId = await setLoginAttempt({
+      const attemptId = await loginAttempts.set({
         userId: res?.userId ?? null,
         emailHash,
         expected,
@@ -287,7 +285,7 @@ export const loginRouter = router({
       const { finishLoginRequest, email, authSalt, attemptId } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const loginAttempt = await takeLoginAttempt(attemptId);
+      const loginAttempt = await loginAttempts.take(attemptId);
       if (!loginAttempt || loginAttempt.emailHash !== emailHash) {
         denyLogin(log, "finishLogin", "no_login_attempt", emailHash);
       }
@@ -347,7 +345,7 @@ export const loginRouter = router({
 
       const nonce = crypto.getRandomValues(new Uint8Array(32));
       const { privateKey, publicKey } = generateDeviceLoginKeyPair();
-      const attemptId = await setDeviceLoginAttempt({
+      const attemptId = await deviceLoginAttempts.set({
         userId: credential.userId,
         credentialId: input.credentialId,
         nonce: toBase64(nonce),
@@ -364,7 +362,7 @@ export const loginRouter = router({
     .output(finishDeviceLoginOutputSchema)
     .mutation(async ({ input, ctx }) => {
       const log = ctx.req?.log;
-      const attempt = await takeDeviceLoginAttempt(input.attemptId);
+      const attempt = await deviceLoginAttempts.take(input.attemptId);
       if (!attempt) denyDeviceLogin(log, "finishDeviceLogin", "no_login_attempt");
       const { userId, credentialId } = attempt;
 

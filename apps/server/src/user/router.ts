@@ -47,11 +47,10 @@ import {
   endDeletedUserSessions,
   getTotpEnrollment,
   linkSessionCredential,
+  passwordChangeAttempts,
   resetLoginThrottle,
   revokeUserSessions,
-  setPasswordChangeAttempt,
   setTotpEnrollment,
-  takePasswordChangeAttempt,
 } from "../util/redis-utils";
 import { notifyVaultMembers } from "../vault/access";
 import { recordAction } from "./account-events";
@@ -284,7 +283,7 @@ export const userRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "password change failed" });
       }
 
-      const attemptId = await setPasswordChangeAttempt({
+      const attemptId = await passwordChangeAttempts.set({
         userId: ctx.userId,
         keySetId: keys.keySetId,
       });
@@ -295,7 +294,7 @@ export const userRouter = router({
     .input(finishPasswordChangeInputSchema)
     .mutation(async ({ ctx, input }) => {
       const { attemptId, registrationRecord, passwordKeys } = input;
-      const attempt = await takePasswordChangeAttempt(attemptId);
+      const attempt = await passwordChangeAttempts.take(attemptId);
       if (attempt?.userId !== ctx.userId) {
         throw new TRPCError({ code: "NOT_FOUND", message: "no password change attempt" });
       }

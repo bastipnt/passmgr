@@ -15,12 +15,7 @@ import { recordRecoveryAttempt } from "../metrics";
 import { b64ToBytes, bytesToB64, opaqueConfig, opaqueServer, serverKey } from "../opaque";
 import { router } from "../trpc";
 import { recordAccountEvent } from "../user/account-events";
-import {
-  resetLoginThrottle,
-  revokeUserSessions,
-  setRecoveryAttempt,
-  takeRecoveryAttempt,
-} from "../util/redis-utils";
+import { recoveryAttempts, resetLoginThrottle, revokeUserSessions } from "../util/redis-utils";
 import { deleteDeviceCredentials } from "./device-credentials";
 
 type RecoveryLog = { warn: (obj: object, msg: string) => void };
@@ -93,7 +88,7 @@ export const recoveryRouter = router({
         throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "recovery failed" });
       }
 
-      const attemptId = await setRecoveryAttempt({
+      const attemptId = await recoveryAttempts.set({
         userId,
         emailHash,
         keySetId: keys.keySetId,
@@ -119,7 +114,7 @@ export const recoveryRouter = router({
       const { email, attemptId, registrationRecord, userKeys } = input;
       const emailHash = toBase64(await hashEmail(serverKey, email));
 
-      const attempt = await takeRecoveryAttempt(attemptId);
+      const attempt = await recoveryAttempts.take(attemptId);
       if (!attempt || attempt.emailHash !== emailHash) {
         denyRecovery(log, "finishRecovery", "no_recovery_attempt", emailHash);
       }

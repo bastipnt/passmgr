@@ -22,5 +22,5 @@
 
     "paths": { "@util/*": ["./src/util/*"] }
   },
-  "include": ["src/**/*.ts", "index.ts"]
+  "include": ["src/**/*.ts", "index.ts", "vitest.base.ts"]
 }

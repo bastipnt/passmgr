@@ -7,13 +7,12 @@ import {
   listUserSessions,
   MAX_SESSIONS_PER_USER,
   recordActiveUser,
+  recoveryAttempts,
   revokeOtherUserSessions,
   revokeUserSession,
   revokeUserSessions,
   SESSION_MAX_AGE_MS,
-  setRecoveryAttempt,
   setSession,
-  takeRecoveryAttempt,
   touchSession,
 } from "./redis-utils";
 
@@ -254,14 +253,14 @@ describe("session list", () => {
 describe("recovery attempts", () => {
   it("can be taken exactly once", async () => {
     const attempt = { userId: "u1", emailHash: "h", keySetId: "ks" };
-    const id = await setRecoveryAttempt(attempt);
+    const id = await recoveryAttempts.set(attempt);
 
-    expect(await takeRecoveryAttempt(id)).toEqual(attempt);
-    expect(await takeRecoveryAttempt(id)).toBeUndefined();
+    expect(await recoveryAttempts.take(id)).toEqual(attempt);
+    expect(await recoveryAttempts.take(id)).toBeUndefined();
   });
 
   it("expire with the OPAQUE replay window", async () => {
-    const id = await setRecoveryAttempt({ userId: "u1", emailHash: "h", keySetId: "ks" });
+    const id = await recoveryAttempts.set({ userId: "u1", emailHash: "h", keySetId: "ks" });
     const ttl = await redis.ttl(`recovery:${id}`);
     expect(ttl).toBeGreaterThan(0);
     expect(ttl).toBeLessThanOrEqual(5 * 60);

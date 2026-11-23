@@ -447,25 +447,19 @@ function attemptStore<T>(prefix: string, ttlSeconds: number) {
   };
 }
 
-const loginAttempts = attemptStore<LoginAttempt>("login", LOGIN_ATTEMPT_TTL_SECONDS);
-const deviceLoginAttempts = attemptStore<DeviceLoginAttempt>(
+export const loginAttempts = attemptStore<LoginAttempt>("login", LOGIN_ATTEMPT_TTL_SECONDS);
+export const deviceLoginAttempts = attemptStore<DeviceLoginAttempt>(
   "devicelogin",
   DEVICE_LOGIN_TTL_MS / 1000,
 );
-const recoveryAttempts = attemptStore<RecoveryAttempt>("recovery", LOGIN_ATTEMPT_TTL_SECONDS);
-const passwordChangeAttempts = attemptStore<PasswordChangeAttempt>(
+export const recoveryAttempts = attemptStore<RecoveryAttempt>(
+  "recovery",
+  LOGIN_ATTEMPT_TTL_SECONDS,
+);
+export const passwordChangeAttempts = attemptStore<PasswordChangeAttempt>(
   "passwordchange",
   LOGIN_ATTEMPT_TTL_SECONDS,
 );
-
-export const setLoginAttempt = loginAttempts.set;
-export const takeLoginAttempt = loginAttempts.take;
-export const setDeviceLoginAttempt = deviceLoginAttempts.set;
-export const takeDeviceLoginAttempt = deviceLoginAttempts.take;
-export const setRecoveryAttempt = recoveryAttempts.set;
-export const takeRecoveryAttempt = recoveryAttempts.take;
-export const setPasswordChangeAttempt = passwordChangeAttempts.set;
-export const takePasswordChangeAttempt = passwordChangeAttempts.take;
 
 /** A session's device: its credential (see Session.deviceCredentialId) and name. Live or not. */
 export async function sessionDevice(
