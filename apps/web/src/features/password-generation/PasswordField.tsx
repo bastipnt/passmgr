@@ -1,5 +1,6 @@
 import { usePasswordStrength } from "@repo/client";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
+import { formSlice } from "@repo/ui-shared";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
 import GeneratePasswordButton from "./GeneratePasswordButton";
 import PasswordStrengthMeter from "./PasswordStrengthMeter";
@@ -15,15 +16,10 @@ type PasswordFieldProps<T extends PasswordFormValues> = {
   openGenerator?: boolean;
 };
 
+const passwordSlice = formSlice<PasswordFormValues>();
+
 export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
-  // react-hook-form's paths don't narrow through a generic: pin the form to its
-  // `password` field, the only one this component touches.
-  const {
-    control,
-    setValue,
-    label = "Password",
-    openGenerator,
-  } = props as unknown as PasswordFieldProps<PasswordFormValues>;
+  const { control, setValue, label = "Password", openGenerator } = passwordSlice(props);
   const password = useWatch({ control, name: "password" }) ?? "";
   const strength = usePasswordStrength(password);
 

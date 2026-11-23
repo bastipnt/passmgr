@@ -23,6 +23,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "catalog:",
     "oxlint": "catalog:",
+    "react-hook-form": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:"
   },
@@ -31,6 +32,7 @@
     "expo-router": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-hook-form": "catalog:",
     "react-native": "catalog:",
     "react-native-reanimated": "catalog:",
     "react-native-safe-area-context": "catalog:"

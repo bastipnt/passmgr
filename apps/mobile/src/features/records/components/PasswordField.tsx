@@ -1,5 +1,6 @@
 import { usePasswordStrength } from "@repo/client";
 import { ControlledPasswordInput, StrengthMeter } from "@repo/ui-native";
+import { formSlice } from "@repo/ui-shared";
 import { type Href, useRouter } from "expo-router";
 import { KeyIcon, WandSparkles } from "lucide-react-native";
 import { type Control, type UseFormSetValue, useWatch } from "react-hook-form";
@@ -17,11 +18,10 @@ type PasswordFieldProps<T extends PasswordFormValues> = {
   generatorPath: Href;
 };
 
+const passwordSlice = formSlice<PasswordFormValues>();
+
 export default function PasswordField<T extends PasswordFormValues>(props: PasswordFieldProps<T>) {
-  // react-hook-form's paths don't narrow through a generic: pin the form to its
-  // `password` field, the only one this component touches.
-  const { control, setValue, generatorPath } =
-    props as unknown as PasswordFieldProps<PasswordFormValues>;
+  const { control, setValue, generatorPath } = passwordSlice(props);
   const router = useRouter();
   const { registerTarget } = usePasswordGenerator();
 

@@ -3,7 +3,7 @@ import { AddRowButton } from "@repo/ui/components/AddRowButton";
 import { ControlledBoxedInput } from "@repo/ui/components/form/ControlledBoxedInput";
 import { RemoveRowButton } from "@repo/ui/components/RemoveRowButton";
 import { SortableList } from "@repo/ui/components/SortableList";
-import { useWebsiteAvatar } from "@repo/ui-shared";
+import { formSlice, useWebsiteAvatar } from "@repo/ui-shared";
 import { normalizeWebsite } from "@repo/util";
 import { EarthIcon } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -17,11 +17,12 @@ type WebsiteFieldsProps<T extends WebsiteFormValues> = {
   setValue: UseFormSetValue<T>;
 };
 
+const websitesSlice = formSlice<WebsiteFormValues>();
+
 export default function WebsiteFormFields<T extends WebsiteFormValues>(
   props: WebsiteFieldsProps<T>,
 ) {
-  // Paths don't narrow through a generic: pin the form to `websites`.
-  const { control, setValue } = props as unknown as WebsiteFieldsProps<WebsiteFormValues>;
+  const { control, setValue } = websitesSlice(props);
   const { fields, append, replace, remove, move } = useFieldArray({
     control,
     name: "websites",

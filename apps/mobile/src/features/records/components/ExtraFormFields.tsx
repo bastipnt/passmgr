@@ -10,6 +10,7 @@ import {
   FieldSet,
   RemoveDialog,
 } from "@repo/ui-native";
+import { formSlice } from "@repo/ui-shared";
 import { LockIcon, PlusIcon, TextIcon, TrashIcon } from "lucide-react-native";
 import { useCallback, useRef } from "react";
 import {
@@ -30,11 +31,12 @@ type ExtraFormFieldsProps<T extends ExtraFieldsFormValues> = {
   errors: FieldErrors<T>;
 };
 
+const extraFieldsSlice = formSlice<ExtraFieldsFormValues>();
+
 export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
   props: ExtraFormFieldsProps<T>,
 ) {
-  // Paths don't narrow through a generic: pin the form to `customFields`.
-  const { control } = props as unknown as ExtraFormFieldsProps<ExtraFieldsFormValues>;
+  const { control } = extraFieldsSlice(props);
   const iconColor = useCSSVariable("--color-muted-foreground") as string;
   const { fields, append, remove } = useFieldArray({
     control,

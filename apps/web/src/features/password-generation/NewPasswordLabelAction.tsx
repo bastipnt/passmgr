@@ -1,5 +1,6 @@
 import { PASSWORD_MIN_LENGTH } from "@repo/schema";
 import { createHandle, DialogTrigger } from "@repo/ui/components/Dialog";
+import { formSlice } from "@repo/ui-shared";
 import { WandSparklesIcon } from "lucide-react";
 import { useMemo } from "react";
 import type { UseFormSetValue } from "react-hook-form";
@@ -12,12 +13,13 @@ type NewPasswordLabelActionProps<T extends NewPasswordFormValues> = {
   setValue: UseFormSetValue<T>;
 };
 
+const newPasswordSlice = formSlice<NewPasswordFormValues>();
+
 /** The new password's label row: the minimum length and a generator that fills both fields. */
 export default function NewPasswordLabelAction<T extends NewPasswordFormValues>(
   props: NewPasswordLabelActionProps<T>,
 ) {
-  // react-hook-form's paths don't narrow through a generic (see `PasswordField`).
-  const { setValue } = props as unknown as NewPasswordLabelActionProps<NewPasswordFormValues>;
+  const { setValue } = newPasswordSlice(props);
   const handle = useMemo(() => createHandle(), []);
 
   const use = (password: string) => {

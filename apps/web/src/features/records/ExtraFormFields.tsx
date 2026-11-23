@@ -11,6 +11,7 @@ import { ControlledExtraField } from "@repo/ui/components/form/ControlledExtraFi
 import { RemoveRowButton } from "@repo/ui/components/RemoveRowButton";
 import { SortableList } from "@repo/ui/components/SortableList";
 import { cn } from "@repo/ui/lib/utils";
+import { formSlice } from "@repo/ui-shared";
 import { ListPlusIcon } from "lucide-react";
 import { type Control, type UseFormSetValue, useFieldArray, useWatch } from "react-hook-form";
 import { GeneratePasswordButton } from "@/features/password-generation";
@@ -25,12 +26,12 @@ type ExtraFormFieldsProps<T extends ExtraFieldsFormValues> = {
   wide?: boolean;
 };
 
+const extraFieldsSlice = formSlice<ExtraFieldsFormValues>();
+
 export default function ExtraFormFields<T extends ExtraFieldsFormValues>(
   props: ExtraFormFieldsProps<T>,
 ) {
-  // Paths don't narrow through a generic: pin the form to `customFields`.
-  const { control, setValue, wide } =
-    props as unknown as ExtraFormFieldsProps<ExtraFieldsFormValues>;
+  const { control, setValue, wide } = extraFieldsSlice(props);
   const { fields, append, remove, move } = useFieldArray({
     control,
     name: "customFields",
