@@ -1,4 +1,3 @@
-import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useContext } from "react";
 import { SessionContext } from "../providers/SessionProvider";
@@ -16,8 +15,6 @@ export function useLock() {
 
   return useCallback(() => {
     lock();
-    // The decrypt worker retains the vault keys after secretsStore.lock().
-    decryptWorkerService.wipe();
     // Drop cached (decrypted) query data.
     queryClient.clear();
     void flushClipboardClear();

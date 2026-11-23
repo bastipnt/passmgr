@@ -9,7 +9,6 @@ import type { SecondFactorPrompt } from "../login";
 import { useSecondFactorPrompt } from "../providers/SecondFactorPromptProvider";
 import { SessionContext } from "../providers/SessionProvider";
 import { type ActiveProfile, useStore } from "../providers/StoreProvider";
-import { initDecryptWorker } from "../util/decrypt-record";
 import { derivePasswordKek, unwrapAccountKeyWithPassword } from "../util/derive-password-kek";
 import { endServerSession } from "../util/end-server-session";
 import { persistSession } from "../util/persist-session";
@@ -86,7 +85,6 @@ export function useUnlock() {
       return false;
     }
 
-    afterUnlock();
     await persistSession(opened.entry.profileId);
 
     void storeRekeyedWrap(trpc, store, opened.entry.profileId, password, material);
@@ -223,7 +221,6 @@ export function useUnlock() {
    */
   function afterUnlock(opaquePassword?: Uint8Array) {
     if (opaquePassword) secretsStore.keepOpaquePassword(opaquePassword);
-    initDecryptWorker();
   }
 
   function releaseIfDone(active: ActiveProfile) {
@@ -284,7 +281,6 @@ export function useUnlock() {
       setUnlockError("failed");
       throw e;
     }
-    initDecryptWorker();
 
     if (!login || !assertion) {
       login?.discard();

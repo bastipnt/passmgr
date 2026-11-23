@@ -5,7 +5,12 @@ import { secretsStore } from "@repo/store";
 import { toBase64 } from "@repo/util";
 import { act, renderHook } from "@testing-library/react";
 import { type ReactNode, useContext } from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+// jsdom has no Worker: unlocking seeds it, locking wipes it.
+vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
+  decryptWorkerService: { init: vi.fn(), wipe: vi.fn() },
+}));
 
 const B64_32 = toBase64(new Uint8Array(32));
 

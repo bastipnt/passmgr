@@ -8,7 +8,6 @@ import {
 import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
-import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 import { useTRPCClient } from "../util/trpc";
 import { isSignedOut, isUnauthorized } from "../util/trpc-errors";
@@ -53,10 +52,6 @@ function useRestoreLogin() {
         return "needs-login";
       }
 
-      // Seed the decrypt worker with the restored vault keys — normally done by
-      // the unlock; the restore path bypasses it, so do it here or record
-      // decryption fails with "No key for vault".
-      initDecryptWorker();
       onUnlocked?.();
 
       // A network error leaves the session as it is: the next sync tries again.

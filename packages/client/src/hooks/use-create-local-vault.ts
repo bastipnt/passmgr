@@ -5,7 +5,6 @@ import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { generateLocalVault } from "../account/create-local-vault";
 import { SessionContext } from "../providers/SessionProvider";
 import { useStore } from "../providers/StoreProvider";
-import { initDecryptWorker } from "../util/decrypt-record";
 import { persistSession } from "../util/persist-session";
 
 /**
@@ -98,7 +97,6 @@ export function useCreateLocalVault() {
       setCreateError("unlock_failed");
       return false;
     }
-    initDecryptWorker();
     await persistSession(next.profileId);
     return true;
   }, [unlockWithAccountKey]);

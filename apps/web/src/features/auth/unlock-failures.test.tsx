@@ -18,7 +18,7 @@ import {
   startDeviceLogin,
 } from "@repo/client/src/login";
 import { SecondFactorPromptProvider } from "@repo/client/src/providers/SecondFactorPromptProvider";
-import { loadKeyringOrLock } from "@repo/client/src/providers/SessionProvider";
+import { openVault } from "@repo/client/src/providers/SessionProvider";
 import { finishPendingRecovery, RecoveryFailedError } from "@repo/client/src/recover";
 import {
   createUserKeyPair,
@@ -138,7 +138,7 @@ const session = {
       keyPair: UserKeyPair,
     ) => {
       secretsStore.restoreSession(bundle);
-      loadKeyringOrLock(wraps, keyPair);
+      openVault(wraps, keyPair);
     },
   ),
   unlockWithAccountKey: vi.fn(
@@ -149,7 +149,7 @@ const session = {
       keyPair: UserKeyPair,
     ) => {
       secretsStore.unlockWithAccountKey(accountKey);
-      loadKeyringOrLock(wraps, keyPair);
+      openVault(wraps, keyPair);
     },
   ),
   unlockVault: vi.fn(
@@ -162,7 +162,7 @@ const session = {
       keyPair: UserKeyPair,
     ) => {
       secretsStore.unlockAccount(kek, encrypted, nonce);
-      loadKeyringOrLock(wraps, keyPair);
+      openVault(wraps, keyPair);
     },
   ),
   lock: vi.fn(() => secretsStore.lock()),

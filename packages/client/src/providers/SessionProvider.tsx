@@ -1,7 +1,9 @@
+import { decryptWorkerService } from "@repo/crypto/services/decrypt-worker-service";
 import type { MemberVault, UserKeyPair } from "@repo/schema";
 import { type LoginBundle, type ProfileMode, secretsStore } from "@repo/store";
 import { logError } from "@repo/util";
 import { createContext, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { initDecryptWorker } from "../util/decrypt-record";
 
 /**
  * The state of an unlocked session (ADR 0001 D2):
@@ -67,8 +69,8 @@ type SessionContextValue = {
   ) => void;
   signRequest: (message: string) => Promise<Uint8Array>;
   /**
-   * Wipe every key from memory and reset the session state. The local data
-   * stays; see `useLock()` for the decrypt worker and the query cache.
+   * Wipe every key from memory (the secrets store and the decrypt worker) and
+   * reset the session state. The local data stays; see `useLock()` for the query cache.
    */
   lock: () => void;
 };
@@ -89,10 +91,10 @@ export const SessionContext = createContext<SessionContextValue>({
 });
 
 /**
- * Load the vault keys and the keypair (checked against its public key); on
- * failure wipe the account key again before rethrowing.
+ * Open the vault behind an unwrapped account key: load the vault keys and the keypair (checked
+ * against its public key), then seed the decrypt worker. On failure wipe the account key again.
  */
-export function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair: UserKeyPair) {
+export function openVault(vaultKeys: readonly MemberVault[], userKeyPair: UserKeyPair) {
   try {
     const skipped = secretsStore.loadVaultKeys(vaultKeys);
     if (skipped.length > 0)
@@ -102,6 +104,7 @@ export function loadKeyringOrLock(vaultKeys: readonly MemberVault[], userKeyPair
     secretsStore.lockVault();
     throw e;
   }
+  initDecryptWorker();
 }
 
 export function sessionMode(
@@ -175,7 +178,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
     ) => {
       // A local profile never talks to the server, whatever the bundle holds.
       secretsStore.restoreSession(mode === "linked" ? bundle : { ...bundle, server: undefined });
-      loadKeyringOrLock(vaultKeys, userKeyPair);
+      openVault(vaultKeys, userKeyPair);
       setServerAttached(secretsStore.hasServerSession);
       setProfileMode(mode);
     },
@@ -192,7 +195,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       userKeyPair: UserKeyPair,
     ) => {
       secretsStore.unlockAccount(passwordKek, encryptedAccountKeyB64, accountKeyEncryptionNonceB64);
-      loadKeyringOrLock(vaultKeys, userKeyPair);
+      openVault(vaultKeys, userKeyPair);
       setProfileMode(mode);
     },
     [],
@@ -206,7 +209,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
       userKeyPair: UserKeyPair,
     ) => {
       secretsStore.unlockWithAccountKey(accountKey);
-      loadKeyringOrLock(vaultKeys, userKeyPair);
+      openVault(vaultKeys, userKeyPair);
       setProfileMode(mode);
     },
     [],
@@ -216,6 +219,7 @@ export default function SessionProvider({ children }: SessionProviderProps) {
 
   const lock = useCallback(() => {
     secretsStore.lock();
+    decryptWorkerService.wipe();
     setProfileMode(undefined);
     setServerAttached(false);
   }, []);
