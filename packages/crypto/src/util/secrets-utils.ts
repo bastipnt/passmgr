@@ -1,5 +1,7 @@
 import { randomBytes } from "@noble/hashes/utils.js";
 
+export { equalBytes } from "@noble/ciphers/utils.js";
+
 export function wipe(buf: Uint8Array) {
   buf.fill(0);
 }

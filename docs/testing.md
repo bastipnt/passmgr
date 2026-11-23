@@ -334,7 +334,7 @@ Layers 1 and 2 already exist. The remaining work splits into a **slim-down** pas
 **Slim-down (must land before any new layer):**
 
 1. Refactor Argon2 params: add `setPasswordKekParams` + `getPasswordKekParams` to `packages/crypto/src/hash.ts`, export from the barrel, add `apps/server/test/setup/argon2-fast.ts`, wire into both `vitest.config.ts` files, then delete `apps/server/test/setup/crypto-mock.ts`. Integration suite should pass measurably faster.
-2. Unmock `wipe` in `packages/store/src/secrets-store.test.ts`. Add a non-exported `__peekBuffers` (or `exportForTest`) hook on `secretsStore` so the test can assert buffers are byte-zero after `lock()` / `unlockVault`.
+2. Unmock `wipe` in `packages/store/src/secrets-store.test.ts`. The test reads the key buffers through its own `peekBuffers()` helper (element access to the private fields, no hook on the shipped class) to assert they are byte-zero after `lock()` / `unlockVault`.
 3. Trim `apps/server/src/auth/auth-middleware.test.ts` — delete the nonce-replay describe block, switch to the shared testcontainers Redis.
 4. Rewrite `login-router.test.ts`, `registration-router.test.ts`, `record/router.test.ts` to the edge-case lists above, on real services.
 5. Add `apps/server/test/integration/no-secret-leak.int.test.ts` and `record.int.test.ts`; add the nonce-distinctness assert to `opaque-flow.int.test.ts`; then delete `packages/client/src/register.test.ts`, `packages/client/src/login.test.ts`, and `packages/client/test/fixtures/trpc-from-caller.ts`.

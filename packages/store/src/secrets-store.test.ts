@@ -23,6 +23,19 @@ import { fromString, toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { type StoredRecordCiphertext, secretsStore } from "./secrets-store";
 
+/** Live references to the store's key buffers, so a test can check `lock()` zeros them in place. */
+function peekBuffers() {
+  // Element access reaches the private fields without a test hook on the shipped class.
+  return {
+    sessionSecret: secretsStore["sessionSecret"],
+    authKey: secretsStore["authKey"],
+    authSalt: secretsStore["authSalt"],
+    accountKey: secretsStore["accountKey"],
+    vaultKeys: [...secretsStore["vaultKeys"].values()],
+    userPrivateKey: secretsStore["userPrivateKey"],
+  };
+}
+
 const PERSONAL_ID = "0199a3c4-0000-7000-8000-00000000000a";
 const WORK_ID = "0199a3c4-0000-7000-8000-00000000000b";
 
@@ -98,6 +111,12 @@ function unlockWithKeyring() {
 
 beforeEach(() => {
   secretsStore.lock();
+});
+
+describe("shipped surface", () => {
+  it("has no test hook into the key buffers", () => {
+    expect("_peekBuffers" in secretsStore).toBe(false);
+  });
 });
 
 describe("unlockSession", () => {
@@ -208,7 +227,7 @@ describe("loadUserKeyPair", () => {
     secretsStore.loadUserKeyPair(keyPair);
 
     expect(secretsStore.userPublicKey).toBe(keyPair.publicKey);
-    expect(secretsStore._peekBuffers().userPrivateKey).toHaveLength(32);
+    expect(peekBuffers().userPrivateKey).toHaveLength(32);
   });
 
   it("rejects a keypair whose public key was swapped, and keeps nothing", () => {
@@ -216,13 +235,13 @@ describe("loadUserKeyPair", () => {
     const keyPair = createUserKeyPair(accountKey);
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadUserKeyPair(keyPair);
-    const before = secretsStore._peekBuffers().userPrivateKey!;
+    const before = peekBuffers().userPrivateKey!;
 
     const swapped = { ...keyPair, publicKey: createUserKeyPair(genKey()).publicKey };
     expect(() => secretsStore.loadUserKeyPair(swapped)).toThrow("doesn't match");
 
     expect(secretsStore.userPublicKey).toBeUndefined();
-    expect(secretsStore._peekBuffers().userPrivateKey).toBeUndefined();
+    expect(peekBuffers().userPrivateKey).toBeUndefined();
     expect(before.every((b) => b === 0)).toBe(true);
   });
 
@@ -236,7 +255,7 @@ describe("loadUserKeyPair", () => {
     const accountKey = genKey();
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadUserKeyPair(createUserKeyPair(accountKey));
-    const privateKey = secretsStore._peekBuffers().userPrivateKey!;
+    const privateKey = peekBuffers().userPrivateKey!;
 
     secretsStore.lockVault();
 
@@ -296,7 +315,7 @@ describe("loadVaultKeys", () => {
 
     expect(() => secretsStore.loadVaultKeys([foreign, wraps[1]!])).toThrow();
     expect(secretsStore.isVaultUnlocked).toBe(false);
-    expect(secretsStore._peekBuffers().vaultKeys).toEqual([]);
+    expect(peekBuffers().vaultKeys).toEqual([]);
   });
 
   it("refuses a key list with two personal vaults", () => {
@@ -322,14 +341,14 @@ describe("loadVaultKeys", () => {
 
     expect(() => secretsStore.loadVaultKeys([...wraps, wraps[1]!])).toThrow(/Duplicate vault/);
     expect(secretsStore.isVaultUnlocked).toBe(false);
-    expect(secretsStore._peekBuffers().vaultKeys).toEqual([]);
+    expect(peekBuffers().vaultKeys).toEqual([]);
   });
 
   it("wipes the previously loaded vault keys when replacing them", () => {
     const { accountKey, wraps } = keyring();
     secretsStore.unlockWithAccountKey(accountKey);
     secretsStore.loadVaultKeys(wraps);
-    const before = secretsStore._peekBuffers().vaultKeys;
+    const before = peekBuffers().vaultKeys;
 
     secretsStore.loadVaultKeys(wraps);
 
@@ -563,7 +582,7 @@ describe("lock", () => {
     secretsStore.loadVaultKeys(wraps);
 
     // Grab live references to every internal buffer before lock().
-    const internal = secretsStore._peekBuffers();
+    const internal = peekBuffers();
     expect(internal.sessionSecret).toBeDefined();
     expect(internal.authKey).toBeDefined();
     expect(internal.authSalt).toBeDefined();
@@ -589,7 +608,7 @@ describe("lock", () => {
   it("lockVault wipes the account and vault keys but keeps the session", async () => {
     await secretsStore.unlockSession("sid", genKey(), genKey());
     unlockWithKeyring();
-    const internal = secretsStore._peekBuffers();
+    const internal = peekBuffers();
 
     secretsStore.lockVault();
 
@@ -718,7 +737,7 @@ describe("detachServer", () => {
   it("wipes the server session keys in place and keeps the vault unlocked", async () => {
     await secretsStore.unlockSession("sid", genKey(), genKey());
     unlockWithKeyring();
-    const { sessionSecret, authKey, authSalt } = secretsStore._peekBuffers();
+    const { sessionSecret, authKey, authSalt } = peekBuffers();
 
     secretsStore.detachServer();
 

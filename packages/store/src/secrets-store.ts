@@ -6,6 +6,7 @@ import {
   deriveSessionSecret,
   encryptRecordData,
   encryptVaultMeta,
+  equalBytes,
   hkdf,
   openAnonymousSeal,
   openPendingRecovery,
@@ -826,26 +827,6 @@ class SecretsStore {
     this.verifiedPublicKey = undefined;
     this.userKeyPairVersion = undefined;
   }
-
-  // Test-only: hand out live references to internal buffers so tests can
-  // assert `lock()` zeros them in place. Not part of the public API.
-  _peekBuffers(): {
-    sessionSecret?: Uint8Array;
-    authKey?: Uint8Array;
-    authSalt?: Uint8Array;
-    accountKey?: Uint8Array;
-    vaultKeys: Uint8Array[];
-    userPrivateKey?: Uint8Array;
-  } {
-    return {
-      sessionSecret: this.sessionSecret,
-      authKey: this.authKey,
-      authSalt: this.authSalt,
-      accountKey: this.accountKey,
-      vaultKeys: [...this.vaultKeys.values()],
-      userPrivateKey: this.userPrivateKey,
-    };
-  }
 }
 
 /**
@@ -870,14 +851,6 @@ function loadPreviousKeys(
     }
     keys.set(vaultKeyId(vault.vaultId, keyVersion), newer);
   }
-}
-
-/** Constant-time comparison of two keys. */
-function equalBytes(a: Uint8Array, b: Uint8Array): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a[i]! ^ b[i]!;
-  return diff === 0;
 }
 
 export const secretsStore = new SecretsStore();
