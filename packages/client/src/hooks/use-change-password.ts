@@ -129,7 +129,6 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
 
     await dropQuickUnlock(active);
     if (profile.mode === "linked") await reconnect(active, profile.email, newPassword);
-    else await persistSession(active.entry.profileId);
     return undefined;
   }
 
@@ -149,8 +148,6 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     const result = await connect(newPassword);
     if (result === "online") {
       await dropQuickUnlock(active);
-      // Dropping it removed the mobile login the connect had just persisted.
-      await persistSession(active.entry.profileId);
       return undefined;
     }
     if (result === "rejected") {
@@ -164,9 +161,11 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     return "unconfirmed";
   }
 
+  /** The persisted mobile login holds the account key, not the password: it stays (the connect
+   * that follows writes its new session). */
   async function dropQuickUnlock(active: ActiveProfile) {
     try {
-      await store.forgetQuickUnlock(active.entry.profileId);
+      await store.forgetQuickUnlock(active.entry.profileId, { keepSession: true });
     } catch (e) {
       logError("Removing the biometric unlock failed", e);
     }

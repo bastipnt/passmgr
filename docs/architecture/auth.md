@@ -127,7 +127,8 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 `user.startPasswordChange` (new OPAQUE registration; the email must be the session user's) and `finishPasswordChange`
 (attempt `passwordchange:<attemptId>` bound to the active `keySetId`; new key set with the recovery wrap carried over,
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
-Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay.
+Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay, and so
+does the persisted mobile login (it holds the account key, not the password; `forgetQuickUnlock` `keepSession`).
 
 Closed key sets (password change, rekey, recovery) are kept `KEY_SET_RETENTION_DAYS` (default 14, the rollback window)
 and then deleted by the hourly purge in `server.ts` (`purgeClosedKeySets`, `user/purge-key-sets.ts`): they still

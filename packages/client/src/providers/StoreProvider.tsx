@@ -154,8 +154,8 @@ type StoreContextValue = {
   /** Store the active profile's biometric enrollment (web, WebAuthn PRF). */
   saveBiometricKeyMaterial: (material: BiometricKeyMaterial) => Promise<void>;
   /** What unlocks a profile (default: the active one) without the password: biometric enrollment,
-   * persisted login, autofill entries. Keeps its data. */
-  forgetQuickUnlock: (profileId?: string) => Promise<void>;
+   * persisted login, autofill entries. Keeps its data. `keepSession` leaves the persisted login. */
+  forgetQuickUnlock: (profileId?: string, options?: { keepSession?: boolean }) => Promise<void>;
   /** Signed out from elsewhere: lock, drop the persisted mobile login and autofill entries, then
    * `onSignedOut`. Sync handles it itself (docs/architecture/auth.md, Session modes). */
   signedOut: () => Promise<void>;
@@ -744,7 +744,10 @@ export function StoreProvider({
       setActive({ ...activeRef.current, biometricKeyMaterial: material });
   }
 
-  async function forgetQuickUnlock(profileId = activeRef.current?.entry.profileId) {
+  async function forgetQuickUnlock(
+    profileId = activeRef.current?.entry.profileId,
+    { keepSession = false } = {},
+  ) {
     if (!profileId) return;
     const open = activeRef.current;
     if (open?.entry.profileId === profileId) {
@@ -753,7 +756,7 @@ export function StoreProvider({
     } else {
       await profiles.withVault(profileId, (vault) => vault.clearBiometricKeyMaterial());
     }
-    await clearLoginBundle(profileId);
+    if (!keepSession) await clearLoginBundle(profileId);
     await clearAutofillEntries(profileId).catch(logAutofillClearError);
   }
 

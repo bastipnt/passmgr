@@ -30,6 +30,8 @@ vi.mock("@repo/client/src/account/change-password", async (importActual) => ({
   ...(await importActual<object>()),
   changeAccountPassword,
 }));
+const persistSession = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@repo/client/src/util/persist-session", () => ({ persistSession }));
 const connect = vi.hoisted(() => vi.fn(async () => "online"));
 vi.mock("@repo/client/src/hooks/use-connect-server", async (importActual) => ({
   ...(await importActual<object>()),
@@ -102,8 +104,12 @@ describe("useChangePassword — local vault", () => {
     expect(await unwrapAccountKeyWithPassword(NEW_PASSWORD, material)).toEqual(local.accountKey);
     await expect(unwrapAccountKeyWithPassword(PASSWORD, material)).rejects.toThrow();
     expect(material.userKeyPair).toEqual(local.material.userKeyPair);
-    // Biometric unlock holds the old password: it goes.
-    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(local.profile.profileId);
+    // Biometric unlock holds the old password: it goes. The persisted login (same account key) stays,
+    // so nothing writes it again.
+    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(local.profile.profileId, {
+      keepSession: true,
+    });
+    expect(persistSession).not.toHaveBeenCalled();
     expect(changeAccountPassword).not.toHaveBeenCalled();
     expect(result.current.changeError).toBeUndefined();
   });
@@ -183,7 +189,8 @@ describe("useChangePassword — linked account", () => {
       expect.any(Function),
     );
     expect(store.saveAccount).toHaveBeenCalledWith(ALICE.profileId, changed, local.vaults);
-    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId);
+    expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId, { keepSession: true });
+    expect(persistSession).not.toHaveBeenCalled();
     // Every session was revoked: drop it, log in with the new password.
     expect(detachServer).toHaveBeenCalled();
     expect(connect).toHaveBeenCalledWith(NEW_PASSWORD);
@@ -205,6 +212,8 @@ describe("useChangePassword — linked account", () => {
     expect(secretsStore.copyOpaquePassword()).toEqual(
       await deriveOpaquePassword(NEW_PASSWORD, "alice@example.com"),
     );
+    // The persisted login still holds the revoked session: it's written again without it.
+    expect(persistSession).toHaveBeenCalledWith(ALICE.profileId);
   });
 
   it("reports a wrong current password", async () => {
@@ -235,7 +244,9 @@ describe("useChangePassword — linked account", () => {
       expect(detachServer).toHaveBeenCalled();
       expect(connect).toHaveBeenCalledTimes(1);
       expect(connect).toHaveBeenCalledWith(NEW_PASSWORD);
-      expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId);
+      // The connect persisted the new login; dropping the quick unlock leaves it.
+      expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId, { keepSession: true });
+      expect(persistSession).not.toHaveBeenCalled();
     });
 
     it("goes back online with the current password when the new one is refused", async () => {

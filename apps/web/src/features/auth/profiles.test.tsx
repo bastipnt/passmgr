@@ -21,6 +21,11 @@ const trpcClient = {
     onRecordChange: { subscribe: vi.fn(() => ({ unsubscribe: () => undefined })) },
   },
 };
+const clearLoginBundle = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@repo/store", async (importActual) => ({
+  ...(await importActual<object>()),
+  clearLoginBundle,
+}));
 vi.mock("@repo/client/src/util/trpc", () => ({
   useTRPC: () => ({}),
   useTRPCClient: () => trpcClient,
@@ -407,6 +412,21 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
     await act(() => store.selectProfile(BOB.profileId));
     expect(store.biometricDismissed).toBe(false);
     expect(store.needsBiometricEnroll).toBe(true);
+  });
+
+  it("forgets the quick unlock with the persisted login, unless asked to keep the session", async () => {
+    await seed(ALICE, "r-alice");
+    await launch();
+    await act(() => store.selectProfile(ALICE.profileId));
+
+    await act(() => store.forgetQuickUnlock(ALICE.profileId));
+    expect(clearLoginBundle).toHaveBeenCalledWith(ALICE.profileId);
+    expect(store.biometricKeyMaterial).toBeNull();
+
+    clearLoginBundle.mockClear();
+    await act(() => store.forgetQuickUnlock(ALICE.profileId, { keepSession: true }));
+    expect(clearLoginBundle).not.toHaveBeenCalled();
+    expect(store.biometricKeyMaterial).toBeNull();
   });
 
   it("offers no biometric enrollment where the device can't do it", async () => {
