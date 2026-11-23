@@ -24,6 +24,7 @@ import {
 import { Field, FieldError, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { useRetainedWhileClosing } from "@repo/ui/hooks/use-retained-while-closing";
 import { counted } from "@repo/util";
 import { PencilIcon, TrashIcon } from "lucide-react";
 import { type SubmitEvent, useDeferredValue, useId, useMemo, useState } from "react";
@@ -68,15 +69,13 @@ export default function TagsSettingsPage() {
     () => filterAndSortTags(tags, deferredQuery, sort),
     [tags, deferredQuery, sort],
   );
-  // Kept while a dialog or the sheet closes, so its text doesn't change mid-animation.
-  const [editing, setEditing] = useState<Editing>();
-  const [open, setOpen] = useState(false);
-  const [sheetTag, setSheetTag] = useState<TagCount>();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const editDialog = useRetainedWhileClosing<Editing>();
+  const editing = editDialog.value;
+  const sheet = useRetainedWhileClosing<TagCount>();
+  const sheetTag = sheet.value;
 
   function edit(kind: Editing["kind"], tag: TagCount) {
-    setEditing({ kind, tag });
-    setOpen(true);
+    editDialog.show({ kind, tag });
   }
 
   /** Rename and remove: icon buttons on desktop, the phone's sheet. */
@@ -99,7 +98,7 @@ export default function TagsSettingsPage() {
   ];
 
   async function onDelete(tag: string) {
-    setOpen(false);
+    editDialog.setOpen(false);
     try {
       toast.success(tagEditSummary(`Removed “${tag}”`, await actions.deleteTag(tag)));
     } catch {
@@ -151,10 +150,7 @@ export default function TagsSettingsPage() {
                   label={<TagLabel tag={tag} />}
                   chevron
                   disabled={actions.pending}
-                  onClick={() => {
-                    setSheetTag(tag);
-                    setSheetOpen(true);
-                  }}
+                  onClick={() => sheet.show(tag)}
                 />
               ) : (
                 <SettingsRow
@@ -201,8 +197,8 @@ export default function TagsSettingsPage() {
               run: () => edit("delete", sheetTag),
             },
           ]}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={sheet.open}
+          onOpenChange={sheet.setOpen}
         />
       )}
       {editing?.kind === "rename" && (
@@ -210,14 +206,14 @@ export default function TagsSettingsPage() {
           key={editing.tag.tag}
           tag={editing.tag}
           actions={actions}
-          open={open}
-          onOpenChange={setOpen}
+          open={editDialog.open}
+          onOpenChange={editDialog.setOpen}
         />
       )}
       {editing?.kind === "delete" && (
         <RemoveDialog
-          open={open}
-          onOpenChange={setOpen}
+          open={editDialog.open}
+          onOpenChange={editDialog.setOpen}
           title={`Remove “${editing.tag.tag}”?`}
           description={`It comes off ${itemCount(editing.tag.count)}, on every device. The items stay.`}
           removeTitle="Remove tag"

@@ -16,6 +16,7 @@ import {
   ItemGroup,
   ItemTitle,
 } from "@repo/ui/components/Item";
+import { useRetainedWhileClosing } from "@repo/ui/hooks/use-retained-while-closing";
 import { useState } from "react";
 
 function changes(count: number): string {
@@ -31,9 +32,8 @@ export function RevokedVaults() {
   const revoked = useRevokedVaults();
   const { copyRevokedRecords, discardRevokedVault, pending } = useVaultSharing();
   const [error, setError] = useState<string>();
-  // Kept while the confirmation closes, so its text doesn't change mid-animation.
-  const [discarding, setDiscarding] = useState<RevokedVaultInfo>();
-  const [discardOpen, setDiscardOpen] = useState(false);
+  const discardDialog = useRetainedWhileClosing<RevokedVaultInfo>();
+  const discarding = discardDialog.value;
 
   if (revoked.length === 0) return null;
 
@@ -77,10 +77,7 @@ export function RevokedVaults() {
               <Button
                 variant="ghost-destructive"
                 disabled={pending}
-                onClick={() => {
-                  setDiscarding(vault);
-                  setDiscardOpen(true);
-                }}
+                onClick={() => discardDialog.show(vault)}
               >
                 Discard
               </Button>
@@ -96,13 +93,13 @@ export function RevokedVaults() {
       {error && <FieldError variant="box">{error}</FieldError>}
       {discarding && (
         <RemoveDialog
-          open={discardOpen}
-          onOpenChange={setDiscardOpen}
+          open={discardDialog.open}
+          onOpenChange={discardDialog.setOpen}
           title={`Discard ${changes(discarding.records.length)}?`}
           description="They never reached the vault and can't be brought back."
           removeTitle="Discard"
           onRemove={() => {
-            setDiscardOpen(false);
+            discardDialog.setOpen(false);
             void discard(discarding);
           }}
         />

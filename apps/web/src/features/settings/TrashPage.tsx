@@ -11,8 +11,8 @@ import { toast } from "@repo/ui";
 import RemoveDialog from "@repo/ui/complex-components/RemoveDialog";
 import { Button } from "@repo/ui/components/Button";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { useRetainedWhileClosing } from "@repo/ui/hooks/use-retained-while-closing";
 import { ArchiveRestoreIcon, EllipsisIcon, Trash2Icon, TrashIcon } from "lucide-react";
-import { useState } from "react";
 import { RecordAvatar } from "@/features/records";
 import { SettingsActionsSheet } from "./SettingsActionsSheet";
 import { SettingsGroup } from "./SettingsGroup";
@@ -30,17 +30,16 @@ type Purging = { kind: "one"; record: TrashedRecord } | { kind: "all"; count: nu
  */
 export default function TrashPage() {
   const { records, ready, restore, purge, emptyTrash, pending } = useTrash();
-  // Kept while the confirmation closes, so its text doesn't change mid-animation.
-  const [purging, setPurging] = useState<Purging>();
-  const [confirmOpen, setConfirmOpen] = useState(false);
+  const confirmDialog = useRetainedWhileClosing<Purging>();
+  const purging = confirmDialog.value;
   const purgeable = records.filter((record) => record.writable).length;
   const { getVault, hasSeveralVaults } = useVaults();
   const isMobile = useIsMobile();
   const buttonSize = useSettingsButtonSize();
   // Ticks so "deleted just now" moves on while the page stays open.
   const now = useSyncClock(records[0] ? Date.parse(records[0].deletedAt) : null);
-  const [sheetRecord, setSheetRecord] = useState<TrashedRecord>();
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const sheet = useRetainedWhileClosing<TrashedRecord>();
+  const sheetRecord = sheet.value;
 
   async function onRestore(record: TrashedRecord) {
     try {
@@ -60,10 +59,7 @@ export default function TrashPage() {
     }
   }
 
-  function confirm(target: Purging) {
-    setPurging(target);
-    setConfirmOpen(true);
-  }
+  const confirm = confirmDialog.show;
 
   const emptyButton = (
     <Button
@@ -128,10 +124,7 @@ export default function TrashPage() {
                           size="icon-sm"
                           disabled={pending}
                           aria-label={`More actions for ${record.title}`}
-                          onClick={() => {
-                            setSheetRecord(record);
-                            setSheetOpen(true);
-                          }}
+                          onClick={() => sheet.show(record)}
                         >
                           <EllipsisIcon />
                         </Button>
@@ -175,15 +168,15 @@ export default function TrashPage() {
               run: () => confirm({ kind: "one", record: sheetRecord }),
             },
           ]}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={sheet.open}
+          onOpenChange={sheet.setOpen}
         />
       )}
 
       {purging && (
         <RemoveDialog
-          open={confirmOpen}
-          onOpenChange={setConfirmOpen}
+          open={confirmDialog.open}
+          onOpenChange={confirmDialog.setOpen}
           title={
             purging.kind === "one"
               ? `Delete ${purging.record.title} for good?`
@@ -192,7 +185,7 @@ export default function TrashPage() {
           description={`${purging.kind === "one" ? "Its" : "Their"} history goes too, on every device. This can't be undone.`}
           removeTitle="Delete for good"
           onRemove={() => {
-            setConfirmOpen(false);
+            confirmDialog.setOpen(false);
             void onPurge(purging);
           }}
         />

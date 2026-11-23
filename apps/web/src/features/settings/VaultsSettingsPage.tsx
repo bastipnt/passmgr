@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@repo/ui/components/DropdownMenu";
 import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
+import { useRetainedWhileClosing } from "@repo/ui/hooks/use-retained-while-closing";
 import {
   EllipsisIcon,
   KeyRoundIcon,
@@ -42,20 +43,6 @@ import { SettingsGroup } from "./SettingsGroup";
 import { SettingsPage } from "./SettingsPage";
 import { SettingsRow, SettingsRowButton } from "./SettingsRow";
 
-/**
- * A vault dialog's state. The vault stays set while the dialog closes, so its
- * content doesn't change or empty during the exit animation.
- */
-function useVaultDialog() {
-  const [vault, setVault] = useState<VaultInfo>();
-  const [open, setOpen] = useState(false);
-  const show = (next: VaultInfo) => {
-    setVault(next);
-    setOpen(true);
-  };
-  return { vault, open, setOpen, show };
-}
-
 /** Who the vault is for, after its item count: "only you", "you own it", "can edit". */
 function vaultRelation(vault: VaultInfo, phone: boolean): string {
   if (vault.kind === "personal") return phone ? "default for new items" : "only you";
@@ -79,14 +66,13 @@ export default function VaultsSettingsPage() {
   const isMobile = useIsMobile();
   const [createOpen, setCreateOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
-  const editDialog = useVaultDialog();
-  const rotateDialog = useVaultDialog();
-  const deleteDialog = useVaultDialog();
-  const membersDialog = useVaultDialog();
+  const editDialog = useRetainedWhileClosing<VaultInfo>();
+  const rotateDialog = useRetainedWhileClosing<VaultInfo>();
+  const deleteDialog = useRetainedWhileClosing<VaultInfo>();
+  const membersDialog = useRetainedWhileClosing<VaultInfo>();
   // By id, so the sheet follows a rename or a role change while it's open.
-  const [sheetVaultId, setSheetVaultId] = useState<string>();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const sheetVault = vaults.find((vault) => vault.vaultId === sheetVaultId);
+  const sheet = useRetainedWhileClosing<string>();
+  const sheetVault = vaults.find((vault) => vault.vaultId === sheet.value);
 
   const counts = new Map<string, number>();
   for (const record of records) counts.set(record.vaultId, (counts.get(record.vaultId) ?? 0) + 1);
@@ -189,10 +175,7 @@ export default function VaultsSettingsPage() {
                     label={vault.name}
                     hint={hint}
                     chevron
-                    onClick={() => {
-                      setSheetVaultId(vault.vaultId);
-                      setSheetOpen(true);
-                    }}
+                    onClick={() => sheet.show(vault.vaultId)}
                   />
                 ) : (
                   <SettingsRow media={<VaultTile vault={vault} />} label={vault.name} hint={hint} />
@@ -262,26 +245,26 @@ export default function VaultsSettingsPage() {
       <VaultDialog open={createOpen} onOpenChange={setCreateOpen} />
       <VaultDialog
         open={editDialog.open}
-        vault={editDialog.vault}
+        vault={editDialog.value}
         onOpenChange={editDialog.setOpen}
       />
-      {deleteDialog.vault && (
+      {deleteDialog.value && (
         <DeleteVaultDialog
-          vault={deleteDialog.vault}
+          vault={deleteDialog.value}
           open={deleteDialog.open}
           onOpenChange={deleteDialog.setOpen}
         />
       )}
-      {rotateDialog.vault && (
+      {rotateDialog.value && (
         <RotateVaultKeyDialog
-          vault={rotateDialog.vault}
+          vault={rotateDialog.value}
           open={rotateDialog.open}
           onOpenChange={rotateDialog.setOpen}
         />
       )}
-      {membersDialog.vault && (
+      {membersDialog.value && (
         <VaultMembersDialog
-          vault={membersDialog.vault}
+          vault={membersDialog.value}
           open={membersDialog.open}
           onOpenChange={membersDialog.setOpen}
         />
@@ -299,8 +282,8 @@ export default function VaultsSettingsPage() {
             </>
           }
           actions={vaultActions(sheetVault)}
-          open={sheetOpen}
-          onOpenChange={setSheetOpen}
+          open={sheet.open}
+          onOpenChange={sheet.setOpen}
         />
       )}
     </SettingsPage>

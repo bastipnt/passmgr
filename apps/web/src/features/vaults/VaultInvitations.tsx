@@ -26,6 +26,7 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@repo/ui/components/Item";
+import { useRetainedWhileClosing } from "@repo/ui/hooks/use-retained-while-closing";
 import { useState } from "react";
 import { Fingerprint } from "./Fingerprint";
 import { VaultTile } from "./VaultTile";
@@ -39,9 +40,8 @@ export function VaultInvitations() {
   const { invitations } = useVaultInvitations();
   const { acceptInvitation, declineInvitation, pending } = useVaultSharing();
   const [error, setError] = useState<string>();
-  // Kept while the confirmation closes, so its text doesn't change mid-animation.
-  const [joining, setJoining] = useState<OpenedInvitation>();
-  const [joinOpen, setJoinOpen] = useState(false);
+  const joinDialog = useRetainedWhileClosing<OpenedInvitation>();
+  const joining = joinDialog.value;
 
   if (invitations.length === 0) return null;
 
@@ -96,13 +96,7 @@ export function VaultInvitations() {
               <Button variant="outline" disabled={pending} onClick={() => void decline(opened)}>
                 Decline
               </Button>
-              <Button
-                disabled={pending}
-                onClick={() => {
-                  setJoining(opened);
-                  setJoinOpen(true);
-                }}
-              >
+              <Button disabled={pending} onClick={() => joinDialog.show(opened)}>
                 Accept
               </Button>
             </ItemActions>
@@ -111,7 +105,7 @@ export function VaultInvitations() {
       </ItemGroup>
       {error && <FieldError variant="box">{error}</FieldError>}
       {joining && (
-        <Dialog open={joinOpen} onOpenChange={setJoinOpen}>
+        <Dialog open={joinDialog.open} onOpenChange={joinDialog.setOpen}>
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Join “{joining.meta.name}”?</DialogTitle>
@@ -125,7 +119,7 @@ export function VaultInvitations() {
               <DialogClose render={<Button variant="secondary">Cancel</Button>} />
               <Button
                 onClick={() => {
-                  setJoinOpen(false);
+                  joinDialog.setOpen(false);
                   void accept(joining);
                 }}
               >

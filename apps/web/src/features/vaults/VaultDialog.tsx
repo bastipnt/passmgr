@@ -22,9 +22,10 @@ import {
 import { Field, FieldError, FieldGroup, FieldLabel } from "@repo/ui/components/Field";
 import { Input } from "@repo/ui/components/Input";
 import { Spinner } from "@repo/ui/components/Spinner";
+import { useOpeningKey } from "@repo/ui/hooks/use-retained-while-closing";
 import { hueTint } from "@repo/ui/lib/hue-tint";
 import { cn } from "@repo/ui/lib/utils";
-import { type SubmitEvent, useId, useState } from "react";
+import { type SubmitEvent, useId } from "react";
 import { VAULT_ICON_COMPONENTS, VaultTile } from "./VaultTile";
 
 type VaultDialogProps = {
@@ -40,14 +41,8 @@ type VaultDialogProps = {
 export function VaultDialog({ open, onOpenChange, vault, onCreated }: VaultDialogProps) {
   const actions = useVaultActions();
   const { pending } = actions;
-  // A new form per opening, so a cancelled edit doesn't linger. Not unmounted on
-  // close: the content stays while the dialog animates out.
-  const [opening, setOpening] = useState(0);
-  const [wasOpen, setWasOpen] = useState(open);
-  if (open !== wasOpen) {
-    setWasOpen(open);
-    if (open) setOpening((n) => n + 1);
-  }
+  // A new form per opening, so a cancelled edit doesn't linger.
+  const opening = useOpeningKey(open);
 
   return (
     <Dialog
