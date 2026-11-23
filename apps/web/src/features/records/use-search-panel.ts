@@ -1,4 +1,5 @@
 import { type SearchOption, useSearchOptions, useSortedRecords } from "@repo/client";
+import type { ComboboxInputOptions } from "@repo/ui/components/Combobox";
 import {
   type KeyboardEvent,
   type PointerEvent,
@@ -132,58 +133,40 @@ export function useSearchPanel(enabled: boolean) {
     setPointed(true);
   }, []);
 
-  const onKeyDown = useCallback(
-    (e: KeyboardEvent<HTMLInputElement>) => {
-      const index = active ? options.indexOf(active) : -1;
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
-        e.preventDefault();
-        if (canSearchAll) searchAllItems();
-        return;
-      }
-      switch (e.key) {
-        case "ArrowDown":
-        case "ArrowUp": {
-          e.preventDefault();
-          const step = e.key === "ArrowDown" ? 1 : -1;
-          const next = options[Math.max(0, Math.min(options.length - 1, index + step))];
-          if (next) setActiveId(next.id);
-          setPointed(false);
-          return;
-        }
-        case "Enter":
-          if (searchPending) {
-            e.preventDefault();
-            setEnterPending(true);
-          } else if (active) {
-            e.preventDefault();
-            choose(active);
-          }
-          return;
-        case "Escape":
-          if (query) e.preventDefault();
-          cancel();
-          return;
-        case "Backspace":
-          if (search.tagMode && e.currentTarget.value === "") {
-            e.preventDefault();
-            setQuery("");
-          }
-      }
+  const activeIndex = active ? options.indexOf(active) : -1;
+  // ↑ / ↓, Enter and Esc go through `@repo/ui` `comboboxInputProps`; these keys come first.
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.shiftKey && e.key.toLowerCase() === "f") {
+      e.preventDefault();
+      if (canSearchAll) searchAllItems();
+    } else if (e.key === "Enter" && searchPending) {
+      e.preventDefault();
+      setEnterPending(true);
+    } else if (e.key === "Backspace" && search.tagMode && e.currentTarget.value === "") {
+      e.preventDefault();
+      setQuery("");
+    }
+  };
+
+  const combobox = {
+    count: options.length,
+    activeIndex,
+    onActiveIndexChange: (index: number) => {
+      const next = options[index];
+      if (next) setActiveId(next.id);
+      setPointed(false);
     },
-    [
-      active,
-      options,
-      choose,
-      cancel,
-      query,
-      searchPending,
-      search.tagMode,
-      setQuery,
-      canSearchAll,
-      searchAllItems,
-    ],
-  );
+    onSelect: (index: number) => {
+      const option = options[index];
+      if (option) choose(option);
+    },
+    onEscape: (e: KeyboardEvent<HTMLInputElement>) => {
+      if (query) e.preventDefault();
+      cancel();
+    },
+    onKeyDown,
+  } satisfies Partial<ComboboxInputOptions>;
 
   return {
     open,
@@ -198,7 +181,8 @@ export function useSearchPanel(enabled: boolean) {
     /** The category or tags narrow the search, and it isn't widened yet. */
     canSearchAll,
     searchAllItems,
-    onKeyDown,
+    /** The field's keys and highlight, for `comboboxInputProps`. */
+    combobox,
     onFocus: () => {
       pointer.current = undefined;
       originRecordId.current = routeRecordId.current;

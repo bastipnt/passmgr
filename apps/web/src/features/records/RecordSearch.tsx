@@ -5,6 +5,7 @@ import {
   useSortedRecords,
   useVaults,
 } from "@repo/client";
+import { comboboxInputProps } from "@repo/ui/components/Combobox";
 import {
   InputGroup,
   InputGroupAddon,
@@ -17,10 +18,6 @@ import { SearchIcon, TagIcon, XIcon } from "lucide-react";
 import { modKey } from "@/lib/formatShortcut";
 import { SHORTCUTS } from "@/lib/shortcuts";
 import type { SearchPanelState } from "./use-search-panel";
-
-export function optionDomId(listboxId: string, index: number) {
-  return `${listboxId}-${index}`;
-}
 
 /** The esc hint with the mouse's way out: the ✕ leaves the search as Esc does. */
 function CloseChip({ onClose }: { onClose: () => void }) {
@@ -70,7 +67,7 @@ function ShowRecordsButton({ onShow }: { onShow: () => void }) {
 export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; listboxId: string }) {
   const { query, setQuery, tagSearch, vaultFilter, searchInputRef } = useSortedRecords();
   const { getVault } = useVaults();
-  const { open, options, active } = panel;
+  const { open } = panel;
   // The field's own mode, from what it holds: the panel's `search` can trail it.
   const { tagMode } = parseSearch(query, tagSearch);
   const label = `Search ${vaultFilter === "all" ? "all vaults" : getVault(vaultFilter)?.name}`;
@@ -92,19 +89,11 @@ export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; li
           <SearchIcon />
         )}
       </InputGroupAddon>
-      {/* oxlint-disable-next-line jsx_a11y/interactive-supports-focus -- an <input> already */}
       <InputGroupInput
         ref={(el) => {
           searchInputRef.current = el;
         }}
-        // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- an <input> already
-        role="combobox"
-        aria-expanded={open}
-        aria-controls={open ? listboxId : undefined}
-        aria-autocomplete="list"
-        aria-activedescendant={
-          open && active ? optionDomId(listboxId, options.indexOf(active)) : undefined
-        }
+        {...comboboxInputProps({ listboxId, open, ...panel.combobox })}
         placeholder={tagMode ? "Find tags…" : open ? "Search records and tags…" : `${label}…`}
         aria-label={tagMode ? "Search tags" : label}
         value={value}
@@ -113,7 +102,6 @@ export function RecordSearch({ panel, listboxId }: { panel: SearchPanelState; li
         }
         onFocus={panel.onFocus}
         onBlur={panel.onBlur}
-        onKeyDown={panel.onKeyDown}
       />
       <InputGroupAddon align="inline-end" className="gap-1.5 pr-1.5">
         {open ? (

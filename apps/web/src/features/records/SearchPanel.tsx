@@ -9,6 +9,13 @@ import {
   useVaults,
 } from "@repo/client";
 import { ChipLane } from "@repo/ui/components/ChipLane";
+import {
+  ComboboxPanel,
+  Listbox,
+  ListboxGroup,
+  ListboxOption,
+  optionDomId,
+} from "@repo/ui/components/Combobox";
 import { Highlight } from "@repo/ui/components/Highlight";
 import { Kbd } from "@repo/ui/components/Kbd";
 import { cn } from "@repo/ui/lib/utils";
@@ -19,7 +26,6 @@ import { VaultBadge } from "@/features/vaults";
 import { shortcutHint } from "@/lib/formatShortcut";
 import { OutsideScope } from "./OutsideScope";
 import { RecordAvatar } from "./RecordAvatar";
-import { optionDomId } from "./RecordSearch";
 import { SEARCH_ALL_KEY, type SearchPanelState } from "./use-search-panel";
 
 type Lane = false | "phone" | "desktop";
@@ -301,11 +307,7 @@ function KeyHints({ tagMode, canSearchAll }: { tagMode: boolean; canSearchAll: b
   );
 }
 
-/**
- * The search's results in place of the record list. Pressing an option must
- * not take focus from the field (the search would close), hence the
- * `preventDefault` on mouse down.
- */
+/** The search's results in place of the record list; a press in it keeps the search open. */
 export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; listboxId: string }) {
   const { search, sections, options, active, choose, point, canSearchAll } = panel;
   const activeIndex = active ? options.indexOf(active) : -1;
@@ -321,9 +323,8 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
   const noResults = !search.tagMode && search.text && options.length === 0;
 
   return (
-    // oxlint-disable-next-line jsx_a11y/no-static-element-interactions -- keeps focus in the field, not an action
     // flex-1, not min-h-full: the list's column only has a min height, so % wouldn't resolve.
-    <div className="flex flex-1 flex-col" onMouseDown={(e) => e.preventDefault()}>
+    <ComboboxPanel className="flex flex-1 flex-col">
       <div className="px-3 pt-2">
         <SearchScope
           tagMode={search.tagMode}
@@ -347,18 +348,15 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
           </dd>
         </dl>
       )}
-      <div
+      <Listbox
         id={listboxId}
-        // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup; <select> can't hold rows
-        role="listbox"
         aria-label={search.tagMode ? "Tags" : "Search results"}
         aria-multiselectable={search.tagMode || undefined}
         className="flex flex-col pb-3"
       >
         {sections.map((section) =>
           section.options.length === 0 ? null : (
-            // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
-            <div key={section.id} role="group" aria-label={section.label}>
+            <ListboxGroup key={section.id} aria-label={section.label}>
               <div className="flex items-center justify-between px-5 pt-4 pb-1.5 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
                 <span>
                   {section.label}
@@ -376,14 +374,10 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
                   const index = options.indexOf(option);
                   const isActive = option === active;
                   return (
-                    // oxlint-disable-next-line jsx_a11y/click-events-have-key-events -- the field handles the keys (aria-activedescendant)
-                    <div
+                    <ListboxOption
                       key={option.id}
-                      id={optionDomId(listboxId, index)}
-                      // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- rows of a combobox's popup
-                      role="option"
-                      aria-selected={option.kind === "tag" && search.tagMode ? option.on : isActive}
-                      tabIndex={-1}
+                      index={index}
+                      selected={option.kind === "tag" && search.tagMode ? option.on : isActive}
                       onClick={() => choose(option)}
                       onPointerMove={(e) => point(option, e)}
                       className={cn(
@@ -403,19 +397,19 @@ export function SearchPanel({ panel, listboxId }: { panel: SearchPanelState; lis
                       ) : (
                         <RecordOptionRow option={option} text={search.text} active={isActive} />
                       )}
-                    </div>
+                    </ListboxOption>
                   );
                 })}
               </div>
-            </div>
+            </ListboxGroup>
           ),
         )}
-      </div>
+      </Listbox>
       {noResults && <p className="px-5 pt-3 text-muted-foreground text-sm">No results</p>}
       {!search.tagMode && search.text && <OutsideScope className="mx-3 mt-3" />}
       {/* Room to scroll the last row clear of the hints. */}
       <div aria-hidden className="h-16 shrink-0" />
       <KeyHints tagMode={search.tagMode} canSearchAll={canSearchAll} />
-    </div>
+    </ComboboxPanel>
   );
 }

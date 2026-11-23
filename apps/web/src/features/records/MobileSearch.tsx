@@ -8,6 +8,12 @@ import {
 } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import {
+  comboboxInputProps,
+  Listbox,
+  ListboxGroup,
+  ListboxOption,
+} from "@repo/ui/components/Combobox";
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
@@ -323,7 +329,6 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
           <InputGroupAddon align="inline-start" className="pl-4">
             <SearchIcon className="size-5!" />
           </InputGroupAddon>
-          {/* oxlint-disable-next-line jsx_a11y/interactive-supports-focus -- an <input> already */}
           <InputGroupInput
             ref={inputRef}
             type="search"
@@ -332,22 +337,22 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck={false}
-            // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- an <input> already
-            role="combobox"
-            aria-expanded={open}
-            aria-controls={listboxId}
-            aria-autocomplete="list"
+            {...comboboxInputProps({
+              listboxId,
+              open,
+              persistentListbox: true,
+              // The search key drops the keyboard to show the whole list; a tap opens a record.
+              onKeyDown: (e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                e.currentTarget.blur();
+              },
+            })}
             aria-label="Search vault"
             placeholder="Search logins, notes, tags"
             className="text-base [&::-webkit-search-cancel-button]:hidden"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            // The search key drops the keyboard to show the whole list; a tap opens a record.
-            onKeyDown={(e) => {
-              if (e.key !== "Enter") return;
-              e.preventDefault();
-              e.currentTarget.blur();
-            }}
           />
           {query && (
             <InputGroupAddon align="inline-end" className="pr-2">
@@ -420,28 +425,18 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
                 Search titles, usernames, websites and tags.
               </p>
             )}
-            <div
-              id={listboxId}
-              // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup; <select> can't hold rows
-              role="listbox"
-              aria-label="Search results"
-            >
+            <Listbox id={listboxId} aria-label="Search results">
               {open &&
                 sections.map((section) => (
-                  // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
-                  <div key={section.id} role="group" aria-label={section.label}>
+                  <ListboxGroup key={section.id} aria-label={section.label}>
                     <div className="px-5 pt-4 pb-1 font-semibold text-[0.7rem] text-muted-foreground uppercase tracking-[0.12em]">
                       {section.label}
                     </div>
                     {section.options.map((option) => (
-                      // oxlint-disable-next-line jsx_a11y/click-events-have-key-events -- tapped; the field keeps the keyboard
-                      <div
+                      <ListboxOption
                         key={option.id}
-                        // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- rows of a combobox's popup
-                        role="option"
-                        aria-selected={false}
-                        tabIndex={-1}
-                        onPointerDown={keepFocus}
+                        index={options.indexOf(option)}
+                        selected={false}
                         onClick={() => choose(option)}
                         className="flex min-h-14 cursor-pointer items-center gap-3 px-4 active:bg-foreground/5"
                       >
@@ -453,11 +448,11 @@ export function MobileSearchOverlay({ state }: { state: MobileSearchState }) {
                             tagMark={false}
                           />
                         )}
-                      </div>
+                      </ListboxOption>
                     ))}
-                  </div>
+                  </ListboxGroup>
                 ))}
-            </div>
+            </Listbox>
           </>
         )}
         {typed && options.length > 0 && <OutsideScope className="mx-4 mt-4" />}

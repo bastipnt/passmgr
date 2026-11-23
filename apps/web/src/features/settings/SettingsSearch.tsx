@@ -1,16 +1,13 @@
 import { useStore } from "@repo/client";
+import {
+  comboboxInputProps,
+  Listbox,
+  ListboxGroup,
+  ListboxOption,
+} from "@repo/ui/components/Combobox";
 import { cn } from "@repo/ui/lib/utils";
 import { SearchXIcon } from "lucide-react";
-import {
-  createContext,
-  type KeyboardEvent,
-  type ReactNode,
-  use,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { createContext, type ReactNode, use, useEffect, useId, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { historyState } from "@/lib/history-state";
 import { groupCardClassName, groupLabelClassName } from "./SettingsGroup";
@@ -142,8 +139,6 @@ export function SettingsSearchProvider({
   return <SettingsSearchContext value={state}>{children}</SettingsSearchContext>;
 }
 
-const optionId = (listId: string, index: number) => `${listId}-${index}`;
-
 /**
  * The search field, a combobox over the results: ↑ / ↓ pick, Enter opens, Esc
  * clears the query, or with none calls `onEscape` (closes the overlay).
@@ -160,24 +155,6 @@ export function SettingsSearchBox({
   const { query, setQuery, matches, active, setActive, open, listId } = useSettingsSearch();
   const searching = query.trim() !== "";
 
-  const onKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "ArrowDown" || event.key === "ArrowUp") {
-      if (matches.length === 0) return;
-      event.preventDefault();
-      const step = event.key === "ArrowDown" ? 1 : -1;
-      setActive((active + step + matches.length) % matches.length);
-    } else if (event.key === "Enter") {
-      const match = matches[active];
-      if (!match) return;
-      event.preventDefault();
-      open(match);
-    } else if (event.key === "Escape") {
-      event.preventDefault();
-      if (query) setQuery("");
-      else onEscape?.();
-    }
-  };
-
   return (
     <SettingsSearchField
       className={className}
@@ -185,13 +162,23 @@ export function SettingsSearchBox({
       onValueChange={setQuery}
       inputProps={{
         ref: inputRef,
-        role: "combobox",
-        "aria-autocomplete": "list",
-        "aria-expanded": searching,
-        "aria-controls": searching ? listId : undefined,
-        "aria-activedescendant":
-          searching && matches[active] ? optionId(listId, active) : undefined,
-        onKeyDown,
+        ...comboboxInputProps({
+          listboxId: listId,
+          open: searching,
+          count: matches.length,
+          activeIndex: matches[active] ? active : -1,
+          onActiveIndexChange: setActive,
+          wrap: true,
+          onSelect: (index) => {
+            const match = matches[index];
+            if (match) open(match);
+          },
+          onEscape: (event) => {
+            event.preventDefault();
+            if (query) setQuery("");
+            else onEscape?.();
+          },
+        }),
       }}
     />
   );
@@ -217,20 +204,16 @@ export function SettingsSearchResults({ className }: { className?: string }) {
 
   let index = 0;
   return (
-    <div
+    <Listbox
       id={listId}
-      // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a combobox's popup
-      role="listbox"
       aria-label="Matching settings"
       className={cn("flex flex-col gap-7", className)}
     >
       {results.map(({ section, matches }, groupIndex) => {
         const Icon = section.icon;
         return (
-          <div
+          <ListboxGroup
             key={section.path}
-            // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- a listbox's option group
-            role="group"
             aria-labelledby={`${headingId}-${groupIndex}`}
             className="flex flex-col gap-2"
           >
@@ -247,16 +230,10 @@ export function SettingsSearchResults({ className }: { className?: string }) {
                 const selected = position === active;
                 const isSection = match.key === section.path;
                 return (
-                  // oxlint-disable-next-line jsx_a11y/click-events-have-key-events -- the field handles the keys (aria-activedescendant)
-                  <div
+                  <ListboxOption
                     key={match.key}
-                    id={optionId(listId, position)}
-                    // oxlint-disable-next-line jsx_a11y/prefer-tag-over-role -- rows of a combobox's popup
-                    role="option"
-                    aria-selected={selected}
-                    tabIndex={-1}
-                    // Keeps focus (and the phone keyboard) in the field.
-                    onPointerDown={(event) => event.preventDefault()}
+                    index={position}
+                    selected={selected}
                     onPointerMove={() => setActive(position)}
                     onClick={() => open(match)}
                     className={cn(
@@ -272,13 +249,13 @@ export function SettingsSearchResults({ className }: { className?: string }) {
                         <span className="font-medium">{match.label}</span>
                       </>
                     )}
-                  </div>
+                  </ListboxOption>
                 );
               })}
             </div>
-          </div>
+          </ListboxGroup>
         );
       })}
-    </div>
+    </Listbox>
   );
 }
