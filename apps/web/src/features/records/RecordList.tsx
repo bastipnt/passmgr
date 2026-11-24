@@ -31,7 +31,7 @@ import { useStickyLabelFade } from "@repo/ui/hooks/use-sticky-label-fade";
 import { cn } from "@repo/ui/lib/utils";
 import { ChevronDownIcon, ChevronRightIcon, PlusIcon, StarIcon, UploadIcon } from "lucide-react";
 import { memo, useCallback, useEffect, useId, useRef, useState } from "react";
-import { Link, useLocation, useRoute } from "wouter";
+import { Link, useLocation, useRoute, useSearch } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { ImportDialog } from "@/features/import";
 import { VaultTile } from "@/features/vaults";
@@ -400,11 +400,15 @@ export default function RecordList() {
   // Auto-select the first record, but only at the index — gating on
   // `!params?.recordId` alone would also fire on any unmatched sub-route and
   // eject the user out of it.
+  // The search stays: a create sheet open on the index (`?new`) must not lose its URL when the
+  // record it is saving becomes the first one, or its discard guard reads that as a dismissal.
+  const search = useSearch();
   useEffect(() => {
     if (!isMobile && ready && isIndex && sortedRecords.length > 0) {
-      navigate(recordPaths.record(sortedRecords[0].recordId), { replace: true });
+      const suffix = search ? `?${search}` : "";
+      navigate(`${recordPaths.record(sortedRecords[0].recordId)}${suffix}`, { replace: true });
     }
-  }, [isMobile, ready, isIndex, sortedRecords, navigate]);
+  }, [isMobile, ready, isIndex, sortedRecords, navigate, search]);
 
   // Firefox has no scroll-driven animations; this fades the group labels instead.
   useStickyLabelFade(listRef, ready ? recordGroups : null);

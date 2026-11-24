@@ -63,6 +63,20 @@ const WIDTH_CLASSES = { half: "sm:col-span-3", third: "sm:col-span-2" } as const
 const gridClassName = "grid gap-2 sm:grid-cols-6 sm:gap-2.5";
 
 /**
+ * The websites list always shows one row, so the defaults hold it: a row the list added itself
+ * would make an untouched form read as changed.
+ */
+function withBlankWebsite(
+  type: RecordType | undefined,
+  values: Partial<AnyFormValues> | undefined,
+): Partial<AnyFormValues> | undefined {
+  if (!type || !RECORD_FORM_LAYOUT[type].websites) return values;
+  const websites = (values as { websites?: unknown[] } | undefined)?.websites;
+  if (websites?.length) return values;
+  return { ...values, websites: [{ value: "" }] } as Partial<AnyFormValues>;
+}
+
+/**
  * The record form's state. A sheet holds it above its phone / desktop swap, so the input survives
  * crossing 640px. With `session`, each opening and each new `session.key` start over from `defaultValues`.
  */
@@ -73,7 +87,7 @@ export function useRecordForm(
 ) {
   const form = useForm<AnyFormValues>({
     resolver: type ? zodResolver(recordFormSchemas[type] as never) : undefined,
-    defaultValues,
+    defaultValues: withBlankWebsite(type, defaultValues),
   });
   // Read while rendering: RHF tracks `isDirty` only once a render has read it.
   const { isDirty } = form.formState;
@@ -85,7 +99,7 @@ export function useRecordForm(
   useLayoutEffect(() => {
     if (sessionId === lastSessionId.current) return;
     lastSessionId.current = sessionId;
-    if (sessionId !== null) form.reset(latestDefaults.current ?? {});
+    if (sessionId !== null) form.reset(withBlankWebsite(type, latestDefaults.current) ?? {});
   }, [sessionId, form]);
 
   return { form, isDirty };
