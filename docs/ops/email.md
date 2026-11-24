@@ -16,10 +16,10 @@ special characters in the password.
 
 [Mailpit](https://mailpit.axllent.org) catches every mail and delivers none.
 
-- Dev: `pnpm db:up` starts it next to Postgres (`packages/db/docker-compose.yml`). SMTP on `localhost:1025`, web UI and
+- Dev: `pnpm dev` (or `pnpm db:up`) starts it next to Postgres (`packages/db/docker-compose.yml`) and stops both when it ends. SMTP on `localhost:1025`, web UI and
   API on <http://localhost:8025>. Set `SMTP_URL=smtp://localhost:1025` and a `MAIL_FROM` in `apps/server/.env`.
 - E2E: `docker-compose.test.yml` runs it as `mailpit` (the server sends to `smtp://mailpit:1025`); its API is on
-  `MAILPIT_PORT` (default 8025). `verifyEmail` in `apps/web/e2e/helpers/auth.ts` reads the code from
+  `MAILPIT_PORT` (default 18025, so it never clashes with the dev Mailpit on 8025). `verifyEmail` in `apps/web/e2e/helpers/auth.ts` reads the code from
   `GET /api/v1/search?query=to:"…"` + `GET /api/v1/message/{ID}`.
 
 ## Production: Stalwart

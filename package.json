@@ -15,8 +15,8 @@
   "homepage": "https://github.com/bastipnt/passmgr#readme",
   "scripts": {
     "build": "turbo run build",
-    "dev": "turbo run dev",
-    "dev:host": "turbo run dev:host",
+    "dev": "scripts/with-dev-db.sh turbo run dev",
+    "dev:host": "scripts/with-dev-db.sh turbo run dev:host",
     "db:up": "turbo run db:up",
     "db:generate": "pnpm run --filter @repo/db db:generate",
     "db:migrate": "pnpm run --filter @repo/db db:migrate",

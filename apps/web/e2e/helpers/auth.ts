@@ -53,7 +53,7 @@ export async function registerUser(page: Page, email: string, password: string):
   return recoveryKey;
 }
 
-const mailpitApi = `http://localhost:${process.env.MAILPIT_PORT ?? "8025"}/api/v1`;
+const mailpitApi = `http://localhost:${process.env.MAILPIT_PORT ?? "18025"}/api/v1`;
 
 /** The 6-digit code in the newest mail Mailpit caught for `email`. */
 async function mailedCode(page: Page, email: string): Promise<string | undefined> {

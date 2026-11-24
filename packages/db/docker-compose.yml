@@ -2,7 +2,6 @@ services:
   postgres_pass_mgr:
     # 18+: the volume holds /var/lib/postgresql (versioned subdirectory), not .../data.
     image: "postgres:18@sha256:2ea8630df176ad090ec92136dee850397c5af8781e4bcf2e4162593691c61bbc"
-    restart: always
     shm_size: 128mb
     # Loopback only: the dev password is in the repo.
     ports:
@@ -22,7 +21,6 @@ services:
 
   mailpit:
     image: "axllent/mailpit:v1.34.0@sha256:23a2ef85bc50853ab3093645d1d64679afd8887e89da5e48a88940c172591a4e"
-    restart: always
     ports:
       - 127.0.0.1:1025:1025
       - 127.0.0.1:8025:8025
