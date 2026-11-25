@@ -68,7 +68,6 @@ const tags = () => within(screen.getByRole("region", { name: "Tags" }));
 
 beforeEach(() => {
   localStorage.clear();
-  vi.clearAllMocks();
 });
 
 describe("FilterSheet", () => {

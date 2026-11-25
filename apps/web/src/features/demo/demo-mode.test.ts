@@ -5,7 +5,6 @@ import { createTapCounter } from "./use-demo-escape-hatch";
 beforeEach(() => localStorage.clear());
 afterEach(() => {
   vi.unstubAllEnvs();
-  vi.restoreAllMocks();
 });
 
 describe("isDemoMode", () => {

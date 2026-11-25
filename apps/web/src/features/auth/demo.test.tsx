@@ -52,7 +52,6 @@ function renderAt(path: string, ui = <AuthRoutes />) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   vi.stubEnv("VITE_DEMO_MODE", "true");
   localStorage.clear();
   store.loaded = true;

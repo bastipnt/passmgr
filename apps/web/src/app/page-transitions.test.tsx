@@ -58,10 +58,6 @@ beforeEach(() => {
   vi.spyOn(window, "scrollY", "get").mockImplementation(() => scrollY);
 });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-});
-
 describe("page direction", () => {
   beforeEach(() => setup());
 

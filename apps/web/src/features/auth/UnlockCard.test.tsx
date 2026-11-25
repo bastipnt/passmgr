@@ -1,6 +1,6 @@
 import type { SecondFactorRequest } from "@repo/client";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import UnlockCard from "./UnlockCard";
 
@@ -30,10 +30,6 @@ function renderCard(props: Partial<Parameters<typeof UnlockCard>[0]> = {}) {
   );
   return { onSubmit };
 }
-
-beforeEach(() => {
-  vi.clearAllMocks();
-});
 
 describe("UnlockCard", () => {
   it("shows the password field right away without biometrics", async () => {

@@ -58,8 +58,6 @@ vi.mock("@repo/client/src/hooks/use-records", async (importOriginal) => ({
 }));
 
 beforeEach(() => {
-  mocks.createRecord.mockClear();
-  vi.mocked(toast.error).mockClear();
   mocks.records = [];
   mocks.vaultFilter = "all";
   mocks.writableVaults = [];

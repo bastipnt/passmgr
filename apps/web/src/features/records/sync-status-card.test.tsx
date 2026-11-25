@@ -77,7 +77,6 @@ beforeEach(() => {
     retryParked,
     confirmVaultLoss,
   });
-  vi.clearAllMocks();
   secretsStore.clearOpaquePassword();
   store.biometricKeyMaterial = null;
   issueCount.value = null;

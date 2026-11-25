@@ -57,7 +57,6 @@ function wrapper({ children }: { children: ReactNode }) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   vaultUnlocked = true;
   vi.spyOn(console, "error").mockImplementation(() => undefined);
   store.vault.getAllLatest.mockResolvedValue([encrypted("good"), encrypted("bad")]);

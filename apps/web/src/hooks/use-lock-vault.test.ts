@@ -23,9 +23,6 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
-  logout.mockReset();
-  reload.mockReset();
   document.body.style.visibility = "";
   document.body.inert = false;
 });

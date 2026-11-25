@@ -74,8 +74,6 @@ const written = () =>
 
 beforeEach(() => {
   viewport.mobile = false;
-  mocks.updateMany.mockClear();
-  mocks.reload.mockClear();
   mocks.stored.clear();
   mocks.deleted.clear();
   mocks.records = [

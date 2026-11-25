@@ -2,7 +2,7 @@ import { RECORD_FORM_FIELDS } from "@repo/client";
 import { RECORD_TYPES } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { decodeQrImage } from "./login/qr-decode";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
@@ -17,8 +17,6 @@ vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
 }));
 
 describe("RecordForm", () => {
-  afterEach(() => vi.restoreAllMocks());
-
   it.each(RECORD_TYPES)("renders the %s fields", (type) => {
     renderWithProviders(<RecordForm type={type} onSubmit={vi.fn()} />);
 

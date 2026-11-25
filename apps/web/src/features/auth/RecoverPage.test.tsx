@@ -14,7 +14,7 @@ const signInToAccount = vi.fn();
 const unlockLocal = vi.fn();
 const clearRecoveryError = vi.fn();
 const navigate = vi.fn();
-const writeText = vi.fn().mockResolvedValue(undefined);
+const writeText = vi.fn(async () => undefined);
 const readText = vi.fn();
 
 const KEY = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
@@ -116,13 +116,7 @@ async function choosePassword({ confirm = "a new password" } = {}) {
 }
 
 beforeEach(() => {
-  for (const fn of [checkRecoveryKey, recover, recoverLocal, signInToAccount, unlockLocal])
-    fn.mockReset();
   checkRecoveryKey.mockResolvedValue(true);
-  clearRecoveryError.mockClear();
-  navigate.mockReset();
-  writeText.mockClear();
-  readText.mockReset();
   mockRecoveryError = undefined;
   mockProfile = null;
   mockBiometrics = false;

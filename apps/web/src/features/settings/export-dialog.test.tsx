@@ -1,7 +1,7 @@
 import type { ExportResult } from "@repo/client";
 import { Button } from "@repo/ui/components/Button";
 import userEvent from "@testing-library/user-event";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 import { act, renderWithProviders, screen, waitFor } from "@/test/render";
 import BackupSettingsPage from "./BackupSettingsPage";
@@ -49,7 +49,6 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
   vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(click);
 });
-afterEach(() => vi.clearAllMocks());
 
 // Pasted, not typed: the strength meter rates every keystroke, too slow under a parallel run.
 async function fill(user: ReturnType<typeof userEvent.setup>, label: string, value: string) {

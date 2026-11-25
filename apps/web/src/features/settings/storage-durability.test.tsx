@@ -39,7 +39,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   stubStorage(undefined);
-  vi.clearAllMocks();
 });
 
 /** jsdom has no `navigator.storage`. */

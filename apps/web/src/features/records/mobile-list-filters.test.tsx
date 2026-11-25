@@ -25,7 +25,6 @@ vi.mock("@repo/client/src/providers/SortedRecordsProvider", async (importActual)
 
 beforeEach(() => {
   Object.assign(list, { query: "", categoryFilter: "all", tagFilters: [] });
-  vi.clearAllMocks();
 });
 
 describe("ActiveFilterChips", () => {

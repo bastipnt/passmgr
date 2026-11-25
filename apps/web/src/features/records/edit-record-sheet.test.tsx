@@ -70,8 +70,6 @@ beforeEach(() => {
   mocks.mobile = false;
   mocks.record = record;
   mocks.handleSubmit.mockImplementation(() => mocks.actionCb?.());
-  mocks.deleteRecord.mockClear();
-  mocks.handleSubmit.mockClear();
 });
 
 describe("EditRecordSheet", () => {

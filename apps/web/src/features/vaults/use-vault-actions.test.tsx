@@ -90,7 +90,6 @@ function render(mode: SessionMode) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   mocks.calls.length = 0;
   mocks.vaults = [];
   vi.spyOn(secretsStore, "createVault").mockReturnValue(created);

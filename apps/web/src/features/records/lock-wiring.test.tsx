@@ -1,7 +1,7 @@
 import { ShortcutProvider } from "@repo/client";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { renderWithProviders, screen } from "@/test/render";
@@ -36,10 +36,6 @@ vi.mock("./SidebarFooter", () => ({ SidebarFooter: () => null }));
 vi.mock("./BackupReminder", () => ({ default: () => null }));
 vi.mock("@/components/VerifyEmailDialog", () => ({ VerifyEmailPrompt: () => null }));
 vi.mock("@/features/vaults", () => ({ VaultSwitcher: () => null }));
-
-beforeEach(() => {
-  lockVault.mockClear();
-});
 
 function renderShell(ui: ReactNode) {
   const location = memoryLocation({ path: "/" });

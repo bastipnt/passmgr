@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { buildExportData, encryptExport, exportToJson } from "@repo/client";
 import { getPasswordKekParams, setPasswordKekParams } from "@repo/crypto";
 import userEvent from "@testing-library/user-event";
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { authPaths } from "@/app/route-paths";
@@ -30,7 +30,7 @@ vi.mock("@/hooks/use-storage-durability", () => ({ requestPersistentStorage: vi.
 
 Object.defineProperty(globalThis.navigator, "clipboard", {
   configurable: true,
-  value: { writeText: vi.fn().mockResolvedValue(undefined) },
+  value: { writeText: vi.fn(async () => undefined) },
 });
 
 const BACKUP_PASSWORD = "backup-password";
@@ -71,7 +71,6 @@ beforeEach(() => {
     result: { created: 1, updated: 0, skipped: 0 },
   });
 });
-afterEach(() => vi.clearAllMocks());
 
 function renderPage() {
   const location = memoryLocation({ path: authPaths.restore, record: true });

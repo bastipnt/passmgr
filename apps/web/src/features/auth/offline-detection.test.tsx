@@ -1,6 +1,6 @@
 import { SessionContext, SessionProvider } from "@repo/client";
 import { useContext } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { act, render, screen } from "@/test/render";
 
 function OfflineState() {
@@ -17,8 +17,6 @@ function renderSession() {
 }
 
 describe("SessionProvider offline detection", () => {
-  afterEach(() => vi.restoreAllMocks());
-
   // A page served by the service worker while offline never gets an `offline`
   // event; without the seed, login would go to the server and always fail.
   it("starts offline when the page loads without a connection", () => {

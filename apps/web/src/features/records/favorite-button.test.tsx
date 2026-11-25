@@ -39,7 +39,6 @@ function makeRecord(favorite?: boolean): DecryptedRecord {
 }
 
 beforeEach(() => {
-  mocks.updateRecord.mockClear();
   mocks.role = "write";
 });
 

@@ -36,8 +36,6 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
-  vi.restoreAllMocks();
-  reload.mockReset();
 });
 
 describe("watchForUpdates", () => {

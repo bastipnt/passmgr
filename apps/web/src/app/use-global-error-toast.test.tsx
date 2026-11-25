@@ -12,7 +12,6 @@ beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 afterEach(() => {
-  vi.clearAllMocks();
   setClientErrorSender(null);
 });
 

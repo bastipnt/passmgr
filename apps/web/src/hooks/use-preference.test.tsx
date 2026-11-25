@@ -8,7 +8,7 @@ import { PASSWORD_DEFAULTS } from "@repo/crypto";
 import { applyStoredAccent, ThemeProvider, useTheme } from "@repo/ui/providers/ThemeProvider";
 import { act } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithProviders, screen } from "@/test/render";
 
@@ -117,10 +117,6 @@ describe("blocked or corrupt storage", () => {
   beforeEach(() => {
     localStorage.clear();
     clearPreferenceCache();
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
   });
 
   it.each([

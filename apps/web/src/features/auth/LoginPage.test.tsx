@@ -183,7 +183,6 @@ const bobProfile: LocalProfile = {
 };
 
 function resetMocks() {
-  vi.clearAllMocks();
   vi.mocked(useStoragePersistent).mockReturnValue(true);
   secretsStore.lock();
   Object.assign(store, {
@@ -194,7 +193,6 @@ function resetMocks() {
     needsBiometricEnroll: false,
   });
   store.vault.getVaults.mockResolvedValue([personalVault]);
-  unlockVault.mockReset();
   vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
   vi.spyOn(secretsStore, "keepOpaquePassword");
   // `unlockVault` is a mock: let the background connect see an unlocked vault.

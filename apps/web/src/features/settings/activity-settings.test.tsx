@@ -61,7 +61,6 @@ function renderActivity(mode: SessionMode = "online") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   vi.spyOn(secretsStore, "openAccountEventDeviceName").mockImplementation(async (s) => s);
   store.profile = LINKED;
   store.profiles = [profileEntry(LINKED)];

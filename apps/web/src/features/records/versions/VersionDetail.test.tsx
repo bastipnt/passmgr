@@ -1,5 +1,5 @@
 import type { DecryptedRecord, LoginRecord } from "@repo/schema";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, screen } from "@/test/render";
 import VersionDetail from "./VersionDetail";
 
@@ -40,10 +40,6 @@ function cellsFor(title: string) {
 }
 
 describe("VersionDetail", () => {
-  beforeEach(() => {
-    useRecordHistory.mockReset();
-  });
-
   /** Opens the newer revision, which is diffed against the one it replaced. */
   function setup(old: DecryptedRecord, latest: DecryptedRecord) {
     useRecordHistory.mockReturnValue({ versions: [latest, old], ready: true, error: undefined });

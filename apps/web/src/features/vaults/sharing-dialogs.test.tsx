@@ -51,7 +51,6 @@ function refusal(code: string) {
 }
 
 beforeEach(() => {
-  for (const mock of Object.values(mocks)) if (typeof mock === "function") mock.mockReset();
   mocks.members = [self, member({})];
 });
 

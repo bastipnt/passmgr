@@ -48,10 +48,6 @@ beforeAll(() => setPasswordKekParams({ t: 1, m: 8, p: 1 }));
 afterAll(() => setPasswordKekParams(previous));
 
 beforeEach(() => {
-  vi.clearAllMocks();
-  vi.restoreAllMocks();
-  store.createLocalVault.mockReset();
-  unlockWithAccountKey.mockReset();
   Object.assign(store, { profiles: [], profile: null, accountKeyMaterial: null });
   store.needsBiometricEnroll = false;
   // Like the real store: the new profile becomes the active one.

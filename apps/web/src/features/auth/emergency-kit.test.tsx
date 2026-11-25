@@ -2,7 +2,7 @@ import { useEmergencyKit } from "@repo/client";
 import { ServerUrlContext } from "@repo/client/src/providers/ClientProvider";
 import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 const { createEmergencyKit } = vi.hoisted(() => ({ createEmergencyKit: vi.fn() }));
 
@@ -23,10 +23,6 @@ function renderKit(serverUrl: string, recoveryKey = new Uint8Array(32).fill(7)) 
 }
 
 describe("useEmergencyKit", () => {
-  beforeEach(() => {
-    createEmergencyKit.mockReset();
-  });
-
   it("prints a server configured as a path as a full URL, and the normalized email", async () => {
     createEmergencyKit.mockResolvedValue(kit());
     const { result } = renderKit("/trpc");

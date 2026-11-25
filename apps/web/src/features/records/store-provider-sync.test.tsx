@@ -95,7 +95,6 @@ function unauthorized(message = "UNAUTHORIZED") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   installFakeSealer();
   trpcClient.record.sync.query.mockResolvedValue({
     records: [],

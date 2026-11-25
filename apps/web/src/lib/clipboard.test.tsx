@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useCopySecret } from "@/lib/clipboard";
 import { renderWithProviders, screen } from "@/test/render";
 
-const writeText = vi.fn<(text: string) => Promise<void>>();
+const writeText = vi.fn<(text: string) => Promise<void>>(async () => undefined);
 
 function Copier({ value = "hunter2" }: { value?: string }) {
   const copy = useCopySecret();
@@ -25,7 +25,6 @@ describe("useCopySecret", () => {
     vi.useFakeTimers();
     localStorage.clear();
     clearPreferenceCache();
-    writeText.mockReset().mockResolvedValue(undefined);
     Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
   });
 

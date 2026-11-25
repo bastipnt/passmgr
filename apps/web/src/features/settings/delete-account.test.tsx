@@ -9,7 +9,7 @@ import { LoginThrottledError } from "@repo/client/src/login";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import { act, renderHook } from "@testing-library/react";
 import type { ContextType, ReactNode } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
 
 // Real hook; the store, the session, the lock and the server call are replaced.
@@ -56,13 +56,10 @@ function useProfile(profile: LocalProfile) {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   useProfile(ALICE);
   vi.spyOn(secretsStore, "isVaultUnlocked", "get").mockReturnValue(true);
   vi.spyOn(secretsStore, "hasServerSession", "get").mockReturnValue(true);
 });
-
-afterEach(() => vi.restoreAllMocks());
 
 describe("useDeleteAccount", () => {
   it("deletes the account with a fresh login, then removes the profile from the device", async () => {

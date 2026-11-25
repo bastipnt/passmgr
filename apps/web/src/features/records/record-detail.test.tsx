@@ -51,7 +51,6 @@ function makeLogin(fields: Partial<DecryptedRecord> = {}): DecryptedRecord {
 }
 
 beforeEach(() => {
-  mocks.showTag.mockClear();
   mocks.previous = [];
   mocks.health = null;
   mocks.writable = true;

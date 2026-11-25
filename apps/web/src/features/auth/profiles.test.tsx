@@ -9,7 +9,7 @@ import { installFakeSealer } from "@repo/store/testing/fake-sealer";
 import { toBase64 } from "@repo/util";
 import { act, waitFor } from "@testing-library/react";
 import type { ContextType } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithProviders } from "@/test/render";
 
 // The real StoreProvider over a real ProfileStore (node:sqlite files); only the
@@ -115,16 +115,11 @@ async function seed(profile: LocalProfile, recordId: string) {
 }
 
 beforeEach(async () => {
-  vi.clearAllMocks();
   secretsStore.lock();
   installFakeSealer();
   localStorage.clear();
   databases = createTestDatabases();
   profiles = new ProfileStore(databases.open);
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 describe("StoreProvider profiles (ADR 0001 D2)", () => {

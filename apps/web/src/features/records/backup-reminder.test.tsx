@@ -35,7 +35,6 @@ beforeEach(() => {
   store.profiles = [profileEntry(LOCAL)];
   localStorage.clear();
 });
-afterEach(() => vi.clearAllMocks());
 
 /** The options of the reminder toast shown. */
 function shown() {

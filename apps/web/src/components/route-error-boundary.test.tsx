@@ -13,7 +13,6 @@ function Boom(): never {
 }
 
 afterEach(() => {
-  vi.restoreAllMocks();
   setClientErrorSender(null);
 });
 

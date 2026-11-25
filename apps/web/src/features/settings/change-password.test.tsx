@@ -75,7 +75,6 @@ function useProfile(profile: LocalProfile) {
 }
 
 beforeEach(async () => {
-  vi.clearAllMocks();
   local = await generateLocalVault(PASSWORD);
   useProfile(local.profile);
   store.accountKeyMaterial = local.material;
@@ -85,7 +84,6 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  vi.restoreAllMocks();
   secretsStore.clearOpaquePassword();
   secretsStore.lock();
 });

@@ -1,6 +1,6 @@
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { fireEvent, renderWithProviders, screen, waitFor } from "@/test/render";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 
@@ -48,8 +48,6 @@ function stackRows() {
     return new DOMRect(0, index * (ROW_HEIGHT + ROW_GAP), 300, ROW_HEIGHT);
   });
 }
-
-afterEach(() => vi.restoreAllMocks());
 
 describe("RecordForm reorder", () => {
   it("moves a website down with the keyboard and announces it", async () => {

@@ -189,7 +189,6 @@ function unauthorized(message = "UNAUTHORIZED") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   secretsStore.lock();
   Object.assign(store, {
     profiles: [profileEntry(ALICE)],

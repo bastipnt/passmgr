@@ -60,7 +60,6 @@ async function recover(email = "Alice@Example.com") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   recoverAccount.mockResolvedValue(new Uint8Array(32));
   // Bob is active: the recovered account's profile needn't be.
   Object.assign(store, { profiles: [profileEntry(BOB), profileEntry(ALICE)], profile: BOB });

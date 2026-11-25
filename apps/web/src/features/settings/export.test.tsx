@@ -61,7 +61,6 @@ function encrypted(data: RecordData, extra: Partial<LocalRecordVersion> = {}) {
 let getAllLatest: ReturnType<typeof vi.fn>;
 
 beforeEach(async () => {
-  vi.clearAllMocks();
   local = await generateLocalVault(PASSWORD);
   store.profiles = [profileEntry(local.profile)];
   store.profile = local.profile;

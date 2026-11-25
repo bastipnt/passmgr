@@ -30,7 +30,6 @@ const SECOND = 1_000;
 const MINUTE = 60 * SECOND;
 
 beforeEach(() => {
-  lockVault.mockClear();
   localStorage.clear();
   window.history.replaceState(null, "", "/settings/security");
 });

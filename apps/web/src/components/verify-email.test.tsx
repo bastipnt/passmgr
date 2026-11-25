@@ -50,7 +50,6 @@ function renderPrompt() {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   // The prompt opens once per account and page load: a new account per test.
   email = `user-${crypto.randomUUID()}@example.com`;
   (store.syncManager as unknown as { sync: typeof sync }).sync = sync;

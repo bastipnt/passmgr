@@ -53,7 +53,6 @@ const loginRecoveryWrap = ({ recoveryVerifier: _, ...wrap }: NewLocalVault["reco
 const serverSession = ["s-1", new Uint8Array(32).fill(5), new Uint8Array(32)] as const;
 
 beforeEach(async () => {
-  vi.clearAllMocks();
   local = await generateLocalVault(PASSWORD);
   store.profiles = [profileEntry(local.profile)];
   store.profile = local.profile;

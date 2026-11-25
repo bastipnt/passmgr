@@ -60,7 +60,6 @@ function renderSessions(mode: SessionMode = "online") {
 }
 
 beforeEach(() => {
-  vi.clearAllMocks();
   store.profile = LINKED;
   store.profiles = [profileEntry(LINKED)];
   trpc.session.list.query.mockResolvedValue(SESSIONS);

@@ -1,7 +1,7 @@
 import type { DecryptedRecord } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { type ReactNode, Suspense } from "react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { act, renderWithProviders, screen } from "@/test/render";
@@ -79,8 +79,6 @@ beforeEach(() => {
       }) as unknown as MediaQueryList,
   );
 });
-
-afterEach(() => vi.restoreAllMocks());
 
 function crossTo(mobile: boolean) {
   act(() => {

@@ -11,7 +11,7 @@ const createLocalVault = vi.fn();
 const finishLocalVault = vi.fn();
 const linkAccount = vi.fn();
 const holdRedirect = vi.fn();
-const writeText = vi.fn().mockResolvedValue(undefined);
+const writeText = vi.fn(async () => undefined);
 let mockRegistrationEnabled = true;
 let mockCreateError: string | undefined;
 let mockLinkError: string | undefined;
@@ -78,7 +78,6 @@ async function toEmailStep(name = "") {
 
 describe("CreateVaultPage", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
     mockRegistrationEnabled = true;
     mockCreateError = undefined;
     mockLinkError = undefined;

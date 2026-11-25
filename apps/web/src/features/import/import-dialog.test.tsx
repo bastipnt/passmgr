@@ -61,7 +61,6 @@ beforeEach(() => {
   importHook.importData.mockResolvedValue({ created: 1, updated: 0, skipped: 0 });
 });
 afterEach(() => {
-  vi.clearAllMocks();
   importHook.importError = undefined;
   importHook.stopped = undefined;
 });

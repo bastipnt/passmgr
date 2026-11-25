@@ -77,7 +77,6 @@ beforeEach(() => {
 });
 afterEach(() => {
   secretsStore.lock();
-  vi.clearAllMocks();
 });
 
 describe("useRestoreBackup", () => {
