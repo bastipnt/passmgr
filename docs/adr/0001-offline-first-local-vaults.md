@@ -601,7 +601,7 @@ There is never a silent wipe.
 
 > **Amended 2026-10-23** (linked recovery offline): an account's password reset with the recovery
 > key no longer needs the server. Every login hands out the account's recovery wrap
-> (`loginSuccessSchema.recoveryKeys`, without the verifier), and
+> (`loginSuccessSchema.recoveryKeys`, without the verifier; null for an account without one), and
 > the profile caches it (`Vault.setAccountKeyMaterial`'s `recoveryWrap`). A reset of a linked
 > profile on the device is **always local-first**, online too (`useRecovery().recover` →
 > `recoverLinkedVault`): it unwraps the account key with the cached wrap, writes a new password
@@ -622,6 +622,12 @@ There is never a silent wipe.
 > stores a key set drops a pending recovery. Until then the sync indicator says "Password reset
 > waiting". A key the cached wrap doesn't open goes to the server when online (the wrap may be
 > stale); a linked profile without a cached wrap still needs the server.
+
+> **Amended 2026-11-22** (recovery wrap always present): every account has a recovery verifier
+> (`keys.recoveryVerifier` is NOT NULL), so every login carries the recovery wrap. The login path takes
+> it as non-null (`Vault.setAccountKeyMaterial`'s `recoveryWrap`, `openAccountProfile`, `saveAccount`);
+> a local profile stores it from creation. `Vault.getRecoveryWrap` is null only for a profile whose
+> database holds no key set yet.
 
 ### D11 — Binding ciphertext to its context (crypto v2)
 

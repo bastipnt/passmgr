@@ -2,7 +2,12 @@ import { SessionContext, useStore } from "@repo/client";
 import { biometricDismissedKey } from "@repo/client/src/preferences/preference-keys";
 import { StoreProvider } from "@repo/client/src/providers/StoreProvider";
 import { createUserKeyPair, genKey, wrapVaultKey } from "@repo/crypto";
-import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  EncryptedRecordSchema,
+  MemberVault,
+  RecoveryWrapSchema,
+} from "@repo/schema";
 import { type LocalProfile, ProfileStore, secretsStore } from "@repo/store";
 import { createTestDatabases } from "@repo/store/testing";
 import { installFakeSealer } from "@repo/store/testing/fake-sealer";
@@ -40,6 +45,11 @@ const material: AccountKeyMaterial = {
   encryptedAccountKey: b64(48),
   accountKeyEncryptionNonce: b64(24),
   userKeyPair: createUserKeyPair(accountKey),
+};
+const recoveryWrap: RecoveryWrapSchema = {
+  recoveryKekSalt: b64(32),
+  encryptedAccountKeyRecovery: b64(48),
+  accountKeyEncryptionNonceRecovery: b64(24),
 };
 const PERSONAL_ID = "0199a3c4-0000-7000-8000-0000000000aa";
 const personal: MemberVault = {
@@ -256,7 +266,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         { userId: ALICE.userId, email: ALICE.email },
         material,
         [personal],
-        null,
+        recoveryWrap,
         accountKey,
       );
     });
@@ -283,7 +293,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
           { userId: ALICE.userId, email: ALICE.email },
           other,
           [otherPersonal],
-          null,
+          recoveryWrap,
           otherKey,
         ),
       ).rejects.toThrow();
@@ -302,7 +312,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         { userId: "u-carol", email: "carol@example.com" },
         material,
         [personal],
-        null,
+        recoveryWrap,
         accountKey,
       );
     });
@@ -325,7 +335,7 @@ describe("StoreProvider profiles (ADR 0001 D2)", () => {
         { userId: ALICE.userId, email: "alice@new.example" },
         material,
         [personal],
-        null,
+        recoveryWrap,
         accountKey,
       );
     });

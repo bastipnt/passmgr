@@ -551,10 +551,7 @@ export class Vault {
   async setAccountKeyMaterial(
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[] | null,
-    {
-      profile,
-      recoveryWrap,
-    }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null } = {},
+    { profile, recoveryWrap }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema } = {},
   ): Promise<void> {
     await this.ready();
     await this.transaction(async (tx) => {

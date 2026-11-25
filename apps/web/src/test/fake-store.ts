@@ -131,7 +131,7 @@ export function createFakeStore() {
         account: { userId: string; email: string },
         material: AccountKeyMaterial,
         vaults: readonly MemberVault[],
-        _recoveryWrap: RecoveryWrapSchema | null,
+        _recoveryWrap: RecoveryWrapSchema,
         accountKey: Uint8Array,
       ) => {
         verifyServerKeyring(accountKey, { userKeyPair: material.userKeyPair, vaultKeys: vaults });
@@ -152,7 +152,7 @@ export function createFakeStore() {
         profileId: string,
         material: AccountKeyMaterial,
         _vaults: readonly MemberVault[],
-        _options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
+        _options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema },
       ) => {
         if (store.profile?.profileId === profileId) store.accountKeyMaterial = material;
       },

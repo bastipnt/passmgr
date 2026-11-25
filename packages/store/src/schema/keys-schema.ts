@@ -97,14 +97,14 @@ export async function clearRecoveryKey(db: LocalDb): Promise<void> {
 }
 
 /** Replace whatever recovery material is stored with the wrap alone (a linked profile's). */
-export async function replaceRecoveryWrap(
-  wrap: RecoveryWrapSchema | null,
-  db: LocalDb,
-): Promise<void> {
+export async function replaceRecoveryWrap(wrap: RecoveryWrapSchema, db: LocalDb): Promise<void> {
+  const parsed = recoveryWrapSchema.parse(wrap);
   await clearRecoveryKey(db);
-  if (wrap) await upsertEntries(Object.entries(recoveryWrapSchema.parse(wrap)), db);
+  await upsertEntries(Object.entries(parsed), db);
 }
 
+/** Null only while a profile's database holds no account key material yet: every profile kind,
+ * local or linked, stores the wrap with its key set (ADR 0001 D10, amended 2026-11-22). */
 export async function getRecoveryWrap(db: LocalDb): Promise<RecoveryWrapSchema | null> {
   const res = await getEntries(Object.keys(recoveryWrapSchema.shape), db);
   const parsed = recoveryWrapSchema.safeParse(res);

@@ -104,7 +104,7 @@ type StoreContextValue = {
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    recoveryWrap: RecoveryWrapSchema | null,
+    recoveryWrap: RecoveryWrapSchema,
     accountKey: Uint8Array,
   ) => Promise<ActiveProfile>;
   /** Named, so a background write (a rekey) lands where it was made for even after a switch.
@@ -113,7 +113,7 @@ type StoreContextValue = {
     profileId: string,
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[] | null,
-    options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null },
+    options?: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema },
   ) => Promise<void>;
   /** Both account key wraps of a `local` profile, atomically (local recovery, ADR 0001 D10). */
   saveLocalKeyMaterial: (
@@ -559,7 +559,7 @@ export function StoreProvider({
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    recoveryWrap: RecoveryWrapSchema | null,
+    recoveryWrap: RecoveryWrapSchema,
     accountKey: Uint8Array,
   ) {
     return await switchLock(() => openAccount(account, material, vaults, recoveryWrap, accountKey));
@@ -569,7 +569,7 @@ export function StoreProvider({
     account: { userId: string; email: string },
     material: AccountKeyMaterial,
     vaults: readonly MemberVault[],
-    recoveryWrap: RecoveryWrapSchema | null,
+    recoveryWrap: RecoveryWrapSchema,
     accountKey: Uint8Array,
   ) {
     assertLocked();
@@ -615,7 +615,7 @@ export function StoreProvider({
     {
       profile: nextProfile,
       recoveryWrap,
-    }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema | null } = {},
+    }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema } = {},
   ) {
     if (nextProfile && nextProfile.profileId !== profileId)
       throw new Error("A profile can't take another profile's row");

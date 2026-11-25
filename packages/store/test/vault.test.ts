@@ -542,6 +542,20 @@ describe("linked profile recovery", () => {
     expect(await vault.getRecoveryWrap()).toEqual(wrap);
   });
 
+  it("refuses a login without a recovery wrap, keeping the cached one", async () => {
+    await vault.setAccountKeyMaterial(accountKey, [personal], {
+      profile: linked,
+      recoveryWrap: wrap,
+    });
+
+    await expect(
+      // @ts-expect-error -- every login carries the recovery wrap (ADR 0001 D10, amended 2026-11-22).
+      vault.setAccountKeyMaterial(accountKey, [personal], { recoveryWrap: null }),
+    ).rejects.toThrow();
+
+    expect(await vault.getRecoveryWrap()).toEqual(wrap);
+  });
+
   it("keeps the pending recovery through a rekey", async () => {
     await vault.setAccountKeyMaterial(accountKey, [personal], { profile: linked });
     await vault.setLinkedRecovery(nextMaterial, nextWrap, pending);
