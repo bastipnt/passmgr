@@ -11,6 +11,7 @@ import RecordRoutes from "./routes";
 
 // The real `useIsMobile`, on a `matchMedia` the test flips across 640px.
 const media = vi.hoisted(() => ({ mobile: false, listeners: new Set<() => void>() }));
+const versionsSheet = vi.hoisted(() => ({ mounts: 0 }));
 
 const record = {
   recordId: "r-1",
@@ -40,6 +41,17 @@ vi.mock("./RecordLayout", () => ({
 vi.mock("./RecordPage", () => ({ default: () => <p>desktop page</p> }));
 vi.mock("./MobileRecordPage", () => ({ default: () => <p>phone page</p> }));
 vi.mock("./MobileVault", () => ({ default: () => null }));
+vi.mock("./versions/VersionsSheet", async () => {
+  const { useEffect } = await import("react");
+  return {
+    default: function VersionsSheet() {
+      useEffect(() => {
+        versionsSheet.mounts++;
+      }, []);
+      return <p>versions sheet</p>;
+    },
+  };
+});
 vi.mock("./RecordsEmptyState", () => ({ default: () => null }));
 vi.mock("@repo/client/src/providers/SortedRecordsProvider", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@repo/client/src/providers/SortedRecordsProvider")>()),
@@ -64,6 +76,7 @@ vi.mock("./use-record-actions", () => ({
 }));
 
 beforeEach(() => {
+  versionsSheet.mounts = 0;
   media.mobile = false;
   media.listeners.clear();
   vi.spyOn(window, "matchMedia").mockImplementation(
@@ -133,6 +146,26 @@ describe("record sheets across the 640px breakpoint", () => {
     crossTo(false);
     expect(screen.getByText("desktop page")).toBeInTheDocument();
     expect(title()).toHaveValue("Visa Gold");
+  });
+
+  it("keeps the versions sheet mounted through the records routes' page swap", async () => {
+    const location = memoryLocation({ path: "/record/r-1/versions", record: true });
+    renderWithProviders(
+      <Router hook={location.hook} searchHook={location.searchHook}>
+        <Suspense fallback={null}>
+          <RecordRoutes />
+        </Suspense>
+      </Router>,
+    );
+    expect(await screen.findByText("desktop page")).toBeInTheDocument();
+
+    crossTo(true);
+    expect(screen.getByText("phone page")).toBeInTheDocument();
+    crossTo(false);
+    expect(screen.getByText("desktop page")).toBeInTheDocument();
+
+    expect(screen.getByText("versions sheet")).toBeInTheDocument();
+    expect(versionsSheet.mounts).toBe(1);
   });
 
   it("keeps the create sheet's input", async () => {

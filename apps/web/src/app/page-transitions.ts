@@ -31,6 +31,12 @@ let cancelRestore: (() => void) | undefined;
 // In-app history (pathnames), to tell how far "back" has to step, or whether it
 // can at all. Memory only: after a reload the first page has nothing behind it.
 const stack: string[] = [location.pathname];
+// Entries Back stepped over, nearest first: a forward step lands on one of them.
+let ahead: string[] = [];
+// The `history.go` delta that takes the latest location change back; none after a replace.
+let undoDelta: number | undefined;
+// The step `undoNavigation` sent, read by the popstate it causes.
+let pendingUndo: number | undefined;
 
 // Latest transition, so a superseded one doesn't clear the next one's `data-nav`.
 let transitionId = 0;
@@ -50,17 +56,50 @@ export function directionBetween(from: string, to: string): Direction | undefine
   return toDepth > fromDepth ? "push" : "pop";
 }
 
+function stepBack(index: number) {
+  ahead = [...stack.slice(index + 1), ...ahead];
+  undoDelta = stack.length - 1 - index;
+  stack.length = index + 1;
+}
+
+function stepForward(count: number) {
+  stack.push(...ahead.slice(0, count));
+  ahead = ahead.slice(count);
+  undoDelta = -count;
+}
+
 function trackStack(type: string, path: string) {
+  const undone = pendingUndo;
+  pendingUndo = undefined;
   if (type === "pushState") {
     stack.push(path);
-  } else if (type === "replaceState") {
+    ahead = [];
+    undoDelta = -1;
+    return;
+  }
+  if (type === "replaceState") {
     stack[stack.length - 1] = path;
+    undoDelta = undefined;
+    return;
+  }
+  if (type !== "popstate") return;
+  // An undo knows its step; guessing from the path would misread it when the path repeats.
+  if (undone !== undefined && undone > 0 && undone <= ahead.length) return stepForward(undone);
+  if (undone !== undefined && undone < 0 && -undone < stack.length) {
+    return stepBack(stack.length - 1 + undone);
+  }
+  // popstate doesn't say which way or how far it went: an earlier entry for the path means back
+  // (possibly several steps), one Back stepped over forward, anything else is off the stack.
+  const index = stack.lastIndexOf(path, -2);
+  const forward = ahead.indexOf(path);
+  if (index !== -1) {
+    stepBack(index);
+  } else if (forward !== -1) {
+    stepForward(forward + 1);
   } else {
-    // popstate doesn't say which way or how far it went: an earlier entry for
-    // the path means back (possibly several steps), anything else forward.
-    const index = stack.lastIndexOf(path, -2);
-    if (index === -1) stack.push(path);
-    else stack.length = index + 1;
+    stack.push(path);
+    ahead = [];
+    undoDelta = undefined;
   }
 }
 
@@ -164,6 +203,16 @@ export function PageTransitions({ pageDepths }: { pageDepths: PageDepths }) {
   }, [path]);
 
   return null;
+}
+
+/** Takes the latest navigation back without adding an entry (Keep editing after Back), or runs
+ * `fallback` when history can't: after a replace, or a step off the in-app stack. */
+export function undoNavigation(fallback: () => void) {
+  const delta = undoDelta;
+  undoDelta = undefined;
+  if (delta === undefined) return fallback();
+  pendingUndo = delta;
+  history.go(delta);
 }
 
 /** Steps back to the nearest shallower entry, so history doesn't grow (apps/web/CLAUDE.md, phone

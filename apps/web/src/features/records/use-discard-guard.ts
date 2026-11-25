@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation, useSearch } from "wouter";
+import { undoNavigation } from "@/app/page-transitions";
 
 type DiscardGuardOptions = {
   /** Whether the URL has the sheet open. */
@@ -6,8 +8,8 @@ type DiscardGuardOptions = {
   /** The sheet's own open state, when it closes before its route does (exit animation first). */
   shown?: boolean;
   isDirty: () => boolean;
-  /** Puts the sheet's URL back: Keep editing after the browser's Back. */
-  reopen: () => void;
+  /** `history.state` for the sheet's URL, when Keep editing has to put it back in place. */
+  reopenState?: () => unknown;
 };
 
 export type DiscardGuard = {
@@ -15,21 +17,28 @@ export type DiscardGuard = {
   open: boolean;
   /** Runs `close` at once, or after Discard when there are unsaved changes. */
   requestClose: (close: () => void) => void;
-  /** Lets the next route close through without asking (a save that navigates). */
+  /** Runs `discard` (a step inside the open sheet that drops the form) at once, or after Discard. */
+  requestDiscard: (discard: () => void) => void;
+  /** Lets the next route close through without asking (a save that navigates), and lets a held
+   * sheet go, question and all (its record is gone). */
   allowClose: () => void;
   confirm: { open: boolean; onDiscard: () => void; onKeepEditing: () => void };
 };
 
 /**
- * Asks "Discard changes?" before a route-driven sheet with unsaved changes closes. A close from
- * the sheet goes through `requestClose`; Back has already left the URL, so the sheet is held open.
+ * Back has already left the URL when it closes a changed sheet, so the sheet is held open until the
+ * question is answered (flow: apps/web/CLAUDE.md, Record form).
  */
 export function useDiscardGuard({
   routeOpen,
   shown: ownShown,
   isDirty,
-  reopen,
+  reopenState,
 }: DiscardGuardOptions): DiscardGuard {
+  const [location, navigate] = useLocation();
+  const search = useSearch();
+  const href = useRef("");
+  if (routeOpen) href.current = search ? `${location}?${search}` : location;
   // Follows the route a commit late, so the render where Back lands still has the sheet up.
   const [routeShown, setRouteShown] = useState(routeOpen);
   const shown = ownShown ?? routeShown;
@@ -44,6 +53,7 @@ export function useDiscardGuard({
     setRouteShown(routeOpen);
     if (routeOpen) {
       setHeld(false);
+      closing.current = false;
       return;
     }
     if (shown && !closing.current && isDirty()) {
@@ -53,6 +63,10 @@ export function useDiscardGuard({
     closing.current = false;
   });
 
+  const ask = (action: () => void) => {
+    if (isDirty()) setPendingClose(() => action);
+    else action();
+  };
   const approve = (close: () => void) => () => {
     closing.current = true;
     close();
@@ -60,12 +74,13 @@ export function useDiscardGuard({
 
   return {
     open: shown || held,
-    requestClose: (close) => {
-      if (isDirty()) setPendingClose(() => approve(close));
-      else approve(close)();
-    },
+    requestClose: (close) => ask(approve(close)),
+    requestDiscard: ask,
     allowClose: () => {
-      closing.current = true;
+      // A held sheet's route is already gone: no route change will come to clear the flag.
+      if (routeOpen) closing.current = true;
+      setHeld(false);
+      setPendingClose(null);
     },
     confirm: {
       open: pendingClose !== null,
@@ -75,7 +90,8 @@ export function useDiscardGuard({
       },
       onKeepEditing: () => {
         setPendingClose(null);
-        if (held) reopen();
+        if (!held) return;
+        undoNavigation(() => navigate(href.current, { replace: true, state: reopenState?.() }));
       },
     },
   };

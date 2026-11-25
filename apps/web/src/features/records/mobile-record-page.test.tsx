@@ -39,7 +39,7 @@ vi.mock("./use-record-actions", () => ({
   useRecordActions: () => ({ record, ready: true, deleteRecord: vi.fn() }),
   useRecordShortcuts: () => {},
 }));
-vi.mock("./Record", () => ({ default: () => null }));
+vi.mock("./RecordDetail", () => ({ RecordDetail: () => null }));
 const holdKeyboard = vi.hoisted(() => vi.fn());
 vi.mock("@repo/ui/lib/keyboard-handoff", () => ({ holdKeyboard }));
 vi.mock("./RecordActions", () => ({ FavoriteButton: () => null, MoreDropdown: () => null }));

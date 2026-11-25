@@ -11,9 +11,9 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 import { Redirect, useParams } from "wouter";
 import { usePageBack } from "@/app/page-transitions";
 import { recordPaths } from "@/app/route-paths";
-import Record from "./Record";
 import { FavoriteButton, MoreDropdown } from "./RecordActions";
 import { RecordAvatar } from "./RecordAvatar";
+import { RecordDetail } from "./RecordDetail";
 import { RecordFallback } from "./RecordFallback";
 import { RecordSubtitle } from "./RecordSubtitle";
 import { useCopyField } from "./record-utils";
@@ -113,7 +113,7 @@ function MobileRecordScreen({ record, onBack, onDelete }: MobileRecordScreenProp
       </div>
 
       <div className="relative flex-1 px-4 pt-5 pb-[max(env(safe-area-inset-bottom),1rem)]">
-        <Record record={record} />
+        <RecordDetail record={record} />
       </div>
 
       {hasDock && (

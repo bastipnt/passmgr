@@ -162,6 +162,78 @@ describe("usePageBack", () => {
   });
 });
 
+describe("undoNavigation", () => {
+  beforeEach(() => setup());
+
+  it("steps forward again over a Back", async () => {
+    act(() => navigate(recordPaths.record("a")));
+    act(() => navigate(recordPaths.editRecord("a")));
+    await act(async () => {
+      history.back();
+      await new Promise((resolve) => addEventListener("popstate", resolve, { once: true }));
+    });
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+    const fallback = vi.fn();
+
+    pt.undoNavigation(fallback);
+
+    expect(go).toHaveBeenCalledWith(1);
+    expect(fallback).not.toHaveBeenCalled();
+  });
+
+  it("takes the step it sent, when the sheet's path is further down the stack too", async () => {
+    const popped = () =>
+      new Promise((resolve) => addEventListener("popstate", resolve, { once: true }));
+    act(() => navigate(recordPaths.record("a")));
+    act(() => navigate(recordPaths.record("b")));
+    act(() => navigate(recordPaths.record("a")));
+    act(() => navigate(`${recordPaths.record("a")}?new=`));
+    const entries = history.length;
+
+    for (let round = 0; round < 2; round++) {
+      await act(async () => {
+        history.back();
+        await popped();
+      });
+      expect(location.search).toBe("");
+      await act(async () => {
+        pt.undoNavigation(() => {});
+        await popped();
+      });
+      expect(location.search).toBe("?new=");
+    }
+    expect(history.length).toBe(entries);
+
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+    clickBack();
+    // Still the five entries: the list, then four at the record depth.
+    expect(go).toHaveBeenCalledWith(-4);
+  });
+
+  it("steps back over a push", () => {
+    act(() => navigate(recordPaths.record("a")));
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+
+    pt.undoNavigation(() => {});
+
+    expect(go).toHaveBeenCalledWith(-1);
+  });
+
+  it("falls back after a replace, and once a step was taken back", () => {
+    act(() => navigate(recordPaths.record("a"), { replace: true }));
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+    const fallback = vi.fn();
+
+    pt.undoNavigation(fallback);
+    act(() => navigate(recordPaths.record("b")));
+    pt.undoNavigation(fallback);
+    pt.undoNavigation(fallback);
+
+    expect(go).toHaveBeenCalledTimes(1);
+    expect(fallback).toHaveBeenCalledTimes(2);
+  });
+});
+
 describe("scroll restoration", () => {
   beforeEach(() => setup());
 

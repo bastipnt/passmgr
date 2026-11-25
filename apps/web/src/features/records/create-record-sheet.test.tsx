@@ -4,6 +4,8 @@ import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
+import { navigate } from "wouter/use-browser-location";
+import { usePageLocation, usePageSearch } from "@/app/page-transitions";
 import { act, renderWithProviders, screen, within } from "@/test/render";
 import CreateRecordSheet, { prefillCreateSheet } from "./CreateRecordSheet";
 
@@ -160,6 +162,47 @@ describe("CreateRecordSheet", () => {
       expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Wiki");
     });
 
+    it("returns to the sheet's full URL on Keep editing after Back, adding no entry", async () => {
+      history.replaceState(null, "", "/");
+      renderWithProviders(
+        <Router hook={usePageLocation} searchHook={usePageSearch}>
+          <CreateRecordSheet />
+        </Router>,
+      );
+      act(() => navigate("/?new=&type=note"));
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
+      const entries = history.length;
+
+      await act(async () => {
+        history.back();
+        await new Promise((resolve) => addEventListener("popstate", resolve, { once: true }));
+      });
+      expect(discardQuestion()).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+      await vi.waitFor(() => expect(location.search).toBe("?new=&type=note"));
+      expect(history.length).toBe(entries);
+      await vi.waitFor(() => expect(discardQuestion()).not.toBeInTheDocument());
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Wiki");
+    });
+
+    it("asks before Back to Type drops them; Keep editing keeps them", async () => {
+      const location = renderAt("/?new=&type=note");
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
+
+      await userEvent.click(screen.getByRole("button", { name: "Type" }));
+      expect(discardQuestion()).toBeInTheDocument();
+      await userEvent.click(screen.getByRole("button", { name: "Keep editing" }));
+
+      await vi.waitFor(() => expect(discardQuestion()).not.toBeInTheDocument());
+      expect(location.history.at(-1)).toBe("/?new=&type=note");
+      expect(screen.getByRole("textbox", { name: "Title" })).toHaveValue("Wiki");
+
+      await userEvent.click(screen.getByRole("button", { name: "Type" }));
+      await userEvent.click(screen.getByRole("button", { name: "Discard" }));
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("?new="));
+    });
+
     it("creates without asking", async () => {
       const location = renderAt("/?new=&type=note");
       await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "Wiki");
@@ -240,6 +283,55 @@ describe("CreateRecordSheet", () => {
       expect(record).toMatchObject({ type: "note", title: "Wiki (copy)", note: "body" });
       expect(record.favorite).toBeUndefined();
       expect(vaultId).toBe("v-work");
+    });
+
+    it("closes when the record goes away mid-edit, without asking to discard", async () => {
+      mocks.records = [source];
+      const location = memoryLocation({ path: "/record/r-1?new=&duplicate=r-1", record: true });
+      const tree = () => (
+        <Router hook={location.hook} searchHook={location.searchHook}>
+          <CreateRecordSheet />
+        </Router>
+      );
+      const { rerender } = renderWithProviders(tree());
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "!");
+
+      mocks.records = [];
+      rerender(tree());
+
+      expect(toast.error).toHaveBeenCalledWith("This item is no longer available");
+      await vi.waitFor(() => expect(location.history.at(-1)).toBe("/record/r-1"));
+      expect(screen.queryByRole("dialog", { name: "Discard changes?" })).not.toBeInTheDocument();
+    });
+
+    it("lets a sheet held after Back go when the record goes away, and asks again later", async () => {
+      mocks.records = [source];
+      const location = memoryLocation({ path: "/record/r-1?new=&duplicate=r-1", record: true });
+      const tree = () => (
+        <Router hook={location.hook} searchHook={location.searchHook}>
+          <CreateRecordSheet />
+        </Router>
+      );
+      const { rerender } = renderWithProviders(tree());
+      await userEvent.type(screen.getByRole("textbox", { name: "Title" }), "!");
+      act(() => location.navigate("/record/r-1"));
+      expect(screen.getByRole("dialog", { name: "Discard changes?" })).toBeInTheDocument();
+
+      mocks.records = [];
+      rerender(tree());
+
+      expect(toast.error).toHaveBeenCalledWith("This item is no longer available");
+      await vi.waitFor(() =>
+        expect(screen.queryByRole("dialog", { name: "Discard changes?" })).not.toBeInTheDocument(),
+      );
+      expect(
+        screen.queryByRole("textbox", { name: "Title", hidden: true }),
+      ).not.toBeInTheDocument();
+
+      act(() => location.navigate("/record/r-1?new=&type=note"));
+      await userEvent.type(await screen.findByRole("textbox", { name: "Title" }), "Wiki");
+      act(() => location.navigate("/record/r-1"));
+      expect(screen.getByRole("dialog", { name: "Discard changes?" })).toBeInTheDocument();
     });
 
     it("closes when the record is gone", async () => {

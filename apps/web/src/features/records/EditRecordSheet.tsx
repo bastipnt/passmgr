@@ -7,7 +7,6 @@ import { useIsMobile } from "@repo/ui/hooks/use-is-mobile";
 import { toLocalDateStr } from "@repo/util";
 import { TrashIcon } from "lucide-react";
 import { type ReactElement, useRef } from "react";
-import { useLocation } from "wouter";
 import { recordPaths } from "@/app/route-paths";
 import { useOneShotParam } from "@/hooks/use-one-shot-param";
 import { RecordAvatar } from "./RecordAvatar";
@@ -49,7 +48,6 @@ function EditRecordSheetContent({
   actions: ReturnType<typeof useRecordActions>;
 }) {
   const isMobile = useIsMobile();
-  const [, navigate] = useLocation();
   const formRef = useRef<RecordFormHandle>(null);
   // Pass Monitor's "Change" asks for a new password right away.
   const generateRequested = useOneShotParam(recordPaths.generateParam);
@@ -60,7 +58,6 @@ function EditRecordSheetContent({
     routeOpen: match,
     shown: open,
     isDirty: () => isDirty,
-    reopen: () => navigate(recordPaths.editRecord(record.recordId)),
   });
   const { form, isDirty } = useRecordForm(record.type, recordFormDefaults(record), {
     open: guard.open,

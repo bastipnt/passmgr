@@ -66,20 +66,20 @@ export function useOpenCreateSheet() {
 
 export default function CreateRecordSheet() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [location, navigate] = useLocation();
+  const [, navigate] = useLocation();
   const isMobile = useIsMobile();
   const formRef = useRef<RecordFormHandle>(null);
 
-  // Presence opens the sheet. Its last URL is kept, so the sheet keeps its content while Back's
-  // "Discard changes?" holds it open, and Keep editing can go back to it.
+  // Presence opens the sheet. Its last params are kept, so the sheet keeps its content while
+  // Back's "Discard changes?" holds it open.
   const routeOpen = searchParams.has(recordPaths.createParam);
-  const lastOpen = useRef({ params: searchParams, href: "" });
-  if (routeOpen) lastOpen.current = { params: searchParams, href: `${location}?${searchParams}` };
-  const sheetParams = routeOpen ? searchParams : lastOpen.current.params;
+  const lastParams = useRef(searchParams);
+  if (routeOpen) lastParams.current = searchParams;
+  const sheetParams = routeOpen ? searchParams : lastParams.current;
   const guard = useDiscardGuard({
     routeOpen,
     isDirty: () => isDirty,
-    reopen: () => navigate(lastOpen.current.href, { state: searchReturnState() }),
+    reopenState: searchReturnState,
   });
   const { open } = guard;
   // The prefilled title lasts while it's open (type picker → form).
@@ -92,6 +92,8 @@ export default function CreateRecordSheet() {
   const duplicateId = open ? sheetParams.get(recordPaths.createDuplicateParam) : null;
   const source = useDuplicateSource(duplicateId, () => {
     toast.error("This item is no longer available");
+    // Nothing left to keep editing a copy of.
+    guard.allowClose();
     close();
   });
   const type = duplicateId ? source?.type : parseType(sheetParams.get(recordPaths.createTypeParam));
@@ -130,14 +132,18 @@ export default function CreateRecordSheet() {
   const title = typeLabel ? `${duplicateId ? "Duplicate" : "New"} ${typeLabel}` : "New item";
   const description = "Encrypted on this device before it's saved";
 
-  // Back to the picker; what was typed so far is dropped with the form.
+  // Back to the picker drops the form, so it asks first.
   const backToPicker = type && !duplicateId && (
     <Button
       variant="ghost"
       size="lg"
       type="button"
       disabled={createPending}
-      onClick={() => navigate(createSheetSearch(), { replace: true, state: searchReturnState() })}
+      onClick={() =>
+        guard.requestDiscard(() =>
+          navigate(createSheetSearch(), { replace: true, state: searchReturnState() }),
+        )
+      }
     >
       <ChevronLeftIcon />
       Type

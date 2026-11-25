@@ -1,7 +1,7 @@
 import { Redirect, useParams } from "wouter";
 import { recordPaths } from "@/app/route-paths";
-import Record from "./Record";
 import { RecordActions } from "./RecordActions";
+import { RecordDetail } from "./RecordDetail";
 import { RecordFallback } from "./RecordFallback";
 import { useRecordActions, useRecordShortcuts } from "./use-record-actions";
 
@@ -21,7 +21,7 @@ function RecordScreen({ recordId }: { recordId: string }) {
           record={record}
           onDelete={() => deleteRecord(recordId)}
         />
-        <Record record={record} />
+        <RecordDetail record={record} />
       </div>
     </section>
   );

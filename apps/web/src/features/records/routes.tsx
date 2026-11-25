@@ -11,6 +11,7 @@ import EditRecordSheet from "./EditRecordSheet";
 import MobileRecordPage from "./MobileRecordPage";
 import MobileVault from "./MobileVault";
 import RecordLayout from "./RecordLayout";
+import VersionsSheet from "./versions/VersionsSheet";
 
 const NotFound = lazyPreload(() => import("@/app/NotFound"));
 
@@ -63,6 +64,7 @@ function Records() {
           "no results" page, which replaces the routes, and the phone / desktop page swap. */}
       <CreateRecordSheet />
       <EditRecordSheet />
+      <VersionsSheet />
     </SortedRecordsProvider>
   );
 }
