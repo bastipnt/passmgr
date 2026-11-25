@@ -69,26 +69,13 @@ export function LightField() {
       <Svg width={width} height={height}>
         <Defs>
           {BLOBS.map((blob, i) => (
-            <RadialGradient
-              key={blob.color}
-              id={`field-${i}`}
-              cx="50%"
-              cy="50%"
-              r="50%"
-              children={easedStops(blob.color, [0, opacity], [0.7, 0])}
-            />
+            <RadialGradient key={blob.color} id={`field-${i}`} cx="50%" cy="50%" r="50%">
+              {easedStops(blob.color, [0, opacity], [0.7, 0])}
+            </RadialGradient>
           ))}
-          <LinearGradient
-            id="field-edge"
-            x1="0"
-            y1="0"
-            x2="0"
-            y2="1"
-            children={[
-              ...easedStops(edge, [0.04, 1], [0.3, 0]),
-              ...easedStops(edge, [0.7, 0], [0.96, 1]),
-            ]}
-          />
+          <LinearGradient id="field-edge" x1="0" y1="0" x2="0" y2="1">
+            {[...easedStops(edge, [0.04, 1], [0.3, 0]), ...easedStops(edge, [0.7, 0], [0.96, 1])]}
+          </LinearGradient>
         </Defs>
         <Rect width={width} height={height} fill={background} />
         {BLOBS.map((blob, i) => (

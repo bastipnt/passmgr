@@ -7,13 +7,25 @@ This repository uses a shared base configuration for OXLint across all packages.
 ```
 .oxlintrc.base.json          # Base configuration (shared)
 ├── apps/
-│   ├── web/.oxlintrc.json    # Extends base + React plugins
-│   ├── server/.oxlintrc.json # Extends base + React + Node env
-│   └── mobile/               # Can extend base
+│   ├── web/.oxlintrc.json        # Extends base + jsx-a11y, react
+│   ├── server/.oxlintrc.json     # Extends base
+│   └── mobile/.oxlintrc.json     # Extends base + react
 └── packages/
-    ├── crypto/.oxlintrc.json # Extends base (no React)
-    └── ...
+    ├── client/.oxlintrc.json     # Extends base + jsx-a11y, react
+    ├── crypto/.oxlintrc.json     # Extends base
+    ├── db/.oxlintrc.json         # Extends base
+    ├── schema/.oxlintrc.json     # Extends base
+    ├── store/.oxlintrc.json      # Extends base
+    ├── types/.oxlintrc.json      # Extends base
+    ├── ui/.oxlintrc.json         # Extends base + jsx-a11y, react
+    ├── ui-native/.oxlintrc.json  # Extends base + react
+    ├── ui-shared/.oxlintrc.json  # Extends base
+    └── util/.oxlintrc.json       # Extends base
 ```
+
+`packages/typescript-config` has no config and no `lint` script: it holds only tsconfig JSON and the
+`tsc7` launcher. React Native packages (`apps/mobile`, `packages/ui-native`) skip `jsx-a11y`: its rules
+check DOM elements and ARIA attributes, which React Native doesn't render.
 
 ## Base Configuration
 

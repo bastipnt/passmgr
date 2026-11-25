@@ -220,7 +220,7 @@ describe("ack / fail", () => {
         serverRow("r1", 1, { encryptedData: "rolled-back" }),
       ),
     ).toBe(false);
-    vi.mocked(secretsStore.isSealedRow).mockReturnValue(false);
+    vi.spyOn(secretsStore, "isSealedRow").mockReturnValue(false);
     expect(await vault.ackPendingChange(change!.changeId, serverRow("r1", 2))).toBe(false);
 
     expect(await vault.getPendingChanges()).toMatchObject([{ changeId: change!.changeId }]);
