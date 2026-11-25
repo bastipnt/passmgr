@@ -45,7 +45,14 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SITE_URL: ${{ vars.SITE_URL }}
           TAG: ${{ inputs.tag }}
+          # verify-deployment.ts EXIT_CODES (its test fails on drift); any other failure is "error".
+          EXIT_MISMATCH: 1
+          EXIT_UNREACHABLE: 3
         run: |
+          # Anything that fails before a comparison (setup, gh, the script itself) reports "error".
+          kind=error
+          trap 'echo "kind=${kind}" >> "$GITHUB_OUTPUT"' EXIT
+
           if [ -z "$SITE_URL" ]; then
             echo "::error::vars.SITE_URL is not set"
             exit 1
@@ -83,9 +90,10 @@ jobs:
             gh api -H "Accept: application/vnd.github.raw" "repos/${GITHUB_REPOSITORY}/contents/Caddyfile?ref=${tag}" > "sums/$tag/Caddyfile"
           done
 
-          # Two attempts so one network hiccup doesn't page anyone. Exit 3 is "unreachable"
-          # (verify-deployment.ts); it is a mismatch once every candidate mismatched in one attempt.
+          # Two attempts so one network hiccup doesn't page anyone. A mismatch once every candidate
+          # mismatched in one attempt; else an error if one ran into one; else unreachable.
           kind=unreachable
+          errored=false
           for attempt in 1 2; do
             all_mismatched=true
             for tag in "${candidates[@]}"; do
@@ -97,20 +105,27 @@ jobs:
                   echo "::warning::${SITE_URL} serves ${tag}; ${candidates[0]} is not deployed yet (release run: ${release_run:-none})"
                 fi
                 echo "${SITE_URL} serves ${tag}" >> "$GITHUB_STEP_SUMMARY"
+                kind=pass
                 exit 0
               fi
-              [ "$status" -eq 3 ] && all_mismatched=false
+              [ "$status" -ne "$EXIT_MISMATCH" ] && all_mismatched=false
+              [ "$status" -ne "$EXIT_MISMATCH" ] && [ "$status" -ne "$EXIT_UNREACHABLE" ] && errored=true
             done
             [ "$all_mismatched" = true ] && kind=mismatch
             [ "$attempt" -eq 1 ] && sleep 60
           done
+          [ "$kind" != mismatch ] && [ "$errored" = true ] && kind=error
 
-          echo "kind=${kind}" >> "$GITHUB_OUTPUT"
           echo "::error::${SITE_URL} matches none of: ${candidates[*]} (${kind})"
           exit 1
 
+      # Marks the run for the next ones' alert: only runs with this step succeeded count as unreachable.
+      - name: Mark unreachable run
+        if: failure() && steps.verify.outputs.kind == 'unreachable'
+        run: echo "Unreachable"
+
   # A failed scheduled run alone only notifies whoever last edited the cron, so keep an open issue.
-  # A mismatch opens it at once; unreachable only after UNREACHABLE_RUNS scheduled runs failed in a row.
+  # Mismatch and error open it at once, unreachable after UNREACHABLE_RUNS unreachable runs in a row.
   alert:
     needs: verify
     if: failure() && github.event_name != 'push'
@@ -126,9 +141,9 @@ jobs:
           EVENT: ${{ github.event_name }}
           # Hourly cron: three runs is about two hours without reaching the site.
           UNREACHABLE_RUNS: 3
+          UNREACHABLE_STEP: Mark unreachable run
         run: |
           run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          # No kind means the step failed before comparing anything; keep the cautious wording.
           if [ "$KIND" = "unreachable" ]; then
             title="Served-code check could not reach production"
             body=$(cat <<EOF
@@ -137,12 +152,21 @@ jobs:
           No file was compared, so this is not by itself evidence of tampering. A host that keeps failing only some files of the release still needs explaining. See docs/security/web-served-code-trust.md.
           EOF
             )
-          else
+          elif [ "$KIND" = "mismatch" ]; then
             title="Served web code does not match the release"
             body=$(cat <<EOF
           The files served by production don't match the published SHA256SUMS: ${run_url}
 
           Treat it as a possible web-host compromise until explained. See docs/security/web-served-code-trust.md.
+          EOF
+            )
+          else
+            # "error", or no kind at all: at least one candidate release was never compared.
+            title="Served-code check could not complete"
+            body=$(cat <<EOF
+          The served-code check could not complete the comparison against every candidate release (configuration, GitHub API or script error): ${run_url}
+
+          What failed compared nothing, so it is not by itself evidence of tampering; a candidate that was compared and did not match shows in the run log. Production is not fully checked until this is fixed. See docs/security/web-served-code-trust.md.
           EOF
             )
           fi
@@ -159,12 +183,20 @@ jobs:
               echo "::notice::Unreachable outside a scheduled run: no issue"
               exit 0
             fi
-            # This run is still in progress, so the completed ones are the runs before it.
+            # This run is still in progress, so the completed ones are the runs before it. Any run that
+            # was not unreachable (pass, mismatch, error, cancelled) breaks the streak.
             earlier=$((UNREACHABLE_RUNS - 1))
-            failed=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow web-served-code.yml --event schedule \
-              --status completed --limit "$earlier" --json conclusion --jq '[.[] | select(.conclusion == "failure")] | length')
-            if [ "$failed" -lt "$earlier" ]; then
-              echo "::notice::Unreachable, but not ${UNREACHABLE_RUNS} failed scheduled runs in a row yet: no issue"
+            run_ids=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow web-served-code.yml --event schedule \
+              --status completed --limit "$earlier" --json databaseId --jq '.[].databaseId')
+            unreachable=0
+            for id in $run_ids; do
+              marked=$(gh run view "$id" --repo "$GITHUB_REPOSITORY" --json jobs --jq '[.jobs[] | select(.name == "verify")
+                | .steps[] | select(.name == $ENV.UNREACHABLE_STEP and .conclusion == "success")] | length')
+              [ "$marked" -gt 0 ] || break
+              unreachable=$((unreachable + 1))
+            done
+            if [ "$unreachable" -lt "$earlier" ]; then
+              echo "::notice::Unreachable, but not ${UNREACHABLE_RUNS} unreachable scheduled runs in a row yet: no issue"
               exit 0
             fi
           fi

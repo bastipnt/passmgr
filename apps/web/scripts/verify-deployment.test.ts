@@ -1,8 +1,10 @@
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { HttpResponse, http } from "msw";
 import { describe, expect, it } from "vitest";
 import { server } from "../src/test/msw/server";
-import { type Check, check, verdict } from "./verify-deployment";
+import { type Check, check, EXIT_CODES, verdict } from "./verify-deployment";
 
 const SITE = "https://vault.example.test/";
 const BODY = "<!doctype html>";
@@ -83,5 +85,39 @@ describe("verify-deployment verdict", () => {
 
   it("is a mismatch as soon as one file differs", () => {
     expect(verdict([unreachable, mismatch, unreachable])).toBe("mismatch");
+  });
+});
+
+describe("verify-deployment in web-served-code.yml", () => {
+  const workflow = readFileSync(
+    join(import.meta.dirname, "../../../.github/workflows/web-served-code.yml"),
+    "utf8",
+  );
+
+  it("pins the exit codes the workflow tells kinds apart by", () => {
+    const pinned = Object.fromEntries(
+      [...workflow.matchAll(/^\s*EXIT_([A-Z]+): (\d+)$/gm)].map(([, kind, code]) => [
+        kind.toLowerCase(),
+        Number(code),
+      ]),
+    );
+
+    expect(pinned).toEqual({
+      mismatch: EXIT_CODES.mismatch,
+      unreachable: EXIT_CODES.unreachable,
+    });
+  });
+
+  it("gives every exit code its own value", () => {
+    const codes = Object.values(EXIT_CODES);
+
+    expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it("marks unreachable runs with the step the alert counts", () => {
+    const step = /^\s*UNREACHABLE_STEP: (.+)$/m.exec(workflow)?.[1];
+
+    expect(step).toBeTruthy();
+    expect(workflow).toContain(`- name: ${step}\n`);
   });
 });

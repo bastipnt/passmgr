@@ -6,7 +6,8 @@
  *   pnpm --filter web verify:deployment https://vault.example.com ./SHA256SUMS [./Caddyfile]
  *
  * Without a Caddyfile argument the one in this checkout is used. Exits 1 on a mismatch (digest,
- * fallback route, header, a 4xx), 3 when only fetches failed (network error, timeout, 5xx), 2 on usage.
+ * fallback route, header, a 4xx), 3 when only fetches failed (network error, timeout, 5xx), 2 on usage,
+ * 4 when it could not compare at all (an unreadable or malformed SHA256SUMS or Caddyfile).
  */
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -26,7 +27,7 @@ const PINNED_HEADERS = [
   "Cross-Origin-Embedder-Policy",
 ] as const;
 
-export const EXIT_CODES = { mismatch: 1, usage: 2, unreachable: 3 } as const;
+export const EXIT_CODES = { mismatch: 1, usage: 2, unreachable: 3, error: 4 } as const;
 
 export type FailureKind = "mismatch" | "unreachable";
 export type Failure = { kind: FailureKind; message: string };
@@ -148,4 +149,10 @@ async function main() {
   );
 }
 
-if (import.meta.main) await main();
+if (import.meta.main) {
+  // An uncaught throw exits 1, which the workflow would read as a mismatch.
+  await main().catch((error: unknown) => {
+    console.error(error);
+    process.exit(EXIT_CODES.error);
+  });
+}

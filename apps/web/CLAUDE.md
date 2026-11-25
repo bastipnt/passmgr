@@ -180,7 +180,8 @@ Web served-code trust (`apps/web/vite-plugin-build-integrity.ts`, after the bund
 `index.html`, then the service worker's precache manifest with each precached file's SRI hash (`public/sw.js` installs
 with `integrity`, all or nothing), then `SHA256SUMS` of `dist`. `release.yml` attaches it to the GitHub release
 (`web-checksums`); `pnpm --filter web verify:deployment <url> <SHA256SUMS> [Caddyfile]` checks a deployment against it
-(files, SPA fallback routes, CSP / COOP / COEP), hourly and after each deploy (`.github/workflows/web-served-code.yml`).
+(files, SPA fallback routes, CSP / COOP / COEP), hourly and after each deploy (`.github/workflows/web-served-code.yml`;
+its exit codes tell mismatch, unreachable and error apart, `EXIT_CODES`, pinned by its test).
 What it does and doesn't protect against: `docs/security/web-served-code-trust.md`.
 
 Updates (`src/register-sw.ts`): navigations are served cache-first, so a release found during a visit installs in the
