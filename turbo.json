@@ -18,11 +18,21 @@
       "dependsOn": ["transit"],
       "outputs": []
     },
-    "test": {},
-    "test:coverage": {},
-    "test:browser": {},
-    "test:integration": {},
-    "test:integration:coverage": {},
+    "test": {
+      "dependsOn": ["transit"]
+    },
+    "test:coverage": {
+      "dependsOn": ["transit"]
+    },
+    "test:browser": {
+      "dependsOn": ["transit"]
+    },
+    "test:integration": {
+      "dependsOn": ["transit"]
+    },
+    "test:integration:coverage": {
+      "dependsOn": ["transit"]
+    },
     "e2e": {
       "cache": false,
       "dependsOn": ["^build"],
