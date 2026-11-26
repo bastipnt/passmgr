@@ -4,6 +4,7 @@ import { ServerUrlContext } from "@repo/client/src/providers/ClientProvider";
 import { PreferencesProvider } from "@repo/client/src/providers/PreferencesProvider";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { type RenderOptions, type RenderResult, render } from "@testing-library/react";
+import userEvent, { type UserEvent } from "@testing-library/user-event";
 import { type ReactElement, type ReactNode, useState } from "react";
 
 import { usePreferencesStore } from "@/hooks/use-preferences-store";
@@ -30,6 +31,16 @@ function Providers({ children }: { children: ReactNode }) {
 
 export function renderWithProviders(ui: ReactElement, options?: RenderOptions): RenderResult {
   return render(ui, { wrapper: Providers, ...options });
+}
+
+/** Pasted, not typed: a field rated per keystroke (strength meter) outlasts the test limit under a full run. */
+export async function fill(
+  field: HTMLElement,
+  value: string,
+  user: Pick<UserEvent, "click" | "paste"> = userEvent,
+) {
+  await user.click(field);
+  await user.paste(value);
 }
 
 export * from "@testing-library/react";

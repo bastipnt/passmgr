@@ -3,7 +3,7 @@ import { RECORD_TYPES } from "@repo/schema";
 import userEvent from "@testing-library/user-event";
 import { createRef } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { renderWithProviders, screen, waitFor, within } from "@/test/render";
+import { fill, renderWithProviders, screen, waitFor, within } from "@/test/render";
 import { decodeQrImage } from "./login/qr-decode";
 import RecordForm, { type RecordFormHandle } from "./RecordForm";
 
@@ -34,16 +34,16 @@ describe("RecordForm", () => {
     const ref = createRef<RecordFormHandle>();
     renderWithProviders(<RecordForm type="login" onSubmit={onSubmit} ref={ref} />);
 
-    await userEvent.type(screen.getByLabelText("Title"), "GitHub");
-    await userEvent.type(screen.getByLabelText("Username"), "octocat");
-    await userEvent.type(screen.getByLabelText("Email"), "octo@example.com");
-    await userEvent.type(screen.getByLabelText("Password"), "hunter2hunter2");
-    await userEvent.type(screen.getByLabelText("One-time code"), "JBSWY3DPEHPK3PXP");
-    await userEvent.type(screen.getByPlaceholderText("example.com"), "github.com");
+    await fill(screen.getByLabelText("Title"), "GitHub");
+    await fill(screen.getByLabelText("Username"), "octocat");
+    await fill(screen.getByLabelText("Email"), "octo@example.com");
+    await fill(screen.getByLabelText("Password"), "hunter2hunter2");
+    await fill(screen.getByLabelText("One-time code"), "JBSWY3DPEHPK3PXP");
+    await fill(screen.getByPlaceholderText("example.com"), "github.com");
     await userEvent.click(screen.getByRole("button", { name: "Add field" }));
     await userEvent.click(await screen.findByRole("menuitem", { name: "Text" }));
-    await userEvent.type(screen.getByPlaceholderText("Label"), "Team");
-    await userEvent.type(screen.getByPlaceholderText("Value"), "core");
+    await fill(screen.getByPlaceholderText("Label"), "Team");
+    await fill(screen.getByPlaceholderText("Value"), "core");
     await userEvent.type(screen.getByLabelText("Tags"), "dev{Enter}");
 
     ref.current?.triggerSubmit();

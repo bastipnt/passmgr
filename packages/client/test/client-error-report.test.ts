@@ -1,5 +1,7 @@
 import { clientErrorInputSchema } from "@repo/schema";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+// Loaded once at collection (no time limit): a cold load inside beforeEach outlasted the 10s hook limit under a full run.
+import "../src/errors/client-error-report";
 
 const env = { platform: "web", appVersion: "v1.2.3" } as const;
 const occurrence = { kind: "render", area: "records" } as const;

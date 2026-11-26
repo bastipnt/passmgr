@@ -8,7 +8,7 @@ import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { authPaths } from "@/app/route-paths";
 import { createFakeStore, profileEntry } from "@/test/fake-store";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { fill, renderWithProviders, screen, waitFor } from "@/test/render";
 import RestoreBackupPage from "./RestoreBackupPage";
 
 const restoreHook = vi.hoisted(() => ({
@@ -87,9 +87,9 @@ function file(content: string, name = "passmgr-backup.json") {
 }
 
 async function setUpVault() {
-  await userEvent.type(screen.getByLabelText("Vault name"), "Restored");
-  await userEvent.type(screen.getByLabelText("Password"), PASSWORD);
-  await userEvent.type(screen.getByLabelText("Confirm password"), PASSWORD);
+  await fill(screen.getByLabelText("Vault name"), "Restored");
+  await fill(screen.getByLabelText("Password"), PASSWORD);
+  await fill(screen.getByLabelText("Confirm password"), PASSWORD);
   await userEvent.click(screen.getByRole("button", { name: /restore vault/i }));
 }
 
@@ -105,13 +105,13 @@ describe("RestoreBackupPage", () => {
     );
     await screen.findByText(/encrypted backup ·/i);
 
-    await user.type(screen.getByLabelText("Backup password"), "wrong-password");
+    await fill(screen.getByLabelText("Backup password"), "wrong-password", user);
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
     await screen.findByText(/not your vault password/i);
     expect(screen.queryByText("Can't be opened")).not.toBeInTheDocument();
 
     await user.clear(screen.getByLabelText("Backup password"));
-    await user.type(screen.getByLabelText("Backup password"), BACKUP_PASSWORD);
+    await fill(screen.getByLabelText("Backup password"), BACKUP_PASSWORD, user);
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
 
     await screen.findByText("1 record(s) ready to restore");
