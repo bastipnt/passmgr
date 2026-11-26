@@ -15,8 +15,10 @@ checked against `argonParamsSchema` (`@repo/schema`); tests that derive with t:1
 Argon2id itself (`util/argon2-impl.ts`): web / Node run hash-wasm (WASM inlined in the bundle, needs
 `'wasm-unsafe-eval'`), falling back to @noble per thread once the WASM fails; mobile `react-native-argon2`. Web derives in the
 worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thread where there's no `Worker` (Node).
-The web worker services share `util/worker-client.ts` (`WorkerClient`: lazy worker, replies by id, a load error
-fails every waiting call; `runOffThread`: the in-thread fallback where there's no `Worker`).
+The web worker services (Argon2, strength, decrypt) share `util/worker-client.ts` (`WorkerClient`: lazy worker, replies
+by id, a load error fails every waiting call; `runOffThread` / `hasWorker`: the in-thread fallback where there's no
+`Worker`). Record decryption (`decrypt-in-thread.ts`) is the same code in the decrypt worker, on mobile and in Node;
+`init` transfers the vault key buffers to the worker, `wipe` rejects pending decrypts and zeroes the worker's keys.
 `argon2Async(variant, …)` also does Argon2d (KeePass import only); on mobile Argon2d and binary passwords run on @noble (JS thread).
 
 ## OPAQUE KSF

@@ -185,6 +185,24 @@ describe("WorkerClient", () => {
     expect(workers).toHaveLength(1);
   });
 
+  it("cancel rejects what's waiting and keeps the worker", async () => {
+    const { client: c, workers } = client(async (request) => ({ result: request }));
+    expect(c.started).toBe(false);
+    const gate = deferred<void>();
+    const { client: slow, workers: slowWorkers } = client(async () => {
+      await gate.promise;
+      return { result: 1 };
+    });
+    const pending = slow.request("x");
+    slow.cancel(new Error("cancelled"));
+    await expect(pending).rejects.toThrow("cancelled");
+    expect(slowWorkers[0]?.terminated).toBe(false);
+    expect(slow.started).toBe(true);
+    gate.resolve();
+    expect(await c.request("y")).toBe("y");
+    expect(workers).toHaveLength(1);
+  });
+
   it("ignores a reply for a call that is no longer waiting", async () => {
     const { client: c, workers } = client(async () => ({ result: 1 }));
     await c.request("x");

@@ -4,11 +4,15 @@ type Reply = { id: number; result: unknown } | { id: number; error: string };
 type Pending = { resolve: (result: unknown) => void; reject: (error: Error) => void };
 
 /** Node (tests, scripts) has no `Worker`: there the work runs in-thread. */
+export function hasWorker(): boolean {
+  return typeof Worker !== "undefined";
+}
+
 export function runOffThread<T>(
   offThread: () => Promise<T>,
   inThread: () => T | Promise<T>,
 ): Promise<T> {
-  if (typeof Worker === "undefined") return Promise.resolve().then(inThread);
+  if (!hasWorker()) return Promise.resolve().then(inThread);
   return offThread();
 }
 
@@ -35,11 +39,20 @@ export class WorkerClient {
     return result;
   }
 
+  get started(): boolean {
+    return this.worker !== null;
+  }
+
+  /** Rejects every waiting call but keeps the worker (and what it holds) running. */
+  cancel(error: Error): void {
+    for (const entry of this.pending.values()) entry.reject(error);
+    this.pending.clear();
+  }
+
   terminate(error = new Error(`${this.name} terminated`)): void {
     this.worker?.terminate();
     this.worker = null;
-    for (const entry of this.pending.values()) entry.reject(error);
-    this.pending.clear();
+    this.cancel(error);
   }
 
   private post<T>(request: unknown, transfer: Transferable[]): Promise<T> {
