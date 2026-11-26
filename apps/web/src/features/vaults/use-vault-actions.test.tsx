@@ -10,7 +10,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { act, renderHook } from "@testing-library/react";
 import { TRPCClientError } from "@trpc/client";
 import type { ContextType, ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 
 const ME_ID = "0199a3c4-0000-7000-8000-00000000000a";
 const BOB_ID = "0199a3c4-0000-7000-8000-00000000000b";
@@ -220,9 +220,12 @@ describe("useVaultActions", () => {
     };
     const sealed = { userId: BOB_ID, recipientKeyVersion: 1, sealedVaultKey: "sealed" };
 
+    let rotateVaultKey: MockInstance<typeof secretsStore.rotateVaultKey>;
     beforeEach(() => {
       mocks.vaults = [work];
-      vi.spyOn(secretsStore, "rotateVaultKey").mockResolvedValue({ ...rotation, memberKeys: [] });
+      rotateVaultKey = vi
+        .spyOn(secretsStore, "rotateVaultKey")
+        .mockResolvedValue({ ...rotation, memberKeys: [] });
       vi.spyOn(secretsStore, "userKeyVersion", "get").mockReturnValue(1);
     });
 
@@ -272,7 +275,7 @@ describe("useVaultActions", () => {
         bob,
       ]);
       vault.getPeerKey.mockResolvedValueOnce(bob.publicKey as never);
-      vi.mocked(secretsStore.rotateVaultKey).mockResolvedValue({
+      rotateVaultKey.mockResolvedValue({
         ...rotation,
         memberKeys: [sealed],
       });
@@ -282,7 +285,7 @@ describe("useVaultActions", () => {
         await result.current.rotateVaultKey("v-work");
       });
 
-      expect(secretsStore.rotateVaultKey).toHaveBeenCalledWith(work, [bob]);
+      expect(rotateVaultKey).toHaveBeenCalledWith(work, [bob]);
       expect(vault.pinPeerKey).not.toHaveBeenCalled();
       expect(mocks.trpc.vault.rotateKey.mutate).toHaveBeenCalledWith(
         expect.objectContaining({ memberKeys: [sealed] }),
@@ -297,7 +300,7 @@ describe("useVaultActions", () => {
       await act(async () => {
         await expect(result.current.rotateVaultKey("v-work")).rejects.toThrow("key changed");
       });
-      expect(secretsStore.rotateVaultKey).not.toHaveBeenCalled();
+      expect(rotateVaultKey).not.toHaveBeenCalled();
       expect(mocks.trpc.vault.rotateKey.mutate).not.toHaveBeenCalled();
     });
 

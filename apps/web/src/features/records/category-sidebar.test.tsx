@@ -123,9 +123,11 @@ const listed = () =>
     .map((item) => item.textContent)
     .sort();
 
+const scrollIntoView = vi.fn();
+
 beforeEach(() => {
   // jsdom doesn't lay out.
-  Element.prototype.scrollIntoView = vi.fn();
+  Element.prototype.scrollIntoView = scrollIntoView;
   localStorage.clear();
   setWindowWide(true);
 });
@@ -410,13 +412,11 @@ describe("search panel", () => {
     const { user } = renderList();
     await user.click(field());
     await user.keyboard("vis");
-    vi.mocked(Element.prototype.scrollIntoView).mockClear();
+    scrollIntoView.mockClear();
 
     await user.click(screen.getByRole("option", { name: /Visa/ }));
-    expect(Element.prototype.scrollIntoView).toHaveBeenCalledWith({ block: "center" });
-    expect(vi.mocked(Element.prototype.scrollIntoView).mock.contexts.at(-1)).toBe(
-      screen.getByRole("link", { name: /Visa/ }),
-    );
+    expect(scrollIntoView).toHaveBeenCalledWith({ block: "center" });
+    expect(scrollIntoView.mock.contexts.at(-1)).toBe(screen.getByRole("link", { name: /Visa/ }));
   });
 
   it("tag mode's one pill shows its records, as Esc does", async () => {

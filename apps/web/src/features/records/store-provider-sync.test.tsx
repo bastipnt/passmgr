@@ -57,11 +57,13 @@ const entry: ProfileEntry = {
   demo: false,
 };
 // One profile on the device, opened on launch.
+const listProfiles = vi.fn(async () => [entry]);
+const markExported = vi.fn(async () => undefined);
 const profiles = {
-  list: vi.fn(async () => [entry]),
+  list: listProfiles,
   open: vi.fn(async () => vault),
   close: vi.fn(async () => undefined),
-  markExported: vi.fn(async () => undefined),
+  markExported,
 } as unknown as ProfileStore;
 
 const detachServer = vi.fn();
@@ -426,10 +428,10 @@ describe("StoreProvider markExported", () => {
     await waitFor(() => expect(store?.active?.entry.profileId).toBe(entry.profileId));
 
     const exported = { ...entry, lastExportAt: "2026-10-08T00:00:00.000Z" };
-    vi.mocked(profiles.list).mockResolvedValueOnce([exported]);
+    listProfiles.mockResolvedValueOnce([exported]);
     await store?.markExported(entry.profileId);
 
-    expect(profiles.markExported).toHaveBeenCalledWith(entry.profileId);
+    expect(markExported).toHaveBeenCalledWith(entry.profileId);
     await waitFor(() => expect(store?.active?.entry.lastExportAt).toBe(exported.lastExportAt));
     expect(store?.profiles).toEqual([exported]);
   });

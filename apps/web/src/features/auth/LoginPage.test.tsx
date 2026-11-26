@@ -17,12 +17,11 @@ import {
   wrapAccountKey,
   wrapVaultKey,
 } from "@repo/crypto";
-import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault } from "@repo/schema";
 import { type LocalProfile, secretsStore } from "@repo/store";
 import userEvent from "@testing-library/user-event";
 import type { ContextType } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, type MockInstance, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { authPaths } from "@/app/route-paths";
@@ -85,8 +84,9 @@ vi.mock("@repo/client/src/login", async () => (await import("@/test/login-mock")
 vi.mock("@repo/client/src/hooks/use-app-config", () => ({
   useAppConfig: () => ({ registrationEnabled: true, isLoading: false }),
 }));
+const { derive } = vi.hoisted(() => ({ derive: vi.fn() }));
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
-  argon2WorkerService: { derive: vi.fn() },
+  argon2WorkerService: { derive },
 }));
 vi.mock("@repo/client/src/hooks/use-demo-vault", async (importActual) => ({
   ...(await importActual<object>()),
@@ -182,6 +182,8 @@ const bobProfile: LocalProfile = {
   userId: "user-bob",
 };
 
+let keepOpaquePassword: MockInstance<typeof secretsStore.keepOpaquePassword>;
+
 function resetMocks() {
   vi.mocked(useStoragePersistent).mockReturnValue(true);
   secretsStore.lock();
@@ -193,8 +195,8 @@ function resetMocks() {
     needsBiometricEnroll: false,
   });
   store.vault.getVaults.mockResolvedValue([personalVault]);
-  vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
-  vi.spyOn(secretsStore, "keepOpaquePassword");
+  derive.mockResolvedValue(new Uint8Array(32));
+  keepOpaquePassword = vi.spyOn(secretsStore, "keepOpaquePassword");
   // `unlockVault` is a mock: let the background connect see an unlocked vault.
   vi.spyOn(secretsStore, "isVaultUnlocked", "get").mockReturnValue(true);
   vi.spyOn(secretsStore, "exportAccountKey").mockImplementation(() => accountKey.slice());
@@ -212,7 +214,7 @@ describe("LoginPage offline", () => {
     await unlockStored("wrong password");
 
     await screen.findByText(/check your email and password/i);
-    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
+    expect(keepOpaquePassword).not.toHaveBeenCalled();
     // The password handed to the failed unlock is wiped, not left behind.
     expect(unlockVault.mock.calls[0]?.[6]).toEqual(new Uint8Array(32));
     expect(loginUserCore).not.toHaveBeenCalled();
@@ -224,7 +226,7 @@ describe("LoginPage offline", () => {
     await login("mallory@example.com", "some password");
 
     await screen.findByText(/can't add an account offline/i);
-    expect(argon2WorkerService.derive).not.toHaveBeenCalled();
+    expect(derive).not.toHaveBeenCalled();
     expect(store.openAccountProfile).not.toHaveBeenCalled();
     expect(unlockVault).not.toHaveBeenCalled();
   });
@@ -239,7 +241,7 @@ describe("LoginPage offline", () => {
     expect(unlockVault.mock.calls[0]?.[6]).toEqual(
       await deriveOpaquePassword("right password", linkedProfile.email),
     );
-    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
+    expect(keepOpaquePassword).not.toHaveBeenCalled();
     // No server: no login, and the key material isn't rewritten.
     expect(loginUserCore).not.toHaveBeenCalled();
     expect(store.saveAccount).not.toHaveBeenCalled();
@@ -364,7 +366,7 @@ describe("AccountLoginPage errors", () => {
 describe("AccountLoginPage online", () => {
   beforeEach(() => {
     resetMocks();
-    vi.mocked(argon2WorkerService.derive).mockRejectedValue(new Error("worker crashed"));
+    derive.mockRejectedValue(new Error("worker crashed"));
     vi.mocked(loginUserCore).mockImplementation(serverLogin());
   });
 
@@ -381,7 +383,7 @@ describe("AccountLoginPage online", () => {
   });
 
   it("adds an account new to this device next to the profiles already there", async () => {
-    vi.mocked(argon2WorkerService.derive).mockResolvedValue(new Uint8Array(32));
+    derive.mockResolvedValue(new Uint8Array(32));
     vi.mocked(loginUserCore).mockImplementation(serverLogin("user-bob"));
     renderAccountLogin({ networkOffline: false });
     await login("bob@example.com", "right password");
@@ -732,7 +734,7 @@ describe("LoginPage local vault", () => {
     expect(attachServer).not.toHaveBeenCalled();
     // Nothing to reconnect with: the password isn't kept.
     expect(unlockVault.mock.calls[0]?.[6]).toBeUndefined();
-    expect(secretsStore.keepOpaquePassword).not.toHaveBeenCalled();
+    expect(keepOpaquePassword).not.toHaveBeenCalled();
   });
 
   it("says the password is wrong without falling back to a server login", async () => {
@@ -769,7 +771,7 @@ describe("LoginPage local vault", () => {
     expect(vaults).toEqual([personalVault]);
     expect(profile).toBeUndefined();
     // Unlock, two calibration runs and the rekey, all in the worker; no server involved.
-    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(4);
+    expect(derive).toHaveBeenCalledTimes(4);
     expect(loginUserCore).not.toHaveBeenCalled();
   });
 
@@ -783,6 +785,6 @@ describe("LoginPage local vault", () => {
 
     await waitFor(() => expect(unlockVault).toHaveBeenCalledTimes(1));
     expect(store.saveAccount).not.toHaveBeenCalled();
-    expect(argon2WorkerService.derive).toHaveBeenCalledTimes(1);
+    expect(derive).toHaveBeenCalledTimes(1);
   });
 });

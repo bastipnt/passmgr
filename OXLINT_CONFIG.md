@@ -24,8 +24,9 @@ This repository uses a shared base configuration for OXLint across all packages.
 ```
 
 `packages/typescript-config` has no config and no `lint` script: it holds only tsconfig JSON and the
-`tsc7` launcher. React Native packages (`apps/mobile`, `packages/ui-native`) skip `jsx-a11y`: its rules
-check DOM elements and ARIA attributes, which React Native doesn't render.
+`tsc7` launcher. `infra/redis` (`@repo/redis`) has no config and no `lint` script either: it holds only
+a Docker Compose file. React Native packages (`apps/mobile`, `packages/ui-native`) skip `jsx-a11y`: its
+rules check DOM elements and ARIA attributes, which React Native doesn't render.
 
 ## Base Configuration
 
@@ -70,7 +71,8 @@ Add to `scripts`:
     "lint": "oxlint --type-aware"
   },
   "devDependencies": {
-    "oxlint": "^1.43.0"
+    "oxlint": "catalog:",
+    "oxlint-tsgolint": "catalog:"
   }
 }
 ```
@@ -110,7 +112,7 @@ pnpm lint
 
 To add OXLint to an existing package:
 
-1. Install OXLint: `pnpm add oxlint@^1.43.0 --save-dev`
+1. Install OXLint from the workspace catalog: `pnpm add oxlint@catalog: oxlint-tsgolint@catalog: --save-dev`
 2. Create `.oxlintrc.json` extending base config
 3. Add `"lint": "oxlint --type-aware"` to package.json scripts
 4. Run `pnpm lint` to check for issues

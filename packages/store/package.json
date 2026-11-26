@@ -13,7 +13,7 @@
   },
   "scripts": {
     "lint": "oxlint --type-aware",
-    "typecheck": "tsc7 --noEmit",
+    "typecheck": "tsc7 -b --noEmit",
     "test": "vitest run",
     "test:browser": "vitest run --config vitest.browser.config.ts",
     "test:coverage": "vitest run --coverage",

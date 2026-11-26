@@ -28,6 +28,6 @@
       "@repo/ui/*": ["./src/*"]
     }
   },
-  "include": ["src", "index.ts"],
+  "include": ["src", "index.ts", ".storybook/preview.ts", ".storybook/vitest.setup.ts"],
   "exclude": ["node_modules", "dist"]
 }

@@ -29,7 +29,6 @@ import {
   sealPendingRecovery,
   wrapAccountKey,
 } from "@repo/crypto";
-import { argon2WorkerService } from "@repo/crypto/services/argon2-worker-service";
 import type { MemberVault, PendingRecovery, UserKeyPair } from "@repo/schema";
 import {
   clearLoginBundle,
@@ -70,8 +69,9 @@ vi.mock("@repo/client/src/recover", async (importActual) => ({
   ...(await importActual<object>()),
   finishPendingRecovery: vi.fn(),
 }));
+const { derive } = vi.hoisted(() => ({ derive: vi.fn() }));
 vi.mock("@repo/crypto/services/argon2-worker-service", () => ({
-  argon2WorkerService: { derive: vi.fn() },
+  argon2WorkerService: { derive },
 }));
 vi.mock("@repo/crypto/services/decrypt-worker-service", () => ({
   decryptWorkerService: { init: vi.fn() },
@@ -693,7 +693,7 @@ describe("useConnectServer", () => {
   describe("a password wrap that changed on the server", () => {
     function changedWrap(accountKey: Uint8Array) {
       const kek = genKey();
-      vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
+      derive.mockImplementation(async () => kek.slice());
       const [encryptedAccountKey, accountKeyEncryptionNonce] = wrapAccountKey(kek, accountKey);
       const changed = { ...passwordKeys, encryptedAccountKey, accountKeyEncryptionNonce };
       const login = vi.mocked(loginUserCore).getMockImplementation()!;
@@ -959,7 +959,7 @@ describe("unlock: which profile?", () => {
       encryptedAccountKey,
       accountKeyEncryptionNonce,
     };
-    vi.mocked(argon2WorkerService.derive).mockImplementation(async () => kek.slice());
+    derive.mockImplementation(async () => kek.slice());
     return { userPasswordKeys, wraps, userKeyPair };
   }
 
@@ -1102,7 +1102,7 @@ describe("unlock: which profile?", () => {
     expect(unlocked).toBe(false);
     expect(result.current.unlockError).toBe("wrong_account");
     expect(store.selectProfile).not.toHaveBeenCalled();
-    expect(argon2WorkerService.derive).not.toHaveBeenCalled();
+    expect(derive).not.toHaveBeenCalled();
   });
 
   it("online: leaves an account new to this device to the server login", async () => {
