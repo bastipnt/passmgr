@@ -118,7 +118,7 @@ async function launch({ biometricSupported = true } = {}) {
 /** A profile on the device, as an earlier login left it, with one record. */
 async function seed(profile: LocalProfile, recordId: string) {
   const { vault } = await profiles.create(profile, (v) =>
-    v.setAccountKeyMaterial(material, [personal], { profile }),
+    v.setAccountKeyMaterial(material, [personal], { profile, recoveryWrap }),
   );
   await vault.upsertRecords([record(recordId)]);
   await profiles.close(profile.profileId);

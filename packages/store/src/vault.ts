@@ -33,7 +33,6 @@ import {
   clearBiometricKey,
   clearKeysTable,
   clearPendingRecovery,
-  clearRecoveryKey,
   getAccountKey,
   getBiometricKey,
   getPeerKey,
@@ -539,11 +538,12 @@ export class Vault {
 
   /**
    * Store the account key wrap and the vaults (with their key wraps) together,
-   * atomically. With `profile`, the profile is replaced in the same transaction;
-   * a `linked` one drops the recovery material a local vault kept (linking, ADR
-   * 0001 D9: the server holds it now). `recoveryWrap` (a login's): the server's
-   * recovery wrap replaces what is stored, and a pending recovery is dropped:
-   * the login's key set supersedes it.
+   * atomically. With `profile`, the profile is replaced in the same transaction.
+   * `recoveryWrap` (a login's): the server's recovery wrap replaces what is
+   * stored (linking drops a local vault's recovery key, ADR 0001 D9), and a pending
+   * recovery is dropped: the login's key set supersedes it. A `linked` profile
+   * is refused (throws, writes nothing) without one: its key set never lacks the
+   * wrap (`getRecoveryWrap`).
    *
    * `vaults` null keeps the stored list. A cached vault the list leaves out
    * stays: only a sync drops vaults, behind its loss check (`applySync`).
@@ -553,13 +553,15 @@ export class Vault {
     vaults: readonly MemberVault[] | null,
     { profile, recoveryWrap }: { profile?: LocalProfile; recoveryWrap?: RecoveryWrapSchema } = {},
   ): Promise<void> {
+    if (profile?.mode === "linked" && recoveryWrap === undefined)
+      throw new Error("A linked profile needs its recovery wrap");
     await this.ready();
     await this.transaction(async (tx) => {
       if (profile) await replaceProfile(profile, tx);
       if (recoveryWrap !== undefined) {
         await replaceRecoveryWrap(recoveryWrap, tx);
         await clearPendingRecovery(tx);
-      } else if (profile?.mode === "linked") await clearRecoveryKey(tx);
+      }
       await upsertAccountKey(material, tx);
       if (!vaults) return;
       await acceptVaultList(vaults, tx);

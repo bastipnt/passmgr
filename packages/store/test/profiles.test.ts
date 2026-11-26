@@ -1,4 +1,9 @@
-import type { AccountKeyMaterial, EncryptedRecordSchema, MemberVault } from "@repo/schema";
+import type {
+  AccountKeyMaterial,
+  EncryptedRecordSchema,
+  MemberVault,
+  RecoveryWrapSchema,
+} from "@repo/schema";
 import { toBase64 } from "@repo/util";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -25,6 +30,12 @@ const material: AccountKeyMaterial = {
     encryptedPrivateKey: toBase64(new Uint8Array(48).fill(2)),
     privateKeyEncryptionNonce: toBase64(new Uint8Array(24).fill(3)),
   },
+};
+
+const recoveryWrap: RecoveryWrapSchema = {
+  recoveryKekSalt: toBase64(new Uint8Array(32).fill(4)),
+  encryptedAccountKeyRecovery: toBase64(new Uint8Array(48).fill(5)),
+  accountKeyEncryptionNonceRecovery: toBase64(new Uint8Array(24).fill(6)),
 };
 
 const personal: MemberVault = {
@@ -83,7 +94,7 @@ beforeEach(() => {
 async function add(profile: LocalProfile, name?: string) {
   return await store.create(
     profile,
-    (vault) => vault.setAccountKeyMaterial(material, [personal], { profile }),
+    (vault) => vault.setAccountKeyMaterial(material, [personal], { profile, recoveryWrap }),
     { name },
   );
 }

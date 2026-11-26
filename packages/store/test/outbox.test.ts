@@ -527,7 +527,14 @@ describe("trash and purge", () => {
         },
       },
       [personal],
-      { profile: { profileId: "p1", mode: "linked", email: "a@example.com", userId: "u1" } },
+      {
+        profile: { profileId: "p1", mode: "linked", email: "a@example.com", userId: "u1" },
+        recoveryWrap: {
+          recoveryKekSalt: `${"A".repeat(43)}=`,
+          encryptedAccountKeyRecovery: "A".repeat(64),
+          accountKeyEncryptionNonceRecovery: "A".repeat(32),
+        },
+      },
     );
     await vault.writeLocalChanges([{ kind: "create", ...ciphertext("r1", "a") }]);
     await vault.writeLocalChanges([{ kind: "delete", recordId: "r1", clientUpdatedAt: T }]);

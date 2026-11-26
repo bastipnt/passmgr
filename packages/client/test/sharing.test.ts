@@ -59,8 +59,10 @@ afterAll(() => {
 beforeEach(async () => {
   secretsStore.loadVaultKeys([...local.vaults, work]);
   vault = new Vault(createTestDriver());
+  const { recoveryVerifier: _, ...recoveryWrap } = local.recovery;
   await vault.setAccountKeyMaterial(local.material, [...local.vaults, work], {
     profile: { profileId: "p-1", mode: "linked", email: "me@example.com", userId: SELF },
+    recoveryWrap,
   });
 });
 afterEach(async () => {
