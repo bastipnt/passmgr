@@ -53,7 +53,7 @@
     "drizzle-kit": "catalog:",
     "oxlint": "catalog:",
     "oxlint-tsgolint": "catalog:",
-    "playwright": "^1.61.1",
+    "playwright": "^1.65.1",
     "sqlocal": "^0.18.0",
     "vitest": "catalog:"
   }
