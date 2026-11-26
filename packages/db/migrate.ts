@@ -33,7 +33,9 @@ async function grantAppRole(user: string, password: string) {
   const { rows } = await client.query<{ owner: string; database: string }>(
     "select current_user as owner, current_database() as database",
   );
-  const { owner, database } = rows[0];
+  const [row] = rows;
+  if (!row) throw new Error("current_user query returned no row");
+  const { owner, database } = row;
   // ALTER ROLE below strips superuser: pointed at the owner it would lock out the migrations.
   if (user === owner) throw new Error(`APP_DB_USER must differ from the migrating role (${owner})`);
 

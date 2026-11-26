@@ -793,6 +793,9 @@ importers:
       '@dotenvx/dotenvx':
         specifier: 'catalog:'
         version: 2.38.2
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       '@testcontainers/postgresql':
         specifier: 'catalog:'
         version: 12.0.4(supports-color@10.2.2)

@@ -5,6 +5,8 @@ export type { LoginBundle };
 
 // Inlined by Metro (EXPO_PUBLIC_*); this package's tsconfig has no Node types.
 declare const process: { env: Record<string, string | undefined> };
+// React Native global; the store tsconfig doesn't load react-native types.
+declare const __DEV__: boolean | undefined;
 
 /** One Keychain/Keystore item per profile (ADR 0001 D2). */
 const loginBundleKey = (profileId: string) => `passmgr.login-bundle.${profileId}`;

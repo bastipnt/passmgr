@@ -9,6 +9,7 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "oxlint --type-aware",
+    "typecheck": "tsc7 --noEmit",
     "db:up": "docker compose up",
     "db:dev": "docker compose up -d --wait",
     "db:down": "docker compose down",
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@dotenvx/dotenvx": "catalog:",
+    "@repo/typescript-config": "workspace:*",
     "@testcontainers/postgresql": "catalog:",
     "@types/pg": "^8.20.0",
     "@vitest/coverage-v8": "catalog:",
