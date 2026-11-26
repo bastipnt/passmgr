@@ -188,9 +188,12 @@ describe("useChangePassword — linked account", () => {
     );
     expect(store.saveAccount).toHaveBeenCalledWith(ALICE.profileId, changed, local.vaults);
     expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId, { keepSession: true });
-    expect(persistSession).not.toHaveBeenCalled();
-    // Every session was revoked: drop it, log in with the new password.
+    // Every session was revoked: drop it, from the persisted login too, then log in again.
     expect(detachServer).toHaveBeenCalled();
+    expect(persistSession).toHaveBeenCalledWith(ALICE.profileId);
+    expect(persistSession.mock.invocationCallOrder[0]).toBeLessThan(
+      connect.mock.invocationCallOrder[0]!,
+    );
     expect(connect).toHaveBeenCalledWith(NEW_PASSWORD);
     expect(store.saveAccount.mock.invocationCallOrder[0]).toBeLessThan(
       connect.mock.invocationCallOrder[0]!,
@@ -210,7 +213,8 @@ describe("useChangePassword — linked account", () => {
     expect(secretsStore.copyOpaquePassword()).toEqual(
       await deriveOpaquePassword(NEW_PASSWORD, "alice@example.com"),
     );
-    // The persisted login still holds the revoked session: it's written again without it.
+    // The persisted login was written without the revoked session before the login.
+    expect(persistSession).toHaveBeenCalledTimes(1);
     expect(persistSession).toHaveBeenCalledWith(ALICE.profileId);
   });
 
@@ -242,9 +246,11 @@ describe("useChangePassword — linked account", () => {
       expect(detachServer).toHaveBeenCalled();
       expect(connect).toHaveBeenCalledTimes(1);
       expect(connect).toHaveBeenCalledWith(NEW_PASSWORD);
-      // The connect persisted the new login; dropping the quick unlock leaves it.
+      // The old session left the persisted login first; the connect writes the new one.
+      expect(persistSession.mock.invocationCallOrder[0]).toBeLessThan(
+        connect.mock.invocationCallOrder[0]!,
+      );
       expect(store.forgetQuickUnlock).toHaveBeenCalledWith(ALICE.profileId, { keepSession: true });
-      expect(persistSession).not.toHaveBeenCalled();
     });
 
     it("goes back online with the current password when the new one is refused", async () => {

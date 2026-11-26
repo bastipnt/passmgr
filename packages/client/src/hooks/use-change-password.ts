@@ -127,8 +127,9 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
       return "failed";
     }
 
+    if (profile.mode === "linked") await dropRevokedSession(active);
     await dropQuickUnlock(active);
-    if (profile.mode === "linked") await reconnect(active, profile.email, newPassword);
+    if (profile.mode === "linked") await reconnect(profile.email, newPassword);
     return undefined;
   }
 
@@ -144,7 +145,7 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     newPassword: string,
     changed: AccountKeyMaterial,
   ): Promise<ChangePasswordError | undefined> {
-    detachServer();
+    await dropRevokedSession(active);
     const result = await connect(newPassword);
     if (result === "online") {
       await dropQuickUnlock(active);
@@ -157,8 +158,14 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     }
     // Unknown: `useAutoReconnect` tries the new password once it can.
     await keepForReconnect(email, newPassword, changed);
-    await persistSession(active.entry.profileId);
     return "unconfirmed";
+  }
+
+  /** The change revoked every session. The persisted mobile login drops it before the reconnect:
+   * restored after a crash meanwhile, it would sign the vault out instead of unlocking it. */
+  async function dropRevokedSession(active: ActiveProfile) {
+    detachServer();
+    await persistSession(active.entry.profileId);
   }
 
   /** The persisted mobile login holds the account key, not the password: it stays (the connect
@@ -177,12 +184,10 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
    * password kept in memory. Biometric enrollment comes with the next unlock,
    * so it doesn't keep it around.
    */
-  async function reconnect(active: ActiveProfile, email: string, newPassword: string) {
-    detachServer();
+  async function reconnect(email: string, newPassword: string) {
     await keepForReconnect(email, newPassword);
     const result = await connect(newPassword);
     if (canReleaseOpaquePassword(result, false)) secretsStore.clearOpaquePassword();
-    if (result !== "online") await persistSession(active.entry.profileId);
   }
 
   async function keepForReconnect(
