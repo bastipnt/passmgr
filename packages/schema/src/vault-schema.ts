@@ -1,4 +1,5 @@
 import z from "zod";
+import { canonicalBase64 } from "./user/base64-schema";
 import {
   isCompleteKeyChain,
   MAX_VAULT_KEY_VERSION,
@@ -34,7 +35,7 @@ export const MAX_PENDING_INVITES_FROM_ONE_SENDER = 5;
 export const MAX_PENDING_INVITES_PER_SENDER = 200;
 
 /** `sealVaultKey`'s box: ephemeral key ‖ nonce ‖ 32-byte key + tag (104 bytes). */
-export const sealedVaultKeySchema = z.base64().length(140);
+export const sealedVaultKeySchema = canonicalBase64().length(140);
 
 /** A vault key sealed to one member's public key (ADR 0001 D7). */
 export const memberKeySealSchema = z.object({
@@ -52,8 +53,8 @@ export const vaultMetaSchema = z.object({
 
 /** Vault metadata encrypted with the vault key (AAD: vaultId). */
 export const encryptedVaultMetaSchema = z.object({
-  encryptedMeta: z.base64().max(2048),
-  metaEncryptionNonce: z.base64().length(32),
+  encryptedMeta: canonicalBase64().max(2048),
+  metaEncryptionNonce: canonicalBase64().length(32),
 });
 
 /** A vault's earlier keys, oldest first (`isCompleteKeyChain`). */

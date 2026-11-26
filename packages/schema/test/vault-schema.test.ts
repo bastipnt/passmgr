@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { canAssignRole, inviteMemberInputSchema, roleAtLeast } from "../src/sharing-schema";
-import { rotateVaultKeyInputSchema, type VaultRole } from "../src/vault-schema";
+import {
+  encryptedVaultMetaSchema,
+  rotateVaultKeyInputSchema,
+  sealedVaultKeySchema,
+  type VaultRole,
+} from "../src/vault-schema";
+import { nonCanonicalBase64 } from "../testing/non-canonical";
 
 const VAULT_ROLES: VaultRole[] = ["owner", "manage", "write", "read"];
 
@@ -50,6 +56,24 @@ describe("rotateVaultKeyInputSchema", () => {
     ["no sender keypair version", { senderKeyVersion: undefined }],
   ])("rejects %s", (_label, override) => {
     expect(() => rotateVaultKeyInputSchema.parse({ ...VALID, ...override })).toThrow();
+  });
+});
+
+describe("canonical base64 vault fields", () => {
+  it.each([
+    ["sealedVaultKeySchema", sealedVaultKeySchema, b64(104)],
+    ["encryptedMeta", encryptedVaultMetaSchema.shape.encryptedMeta, b64(40)],
+    ["metaEncryptionNonce", encryptedVaultMetaSchema.shape.metaEncryptionNonce, b64(23)],
+  ])("%s takes only the canonical spelling", (_name, schema, canonical) => {
+    const altered = nonCanonicalBase64(canonical);
+    expect(altered).toHaveLength(canonical.length);
+    expect(schema.parse(canonical)).toBe(canonical);
+    expect(schema.safeParse(altered).success).toBe(false);
+  });
+
+  it("rejects a non-canonical seal inside a key rotation", () => {
+    const memberKeys = [{ ...VALID.memberKeys[0], sealedVaultKey: nonCanonicalBase64(b64(104)) }];
+    expect(rotateVaultKeyInputSchema.safeParse({ ...VALID, memberKeys }).success).toBe(false);
   });
 });
 

@@ -1,4 +1,5 @@
 import z from "zod";
+import { canonicalBase64 } from "./base64-schema";
 import { emailSchema } from "./email-schema";
 
 type ArgonBounds = {
@@ -68,25 +69,25 @@ export type ArgonParams = z.infer<typeof argonParamsSchema>;
 
 // The recovery-key-wrapped copy of the account key (handed back during recovery).
 export const recoveryWrapSchema = z.object({
-  recoveryKekSalt: z.base64().length(44),
+  recoveryKekSalt: canonicalBase64().length(44),
 
-  encryptedAccountKeyRecovery: z.base64().length(64),
-  accountKeyEncryptionNonceRecovery: z.base64().length(32),
+  encryptedAccountKeyRecovery: canonicalBase64().length(64),
+  accountKeyEncryptionNonceRecovery: canonicalBase64().length(32),
 });
 
 export const recoveryKeySchema = z.object({
   ...recoveryWrapSchema.shape,
   // SHA-256(HKDF(recoveryKey, "recovery-auth")) — lets the server check a
   // recovery request without ever seeing the recovery key.
-  recoveryVerifier: z.base64().length(44),
+  recoveryVerifier: canonicalBase64().length(44),
 });
 
 export const passwordKeySchema = z.object({
   passwordKekParams: argonParamsSchema,
-  passwordKekSalt: z.base64().length(44),
+  passwordKekSalt: canonicalBase64().length(44),
 
-  encryptedAccountKey: z.base64().length(64),
-  accountKeyEncryptionNonce: z.base64().length(32),
+  encryptedAccountKey: canonicalBase64().length(64),
+  accountKeyEncryptionNonce: canonicalBase64().length(32),
 });
 
 export const userKeySchema = z.object({
@@ -98,8 +99,8 @@ export const userKeySchema = z.object({
 export const vaultKeyWrapSchema = z.object({
   vaultId: z.uuid(),
   keyVersion: z.int32().positive(),
-  encryptedVaultKey: z.base64().length(64),
-  vaultKeyEncryptionNonce: z.base64().length(32),
+  encryptedVaultKey: canonicalBase64().length(64),
+  vaultKeyEncryptionNonce: canonicalBase64().length(32),
 });
 
 /** The most key versions a vault can go through (`vault.rotateKey` refuses past it). */
@@ -112,8 +113,8 @@ export const MAX_VAULT_KEY_VERSION = 256;
  */
 export const vaultKeyLinkSchema = z.object({
   keyVersion: z.int32().positive(),
-  encryptedVaultKey: z.base64().length(64),
-  vaultKeyEncryptionNonce: z.base64().length(32),
+  encryptedVaultKey: canonicalBase64().length(64),
+  vaultKeyEncryptionNonce: canonicalBase64().length(32),
 });
 
 /**
@@ -136,9 +137,9 @@ export function isCompleteKeyChain(
  */
 export const userKeyPairSchema = z.object({
   keyVersion: z.int32().positive(),
-  publicKey: z.base64().length(44),
-  encryptedPrivateKey: z.base64().length(64),
-  privateKeyEncryptionNonce: z.base64().length(32),
+  publicKey: canonicalBase64().length(44),
+  encryptedPrivateKey: canonicalBase64().length(64),
+  privateKeyEncryptionNonce: canonicalBase64().length(32),
 });
 
 /** What other users get to see: the public half, for sealing a vault key to it. */

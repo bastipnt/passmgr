@@ -1,12 +1,4 @@
-import { decodeCanonicalBase64 } from "@repo/util";
-import z from "zod";
+import { canonicalBase64 } from "./base64-schema";
 
-/**
- * A serialized OPAQUE message (base64; P-256 messages are a few hundred bytes). Canonical only,
- * so a message has one spelling, like the signature header (`decodeCanonicalBase64`).
- */
-export const opaqueMessageSchema = z
-  .string()
-  .min(1)
-  .max(1024)
-  .refine((s) => decodeCanonicalBase64(s) !== undefined, "must be canonical base64");
+/** A serialized OPAQUE message (base64; P-256 messages are a few hundred bytes). */
+export const opaqueMessageSchema = canonicalBase64().min(1).max(1024);

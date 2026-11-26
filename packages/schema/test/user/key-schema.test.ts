@@ -1,10 +1,17 @@
 import { afterAll, describe, expect, it } from "vitest";
+import type z from "zod";
 import {
   getArgonBounds,
   passwordKeySchema,
+  recoveryKeySchema,
+  recoveryWrapSchema,
   setArgonBounds,
+  userKeyPairSchema,
   userKeySchema,
+  vaultKeyLinkSchema,
+  vaultKeyWrapSchema,
 } from "../../src/user/key-schema";
+import { nonCanonicalBase64 } from "../../testing/non-canonical";
 import { relaxArgonBounds } from "../../testing/relax-argon-bounds";
 
 function b64(bytes: number): string {
@@ -67,6 +74,41 @@ describe("userKeySchema (merged password + recovery)", () => {
     const incomplete = { ...VALID_USER_KEY };
     delete (incomplete as Record<string, unknown>)[key];
     expect(() => userKeySchema.parse(incomplete)).toThrow();
+  });
+});
+
+// The fixed-length base64 fields, by length: a padded value of that length has unused low bits.
+const KEY_FIELDS: [string, string, z.ZodObject, number][] = [
+  ["recoveryWrapSchema", "recoveryKekSalt", recoveryWrapSchema, 44],
+  ["recoveryWrapSchema", "encryptedAccountKeyRecovery", recoveryWrapSchema, 64],
+  ["recoveryWrapSchema", "accountKeyEncryptionNonceRecovery", recoveryWrapSchema, 32],
+  ["recoveryKeySchema", "recoveryVerifier", recoveryKeySchema, 44],
+  ["passwordKeySchema", "passwordKekSalt", passwordKeySchema, 44],
+  ["passwordKeySchema", "encryptedAccountKey", passwordKeySchema, 64],
+  ["passwordKeySchema", "accountKeyEncryptionNonce", passwordKeySchema, 32],
+  ["vaultKeyWrapSchema", "encryptedVaultKey", vaultKeyWrapSchema, 64],
+  ["vaultKeyWrapSchema", "vaultKeyEncryptionNonce", vaultKeyWrapSchema, 32],
+  ["vaultKeyLinkSchema", "encryptedVaultKey", vaultKeyLinkSchema, 64],
+  ["vaultKeyLinkSchema", "vaultKeyEncryptionNonce", vaultKeyLinkSchema, 32],
+  ["userKeyPairSchema", "publicKey", userKeyPairSchema, 44],
+  ["userKeyPairSchema", "encryptedPrivateKey", userKeyPairSchema, 64],
+  ["userKeyPairSchema", "privateKeyEncryptionNonce", userKeyPairSchema, 32],
+];
+
+describe("canonical base64 key fields", () => {
+  it.each(KEY_FIELDS)("%s.%s takes only the canonical spelling", (_name, field, schema, length) => {
+    const canonical = b64((length / 4) * 3 - 1);
+    const altered = nonCanonicalBase64(canonical);
+    const fieldSchema = schema.shape[field] as z.ZodType;
+    expect(canonical).toHaveLength(length);
+    expect(altered).toHaveLength(length);
+    expect(fieldSchema.parse(canonical)).toBe(canonical);
+    expect(fieldSchema.safeParse(altered).success).toBe(false);
+  });
+
+  it("rejects a non-canonical value inside a whole key bundle", () => {
+    const altered = { ...VALID_USER_KEY, recoveryVerifier: nonCanonicalBase64(b64(32)) };
+    expect(userKeySchema.safeParse(altered).success).toBe(false);
   });
 });
 
