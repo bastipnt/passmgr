@@ -283,8 +283,10 @@ describe("applySync with pending changes", () => {
       cursors: {},
       serverTimestamp: T,
     });
-    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-1") }]);
-    await vault.writeLocalChanges([{ kind: "update", ...ciphertext("r1", "mine-2") }]);
+    await vault.writeLocalChanges([
+      { kind: "update", ...ciphertext("r1", "mine-1") },
+      { kind: "update", ...ciphertext("r1", "mine-2") },
+    ]);
     const resolve = vi.fn((_conflict: RecordConflict) => ciphertext("r1", "merged"));
 
     await vault.applySync(

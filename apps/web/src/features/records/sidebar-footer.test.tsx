@@ -1,6 +1,7 @@
 import { passMonitorIssueCount, useBreachCheck, usePassMonitor } from "@repo/client";
 // The real one: `@repo/client`'s is mocked for `SidebarFooter`.
 import { usePassMonitorIssueCount } from "@repo/client/src/hooks/use-pass-monitor";
+import { loadTwoFactorDirectory } from "@repo/client/src/records/two-factor-directory";
 import type { DecryptedRecord } from "@repo/schema";
 import type { BreachCheck } from "@repo/store";
 import { renderHook, waitFor } from "@testing-library/react";
@@ -10,6 +11,9 @@ import { memoryLocation } from "wouter/memory-location";
 import { passMonitorPaths, settingsPaths } from "@/app/route-paths";
 import { renderWithProviders, screen } from "@/test/render";
 import { SidebarFooter } from "./SidebarFooter";
+
+// Loaded at collection (no time limit): a cold load inside the test counts against its 10s limit.
+await loadTwoFactorDirectory();
 
 function login(recordId: string, password: string, fields: Record<string, unknown> = {}) {
   return {
@@ -41,6 +45,17 @@ const records = [
   login("intranet", "Zt6!kRp3*mWq8#dF", site("http://intranet.example.org")),
   login("github", "Lc5@yNs9%gHu2!eJ", site("https://github.com")),
 ];
+
+// zxcvbn takes up to 0.5s a password and several times that under a full run; its ratings are
+// packages/crypto's tests, this file checks what the Pass Monitor counts from them.
+vi.mock("@repo/crypto/services/strength-worker-service", () => ({
+  strengthWorkerService: {
+    rate: async (password: string) =>
+      password === "123456"
+        ? { level: "weak", label: "Weak" }
+        : { level: "very-strong", label: "Very strong" },
+  },
+}));
 
 const mocks = vi.hoisted(() => ({
   records: [] as DecryptedRecord[],

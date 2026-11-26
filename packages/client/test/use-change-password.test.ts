@@ -28,12 +28,13 @@ vi.mock("expo-secure-store", () => ({
   deleteItemAsync: async (key: string) => void keychain.delete(key),
 }));
 const clearLoginBundle = vi.hoisted(() => vi.fn());
-vi.mock("../../store/src/session-persistence", async () => {
-  const native = await vi.importActual<{ clearLoginBundle: (profileId: string) => Promise<void> }>(
-    "../../store/src/session-persistence.native",
+vi.mock("@repo/store", async (importActual) => {
+  // Typed as the web module (same exports): the native file compiles only in the store's tsconfig.
+  const native = await vi.importActual<typeof import("@repo/store")>(
+    "@repo/store/testing/session-persistence-native",
   );
   clearLoginBundle.mockImplementation(native.clearLoginBundle);
-  return { ...native, clearLoginBundle };
+  return { ...(await importActual<object>()), ...native, clearLoginBundle };
 });
 vi.mock(
   "@repo/crypto/services/decrypt-worker-service",

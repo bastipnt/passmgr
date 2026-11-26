@@ -38,6 +38,13 @@ vi.mock("../src/account/verify-server-keyring", async (importActual) => ({
   ...(await importActual<object>()),
   reconnectKeyMaterial,
 }));
+const deriveOpaquePassword = vi.hoisted(() =>
+  vi.fn<(password: string, email: string) => Promise<Uint8Array>>(),
+);
+vi.mock("@repo/crypto", async (importActual) => ({
+  ...(await importActual<object>()),
+  deriveOpaquePassword,
+}));
 const loginWithOpaquePassword = vi.hoisted(() => vi.fn());
 vi.mock("../src/login", async (importActual) => ({
   ...(await importActual<object>()),
@@ -294,6 +301,27 @@ describe("useConnectServer", () => {
 
     expect(isZero(opaquePassword)).toBe(true);
     expect(isZero(sessionKey)).toBe(true);
+  });
+
+  it("wipes the OPAQUE password derived for a connect whose pending reset fails", async () => {
+    const opaquePassword = new Uint8Array(32).fill(9);
+    deriveOpaquePassword.mockResolvedValueOnce(opaquePassword);
+    const getPendingRecovery = vi.fn(async () => {
+      throw new Error("sqlite busy");
+    });
+    store.active = {
+      ...(store.active as object),
+      pendingRecovery: true,
+      vault: { getVaults, getPendingRecovery },
+    };
+    const { connect } = renderConnect();
+
+    expect(await connect("hunter2hunter2")).toBe("unreachable");
+
+    expect(deriveOpaquePassword).toHaveBeenCalledWith("hunter2hunter2", "alice@example.com");
+    expect(getPendingRecovery).toHaveBeenCalledOnce();
+    expect(isZero(opaquePassword)).toBe(true);
+    expect(loginWithOpaquePassword).not.toHaveBeenCalled();
   });
 
   it("wipes the OPAQUE password of a connect that joins one in flight", async () => {

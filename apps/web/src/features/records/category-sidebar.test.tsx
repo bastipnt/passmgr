@@ -1,10 +1,10 @@
 import { PREF_KEYS, ShortcutProvider } from "@repo/client";
 import { useSortedRecords } from "@repo/client/src/providers/SortedRecordsProvider";
 import type { DecryptedRecord, RecordData } from "@repo/schema";
-import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { SortedRecordsWrapper } from "@/test/sorted-records-wrapper";
@@ -340,6 +340,10 @@ describe("RecordList header", () => {
 describe("search panel", () => {
   const field = () => screen.getByRole("combobox", { name: /^Search/ });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("replaces the list while focused: hint, top tags, then records and tags as you type", async () => {
     const { user } = renderList();
     await user.click(field());
@@ -392,10 +396,20 @@ describe("search panel", () => {
     await user.pointer({ target: work, coords: { clientX: 20, clientY: 40 } });
     expect(work).toHaveTextContent(/Add filter$/);
 
-    // From the hovered #work: GitHub, Jira, back, Jira again — only the last previews.
-    await user.keyboard("{ArrowDown}{ArrowDown}{ArrowUp}{ArrowDown}");
-    expect(location.history?.at(-1)).toBe("/record/github");
-    await waitFor(() => expect(location.history?.at(-1)).toBe("/record/jira"));
+    // From #work: GitHub, Jira, back, Jira, each just short of the delay; only the last previews.
+    // Fake time (typed keys outlast the delay under load); fireEvent (user-event awaits a timer).
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    for (const key of ["ArrowDown", "ArrowDown", "ArrowUp", "ArrowDown"]) {
+      fireEvent.keyDown(field(), { key });
+      act(() => {
+        vi.advanceTimersByTime(PREVIEW_DELAY_MS - 1);
+      });
+      expect(location.history?.at(-1)).toBe("/record/github");
+    }
+    act(() => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(location.history?.at(-1)).toBe("/record/jira");
   });
 
   it("the ✕ next to esc closes the search", async () => {
