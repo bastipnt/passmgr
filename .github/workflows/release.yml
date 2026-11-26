@@ -226,10 +226,11 @@ jobs:
   verify-served-code:
     needs: deploy
     uses: ./.github/workflows/web-served-code.yml
-    # The called workflow's alert job asks for issues: write; it is skipped on push.
+    # The called workflow's alert job asks for issues: write, and opens an issue when this check fails.
     permissions:
       contents: read
       actions: read
       issues: write
     with:
       tag: ${{ github.ref_name }}
+      alert: true

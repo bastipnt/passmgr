@@ -7,7 +7,8 @@
  *
  * Without a Caddyfile argument the one in this checkout is used. Exits 1 on a mismatch (digest,
  * fallback route, header, a 4xx), 3 when only fetches failed (network error, timeout, 5xx), 2 on usage,
- * 4 when it could not compare at all (an unreadable or malformed SHA256SUMS or Caddyfile).
+ * 4 when it could not compare at all (a malformed site URL, an unreadable or malformed SHA256SUMS or
+ * Caddyfile).
  */
 import { createHash, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -99,16 +100,24 @@ export async function check(
   return failures;
 }
 
-async function main() {
-  const [
-    siteUrl,
-    sumsPath,
-    caddyfilePath = fileURLToPath(new URL("../../../Caddyfile", import.meta.url)),
-  ] = process.argv.slice(2);
+// A site that can't be fetched at all must be an error: a fetch per file would call it unreachable.
+function parseSite(siteUrl: string): string {
+  const site = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
+  const valid = URL.canParse(site) && ["https:", "http:"].includes(new URL(site).protocol);
+  if (!valid) throw new Error(`not an http(s) URL: ${JSON.stringify(siteUrl)}`);
+  return site;
+}
+
+async function main([
+  siteUrl,
+  sumsPath,
+  caddyfilePath = fileURLToPath(new URL("../../../Caddyfile", import.meta.url)),
+]: readonly string[]): Promise<number> {
   if (!siteUrl || !sumsPath) {
     console.error("usage: verify-deployment <site-url> <SHA256SUMS> [Caddyfile]");
-    process.exit(EXIT_CODES.usage);
+    return EXIT_CODES.usage;
   }
+  const site = parseSite(siteUrl);
 
   const expected = (await readFile(sumsPath, "utf8"))
     .split("\n")
@@ -125,7 +134,6 @@ async function main() {
   for (const file of ["", ...FALLBACK_ROUTES]) expected.push({ digest: index.digest, file });
 
   const expectedHeaders = parseHeaders(await readFile(caddyfilePath, "utf8"), caddyfilePath);
-  const site = siteUrl.endsWith("/") ? siteUrl : `${siteUrl}/`;
   const checks = expected.flatMap((entry) => ENCODINGS.map((encoding) => ({ ...entry, encoding })));
 
   const failures: Failure[] = [];
@@ -142,17 +150,21 @@ async function main() {
       `${failures.length} problems in ${checks.length} checks against the release (${kind}):`,
     );
     for (const { kind, message } of failures) console.error(`  [${kind}] ${message}`);
-    process.exit(EXIT_CODES[kind]);
+    return EXIT_CODES[kind];
   }
   console.log(
     `All ${expected.length} paths match the release in every encoding, all with its ${PINNED_HEADERS.join(", ")}.`,
   );
+  return 0;
 }
 
-if (import.meta.main) {
+/** The exit code for `args` (site URL, SHA256SUMS, optional Caddyfile). */
+export async function run(args: readonly string[]): Promise<number> {
   // An uncaught throw exits 1, which the workflow would read as a mismatch.
-  await main().catch((error: unknown) => {
+  return await main(args).catch((error: unknown) => {
     console.error(error);
-    process.exit(EXIT_CODES.error);
+    return EXIT_CODES.error;
   });
 }
+
+if (import.meta.main) process.exit(await run(process.argv.slice(2)));

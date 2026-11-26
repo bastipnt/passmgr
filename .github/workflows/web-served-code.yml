@@ -14,6 +14,10 @@ on:
       tag:
         type: string
         required: true
+      # Lets a caller that runs on push (release.yml) open the alert issue; other pushes never do.
+      alert:
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -128,7 +132,7 @@ jobs:
   # Mismatch and error open it at once, unreachable after UNREACHABLE_RUNS unreachable runs in a row.
   alert:
     needs: verify
-    if: failure() && github.event_name != 'push'
+    if: failure() && (github.event_name != 'push' || inputs.alert)
     runs-on: ubuntu-latest
     permissions:
       issues: write

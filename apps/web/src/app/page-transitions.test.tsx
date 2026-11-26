@@ -210,6 +210,24 @@ describe("undoNavigation", () => {
     expect(go).toHaveBeenCalledWith(-4);
   });
 
+  it("falls back when a navigation came after the one it was asked to take back", async () => {
+    act(() => navigate(recordPaths.record("a")));
+    act(() => navigate(recordPaths.editRecord("a")));
+    await act(async () => {
+      history.back();
+      await new Promise((resolve) => addEventListener("popstate", resolve, { once: true }));
+    });
+    const held = pt.latestNavigation();
+    act(() => navigate(recordPaths.record("b")));
+    const go = vi.spyOn(history, "go").mockImplementation(() => {});
+    const fallback = vi.fn();
+
+    pt.undoNavigation(fallback, held);
+
+    expect(go).not.toHaveBeenCalled();
+    expect(fallback).toHaveBeenCalledOnce();
+  });
+
   it("steps back over a push", () => {
     act(() => navigate(recordPaths.record("a")));
     const go = vi.spyOn(history, "go").mockImplementation(() => {});

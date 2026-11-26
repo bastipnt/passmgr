@@ -49,7 +49,7 @@ on drift):
   errored run in between starts the count again) and says it is not by itself evidence of tampering.
   A host that keeps failing only some of the release's files still needs explaining.
 - **Error**: the check could not complete the comparison against every candidate release
-  (`SITE_URL` unset, a GitHub API error, a malformed `SHA256SUMS` or `Caddyfile`: exit 4, or any
+  (`SITE_URL` unset, a GitHub API error, a malformed `SITE_URL`, `SHA256SUMS` or `Caddyfile`: exit 4, or any
   other code). The issue "Served-code check could not complete" opens at once. What failed compared
   nothing, so it is not by itself evidence of tampering, and a candidate that was compared and did
   not match shows in the run log; production is not fully checked until it is fixed.

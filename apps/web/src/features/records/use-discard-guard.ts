@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useSearch } from "wouter";
-import { undoNavigation } from "@/app/page-transitions";
+import { latestNavigation, undoNavigation } from "@/app/page-transitions";
 
 type DiscardGuardOptions = {
   /** Whether the URL has the sheet open. */
@@ -45,6 +45,7 @@ export function useDiscardGuard({
   const [held, setHeld] = useState(false);
   const [pendingClose, setPendingClose] = useState<(() => void) | null>(null);
   const closing = useRef(false);
+  const heldAt = useRef(0);
   const lastRouteOpen = useRef(routeOpen);
 
   useEffect(() => {
@@ -58,6 +59,7 @@ export function useDiscardGuard({
     }
     if (shown && !closing.current && isDirty()) {
       setHeld(true);
+      heldAt.current = latestNavigation();
       setPendingClose(() => () => setHeld(false));
     }
     closing.current = false;
@@ -91,7 +93,10 @@ export function useDiscardGuard({
       onKeepEditing: () => {
         setPendingClose(null);
         if (!held) return;
-        undoNavigation(() => navigate(href.current, { replace: true, state: reopenState?.() }));
+        undoNavigation(
+          () => navigate(href.current, { replace: true, state: reopenState?.() }),
+          heldAt.current,
+        );
       },
     },
   };

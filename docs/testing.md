@@ -104,11 +104,20 @@ These tests use the real testcontainers Postgres + Redis (no `crypto-mock.ts`, n
 
 The suite runs in Vitest's `node` environment, so its coverage (`packages/client/vitest.config.ts`) only counts what
 it can own: the pure record helpers (`src/records/`), the account flows (`src/account/`), registration
-(`src/register.ts`), `SyncManager` and the vault settings helper and hooks (`src/vaults/vault-settings.ts`,
-`src/hooks/use-vault-settings.ts`). Most hooks and providers need the app's providers: the web component tests
-(Layer 3, e.g. `apps/web/src/features/auth/use-recovery.test.tsx`) and E2E cover them. A hook that takes its
-dependencies as arguments can be tested here: the file opts into jsdom with `// @vitest-environment jsdom` and renders
-the hook with a small `createRoot` `renderHook` (`test/vault-settings-hooks.test.ts`), no Testing Library needed.
+(`src/register.ts`), `SyncManager`, the vault settings helper and hooks (`src/vaults/vault-settings.ts`,
+`src/hooks/use-vault-settings.ts`) and `useConnectServer` (`src/hooks/use-connect-server.ts`). Most hooks and
+providers need the app's providers: the web component tests (Layer 3, e.g.
+`apps/web/src/features/auth/use-recovery.test.tsx`) and E2E cover them. Two kinds of hook test live here, each file
+opting into jsdom with `// @vitest-environment jsdom` and rendering the hook with a small `createRoot` probe, no
+Testing Library needed:
+
+- A hook that takes its dependencies as arguments: `test/vault-settings-hooks.test.ts`.
+- A hook that reads app providers: `test/use-connect-server.test.ts` mocks the provider modules it imports
+  (`StoreProvider`'s `useStore`, the tRPC hooks, `persistSession`) with `vi.mock` and passes `SessionContext` a
+  stub, so the real hook runs with the real `HeldSession` and `secretsStore`.
+
+`test/use-change-password.test.ts` and `test/session-provider-worker.test.ts` use jsdom too, but render the real
+providers; they test those flows, not coverage of the providers.
 
 **Deleted from Layer 1**
 

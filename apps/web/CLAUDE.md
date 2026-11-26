@@ -101,7 +101,8 @@ Rules:
   (`useRecordForm`) above `ResponsiveSheet`'s Drawer / Dialog swap, so crossing 640px keeps the input.
   `useDiscardGuard` asks "Discard changes?" (`@repo/ui` `DiscardChangesDialog`) before a changed form closes or is
   dropped (the create sheet's Back to Type), by any way; on Back it holds the sheet open, and Keep editing takes the
-  Back back (`page-transitions` `undoNavigation`: the sheet's full URL, no new entry).
+  Back back (`page-transitions` `undoNavigation` of the navigation that closed it, `latestNavigation` at hold time;
+  after a later one, the sheet's full URL, no new entry).
 - **Settings** (`features/settings`): desktop, a full-screen overlay (`SettingsLayout`: header with "Settings", the
   search field, Esc / close; `SettingsNav` with the ACCOUNT / VAULT / APP groups of `SETTINGS_GROUPS`, counts and the
   sync dot from `useSectionDetails`, Lock now / Sign out at its foot). Esc and close go to the screen settings was

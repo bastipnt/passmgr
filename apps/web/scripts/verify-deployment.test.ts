@@ -1,10 +1,11 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { HttpResponse, http } from "msw";
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { server } from "../src/test/msw/server";
-import { type Check, check, EXIT_CODES, verdict } from "./verify-deployment";
+import { type Check, check, EXIT_CODES, run, verdict } from "./verify-deployment";
 
 const SITE = "https://vault.example.test/";
 const BODY = "<!doctype html>";
@@ -88,6 +89,37 @@ describe("verify-deployment verdict", () => {
   });
 });
 
+describe("verify-deployment run", () => {
+  // Valid sums and Caddyfile, so only the site URL can stop the run before the fetches.
+  let dir: string;
+  let sums: string;
+  let caddyfile: string;
+  beforeAll(() => {
+    dir = mkdtempSync(join(tmpdir(), "verify-deployment-"));
+    sums = join(dir, "SHA256SUMS");
+    caddyfile = join(dir, "Caddyfile");
+    writeFileSync(sums, `${ENTRY.digest}  index.html\n`);
+    writeFileSync(
+      caddyfile,
+      ["Content-Security-Policy", "Cross-Origin-Opener-Policy", "Cross-Origin-Embedder-Policy"]
+        .map((name) => `${name} "x"\n`)
+        .join(""),
+    );
+  });
+  afterAll(() => rmSync(dir, { recursive: true, force: true }));
+
+  it.each(["vault.example.test", "ftp://vault.example.test", "https://"])(
+    "calls the malformed site URL %s an error before fetching anything",
+    async (siteUrl) => {
+      const fetch = vi.spyOn(globalThis, "fetch");
+      vi.spyOn(console, "error").mockImplementation(() => {});
+
+      expect(await run([siteUrl, sums, caddyfile])).toBe(EXIT_CODES.error);
+      expect(fetch).not.toHaveBeenCalled();
+    },
+  );
+});
+
 describe("verify-deployment in web-served-code.yml", () => {
   const workflow = readFileSync(
     join(import.meta.dirname, "../../../.github/workflows/web-served-code.yml"),
@@ -112,6 +144,19 @@ describe("verify-deployment in web-served-code.yml", () => {
     const codes = Object.values(EXIT_CODES);
 
     expect(new Set(codes).size).toBe(codes.length);
+  });
+
+  it("opens the alert issue when the check after a release's deploy fails", () => {
+    const release = readFileSync(
+      join(import.meta.dirname, "../../../.github/workflows/release.yml"),
+      "utf8",
+    );
+    const call = /^ {2}verify-served-code:\n(?: {4}.*\n|\n)*/m.exec(release)?.[0];
+
+    expect(workflow).toMatch(
+      /^ {4}if: failure\(\) && \(github\.event_name != 'push' \|\| inputs\.alert\)$/m,
+    );
+    expect(call).toMatch(/^ {6}alert: true$/m);
   });
 
   it("marks unreachable runs with the step the alert counts", () => {

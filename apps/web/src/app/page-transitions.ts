@@ -35,6 +35,8 @@ const stack: string[] = [location.pathname];
 let ahead: string[] = [];
 // The `history.go` delta that takes the latest location change back; none after a replace.
 let undoDelta: number | undefined;
+// Counts location changes, so an undo can tell whether `undoDelta` still belongs to its navigation.
+let navigation = 0;
 // The step `undoNavigation` sent, read by the popstate it causes.
 let pendingUndo: number | undefined;
 
@@ -69,6 +71,7 @@ function stepForward(count: number) {
 }
 
 function trackStack(type: string, path: string) {
+  navigation++;
   const undone = pendingUndo;
   pendingUndo = undefined;
   if (type === "pushState") {
@@ -205,9 +208,16 @@ export function PageTransitions({ pageDepths }: { pageDepths: PageDepths }) {
   return null;
 }
 
-/** Takes the latest navigation back without adding an entry (Keep editing after Back), or runs
- * `fallback` when history can't: after a replace, or a step off the in-app stack. */
-export function undoNavigation(fallback: () => void) {
+/** The latest navigation, for a later `undoNavigation` of exactly that one. */
+export function latestNavigation(): number {
+  return navigation;
+}
+
+/** Takes navigation `since` (default: the latest) back without adding an entry (Keep editing after
+ * Back), or runs `fallback` when history can't: after a replace, a step off the in-app stack, or
+ * once another navigation followed it. */
+export function undoNavigation(fallback: () => void, since = navigation) {
+  if (since !== navigation) return fallback();
   const delta = undoDelta;
   undoDelta = undefined;
   if (delta === undefined) return fallback();
