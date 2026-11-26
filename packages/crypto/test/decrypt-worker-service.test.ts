@@ -49,9 +49,13 @@ const context: RecordCipherContext = {
   state: "live",
 };
 
+let DecryptWorkerLoadError: typeof import("../src/services/decrypt-worker-service").DecryptWorkerLoadError;
+
 async function service() {
   vi.resetModules();
-  return (await import("../src/services/decrypt-worker-service")).decryptWorkerService;
+  const module = await import("../src/services/decrypt-worker-service");
+  DecryptWorkerLoadError = module.DecryptWorkerLoadError;
+  return module.decryptWorkerService;
 }
 
 beforeEach(() => {
@@ -112,6 +116,39 @@ describe("decryptWorkerService with a Worker", () => {
     await expect(a).rejects.toThrow("Decrypt worker failed: 404");
     await expect(b).rejects.toThrow("Decrypt worker failed: 404");
     expect(workers[0]?.terminated).toBe(true);
+  });
+
+  it("rejects later decrypts with the load error after a worker error, until the next init", async () => {
+    const s = await service();
+    s.init(new Map([["v-1/1", genKey()]]));
+    workers[0]?.fail("404");
+    await Promise.resolve();
+
+    const later = s.decrypt(context, "enc", "nonce");
+    await expect(later).rejects.toThrow(
+      "Decrypt worker could not load (Decrypt worker failed: 404)",
+    );
+    await expect(later).rejects.toBeInstanceOf(DecryptWorkerLoadError);
+    expect(workers).toHaveLength(1);
+
+    s.init(new Map([["v-1/1", genKey()]]));
+    expect(workers).toHaveLength(2);
+    const pending = s.decrypt(context, "enc", "nonce");
+    workers[1]?.reply(1, { title: "x" });
+    expect(await pending).toEqual({ title: "x" });
+  });
+
+  it("keeps decrypting after a decrypt's own error reply", async () => {
+    const s = await service();
+    const failed = s.decrypt(context, "enc", "nonce");
+    workers[0]?.onmessage?.({
+      data: { id: workers[0]?.posted[0]?.data.id, error: "No key for vault" },
+    });
+    await expect(failed).rejects.toThrow("No key for vault");
+
+    const pending = s.decrypt(context, "enc", "nonce");
+    workers[0]?.reply(1, { title: "x" });
+    expect(await pending).toEqual({ title: "x" });
   });
 
   it("wipe rejects the pending decrypts and tells the worker to wipe its keys", async () => {

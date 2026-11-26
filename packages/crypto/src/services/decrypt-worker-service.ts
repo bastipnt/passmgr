@@ -9,15 +9,35 @@ import DecryptWorker from "../workers/decrypt.worker.ts?worker";
 const client = new WorkerClient(() => new DecryptWorker(), "Decrypt worker");
 const inThread = new InThreadDecryptService();
 
-function send(request: DecryptRequest, transfer: Transferable[] = []): void {
-  // A worker error already fails the decrypts that depend on this; nothing waits on it.
-  client.request(request, transfer).catch(() => {});
+/** Every decrypt after the worker failed, until the next `init`: the failed worker's keys are gone. */
+export class DecryptWorkerLoadError extends Error {
+  constructor(cause: Error) {
+    super(`Decrypt worker could not load (${cause.message})`, { cause });
+    this.name = "DecryptWorkerLoadError";
+  }
+}
+
+let failure: DecryptWorkerLoadError | null = null;
+
+function request<T>(message: DecryptRequest, transfer: Transferable[] = []): Promise<T> {
+  return client.request<T>(message, transfer).catch((error: unknown) => {
+    // Only a worker error drops the worker (a reply error or `wipe` keeps it); this handler
+    // runs before any caller can start a new one.
+    if (!client.started && error instanceof Error) failure = new DecryptWorkerLoadError(error);
+    throw error;
+  });
+}
+
+function send(message: DecryptRequest, transfer: Transferable[] = []): void {
+  // A worker error is remembered by `request` and fails every later decrypt; nothing waits on it.
+  request(message, transfer).catch(() => {});
 }
 
 export const decryptWorkerService: DecryptService = {
   /** The buffers are transferred to the worker: the caller passes copies. */
   init(vaultKeys: Map<string, Uint8Array>): void {
     if (!hasWorker()) return inThread.init(vaultKeys);
+    failure = null;
     const keys = [...vaultKeys].map(([keyId, key]): [string, ArrayBuffer] => [
       keyId,
       key.buffer as ArrayBuffer,
@@ -30,7 +50,8 @@ export const decryptWorkerService: DecryptService = {
 
   decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     if (!hasWorker()) return inThread.decrypt(context, encryptedData, nonce);
-    return client.request({
+    if (failure) return Promise.reject(failure);
+    return request({
       type: "decrypt",
       context,
       encryptedData,
