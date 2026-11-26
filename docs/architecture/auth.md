@@ -10,6 +10,8 @@ password: every registration, login, password change and recovery passes `derive
 (HKDF, `opaqueInputFor` / `loginWithOpaquePassword` in `packages/client`). That buffer, not the password, is what
 `secretsStore` keeps (`keepOpaquePassword`, wiped on lock) for the reconnect (and to get online for a pending web
 biometric enrollment); it is never stored.
+Every OPAQUE message a client sends must be canonical base64 (`opaqueMessageSchema`, the shared
+`decodeCanonicalBase64` of `@repo/util` that also guards the signature header): anything else is a BAD_REQUEST.
 The login's session key stays bytes up to `secretsStore.unlockSession` (`LoginSessionFn`, `deviceSessionKeyBytes`),
 which derives the session secret from its base64 text as the server does (`deriveSessionSecret`) and wipes it. A login
 whose session is attached only once checked holds it in a `HeldSession` (`packages/client`), whose `release` wipes the

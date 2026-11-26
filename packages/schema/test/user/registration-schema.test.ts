@@ -30,6 +30,8 @@ const VALID_PERSONAL_VAULT = {
   previousKeys: [],
 };
 
+const OPAQUE_MESSAGE = b64(98);
+
 const LINK = { encryptedVaultKey: b64(48), vaultKeyEncryptionNonce: b64(24) };
 
 const VALID_USER_KEY_PAIR = {
@@ -43,9 +45,11 @@ describe("registration/login email symmetry", () => {
   it.each(["alice@example.com", "bob.smith@example.co.uk", "user+tag@sub.example.io"])(
     "%s parses on both schemas",
     (email) => {
-      expect(() => startLoginInputSchema.parse({ email, startLoginRequest: "x" })).not.toThrow();
       expect(() =>
-        startRegistrationInputSchema.parse({ email, registrationRequest: "x" }),
+        startLoginInputSchema.parse({ email, startLoginRequest: OPAQUE_MESSAGE }),
+      ).not.toThrow();
+      expect(() =>
+        startRegistrationInputSchema.parse({ email, registrationRequest: OPAQUE_MESSAGE }),
       ).not.toThrow();
     },
   );
@@ -54,13 +58,13 @@ describe("registration/login email symmetry", () => {
 describe("email normalization", () => {
   it("trims and lowercases on login and registration", () => {
     const email = "  Alice@Example.COM ";
-    expect(startLoginInputSchema.parse({ email, startLoginRequest: "x" }).email).toBe(
+    expect(startLoginInputSchema.parse({ email, startLoginRequest: OPAQUE_MESSAGE }).email).toBe(
       "alice@example.com",
     );
     expect(
       finishRegistrationInputSchema.parse({
         email,
-        registrationRecord: "r",
+        registrationRecord: OPAQUE_MESSAGE,
         userKeys: VALID_USER_KEYS,
         personalVault: VALID_PERSONAL_VAULT,
         userKeyPair: VALID_USER_KEY_PAIR,
@@ -72,7 +76,7 @@ describe("email normalization", () => {
     expect(() =>
       finishRegistrationInputSchema.parse({
         email: "not-an-email",
-        registrationRecord: "r",
+        registrationRecord: OPAQUE_MESSAGE,
         userKeys: VALID_USER_KEYS,
         personalVault: VALID_PERSONAL_VAULT,
         userKeyPair: VALID_USER_KEY_PAIR,
@@ -84,7 +88,7 @@ describe("email normalization", () => {
 describe("finishRegistrationInputSchema composes key-schema", () => {
   const valid = {
     email: "alice@example.com",
-    registrationRecord: "opaque-record-blob",
+    registrationRecord: OPAQUE_MESSAGE,
     userKeys: VALID_USER_KEYS,
     personalVault: VALID_PERSONAL_VAULT,
     userKeyPair: VALID_USER_KEY_PAIR,

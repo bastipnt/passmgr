@@ -1,5 +1,6 @@
 import { genKey } from "@repo/crypto";
 import { db, usersTable } from "@repo/db";
+import { nonCanonicalBase64 } from "@repo/schema/testing/non-canonical";
 import { toBase64, UUIDV4_RE } from "@repo/util";
 import { beforeEach, describe, expect, it } from "vitest";
 import { truncateAll } from "../../test/setup/db-helpers";
@@ -127,6 +128,38 @@ describe("loginRouter — edge cases", () => {
       // @ts-expect-error — deliberately bypassing input type to test runtime validation.
       caller.login.startLogin({ email: "not-an-email", startLoginRequest: 42 }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  });
+
+  it("startLogin and finishLogin → BAD_REQUEST on a non-canonical OPAQUE message", async () => {
+    await register(email, password);
+    const caller = createCaller(buildTestContext(undefined));
+    const started = await clientStartLogin(password, email);
+    await expect(
+      caller.login.startLogin({
+        email,
+        startLoginRequest: nonCanonicalBase64(started.startLoginRequest),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+
+    const { loginResponse, attemptId } = await caller.login.startLogin({
+      email,
+      startLoginRequest: started.startLoginRequest,
+    });
+    const result = await started.finish(loginResponse);
+    if (!result) throw new Error("client-side OPAQUE failed");
+    const finishInput = { email, attemptId, authSalt: AUTH_SALT };
+    await expect(
+      caller.login.finishLogin({
+        ...finishInput,
+        finishLoginRequest: nonCanonicalBase64(result.finishLoginRequest),
+      }),
+    ).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    // Rejected before the attempt was taken: the canonical message still logs in.
+    const done = await caller.login.finishLogin({
+      ...finishInput,
+      finishLoginRequest: result.finishLoginRequest,
+    });
+    expect(done).toHaveProperty("sessionId");
   });
 });
 

@@ -10,6 +10,8 @@ function b64(bytes: number): string {
   return Buffer.from(new Uint8Array(bytes)).toString("base64");
 }
 
+const OPAQUE_MESSAGE = b64(98);
+
 const ATTEMPT_ID = "3f1c2b4e-8a6d-4c1e-9b7a-2d5e6f708192";
 
 const VALID_USER_KEYS = {
@@ -24,7 +26,7 @@ const VALID_USER_KEYS = {
 };
 
 describe("startRecoveryInputSchema", () => {
-  const valid = { email: "a@b.co", recoveryAuthKey: b64(32), registrationRequest: "x" };
+  const valid = { email: "a@b.co", recoveryAuthKey: b64(32), registrationRequest: OPAQUE_MESSAGE };
 
   it("accepts a valid input and normalizes the email", () => {
     const parsed = startRecoveryInputSchema.parse({ ...valid, email: " A@B.co " });
@@ -54,7 +56,7 @@ describe("finishRecoveryInputSchema", () => {
   const valid = {
     email: "a@b.co",
     attemptId: ATTEMPT_ID,
-    registrationRecord: "x",
+    registrationRecord: OPAQUE_MESSAGE,
     userKeys: VALID_USER_KEYS,
   };
 

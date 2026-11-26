@@ -33,6 +33,18 @@ export function fromBase64(input: string): Uint8Array {
   return out;
 }
 
+// Decoders ignore the unused low bits of the last digit, so several strings give the same bytes;
+// this takes only the one `toBase64` gives back (undefined otherwise), so input isn't malleable.
+export function decodeCanonicalBase64(input: string): Uint8Array | undefined {
+  let bytes: Uint8Array;
+  try {
+    bytes = fromBase64(input);
+  } catch {
+    return undefined;
+  }
+  return toBase64(bytes) === input ? bytes : undefined;
+}
+
 export function toBase64(input: Uint8Array): string {
   if (typeof input.toBase64 === "function") return input.toBase64();
   // Hermes (React Native) fallback via btoa.
