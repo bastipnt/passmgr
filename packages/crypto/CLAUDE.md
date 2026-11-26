@@ -18,7 +18,8 @@ worker (`argon2WorkerService`; `generateUserKeys` takes it as `derive`), in-thre
 The web worker services (Argon2, strength, decrypt) share `util/worker-client.ts` (`WorkerClient`: lazy worker, replies
 by id, a load error fails every waiting call; `runOffThread` / `hasWorker`: the in-thread fallback where there's no
 `Worker`). Record decryption (`decrypt-in-thread.ts`) is the same code in the decrypt worker, on mobile and in Node;
-`init` transfers the vault key buffers to the worker, `wipe` rejects pending decrypts and zeroes the worker's keys.
+`init` transfers the vault key buffers to the worker, `wipe` rejects pending decrypts and zeroes the worker's keys
+(so does an uncaught error on the worker global: `WorkerClient` then terminates it without a wipe).
 `argon2Async(variant, …)` also does Argon2d (KeePass import only); on mobile Argon2d and binary passwords run on @noble (JS thread).
 
 ## OPAQUE KSF

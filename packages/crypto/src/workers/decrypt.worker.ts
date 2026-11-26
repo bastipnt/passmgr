@@ -9,6 +9,9 @@ export type DecryptRequest =
 
 const service = new InThreadDecryptService();
 
+// WorkerClient's onerror terminates the worker without a wipe request: zero the keys here first.
+self.addEventListener("error", () => service.wipe());
+
 serveOffThread<DecryptRequest>(async (msg) => {
   if (msg.type === "init") {
     service.init(new Map(msg.keys.map(([keyId, key]) => [keyId, new Uint8Array(key)])));
