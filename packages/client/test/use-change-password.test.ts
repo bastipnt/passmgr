@@ -8,11 +8,16 @@ import { TRPCClientError } from "@trpc/client";
 import { act, type ContextType, createElement, useContext } from "react";
 import { createRoot } from "react-dom/client";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { changeLocalPassword } from "../src/account/change-password";
+import { changeLocalPassword, PasswordChangeFailedError } from "../src/account/change-password";
 import { generateLocalVault, type NewLocalVault } from "../src/account/create-local-vault";
 import { useChangePassword } from "../src/hooks/use-change-password";
 import { useSessionRestore } from "../src/hooks/use-session-restore";
-import type { AccountLogin, LoginSessionFn, SecondFactorPrompt } from "../src/login";
+import {
+  type AccountLogin,
+  type LoginSessionFn,
+  LoginThrottledError,
+  type SecondFactorPrompt,
+} from "../src/login";
 import { PreferencesProvider } from "../src/providers/PreferencesProvider";
 import SessionProvider, { SessionContext } from "../src/providers/SessionProvider";
 import { StoreProvider, useStore } from "../src/providers/StoreProvider";
@@ -64,6 +69,12 @@ const ALICE: LocalProfile = {
   userId: "u-alice",
 };
 const salt = () => new Uint8Array(32).fill(3);
+const persistedLogin = () =>
+  JSON.parse(keychain.get(`passmgr.login-bundle.${ALICE.profileId}`)!) as {
+    server?: { sessionId: string };
+  };
+/** The persisted login as `finishPasswordChange` goes out. */
+let persistedAtFinish: ReturnType<typeof persistedLogin> | undefined;
 
 type App = {
   store: ReturnType<typeof useStore>;
@@ -160,9 +171,24 @@ beforeEach(async () => {
   await profiles.create(ALICE, (vault) =>
     vault.setAccountKeyMaterial(local.material, local.vaults, { profile: ALICE, recoveryWrap }),
   );
+  persistedAtFinish = undefined;
+  // The fresh login attaches its session, then `finishPasswordChange` goes out.
   changeAccountPassword.mockImplementation(
-    (_trpc, _attach, _profile, material, current: string, next: string) =>
-      changeLocalPassword(material, current, next),
+    async (
+      _trpc,
+      attach: LoginSessionFn,
+      _profile,
+      material,
+      current: string,
+      next: string,
+      _prompt,
+      beforeFinish: () => Promise<void>,
+    ) => {
+      await attach("s-fresh", new Uint8Array(32).fill(4), salt());
+      await beforeFinish();
+      persistedAtFinish = persistedLogin();
+      return changeLocalPassword(material, current, next);
+    },
   );
   // The server revoked every session of the account with the change.
   trpcClient.user.heartbeat.query.mockRejectedValue(
@@ -186,8 +212,40 @@ describe("useChangePassword on mobile (linked)", () => {
     expect(clearLoginBundle).not.toHaveBeenCalled();
     expect(app.session.mode).toBe("online");
     expect(secretsStore.sessionId).toBe("s-new");
-    const persisted = JSON.parse(keychain.get(`passmgr.login-bundle.${ALICE.profileId}`)!);
-    expect(persisted.server.sessionId).toBe("s-new");
+    expect(persistedLogin().server?.sessionId).toBe("s-new");
+  });
+
+  it("persists the login without a server session before finishPasswordChange", async () => {
+    const app = await launch();
+    await signIn(app);
+    loginWithOpaquePassword.mockImplementation(loginWithNewPassword(app));
+
+    expect(await act(() => app.change.changePassword(PASSWORD, NEW_PASSWORD))).toBe(true);
+
+    expect(persistedAtFinish).toBeDefined();
+    expect(persistedAtFinish?.server).toBeUndefined();
+    expect(persistedLogin().server?.sessionId).toBe("s-new");
+  });
+
+  it.each([
+    ["failed", new PasswordChangeFailedError()],
+    ["throttled", new LoginThrottledError()],
+  ])("persists the attached session again when the change is refused (%s)", async (error, e) => {
+    const app = await launch();
+    await signIn(app);
+    const refuse = changeAccountPassword.getMockImplementation()!;
+    changeAccountPassword.mockImplementation(async (...args: unknown[]) => {
+      await refuse(...args);
+      throw e;
+    });
+
+    expect(await act(() => app.change.changePassword(PASSWORD, NEW_PASSWORD))).toBe(false);
+
+    expect(app.change.changeError).toBe(error);
+    expect(persistedAtFinish?.server).toBeUndefined();
+    expect(app.session.mode).toBe("online");
+    expect(persistedLogin().server?.sessionId).toBe("s-fresh");
+    expect(loginWithOpaquePassword).not.toHaveBeenCalled();
   });
 
   it("unlocks normally on the next launch when the app died before the reconnect", async () => {

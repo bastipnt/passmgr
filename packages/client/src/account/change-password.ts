@@ -88,6 +88,8 @@ export async function changeLocalPassword(
  * `PasswordChangeUnconfirmedError` (the last request got no answer: the server
  * may have taken it).
  *
+ * `beforeFinish` runs right before `finishPasswordChange` is sent, which revokes every session.
+ *
  * @returns the material to store in place of `material`
  */
 export async function changeAccountPassword(
@@ -98,6 +100,7 @@ export async function changeAccountPassword(
   currentPassword: string,
   newPassword: string,
   onSecondFactor?: SecondFactorPrompt,
+  beforeFinish: () => Promise<void> = async () => {},
 ): Promise<AccountKeyMaterial> {
   const email = normalizeEmail(account.email);
   await freshLogin(
@@ -122,6 +125,7 @@ export async function changeAccountPassword(
 
   const passwordKeys = await wrapAccountKeyForPassword(newPassword);
   const changed = { ...passwordKeys, userKeyPair: material.userKeyPair };
+  await beforeFinish();
   try {
     await trpc.user.finishPasswordChange.mutate({
       attemptId,

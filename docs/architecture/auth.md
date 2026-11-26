@@ -131,8 +131,10 @@ blocked otherwise: `changeAccountPassword` does a fresh OPAQUE login with the cu
 new `registrationRecord`, `revokeUserSessions`), then the client logs in again with the new password (`useConnectServer`).
 Both modes drop the biometric enrollment (the server deletes its credential); recovery key and vault keys stay, and so
 does the persisted mobile login (it holds the account key, not the password; `forgetQuickUnlock` `keepSession`).
-`linked`: the revoked session is detached and the persisted login rewritten without it before that login, so a launch
-after a crash meanwhile restores the vault `offline` instead of signing it out (`signedOut`).
+`linked`: the persisted login is rewritten without the server session right before `finishPasswordChange` goes out
+(`changeAccountPassword` `beforeFinish`), so a launch after a crash from there on restores the vault `offline` instead
+of signing it out (`signedOut`); a refused change (failed, throttled) persists the attached session again. After the
+change the revoked session is detached before the login with the new password, which persists its new session.
 
 Closed key sets (password change, rekey, recovery) are kept `KEY_SET_RETENTION_DAYS` (default 14, the rollback window)
 and then deleted by the hourly purge in `server.ts` (`purgeClosedKeySets`, `user/purge-key-sets.ts`): they still
