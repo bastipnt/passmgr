@@ -54,7 +54,7 @@ beforeEach(() => {
 });
 
 describe("changeAccountPassword", () => {
-  it("runs beforeFinish after startPasswordChange and before finishPasswordChange", async () => {
+  it("runs beforeLogin before the fresh login, which ends the old session", async () => {
     const attach = vi.fn<LoginSessionFn>(async () => void calls.push("attach"));
 
     await changeAccountPassword(
@@ -65,14 +65,14 @@ describe("changeAccountPassword", () => {
       "current password",
       "a brand new password",
       undefined,
-      async () => void calls.push("beforeFinish"),
+      async () => void calls.push("beforeLogin"),
     );
 
     expect(calls).toEqual([
+      "beforeLogin",
       "login",
       "attach",
       "startPasswordChange",
-      "beforeFinish",
       "finishPasswordChange",
     ]);
   });

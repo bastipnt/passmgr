@@ -111,7 +111,8 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     } catch (e) {
       if (e instanceof PasswordChangeUnconfirmedError && profile.mode === "linked")
         return await confirmChange(active, profile.email, currentPassword, newPassword, e.material);
-      // Refused: the session still works, and the persisted login went out without it.
+      // Refused: the attached session still works; the persisted login went out without it before
+      // the fresh login, as on every linked change.
       if (profile.mode === "linked") await persistSession(active.entry.profileId);
       if (e instanceof WrongPasswordError) return "wrong_password";
       if (e instanceof LoginThrottledError) return "throttled";
@@ -164,8 +165,8 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
     return "unconfirmed";
   }
 
-  /** The change revoked every session (the persisted mobile login went out without it before
-   * `finishPasswordChange`: restored, a revoked one would sign the vault out). */
+  /** The change revoked every session (the persisted mobile login went out without it before the
+   * fresh login: restored, an ended or revoked one would sign the vault out). */
   async function dropRevokedSession(active: ActiveProfile) {
     detachServer();
     await persistSession(active.entry.profileId);

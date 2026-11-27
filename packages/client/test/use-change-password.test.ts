@@ -172,7 +172,7 @@ beforeEach(async () => {
     vault.setAccountKeyMaterial(local.material, local.vaults, { profile: ALICE, recoveryWrap }),
   );
   persistedAtFinish = undefined;
-  // The fresh login attaches its session, then `finishPasswordChange` goes out.
+  // The fresh login ends the old session and attaches its own, then `finishPasswordChange` goes out.
   changeAccountPassword.mockImplementation(
     async (
       _trpc,
@@ -182,10 +182,10 @@ beforeEach(async () => {
       current: string,
       next: string,
       _prompt,
-      beforeFinish: () => Promise<void>,
+      beforeLogin: () => Promise<void>,
     ) => {
+      await beforeLogin();
       await attach("s-fresh", new Uint8Array(32).fill(4), salt());
-      await beforeFinish();
       persistedAtFinish = persistedLogin();
       return changeLocalPassword(material, current, next);
     },
@@ -215,7 +215,7 @@ describe("useChangePassword on mobile (linked)", () => {
     expect(persistedLogin().server?.sessionId).toBe("s-new");
   });
 
-  it("persists the login without a server session before finishPasswordChange", async () => {
+  it("persists the login without a server session before the fresh login", async () => {
     const app = await launch();
     await signIn(app);
     loginWithOpaquePassword.mockImplementation(loginWithNewPassword(app));
@@ -246,6 +246,32 @@ describe("useChangePassword on mobile (linked)", () => {
     expect(app.session.mode).toBe("online");
     expect(persistedLogin().server?.sessionId).toBe("s-fresh");
     expect(loginWithOpaquePassword).not.toHaveBeenCalled();
+  });
+
+  it("restores offline on the next launch when the app died after the fresh login", async () => {
+    const app = await launch();
+    await signIn(app);
+    // The app dies after the fresh login ended "s-old", before `finishPasswordChange` goes out.
+    changeAccountPassword.mockImplementation(
+      async (_trpc, attach: LoginSessionFn, ...rest: unknown[]) => {
+        await (rest[5] as () => Promise<void>)();
+        await attach("s-fresh", new Uint8Array(32).fill(4), salt());
+        return new Promise(() => {});
+      },
+    );
+    void app.change.changePassword(PASSWORD, NEW_PASSWORD);
+    await vi.waitFor(() => expect(secretsStore.sessionId).toBe("s-fresh"));
+    for (const unmount of unmounts.splice(0)) act(unmount);
+    secretsStore.lock();
+
+    expect(persistedLogin().server).toBeUndefined();
+    const next = await launch();
+    await act(() => next.restore.tryRestore());
+
+    expect(next.restore.status).toBe("restored");
+    expect(next.session.mode).toBe("offline");
+    expect(onSignedOut).not.toHaveBeenCalled();
+    expect(clearLoginBundle).not.toHaveBeenCalled();
   });
 
   it("unlocks normally on the next launch when the app died before the reconnect", async () => {
