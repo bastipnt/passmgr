@@ -1,4 +1,5 @@
 export * from "./src/app-config-schema";
+export * from "./src/base64-schema";
 export * from "./src/client-error-schema";
 export * from "./src/empty-input-schema";
 export * from "./src/export-schema";
@@ -12,7 +13,6 @@ export * from "./src/seed/typed-record-seed";
 export * from "./src/sharing-schema";
 export * from "./src/tags";
 export * from "./src/user/account-event-schema";
-export * from "./src/user/base64-schema";
 export * from "./src/user/delete-account-schema";
 export * from "./src/user/device-login-schema";
 export * from "./src/user/email-schema";

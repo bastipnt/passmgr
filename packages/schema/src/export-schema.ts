@@ -1,7 +1,7 @@
 import { z } from "zod";
+import { canonicalBase64 } from "./base64-schema";
 import { CURRENT_SCHEMA_VERSION } from "./record-payload";
 import type { RecordData } from "./record-types";
-import { canonicalBase64 } from "./user/base64-schema";
 import { argonParamsSchema } from "./user/key-schema";
 import { passwordSchema } from "./user/password-schema";
 import { vaultKindSchema } from "./vault-schema";

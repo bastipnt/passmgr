@@ -1,6 +1,6 @@
 import z from "zod";
+import { canonicalBase64 } from "../base64-schema";
 import { memberVaultSchema } from "../vault-schema";
-import { canonicalBase64 } from "./base64-schema";
 import { emailSchema } from "./email-schema";
 import { passwordKeySchema, recoveryWrapSchema, userKeyPairSchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";

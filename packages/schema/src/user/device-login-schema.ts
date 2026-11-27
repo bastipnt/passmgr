@@ -1,5 +1,5 @@
 import z from "zod";
-import { canonicalBase64 } from "./base64-schema";
+import { canonicalBase64 } from "../base64-schema";
 import { finishLoginOutputSchema } from "./login-schema";
 
 /** COSE algorithm ids (IANA registry) of the device credentials the server can verify. */

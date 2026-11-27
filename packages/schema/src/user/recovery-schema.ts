@@ -1,5 +1,5 @@
 import z from "zod";
-import { canonicalBase64 } from "./base64-schema";
+import { canonicalBase64 } from "../base64-schema";
 import { emailSchema } from "./email-schema";
 import { recoveryWrapSchema, userKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";

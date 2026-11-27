@@ -1,5 +1,5 @@
 import z from "zod";
-import { canonicalBase64 } from "./base64-schema";
+import { canonicalBase64 } from "../base64-schema";
 import { emailSchema } from "./email-schema";
 
 type ArgonBounds = {

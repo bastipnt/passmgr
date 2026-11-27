@@ -1,5 +1,5 @@
 import z from "zod";
-import { canonicalBase64 } from "./user/base64-schema";
+import { canonicalBase64 } from "./base64-schema";
 import {
   isCompleteKeyChain,
   MAX_VAULT_KEY_VERSION,
