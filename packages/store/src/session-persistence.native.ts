@@ -3,7 +3,8 @@ import type { LoginBundle } from "./session-persistence.types";
 
 export type { LoginBundle };
 
-// Inlined by Metro (EXPO_PUBLIC_*); declared here so app code never leans on Node types.
+// Inlined by Metro (EXPO_PUBLIC_*). The app build has no Node types: tsconfig.native.json loads them
+// only for the native driver test (node:sqlite).
 declare const process: { env: Record<string, string | undefined> };
 
 /** One Keychain/Keystore item per profile (ADR 0001 D2). */

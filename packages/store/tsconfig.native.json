@@ -2,7 +2,7 @@
   "extends": "./tsconfig.web.json",
   "compilerOptions": {
     "tsBuildInfoFile": "./node_modules/.tmp/tsconfig.native.tsbuildinfo",
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "react-native", "node"]
   },
   "include": ["src/**/*.native.ts", "src/drivers/native.ts", "test/native-driver.test.ts"],
   "exclude": ["node_modules"]

@@ -10,6 +10,7 @@
     "./drivers/native": "./src/drivers/native.ts",
     "./testing": "./test/node-sqlite-driver.ts",
     "./testing/fake-sealer": "./test/fake-sealer.ts",
+    "./testing/session-persistence": "./src/session-persistence.ts",
     "./testing/session-persistence-native": "./src/session-persistence.native.ts"
   },
   "scripts": {

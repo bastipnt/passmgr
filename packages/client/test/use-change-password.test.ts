@@ -33,13 +33,14 @@ vi.mock("expo-secure-store", () => ({
   deleteItemAsync: async (key: string) => void keychain.delete(key),
 }));
 const clearLoginBundle = vi.hoisted(() => vi.fn());
-vi.mock("@repo/store", async (importActual) => {
+// The store module itself, so ProfileStore's own imports get the native login bundle too.
+vi.mock("@repo/store/testing/session-persistence", async () => {
   // Typed as the web module (same exports): the native file compiles only in the store's tsconfig.
   const native = await vi.importActual<typeof import("@repo/store")>(
     "@repo/store/testing/session-persistence-native",
   );
   clearLoginBundle.mockImplementation(native.clearLoginBundle);
-  return { ...(await importActual<object>()), ...native, clearLoginBundle };
+  return { ...native, clearLoginBundle };
 });
 vi.mock(
   "@repo/crypto/services/decrypt-worker-service",
@@ -292,5 +293,17 @@ describe("useChangePassword on mobile (linked)", () => {
     expect(next.session.mode).toBe("offline");
     expect(onSignedOut).not.toHaveBeenCalled();
     expect(clearLoginBundle).not.toHaveBeenCalled();
+  });
+
+  it("clears the persisted login when ProfileStore.remove removes the profile", async () => {
+    const app = await launch();
+    await signIn(app);
+    for (const unmount of unmounts.splice(0)) act(unmount);
+    secretsStore.lock();
+    expect(persistedLogin().server?.sessionId).toBe("s-old");
+
+    await profiles.remove(ALICE.profileId);
+
+    expect([...keychain.keys()].filter((key) => key.endsWith(ALICE.profileId))).toEqual([]);
   });
 });
