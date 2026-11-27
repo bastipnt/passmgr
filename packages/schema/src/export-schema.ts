@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CURRENT_SCHEMA_VERSION } from "./record-payload";
 import type { RecordData } from "./record-types";
+import { canonicalBase64 } from "./user/base64-schema";
 import { argonParamsSchema } from "./user/key-schema";
 import { passwordSchema } from "./user/password-schema";
 import { vaultKindSchema } from "./vault-schema";
@@ -61,7 +62,7 @@ export type ExportData = Omit<z.infer<typeof exportDataSchema>, "records"> & {
 
 export const exportKdfSchema = argonParamsSchema.safeExtend({
   algorithm: z.literal("argon2id"),
-  salt: z.base64(),
+  salt: canonicalBase64(),
 });
 
 /** An encrypted export: `ExportData` as JSON, sealed under a key from the export password. */
@@ -71,8 +72,8 @@ export const exportEnvelopeSchema = z.object({
   encrypted: z.literal(true),
   kdf: exportKdfSchema,
   cipher: z.literal("xchacha20poly1305"),
-  nonce: z.base64(),
-  data: z.base64(),
+  nonce: canonicalBase64(),
+  data: canonicalBase64(),
 });
 
 export type ExportKdf = z.infer<typeof exportKdfSchema>;

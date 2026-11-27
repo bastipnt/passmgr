@@ -1,5 +1,6 @@
 import z from "zod";
 import { memberVaultSchema } from "../vault-schema";
+import { canonicalBase64 } from "./base64-schema";
 import { emailSchema } from "./email-schema";
 import { passwordKeySchema, recoveryWrapSchema, userKeyPairSchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
@@ -20,7 +21,7 @@ export const finishLoginInputSchema = z.object({
   attemptId: z.uuid(),
   finishLoginRequest: opaqueMessageSchema,
   // 32 bytes base64-encoded with padding
-  authSalt: z.base64().length(44),
+  authSalt: canonicalBase64().length(44),
 });
 
 /** What a completed login hands the client: the session and the account's keys. */

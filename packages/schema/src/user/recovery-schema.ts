@@ -1,4 +1,5 @@
 import z from "zod";
+import { canonicalBase64 } from "./base64-schema";
 import { emailSchema } from "./email-schema";
 import { recoveryWrapSchema, userKeySchema } from "./key-schema";
 import { opaqueMessageSchema } from "./opaque-schema";
@@ -10,7 +11,7 @@ import { passwordSchema } from "./password-schema";
  */
 export const startRecoveryInputSchema = z.object({
   email: emailSchema,
-  recoveryAuthKey: z.base64().length(44),
+  recoveryAuthKey: canonicalBase64().length(44),
   registrationRequest: opaqueMessageSchema,
 });
 
@@ -38,13 +39,13 @@ export const finishRecoveryInputSchema = z.object({
  * `recoveryAuthKey` is the old recovery key's proof, never the key itself.
  */
 export const pendingRecoverySchema = z.object({
-  recoveryAuthKey: z.base64().length(44),
+  recoveryAuthKey: canonicalBase64().length(44),
   userKeys: userKeySchema,
 });
 
 export const sealedPendingRecoverySchema = z.object({
-  ciphertext: z.base64(),
-  nonce: z.base64().length(32),
+  ciphertext: canonicalBase64(),
+  nonce: canonicalBase64().length(32),
 });
 
 export type PendingRecovery = z.infer<typeof pendingRecoverySchema>;

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
+import type z from "zod";
 import {
   finishRecoveryInputSchema,
+  pendingRecoverySchema,
   recoverFormSchema,
+  sealedPendingRecoverySchema,
   startRecoveryInputSchema,
   startRecoveryOutputSchema,
 } from "../../src/user/recovery-schema";
+import { nonCanonicalBase64 } from "../../testing/non-canonical";
 
 function b64(bytes: number): string {
   return Buffer.from(new Uint8Array(bytes)).toString("base64");
@@ -71,6 +75,36 @@ describe("finishRecoveryInputSchema", () => {
 
   it("rejects a non-uuid attempt id", () => {
     expect(() => finishRecoveryInputSchema.parse({ ...valid, attemptId: "nope" })).toThrow();
+  });
+});
+
+// Byte counts whose padded spelling leaves unused low bits in the last digit.
+const BASE64_FIELDS: [string, string, z.ZodObject, number][] = [
+  ["startRecoveryInputSchema", "recoveryAuthKey", startRecoveryInputSchema, 32],
+  ["pendingRecoverySchema", "recoveryAuthKey", pendingRecoverySchema, 32],
+  ["sealedPendingRecoverySchema", "ciphertext", sealedPendingRecoverySchema, 100],
+  ["sealedPendingRecoverySchema", "nonce", sealedPendingRecoverySchema, 23],
+];
+
+describe("canonical base64 fields", () => {
+  it.each(BASE64_FIELDS)(
+    "%s.%s takes only the canonical spelling",
+    (_name, field, schema, bytes) => {
+      const canonical = b64(bytes);
+      const fieldSchema = schema.shape[field] as z.ZodType;
+      expect(fieldSchema.parse(canonical)).toBe(canonical);
+      expect(fieldSchema.safeParse(nonCanonicalBase64(canonical)).success).toBe(false);
+      expect(fieldSchema.safeParse(canonical.replace(/=+$/, "")).success).toBe(false);
+    },
+  );
+
+  it("keeps the 44-character bound of the recovery auth key", () => {
+    expect(pendingRecoverySchema.shape.recoveryAuthKey.safeParse(b64(30)).success).toBe(false);
+  });
+
+  it("keeps the 32-character bound of the sealed nonce", () => {
+    expect(sealedPendingRecoverySchema.shape.nonce.safeParse(b64(24)).success).toBe(true);
+    expect(sealedPendingRecoverySchema.shape.nonce.safeParse(b64(27)).success).toBe(false);
   });
 });
 
