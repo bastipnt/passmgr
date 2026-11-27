@@ -138,6 +138,27 @@ describe("decryptWorkerService with a Worker", () => {
     expect(await pending).toEqual({ title: "x" });
   });
 
+  it("rejects later decrypts with the load error after a worker crash with nothing waiting", async () => {
+    const s = await service();
+    s.init(new Map([["v-1/1", genKey()]]));
+    workers[0]?.reply(0, null);
+    await Promise.resolve();
+    workers[0]?.fail("crashed");
+
+    const later = s.decrypt(context, "enc", "nonce");
+    await expect(later).rejects.toBeInstanceOf(DecryptWorkerLoadError);
+    await expect(later).rejects.toThrow(
+      "Decrypt worker could not load (Decrypt worker failed: crashed)",
+    );
+    expect(workers).toHaveLength(1);
+
+    s.init(new Map([["v-1/1", genKey()]]));
+    expect(workers).toHaveLength(2);
+    const pending = s.decrypt(context, "enc", "nonce");
+    workers[1]?.reply(1, { title: "x" });
+    expect(await pending).toEqual({ title: "x" });
+  });
+
   it("keeps decrypting after a decrypt's own error reply", async () => {
     const s = await service();
     const failed = s.decrypt(context, "enc", "nonce");

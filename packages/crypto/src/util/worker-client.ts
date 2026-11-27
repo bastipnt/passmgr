@@ -25,11 +25,18 @@ export class WorkerClient {
   private readonly start: () => Worker;
   private readonly name: string;
   private readonly serial: boolean;
+  private readonly onFailure: ((error: Error) => void) | undefined;
 
-  constructor(start: () => Worker, name: string, options: { serial?: boolean } = {}) {
+  /** `onFailure`: a worker error, also one with no call waiting (not `terminate`). */
+  constructor(
+    start: () => Worker,
+    name: string,
+    options: { serial?: boolean; onFailure?: (error: Error) => void } = {},
+  ) {
     this.start = start;
     this.name = name;
     this.serial = options.serial ?? false;
+    this.onFailure = options.onFailure;
   }
 
   request<T>(request: unknown, transfer: Transferable[] = []): Promise<T> {
@@ -79,7 +86,9 @@ export class WorkerClient {
     // never settle. Fail what's waiting and drop the worker so the next call retries.
     worker.onerror = (event: ErrorEvent) => {
       event.preventDefault();
-      this.terminate(new Error(`${this.name} failed: ${event.message || "could not load"}`));
+      const error = new Error(`${this.name} failed: ${event.message || "could not load"}`);
+      this.terminate(error);
+      this.onFailure?.(error);
     };
     this.worker = worker;
     return worker;

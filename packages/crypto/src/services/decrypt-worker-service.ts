@@ -6,7 +6,6 @@ import type { DecryptRequest } from "../workers/decrypt.worker";
 // oxlint-disable-next-line import/default -- Vite ?worker import
 import DecryptWorker from "../workers/decrypt.worker.ts?worker";
 
-const client = new WorkerClient(() => new DecryptWorker(), "Decrypt worker");
 const inThread = new InThreadDecryptService();
 
 /** Every decrypt after the worker failed, until the next `init`: the failed worker's keys are gone. */
@@ -19,18 +18,15 @@ export class DecryptWorkerLoadError extends Error {
 
 let failure: DecryptWorkerLoadError | null = null;
 
-function request<T>(message: DecryptRequest, transfer: Transferable[] = []): Promise<T> {
-  return client.request<T>(message, transfer).catch((error: unknown) => {
-    // Only a worker error drops the worker (a reply error or `wipe` keeps it); this handler
-    // runs before any caller can start a new one.
-    if (!client.started && error instanceof Error) failure = new DecryptWorkerLoadError(error);
-    throw error;
-  });
-}
+const client = new WorkerClient(() => new DecryptWorker(), "Decrypt worker", {
+  onFailure: (error) => {
+    failure = new DecryptWorkerLoadError(error);
+  },
+});
 
 function send(message: DecryptRequest, transfer: Transferable[] = []): void {
-  // A worker error is remembered by `request` and fails every later decrypt; nothing waits on it.
-  request(message, transfer).catch(() => {});
+  // A worker error is remembered through `onFailure` and fails every later decrypt.
+  client.request(message, transfer).catch(() => {});
 }
 
 export const decryptWorkerService: DecryptService = {
@@ -51,7 +47,7 @@ export const decryptWorkerService: DecryptService = {
   decrypt(context: RecordCipherContext, encryptedData: string, nonce: string): Promise<unknown> {
     if (!hasWorker()) return inThread.decrypt(context, encryptedData, nonce);
     if (failure) return Promise.reject(failure);
-    return request({
+    return client.request({
       type: "decrypt",
       context,
       encryptedData,

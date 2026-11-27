@@ -168,6 +168,28 @@ describe("WorkerClient", () => {
     expect(workers).toHaveLength(2);
   });
 
+  it("reports a worker error to onFailure, also with no call waiting", async () => {
+    const failures: Error[] = [];
+    const workers: FakeWorker[] = [];
+    const c = new WorkerClient(
+      () => {
+        const worker = new FakeWorker(async (request) => ({ result: request }));
+        workers.push(worker);
+        return worker as unknown as Worker;
+      },
+      "Fake worker",
+      { onFailure: (error) => failures.push(error) },
+    );
+    expect(await c.request("x")).toBe("x");
+    workers[0]?.fail("crashed");
+    expect(failures.map((error) => error.message)).toEqual(["Fake worker failed: crashed"]);
+    expect(c.started).toBe(false);
+
+    await c.request("y");
+    c.terminate();
+    expect(failures).toHaveLength(1);
+  });
+
   it("names the worker's error message when there is one", async () => {
     const { client: c, workers } = client(() => new Promise(() => {}));
     const pending = c.request("x");
