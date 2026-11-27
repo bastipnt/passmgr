@@ -1,4 +1,5 @@
 import { db, userKeyPairsTable, usersTable } from "@repo/db";
+import { toBase64 } from "@repo/util";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, expect, it } from "vitest";
 import { redis } from "../../src/redis";
@@ -38,7 +39,7 @@ describe("user.publicKey (real Postgres + Redis)", () => {
     const rotated = {
       ...current!,
       keyVersion: 2,
-      publicKey: `${"B".repeat(43)}=`,
+      publicKey: toBase64(crypto.getRandomValues(new Uint8Array(32))),
       encryptedPrivateKey: "C".repeat(64),
       privateKeyEncryptionNonce: "D".repeat(32),
     };
