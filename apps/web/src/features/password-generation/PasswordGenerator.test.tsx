@@ -6,6 +6,11 @@ import PasswordGenerator from "./PasswordGenerator";
 
 const mobileMatch = vi.hoisted(() => vi.fn());
 
+vi.mock(
+  "@repo/crypto/services/strength-worker-service",
+  () => import("@/test/strength-worker-mock"),
+);
+
 vi.mock("@repo/ui/hooks/use-is-mobile", () => ({
   useIsMobile: () => mobileMatch(),
   isMobile: () => mobileMatch(),

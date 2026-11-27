@@ -29,10 +29,11 @@ describe("WASM Argon2id", () => {
 
   it("matches @noble for the strong set", { timeout: 90_000 }, async () => {
     const opts = { t: 3, m: 128 * 1024, p: 4 };
+    // @noble's argon2idAsync output for these inputs, derived once: live, its JS outlasted the limit
+    // under a full run. @noble itself is pinned by the RFC 9106 test below.
+    const noble = "4e5728051c2a005c3a091117fceea1ef7f2db5aecae89594bf7f8a0f9072c840";
 
-    expect(bytesToHex(await wasmArgon2idAsync("pw", salt, opts))).toBe(
-      bytesToHex(await nobleArgon2idAsync("pw", salt, opts)),
-    );
+    expect(bytesToHex(await wasmArgon2idAsync("pw", salt, opts))).toBe(noble);
   });
 
   // The RFC vector needs a secret and associated data, which hash-wasm can't

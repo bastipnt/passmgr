@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Router } from "wouter";
 import { memoryLocation } from "wouter/memory-location";
 import { authPaths } from "@/app/route-paths";
-import { renderWithProviders, screen, waitFor } from "@/test/render";
+import { fill, renderWithProviders, screen, waitFor } from "@/test/render";
 import CreateVaultPage from "./CreateVaultPage";
 import { HoldUnlockRedirectContext } from "./unlock-redirect";
 
@@ -58,9 +58,9 @@ function renderPage(path: string = authPaths.create) {
 }
 
 async function fillVault({ name = "", confirm = PASSWORD } = {}) {
-  if (name) await userEvent.type(screen.getByLabelText("Vault name"), name);
-  await userEvent.type(screen.getByLabelText("Password"), PASSWORD);
-  await userEvent.type(screen.getByLabelText("Confirm password"), confirm);
+  if (name) await fill(screen.getByLabelText("Vault name"), name);
+  await fill(screen.getByLabelText("Password"), PASSWORD);
+  await fill(screen.getByLabelText("Confirm password"), confirm);
 }
 
 async function saveRecoveryKey() {
@@ -73,7 +73,7 @@ async function toEmailStep(name = "") {
   await fillVault({ name });
   await userEvent.click(screen.getByRole("button", { name: /^continue$/i }));
   await userEvent.click(screen.getByRole("button", { name: /yes, sync this vault/i }));
-  await userEvent.type(screen.getByLabelText("Email"), "new@example.com");
+  await fill(screen.getByLabelText("Email"), "new@example.com");
 }
 
 describe("CreateVaultPage", () => {

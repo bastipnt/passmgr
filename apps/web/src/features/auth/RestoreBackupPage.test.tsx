@@ -27,6 +27,10 @@ vi.mock("@repo/client/src/providers/StoreProvider", async (importActual) => ({
 let mockPersistent: boolean | null = true;
 vi.mock("@/hooks/use-storage-persistent", () => ({ useStoragePersistent: () => mockPersistent }));
 vi.mock("@/hooks/use-storage-durability", () => ({ requestPersistentStorage: vi.fn() }));
+vi.mock(
+  "@repo/crypto/services/strength-worker-service",
+  () => import("@/test/strength-worker-mock"),
+);
 
 Object.defineProperty(globalThis.navigator, "clipboard", {
   configurable: true,
@@ -143,7 +147,7 @@ describe("RestoreBackupPage", () => {
     expect(screen.getByText(/plain json export · not encrypted/i)).toBeInTheDocument();
     expect(screen.getByText(/this file isn't encrypted/i)).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Vault name"), "Kept");
+    await fill(screen.getByLabelText("Vault name"), "Kept", user);
     await user.click(screen.getByRole("button", { name: /^back$/i }));
     expect(screen.getByText("Step 1 of 2")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
@@ -175,9 +179,9 @@ describe("RestoreBackupPage", () => {
     expect(screen.getByText(/chrome \/ edge export · chrome passwords\.csv/i)).toBeInTheDocument();
     expect(screen.getByText(/this file isn't encrypted/i)).toBeInTheDocument();
 
-    await userEvent.type(screen.getByLabelText("Vault name"), "Imported");
-    await userEvent.type(screen.getByLabelText("Password"), PASSWORD);
-    await userEvent.type(screen.getByLabelText("Confirm password"), PASSWORD);
+    await fill(screen.getByLabelText("Vault name"), "Imported");
+    await fill(screen.getByLabelText("Password"), PASSWORD);
+    await fill(screen.getByLabelText("Confirm password"), PASSWORD);
     await userEvent.click(screen.getByRole("button", { name: /create vault & import/i }));
     await waitFor(() => expect(restoreHook.restore).toHaveBeenCalledOnce());
     const [source, password, name] = restoreHook.restore.mock.calls[0]!;

@@ -9,6 +9,10 @@ import RecordForm, { type RecordFormHandle } from "./RecordForm";
 
 // No canvas in jsdom: the decoder stands in, the camera is missing.
 vi.mock("./login/qr-decode", () => ({ decodeQr: vi.fn(), decodeQrImage: vi.fn() }));
+vi.mock(
+  "@repo/crypto/services/strength-worker-service",
+  () => import("@/test/strength-worker-mock"),
+);
 
 // The tag field offers the tags in use, which live in the records context.
 vi.mock("@repo/client/src/hooks/use-tags", async (importOriginal) => ({
