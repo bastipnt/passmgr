@@ -113,7 +113,11 @@ export function useChangePassword(onSecondFactor?: SecondFactorPrompt) {
         return await confirmChange(active, profile.email, currentPassword, newPassword, e.material);
       // Refused: the attached session still works; the persisted login went out without it before
       // the fresh login, as on every linked change.
-      if (profile.mode === "linked") await persistSession(active.entry.profileId);
+      if (profile.mode === "linked") {
+        // The fresh login ended the session but attaching its own one failed.
+        if (!secretsStore.hasServerSession) detachServer();
+        await persistSession(active.entry.profileId);
+      }
       if (e instanceof WrongPasswordError) return "wrong_password";
       if (e instanceof LoginThrottledError) return "throttled";
       if (e instanceof SecondFactorCancelledError || e instanceof SecondFactorExpiredError)
