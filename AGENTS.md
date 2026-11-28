@@ -118,6 +118,8 @@ Every record lives in one vault and is encrypted with that vault's key. Email is
 
 - **Linting**: OXLint (`--type-aware`). Runs on pre-push via Lefthook.
 - **Commits**: Conventional Commits enforced via commitlint (`feat`, `fix`, `refactor`, `chore`, etc.)
+- **Branches**: `bastipnt/<issue-id>-<slug>`, e.g. `bastipnt/pb-85-change-password-attach-throwing`; Linear's
+  suggested `gitBranchName` starts with `sebastianpaintner/`, replace that prefix.
 - **Styling**: Tailwind CSS v4. Use `cn()` from `@repo/ui/theme` for conditional classes. Design tokens: `primary-500`,
   `surface-3`, `text-primary`.
 - **Imports**: Workspace packages use `@repo/` prefix. Use barrel `index.ts` exports.
