@@ -179,7 +179,11 @@ export async function freshLogin(
         throw e;
       throw new failed();
     }
-    if (secretsStore.hasServerSession) await endServerSession(trpc);
+    if (secretsStore.hasServerSession) {
+      await endServerSession(trpc);
+      // Ended on the server: an attach that throws below must not leave it to be persisted.
+      secretsStore.detachServer();
+    }
     await session.attach(attach);
   } finally {
     session.release();

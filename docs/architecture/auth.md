@@ -136,7 +136,8 @@ does the persisted mobile login (it holds the account key, not the password; `fo
 `linked`: the persisted login is rewritten without the server session before the fresh login ends the current one
 (`changeAccountPassword` `beforeLogin`; the fresh session is attached, not persisted), so a launch after a crash from
 there on restores the vault `offline` instead of signing it out (`signedOut`); a refused change (wrong password,
-failed, throttled, second factor) persists the attached session again. After the change the revoked session is
+failed, throttled, second factor) persists the attached session again; when attaching the fresh session fails, the
+ended one is already detached (`freshLogin`), so the login persists without one. After the change the revoked session is
 detached before the login with the new password, which persists its new session.
 
 Closed key sets (password change, rekey, recovery) are kept `KEY_SET_RETENTION_DAYS` (default 14, the rollback window)

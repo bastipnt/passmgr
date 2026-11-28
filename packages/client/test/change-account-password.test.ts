@@ -3,6 +3,7 @@ import { secretsStore } from "@repo/store";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   changeAccountPassword,
+  PasswordChangeFailedError,
   type PasswordChangeTRPCClient,
 } from "../src/account/change-password";
 import type { LoginSessionFn } from "../src/login";
@@ -46,6 +47,7 @@ beforeEach(() => {
       return answer;
     };
   trpc = {
+    login: { logout: { mutate: record("logout", {}) } },
     user: {
       startPasswordChange: { mutate: record("startPasswordChange", { attemptId: "a-1" }) },
       finishPasswordChange: { mutate: record("finishPasswordChange", { ok: true }) },
@@ -75,5 +77,23 @@ describe("changeAccountPassword", () => {
       "startPasswordChange",
       "finishPasswordChange",
     ]);
+  });
+
+  it("leaves no session attached when attaching the fresh one fails after the old one ended", async () => {
+    await secretsStore.unlockSession(
+      "s-old",
+      new Uint8Array(32).fill(3),
+      new Uint8Array(32).fill(4),
+    );
+    const attach = vi.fn<LoginSessionFn>(async () => {
+      throw new Error("not attached");
+    });
+
+    await expect(
+      changeAccountPassword(trpc, attach, ALICE, material, "current password", "new password"),
+    ).rejects.not.toBeInstanceOf(PasswordChangeFailedError);
+
+    expect(calls).toEqual(["login", "logout"]);
+    expect(secretsStore.hasServerSession).toBe(false);
   });
 });

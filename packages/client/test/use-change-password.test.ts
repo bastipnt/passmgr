@@ -46,7 +46,10 @@ vi.mock(
   "@repo/crypto/services/decrypt-worker-service",
   () => import("@repo/crypto/services/decrypt-worker-service.native"),
 );
-const trpcClient = vi.hoisted(() => ({ user: { heartbeat: { query: vi.fn() } } }));
+const trpcClient = vi.hoisted(() => ({
+  login: { logout: { mutate: vi.fn() } },
+  user: { heartbeat: { query: vi.fn() } },
+}));
 vi.mock("../src/util/trpc", () => ({ useTRPC: () => ({}), useTRPCClient: () => trpcClient }));
 const changeAccountPassword = vi.hoisted(() => vi.fn());
 vi.mock("../src/account/change-password", async (importActual) => ({
@@ -54,9 +57,11 @@ vi.mock("../src/account/change-password", async (importActual) => ({
   changeAccountPassword,
 }));
 const loginWithOpaquePassword = vi.hoisted(() => vi.fn());
+const loginUser = vi.hoisted(() => vi.fn());
 vi.mock("../src/login", async (importActual) => ({
   ...(await importActual<object>()),
   loginWithOpaquePassword,
+  loginUser,
 }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -247,6 +252,37 @@ describe("useChangePassword on mobile (linked)", () => {
     expect(app.session.mode).toBe("online");
     expect(persistedLogin().server?.sessionId).toBe("s-fresh");
     expect(loginWithOpaquePassword).not.toHaveBeenCalled();
+  });
+
+  it("restores offline on the next launch when attaching the fresh session failed", async () => {
+    const app = await launch();
+    await signIn(app);
+    const actual = await vi.importActual<typeof import("../src/account/change-password")>(
+      "../src/account/change-password",
+    );
+    changeAccountPassword.mockImplementation(actual.changeAccountPassword);
+    loginUser.mockImplementation(async (_trpc, hold: LoginSessionFn) => {
+      await hold("s-fresh", new Uint8Array(32).fill(4), salt());
+      return { userId: ALICE.userId };
+    });
+    vi.spyOn(secretsStore, "unlockSession").mockRejectedValueOnce(new Error("not attached"));
+
+    expect(await act(() => app.change.changePassword(PASSWORD, NEW_PASSWORD))).toBe(false);
+
+    expect(trpcClient.login.logout.mutate).toHaveBeenCalledOnce();
+    expect(app.change.changeError).toBe("failed");
+    expect(app.session.mode).toBe("offline");
+    expect(persistedLogin().server).toBeUndefined();
+    for (const unmount of unmounts.splice(0)) act(unmount);
+    secretsStore.lock();
+
+    const next = await launch();
+    await act(() => next.restore.tryRestore());
+
+    expect(next.restore.status).toBe("restored");
+    expect(next.session.mode).toBe("offline");
+    expect(onSignedOut).not.toHaveBeenCalled();
+    expect(clearLoginBundle).not.toHaveBeenCalled();
   });
 
   it("restores offline on the next launch when the app died after the fresh login", async () => {
